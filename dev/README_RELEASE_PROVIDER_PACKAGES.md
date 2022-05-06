@@ -20,10 +20,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [What the provider packages are](#what-the-provider-packages-are)
 - [Provider packages](#provider-packages)
 - [Decide when to release](#decide-when-to-release)
 - [Provider packages versioning](#provider-packages-versioning)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
+  - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -46,6 +48,19 @@
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ------------------------------------------------------------------------------------------------------------
+
+# What the provider packages are
+
+The Provider packages are separate packages (one package per provider) that implement
+integrations with external services for Airflow in the form of installable Python packages.
+
+The Release Manager prepares packages separately from the main Airflow Release, using
+`breeze` commands and accompanying scripts. This document provides an overview of the command line tools
+needed to prepare the packages.
+
+NOTE!! When you have problems with any of those commands that run inside `breeze` docker image, you
+can run the command with `--debug` flag that will drop you in the shell inside the image and will
+print the command that you should run.
 
 # Provider packages
 
@@ -72,18 +87,41 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 
 # Prepare Regular Provider packages (RC)
 
+## Increasing version number
+
+First thing that release manager has to do is to change version of the provider to a target
+version. Each provider has a `provider.yaml` file that, among others, stores information
+about provider versions. When you attempt to release a provider you should update that
+information based on the changes for the provider, and it's `CHANGELOG.rst`. It might be that
+`CHANGELOG.rst` already contains the right target version. This will be especially true if some
+changes in the provider add new features (then minor version is increased) or when the changes
+introduce backwards-incompatible, breaking change in the provider (then major version is
+incremented). Committers, when approving and merging changes to the providers, should pay attention
+that the `CHANGELOG.rst` is updated whenever anything other than bugfix is added.
+
+If there are no new features or breaking changes, the release manager should simply increase the
+patch-level version for the provider.
+
+The new version should be first on the list.
+
 ## Generate release notes
 
-Prepare release notes for all the packages you plan to release. When the provider package version
-has not been updated since the latest version, the release notes are not generated. Release notes
-are only generated, when the latest version of the package does not yet have a corresponding TAG.
+Each of the provider packages contains Release notes in the form of the `CHANGELOG.rst` file that is
+automatically generated from history of the changes and code of the provider.
+They are stored in the documentation directory. The `README.md` file generated during package
+preparation is not stored anywhere in the repository - it contains however link to the Changelog
+generated.
+
+When the provider package version has not been updated since the latest version, the release notes
+are not generated. Release notes are only generated, when the latest version of the package does not
+yet have a corresponding TAG.
+
 The tags for providers is of the form ``providers-<PROVIDER_ID>/<VERSION>`` for example
 ``providers-amazon/1.0.0``. During releasing, the RC1/RC2 tags are created (for example
 ``providers-amazon/1.0.0rc1``).
 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
 [the related issue](https://github.com/apache/airflow/issues/11425)
-
 
 ```shell script
 breeze prepare-provider-documentation [packages]
@@ -92,14 +130,15 @@ breeze prepare-provider-documentation [packages]
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
-links to particular commits. This should help to determine which version of provider should be released:
+links to particular commits.
+
+This should help to determine which version of provider should be released:
 
 * increased patch-level for bugfix-only change
 * increased minor version if new features are added
 * increased major version if breaking changes are added
 
 It also helps the release manager to update CHANGELOG.rst where high-level overview of the changes should be documented for the providers released.
-
 You should iterate and re-generate the same content after any change as many times as you want.
 The generated files should be added and committed to the repository.
 

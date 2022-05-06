@@ -26,7 +26,6 @@ from airflow_breeze.build_image.ci.build_ci_params import (
     BuildCiParams,
 )
 from airflow_breeze.utils.cache import touch_cache_file
-from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
@@ -109,9 +108,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams, verbose: bool) -> bo
         sys.exit(1)
 
 
-def build_ci_image(
-    verbose: bool, dry_run: bool, with_ci_group: bool, ci_image_params: BuildCiParams
-) -> Tuple[int, str]:
+def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams) -> Tuple[int, str]:
     """
     Builds CI image:
 
@@ -127,7 +124,6 @@ def build_ci_image(
 
     :param verbose: print commands when running
     :param dry_run: do not execute "write" commands - just print what would happen
-    :param with_ci_group: whether to wrap the build in CI logging group
     :param ci_image_params: CI image parameters
     """
     fix_group_permissions(verbose=verbose)
@@ -136,63 +132,59 @@ def build_ci_image(
             f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
             f"python version: {ci_image_params.python}[/]\n"
         )
-    with ci_group(
-        f"Build CI image for Python {ci_image_params.python} " f"with tag: {ci_image_params.image_tag}",
-        enabled=with_ci_group,
-    ):
-        if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
-            if not should_we_run_the_build(build_ci_params=ci_image_params, verbose=verbose):
-                return 0, f"Image build: {ci_image_params.python}"
-        run_command(
-            ["docker", "rmi", "--no-prune", "--force", ci_image_params.airflow_image_name],
+    if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
+        if not should_we_run_the_build(build_ci_params=ci_image_params, verbose=verbose):
+            return 0, f"Image build: {ci_image_params.python}"
+    run_command(
+        ["docker", "rmi", "--no-prune", "--force", ci_image_params.airflow_image_name],
+        verbose=verbose,
+        dry_run=dry_run,
+        cwd=AIRFLOW_SOURCES_ROOT,
+        text=True,
+        check=False,
+    )
+    if ci_image_params.prepare_buildx_cache:
+        login_to_docker_registry(ci_image_params, dry_run=dry_run)
+    cmd = construct_docker_build_command(
+        image_params=ci_image_params,
+        verbose=verbose,
+        required_args=REQUIRED_CI_IMAGE_ARGS,
+        optional_args=OPTIONAL_CI_IMAGE_ARGS,
+        production_image=False,
+    )
+    if ci_image_params.empty_image:
+        env = os.environ.copy()
+        env['DOCKER_BUILDKIT'] = "1"
+        get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
+        cmd = construct_empty_docker_build_command(image_params=ci_image_params)
+        build_result = run_command(
+            cmd,
+            input="FROM scratch\n",
             verbose=verbose,
             dry_run=dry_run,
             cwd=AIRFLOW_SOURCES_ROOT,
             text=True,
-            check=False,
+            env=env,
         )
-        if ci_image_params.prepare_buildx_cache:
-            login_to_docker_registry(ci_image_params, dry_run=dry_run)
-        cmd = construct_docker_build_command(
-            image_params=ci_image_params,
-            verbose=verbose,
-            required_args=REQUIRED_CI_IMAGE_ARGS,
-            optional_args=OPTIONAL_CI_IMAGE_ARGS,
-            production_image=False,
+    else:
+        get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
+        build_result = run_command(
+            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
         )
-        if ci_image_params.empty_image:
-            env = os.environ.copy()
-            env['DOCKER_BUILDKIT'] = "1"
-            get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
-            cmd = construct_empty_docker_build_command(image_params=ci_image_params)
-            build_result = run_command(
-                cmd,
-                input="FROM scratch\n",
-                verbose=verbose,
-                dry_run=dry_run,
-                cwd=AIRFLOW_SOURCES_ROOT,
-                text=True,
-                env=env,
-            )
+    if not dry_run:
+        if build_result.returncode == 0:
+            mark_image_as_refreshed(ci_image_params)
         else:
-            get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
-            build_result = run_command(
-                cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
+            get_console().print("[error]Error when building image![/]")
+            return (
+                build_result.returncode,
+                f"Image build: {ci_image_params.python}",
             )
-        if not dry_run:
-            if build_result.returncode == 0:
-                mark_image_as_refreshed(ci_image_params)
-            else:
-                get_console().print("[error]Error when building image![/]")
-                return (
-                    build_result.returncode,
-                    f"Image build: {ci_image_params.python}",
-                )
-        else:
-            get_console().print("[info]Not updating build cache because we are in `dry_run` mode.[/]")
-        if ci_image_params.push_image:
-            return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
-        return build_result.returncode, f"Image build: {ci_image_params.python}"
+    else:
+        get_console().print("[info]Not updating build cache because we are in `dry_run` mode.[/]")
+    if ci_image_params.push_image:
+        return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
+    return build_result.returncode, f"Image build: {ci_image_params.python}"
 
 
 def mark_image_as_refreshed(ci_image_params: BuildCiParams):

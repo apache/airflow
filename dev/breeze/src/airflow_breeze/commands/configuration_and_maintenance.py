@@ -44,7 +44,7 @@ from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
-    construct_env_variables_docker_compose_command,
+    get_env_variables_for_docker_commands,
     get_extra_docker_flags,
 )
 from airflow_breeze.utils.path_utils import (
@@ -415,18 +415,15 @@ def fix_ownership(verbose: bool, dry_run: bool):
         verbose=verbose,
         mount_sources=MOUNT_ALL,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        skip_environment_initialization=True,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
-    env = construct_env_variables_docker_compose_command(shell_params)
+    env = get_env_variables_for_docker_commands(shell_params)
     cmd = [
         "docker",
         "run",
         "-t",
         *extra_docker_flags,
-        "-e",
-        "GITHUB_ACTIONS=",
-        "-e",
-        "SKIP_ENVIRONMENT_INITIALIZATION=true",
         "--pull",
         "never",
         shell_params.airflow_image_name_with_tag,

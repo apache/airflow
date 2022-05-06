@@ -23,7 +23,19 @@ def test_visuals():
     assert 2051 == len(ASCIIART)
 
 
-def test_get_extra_docker_flags():
-    assert len(get_extra_docker_flags(MOUNT_ALL)) < 10
-    assert len(get_extra_docker_flags(MOUNT_SELECTED)) > 60
-    assert len(get_extra_docker_flags(MOUNT_NONE)) < 8
+def test_get_extra_docker_flags_all():
+    flags = get_extra_docker_flags(MOUNT_ALL)
+    assert "empty" not in "".join(flags)
+    assert len(flags) < 10
+
+
+def test_get_extra_docker_flags_selected():
+    flags = get_extra_docker_flags(MOUNT_SELECTED)
+    assert "empty" not in "".join(flags)
+    assert len(flags) > 60
+
+
+def test_get_extra_docker_flags_none():
+    flags = get_extra_docker_flags(MOUNT_NONE)
+    assert "empty" in "".join(flags)
+    assert len(flags) < 10

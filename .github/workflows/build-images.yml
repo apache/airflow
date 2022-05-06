@@ -41,7 +41,6 @@ env:
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   LOGIN_TO_GITHUB_REGISTRY: "true"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
-  WITH_CI_GROUPS: "true"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}

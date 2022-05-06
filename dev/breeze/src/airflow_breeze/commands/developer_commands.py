@@ -24,6 +24,8 @@ import rich_click as click
 
 from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
 from airflow_breeze.commands.common_options import (
+    option_airflow_constraints_reference,
+    option_airflow_extras,
     option_answer,
     option_backend,
     option_db_reset,
@@ -32,6 +34,7 @@ from airflow_breeze.commands.common_options import (
     option_force_build,
     option_forward_credentials,
     option_github_repository,
+    option_installation_package_format,
     option_integration,
     option_load_default_connection,
     option_load_example_dags,
@@ -41,6 +44,7 @@ from airflow_breeze.commands.common_options import (
     option_postgres_version,
     option_python,
     option_use_airflow_version,
+    option_use_packages_from_dist,
     option_verbose,
 )
 from airflow_breeze.commands.custom_param_types import BetterChoice
@@ -55,7 +59,7 @@ from airflow_breeze.shell.enter_shell import enter_shell, find_airflow_container
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
-    construct_env_variables_docker_compose_command,
+    get_env_variables_for_docker_commands,
     get_extra_docker_flags,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -81,11 +85,10 @@ DEVELOPER_PARAMETERS = {
             "options": [
                 "--python",
                 "--backend",
-                "--use-airflow-version",
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
-                "--debian-version",
+                "--integration",
                 "--forward-credentials",
                 "--db-reset",
             ],
@@ -93,9 +96,14 @@ DEVELOPER_PARAMETERS = {
         {
             "name": "Advanced flags for the default (shell) command",
             "options": [
+                "--use-airflow-version",
+                "--constraints-reference",
+                "--airflow-extras",
+                "--use-packages-from-dist",
+                "--package-format",
                 "--force-build",
                 "--mount-sources",
-                "--integration",
+                "--debian-version",
             ],
         },
     ],
@@ -105,11 +113,10 @@ DEVELOPER_PARAMETERS = {
             "options": [
                 "--python",
                 "--backend",
-                "--use-airflow-version",
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
-                "--debian-version",
+                "--integration",
                 "--forward-credentials",
                 "--db-reset",
             ],
@@ -117,9 +124,14 @@ DEVELOPER_PARAMETERS = {
         {
             "name": "Advanced flag for running",
             "options": [
+                "--use-airflow-version",
+                "--constraints-reference",
+                "--airflow-extras",
+                "--use-packages-from-dist",
+                "--package-format",
                 "--force-build",
                 "--mount-sources",
-                "--integration",
+                "--debian-version",
             ],
         },
     ],
@@ -128,13 +140,13 @@ DEVELOPER_PARAMETERS = {
             "name": "Basic flags",
             "options": [
                 "--python",
+                "--load-example-dags",
+                "--load-default-connections",
                 "--backend",
-                "--use-airflow-version",
                 "--postgres-version",
                 "--mysql-version",
                 "--mssql-version",
-                "--load-example-dags",
-                "--load-default-connections",
+                "--integration",
                 "--forward-credentials",
                 "--db-reset",
             ],
@@ -142,9 +154,13 @@ DEVELOPER_PARAMETERS = {
         {
             "name": "Advanced flag for running",
             "options": [
+                "--use-airflow-version",
+                "--constraints-reference",
+                "--airflow-extras",
+                "--use-packages-from-dist",
+                "--package-format",
                 "--force-build",
                 "--mount-sources",
-                "--integration",
             ],
         },
     ],
@@ -204,6 +220,10 @@ DEVELOPER_PARAMETERS = {
 @option_forward_credentials
 @option_force_build
 @option_use_airflow_version
+@option_airflow_extras
+@option_airflow_constraints_reference
+@option_use_packages_from_dist
+@option_installation_package_format
 @option_mount_sources
 @option_integration
 @option_db_reset
@@ -222,7 +242,11 @@ def shell(
     debian_version: str,
     forward_credentials: bool,
     mount_sources: str,
-    use_airflow_version: str,
+    use_packages_from_dist: bool,
+    package_format: str,
+    use_airflow_version: Optional[str],
+    airflow_extras: str,
+    airflow_constraints_reference: str,
     force_build: bool,
     db_reset: bool,
     answer: Optional[str],
@@ -245,6 +269,10 @@ def shell(
         forward_credentials=str(forward_credentials),
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
+        airflow_extras=airflow_extras,
+        airflow_constraints_reference=airflow_constraints_reference,
+        use_packages_from_dist=use_packages_from_dist,
+        package_format=package_format,
         force_build=force_build,
         db_reset=db_reset,
         extra_args=extra_args,
@@ -267,6 +295,10 @@ def shell(
 @option_forward_credentials
 @option_force_build
 @option_use_airflow_version
+@option_airflow_extras
+@option_airflow_constraints_reference
+@option_use_packages_from_dist
+@option_installation_package_format
 @option_mount_sources
 @option_integration
 @option_db_reset
@@ -286,7 +318,11 @@ def start_airflow(
     mssql_version: str,
     forward_credentials: bool,
     mount_sources: str,
-    use_airflow_version: str,
+    use_airflow_version: Optional[str],
+    airflow_extras: str,
+    airflow_constraints_reference: str,
+    use_packages_from_dist: bool,
+    package_format: str,
     force_build: bool,
     db_reset: bool,
     answer: Optional[str],
@@ -308,6 +344,10 @@ def start_airflow(
         forward_credentials=str(forward_credentials),
         mount_sources=mount_sources,
         use_airflow_version=use_airflow_version,
+        airflow_extras=airflow_extras,
+        airflow_constraints_reference=airflow_constraints_reference,
+        use_packages_from_dist=use_packages_from_dist,
+        package_format=package_format,
         force_build=force_build,
         db_reset=db_reset,
         start_airflow=True,
@@ -353,18 +393,15 @@ def build_docs(
         docs_only=docs_only,
         spellcheck_only=spellcheck_only,
         for_production=for_production,
+        skip_environment_initialization=True,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_SELECTED)
-    env = construct_env_variables_docker_compose_command(params)
+    env = get_env_variables_for_docker_commands(params)
     cmd = [
         "docker",
         "run",
         "-t",
         *extra_docker_flags,
-        "-e",
-        "GITHUB_ACTIONS=",
-        "-e",
-        "SKIP_ENVIRONMENT_INITIALIZATION=true",
         "--pull",
         "never",
         ci_image_name,
@@ -475,7 +512,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     if not preserve_volumes:
         command_to_execute.append("--volumes")
     shell_params = ShellParams(verbose=verbose)
-    env_variables = construct_env_variables_docker_compose_command(shell_params)
+    env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
 
@@ -485,6 +522,8 @@ class DocBuildParams:
     docs_only: bool
     spellcheck_only: bool
     for_production: bool
+    skip_environment_initialization: bool = False
+    github_actions = os.environ.get('GITHUB_ACTIONS', "false")
 
     @property
     def args_doc_builder(self) -> List[str]:

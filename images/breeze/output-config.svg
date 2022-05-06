@@ -1,145 +1,74 @@
-<svg width="1720.0" height="824" viewBox="0 0 1720.0 824"
-     xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1544 646.4000000000001" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
     <style>
-        @font-face {
-            font-family: "Rich Fira Code";
-            src: local("FiraCode-Regular"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
-            font-style: normal;
-            font-weight: 400;
-        }
-        @font-face {
-            font-family: "Rich Fira Code";
-            src: local("FiraCode-Bold"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
-            font-style: bold;
-            font-weight: 700;
-        }
-        .rich-svg-747847725-terminal-wrapper span {
-            display: inline-block;
-            white-space: pre;
-            vertical-align: top;
-            font-size: 18px;
-            font-family:'Rich Fira Code','Cascadia Code',Monaco,Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace;
-        }
-        .rich-svg-747847725-terminal-wrapper a {
-            text-decoration: none;
-            color: inherit;
-        }
-        .rich-svg-747847725-terminal-body .blink {
-           animation: rich-svg-747847725-blinker 1s infinite;
-        }
-        @keyframes rich-svg-747847725-blinker {
-            from { opacity: 1.0; }
-            50% { opacity: 0.3; }
-            to { opacity: 1.0; }
-        }
-        .rich-svg-747847725-terminal-wrapper {
-            padding: 140px;
-            padding-top: 100px;
-        }
-        .rich-svg-747847725-terminal {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #0c0c0c;
-            border-radius: 14px;
-            box-shadow: 0 0 0 1px #484848;
-        }
-        .rich-svg-747847725-terminal:after {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            content: '';
-            border-radius: 14px;
-            background: rgb(71,77,102);
-            background: linear-gradient(90deg, #804D69 0%, #4E4B89 100%);
-            transform: rotate(-4.5deg);
-            z-index: -1;
-        }
-        .rich-svg-747847725-terminal-header {
-            position: relative;
-            width: 100%;
-            background-color: #2e2e2e;
-            margin-bottom: 12px;
-            font-weight: bold;
-            border-radius: 14px 14px 0 0;
-            color: #f2f2f2;
-            font-size: 18px;
-            box-shadow: inset 0px -1px 0px 0px #4e4e4e,
-                        inset 0px -4px 8px 0px #1a1a1a;
-        }
-        .rich-svg-747847725-terminal-title-tab {
-            display: inline-block;
-            margin-top: 14px;
-            margin-left: 124px;
-            font-family: sans-serif;
-            padding: 14px 28px;
-            border-radius: 6px 6px 0 0;
-            background-color: #0c0c0c;
-            box-shadow: inset 0px 1px 0px 0px #4e4e4e,
-                        0px -4px 4px 0px #1e1e1e,
-                        inset 1px 0px 0px 0px #4e4e4e,
-                        inset -1px 0px 0px 0px #4e4e4e;
-        }
-        .rich-svg-747847725-terminal-traffic-lights {
-            position: absolute;
-            top: 24px;
-            left: 20px;
-        }
-        .rich-svg-747847725-terminal-body {
-            line-height: 22px;
-            padding: 14px;
-        }
-        .rich-svg-747847725-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
-.rich-svg-747847725-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-747847725-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-747847725-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-747847725-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-747847725-terminal-body .r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-747847725-terminal-body .r7 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .terminal-1927308537-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 26.400000000000002px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-1927308537-title {
+        font-size: 18px;
+
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-1927308537-r1 { fill: #c5c8c6;font-weight: bold }
+.terminal-1927308537-r2 { fill: #c5c8c6 }
+.terminal-1927308537-r3 { fill: #d0b344;font-weight: bold }
+.terminal-1927308537-r4 { fill: #868887 }
+.terminal-1927308537-r5 { fill: #68a0b3;font-weight: bold }
+.terminal-1927308537-r6 { fill: #98a84b;font-weight: bold }
+.terminal-1927308537-r7 { fill: #8d7b39 }
     </style>
-    <foreignObject x="0" y="0" width="100%" height="100%">
-        <body xmlns="http://www.w3.org/1999/xhtml">
-            <div class="rich-svg-747847725-terminal-wrapper">
-                <div class="rich-svg-747847725-terminal">
-                    <div class="rich-svg-747847725-terminal-header">
-                        <svg class="rich-svg-747847725-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="14" cy="8" r="8" fill="#ff6159"/>
-                            <circle cx="38" cy="8" r="8" fill="#ffbd2e"/>
-                            <circle cx="62" cy="8" r="8" fill="#28c941"/>
-                        </svg>
-                        <div class="rich-svg-747847725-terminal-title-tab">Command: config</div>
-                    </div>
-                    <div class="rich-svg-747847725-terminal-body">
-                        <div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze config [OPTIONS]                                                                                         </span></div>
-<div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r1"> </span><span class="r1">Show/update configuration (Python, Backend, Cheatsheet, ASCIIART).                                                    </span><span class="r1"> </span></div>
-<div><span class="r1">                                                                                                                        </span></div>
-<div><span class="r4">╭─ Config flags ───────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--python</span><span class="r1">                      </span><span class="r6">-p</span><span class="r1">     </span><span class="r1">Python major/minor version used in Airflow image for images.                 </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                                       </span><span class="r7">(&gt;3.7&lt; | 3.8 | 3.9 | 3.10)                                  </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                                       </span><span class="r4">[default: 3.7]                                              </span><span class="r1">                 </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--backend</span><span class="r1">                     </span><span class="r6">-b</span><span class="r1">     </span><span class="r1">Database backend to use.</span><span class="r1"> </span><span class="r7">(&gt;sqlite&lt; | mysql | postgres | mssql)</span><span class="r1">               </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                                       </span><span class="r4">[default: sqlite]       </span><span class="r1"> </span><span class="r1">                                                    </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--cheatsheet</span><span class="r1">/</span><span class="r5">--no-cheatsheet</span><span class="r1">  </span><span class="r6">-C</span><span class="r1">/</span><span class="r6">-c</span><span class="r1">  </span><span class="r1">Enable/disable cheatsheet.                                                   </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--asciiart</span><span class="r1">/</span><span class="r5">--no-asciiart</span><span class="r1">      </span><span class="r6">-A</span><span class="r1">/</span><span class="r6">-a</span><span class="r1">  </span><span class="r1">Enable/disable ASCIIart.                                                     </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--colour</span><span class="r1">/</span><span class="r5">--no-colour</span><span class="r1">          </span><span class="r6">-B</span><span class="r1">/</span><span class="r6">-b</span><span class="r1">  </span><span class="r1">Enable/disable Colour mode (useful for colour blind-friendly communication). </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--postgres-version</span><span class="r1">  </span><span class="r6">-P</span><span class="r1">  </span><span class="r1">Version of Postgres used.</span><span class="r1"> </span><span class="r7">(&gt;10&lt; | 11 | 12 | 13)</span><span class="r1"> </span><span class="r4">[default: 10]</span><span class="r1">                             </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--mysql-version</span><span class="r1">     </span><span class="r6">-M</span><span class="r1">  </span><span class="r1">Version of MySQL used.</span><span class="r1"> </span><span class="r7">(&gt;5.7&lt; | 8)</span><span class="r1"> </span><span class="r4">[default: 5.7]</span><span class="r1">                                         </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--mssql-version</span><span class="r1">     </span><span class="r6">-S</span><span class="r1">  </span><span class="r1">Version of MsSQL used.</span><span class="r1"> </span><span class="r7">(&gt;2017-latest&lt; | 2019-latest)</span><span class="r1"> </span><span class="r4">[default: 2017-latest]</span><span class="r1">               </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--help</span><span class="r1">              </span><span class="r6">-h</span><span class="r1">  </span><span class="r1">Show this message and exit.                                                               </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r1"></span><span class="r1">                                                                                                                        </span></div>
-                    </div>
-                </div>
-            </div>
-        </body>
-    </foreignObject>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="16" y="20" width="1512" height="606.4" rx="12"/><text class="terminal-1927308537-title" fill="#c5c8c6" text-anchor="middle" x="756" y="46">Command: config</text>
+            <circle cx="40" cy="40" r="7" fill="#ff5f57"/>
+            <circle cx="62" cy="40" r="7" fill="#febc2e"/>
+            <circle cx="84" cy="40" r="7" fill="#28c840"/>
+
+    <g transform="translate(28, 60)">
+
+    <text alignment-baseline="baseline" class="terminal-1927308537-matrix" font-variant="east-asian-width-values"><tspan class="terminal-1927308537-r1" x="0" y="20" textLength="1488">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1488" y="20" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r1" x="0" y="46.4" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r3" x="12.4" y="46.4" textLength="86.8">Usage:&#160;</tspan><tspan class="terminal-1927308537-r1" x="99.2" y="46.4" textLength="1388.8">breeze&#160;config&#160;[OPTIONS]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1488" y="46.4" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r1" x="0" y="72.8" textLength="1488">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1488" y="72.8" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r2" x="0" y="99.2" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="99.2" textLength="1463.2">Show/update&#160;configuration&#160;(Python,&#160;Backend,&#160;Cheatsheet,&#160;ASCIIART).&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1475.6" y="99.2" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r2" x="1488" y="99.2" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r2" x="0" y="125.6" textLength="1488">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1488" y="125.6" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="152" textLength="1488">╭─&#160;Config&#160;flags&#160;───────────────────────────────────────────────────────────────────────────────────────────────────────╮</tspan><tspan class="terminal-1927308537-r2" x="1488" y="152" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="178.4" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="178.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="178.4" textLength="99.2">--python</tspan><tspan class="terminal-1927308537-r2" x="136.4" y="178.4" textLength="272.8">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="409.2" y="178.4" textLength="24.8">-p</tspan><tspan class="terminal-1927308537-r2" x="434" y="178.4" textLength="62">&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="496" y="178.4" textLength="954.8">Python&#160;major/minor&#160;version&#160;used&#160;in&#160;Airflow&#160;image&#160;for&#160;images.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="178.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="178.4" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="178.4" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="204.8" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="204.8" textLength="483.6">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r7" x="496" y="204.8" textLength="744">(&gt;3.7&lt;&#160;|&#160;3.8&#160;|&#160;3.9&#160;|&#160;3.10)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1240" y="204.8" textLength="210.8">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="204.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="204.8" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="204.8" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="231.2" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="231.2" textLength="483.6">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="496" y="231.2" textLength="744">[default:&#160;3.7]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1240" y="231.2" textLength="210.8">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="231.2" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="231.2" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="231.2" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="257.6" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="257.6" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="257.6" textLength="111.6">--backend</tspan><tspan class="terminal-1927308537-r2" x="148.8" y="257.6" textLength="260.4">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="409.2" y="257.6" textLength="24.8">-b</tspan><tspan class="terminal-1927308537-r2" x="434" y="257.6" textLength="62">&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="496" y="257.6" textLength="297.6">Database&#160;backend&#160;to&#160;use.</tspan><tspan class="terminal-1927308537-r2" x="793.6" y="257.6" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r7" x="806" y="257.6" textLength="458.8">(&gt;sqlite&lt;&#160;|&#160;mysql&#160;|&#160;postgres&#160;|&#160;mssql)</tspan><tspan class="terminal-1927308537-r2" x="1264.8" y="257.6" textLength="186">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="257.6" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="257.6" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="257.6" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="284" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="284" textLength="483.6">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="496" y="284" textLength="297.6">[default:&#160;sqlite]&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="793.6" y="284" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r2" x="806" y="284" textLength="644.8">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="284" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="284" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="284" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="310.4" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="310.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="310.4" textLength="148.8">--cheatsheet</tspan><tspan class="terminal-1927308537-r2" x="186" y="310.4" textLength="12.4">/</tspan><tspan class="terminal-1927308537-r5" x="198.4" y="310.4" textLength="186">--no-cheatsheet</tspan><tspan class="terminal-1927308537-r2" x="384.4" y="310.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="409.2" y="310.4" textLength="24.8">-C</tspan><tspan class="terminal-1927308537-r2" x="434" y="310.4" textLength="12.4">/</tspan><tspan class="terminal-1927308537-r6" x="446.4" y="310.4" textLength="24.8">-c</tspan><tspan class="terminal-1927308537-r2" x="471.2" y="310.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="496" y="310.4" textLength="954.8">Enable/disable&#160;cheatsheet.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="310.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="310.4" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="310.4" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="336.8" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="336.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="336.8" textLength="124">--asciiart</tspan><tspan class="terminal-1927308537-r2" x="161.2" y="336.8" textLength="12.4">/</tspan><tspan class="terminal-1927308537-r5" x="173.6" y="336.8" textLength="161.2">--no-asciiart</tspan><tspan class="terminal-1927308537-r2" x="334.8" y="336.8" textLength="74.4">&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="409.2" y="336.8" textLength="24.8">-A</tspan><tspan class="terminal-1927308537-r2" x="434" y="336.8" textLength="12.4">/</tspan><tspan class="terminal-1927308537-r6" x="446.4" y="336.8" textLength="24.8">-a</tspan><tspan class="terminal-1927308537-r2" x="471.2" y="336.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="496" y="336.8" textLength="954.8">Enable/disable&#160;ASCIIart.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="336.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="336.8" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="336.8" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="363.2" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="363.2" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="363.2" textLength="99.2">--colour</tspan><tspan class="terminal-1927308537-r2" x="136.4" y="363.2" textLength="12.4">/</tspan><tspan class="terminal-1927308537-r5" x="148.8" y="363.2" textLength="136.4">--no-colour</tspan><tspan class="terminal-1927308537-r2" x="285.2" y="363.2" textLength="124">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="409.2" y="363.2" textLength="24.8">-B</tspan><tspan class="terminal-1927308537-r2" x="434" y="363.2" textLength="12.4">/</tspan><tspan class="terminal-1927308537-r6" x="446.4" y="363.2" textLength="24.8">-b</tspan><tspan class="terminal-1927308537-r2" x="471.2" y="363.2" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="496" y="363.2" textLength="954.8">Enable/disable&#160;Colour&#160;mode&#160;(useful&#160;for&#160;colour&#160;blind-friendly&#160;communication).&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="363.2" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="363.2" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="363.2" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="389.6" textLength="1488">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</tspan><tspan class="terminal-1927308537-r2" x="1488" y="389.6" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="416" textLength="1488">╭─&#160;Options&#160;────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</tspan><tspan class="terminal-1927308537-r2" x="1488" y="416" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="442.4" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="442.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="442.4" textLength="223.2">--postgres-version</tspan><tspan class="terminal-1927308537-r2" x="260.4" y="442.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="285.2" y="442.4" textLength="24.8">-P</tspan><tspan class="terminal-1927308537-r2" x="310" y="442.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="334.8" y="442.4" textLength="310">Version&#160;of&#160;Postgres&#160;used.</tspan><tspan class="terminal-1927308537-r2" x="644.8" y="442.4" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r7" x="657.2" y="442.4" textLength="322.4">(&gt;10&lt;&#160;|&#160;11&#160;|&#160;12&#160;|&#160;13&#160;|&#160;14)</tspan><tspan class="terminal-1927308537-r2" x="979.6" y="442.4" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r4" x="992" y="442.4" textLength="161.2">[default:&#160;10]</tspan><tspan class="terminal-1927308537-r2" x="1153.2" y="442.4" textLength="297.6">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="442.4" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="442.4" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="442.4" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="468.8" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="468.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="468.8" textLength="186">--mysql-version</tspan><tspan class="terminal-1927308537-r2" x="223.2" y="468.8" textLength="62">&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="285.2" y="468.8" textLength="24.8">-M</tspan><tspan class="terminal-1927308537-r2" x="310" y="468.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="334.8" y="468.8" textLength="272.8">Version&#160;of&#160;MySQL&#160;used.</tspan><tspan class="terminal-1927308537-r2" x="607.6" y="468.8" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r7" x="620" y="468.8" textLength="136.4">(&gt;5.7&lt;&#160;|&#160;8)</tspan><tspan class="terminal-1927308537-r2" x="756.4" y="468.8" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r4" x="768.8" y="468.8" textLength="173.6">[default:&#160;5.7]</tspan><tspan class="terminal-1927308537-r2" x="942.4" y="468.8" textLength="508.4">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="468.8" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="468.8" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="468.8" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="495.2" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="495.2" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="495.2" textLength="186">--mssql-version</tspan><tspan class="terminal-1927308537-r2" x="223.2" y="495.2" textLength="62">&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="285.2" y="495.2" textLength="24.8">-S</tspan><tspan class="terminal-1927308537-r2" x="310" y="495.2" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="334.8" y="495.2" textLength="272.8">Version&#160;of&#160;MsSQL&#160;used.</tspan><tspan class="terminal-1927308537-r2" x="607.6" y="495.2" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r7" x="620" y="495.2" textLength="359.6">(&gt;2017-latest&lt;&#160;|&#160;2019-latest)</tspan><tspan class="terminal-1927308537-r2" x="979.6" y="495.2" textLength="12.4">&#160;</tspan><tspan class="terminal-1927308537-r4" x="992" y="495.2" textLength="272.8">[default:&#160;2017-latest]</tspan><tspan class="terminal-1927308537-r2" x="1264.8" y="495.2" textLength="186">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="495.2" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="495.2" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="495.2" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="521.6" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="12.4" y="521.6" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r5" x="37.2" y="521.6" textLength="74.4">--help</tspan><tspan class="terminal-1927308537-r2" x="111.6" y="521.6" textLength="173.6">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r6" x="285.2" y="521.6" textLength="24.8">-h</tspan><tspan class="terminal-1927308537-r2" x="310" y="521.6" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="334.8" y="521.6" textLength="1116">Show&#160;this&#160;message&#160;and&#160;exit.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</tspan><tspan class="terminal-1927308537-r2" x="1450.8" y="521.6" textLength="24.8">&#160;&#160;</tspan><tspan class="terminal-1927308537-r4" x="1475.6" y="521.6" textLength="12.4">│</tspan><tspan class="terminal-1927308537-r2" x="1488" y="521.6" textLength="12.4">
+</tspan><tspan class="terminal-1927308537-r4" x="0" y="548" textLength="1488">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</tspan><tspan class="terminal-1927308537-r2" x="1488" y="548" textLength="12.4">
+</tspan></text>
+    </g>
 </svg>

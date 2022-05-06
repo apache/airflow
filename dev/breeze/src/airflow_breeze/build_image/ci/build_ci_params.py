@@ -53,7 +53,8 @@ class BuildCiParams:
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     image_tag: Optional[str] = None
-    github_token: str = ""
+    github_token: str = os.environ.get('GITHUB_TOKEN', "")
+    github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
     additional_dev_apt_command: str = ""
     additional_dev_apt_deps: str = ""
     additional_dev_apt_env: str = ""

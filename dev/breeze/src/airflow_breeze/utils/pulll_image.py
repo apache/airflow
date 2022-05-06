@@ -144,7 +144,10 @@ def run_pull_image(
             return command_result.returncode, f"Image Python {image_params.python}"
         if wait_for_image:
             if verbose or dry_run:
-                get_console().print(f"\n[info]Waiting for {poll_time} seconds.[/]\n")
+                get_console().print(
+                    f"\n[info]Waiting for {poll_time} seconds for "
+                    f"{image_params.airflow_image_name_with_tag}.[/]\n"
+                )
             time.sleep(poll_time)
             continue
         else:
