@@ -15,12 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Parameters to build PROD image."""
+import json
 import os
 import re
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List
+from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
@@ -31,8 +32,7 @@ from airflow_breeze.global_constants import (
     get_airflow_extras,
     get_airflow_version,
 )
-from airflow_breeze.utils.console import console
-from airflow_breeze.utils.run_utils import commit_sha
+from airflow_breeze.utils.console import get_console
 
 
 @dataclass
@@ -45,16 +45,15 @@ class BuildProdParams:
     disable_mysql_client_installation: bool = False
     disable_mssql_client_installation: bool = False
     disable_postgres_client_installation: bool = False
-    install_docker_context_files: bool = False
     disable_airflow_repo_cache: bool = False
-    install_providers_from_sources: bool = True
-    cleanup_docker_context_files: bool = False
+    install_providers_from_sources: bool = False
+    cleanup_context: bool = False
     prepare_buildx_cache: bool = False
     push_image: bool = False
     empty_image: bool = False
-    disable_pypi: bool = False
-    upgrade_to_newer_dependencies: str = "false"
-    airflow_version: str = get_airflow_version()
+    airflow_is_in_context: bool = False
+    install_packages_from_context: bool = False
+    upgrade_to_newer_dependencies: bool = False
     python: str = "3.7"
     airflow_branch_for_pypi_preloading: str = AIRFLOW_BRANCH
     install_airflow_reference: str = ""
@@ -75,7 +74,8 @@ class BuildProdParams:
     additional_runtime_apt_deps: str = ""
     additional_runtime_apt_env: str = ""
     additional_python_deps: str = ""
-    image_tag: str = ""
+    image_tag: Optional[str] = None
+    extras: str = ""
     additional_airflow_extras: str = ""
     github_token: str = ""
     login_to_github_registry: str = "false"
@@ -85,6 +85,14 @@ class BuildProdParams:
     airflow_constraints_location: str = ""
     installation_method: str = "."
     debian_version: str = "bullseye"
+    answer: Optional[str] = None
+
+    @property
+    def airflow_version(self) -> str:
+        if self.install_airflow_version:
+            return self.install_airflow_version
+        else:
+            return get_airflow_version()
 
     @property
     def airflow_branch(self) -> str:
@@ -103,8 +111,7 @@ class BuildProdParams:
 
     @property
     def the_image_type(self) -> str:
-        the_image_type = 'PROD'
-        return the_image_type
+        return 'PROD'
 
     @property
     def args_for_remote_install(self) -> List:
@@ -144,12 +151,14 @@ class BuildProdParams:
             self.airflow_branch_for_pypi_preloading = "v2-1-test"
         elif self.airflow_version == 'v2-2-test':
             self.airflow_branch_for_pypi_preloading = "v2-2-test"
-        elif re.match(r'v?2\.0*', self.airflow_version):
+        elif re.match(r'^2\.0.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-0-stable"
-        elif re.match(r'v?2\.1*', self.airflow_version):
+        elif re.match(r'^2\.1.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-1-stable"
-        elif re.match(r'v?2\.2*', self.airflow_version):
+        elif re.match(r'^2\.2.*$', self.airflow_version):
             self.airflow_branch_for_pypi_preloading = "v2-2-stable"
+        elif re.match(r'^2\.3.*$', self.airflow_version):
+            self.airflow_branch_for_pypi_preloading = "v2-3-stable"
         else:
             self.airflow_branch_for_pypi_preloading = AIRFLOW_BRANCH
         return build_args
@@ -170,21 +179,27 @@ class BuildProdParams:
                 ]
             )
             extra_build_flags.extend(self.args_for_remote_install)
-            self.airflow_version = self.install_airflow_reference
         elif len(self.install_airflow_version) > 0:
             if not re.match(r'^[0-9\.]+((a|b|rc|alpha|beta|pre)[0-9]+)?$', self.install_airflow_version):
-                console.print(
-                    f'\n[red]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
+                get_console().print(
+                    f'\n[error]ERROR: Bad value for install-airflow-version:{self.install_airflow_version}'
                 )
-                console.print('[red]Only numerical versions allowed for PROD image here !')
+                get_console().print('[error]Only numerical versions allowed for PROD image here !')
                 sys.exit()
             extra_build_flags.extend(["--build-arg", "AIRFLOW_INSTALLATION_METHOD=apache-airflow"])
             extra_build_flags.extend(
                 ["--build-arg", f"AIRFLOW_VERSION_SPECIFICATION==={self.install_airflow_version}"]
             )
             extra_build_flags.extend(["--build-arg", f"AIRFLOW_VERSION={self.install_airflow_version}"])
+            constraints_base = (
+                f"https://raw.githubusercontent.com/{self.github_repository}/"
+                f"{self.airflow_constraints_reference}"
+            )
+            constraints_location = (
+                f"{constraints_base}/constraints-{self.install_airflow_version}/constraints-{self.python}.txt"
+            )
+            self.airflow_constraints_location = constraints_location
             extra_build_flags.extend(self.args_for_remote_install)
-            self.airflow_version = self.install_airflow_version
         else:
             extra_build_flags.extend(
                 [
@@ -202,6 +217,22 @@ class BuildProdParams:
                     f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}",
                 ]
             )
+
+        maintainers = json.dumps([{"name": "Apache Airflow PMC", "email": "dev@airflow.apache.org"}])
+        logo_url = "https://github.com/apache/airflow/raw/main/docs/apache-airflow/img/logos/wordmark_1.png"
+        readme_url = "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
+        extra_build_flags.extend(
+            [
+                "--label",
+                "io.artifacthub.package.license=Apache-2.0",
+                "--label",
+                f"io.artifacthub.package.readme-url={readme_url}",
+                "--label",
+                f"io.artifacthub.package.maintainers={maintainers}",
+                "--label",
+                f"io.artifacthub.package.logo-url={logo_url}",
+            ]
+        )
         return extra_build_flags
 
     @property
@@ -236,22 +267,12 @@ class BuildProdParams:
 
     @property
     def airflow_image_readme_url(self):
-        return f"https://raw.githubusercontent.com/apache/airflow/{commit_sha()}/docs/docker-stack/README.md"
-
-    def print_info(self):
-        console.print(f"CI Image: {self.airflow_version} Python: {self.python}.")
-
-    @property
-    def install_from_pypi(self) -> str:
-        install_from_pypi = 'true'
-        if self.disable_pypi:
-            install_from_pypi = 'false'
-        return install_from_pypi
+        return "https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
     @property
     def airflow_pre_cached_pip_packages(self) -> str:
         airflow_pre_cached_pip = 'true'
-        if self.disable_pypi or self.disable_airflow_repo_cache:
+        if not self.airflow_is_in_context or self.disable_airflow_repo_cache:
             airflow_pre_cached_pip = 'false'
         return airflow_pre_cached_pip
 
@@ -277,13 +298,6 @@ class BuildProdParams:
         return install_postgres
 
     @property
-    def install_from_docker_context_files(self) -> str:
-        install_from_docker_context_files = 'false'
-        if self.install_docker_context_files:
-            install_from_docker_context_files = 'true'
-        return install_from_docker_context_files
-
-    @property
     def airflow_extras(self):
         return get_airflow_extras()
 
@@ -295,4 +309,4 @@ class BuildProdParams:
     def airflow_image_name_with_tag(self):
         """Construct PROD image link"""
         image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
-        return image if not self.image_tag else image + f":{self.image_tag}"
+        return image if self.image_tag is None else image + f":{self.image_tag}"

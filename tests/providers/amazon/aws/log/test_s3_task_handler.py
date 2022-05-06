@@ -70,7 +70,7 @@ class TestS3TaskHandler(unittest.TestCase):
         self.conn = boto3.client('s3')
         # We need to create the bucket since this is all in Moto's 'virtual'
         # AWS account
-        moto.core.moto_api_backend.reset()
+        moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn.create_bucket(Bucket="bucket")
 
     def tearDown(self):

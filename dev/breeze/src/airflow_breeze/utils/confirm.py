@@ -19,11 +19,13 @@ import sys
 from enum import Enum
 from typing import Optional
 
+STANDARD_TIMEOUT = 10
+
 
 class Answer(Enum):
-    YES = (0,)
-    NO = (1,)
-    QUIT = 2
+    YES = "y"
+    NO = "n"
+    QUIT = "q"
 
 
 forced_answer: Optional[str] = None
@@ -36,7 +38,7 @@ def set_forced_answer(answer: Optional[str]):
 
 def user_confirm(
     message: str,
-    timeout: Optional[float],
+    timeout: Optional[float] = None,
     default_answer: Optional[Answer] = Answer.NO,
     quit_allowed: bool = True,
 ) -> Answer:
@@ -46,8 +48,7 @@ def user_confirm(
     :rtype: object
     :param message: message to display to the user (should end with the question mark)
     :param timeout: time given user to answer
-    :param default_answer: default value returned on timeout. If no default - the question is
-        repeated until user answers.
+    :param default_answer: default value returned on timeout. If no default - is set, the timeout is ignored.
     :param quit_allowed: whether quit answer is allowed
     :return:
     """
@@ -56,14 +57,36 @@ def user_confirm(
     allowed_answers = "y/n/q" if quit_allowed else "y/n"
     while True:
         try:
-            force = forced_answer or os.environ.get('FORCE_ANSWER_TO_QUESTIONS')
+            force = forced_answer or os.environ.get('ANSWER')
             if force:
                 user_status = force
+                print(f"Forced answer for '{message}': {force}")
             else:
+                if default_answer:
+                    # Capitalise default answer
+                    allowed_answers = allowed_answers.replace(
+                        default_answer.value, default_answer.value.upper()
+                    )
+                    timeout_answer = default_answer.value
+                else:
+                    timeout = None
+                    timeout_answer = ""
+                message_prompt = f'\n{message} \nPress {allowed_answers}'
+                if default_answer and timeout:
+                    message_prompt += (
+                        f". Auto-select {timeout_answer} in {timeout} seconds "
+                        f"(add `--answer {default_answer.value}` to avoid delay next time)"
+                    )
+                message_prompt += ": "
                 user_status = inputimeout(
-                    prompt=f'\n{message} \nPress {allowed_answers} in {timeout} seconds: ',
+                    prompt=message_prompt,
                     timeout=timeout,
                 )
+                if user_status == '':
+                    if default_answer:
+                        return default_answer
+                    else:
+                        continue
             if user_status.upper() in ['Y', 'YES']:
                 return Answer.YES
             elif user_status.upper() in ['N', 'NO']:
@@ -73,9 +96,10 @@ def user_confirm(
             else:
                 print(f"Wrong answer given {user_status}. Should be one of {allowed_answers}. Try again.")
         except TimeoutOccurred:
-            if default_answer is not None:
+            if default_answer:
                 return default_answer
-            print(f"Timeout after {timeout} seconds. Try again.")
+            # timeout should only occur when default_answer is set so this should never happened
+            continue
         except KeyboardInterrupt:
             if quit_allowed:
                 return Answer.QUIT

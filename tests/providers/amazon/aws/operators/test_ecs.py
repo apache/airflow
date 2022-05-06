@@ -219,6 +219,7 @@ class TestEcsOperator(unittest.TestCase):
         wait_mock.assert_called_once_with()
         check_mock.assert_called_once_with()
         assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+        assert self.ecs.ecs_task_id == 'd8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
 
     def test_execute_with_failures(self):
         client_mock = self.aws_hook_mock.return_value.get_conn.return_value
@@ -490,6 +491,7 @@ class TestEcsOperator(unittest.TestCase):
         check_mock.assert_called_once_with()
         xcom_del_mock.assert_called_once()
         assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+        assert self.ecs.ecs_task_id == 'd8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
 
     @parameterized.expand(
         [
@@ -538,6 +540,7 @@ class TestEcsOperator(unittest.TestCase):
         check_mock.assert_called_once_with()
         xcom_del_mock.assert_called_once()
         assert self.ecs.arn == 'arn:aws:ecs:us-east-1:012345678910:task/d8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
+        assert self.ecs.ecs_task_id == 'd8c67b3c-ac87-4ffe-a847-4785bc3a8b55'
 
     def test_execute_xcom_with_log(self):
         self.ecs.do_xcom_push = True

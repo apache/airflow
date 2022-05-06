@@ -1312,7 +1312,8 @@ class TestTaskInstance:
         )
         assert query['dag_id'][0] == 'dag'
         assert query['task_id'][0] == 'op'
-        assert pendulum.parse(query['execution_date'][0]) == now
+        assert query['dag_run_id'][0] == 'test'
+        assert ti.execution_date == now
 
     def test_overwrite_params_with_dag_run_conf(self, create_task_instance):
         ti = create_task_instance()
@@ -2020,8 +2021,10 @@ class TestTaskInstance:
         ti._run_raw_task()
         ti.refresh_from_db()
         stats_mock.assert_called_with(f'ti.finish.{ti.dag_id}.{ti.task_id}.{ti.state}')
+        for state in State.task_states:
+            assert call(f'ti.finish.{ti.dag_id}.{ti.task_id}.{state}', count=0) in stats_mock.mock_calls
         assert call(f'ti.start.{ti.dag_id}.{ti.task_id}') in stats_mock.mock_calls
-        assert stats_mock.call_count == 4
+        assert stats_mock.call_count == 19
 
     def test_command_as_list(self, create_task_instance):
         ti = create_task_instance()
@@ -2686,6 +2689,7 @@ class TestMappedTaskInstanceReceiveValue:
         ti.run()
 
         show_task = dag.get_task("show")
+        assert show_task.parse_time_mapped_ti_count is None
         mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
         assert num == len(mapped_tis) == 4
 
@@ -2693,6 +2697,41 @@ class TestMappedTaskInstanceReceiveValue:
             ti.refresh_from_task(show_task)
             ti.run()
         assert outputs == [(1, 1), (1, 2), (2, 1), (2, 2)]
+
+    def test_map_literal_cross_product(self, dag_maker, session):
+        """Test a mapped task with literal cross product args expand properly."""
+        outputs = []
+
+        with dag_maker(dag_id="product_same_types", session=session) as dag:
+
+            @dag.task
+            def show(a, b):
+                outputs.append((a, b))
+
+            show.expand(a=[2, 4, 8], b=[5, 10])
+
+        dag_run = dag_maker.create_dagrun()
+
+        show_task = dag.get_task("show")
+        assert show_task.parse_time_mapped_ti_count == 6
+        mapped_tis, num = show_task.expand_mapped_task(dag_run.run_id, session=session)
+        assert len(mapped_tis) == 0  # Expanded at parse!
+        assert num == 6
+
+        tis = (
+            session.query(TaskInstance)
+            .filter(
+                TaskInstance.dag_id == dag.dag_id,
+                TaskInstance.task_id == 'show',
+                TaskInstance.run_id == dag_run.run_id,
+            )
+            .order_by(TaskInstance.map_index)
+            .all()
+        )
+        for ti in tis:
+            ti.refresh_from_task(show_task)
+            ti.run()
+        assert outputs == [(2, 5), (2, 10), (4, 5), (4, 10), (8, 5), (8, 10)]
 
     def test_map_in_group(self, tmp_path: pathlib.Path, dag_maker, session):
         out = tmp_path.joinpath("out")

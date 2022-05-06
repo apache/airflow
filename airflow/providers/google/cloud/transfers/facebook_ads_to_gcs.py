@@ -18,7 +18,6 @@
 """This module contains Facebook Ad Reporting to GCS operators."""
 import csv
 import tempfile
-import warnings
 from enum import Enum
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
@@ -66,9 +65,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         it will use the Facebook business SDK default version.
     :param fields: List of fields that is obtained from Facebook. Found in AdsInsights.Field class.
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
-    :param params: Parameters that determine the query for Facebook. This keyword is deprecated,
-        please use `parameters` keyword to pass the parameters.
-        https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
     :param parameters: Parameters that determine the query for Facebook
         https://developers.facebook.com/docs/marketing-api/insights/parameters/v6.0
     :param gzip: Option to compress local file or file data for upload
@@ -100,7 +96,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         bucket_name: str,
         object_name: str,
         fields: List[str],
-        params: Optional[Dict[str, Any]] = None,
         parameters: Optional[Dict[str, Any]] = None,
         gzip: bool = False,
         upload_as_account: bool = False,
@@ -121,17 +116,6 @@ class FacebookAdsReportToGcsOperator(BaseOperator):
         self.gzip = gzip
         self.upload_as_account = upload_as_account
         self.impersonation_chain = impersonation_chain
-
-        if params is None and parameters is None:
-            raise AirflowException("Argument ['parameters'] is required")
-        if params and parameters is None:
-            # TODO: Remove in provider version 6.0
-            warnings.warn(
-                "Please use 'parameters' instead of 'params'",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            self.parameters = params
 
     def execute(self, context: 'Context'):
         service = FacebookAdsReportingHook(

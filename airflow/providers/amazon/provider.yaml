@@ -153,7 +153,7 @@ integrations:
     external-doc-url: https://aws.amazon.com/sqs/
     logo: /integration-logos/aws/Amazon-Simple-Queue-Service-SQS_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/sqs_publish.rst
+      - /docs/apache-airflow-providers-amazon/operators/sqs.rst
     tags: [aws]
   - integration-name: Amazon Simple Storage Service (S3)
     external-doc-url: https://aws.amazon.com/s3/
@@ -190,6 +190,8 @@ integrations:
   - integration-name: AWS Step Functions
     external-doc-url: https://aws.amazon.com/step-functions/
     logo: /integration-logos/aws/AWS-Step-Functions_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/step_functions.rst
     tags: [aws]
   - integration-name: AWS Database Migration Service
     external-doc-url: https://aws.amazon.com/dms/

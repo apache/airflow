@@ -19,6 +19,7 @@
 import warnings
 
 with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
     from airflow.providers.cncf.kubernetes.backcompat.volume_mount import VolumeMount  # noqa: autoflake
 
 warnings.warn(

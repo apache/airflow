@@ -1295,6 +1295,67 @@ class TestStringifiedDAGs:
             '<TIDep(Trigger Rule)>',
         ]
 
+    def test_derived_dag_deps_sensor(self):
+        """
+        Tests DAG dependency detection for sensors, including derived classes
+        """
+        from airflow.operators.empty import EmptyOperator
+        from airflow.sensors.external_task import ExternalTaskSensor
+
+        class DerivedSensor(ExternalTaskSensor):
+            pass
+
+        execution_date = datetime(2020, 1, 1)
+        for class_ in [ExternalTaskSensor, DerivedSensor]:
+            with DAG(dag_id="test_derived_dag_deps_sensor", start_date=execution_date) as dag:
+                task1 = class_(
+                    task_id="task1",
+                    external_dag_id="external_dag_id",
+                    mode="reschedule",
+                )
+                task2 = EmptyOperator(task_id="task2")
+                task1 >> task2
+
+            dag = SerializedDAG.to_dict(dag)
+            assert dag['dag']['dag_dependencies'] == [
+                {
+                    'source': 'external_dag_id',
+                    'target': 'test_derived_dag_deps_sensor',
+                    'dependency_type': 'sensor',
+                    'dependency_id': 'task1',
+                }
+            ]
+
+    def test_derived_dag_deps_operator(self):
+        """
+        Tests DAG dependency detection for operators, including derived classes
+        """
+        from airflow.operators.empty import EmptyOperator
+        from airflow.operators.trigger_dagrun import TriggerDagRunOperator
+
+        class DerivedOperator(TriggerDagRunOperator):
+            pass
+
+        execution_date = datetime(2020, 1, 1)
+        for class_ in [TriggerDagRunOperator, DerivedOperator]:
+            with DAG(dag_id="test_derived_dag_deps_trigger", start_date=execution_date) as dag:
+                task1 = EmptyOperator(task_id="task1")
+                task2 = class_(
+                    task_id="task2",
+                    trigger_dag_id="trigger_dag_id",
+                )
+                task1 >> task2
+
+            dag = SerializedDAG.to_dict(dag)
+            assert dag['dag']['dag_dependencies'] == [
+                {
+                    'source': 'test_derived_dag_deps_trigger',
+                    'target': 'trigger_dag_id',
+                    'dependency_type': 'trigger',
+                    'dependency_id': 'task2',
+                }
+            ]
+
     def test_task_group_sorted(self):
         """
         Tests serialize_task_group, make sure the list is in order

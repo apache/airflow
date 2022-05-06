@@ -340,10 +340,9 @@ Step 4: Prepare PR
      * `doc`
      * `misc`
 
-     Core newsfragments go in `newsfragments <https://github.com/apache/airflow/blob/main/newsfragments>`__
-     and helm chart newsfragments go in
-     `chart/newsfragments <https://github.com/apache/airflow/blob/main/chart/newsfragments>`__.
-     Simply create an rst file named ``{pr_number}.{type}.rst`` (e.g. ``{1234}.bugfix.rst``).
+     To add a newsfragment, simply create an rst file named ``{pr_number}.{type}.rst`` (e.g. ``1234.bugfix.rst``)
+     and place in either `newsfragments <https://github.com/apache/airflow/blob/main/newsfragments>`__ for core newsfragments,
+     or `chart/newsfragments <https://github.com/apache/airflow/blob/main/chart/newsfragments>`__ for helm chart newsfragments.
 
      For significant newsfragments, similar to git commits, the first line is the summary and optionally a
      body can be added with an empty line separating it.
@@ -646,7 +645,6 @@ all dependencies needed in the CI environment.
 This is the full list of those extras:
 
   .. START EXTRAS HERE
-
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
 apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
@@ -659,7 +657,6 @@ neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
 postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
 sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica,
 virtualenv, webhdfs, winrm, yandex, zendesk
-
   .. END EXTRAS HERE
 
 Provider packages

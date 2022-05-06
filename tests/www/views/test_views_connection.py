@@ -17,13 +17,15 @@
 # under the License.
 import json
 from unittest import mock
+from unittest.mock import PropertyMock
 
 import pytest
+from pytest import param
 
 from airflow.models import Connection
 from airflow.utils.session import create_session
 from airflow.www.extensions import init_views
-from airflow.www.views import ConnectionModelView
+from airflow.www.views import ConnectionFormWidget, ConnectionModelView
 from tests.test_utils.www import check_content_in_response
 
 CONNECTION = {
@@ -51,16 +53,54 @@ def test_create_connection(admin_client):
 
 def test_prefill_form_null_extra():
     mock_form = mock.Mock()
-    mock_form.data = {"conn_id": "test", "extra": None}
+    mock_form.data = {"conn_id": "test", "extra": None, "conn_type": "test"}
 
     cmv = ConnectionModelView()
     cmv.prefill_form(form=mock_form, pk=1)
 
 
-def test_process_form_extras():
+@pytest.mark.parametrize(
+    'extras, expected',
+    [
+        param({"extra__test__my_param": "this_val"}, "this_val", id='conn_not_upgraded'),
+        param({"my_param": "my_val"}, "my_val", id='conn_upgraded'),
+        param(
+            {"extra__test__my_param": "this_val", "my_param": "my_val"},
+            "my_val",
+            id='conn_upgraded_old_val_present',
+        ),
+    ],
+)
+def test_prefill_form_backcompat(extras, expected):
+    """
+    When populating custom fields in the connection form we should first check for the non-prefixed
+    value (since prefixes in extra are deprecated) and then fallback to the prefixed value.
+
+    Either way, the field is known internally to the model view as the prefixed value.
+    """
+    mock_form = mock.Mock()
+    mock_form.data = {"conn_id": "test", "extra": json.dumps(extras), "conn_type": "test"}
+    cmv = ConnectionModelView()
+    cmv.extra_fields = ['extra__test__my_param']
+
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
+    cmv.extra_field_name_mapping['extra__test__my_param'] = 'my_param'
+
+    cmv.prefill_form(form=mock_form, pk=1)
+    assert mock_form.extra__test__my_param.data == expected
+
+
+@pytest.mark.parametrize('field_name', ['extra__test__custom_field', 'custom_field'])
+@mock.patch('airflow.utils.module_loading.import_string')
+@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+def test_process_form_extras_both(mock_pm_hooks, mock_import_str, field_name):
     """
     Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
+    The key used in the field definition returned by `get_connection_form_widgets` is stored in
+    attr `extra_field_name_mapping`.  Whatever is defined there is what should end up in `extra` when
+    the form is processed.
     """
+    mock_pm_hooks.get.return_value = True  # ensure that hook appears registered
 
     # Testing parameters set in both `Extra` and custom fields.
     mock_form = mock.Mock()
@@ -69,17 +109,31 @@ def test_process_form_extras():
         "conn_id": "extras_test",
         "extra": '{"param1": "param1_val"}',
         "extra__test__custom_field": "custom_field_val",
+        "extra__other_conn_type__custom_field": "another_field_val",
     }
 
     cmv = ConnectionModelView()
+
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
+    cmv.extra_field_name_mapping['extra__test__custom_field'] = field_name
     cmv.extra_fields = ["extra__test__custom_field"]  # Custom field
     cmv.process_form(form=mock_form, is_created=True)
 
     assert json.loads(mock_form.extra.data) == {
-        "extra__test__custom_field": "custom_field_val",
+        field_name: "custom_field_val",
         "param1": "param1_val",
     }
 
+
+@mock.patch('airflow.utils.module_loading.import_string')
+@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+def test_process_form_extras_extra_only(mock_pm_hooks, mock_import_str):
+    """
+    Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
+    The key used in the field definition returned by `get_connection_form_widgets` is stored in
+    attr `extra_field_name_mapping`.  Whatever is defined there is what should end up in `extra` when
+    the form is processed.
+    """
     # Testing parameters set in `Extra` field only.
     mock_form = mock.Mock()
     mock_form.data = {
@@ -89,25 +143,54 @@ def test_process_form_extras():
     }
 
     cmv = ConnectionModelView()
+
     cmv.process_form(form=mock_form, is_created=True)
 
     assert json.loads(mock_form.extra.data) == {"param2": "param2_val"}
+
+
+@pytest.mark.parametrize('field_name', ['extra__test3__custom_field', 'custom_field'])
+@mock.patch('airflow.utils.module_loading.import_string')
+@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+def test_process_form_extras_custom_only(mock_pm_hooks, mock_import_str, field_name):
+    """
+    Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
+    The key used in the field definition returned by `get_connection_form_widgets` is stored in
+    attr `extra_field_name_mapping`.  Whatever is defined there is what should end up in `extra` when
+    the form is processed.
+    """
 
     # Testing parameters set in custom fields only.
     mock_form = mock.Mock()
     mock_form.data = {
         "conn_type": "test3",
         "conn_id": "extras_test3",
-        "extra__test3__custom_field": "custom_field_val3",
+        "extra__test3__custom_field": False,
+        "extra__other_conn_type__custom_field": "another_field_val",
     }
 
     cmv = ConnectionModelView()
-    cmv.extra_fields = ["extra__test3__custom_field"]  # Custom field
+    cmv.extra_fields = ["extra__test3__custom_field", "extra__test3__custom_bool_field"]  # Custom fields
+
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
+    cmv.extra_field_name_mapping['extra__test3__custom_field'] = field_name
     cmv.process_form(form=mock_form, is_created=True)
 
-    assert json.loads(mock_form.extra.data) == {"extra__test3__custom_field": "custom_field_val3"}
+    assert json.loads(mock_form.extra.data) == {field_name: False}
 
-    # Testing parameters set in both extra and custom fields (cunnection updates).
+
+@pytest.mark.parametrize('field_name', ['extra__test4__custom_field', 'custom_field'])
+@mock.patch('airflow.utils.module_loading.import_string')
+@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+def test_process_form_extras_updates(mock_pm_hooks, mock_import_str, field_name):
+    """
+    Test the handling of connection parameters set with the classic `Extra` field as well as custom fields.
+    The key used in the field definition returned by `get_connection_form_widgets` is stored in
+    attr `extra_field_name_mapping`.  Whatever is defined there is what should end up in `extra` when
+    the form is processed.
+    """
+
+    # Testing parameters set in both extra and custom fields (connection updates).
     mock_form = mock.Mock()
     mock_form.data = {
         "conn_type": "test4",
@@ -118,9 +201,19 @@ def test_process_form_extras():
 
     cmv = ConnectionModelView()
     cmv.extra_fields = ["extra__test4__custom_field"]  # Custom field
+
+    # this is set by `lazy_add_provider_discovered_options_to_connection_form`
+    cmv.extra_field_name_mapping['extra__test4__custom_field'] = field_name
+
     cmv.process_form(form=mock_form, is_created=True)
 
-    assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": "custom_field_val4"}
+    if field_name == 'custom_field':
+        assert json.loads(mock_form.extra.data) == {
+            "custom_field": "custom_field_val4",
+            "extra__test4__custom_field": "custom_field_val3",
+        }
+    else:
+        assert json.loads(mock_form.extra.data) == {"extra__test4__custom_field": "custom_field_val4"}
 
 
 def test_duplicate_connection(admin_client):
@@ -218,3 +311,14 @@ def test_connection_muldelete(admin_client, connection):
     assert resp.status_code == 200
     with create_session() as session:
         assert session.query(Connection).filter(Connection.id == conn_id).count() == 0
+
+
+@mock.patch('airflow.providers_manager.ProvidersManager.hooks', new_callable=PropertyMock)
+def test_connection_form_widgets_testable_types(mock_pm_hooks, admin_client):
+    mock_pm_hooks.return_value = {
+        "first": mock.MagicMock(connection_testable=True),
+        "second": mock.MagicMock(connection_testable=False),
+        "third": None,
+    }
+
+    assert ["first"] == ConnectionFormWidget().testable_connection_types

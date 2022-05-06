@@ -37,7 +37,7 @@ works.
     from airflow.lineage.entities import File
     from airflow.models import DAG
     from airflow.operators.bash import BashOperator
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
 
     FILE_CATEGORIES = ["CAT1", "CAT2", "CAT3"]
 
@@ -50,7 +50,7 @@ works.
     )
 
     f_final = File(url="/tmp/final")
-    run_this_last = DummyOperator(
+    run_this_last = EmptyOperator(
         task_id="run_this_last", dag=dag, inlets=AUTO, outlets=f_final
     )
 

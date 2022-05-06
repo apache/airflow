@@ -19,6 +19,28 @@
 Changelog
 ---------
 
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add k8s container's error message in airflow exception (#22871)``
+* ``KubernetesHook should try incluster first when not otherwise configured (#23126)``
+* ``KubernetesPodOperator should patch "already checked" always (#22734)``
+* ``Delete old Spark Application in SparkKubernetesOperator (#21092)``
+* ``Cleanup dup code now that k8s provider requires 2.3.0+ (#22845)``
+* ``Fix ''KubernetesPodOperator'' with 'KubernetesExecutor'' on 2.3.0 (#23371)``
+* ``Fix KPO to have hyphen instead of period (#22982)``
+* ``Fix new MyPy errors in main (#22884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare documentation for cncf.kubernetes 4.0.1 release (#23374)``
+
 4.0.0
 .....
 
@@ -47,8 +69,8 @@ Bug Fixes
 
 * ``Stop crashing when empty logs are received from kubernetes client (#22566)``
 
-3.1.2
-.....
+3.1.2 (YANKED)
+..............
 
 Bug Fixes
 ~~~~~~~~~
@@ -61,16 +83,16 @@ Misc
 
 * ``Remove RefreshConfiguration workaround for K8s token refreshing (#20759)``
 
-3.1.1
-.....
+3.1.1 (YANKED)
+..............
 
 Misc
 ~~~~~
 
 * ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
 
-3.1.0
-.....
+3.1.0 (YANKED)
+..............
 
 Features
 ~~~~~~~~
@@ -89,8 +111,8 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add pre-commit check for docstring param types (#21398)``
 
-3.0.2
-.....
+3.0.2 (YANKED)
+..............
 
 Bug Fixes
 ~~~~~~~~~
@@ -105,8 +127,8 @@ Bug Fixes
    * ``Add optional features in providers. (#21074)``
    * ``Add documentation for January 2021 providers release (#21257)``
 
-3.0.1
-.....
+3.0.1 (YANKED)
+..............
 
 
 Misc

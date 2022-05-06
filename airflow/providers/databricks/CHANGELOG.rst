@@ -45,6 +45,9 @@ Misc
    * ``Fix new MyPy errors in main (#22884)``
    * ``Prepare mid-April provider documentation. (#22819)``
 
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare for RC2 release of March Databricks provider (#22979)``
+
 2.5.0
 .....
 
