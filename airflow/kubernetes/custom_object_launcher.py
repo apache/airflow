@@ -27,7 +27,7 @@ from kubernetes.client import models as k8s
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes.pod_launcher import PodLauncher
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 
 
 def should_retry_start_spark_job(exception: Exception):
@@ -152,7 +152,7 @@ class CustomObjectStatus:
     }
 
 
-class CustomObjectLauncher(PodLauncher):
+class CustomObjectLauncher(PodManager):
     """Launches PODS"""
 
     def __init__(
@@ -215,7 +215,6 @@ class CustomObjectLauncher(PodLauncher):
         """
         Launches the pod synchronously and waits for completion.
 
-        :param pod:
         :param startup_timeout: Timeout for startup of the pod (if pod is pending for too long, fails task)
         :return:
         """
@@ -268,10 +267,12 @@ class CustomObjectLauncher(PodLauncher):
             raise AirflowException(f"Spark Job Failed. Error stack:\n{err}")
         return driver_state == CustomObjectStatus.SUBMITTED
 
-    def delete_spark_job(self, spark_obj_spec=None):
+    def delete_spark_job(self, spark_job_name=None):
         """Deletes spark job"""
-        if not spark_obj_spec:
-            spark_obj_spec = self.spark_obj_spec
+        spark_job_name = spark_job_name or self.spark_obj_spec.get('metadata', {}).get('name')
+        if not spark_job_name:
+            self.log.warning("Spark job not found: %s", spark_job_name)
+            return
         try:
             v1 = client.CustomObjectsApi()
             v1.delete_namespaced_custom_object(
@@ -279,7 +280,7 @@ class CustomObjectLauncher(PodLauncher):
                 version=self.api_version,
                 namespace=self.namespace,
                 plural=self.plural,
-                name=spark_obj_spec['metadata']['name'],
+                name=spark_job_name,
             )
         except ApiException as e:
             # If the pod is already deleted
@@ -307,12 +308,13 @@ class CustomObjectLauncher(PodLauncher):
         body_template['spec']['driver']['labels'] = kwargs['labels']
         body_template['spec']['executor']['labels'] = kwargs['labels']
         body_template['spec']['imagePullSecrets'] = kwargs['image_pull_secrets']
-        body_template['spec']['dynamicAllocation']['enabled'] = kwargs['dynamic_allocation']
-        body_template['spec']['dynamicAllocation']['initialExecutors'] = kwargs[
-            'dynamic_alloc_initial_executors'
-        ]
-        body_template['spec']['dynamicAllocation']['minExecutors'] = kwargs['dynamic_alloc_min_executors']
-        body_template['spec']['dynamicAllocation']['maxExecutors'] = kwargs['dynamic_alloc_max_executors']
+        if kwargs['dynamic_allocation']:
+            body_template['spec']['dynamicAllocation']['enabled'] = kwargs['dynamic_allocation']
+            body_template['spec']['dynamicAllocation']['initialExecutors'] = kwargs[
+                'dynamic_alloc_initial_executors'
+            ]
+            body_template['spec']['dynamicAllocation']['minExecutors'] = kwargs['dynamic_alloc_min_executors']
+            body_template['spec']['dynamicAllocation']['maxExecutors'] = kwargs['dynamic_alloc_max_executors']
 
         body_template['spec']['driver'].update(kwargs['driver_resource'])
         body_template['spec']['executor'].update(kwargs['executor_resource'])

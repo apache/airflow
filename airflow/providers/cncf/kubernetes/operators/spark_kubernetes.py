@@ -15,12 +15,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
+import sys
 from typing import Any, Dict, List, Optional, Tuple, Union
 
+import yaml
 from kubernetes import client
 from kubernetes.client import models as k8s
 
 from airflow import AirflowException
+from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import _suppress
+from airflow.utils.helpers import prune_dict
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 from airflow.kubernetes import kube_client, pod_generator
 from airflow.kubernetes.custom_object_launcher import CustomObjectLauncher, SparkResources
 from airflow.kubernetes.pod_generator import MAX_LABEL_LEN, PodGenerator
@@ -37,6 +47,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume_mount,
 )
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
 from airflow.utils.state import State
 
 
@@ -84,7 +95,7 @@ class SparkKubernetesOperator(BaseOperator):
     :param restart_policy: restart policy of the driver/executor
     :param spark_version: spark version
     :param success_run_history_limit: Number of past successful runs of the application to keep.
-    :param is_delete_operator_pod: What to do when the pod reaches its final
+    :param delete_on_termination: What to do when the pod reaches its final
         state, or the execution is interrupted. If True (default), delete the
         pod; if False, leave the pod.
     :param dynamic_allocation: Enable spark dynamic allocation
@@ -100,7 +111,6 @@ class SparkKubernetesOperator(BaseOperator):
     :param log_events_on_failure: Log the pod's events if a failure occurs
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
-    :param delete_on_termination: delete all pods after termination
     """
 
     template_fields = ['application_file', 'namespace']
@@ -139,7 +149,6 @@ class SparkKubernetesOperator(BaseOperator):
         restart_policy: Optional[dict] = None,
         spark_version: str = '3.0.0',
         success_run_history_limit: int = 1,
-        is_delete_operator_pod: bool = False,
         dynamic_allocation: bool = False,
         dynamic_alloc_max_executors: Optional[int] = None,
         dynamic_alloc_initial_executors: int = 1,
@@ -153,7 +162,7 @@ class SparkKubernetesOperator(BaseOperator):
         log_events_on_failure: bool = False,
         in_cluster: Optional[bool] = None,
         reattach_on_restart: bool = True,
-        delete_on_termination: bool = True,
+        delete_on_termination: bool = False,
         kubernetes_conn_id: str = 'kubernetes_default',
         **kwargs,
     ) -> None:
@@ -194,6 +203,11 @@ class SparkKubernetesOperator(BaseOperator):
         self.dynamic_alloc_max_executors = dynamic_alloc_max_executors
         self.dynamic_alloc_min_executors = dynamic_alloc_min_executors
         self.dynamic_alloc_initial_executors = dynamic_alloc_initial_executors
+        if dynamic_allocation:
+            if not all(
+                [dynamic_alloc_max_executors, dynamic_alloc_min_executors, dynamic_alloc_initial_executors]
+            ):
+                raise AirflowException("Make sure initial/min/max value for dynamic allocation is passed")
         if config_map_mounts:
             vols, vols_mounts = convert_configmap_to_volume(config_map_mounts)
             self.volumes.extend(vols)
@@ -203,7 +217,6 @@ class SparkKubernetesOperator(BaseOperator):
         if from_env_secret:
             self.env_from.extend([convert_secret(c) for c in from_env_secret])
         self.log_events_on_failure = log_events_on_failure
-        self.is_delete_operator_pod = is_delete_operator_pod
         self.in_cluster = in_cluster
         self.image_pull_policy = image_pull_policy
         self.service_account_name = service_account_name
@@ -212,7 +225,6 @@ class SparkKubernetesOperator(BaseOperator):
         self.spark_job_type = spark_job_type
         self.spark_job_python_version = spark_job_python_version
         self.spark_job_mode = spark_job_mode
-        self.labels = {'version': self.spark_version}
         self.success_run_history_limit = success_run_history_limit
         self.number_workers = number_workers
         self.spark_obj_spec = None
@@ -262,32 +274,18 @@ class SparkKubernetesOperator(BaseOperator):
             labels[label_id] = safe_label
         return labels
 
+    @cached_property
+    def pod_manager(self) -> PodManager:
+        return PodManager(kube_client=self.client)
+
     @staticmethod
     def _try_numbers_match(context, pod) -> bool:
         return pod.metadata.labels['try_number'] == context['ti'].try_number
 
-    def execute(self, context):
-        self.log.info('Creating sparkApplication.')
-        # If yaml file used to create spark application
-        if self.application_file:
-            hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-            response = hook.create_custom_object(
-                group=self.api_group,
-                version=self.api_version,
-                plural=self.api_plural,
-                body=self.application_file,
-                namespace=self.namespace,
-            )
-            return response
-        self.client, custom_obj_api = self.get_kube_client()
-        labels = self.create_labels_for_pod(context)
-        label_selector = self._get_pod_identifying_label_string(labels) + ',spark-role=driver'
-        pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector)
-        if len(pod_list.items) > 1 and self.reattach_on_restart:
-            raise AirflowException(f'More than one pod running with labels: {label_selector}')
-        self.launcher = CustomObjectLauncher(
+    def build_spark_request_obj(self, kube_client, custom_obj_api):
+        launcher = CustomObjectLauncher(
             namespace=self.namespace,
-            kube_client=self.client,
+            kube_client=kube_client,
             custom_obj_api=custom_obj_api,
             api_group=self.api_group,
             kind=self.api_kind,
@@ -296,7 +294,7 @@ class SparkKubernetesOperator(BaseOperator):
             extract_xcom=self.do_xcom_push,
             application_file=self.application_file,
         )
-        self.launcher.set_body(
+        launcher.set_body(
             name=self.name,
             namespace=self.namespace,
             image=self.image,
@@ -326,105 +324,130 @@ class SparkKubernetesOperator(BaseOperator):
             volumes=self.volumes,
             volume_mounts=self.volume_mounts,
         )
+        return launcher
 
-        if len(pod_list.items) == 1:
-            try_numbers_match = self._try_numbers_match(context, pod_list.items[0])
-            final_state, result = self.handle_spark_object_overlap(
-                labels, try_numbers_match, self.launcher, pod_list.items[0]
+    def find_spark_job(self, context):
+        labels = self.create_labels_for_pod(context)
+        label_selector = self._get_pod_identifying_label_string(labels) + ',spark-role=driver'
+        pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
+
+        pod = None
+        if len(pod_list) > 1:  # and self.reattach_on_restart:
+            raise AirflowException(f'More than one pod running with labels: {label_selector}')
+        elif len(pod_list) == 1:
+            pod = pod_list[0]
+            self.log.info(
+                "Found matching driver pod %s with labels %s", pod.metadata.name, pod.metadata.labels
             )
-        else:
-            self.log.info("creating pod with labels %s and launcher %s", labels, self.launcher)
-            final_state, result = self.create_new_custom_obj_for_operator(self.launcher)
+            self.log.info("`try_number` of task_instance: %s", context['ti'].try_number)
+            self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
+        return pod
 
-        if final_state != State.SUCCESS:
-            status = self.client.read_namespaced_pod(self.pod.metadata.name, self.namespace).status
-            self.delete_spark_job(self.launcher)
-            raise AirflowException(
-                f'Pod {self.pod.metadata.name} returned a failure: {status.container_statuses}'
-            )
-
-        self.delete_spark_job(self.launcher)
-        return result
-
-    def delete_spark_job(self, launcher):
-        if self.delete_on_termination:
-            self.log.debug("Deleting spark job for task %s", self.task_id)
-            launcher.delete_spark_job()
-
-    def handle_spark_object_overlap(
-        self, labels: dict, try_numbers_match: bool, launcher: Any, pod: k8s.V1Pod
-    ) -> Tuple[State, Optional[str]]:
-        """
-
-        In cases where the Scheduler restarts while a SparkK8sOperator task is running,
-        this function will either continue to monitor the existing pod or launch a new pod
-        based on the `reattach_on_restart` parameter.
-
-        :param labels: labels used to determine if a pod is repeated
-        :type labels: dict
-        :param try_numbers_match: do the try numbers match? Only needed for logging purposes
-        :type try_numbers_match: bool
-        :param launcher: PodLauncher
-        :param pod: list of pods found
-        """
-        if try_numbers_match:
-            log_line = f"found a running pod with labels {labels} and the same try_number."
-        else:
-            log_line = f"found a running pod with labels {labels} but a different try_number."
-
+    def get_or_create_spark_crd(self, launcher: CustomObjectLauncher, context):
         if self.reattach_on_restart:
-            log_line += " Will attach to this pod and monitor instead of starting new one"
-            self.log.info(log_line)
-            self.pod = pod
-            final_state, result = self.monitor_launched_pod(launcher, pod)
-        else:
-            log_line += f"creating pod with labels {labels} and launcher {launcher}"
-            self.log.info(log_line)
-            final_state, result = self.create_new_custom_obj_for_operator(launcher)
-        return final_state, result
+            driver_pod = self.find_spark_job(context)
+            if driver_pod:
+                return driver_pod
 
-    def monitor_launched_pod(self, launcher, pod) -> Tuple[State, Optional[str]]:
-        """
-        Monitors a pod to completion that was created by a previous KubernetesPodOperator
+        driver_pod, spark_obj_spec = launcher.start_spark_job(startup_timeout=self.startup_timeout_seconds)
+        # if self.reattach_on_restart:
+        #     pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
+        #     if pod:
+        #         return pod
+        # self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
+        # self.pod_manager.create_pod(pod=pod_request_obj)
+        return driver_pod
 
-        :param launcher: pod launcher that will manage launching and monitoring pods
-        :param pod: podspec used to find pod using k8s API
-        :return:
-        """
-        try:
-            (final_state, result) = launcher.monitor_pod(pod, get_logs=self.get_logs)
-        finally:
-            if self.is_delete_operator_pod:
-                launcher.delete_pod(pod)
-        if final_state != State.SUCCESS:
+    def extract_xcom(self, pod):
+        """Retrieves xcom value and kills xcom sidecar container"""
+        result = self.pod_manager.extract_xcom(pod)
+        self.log.info("xcom result: \n%s", result)
+        return json.loads(result)
+
+    def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
+        pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
+        if not self.delete_on_termination:
+            with _suppress(Exception):
+                self.patch_already_checked(pod)
+        if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
-                for event in launcher.read_pod_events(pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            self.patch_already_checked(self.pod)
-            raise AirflowException(f'Pod returned a failure: {final_state}')
-        return final_state, result
+                with _suppress(Exception):
+                    for event in self.pod_manager.read_pod_events(pod).items:
+                        self.log.error("Pod Event: %s - %s", event.reason, event.message)
+            with _suppress(Exception):
+                self.process_spark_job_deletion(pod)
+            raise AirflowException(f'Pod {pod and pod.metadata.name} returned a failure\n{remote_pod}')
+        else:
+            with _suppress(Exception):
+                self.process_spark_job_deletion(pod)
+
+    def process_spark_job_deletion(self, pod):
+        if self.delete_on_termination:
+            self.log.info("Deleting spark job: %s", pod.metadata)
+            self.launcher.delete_spark_job(pod.metadata.name.replace('-driver', ''))
+        else:
+            self.log.info("skipping deleting spark job: %s", pod.metadata.name)
+
+    def execute(self, context):
+        self.log.info('Creating sparkApplication.')
+        # If yaml file used to create spark application
+        remote_pod = None
+        driver_pod = None
+        try:
+            if self.application_file:
+                hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
+                response = hook.create_custom_object(
+                    group=self.api_group,
+                    version=self.api_version,
+                    plural=self.api_plural,
+                    body=self.application_file,
+                    namespace=self.namespace,
+                )
+                return response
+            self.client, custom_obj_api = self.get_kube_client()
+            self.launcher = self.build_spark_request_obj(self.client, custom_obj_api)
+            driver_pod = self.get_or_create_spark_crd(self.launcher, context)
+
+            if self.get_logs:
+                self.launcher.fetch_container_logs(
+                    pod=driver_pod,
+                    container_name='spark-kubernetes-driver',
+                    follow=True,
+                )
+            else:
+                self.launcher.await_container_completion(
+                    pod=driver_pod, container_name='spark-kubernetes-driver'
+                )
+
+            if self.do_xcom_push:
+                result = self.extract_xcom(pod=driver_pod)
+            remote_pod = self.launcher.await_pod_completion(driver_pod)
+        finally:
+            self.cleanup(
+                pod=driver_pod or self.launcher.pod_spec,
+                remote_pod=remote_pod,
+            )
+        ti = context['ti']
+        ti.xcom_push(key='pod_name', value=driver_pod.metadata.name)
+        ti.xcom_push(key='pod_namespace', value=driver_pod.metadata.namespace)
+        if self.do_xcom_push:
+            return result
+
+    def on_kill(self) -> None:
+        if self.launcher:
+            self.log.debug("Deleting spark job for task %s", self.task_id)
+            self.launcher.delete_spark_job()
 
     def patch_already_checked(self, pod: k8s.V1Pod):
-        """Add an "already tried annotation to ensure we only retry once"""
+        """Add an "already checked" annotation to ensure we don't reattach on retries"""
         pod.metadata.labels["already_checked"] = "True"
         body = PodGenerator.serialize_pod(pod)
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
-    def create_new_custom_obj_for_operator(self, launcher) -> Tuple[State, Optional[str]]:
+    def dry_run(self) -> None:
         """
-        Creates a new pod and monitors for duration of task
-
-        :param launcher: pod launcher that will manage launching and monitoring pods
-        :return:
+        Prints out the spark job that would be created by this operator.
         """
-        try:
-            self.pod, self.spark_obj_spec = launcher.start_spark_job(
-                startup_timeout=self.startup_timeout_seconds
-            )
-            final_state, result = launcher.monitor_pod(pod=launcher.pod_spec, get_logs=self.get_logs)
-        except AirflowException:
-            if self.log_events_on_failure:
-                for event in launcher.read_pod_events(self.pod).items:
-                    self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            raise
-        return final_state, result
+        client, custom_obj_api = self.get_kube_client()
+        launcher = self.build_spark_request_obj(client, custom_obj_api)
+        print(yaml.dump(prune_dict(launcher.body(), mode='strict')))
