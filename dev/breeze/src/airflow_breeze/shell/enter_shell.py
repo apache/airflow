@@ -23,8 +23,10 @@ from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
+    check_docker_compose_version,
     check_docker_is_running,
     check_docker_resources,
+    check_docker_version,
     construct_env_variables_docker_compose_command,
 )
 from airflow_breeze.utils.rebuild_image_if_needed import rebuild_ci_image_if_needed
@@ -46,12 +48,9 @@ def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.Calle
     """
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
-    if not check_docker_is_running(verbose):
-        get_console().print(
-            '[error]Docker is not running.[/]\n'
-            '[warning]Please make sure Docker is installed and running.[/]'
-        )
-        sys.exit(1)
+    check_docker_is_running(verbose)
+    check_docker_version(verbose)
+    check_docker_compose_version(verbose)
     if read_from_cache_file('suppress_asciiart') is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file('suppress_cheatsheet') is None:

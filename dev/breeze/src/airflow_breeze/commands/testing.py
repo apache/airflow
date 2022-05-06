@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import sys
 from typing import Tuple
 
@@ -22,22 +23,28 @@ import click
 
 from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
 from airflow_breeze.commands.common_options import (
+    option_db_reset,
     option_dry_run,
     option_github_repository,
     option_image_name,
     option_image_tag,
+    option_integration,
     option_python,
     option_verbose,
 )
+from airflow_breeze.commands.custom_param_types import BetterChoice
 from airflow_breeze.commands.main import main
+from airflow_breeze.global_constants import ALLOWED_TEST_TYPES
+from airflow_breeze.shell.enter_shell import check_docker_is_running, check_docker_resources
+from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.docker_command_utils import construct_env_variables_docker_compose_command
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
+from airflow_breeze.utils.run_utils import run_command
 
 TESTING_COMMANDS = {
     "name": "Testing",
-    "commands": [
-        "docker-compose-tests",
-    ],
+    "commands": ["docker-compose-tests", "tests"],
 }
 
 TESTING_PARAMETERS = {
@@ -48,6 +55,16 @@ TESTING_PARAMETERS = {
                 "--image-name",
                 "--python",
                 "--image-tag",
+            ],
+        }
+    ],
+    "breeze tests": [
+        {
+            "name": "Basic flag for tests command",
+            "options": [
+                "--integration",
+                "--test-type",
+                "--db-reset",
             ],
         }
     ],
@@ -91,3 +108,56 @@ def docker_compose_tests(
         extra_pytest_args=extra_pytest_args,
     )
     sys.exit(return_code)
+
+
+@main.command(
+    name='tests',
+    help="Run the specified unit test targets. Multiple targets may be specified separated by spaces.",
+    context_settings=dict(
+        ignore_unknown_options=True,
+        allow_extra_args=True,
+    ),
+)
+@option_dry_run
+@option_verbose
+@option_integration
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+@click.option(
+    "-tt",
+    "--test-type",
+    help="Type of test to run.",
+    default="All",
+    type=BetterChoice(ALLOWED_TEST_TYPES),
+)
+@option_db_reset
+def tests(
+    dry_run: bool,
+    verbose: bool,
+    integration: Tuple,
+    extra_pytest_args: Tuple,
+    test_type: str,
+    db_reset: bool,
+):
+    os.environ["RUN_TESTS"] = "true"
+    if test_type:
+        os.environ["TEST_TYPE"] = test_type
+    if integration:
+        if "trino" in integration:
+            integration = integration + ("kerberos",)
+        os.environ["LIST_OF_INTEGRATION_TESTS_TO_RUN"] = ' '.join(list(integration))
+    if db_reset:
+        os.environ["DB_RESET"] = "true"
+
+    exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
+    env_variables = construct_env_variables_docker_compose_command(exec_shell_params)
+    check_docker_is_running(verbose)
+    check_docker_resources(exec_shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
+
+    cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
+    cmd.extend(list(extra_pytest_args))
+    run_command(
+        cmd,
+        verbose=verbose,
+        dry_run=dry_run,
+        env=env_variables,
+    )
