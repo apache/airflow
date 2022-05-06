@@ -3669,6 +3669,11 @@ components:
 
     RunTaskInstanceForm:
       type: object
+      required:
+        - ignore_all_deps
+        - ignore_task_deps
+        - ignore_ti_state
+        - map_index
       properties:
         ignore_all_deps:
           type: boolean
