@@ -106,7 +106,6 @@ with open("chart/RELEASE_NOTES.rst") as f:
             if line == "New Features":
                 section = line
                 past_significant_changes = True
-                continue
             continue
 
         if not line.startswith('- '):
