@@ -112,7 +112,7 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param resources: resources for the launched pod.
+    :param resources: resources for the launched pod. (templated)
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
@@ -153,6 +153,7 @@ class KubernetesPodOperator(BaseOperator):
         'config_file',
         'pod_template_file',
         'namespace',
+        'resources',
     )
 
     def __init__(
