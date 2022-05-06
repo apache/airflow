@@ -136,9 +136,9 @@ class OpsgenieAlertHook(BaseHook):
     def delete_alert(
         self,
         identifier: str,
-        identifier_type: Optional[str],
-        user: Optional[str],
-        source: Optional[str],
+        identifier_type: Optional[str] = None,
+        user: Optional[str] = None,
+        source: Optional[str] = None,
     ) -> SuccessResponse:
         """
         Delete an alert in Opsgenie
