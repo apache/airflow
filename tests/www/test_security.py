@@ -734,7 +734,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
 
     del dagbag_mock.dags["has_access_control"]
     with assert_queries_count(2):  # two query to get all perms; dagbag is mocked
-        # The extra query happens at permissions.resource_name_for_dag()
+        # The extra query happens at permission check
         security_manager.create_dag_specific_permissions()
 
 

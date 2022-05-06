@@ -69,7 +69,6 @@ DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 def resource_name_for_dag(dag_id, is_subdag=False):
     """Returns the resource name for a DAG id."""
-    print('DAG_ID: %s', dag_id, is_subdag)
     if dag_id == RESOURCE_DAG:
         return dag_id
 
