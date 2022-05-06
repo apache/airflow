@@ -182,6 +182,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         Use "manifest.json", "catalog.json", or "run_results.json" to download dbt-generated artifacts
         for the run.
     :param account_id: Optional. The ID of a dbt Cloud account.
+    :param tenant: Optional. The subdomain / tenancy of a dbt Cloud account.
     :param step: Optional. The index of the Step in the Run to query for artifacts. The first step in the
         run has the index 1. If the step parameter is omitted, artifacts for the last step in the run will
         be returned.
@@ -198,6 +199,7 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         run_id: int,
         path: str,
         account_id: Optional[int] = None,
+        tenant: Optional[str] = 'cloud',
         step: Optional[int] = None,
         output_file_name: Optional[str] = None,
         **kwargs,
@@ -207,11 +209,12 @@ class DbtCloudGetJobRunArtifactOperator(BaseOperator):
         self.run_id = run_id
         self.path = path
         self.account_id = account_id
+        self.tenant = tenant
         self.step = step
         self.output_file_name = output_file_name or f"{self.run_id}_{self.path}".replace("/", "-")
 
     def execute(self, context: "Context") -> None:
-        hook = DbtCloudHook(self.dbt_cloud_conn_id)
+        hook = DbtCloudHook(self.dbt_cloud_conn_id, self.tenant)
         response = hook.get_job_run_artifact(
             run_id=self.run_id, path=self.path, account_id=self.account_id, step=self.step
         )
