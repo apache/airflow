@@ -16,7 +16,8 @@
 # under the License.
 
 from dataclasses import dataclass
-from typing import Any
+from re import match
+from typing import Any, Sequence
 
 import click
 
@@ -40,8 +41,12 @@ class BetterChoice(click.Choice):
 
     name = "BetterChoice"
 
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.all_choices: Sequence[str] = self.choices
+
     def get_metavar(self, param) -> str:
-        choices_str = " | ".join(self.choices)
+        choices_str = " | ".join(self.all_choices)
         # Use curly braces to indicate a required argument.
         if param.required and param.param_type_name == "argument":
             return f"{{{choices_str}}}"
@@ -126,3 +131,16 @@ class CacheableChoice(click.Choice):
 
     def __init__(self, choices, case_sensitive: bool = True) -> None:
         super().__init__(choices=choices, case_sensitive=case_sensitive)
+
+
+class UseAirflowVersionType(BetterChoice):
+    """Extends choice with dynamic version number."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.all_choices = [*self.choices, "<airflow_version>"]
+
+    def convert(self, value, param, ctx):
+        if match(r"^\d*\.\d*\.\d*\S*$", value):
+            return value
+        return super().convert(value, param, ctx)

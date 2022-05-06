@@ -19,17 +19,20 @@ import multiprocessing as mp
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.custom_param_types import (
     AnswerChoice,
     BetterChoice,
     CacheableChoice,
     CacheableDefault,
+    UseAirflowVersionType,
 )
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_EXECUTORS,
+    ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_INTEGRATIONS,
     ALLOWED_MOUNT_OPTIONS,
     ALLOWED_MSSQL_VERSIONS,
@@ -38,6 +41,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    ALLOWED_USE_AIRFLOW_VERSIONS,
     get_available_packages,
 )
 from airflow_breeze.utils.recording import output_file_for_recording
@@ -55,7 +59,7 @@ option_dry_run = click.option(
 option_answer = click.option(
     "-a",
     "--answer",
-    type=AnswerChoice(choices=['y', 'n', 'q', 'yes', 'no', 'quit']),
+    type=AnswerChoice(['y', 'n', 'q', 'yes', 'no', 'quit']),
     help="Force answer to questions.",
     envvar='ANSWER',
 )
@@ -124,10 +128,19 @@ option_forward_credentials = click.option(
     '-f', '--forward-credentials', help="Forward local credentials to container when running.", is_flag=True
 )
 option_use_airflow_version = click.option(
-    '-V',
     '--use-airflow-version',
-    help="Use (reinstall at entry) Airflow version from PyPI.",
+    help="Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or `sdist`"
+    " if Airflow should be removed, installed from wheel packages or sdist packages available in dist "
+    "folder respectively. Important! Using it Implies --mount-sources `none`.",
+    type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar='USE_AIRFLOW_VERSION',
+)
+option_airflow_extras = click.option(
+    '--airflow-extras',
+    help="Airflow extras to install when --use-airflow-version is used",
+    default="",
+    show_default=True,
+    envvar='AIRFLOW_EXTRAS',
 )
 option_mount_sources = click.option(
     '--mount-sources',
@@ -137,7 +150,7 @@ option_mount_sources = click.option(
     help="Choose scope of local sources should be mounted (default = selected).",
 )
 option_force_build = click.option(
-    '-f', '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
+    '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
 )
 option_db_reset = click.option(
     '-d',
@@ -145,6 +158,13 @@ option_db_reset = click.option(
     help="Reset DB when entering the container.",
     is_flag=True,
     envvar='DB_RESET',
+)
+option_use_packages_from_dist = click.option(
+    '--use-packages-from-dist',
+    is_flag=True,
+    help="Install all found packages (--package-format determines type) from 'dist' folder "
+    "when entering breeze.",
+    envvar='USE_PACKAGES_FROM_DIST',
 )
 option_docker_cache = click.option(
     '-c',
@@ -191,7 +211,6 @@ option_platform = click.option(
     type=BetterChoice(ALLOWED_PLATFORMS),
 )
 option_debian_version = click.option(
-    '-d',
     '--debian-version',
     help='Debian version used for the image.',
     type=BetterChoice(ALLOWED_DEBIAN_VERSIONS),
@@ -344,6 +363,14 @@ option_package_format = click.option(
     show_default=True,
     envvar='PACKAGE_FORMAT',
 )
+option_installation_package_format = click.option(
+    '--package-format',
+    type=BetterChoice(ALLOWED_INSTALLATION_PACKAGE_FORMATS),
+    help='Format of packages that should be installed from dist.',
+    default=ALLOWED_INSTALLATION_PACKAGE_FORMATS[0],
+    show_default=True,
+    envvar='PACKAGE_FORMAT',
+)
 option_python_versions = click.option(
     '--python-versions',
     help="Space separated list of python versions used for build with multiple versions.",
@@ -371,13 +398,6 @@ option_build_multiple_images = click.option(
     is_flag=True,
     envvar='BUILD_MULTIPLE_IMAGES',
 )
-option_with_ci_group = click.option(
-    '-g',
-    '--with-ci-group',
-    is_flag=True,
-    help="Uses CI group for the command to fold long logs in logical groups.",
-    envvar='WITH_CI_GROUP',
-)
 argument_packages = click.argument(
     "packages",
     nargs=-1,
@@ -401,8 +421,10 @@ option_max_age = click.option(
     default=3,
     help="Max age of the last release (used if no updated-on-or-after if specified)",
 )
-option_branch = click.option(
-    "--constraints-branch",
-    default='constraints-main',
-    help="Constraint branch to use to find newer dependencies",
+option_airflow_constraints_reference = click.option(
+    "--airflow-constraints-reference",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
+    "constraints for the installed version and to find newer dependencies",
+    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
 )

@@ -61,10 +61,8 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
     option_verify_image,
     option_wait_for_image,
-    option_with_ci_group,
 )
 from airflow_breeze.commands.main import main
-from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
@@ -168,7 +166,6 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_github_repository
 @option_verbose
 @option_dry_run
-@option_with_ci_group
 @option_answer
 @option_python
 @option_build_multiple_images
@@ -202,7 +199,6 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 def build_image(
     verbose: bool,
     dry_run: bool,
-    with_ci_group: bool,
     build_multiple_images: bool,
     python_versions: str,
     answer: str,
@@ -211,22 +207,19 @@ def build_image(
     """Build CI image. Include building multiple images for all python versions (sequentially)."""
 
     def run_build(ci_image_params: BuildCiParams) -> None:
-        return_code, info = build_ci_image(
-            verbose=verbose, dry_run=dry_run, with_ci_group=with_ci_group, ci_image_params=ci_image_params
-        )
+        return_code, info = build_ci_image(verbose=verbose, dry_run=dry_run, ci_image_params=ci_image_params)
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
     parameters_passed = filter_out_none(**kwargs)
     if build_multiple_images:
-        with ci_group(f"Building images sequentially {python_versions}", enabled=with_ci_group):
-            python_version_list = get_python_version_list(python_versions)
-            for python in python_version_list:
-                params = BuildCiParams(**parameters_passed)
-                params.python = python
-                params.answer = answer
-                run_build(ci_image_params=params)
+        python_version_list = get_python_version_list(python_versions)
+        for python in python_version_list:
+            params = BuildCiParams(**parameters_passed)
+            params.python = python
+            params.answer = answer
+            run_build(ci_image_params=params)
     else:
         params = BuildCiParams(**parameters_passed)
         run_build(ci_image_params=params)

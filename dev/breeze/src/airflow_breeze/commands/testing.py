@@ -38,7 +38,7 @@ from airflow_breeze.global_constants import ALLOWED_TEST_TYPES
 from airflow_breeze.shell.enter_shell import check_docker_is_running, check_docker_resources
 from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.docker_command_utils import construct_env_variables_docker_compose_command
+from airflow_breeze.utils.docker_command_utils import get_env_variables_for_docker_commands
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 from airflow_breeze.utils.run_utils import run_command
 
@@ -149,7 +149,7 @@ def tests(
         os.environ["DB_RESET"] = "true"
 
     exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
-    env_variables = construct_env_variables_docker_compose_command(exec_shell_params)
+    env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     check_docker_is_running(verbose)
     check_docker_resources(exec_shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
 

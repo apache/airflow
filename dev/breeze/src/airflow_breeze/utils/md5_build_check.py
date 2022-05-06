@@ -106,10 +106,10 @@ def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, verbose: bool) -> bo
         get_console().print('\n[warning]Likely CI image needs rebuild[/]\n')
         build_needed = True
     else:
-        if verbose:
-            get_console().print(
-                '[info]Docker image build is not needed for CI build as no important files are changed![/]'
-            )
+        get_console().print(
+            '[info]Docker image build is not needed for CI build as no important files are changed! '
+            'You can add --force-build to force it[/]'
+        )
     return build_needed
 
 

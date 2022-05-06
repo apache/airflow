@@ -77,7 +77,8 @@ class BuildProdParams:
     image_tag: Optional[str] = None
     extras: str = ""
     additional_airflow_extras: str = ""
-    github_token: str = ""
+    github_token: str = os.environ.get('GITHUB_TOKEN', "")
+    github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
     login_to_github_registry: str = "false"
     github_username: str = ""
     platform: str = f"linux/{os.uname().machine}"
