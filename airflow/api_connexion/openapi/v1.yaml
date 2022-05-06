@@ -1182,7 +1182,8 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/TaskInstance'
+                $ref: '#/components/schemas/TaskInstanceReferenceCollection'
+
         '400':
           $ref: '#/components/responses/BadRequest'
         '401':

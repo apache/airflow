@@ -594,4 +594,7 @@ def run_task_instance(
     executor.heartbeat()
     task_instance.queued_dttm = timezone.utcnow()
     session.merge(task_instance)
-    return task_instance_schema.dump([task_instance, None])
+
+    return task_instance_reference_collection_schema.dump(
+        TaskInstanceReferenceCollection(task_instances=[task_instance])
+    )
