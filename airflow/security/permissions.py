@@ -16,6 +16,7 @@
 # under the License.
 
 # Resource Constants
+
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
 RESOURCE_AIRFLOW = "Airflow"
@@ -66,14 +67,17 @@ DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 
-def resource_name_for_dag(dag_id):
+def resource_name_for_dag(dag_id, is_subdag=False):
     """Returns the resource name for a DAG id."""
+    print('DAG_ID: %s', dag_id, is_subdag)
     if dag_id == RESOURCE_DAG:
         return dag_id
 
     if dag_id.startswith(RESOURCE_DAG_PREFIX):
         return dag_id
 
-    # To account for SubDags
-    root_dag_id = dag_id.split(".")[0]
-    return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
+    if is_subdag:
+        # To account for SubDags
+        root_dag_id = dag_id.split(".")[0]
+        return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
+    return f"{RESOURCE_DAG_PREFIX}{dag_id}"

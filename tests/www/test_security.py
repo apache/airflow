@@ -190,9 +190,13 @@ def sample_dags(security_manager):
 
 
 @pytest.fixture(scope="module")
-def has_dag_perm(security_manager):
+def has_dag_perm(security_manager, session):
     def _has_dag_perm(perm, dag_id, user):
-        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id), user)
+        is_subdag = False
+        dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
+        if dm:
+            is_subdag = dm.is_subdag
+        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id, is_subdag), user)
 
     return _has_dag_perm
 
@@ -351,7 +355,7 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
         user.roles = security_manager.get_user_roles(user)
         assert user.roles == {security_manager.get_public_role()}
 
-        test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
+        test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3", "test_dag_id_4.with_dot"]
 
         for dag_id in test_dag_ids:
             with _create_dag_model_context(dag_id, session, security_manager):
@@ -545,11 +549,12 @@ def test_has_all_dag_access(app, security_manager):
 
 def test_access_control_with_non_existent_role(security_manager):
     with pytest.raises(AirflowException) as ctx:
-        security_manager._sync_dag_view_permissions(
+        security_manager.sync_perm_for_dag(
             dag_id='access-control-test',
             access_control={
                 'this-role-does-not-exist': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
             },
+            is_subdag=False,
         )
     assert "role does not exist" in str(ctx.value)
 
@@ -587,8 +592,8 @@ def test_access_control_with_invalid_permission(app, security_manager):
     ):
         for action in invalid_actions:
             with pytest.raises(AirflowException) as ctx:
-                security_manager._sync_dag_view_permissions(
-                    'access_control_test', access_control={rolename: {action}}
+                security_manager.sync_perm_for_dag(
+                    'access_control_test', access_control={rolename: {action}}, is_subdag=False
                 )
             assert "invalid permissions" in str(ctx.value)
 
@@ -609,7 +614,7 @@ def test_access_control_is_set_on_init(
             role_name=role_name,
             permissions=[],
         ) as user:
-            security_manager._sync_dag_view_permissions(
+            security_manager.sync_perm_for_dag(
                 'access_control_test',
                 access_control={role_name: [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
             )
@@ -644,14 +649,10 @@ def test_access_control_stale_perms_are_revoked(
             permissions=[],
         ) as user:
             set_user_single_role(app, user, role_name='team-a')
-            security_manager._sync_dag_view_permissions(
-                'access_control_test', access_control={'team-a': READ_WRITE}
-            )
+            security_manager.sync_perm_for_dag('access_control_test', access_control={'team-a': READ_WRITE})
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id='access_control_test', user=user)
 
-            security_manager._sync_dag_view_permissions(
-                'access_control_test', access_control={'team-a': READ_ONLY}
-            )
+            security_manager.sync_perm_for_dag('access_control_test', access_control={'team-a': READ_ONLY})
             # Clear the cache, to make it pick up new rol perms
             user._perms = None
             assert_user_has_dag_perms(
@@ -708,7 +709,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     import airflow.www.security
 
     monkeypatch.setitem(airflow.www.security.__dict__, "DagBag", dagbag_class_mock)
-    security_manager._sync_dag_view_permissions = mock.Mock()
+    security_manager.sync_perm_for_dag = mock.Mock()
 
     for dag in sample_dags:
         dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
@@ -727,12 +728,13 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ('can_read', dag_resource_name) in all_perms
         assert ('can_edit', dag_resource_name) in all_perms
 
-    security_manager._sync_dag_view_permissions.assert_called_once_with(
-        permissions.resource_name_for_dag('has_access_control'), access_control
+    security_manager.sync_perm_for_dag.assert_called_once_with(
+        permissions.resource_name_for_dag('has_access_control'), access_control, False
     )
 
     del dagbag_mock.dags["has_access_control"]
-    with assert_queries_count(1):  # one query to get all perms; dagbag is mocked
+    with assert_queries_count(2):  # two query to get all perms; dagbag is mocked
+        # The extra query happens at permissions.resource_name_for_dag()
         security_manager.create_dag_specific_permissions()
 
 
@@ -782,10 +784,12 @@ def test_prefixed_dag_id_is_deprecated(security_manager):
         security_manager.prefixed_dag_id("hello")
 
 
-def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_has_dag_perms):
+def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_has_dag_perms, session):
     username = 'dag_permission_user'
     role_name = 'dag_permission_role'
     parent_dag_name = "parent_dag"
+    subdag_name = parent_dag_name + ".subdag"
+    subsubdag_name = parent_dag_name + ".subdag.subsubdag"
     with app.app_context():
         mock_roles = [
             {
@@ -801,15 +805,23 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             username=username,
             role_name=role_name,
         ) as user:
+            dag1 = DagModel(dag_id=parent_dag_name)
+            dag2 = DagModel(dag_id=subdag_name, is_subdag=True, root_dag_id=parent_dag_name)
+            dag3 = DagModel(dag_id=subsubdag_name, is_subdag=True, root_dag_id=parent_dag_name)
+            session.add_all([dag1, dag2, dag3])
+            session.commit()
             security_manager.bulk_sync_roles(mock_roles)
-            security_manager._sync_dag_view_permissions(
-                parent_dag_name, access_control={role_name: READ_WRITE}
-            )
+            for dag in [dag1, dag2, dag3]:
+                security_manager.sync_perm_for_dag(
+                    dag.dag_id, access_control={role_name: READ_WRITE}, is_subdag=dag.is_subdag
+                )
+
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
             assert_user_has_dag_perms(
                 perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
             )
+            session.query(DagModel).delete()
 
 
 def test_fab_models_use_airflow_base_meta():
