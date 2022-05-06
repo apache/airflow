@@ -78,6 +78,27 @@ class TestOpenMaybeZipped(unittest.TestCase):
 
 
 class TestListPyFilesPath(unittest.TestCase):
+    def setUp(self):
+        import tempfile
+        self.test_dir = tempfile.mkdtemp(prefix="onotole")
+        source = os.path.join(self.test_dir, "folder")
+        target = os.path.join(self.test_dir, "symlink")
+        py_file = os.path.join(source, "hello_world.py")
+        ignore_file = os.path.join(self.test_dir, ".airflowignore")
+        os.mkdir(source)
+        os.symlink(source, target)
+
+        with open(ignore_file, 'w') as f:
+            f.write("folder")
+
+        with open(py_file, 'w') as f:
+            f.write("print('hello world')")
+
+    def tearDown(self):
+        if self.test_dir:
+            import shutil
+            shutil.rmtree(self.test_dir)
+
     def test_find_path_from_directory_regex_ignore(self):
         should_ignore = [
             "test_invalid_cron.py",
@@ -110,3 +131,17 @@ class TestListPyFilesPath(unittest.TestCase):
         assert len(list(filter(lambda file: os.path.basename(file) in should_not_ignore, files))) == len(
             should_not_ignore
         )
+
+    def test_find_path_from_directory_respects_symlinks_regexp_ignore(self):
+        ignore_list_file = ".airflowignore"
+        found = list(find_path_from_directory(self.test_dir, ignore_list_file))
+
+        assert os.path.join(self.test_dir, "symlink", "hello_world.py") in found
+        assert os.path.join(self.test_dir, "folder", "hello_world.py") not in found
+
+    def test_find_path_from_directory_respects_symlinks_glob_ignore(self):
+        ignore_list_file = ".airflowignore"
+        found = list(find_path_from_directory(self.test_dir, ignore_list_file, ignore_file_syntax="glob"))
+
+        assert os.path.join(self.test_dir, "symlink", "hello_world.py") in found
+        assert os.path.join(self.test_dir, "folder", "hello_world.py") not in found

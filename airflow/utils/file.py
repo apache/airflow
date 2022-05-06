@@ -57,7 +57,7 @@ class _RegexpIgnoreRule(NamedTuple):
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> Optional[_IgnoreRule]:
         """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid"""
         try:
-            return _RegexpIgnoreRule(re.compile(pattern), base_dir.resolve())
+            return _RegexpIgnoreRule(re.compile(pattern), base_dir.absolute())
         except re.error as e:
             log.warning("Ignoring invalid regex '%s' from %s: %s", pattern, definition_file, e)
             return None
@@ -65,7 +65,7 @@ class _RegexpIgnoreRule(NamedTuple):
     @staticmethod
     def match(path: Path, rules: List[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path"""
-        test_path: Path = path.resolve()
+        test_path: Path = path.absolute()
         for rule in rules:
             if not isinstance(rule, _RegexpIgnoreRule):
                 raise ValueError(f"_RegexpIgnoreRule cannot match rules of type: {type(rule)}")
@@ -95,14 +95,14 @@ class _GlobIgnoreRule(NamedTuple):
             # > If there is a separator at the beginning or middle (or both) of the pattern, then the
             # > pattern is relative to the directory level of the particular .gitignore file itself.
             # > Otherwise the pattern may also match at any level below the .gitignore level.
-            relative_to = definition_file.resolve().parent
+            relative_to = definition_file.absolute().parent
         ignore_pattern = GitWildMatchPattern(pattern)
         return _GlobIgnoreRule(ignore_pattern.regex, pattern, ignore_pattern.include, relative_to)
 
     @staticmethod
     def match(path: Path, rules: List[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path"""
-        test_path: Path = path.resolve()
+        test_path: Path = path.absolute()
         matched = False
         for r in rules:
             if not isinstance(r, _GlobIgnoreRule):
