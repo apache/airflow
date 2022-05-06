@@ -192,10 +192,7 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager, session):
     def _has_dag_perm(perm, dag_id, user):
-        is_subdag = False
-        dm = session.query(DagModel).filter(DagModel.dag_id == dag_id).first()
-        if dm:
-            is_subdag = dm.is_subdag
+        is_subdag = security_manager._is_subdag(dag_id)
         return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id, is_subdag), user)
 
     return _has_dag_perm
