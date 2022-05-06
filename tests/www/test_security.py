@@ -554,7 +554,6 @@ def test_access_control_with_non_existent_role(security_manager):
             access_control={
                 'this-role-does-not-exist': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
             },
-            is_subdag=False,
         )
     assert "role does not exist" in str(ctx.value)
 
@@ -593,7 +592,7 @@ def test_access_control_with_invalid_permission(app, security_manager):
         for action in invalid_actions:
             with pytest.raises(AirflowException) as ctx:
                 security_manager.sync_perm_for_dag(
-                    'access_control_test', access_control={rolename: {action}}, is_subdag=False
+                    'access_control_test', access_control={rolename: {action}},
                 )
             assert "invalid permissions" in str(ctx.value)
 

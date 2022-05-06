@@ -16,7 +16,6 @@
 # under the License.
 
 # Resource Constants
-
 RESOURCE_ACTION = "Permissions"
 RESOURCE_ADMIN_MENU = "Admin"
 RESOURCE_AIRFLOW = "Airflow"
