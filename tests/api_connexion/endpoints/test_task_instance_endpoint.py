@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 import datetime as dt
-import json
 from unittest import mock
 
 import pytest
@@ -1537,7 +1536,28 @@ class TestTaskInstanceRunEndpoint(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert response.json == expected
 
-    def test_task_instance_run_required_fields(self, executor, session):
+    @pytest.mark.parametrize(
+        "payload, error_message",
+        [
+            [
+                {"ignore_ti_state": True, "ignore_task_deps": True, "map_index": 1},
+                "'ignore_all_deps' is a required property",
+            ],
+            [
+                {"ignore_ti_state": True, "ignore_all_deps": True, "map_index": 1},
+                "'ignore_task_deps' is a required property",
+            ],
+            [
+                {"ignore_ti_state": True, "ignore_all_deps": True, "ignore_task_deps": True},
+                "'map_index' is a required property",
+            ],
+            [
+                {"ignore_all_deps": True, "ignore_task_deps": True, "map_index": 1},
+                "'ignore_ti_state' is a required property",
+            ],
+        ],
+    )
+    def test_task_instance_run_required_fields(self, executor, session, payload, error_message):
         self.ti_init["state"] = State.NONE
         self.create_task_instances(session)
         dag_id = "example_python_operator"
@@ -1547,18 +1567,11 @@ class TestTaskInstanceRunEndpoint(TestTaskInstanceEndpoint):
         response = self.client.post(
             f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/run",
             environ_overrides={"REMOTE_USER": "test"},
-            json={},
+            json=payload,
         )
 
-        required_fields_error_message = {
-            'ignore_ti_state': ['Missing data for required field.'],
-            'ignore_task_deps': ['Missing data for required field.'],
-            'ignore_all_deps': ['Missing data for required field.'],
-            'map_index': ['Missing data for required field.'],
-        }
         assert response.status_code == 400
-        error_message = json.loads(response.json['detail'].replace("'", '"'))
-        assert error_message == required_fields_error_message
+        assert response.json['detail'] == error_message
 
     @pytest.mark.parametrize(
         "dag_id, run_id, task_id, error",
