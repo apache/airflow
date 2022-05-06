@@ -1083,6 +1083,8 @@ def _move_dangling_data_to_new_table(
             )
         log.debug(delete.compile())
         session.execute(delete)
+        
+    session.commit()
 
     log.debug("exiting move function")
 
