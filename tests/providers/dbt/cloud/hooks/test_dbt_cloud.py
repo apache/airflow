@@ -605,4 +605,3 @@ class TestDbtCloudHook:
 
         assert status is False
         assert msg == "403:Authentication credentials were not provided"
-
