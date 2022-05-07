@@ -380,28 +380,29 @@ class CeleryExecutor(BaseExecutor):
         restart. We chose to use task_adoption_timeout to decide when a queued task is considered
         stuck and should be rescheduled.
         """
-        self.log.debug("Checking for stuck queued tasks")
-        max_allowed_time = utcnow() - self.task_adoption_timeout
-        queued_too_long = (
-            session.query(TaskInstance)
-            .join(TaskInstance.dag_run)
-            .filter(
-                TaskInstance.state == State.QUEUED,
-                TaskInstance.queued_by_job_id == self.job_id,
-                DagRun.state == State.RUNNING,
-                TaskInstance.queued_dttm < max_allowed_time,
-            )
-            .all()
-        )
-        # this filtering is done after the query rather than in the query because the query result
-        # set should always be quite small (a few rows at most), and self.tasks could be relatively
-        # large (hundreds or possibly thousands) which could make for a long db query in extreme cases
-        queued_too_long = [ti for ti in queued_too_long if ti.key in self.tasks]
-        if not queued_too_long:
-            return
 
         try:
             with timeout(seconds=15):
+                self.log.debug("Checking for stuck queued tasks")
+                max_allowed_time = utcnow() - self.task_adoption_timeout
+                queued_too_long = (
+                    session.query(TaskInstance)
+                    .join(TaskInstance.dag_run)
+                    .filter(
+                        TaskInstance.state == State.QUEUED,
+                        TaskInstance.queued_by_job_id == self.job_id,
+                        DagRun.state == State.RUNNING,
+                        TaskInstance.queued_dttm < max_allowed_time,
+                    )
+                    .all()
+                )
+                # this filtering is done after the query rather than in the query because the query result
+                # set should always be quite small (a few rows at most), and self.tasks could be relatively
+                # large (hundreds or possibly thousands) which could make for a long db query in extreme cases
+                queued_too_long = [ti for ti in queued_too_long if ti.key in self.tasks]
+                if not queued_too_long:
+                    return
+
                 latest_states = self.bulk_state_fetcher.get_many(
                     [self.tasks[ti.key] for ti in queued_too_long]
                 )
@@ -411,28 +412,26 @@ class CeleryExecutor(BaseExecutor):
                     if latest_states[ti.external_executor_id][0] == celery_states.PENDING
                 ]
         except AirflowTaskTimeout:
-            # This "latest state" check isn't super important, so if it's taking too long we'll
-            # just log it and continue on
-            self.log.debug("Timed out while loading latest celery task states for stuck queued tasks")
+            self.log.warning("Timed out while checking for stuck queued tasks")
+            return
 
-        for task in queued_too_long:
+        for ti in queued_too_long:
             self.log.info(
                 'TaskInstance: %s found in queued state for more than %s seconds, rescheduling',
-                task,
+                ti,
                 self.task_adoption_timeout.total_seconds(),
             )
-            task.state = State.SCHEDULED
-            task.queued_dttm = None
-            session.merge(task)
-            self.adopted_task_timeouts.pop(task.key, None)
-            self.running.discard(task.key)
-            self.queued_tasks.pop(task.key, None)
-            celery_async_result = self.tasks.pop(task.key, None)
+            ti.state = State.SCHEDULED
+            ti.queued_dttm = None
+            self.adopted_task_timeouts.pop(ti.key, None)
+            self.running.discard(ti.key)
+            self.queued_tasks.pop(ti.key, None)
+            celery_async_result = self.tasks.pop(ti.key, None)
             if celery_async_result:
                 try:
                     app.control.revoke(celery_async_result.task_id)
                 except Exception as ex:
-                    self.log.info("Error revoking task %s from celery: %s", task, ex)
+                    self.log.info("Error revoking task instance %s from celery: %s", ti, ex)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
