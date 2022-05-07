@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global filtersOptions */
+/* global filtersOptions, moment */
 
 import {
   Box,
@@ -27,6 +27,8 @@ import {
   Select,
 } from '@chakra-ui/react';
 import React from 'react';
+import { useTimezone } from './context/timezone';
+import { isoFormatWithoutTZ } from '../datetime_utils';
 
 import useFilters from './utils/useFilters';
 
@@ -41,6 +43,10 @@ const FilterBar = () => {
     clearFilters,
   } = useFilters();
 
+  const { timezone } = useTimezone();
+  const time = moment(filters.baseDate);
+  const formattedTime = time.tz(timezone).format(isoFormatWithoutTZ);
+
   const inputStyles = { backgroundColor: 'white', size: 'lg' };
 
   return (
@@ -49,7 +55,7 @@ const FilterBar = () => {
         <Input
           {...inputStyles}
           type="datetime-local"
-          value={filters.baseDate || ''}
+          value={formattedTime || ''}
           onChange={onBaseDateChange}
         />
       </Box>

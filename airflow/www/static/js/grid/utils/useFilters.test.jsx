@@ -17,19 +17,11 @@
  * under the License.
  */
 
-/* global describe, test, expect, jest */
-
-import React from 'react';
+/* global describe, expect, jest, test, moment */
 import { act, renderHook } from '@testing-library/react-hooks';
-import { MemoryRouter } from 'react-router-dom';
 
 import useFilters from './useFilters';
-
-const Wrapper = ({ children }) => (
-  <MemoryRouter>
-    {children}
-  </MemoryRouter>
-);
+import { RouterWrapper } from './testUtils';
 
 const date = new Date();
 date.setMilliseconds(0);
@@ -37,7 +29,7 @@ jest.useFakeTimers().setSystemTime(date);
 
 describe('Test useFilters hook', () => {
   test('Initial values when url does not have query params', async () => {
-    const { result } = renderHook(() => useFilters(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useFilters(), { wrapper: RouterWrapper });
     const {
       filters: {
         baseDate,
@@ -48,7 +40,7 @@ describe('Test useFilters hook', () => {
       },
     } = result.current;
 
-    expect(baseDate).toBe(date.toISOString().replace('Z', ''));
+    expect(baseDate).toBe(date.toISOString());
     expect(numRuns).toBe(global.defaultDagRunDisplayNumber);
     expect(runType).toBeNull();
     expect(runState).toBeNull();
@@ -56,13 +48,13 @@ describe('Test useFilters hook', () => {
   });
 
   test.each([
-    { fnName: 'onBaseDateChange', paramName: 'baseDate', paramValue: new Date().toISOString() },
+    { fnName: 'onBaseDateChange', paramName: 'baseDate', paramValue: moment.utc().format() },
     { fnName: 'onNumRunsChange', paramName: 'numRuns', paramValue: '10' },
     { fnName: 'onRunTypeChange', paramName: 'runType', paramValue: 'manual' },
     { fnName: 'onRunStateChange', paramName: 'runState', paramValue: 'success' },
     { fnName: 'onTaskStateChange', paramName: 'taskState', paramValue: 'deferred' },
   ])('Test $fnName functions', async ({ fnName, paramName, paramValue }) => {
-    const { result } = renderHook(() => useFilters(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useFilters(), { wrapper: RouterWrapper });
 
     await act(async () => {
       result.current[fnName]({ target: { value: paramValue } });
@@ -76,7 +68,7 @@ describe('Test useFilters hook', () => {
     });
 
     if (paramName === 'baseDate') {
-      expect(result.current.filters[paramName]).toBe(date.toISOString().replace('Z', ''));
+      expect(result.current.filters[paramName]).toBe(date.toISOString());
     } else if (paramName === 'numRuns') {
       expect(result.current.filters[paramName]).toBe(global.defaultDagRunDisplayNumber);
     } else {

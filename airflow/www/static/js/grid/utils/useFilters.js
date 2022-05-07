@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global defaultDagRunDisplayNumber */
+/* global defaultDagRunDisplayNumber, moment */
 
 import { useSearchParams } from 'react-router-dom';
 
@@ -31,7 +31,7 @@ export const TASK_STATE_PARAM = 'task_state';
 const date = new Date();
 date.setMilliseconds(0);
 
-export const now = date.toISOString().replace('Z', '');
+export const now = date.toISOString();
 
 const useFilters = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -44,8 +44,11 @@ const useFilters = () => {
   // it is not send to the api for filtering.
   const taskState = searchParams.get(TASK_STATE_PARAM);
 
-  const makeOnChangeFn = (paramName) => (e) => {
-    const { value } = e.target;
+  const makeOnChangeFn = (paramName, formatFn) => (e) => {
+    let { value } = e.target;
+    if (formatFn) {
+      value = formatFn(value);
+    }
     const params = new URLSearchParams(searchParams);
 
     if (value) params.set(paramName, value);
@@ -54,7 +57,8 @@ const useFilters = () => {
     setSearchParams(params);
   };
 
-  const onBaseDateChange = makeOnChangeFn(BASE_DATE_PARAM);
+  const onBaseDateChange = makeOnChangeFn(BASE_DATE_PARAM,
+    (localDate) => moment(localDate).utc().format());
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
   const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);
   const onRunStateChange = makeOnChangeFn(RUN_STATE_PARAM);
