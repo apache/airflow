@@ -2908,6 +2908,28 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
+                "hostAliases": {
+                    "description": "Specify HostAliases for webserver.",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.HostAlias"
+                    },
+                    "type": "array",
+                    "default": [],
+                    "examples": [
+                        {
+                            "ip": "127.0.0.2",
+                            "hostnames": [
+                                "test.hostname.one"
+                            ]
+                        },
+                        {
+                            "ip": "127.0.0.3",
+                            "hostnames": [
+                                "test.hostname.two"
+                            ]
+                        }
+                    ]
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the webserver pods.",
                     "type": "object",

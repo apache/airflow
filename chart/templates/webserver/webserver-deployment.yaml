@@ -110,6 +110,10 @@ spec:
 {{ toYaml $tolerations | indent 8 }}
       topologySpreadConstraints:
 {{ toYaml $topologySpreadConstraints | indent 8 }}
+{{- if .Values.webserver.hostAliases }}
+      hostAliases:
+{{ toYaml .Values.webserver.hostAliases | indent 8 }}
+{{- end }}
       restartPolicy: Always
       securityContext: {{ $securityContext | nindent 8 }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
