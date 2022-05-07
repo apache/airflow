@@ -368,26 +368,27 @@ class PodManager(LoggingMixin):
                 _preload_content=False,
             )
         ) as resp:
-            result = self._exec_pod_command(resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json', True)
+            result = self._exec_pod_command(resp, f'cat {PodDefaults.XCOM_MOUNT_PATH}/return.json')
             self._exec_pod_command(resp, 'kill -s SIGINT 1')
         if result is None:
             raise AirflowException(f'Failed to extract xcom from pod: {pod.metadata.name}')
         return result
 
-    def _exec_pod_command(self, resp, command: str, extract_full_content=False) -> Optional[str]:
+    def _exec_pod_command(self, resp, command: str) -> Optional[str]:
         if resp.is_open():
             self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
             while resp.is_open():
                 resp.update(timeout=1)
                 res = None
-                if resp.peek_stdout():
-                    res = resp.read_stdout()
-                    if extract_full_content:
-                        while resp.peek_stdout():
-                            res = res + resp.read_stdout()
+                while resp.peek_stdout():
+                    res = res + resp.read_stdout()
+                if res:
                     return res
-                if resp.peek_stderr():
-                    self.log.info("stderr from command: %s", resp.read_stderr())
+                error_res = None
+                while resp.peek_stderr():
+                    error_res = error_res + resp.read_stderr()
+                if error_res:
+                    self.log.info("stderr from command: %s", error_res)
                     break
         return None
