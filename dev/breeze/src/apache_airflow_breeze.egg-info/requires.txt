@@ -1,0 +1,10 @@
+click
+inputimeout
+pendulum
+psutil
+pytest
+pytest-xdist
+pyyaml
+requests
+rich
+rich_click
