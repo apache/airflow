@@ -22,7 +22,16 @@ from typing import IO, List, Optional, Tuple, Union
 
 import click
 
-from airflow_breeze.commands.common_options import (
+from airflow_breeze.commands.main_command import main
+from airflow_breeze.global_constants import (
+    ALLOWED_GENERATE_CONSTRAINTS_MODES,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    MOUNT_ALL,
+    MOUNT_NONE,
+    MOUNT_SELECTED,
+)
+from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.common_options import (
     argument_packages,
     option_airflow_constraints_reference,
     option_airflow_extras,
@@ -44,18 +53,9 @@ from airflow_breeze.commands.common_options import (
     option_verbose,
     option_version_suffix_for_pypi,
 )
-from airflow_breeze.commands.custom_param_types import BetterChoice
-from airflow_breeze.commands.main import main
-from airflow_breeze.global_constants import (
-    ALLOWED_GENERATE_CONSTRAINTS_MODES,
-    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-    MOUNT_ALL,
-    MOUNT_NONE,
-    MOUNT_SELECTED,
-)
-from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.confirm import Answer, user_confirm
 from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
