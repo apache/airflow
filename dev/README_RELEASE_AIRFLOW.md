@@ -28,6 +28,7 @@
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Prerequisites](#prerequisites)
   - [Setting environment with emulation](#setting-environment-with-emulation)
   - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
@@ -49,6 +50,7 @@
   - [Update Announcements page](#update-announcements-page)
   - [Create release on GitHub](#create-release-on-github)
   - [Close the milestone](#close-the-milestone)
+  - [Close the testing status issue](#close-the-testing-status-issue)
   - [Announce the release on the community slack](#announce-the-release-on-the-community-slack)
   - [Tweet about the release](#tweet-about-the-release)
   - [Update `main` with the latest release details](#update-main-with-the-latest-release-details)
@@ -131,7 +133,7 @@ for the PRs that are already correctly assigned to the milestone. You can also a
 question with `--assume-yes` flag.
 
 You cn review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
-assumes `--skip-assigned` so that the summary can be produced without questions:
+assumes the `--skip-assigned` flag, so that the summary can be produced without questions:
 
 ```shell
 ,/dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
@@ -199,11 +201,14 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Check out the 'test' branch
 
+  For major/minor version release, please follow  the instructions at [Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache) to create the 'test' and 'stable' branches.
+
     ```shell script
     git checkout v${VERSION_BRANCH}-test
     ```
 
-- Set your version to 2.0.N in `setup.py` (without the RC tag)
+- Set your version in `setup.py` (without the RC tag)
+- Add supported Airflow version to `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
 - Replace the version in `README.md` and verify that installation instructions work fine.
 - Build the release notes:
 
@@ -232,10 +237,22 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
     git tag -s ${VERSION} -m "Apache Airflow ${VERSION}"
     ```
 
-- Clean the checkout: the sdist step below will
+- Clean the checkout repo
 
     ```shell script
     git clean -fxd
+    ```
+
+- Restore breeze installation (The breeze's `.egginfo` is cleared by git-clean)
+
+    ```shell script
+    pipx install -e ./dev/breeze --force
+    ```
+
+- Make sure you have the latest CI image
+
+    ```shell script
+    breeze pull-image --python 3.7
     ```
 
 - Tarball the repo
@@ -246,6 +263,8 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
         --prefix=apache-airflow-${VERSION_WITHOUT_RC}/ \
         -o dist/apache-airflow-${VERSION_WITHOUT_RC}-source.tar.gz
     ```
+
+    Copy the tarball to a location outside of the repo and verify licences.
 
 - Generate SHA512/ASC (If you have not generated a key yet, generate it by following instructions on http://www.apache.org/dev/openpgp.html#key-gen-generate-key)
 
@@ -404,7 +423,7 @@ protected_branches:
    export BRANCH_PREFIX=2-1
    git checkout constraints-main
    git checkout -b constraints-${BRANCH_PREFIX}
-   git push origin tag constraints-${BRANCH_PREFIX}
+   git push --set-upstream origin constraints-${BRANCH_PREFIX}
    ```
 
 
@@ -472,6 +491,15 @@ who has access to Airflow's DockerHub. Note that we started releasing a multi-pl
 to have an environment prepared to build multi-platform images. You can achieve it with either emulation
 (very slow) or if you have two types of hardware (AMD64 and ARM64) you can configure Hardware builders.
 
+## Prerequisites
+
+You need to have buildx plugin installed to run the build. Also, you need to have regctl
+installed from https://github.com/regclient/regclient in order to tag the multi-platform images in
+DockerHub. The script to build images will refuse to work if you do not have those two installed.
+
+You also need to have the right permissions to push the images, so you should run
+`docker login` before and authenticate with your DockerHub token.
+
 ## Setting environment with emulation
 
 According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
@@ -515,9 +543,16 @@ docker buildx ls
        airflow_cache1    tcp://127.0.0.1:2375
 ```
 
+Preparing regular images:
 
 ```shell script
-./dev/prepare_prod_docker_images.sh ${VERSION}
+breeze release-prod-images --airflow-version "${VERSION}"
+```
+
+Preparing slim images:
+
+```shell script
+breeze release-prod-images --airflow-version "${VERSION}" --slim-images
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
@@ -552,8 +587,6 @@ Copy the URL of the issue.
 
 ## Prepare Vote email on the Apache Airflow release candidate
 
-- Use the dev/airflow-jira script to generate a list of Airflow JIRAs that were closed in the release.
-
 - Send out a vote to the dev@airflow.apache.org mailing list:
 
 Subject:
@@ -571,8 +604,8 @@ cat <<EOF
 Hey fellow Airflowers,
 
 I have cut Airflow ${VERSION}. This email is calling a vote on the release,
-which will last for 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
-until Monday, October 11, 2021 at 4:00 pm UTC, or until 3 binding +1 votes have been received.
+which will last at least 72 hours, from Friday, October 8, 2021 at 4:00 pm UTC
+until Monday, October 11, 2021 at 4:00 pm UTC, and until 3 binding +1 votes have been received.
 
 https://www.timeanddate.com/worldclock/fixedtime.html?msg=8&iso=20211011T1600&p1=1440
 
@@ -975,19 +1008,34 @@ At this point we release an official package:
 
 ## Manually prepare production Docker Image
 
-
 Note that this scripts prepares multi-platform image, so you need to fulfill prerequisites as
 described above in the preparation of RC images.
 
+Note that by default the `latest` images tagged are aliased to the just released image which is the usual
+way we release. For example when you are releasing 2.3.N image and 2.3 is our latest branch the new image is
+marked as "latest".
+
+In case we are releasing (which almost never happens so far) a critical bugfix release in one of
+the older branches, you should add the `--skip-latest` flag.
+
+Preparing regular images:
+
 ```shell script
-./dev/prepare_prod_docker_images.sh ${VERSION}
+breeze release-prod-images --airflow-version "${VERSION}"
 ```
 
-Note! When you release the 'final' (non-rc) version you will be asked if you want to
-tag the images as latest - if you are releasing the latest stable branch, you
-should answer y and tags will be created and pushed. If you are releasing a
-patch release from an older branch, you should answer n and creating tags will
-be skipped.
+Preparing slim images:
+
+```shell script
+breeze release-prod-images --airflow-version "${VERSION}" --slim-images
+```
+
+Preparing a release that is not in the latest branch:
+
+```shell script
+breeze release-prod-images --airflow-version "${VERSION}" --slim-images --skip-latest
+```
+
 
 ## Publish documentation
 
@@ -1094,6 +1142,10 @@ Close the milestone on GitHub. Create the next one if it hasn't been already (it
 Update the new milestone in the [*Currently we are working on* issue](https://github.com/apache/airflow/issues/10176)
 make sure to update the last updated timestamp as well.
 
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.
+
 ## Announce the release on the community slack
 
 Post this in the #announce channel:
@@ -1134,6 +1186,8 @@ EOF
 This includes:
 
 - Modify `./scripts/ci/pre_commit/pre_commit_supported_versions.py` and let pre-commit do the job
+- For major/minor release, Update version in `setup.py` and `docs/docker-stack/` to the next likely minor version release.
+- Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Sync `RELEASE_NOTES.rst` (including deleting relevant `newsfragments`) and `README.md` changes
 - Updating issue templates in `.github/ISSUE_TEMPLATE/` with the new version
 - Updating `Dockerfile` with the new version
