@@ -38,8 +38,8 @@ Search path
 When looking up a connection/variable, by default Airflow will search environment variables first and metastore
 database second.
 
-If you enable an alternative secrets backend, it will be searched first, followed by environment variables,
-then metastore.  This search ordering is not configurable.
+If you enable an alternative secrets backend, it will be searched first, followed by environment
+variables, then metastore. This search ordering is not configurable in Airflow <2.4.0.
 
 .. warning::
 
@@ -59,6 +59,7 @@ The ``[secrets]`` section has the following options:
     [secrets]
     backend =
     backend_kwargs =
+    backends_config =
 
 Set ``backend`` to the fully qualified class name of the backend you want to enable.
 
@@ -72,6 +73,47 @@ the example below.
 
     $ airflow config get-value secrets backend
     airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend
+
+Advanced Configuration
+""""""""""""""""""""""
+
+.. versionadded:: 2.4.0
+
+You can provide ``backends_config`` with json-list which contains json-objects of required backends for:
+
+* Configure more than one alternative secrets backend.
+* Change search ordering of secrets backends.
+* Turn off built-in backends (environment variables or the metastore database).
+
+Object should contains mandatory **backend** attribute with fully qualified class name of the backend you want to enable
+and optionally contains **backend_kwargs** with json-object which will be passed as kwargs to the ``__init__``
+method of your secrets backend.
+
+Here's a basic example of how to configure to use Environment Variables first,
+next :ref:`SSM Parameter Store <ssm_parameter_store_secrets>`, and then metastore.:
+
+.. code-block:: json
+
+    [
+      {
+        "backend": "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
+      },
+      {
+        "backend": "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+        "backend_kwargs": {
+          "connections_prefix": "/airflow/connections",
+          "profile_name": "default"
+        }
+      },
+      {
+        "backend": "airflow.secrets.metastore.MetastoreBackend"
+      }
+    ]
+
+.. warning::
+
+    If you specify ``backends_config`` options than Airflow will ignore values
+    in ``backend`` and ``backend_kwargs`` options.
 
 Supported core backends
 ^^^^^^^^^^^^^^^^^^^^^^^
@@ -101,8 +143,8 @@ Roll your own secrets backend
 A secrets backend is a subclass of :py:class:`airflow.secrets.BaseSecretsBackend` and must implement either
 :py:meth:`~airflow.secrets.BaseSecretsBackend.get_connection` or :py:meth:`~airflow.secrets.BaseSecretsBackend.get_conn_value`.
 
-After writing your backend class, provide the fully qualified class name in the ``backend`` key in the ``[secrets]``
-section of ``airflow.cfg``.
+After writing your backend class, provide the fully qualified class name in the ``backend`` key or provide
+configurations in the ``backends_config`` in the ``[secrets]`` section of ``airflow.cfg``.
 
 Additional arguments to your SecretsBackend can be configured in ``airflow.cfg`` by supplying a JSON string to ``backend_kwargs``, which will be passed to the ``__init__`` of your SecretsBackend.
 See :ref:`Configuration <secrets_backend_configuration>` for more details, and :ref:`SSM Parameter Store <ssm_parameter_store_secrets>` for an example.

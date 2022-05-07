@@ -27,20 +27,21 @@ import subprocess
 import sys
 import warnings
 from base64 import b64encode
-from collections import OrderedDict
+from collections import OrderedDict, UserList
 
 # Ignored Mypy on configparser because it thinks the configparser module has no _UNSET attribute
 from configparser import _UNSET, ConfigParser, NoOptionError, NoSectionError  # type: ignore
 from contextlib import suppress
+from dataclasses import dataclass, field
 from json.decoder import JSONDecodeError
 from re import Pattern
-from typing import IO, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import IO, Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple, Union
 from urllib.parse import urlparse
 
 from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
-from airflow.secrets import DEFAULT_SECRETS_SEARCH_PATH, BaseSecretsBackend
+from airflow.secrets.base_secrets import BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
 from airflow.utils.weight_rule import WeightRule
@@ -60,6 +61,16 @@ ConfigSectionSourcesType = Dict[str, Union[str, Tuple[str, str]]]
 ConfigSourcesType = Dict[str, ConfigSectionSourcesType]
 
 ENV_VAR_PREFIX = 'AIRFLOW__'
+
+
+DEFAULT_SECRETS_SEARCH_PATH: List[Dict[str, Any]] = [
+    {
+        "backend": "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
+    },
+    {
+        "backend": "airflow.secrets.metastore.MetastoreBackend",
+    },
+]
 
 
 def _parse_sqlite_version(s: str) -> Tuple[int, ...]:
@@ -113,18 +124,20 @@ def run_command(command: str) -> str:
 
 def _get_config_value_from_secret_backend(config_key: str) -> Optional[str]:
     """Get Config option values from Secret Backend"""
-    try:
-        secrets_client = get_custom_secret_backend()
-        if not secrets_client:
-            return None
-        return secrets_client.get_config(config_key)
-    except Exception as e:
-        raise AirflowConfigException(
-            'Cannot retrieve config from alternative secrets backend. '
-            'Make sure it is configured properly and that the Backend '
-            'is accessible.\n'
-            f'{e}'
-        )
+    config_value = None
+    for secrets_client in ensure_secrets_loaded():
+        try:
+            config_value = secrets_client.get_config(config_key)
+            if config_value:
+                break
+        except Exception as e:
+            raise AirflowConfigException(
+                f'Cannot retrieve config from secrets backend `{secrets_client.__class__.__name__}`. '
+                f'Make sure it is configured properly and that the Backend is accessible.\n'
+                f'{e}'
+            )
+
+    return config_value
 
 
 def _default_config_file_path(file_name: str) -> str:
@@ -1487,49 +1500,82 @@ def set(*args, **kwargs) -> None:
     conf.set(*args, **kwargs)
 
 
-def ensure_secrets_loaded() -> List[BaseSecretsBackend]:
-    """
-    Ensure that all secrets backends are loaded.
-    If the secrets_backend_list contains only 2 default backends, reload it.
-    """
-    # Check if the secrets_backend_list contains only 2 default backends
-    if len(secrets_backend_list) == 2:
+class DefaultSecretsBackend(UserList):
+    """Container which use for store default secrets backend configuration."""
+
+
+@dataclass(frozen=True)
+class SecretsBackendConfig:
+    """Secrets Backend Config dataclass helper."""
+
+    backend: str
+    backend_kwargs: Dict[str, Any] = field(default_factory=dict)
+
+    @classmethod
+    def from_config(cls) -> Optional['SecretsBackendConfig']:
+        """Try to get `SecretsBackendConfig` from Apache Airflow configs"""
+        secrets_backend = conf.get(section='secrets', key='backend', fallback=None)
+
+        if not secrets_backend:
+            return None
+
+        try:
+            secrets_backend_kwargs: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
+            secrets_backend_kwargs = json.loads(secrets_backend_kwargs)
+        except JSONDecodeError:
+            secrets_backend_kwargs = None
+
+        return cls(secrets_backend, secrets_backend_kwargs)
+
+    def initialize(self) -> BaseSecretsBackend:
+        """Initialize Secrets Backend."""
+        return import_string(self.backend)(**self.backend_kwargs)
+
+
+def ensure_secrets_loaded() -> Sequence[BaseSecretsBackend]:
+    """Ensure that all secrets backends are loaded."""
+    if isinstance(secrets_backend_list, DefaultSecretsBackend):
         return initialize_secrets_backends()
     return secrets_backend_list
 
 
-def get_custom_secret_backend() -> Optional[BaseSecretsBackend]:
-    """Get Secret Backend if defined in airflow.cfg"""
-    secrets_backend_cls = conf.getimport(section='secrets', key='backend')
-
-    if secrets_backend_cls:
-        try:
-            backends: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
-            alternative_secrets_config_dict = json.loads(backends)
-        except JSONDecodeError:
-            alternative_secrets_config_dict = {}
-
-        return secrets_backend_cls(**alternative_secrets_config_dict)
-    return None
-
-
-def initialize_secrets_backends() -> List[BaseSecretsBackend]:
+def initialize_secrets_backends() -> Sequence[BaseSecretsBackend]:
     """
     * import secrets backend classes
     * instantiate them and return them in a list
     """
-    backend_list = []
+    list_backends = []
 
-    custom_secret_backend = get_custom_secret_backend()
+    secrets_backend_config = conf.getjson(section='secrets', key='backends_config', fallback=None)
+    if secrets_backend_config:
+        # If [secrets] 'backend_config' exists and defined than use this configuration
+        # instead of [secrets] 'backend' and [secrets] 'backend_kwargs'.
+        if not isinstance(secrets_backend_config, list):
+            raise AirflowConfigException(
+                f"[secrets] 'backends_config' expected list of backends configurations but got"
+                f" {secrets_backend_config!r}."
+            )
 
-    if custom_secret_backend is not None:
-        backend_list.append(custom_secret_backend)
+        for config in secrets_backend_config:
+            try:
+                list_backends.append(SecretsBackendConfig(**config).initialize())
+            except Exception as e:
+                raise AirflowConfigException(
+                    f"Cannot read config: {config!r} from [secrets] 'backends_config'.\n{e}"
+                ) from e
 
-    for class_name in DEFAULT_SECRETS_SEARCH_PATH:
-        secrets_backend_cls = import_string(class_name)
-        backend_list.append(secrets_backend_cls())
+    else:
+        list_backends.extend(
+            SecretsBackendConfig(**config).initialize() for config in DEFAULT_SECRETS_SEARCH_PATH
+        )
+        custom_secrets_backend_config = SecretsBackendConfig.from_config()
+        if not custom_secrets_backend_config:
+            # Returns default secrets backend list for further checks in `ensure_secrets_loaded()`.
+            return DefaultSecretsBackend(list_backends)
 
-    return backend_list
+        list_backends.insert(0, custom_secrets_backend_config.initialize())
+
+    return list_backends
 
 
 @functools.lru_cache(maxsize=None)

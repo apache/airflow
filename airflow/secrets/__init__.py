@@ -22,11 +22,6 @@ Secrets framework provides means of getting connection objects from various sour
     * Metastore database
     * AWS SSM Parameter store
 """
-__all__ = ['BaseSecretsBackend', 'DEFAULT_SECRETS_SEARCH_PATH']
+__all__ = ['BaseSecretsBackend']
 
 from airflow.secrets.base_secrets import BaseSecretsBackend
-
-DEFAULT_SECRETS_SEARCH_PATH = [
-    "airflow.secrets.environment_variables.EnvironmentVariablesBackend",
-    "airflow.secrets.metastore.MetastoreBackend",
-]

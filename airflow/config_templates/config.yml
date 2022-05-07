@@ -782,6 +782,17 @@
       type: string
       example: ~
       default: ""
+    - name: backends_config
+      description: |
+        Advanced secrets backend configuration, allow to user configure more than one secret backend,
+        order of secrets backend and turn off built-in backends.
+        Expected JSON list of objects. See
+        https://airflow.apache.org/docs/apache-airflow/stable/security/secrets/secrets-backend/index.html#advanced-configuration
+        for more details.
+      version_added: 2.4.0
+      example: ~
+      type: string
+      default: ""
 - name: cli
   description: ~
   options:

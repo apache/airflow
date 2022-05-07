@@ -16,13 +16,22 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import json
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.configuration import ensure_secrets_loaded, initialize_secrets_backends
+from airflow.exceptions import AirflowConfigException, AirflowNotFoundException
 from airflow.models import Connection, Variable
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_variables
+
+SSM_SB = "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend"
+LOCAL_SB = "airflow.secrets.local_filesystem.LocalFilesystemBackend"
+ENV_SB = "airflow.secrets.environment_variables.EnvironmentVariablesBackend"
+METASTORE_DB_SB = "airflow.secrets.metastore.MetastoreBackend"
 
 
 class TestConnectionsFromSecrets(unittest.TestCase):
@@ -44,10 +53,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend"): SSM_SB,
             ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
         }
     )
@@ -60,10 +66,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend"): SSM_SB,
             ("secrets", "backend_kwargs"): '{"use_ssl": false}',
         }
     )
@@ -79,10 +82,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend"): SSM_SB,
             ("secrets", "backend_kwargs"): '{"connections_prefix": "/airflow", "profile_name": null}',
         }
     )
@@ -152,10 +152,7 @@ class TestVariableFromSecrets(unittest.TestCase):
 
     @conf_vars(
         {
-            (
-                "secrets",
-                "backend",
-            ): "airflow.providers.amazon.aws.secrets.systems_manager.SystemsManagerParameterStoreBackend",
+            ("secrets", "backend"): SSM_SB,
             ("secrets", "backend_kwargs"): '{"variables_prefix": "/airflow", "profile_name": null}',
         }
     )
@@ -189,3 +186,196 @@ class TestVariableFromSecrets(unittest.TestCase):
 
         mock_secret_get.return_value = "a_secret_value"
         assert "a_secret_value" == Variable.get(key="not_myvar")
+
+
+class TestSecretsBackendsConfig(unittest.TestCase):
+    def setUp(self) -> None:
+        clear_db_variables()
+
+    def tearDown(self) -> None:
+        clear_db_variables()
+
+    def test_default_secrets_backend(self):
+        """
+        Test expected default order of backends which compatible with previous versions of Apache Airflow
+        """
+        backends = ensure_secrets_loaded()
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+
+        assert backend_classes == ["EnvironmentVariablesBackend", "MetastoreBackend"]
+
+    @conf_vars({("secrets", "backends_config"): "[]"})
+    def test_empty_secrets_backend_config(self):
+        """Test fallback if [secrets] 'backend_config' is empty list"""
+        backends = ensure_secrets_loaded()
+        backend_classes = [backend.__class__.__name__ for backend in backends]
+
+        assert backend_classes == ["EnvironmentVariablesBackend", "MetastoreBackend"]
+
+    def test_custom_backend_order(self):
+        secrets_backend_config = [
+            {"backend": LOCAL_SB},
+            {"backend": SSM_SB},
+            {"backend": ENV_SB},
+            {"backend": METASTORE_DB_SB},
+        ]
+
+        with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
+            backends = ensure_secrets_loaded()
+            backend_classes = [backend.__class__.__name__ for backend in backends]
+
+            assert backend_classes == [
+                "LocalFilesystemBackend",
+                "SystemsManagerParameterStoreBackend",
+                "EnvironmentVariablesBackend",
+                "MetastoreBackend",
+            ]
+
+    def test_multiple_same_backends(self):
+        secrets_backend_config = [
+            {"backend": SSM_SB, "backend_kwargs": {"use_ssl": False}},
+            {"backend": ENV_SB},
+            {"backend": METASTORE_DB_SB},
+            {"backend": SSM_SB, "backend_kwargs": {"use_ssl": True}},
+        ]
+
+        with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
+            backends = ensure_secrets_loaded()
+            backend_classes = [backend.__class__.__name__ for backend in backends]
+
+            assert backend_classes == [
+                "SystemsManagerParameterStoreBackend",
+                "EnvironmentVariablesBackend",
+                "MetastoreBackend",
+                "SystemsManagerParameterStoreBackend",
+            ]
+
+            assert backends[0] is not backends[-1]
+            assert backends[0].kwargs == {'use_ssl': False}
+            assert backends[-1].kwargs == {'use_ssl': True}
+
+    @conf_vars({("secrets", "backends_config"): '"INVALID"'})
+    def test_invalid_backend_config_type(self):
+        error_match = r"\[secrets\] 'backends_config' expected list of backends.*"
+        with pytest.raises(AirflowConfigException, match=error_match):
+            ensure_secrets_loaded()
+
+    def test_invalid_backend_config(self):
+        secrets_backend_config = [
+            {"backend": LOCAL_SB, "backend_kwargs": {"use_ssl": False}},
+            {"backend": ENV_SB},
+            {"backend": METASTORE_DB_SB},
+        ]
+
+        with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
+            error_match = r"Cannot read config: {'backend': 'airflow.secrets.local_filesystem.*"
+            with pytest.raises(AirflowConfigException, match=error_match):
+                ensure_secrets_loaded()
+
+    @mock.patch("airflow.secrets.local_filesystem.LocalFilesystemBackend.get_variable")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_variable")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_variable")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend.get_variable"
+    )
+    def test_backend_config_variable_order(self, mock_ssm_get, mock_env_get, mock_meta_get, mock_local_get):
+        secrets_backend_config = [
+            {"backend": LOCAL_SB},
+            {"backend": METASTORE_DB_SB},
+            {"backend": SSM_SB},
+            {"backend": ENV_SB},
+        ]
+
+        with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
+            ensure_secrets_loaded()
+
+            # Test Variable exists in first backend.
+            mock_local_get.return_value = "local"
+            assert "local" == Variable.get(key="test_var_1")
+            mock_local_get.assert_called_once_with(key="test_var_1")
+            mock_meta_get.assert_not_called()
+            mock_ssm_get.assert_not_called()
+            mock_env_get.assert_not_called()
+
+            # Test Variable exists in second backend.
+            mock_local_get.return_value = None
+            mock_meta_get.return_value = "meta"
+            assert "meta" == Variable.get(key="test_var_2")
+            mock_meta_get.assert_called_once_with(key="test_var_2")
+            mock_ssm_get.assert_not_called()
+            mock_env_get.assert_not_called()
+
+            # Test Variable exists in third backend.
+            mock_meta_get.return_value = None
+            mock_ssm_get.return_value = "ssm"
+            assert "ssm" == Variable.get(key="test_var_3")
+            mock_ssm_get.assert_called_once_with(key="test_var_3")
+            mock_env_get.assert_not_called()
+
+            # Test Variable exists in forth backend.
+            mock_ssm_get.return_value = None
+            mock_env_get.return_value = "env"
+            assert "env" == Variable.get(key="test_var_4")
+            mock_env_get.assert_called_once_with(key="test_var_4")
+
+            # Test Variable not exists in any backends.
+            mock_env_get.return_value = None
+            with pytest.raises(KeyError, match="Variable test_var_5 does not exist"):
+                Variable.get(key="test_var_5")
+
+    @mock.patch("airflow.secrets.local_filesystem.LocalFilesystemBackend.get_connection")
+    @mock.patch("airflow.secrets.metastore.MetastoreBackend.get_connection")
+    @mock.patch("airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_connection")
+    @mock.patch(
+        "airflow.providers.amazon.aws.secrets.systems_manager."
+        "SystemsManagerParameterStoreBackend.get_connection"
+    )
+    def test_backend_config_conn_order(self, mock_ssm_get, mock_env_get, mock_meta_get, mock_local_get):
+        secrets_backend_config = [
+            {"backend": LOCAL_SB},
+            {"backend": METASTORE_DB_SB},
+            {"backend": SSM_SB},
+            {"backend": ENV_SB},
+        ]
+
+        with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
+            ensure_secrets_loaded()
+
+            # Test Connection exists in first backend.
+            mock_local_conn = mock.MagicMock()
+            mock_local_get.return_value = mock_local_conn
+            assert mock_local_conn == Connection.get_connection_from_secrets("test_conn_1")
+            mock_local_get.assert_called_once_with(conn_id="test_conn_1")
+            mock_meta_get.assert_not_called()
+            mock_ssm_get.assert_not_called()
+            mock_env_get.assert_not_called()
+
+            # Test Connection exists in second backend.
+            mock_meta_conn = mock.MagicMock()
+            mock_local_get.return_value = None
+            mock_meta_get.return_value = mock_meta_conn
+            assert mock_meta_conn == Connection.get_connection_from_secrets("test_conn_2")
+            mock_meta_get.assert_called_once_with(conn_id="test_conn_2")
+            mock_ssm_get.assert_not_called()
+            mock_env_get.assert_not_called()
+
+            # Test Connection exists in third backend.
+            mock_ssm_conn = mock.MagicMock()
+            mock_meta_get.return_value = None
+            mock_ssm_get.return_value = mock_ssm_conn
+            assert mock_ssm_conn == Connection.get_connection_from_secrets("test_conn_3")
+            mock_ssm_get.assert_called_once_with(conn_id="test_conn_3")
+            mock_env_get.assert_not_called()
+
+            # Test Connection exists in fourth backend.
+            mock_env_conn = mock.MagicMock()
+            mock_ssm_get.return_value = None
+            mock_env_get.return_value = mock_env_conn
+            assert mock_env_conn == Connection.get_connection_from_secrets("test_conn_4")
+            mock_env_get.assert_called_once_with(conn_id="test_conn_4")
+
+            # Test Connection not exists in any backends.
+            mock_env_get.return_value = None
+            with pytest.raises(AirflowNotFoundException, match="The conn_id `test_conn_5` isn't defined"):
+                Connection.get_connection_from_secrets("test_conn_5")
