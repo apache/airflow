@@ -22,11 +22,14 @@ import unittest.mock
 import urllib.parse
 
 import pytest
+from freezegun import freeze_time
 
 from airflow import settings
+from airflow.exceptions import AirflowException
 from airflow.executors.celery_executor import CeleryExecutor
-from airflow.models import DagBag, DagModel, TaskInstance, TaskReschedule
+from airflow.models import DAG, DagBag, DagModel, TaskFail, TaskInstance, TaskReschedule
 from airflow.models.dagcode import DagCode
+from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
 from airflow.utils import dates, timezone
@@ -139,15 +142,25 @@ def client_ti_without_dag_edit(app):
         pytest.param(
             'dag_details?dag_id=example_bash_operator',
             ['DAG Details'],
-            id="dag-details",
+            id="dag-details-url-param",
         ),
         pytest.param(
             'dag_details?dag_id=example_subdag_operator.section-1',
+            ['DAG Details'],
+            id="dag-details-subdag-url-param",
+        ),
+        pytest.param(
+            'dags/example_subdag_operator.section-1/details',
             ['DAG Details'],
             id="dag-details-subdag",
         ),
         pytest.param(
             'graph?dag_id=example_bash_operator',
+            ['runme_1'],
+            id='graph-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/graph',
             ['runme_1'],
             id='graph',
         ),
@@ -157,32 +170,67 @@ def client_ti_without_dag_edit(app):
             id='tree',
         ),
         pytest.param(
+            'dags/example_bash_operator/grid',
+            ['runme_1'],
+            id='grid',
+        ),
+        pytest.param(
             'tree?dag_id=example_subdag_operator.section-1',
             ['section-1-task-1'],
-            id="tree-subdag",
+            id="tree-subdag-url-param",
+        ),
+        pytest.param(
+            'dags/example_subdag_operator.section-1/grid',
+            ['section-1-task-1'],
+            id="grid-subdag",
         ),
         pytest.param(
             'duration?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='duration-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/duration?days=30',
             ['example_bash_operator'],
             id='duration',
         ),
         pytest.param(
             'duration?days=30&dag_id=missing_dag',
             ['seems to be missing'],
+            id='duration-missing-url-param',
+        ),
+        pytest.param(
+            'dags/missing_dag/duration?days=30',
+            ['seems to be missing'],
             id='duration-missing',
         ),
         pytest.param(
             'tries?days=30&dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id='tries-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/tries?days=30',
             ['example_bash_operator'],
             id='tries',
         ),
         pytest.param(
             'landing_times?days=30&dag_id=example_bash_operator',
             ['example_bash_operator'],
+            id='landing-times-url-param',
+        ),
+        pytest.param(
+            'dags/example_bash_operator/landing-times?days=30',
+            ['example_bash_operator'],
             id='landing-times',
         ),
         pytest.param(
             'gantt?dag_id=example_bash_operator',
+            ['example_bash_operator'],
+            id="gantt-url-param",
+        ),
+        pytest.param(
+            'dags/example_bash_operator/gantt',
             ['example_bash_operator'],
             id="gantt",
         ),
@@ -196,20 +244,40 @@ def client_ti_without_dag_edit(app):
         pytest.param(
             "graph?dag_id=example_bash_operator",
             ["example_bash_operator"],
+            id="existing-dagbag-graph-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/graph",
+            ["example_bash_operator"],
             id="existing-dagbag-graph",
         ),
         pytest.param(
             "tree?dag_id=example_bash_operator",
             ["example_bash_operator"],
-            id="existing-dagbag-tree",
+            id="existing-dagbag-tree-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/grid",
+            ["example_bash_operator"],
+            id="existing-dagbag-grid",
         ),
         pytest.param(
             "calendar?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-calendar-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/calendar",
             ["example_bash_operator"],
             id="existing-dagbag-calendar",
         ),
         pytest.param(
             "dag_details?dag_id=example_bash_operator",
+            ["example_bash_operator"],
+            id="existing-dagbag-dag-details-url-param",
+        ),
+        pytest.param(
+            "dags/example_bash_operator/details",
             ["example_bash_operator"],
             id="existing-dagbag-dag-details",
         ),
@@ -274,7 +342,7 @@ def test_tree_trigger_origin_tree_view(app, admin_client):
 
     url = 'tree?dag_id=test_tree_view'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_tree_view', 'origin': '/tree?dag_id=test_tree_view'}
+    params = {'dag_id': 'test_tree_view', 'origin': '/dags/test_tree_view/grid'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
@@ -288,9 +356,9 @@ def test_graph_trigger_origin_graph_view(app, admin_client):
         state=State.RUNNING,
     )
 
-    url = 'graph?dag_id=test_tree_view'
+    url = '/dags/test_tree_view/graph'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_tree_view', 'origin': '/graph?dag_id=test_tree_view'}
+    params = {'dag_id': 'test_tree_view', 'origin': '/dags/test_tree_view/graph'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
@@ -304,9 +372,9 @@ def test_dag_details_trigger_origin_dag_details_view(app, admin_client):
         state=State.RUNNING,
     )
 
-    url = 'dag_details?dag_id=test_graph_view'
+    url = '/dags/test_graph_view/details'
     resp = admin_client.get(url, follow_redirects=True)
-    params = {'dag_id': 'test_graph_view', 'origin': '/dag_details?dag_id=test_graph_view'}
+    params = {'dag_id': 'test_graph_view', 'origin': '/dags/test_graph_view/details'}
     href = f"/trigger?{html.escape(urllib.parse.urlencode(params))}"
     check_content_in_response(href, resp)
 
@@ -348,7 +416,7 @@ def test_code_from_db(admin_client):
     dag = DagBag(include_examples=True).get_dag("example_bash_operator")
     DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
-    resp = admin_client.get(url)
+    resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
@@ -358,7 +426,7 @@ def test_code_from_db_all_example_dags(admin_client):
     for dag in dagbag.dags.values():
         DagCode(dag.fileloc, DagCode._get_code_from_file(dag.fileloc)).sync_to_db()
     url = 'code?dag_id=example_bash_operator'
-    resp = admin_client.get(url)
+    resp = admin_client.get(url, follow_redirects=True)
     check_content_not_in_response('Failed to load DAG file Code', resp)
     check_content_in_response('example_bash_operator', resp)
 
@@ -449,7 +517,7 @@ def test_dag_never_run(admin_client, url):
     )
     clear_db_runs()
     resp = admin_client.post(url, data=form, follow_redirects=True)
-    check_content_in_response(f"Cannot mark tasks as {url}, seem that dag {dag_id} has never run", resp)
+    check_content_in_response(f"Cannot mark tasks as {url}, seem that DAG {dag_id} has never run", resp)
 
 
 class _ForceHeartbeatCeleryExecutor(CeleryExecutor):
@@ -482,6 +550,36 @@ def test_run_with_runnable_states(_, admin_client, session, state):
 
     msg = f"Task is in the &#39;{state}&#39 state."
     assert not re.search(msg, resp.get_data(as_text=True))
+
+
+@unittest.mock.patch(
+    'airflow.executors.executor_loader.ExecutorLoader.get_default_executor',
+    return_value=_ForceHeartbeatCeleryExecutor(),
+)
+@freeze_time("2020-07-07 09:00:00")
+def test_run_ignoring_deps_sets_queued_dttm(_, admin_client, session):
+    task_id = 'runme_0'
+    session.query(TaskInstance).filter(TaskInstance.task_id == task_id).update(
+        {'state': State.SCHEDULED, 'queued_dttm': None}
+    )
+    session.commit()
+
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [(None,)]
+
+    form = dict(
+        task_id=task_id,
+        dag_id="example_bash_operator",
+        ignore_all_deps="true",
+        dag_run_id=DEFAULT_DAGRUN,
+        origin='/home',
+    )
+    resp = admin_client.post('run', data=form, follow_redirects=True)
+
+    assert resp.status_code == 200
+
+    assert session.query(TaskInstance.queued_dttm).filter(TaskInstance.task_id == task_id).all() == [
+        (timezone.utcnow(),)
+    ]
 
 
 @pytest.mark.parametrize("state", QUEUEABLE_STATES)
@@ -535,6 +633,56 @@ def test_delete_dag_button_for_dag_on_scheduler_only(admin_client, new_id_exampl
     resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response(f'/delete?dag_id={test_dag_id}', resp)
     check_content_in_response(f"return confirmDeleteDag(this, '{test_dag_id}')", resp)
+
+
+@pytest.fixture()
+def new_dag_to_delete():
+    dag = DAG('new_dag_to_delete', is_paused_upon_creation=True)
+    session = settings.Session()
+    dag.sync_to_db(session=session)
+    return dag
+
+
+@pytest.fixture()
+def per_dag_perm_user_client(app, new_dag_to_delete):
+    sm = app.appbuilder.sm
+    perm = f"{permissions.RESOURCE_DAG_PREFIX}{new_dag_to_delete.dag_id}"
+
+    sm.create_permission(permissions.ACTION_CAN_DELETE, perm)
+
+    create_user(
+        app,
+        username="test_user_per_dag_perms",
+        role_name="User with some perms",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_DELETE, perm),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+        ],
+    )
+
+    sm.find_user(username="test_user_per_dag_perms")
+
+    yield client_with_login(
+        app,
+        username="test_user_per_dag_perms",
+        password="test_user_per_dag_perms",
+    )
+
+    delete_user(app, username="test_user_per_dag_perms")  # type: ignore
+    delete_roles(app)
+
+
+def test_delete_just_dag_per_dag_permissions(new_dag_to_delete, per_dag_perm_user_client):
+    resp = per_dag_perm_user_client.post(
+        f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True
+    )
+    check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
+
+
+def test_delete_just_dag_resource_permissions(new_dag_to_delete, user_client):
+    resp = user_client.post(f"delete?dag_id={new_dag_to_delete.dag_id}&next=/home", follow_redirects=True)
+    check_content_in_response(f'Deleting DAG with id {new_dag_to_delete.dag_id}.', resp)
 
 
 @pytest.mark.parametrize("endpoint", ["graph", "tree"])
@@ -788,3 +936,46 @@ def test_action_muldelete_task_instance(session, admin_client, task_search_tuple
             == 0
         )
     assert session.query(TaskReschedule).count() == 0
+
+
+def test_task_fail_duration(app, admin_client, dag_maker, session):
+    """Task duration page with a TaskFail entry should render without error."""
+    with dag_maker() as dag:
+        op1 = BashOperator(task_id='fail', bash_command='exit 1')
+        op2 = BashOperator(task_id='success', bash_command='exit 0')
+
+    with pytest.raises(AirflowException):
+        op1.run()
+    op2.run()
+
+    op1_fails = (
+        session.query(TaskFail)
+        .filter(
+            TaskFail.task_id == 'fail',
+            TaskFail.dag_id == dag.dag_id,
+        )
+        .all()
+    )
+
+    op2_fails = (
+        session.query(TaskFail)
+        .filter(
+            TaskFail.task_id == 'success',
+            TaskFail.dag_id == dag.dag_id,
+        )
+        .all()
+    )
+
+    assert len(op1_fails) == 1
+    assert len(op2_fails) == 0
+
+    with unittest.mock.patch.object(app, 'dag_bag') as mocked_dag_bag:
+        mocked_dag_bag.get_dag.return_value = dag
+        resp = admin_client.get(f"dags/{dag.dag_id}/duration", follow_redirects=True)
+        html = resp.get_data().decode()
+        cumulative_chart = json.loads(re.search("data_cumlinechart=(.*);", html).group(1))
+        line_chart = json.loads(re.search("data_linechart=(.*);", html).group(1))
+
+        assert resp.status_code == 200
+        assert sorted(item["key"] for item in cumulative_chart) == ["fail", "success"]
+        assert sorted(item["key"] for item in line_chart) == ["fail", "success"]

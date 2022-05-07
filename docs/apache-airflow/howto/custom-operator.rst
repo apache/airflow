@@ -243,19 +243,29 @@ configuration at ``query.sql`` to be rendered with the SQL lexer.
 Currently available lexers:
 
   - bash
+  - bash_command
   - doc
+  - doc_json
+  - doc_md
+  - doc_rst
+  - doc_yaml
+  - doc_md
   - hql
   - html
   - jinja
   - json
   - md
+  - mysql
+  - postgresql
   - powershell
   - py
+  - python_callable
   - rst
   - sql
+  - tsql
   - yaml
 
-If you use a non existing lexer then the value of the template field will be rendered as a pretty printed object.
+If you use a non-existing lexer then the value of the template field will be rendered as a pretty-printed object.
 
 Define an operator extra link
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

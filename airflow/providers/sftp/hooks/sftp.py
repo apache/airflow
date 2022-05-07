@@ -322,7 +322,7 @@ class SFTPHook(SSHHook):
         return files, dirs, unknowns
 
     def test_connection(self) -> Tuple[bool, str]:
-        """Test the SFTP connection by checking if remote entity '/some/path' exists"""
+        """Test the SFTP connection by calling path with directory"""
         try:
             conn = self.get_conn()
             conn.pwd

@@ -23,6 +23,8 @@ export const defaultFormatWithTZ = 'YYYY-MM-DD, HH:mm:ss z';
 export const defaultTZFormat = 'z (Z)';
 export const dateTimeAttrFormat = 'YYYY-MM-DDThh:mm:ssTZD';
 
+export const TimezoneEvent = 'timezone';
+
 export function formatTimezone(what) {
   if (what instanceof moment) {
     return what.isUTC() ? 'UTC' : what.format(defaultTZFormat);
@@ -76,7 +78,7 @@ export function updateAllDateTimes() {
     const dt = moment($el.attr('datetime'));
     // eslint-disable-next-line no-underscore-dangle
     if (dt._isValid) {
-      $el.text(dt.format(defaultFormat));
+      $el.text(dt.format($el.data('with-tz') ? defaultFormatWithTZ : defaultFormat));
     }
     if ($el.attr('title') !== undefined) {
       // If displayed date is not UTC, have the UTC date in a title attribute

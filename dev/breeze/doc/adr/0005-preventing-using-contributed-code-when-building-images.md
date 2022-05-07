@@ -35,7 +35,7 @@ Date: 2021-12-19
 
 ## Status
 
-Draft
+Accepted
 
 Builds on [4. Using Docker images as test environment](0004-using-docker-images-as-test-environment.md)
 

@@ -19,6 +19,7 @@ import io
 import json
 import logging
 import os
+import re
 import shutil
 from unittest import mock
 from urllib.parse import quote
@@ -38,6 +39,19 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 from .elasticmock import elasticmock
 
 
+def get_ti(dag_id, task_id, execution_date, create_task_instance):
+    ti = create_task_instance(
+        dag_id=dag_id,
+        task_id=task_id,
+        execution_date=execution_date,
+        dagrun_state=DagRunState.RUNNING,
+        state=TaskInstanceState.RUNNING,
+    )
+    ti.try_number = 1
+    ti.raw = False
+    return ti
+
+
 class TestElasticsearchTaskHandler:
     DAG_ID = 'dag_for_testing_es_task_handler'
     TASK_ID = 'task_for_testing_es_log_handler'
@@ -47,16 +61,12 @@ class TestElasticsearchTaskHandler:
 
     @pytest.fixture()
     def ti(self, create_task_instance):
-        ti = create_task_instance(
+        yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
             execution_date=self.EXECUTION_DATE,
-            dagrun_state=DagRunState.RUNNING,
-            state=TaskInstanceState.RUNNING,
+            create_task_instance=create_task_instance,
         )
-        ti.try_number = 1
-        ti.raw = False
-        yield ti
         clear_db_runs()
         clear_db_dags()
 
@@ -130,6 +140,38 @@ class TestElasticsearchTaskHandler:
         assert not metadatas[0]['end_of_log']
         assert '1' == metadatas[0]['offset']
         assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
+
+    @pytest.mark.parametrize('seconds', [3, 6])
+    def test_read_missing_logs(self, seconds, create_task_instance):
+        """
+        When the log actually isn't there to be found, we only want to wait for 5 seconds.
+        In this case we expect to receive a message of the form 'Log {log_id} not found in elasticsearch ...'
+        """
+        ti = get_ti(
+            self.DAG_ID,
+            self.TASK_ID,
+            pendulum.instance(self.EXECUTION_DATE).add(days=1),  # so logs are not found
+            create_task_instance=create_task_instance,
+        )
+        ts = pendulum.now().add(seconds=-seconds)
+        logs, metadatas = self.es_task_handler.read(ti, 1, {'offset': 0, 'last_log_timestamp': str(ts)})
+
+        assert 1 == len(logs)
+        if seconds > 5:
+            # we expect a log not found message when checking began more than 5 seconds ago
+            assert len(logs[0]) == 1
+            actual_message = logs[0][0][1]
+            expected_pattern = r'^\*\*\* Log .* not found in Elasticsearch.*'
+            assert re.match(expected_pattern, actual_message) is not None
+            assert metadatas[0]['end_of_log'] is True
+        else:
+            # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+            assert len(logs[0]) == 0
+            assert logs == [[]]
+            assert metadatas[0]['end_of_log'] is False
+        assert len(logs) == len(metadatas)
+        assert '0' == metadatas[0]['offset']
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) == ts
 
     def test_read_with_match_phrase_query(self, ti):
         similar_log_id = (
@@ -210,15 +252,24 @@ class TestElasticsearchTaskHandler:
         ts = pendulum.now().subtract(minutes=5)
 
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+        # in the below call, offset=1 implies that we have already retrieved something
+        # if we had never retrieved any logs at all (offset=0), then we would have gotten
+        # a "logs not found" message after 5 seconds of trying
+        offset = 1
         logs, metadatas = self.es_task_handler.read(
-            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+            task_instance=ti,
+            try_number=1,
+            metadata={
+                'offset': offset,
+                'last_log_timestamp': str(ts),
+                'end_of_log': False,
+            },
         )
         assert 1 == len(logs)
         assert len(logs) == len(metadatas)
         assert [[]] == logs
         assert metadatas[0]['end_of_log']
-        # offset should be initialized to 0 if not provided.
-        assert '0' == metadatas[0]['offset']
+        assert str(offset) == metadatas[0]['offset']
         assert timezone.parse(metadatas[0]['last_log_timestamp']) == ts
 
     def test_read_as_download_logs(self, ti):

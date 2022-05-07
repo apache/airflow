@@ -18,6 +18,7 @@
 """Objects relating to sourcing connections from environment variables"""
 
 import os
+import warnings
 from typing import Optional
 
 from airflow.secrets import BaseSecretsBackend
@@ -30,8 +31,21 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
     """Retrieves Connection object and Variable from environment variable."""
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
-        environment_uri = os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
-        return environment_uri
+        """
+        Return URI representation of Connection conn_id
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        warnings.warn(
+            "This method is deprecated. Please use "
+            "`airflow.secrets.environment_variables.EnvironmentVariablesBackend.get_conn_value`.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_conn_value(conn_id)
+
+    def get_conn_value(self, conn_id: str) -> Optional[str]:
+        return os.environ.get(CONN_ENV_PREFIX + conn_id.upper())
 
     def get_variable(self, key: str) -> Optional[str]:
         """

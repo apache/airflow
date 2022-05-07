@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
+from typing import Union
+
 from airflow.models.base import ID_LEN, Base
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
@@ -23,12 +25,15 @@ from airflow.models.dag import DAG, DagModel, DagTag
 from airflow.models.dagbag import DagBag
 from airflow.models.dagpickle import DagPickle
 from airflow.models.dagrun import DagRun
+from airflow.models.db_callback_request import DbCallbackRequest
 from airflow.models.errors import ImportError
 from airflow.models.log import Log
+from airflow.models.mappedoperator import MappedOperator
+from airflow.models.operator import Operator
 from airflow.models.param import Param
 from airflow.models.pool import Pool
 from airflow.models.renderedtifields import RenderedTaskInstanceFields
-from airflow.models.sensorinstance import SensorInstance  # noqa: F401
+from airflow.models.sensorinstance import SensorInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.slamiss import SlaMiss
 from airflow.models.taskfail import TaskFail
@@ -37,3 +42,36 @@ from airflow.models.taskreschedule import TaskReschedule
 from airflow.models.trigger import Trigger
 from airflow.models.variable import Variable
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
+
+__all__ = [
+    "DAG",
+    "ID_LEN",
+    "XCOM_RETURN_KEY",
+    "Base",
+    "BaseOperator",
+    "BaseOperatorLink",
+    "Connection",
+    "DagBag",
+    "DagModel",
+    "DagPickle",
+    "DagRun",
+    "DagTag",
+    "DbCallbackRequest",
+    "ImportError",
+    "Log",
+    "MappedOperator",
+    "Operator",
+    "Param",
+    "Pool",
+    "RenderedTaskInstanceFields",
+    "SensorInstance",
+    "SkipMixin",
+    "SlaMiss",
+    "TaskFail",
+    "TaskInstance",
+    "TaskReschedule",
+    "Trigger",
+    "Variable",
+    "XCom",
+    "clear_task_instances",
+]

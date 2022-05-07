@@ -46,14 +46,12 @@ from google.cloud.exceptions import NotFound
 from googleapiclient.discovery import Resource, build
 from pandas import DataFrame
 from pandas_gbq import read_gbq
-from pandas_gbq.gbq import (
-    GbqConnector,
-    _check_google_client_version as gbq_check_google_client_version,
-    _test_google_api_imports as gbq_test_google_api_imports,
-)
+from pandas_gbq.gbq import GbqConnector  # noqa
+from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.helpers import convert_camel_to_snake
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -71,7 +69,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :param delegate_to: This performs a task on one host with reference to other hosts.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
-    :param bigquery_conn_id: The Airflow connection used for BigQuery credentials.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
@@ -89,21 +86,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         delegate_to: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
-        bigquery_conn_id: Optional[str] = None,
         api_resource_configs: Optional[Dict] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         labels: Optional[Dict] = None,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = bigquery_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -114,6 +100,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = None  # type: Optional[str]
         self.api_resource_configs = api_resource_configs if api_resource_configs else {}  # type Dict
         self.labels = labels
+        self.credentials_path = "bigquery_hook_credentials.json"
 
     def get_conn(self) -> "BigQueryConnection":
         """Returns a BigQuery PEP 249 connection object."""
@@ -144,11 +131,53 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :return:
         """
         return Client(
-            client_info=self.client_info,
+            client_info=CLIENT_INFO,
             project=project_id,
             location=location,
             credentials=self._get_credentials(),
         )
+
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        return f"bigquery://{self.project_id}"
+
+    def get_sqlalchemy_engine(self, engine_kwargs=None):
+        """
+        Get an sqlalchemy_engine object.
+
+        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
+        :return: the created engine.
+        """
+        if engine_kwargs is None:
+            engine_kwargs = {}
+        connection = self.get_connection(self.gcp_conn_id)
+        if connection.extra_dejson.get("extra__google_cloud_platform__key_path"):
+            credentials_path = connection.extra_dejson['extra__google_cloud_platform__key_path']
+            return create_engine(self.get_uri(), credentials_path=credentials_path, **engine_kwargs)
+        elif connection.extra_dejson.get("extra__google_cloud_platform__keyfile_dict"):
+            credential_file_content = json.loads(
+                connection.extra_dejson["extra__google_cloud_platform__keyfile_dict"]
+            )
+            return create_engine(self.get_uri(), credentials_info=credential_file_content, **engine_kwargs)
+        try:
+            # 1. If the environment variable GOOGLE_APPLICATION_CREDENTIALS is set
+            # ADC uses the service account key or configuration file that the variable points to.
+            # 2. If the environment variable GOOGLE_APPLICATION_CREDENTIALS isn't set
+            # ADC uses the service account that is attached to the resource that is running your code.
+            return create_engine(self.get_uri(), **engine_kwargs)
+        except Exception as e:
+            self.log.error(e)
+            raise AirflowException(
+                "For now, we only support instantiating SQLAlchemy engine by"
+                " using ADC"
+                ", extra__google_cloud_platform__key_path"
+                "and extra__google_cloud_platform__keyfile_dict"
+            )
+
+    def get_records(self, sql, parameters=None):
+        if self.location is None:
+            raise AirflowException("Need to specify 'location' to use BigQueryHook.get_records()")
+        return super().get_records(sql, parameters=parameters)
 
     @staticmethod
     def _resolve_table_reference(
@@ -277,7 +306,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         materialized_view: Optional[Dict] = None,
         encryption_configuration: Optional[Dict] = None,
         retry: Optional[Retry] = DEFAULT_RETRY,
-        num_retries: Optional[int] = None,
         location: Optional[str] = None,
         exists_ok: bool = True,
     ) -> Table:
@@ -329,11 +357,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                     "kmsKeyName": "projects/testp/locations/us/keyRings/test-kr/cryptoKeys/test-key"
                 }
         :param num_retries: Maximum number of retries in case of connection problems.
+        :param location: (Optional) The geographic location where the table should reside.
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
         :return: Created table
         """
-        if num_retries:
-            warnings.warn("Parameter `num_retries` is deprecated", DeprecationWarning)
 
         _table_resource: Dict[str, Any] = {}
 
@@ -381,7 +408,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         location: Optional[str] = None,
         dataset_reference: Optional[Dict[str, Any]] = None,
         exists_ok: bool = True,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Create a new empty dataset:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
@@ -425,8 +452,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         dataset: Dataset = Dataset.from_api_repr(dataset_reference)
         self.log.info('Creating dataset: %s in project: %s ', dataset.dataset_id, dataset.project)
-        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=exists_ok)
+        dataset_object = self.get_client(location=location).create_dataset(
+            dataset=dataset, exists_ok=exists_ok
+        )
         self.log.info('Dataset created successfully.')
+        return dataset_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(
@@ -506,7 +536,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         project_id: Optional[str] = None,
-    ) -> None:
+    ) -> Table:
         """
         Creates a new external table in the dataset with the data from Google
         Cloud Storage. See here:
@@ -632,10 +662,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
         self.log.info('Creating external table: %s', external_project_dataset_table)
-        self.create_empty_table(
+        table_object = self.create_empty_table(
             table_resource=table.to_api_repr(), project_id=project_id, location=location, exists_ok=True
         )
         self.log.info('External table created successfully: %s', external_project_dataset_table)
+        return table_object
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_table(
@@ -1027,7 +1058,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         source_dataset: str,
         view_dataset: str,
         view_table: str,
-        source_project: Optional[str] = None,
         view_project: Optional[str] = None,
         project_id: Optional[str] = None,
     ) -> Dict[str, Any]:
@@ -1045,12 +1075,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             self.project_id will be used.
         :return: the datasets resource of the source dataset.
         """
-        if source_project:
-            project_id = source_project
-            warnings.warn(
-                "Parameter ``source_project`` is deprecated. Use ``project_id``.",
-                DeprecationWarning,
-            )
         view_project = view_project or project_id
         view_access = AccessEntry(
             role=None,
@@ -1267,7 +1291,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         table_id: str,
         project_id: Optional[str] = None,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Update fields within a schema for a given dataset and table. Note that
         some fields in schemas are immutable and trying to change them will cause
@@ -1341,13 +1365,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not include_policy_tags:
             _remove_policy_tags(new_schema)
 
-        self.update_table(
+        table = self.update_table(
             table_resource={"schema": {"fields": new_schema}},
             fields=["schema"],
             project_id=project_id,
             dataset_id=dataset_id,
             table_id=table_id,
         )
+        return table
 
     @GoogleBaseHook.fallback_to_default_project_id
     def poll_job_complete(
@@ -1461,6 +1486,9 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job_id: Optional[str] = None,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
+        nowait: bool = False,
+        retry: Retry = DEFAULT_RETRY,
+        timeout: Optional[float] = None,
     ) -> BigQueryJob:
         """
         Executes a BigQuery job. Waits for the job to complete and returns job id.
@@ -1477,6 +1505,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             characters. If not provided then uuid will be generated.
         :param project_id: Google Cloud Project where the job is running
         :param location: location the job is running
+        :param nowait: specify whether to insert job without waiting for the result
+        :param retry: How to retry the RPC.
+        :param timeout: The number of seconds to wait for the underlying HTTP transport
+            before using ``retry``.
         """
         location = location or self.location
         job_id = job_id or self._custom_job_id(configuration)
@@ -1504,8 +1536,12 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             raise AirflowException(f"Unknown job type. Supported types: {supported_jobs.keys()}")
         job = job.from_api_repr(job_data, client)
         self.log.info("Inserting job %s", job.job_id)
-        # Start the job and wait for it to complete and get the result.
-        job.result()
+        if nowait:
+            # Initiate the job and don't wait for it to complete.
+            job._begin()
+        else:
+            # Start the job and wait for it to complete and get the result.
+            job.result(timeout=timeout, retry=retry)
         return job
 
     def run_with_configuration(self, configuration: dict) -> str:
@@ -1853,7 +1889,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     def run_extract(
         self,
         source_project_dataset_table: str,
-        destination_cloud_storage_uris: str,
+        destination_cloud_storage_uris: List[str],
         compression: str = 'NONE',
         export_format: str = 'CSV',
         field_delimiter: str = ',',
@@ -1893,7 +1929,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             var_name='source_project_dataset_table',
         )
 
-        configuration = {
+        configuration: Dict[str, Any] = {
             'extract': {
                 'sourceTable': {
                     'projectId': source_project,
@@ -1904,7 +1940,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 'destinationUris': destination_cloud_storage_uris,
                 'destinationFormat': export_format,
             }
-        }  # type: Dict[str, Any]
+        }
 
         if labels:
             configuration['labels'] = labels
@@ -2142,28 +2178,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         return job.job_id
 
 
-class BigQueryPandasConnector(GbqConnector):
-    """
-    This connector behaves identically to GbqConnector (from Pandas), except
-    that it allows the service to be injected, and disables a call to
-    self.get_credentials(). This allows Airflow to use BigQuery with Pandas
-    without forcing a three legged OAuth connection. Instead, we can inject
-    service account credentials into the binding.
-    """
-
-    def __init__(
-        self, project_id: str, service: str, reauth: bool = False, verbose: bool = False, dialect="legacy"
-    ) -> None:
-        super().__init__(project_id)
-        gbq_check_google_client_version()
-        gbq_test_google_api_imports()
-        self.project_id = project_id
-        self.reauth = reauth
-        self.service = service
-        self.verbose = verbose
-        self.dialect = dialect
-
-
 class BigQueryConnection:
     """
     BigQuery does not have a notion of a persistent connection. Thus, these
@@ -2235,7 +2249,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.create_empty_table(*args, **kwargs)
 
-    def create_empty_dataset(self, *args, **kwargs) -> None:
+    def create_empty_dataset(self, *args, **kwargs) -> Dict[str, Any]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`

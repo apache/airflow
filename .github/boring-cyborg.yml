@@ -81,7 +81,6 @@ labelPRBasedOnFilePath:
     - Dockerfile.ci
     - BREEZE.rst
     - breeze-complete
-    - confirm
     - CONTRIBUTING.*
     - LOCAL_VIRTUALENV.rst
     - STATIC_CODE_CHECKS.rst
@@ -189,8 +188,6 @@ labelPRBasedOnFilePath:
   area:production-image:
     - Dockerfile
     - docs/docker-stack/**/*
-    - scripts/in_container/prod/*
-    - scripts/ci/libraries/_verify_image.sh
     - docker_tests/**/*
 
 # Various Flags to control behaviour of the "Labeler"

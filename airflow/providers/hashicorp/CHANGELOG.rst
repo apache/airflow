@@ -19,6 +19,55 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare mid-April provider documentation. (#22819)``
+
+2.1.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.3
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Vault Hook default connection name (#20792)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
 2.1.1
 .....
 

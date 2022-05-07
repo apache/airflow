@@ -17,16 +17,20 @@
 # under the License.
 import sys
 from collections import namedtuple
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Dict  # noqa: F401  # This is used by annotation tests.
 from typing import Tuple
 
 import pytest
 
 from airflow.decorators import task as task_decorator
+from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
-from airflow.models.baseoperator import MappedOperator
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskmap import TaskMap
+from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.models.xcom_arg import XComArg
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -97,6 +101,13 @@ class TestAirflowTaskDecorator:
 
         assert identity_dict(5, 5).operator.multiple_outputs is True
 
+        # Check invoking ``@task_decorator.__call__()`` yields the correct inference.
+        @task_decorator()
+        def identity_dict_with_decorator_call(x: int, y: int) -> resolve(annotation):
+            return {"x": x, "y": y}
+
+        assert identity_dict_with_decorator_call(5, 5).operator.multiple_outputs is True
+
     def test_infer_multiple_outputs_using_other_typing(self):
         @task_decorator
         def identity_tuple(x: int, y: int) -> Tuple[int, int]:
@@ -115,6 +126,25 @@ class TestAirflowTaskDecorator:
             return x
 
         assert identity_notyping(5).operator.multiple_outputs is False
+
+        # The following cases ensure invoking ``@task_decorator.__call__()`` yields the correct inference.
+        @task_decorator()
+        def identity_tuple_with_decorator_call(x: int, y: int) -> Tuple[int, int]:
+            return x, y
+
+        assert identity_tuple_with_decorator_call(5, 5).operator.multiple_outputs is False
+
+        @task_decorator()
+        def identity_int_with_decorator_call(x: int) -> int:
+            return x
+
+        assert identity_int_with_decorator_call(5).operator.multiple_outputs is False
+
+        @task_decorator()
+        def identity_notyping_with_decorator_call(x: int):
+            return x
+
+        assert identity_notyping_with_decorator_call(5).operator.multiple_outputs is False
 
     def test_manual_multiple_outputs_false_with_typings(self):
         @task_decorator(multiple_outputs=False)
@@ -476,23 +506,117 @@ class TestAirflowTaskDecorator:
 
         assert ret.operator.doc_md.strip(), "Adds 2 to number."
 
+    def test_user_provided_task_id_in_a_loop_is_used(self):
+        """Tests that when looping that user provided task_id is used"""
 
-def test_mapped_decorator() -> None:
+        @task_decorator(task_id='hello_task')
+        def hello():
+            """
+            Print Hello world
+            """
+            print("Hello world")
+
+        with self.dag:
+            for i in range(3):
+                hello.override(task_id=f'my_task_id_{i * 2}')()
+            hello()  # This task would have hello_task as the task_id
+
+        assert self.dag.task_ids == ['my_task_id_0', 'my_task_id_2', 'my_task_id_4', 'hello_task']
+
+    def test_user_provided_pool_and_priority_weight_works(self):
+        """Tests that when looping that user provided pool, priority_weight etc is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello():
+            """
+            Print Hello world
+            """
+            print("Hello world")
+
+        with self.dag:
+            for i in range(3):
+                hello.override(pool='my_pool', priority_weight=i)()
+
+        weights = []
+        for task in self.dag.tasks:
+            assert task.pool == 'my_pool'
+            weights.append(task.priority_weight)
+        assert weights == [0, 1, 2]
+
+    def test_python_callable_args_work_as_well_as_baseoperator_args(self):
+        """Tests that when looping that user provided pool, priority_weight etc is used"""
+
+        @task_decorator(task_id='hello_task')
+        def hello(x, y):
+            """
+            Print Hello world
+            """
+            print("Hello world", x, y)
+            return x, y
+
+        with self.dag:
+            output = hello.override(task_id='mytask')(x=2, y=3)
+            output2 = hello.override()(2, 3)  # nothing overridden but should work
+
+        assert output.operator.op_kwargs == {'x': 2, 'y': 3}
+        assert output2.operator.op_args == (2, 3)
+        output.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+        output2.operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
+
+
+def test_mapped_decorator_shadow_context() -> None:
     @task_decorator
-    def double(number: int):
-        return number * 2
+    def print_info(message: str, run_id: str = "") -> None:
+        print(f"{run_id}: {message}")
 
-    with DAG('test_dag', start_date=DEFAULT_DATE):
-        literal = [1, 2, 3]
-        doubled_0 = double.map(number=literal)
-        doubled_1 = double.map(number=literal)
+    with pytest.raises(ValueError) as ctx:
+        print_info.partial(run_id="hi")
+    assert str(ctx.value) == "cannot call partial() on task context variable 'run_id'"
 
-    assert isinstance(doubled_0, XComArg)
-    assert isinstance(doubled_0.operator, MappedOperator)
-    assert doubled_0.operator.task_id == "double"
-    assert doubled_0.operator.mapped_kwargs == {"number": literal}
+    with pytest.raises(ValueError) as ctx:
+        print_info.expand(run_id=["hi", "there"])
+    assert str(ctx.value) == "cannot call expand() on task context variable 'run_id'"
 
-    assert doubled_1.operator.task_id == "double__1"
+
+def test_mapped_decorator_wrong_argument() -> None:
+    @task_decorator
+    def print_info(message: str, run_id: str = "") -> None:
+        print(f"{run_id}: {message}")
+
+    with pytest.raises(TypeError) as ct:
+        print_info.partial(wrong_name="hi")
+    assert str(ct.value) == "partial() got an unexpected keyword argument 'wrong_name'"
+
+    with pytest.raises(TypeError) as ct:
+        print_info.expand(wrong_name=["hi", "there"])
+    assert str(ct.value) == "expand() got an unexpected keyword argument 'wrong_name'"
+
+    with pytest.raises(ValueError) as cv:
+        print_info.expand(message="hi")
+    assert str(cv.value) == "expand() got an unexpected type 'str' for keyword argument 'message'"
+
+
+def test_mapped_decorator():
+    @task_decorator
+    def print_info(m1: str, m2: str, run_id: str = "") -> None:
+        print(f"{run_id}: {m1} {m2}")
+
+    @task_decorator
+    def print_everything(**kwargs) -> None:
+        print(kwargs)
+
+    with DAG("test_mapped_decorator", start_date=DEFAULT_DATE):
+        t0 = print_info.expand(m1=["a", "b"], m2={"foo": "bar"})
+        t1 = print_info.partial(m1="hi").expand(m2=[1, 2, 3])
+        t2 = print_everything.partial(whatever="123").expand(any_key=[1, 2], works=t1)
+
+    assert isinstance(t2, XComArg)
+    assert isinstance(t2.operator, DecoratedMappedOperator)
+    assert t2.operator.task_id == "print_everything"
+    assert t2.operator.mapped_op_kwargs == {"any_key": [1, 2], "works": t1}
+
+    assert t0.operator.task_id == "print_info"
+    assert t1.operator.task_id == "print_info__1"
 
 
 def test_mapped_decorator_invalid_args() -> None:
@@ -500,13 +624,14 @@ def test_mapped_decorator_invalid_args() -> None:
     def double(number: int):
         return number * 2
 
-    with DAG('test_dag', start_date=DEFAULT_DATE):
-        literal = [1, 2, 3]
+    literal = [1, 2, 3]
 
-        with pytest.raises(TypeError, match="arguments 'other', 'b'"):
-            double.partial(other=1, b='a')
-        with pytest.raises(TypeError, match="argument 'other'"):
-            double.map(number=literal, other=1)
+    with pytest.raises(TypeError, match="arguments 'other', 'b'"):
+        double.partial(other=[1], b=['a'])
+    with pytest.raises(TypeError, match="argument 'other'"):
+        double.expand(number=literal, other=[1])
+    with pytest.raises(ValueError, match="argument 'number'"):
+        double.expand(number=1)  # type: ignore[arg-type]
 
 
 def test_partial_mapped_decorator() -> None:
@@ -514,25 +639,102 @@ def test_partial_mapped_decorator() -> None:
     def product(number: int, multiple: int):
         return number * multiple
 
-    with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
-        literal = [1, 2, 3]
-        quadrupled = product.partial(task_id='times_4', multiple=3).map(number=literal)
-        doubled = product.partial(multiple=2).map(number=literal)
-        trippled = product.partial(multiple=3).map(number=literal)
+    literal = [1, 2, 3]
 
-        product.partial(multiple=2)
+    with DAG('test_dag', start_date=DEFAULT_DATE) as dag:
+        quadrupled = product.partial(multiple=3).expand(number=literal)
+        doubled = product.partial(multiple=2).expand(number=literal)
+        trippled = product.partial(multiple=3).expand(number=literal)
+
+        product.partial(multiple=2)  # No operator is actually created.
+
+    assert dag.task_dict == {
+        "product": quadrupled.operator,
+        "product__1": doubled.operator,
+        "product__2": trippled.operator,
+    }
 
     assert isinstance(doubled, XComArg)
-    assert isinstance(doubled.operator, MappedOperator)
-    assert doubled.operator.task_id == "product"
-    assert doubled.operator.mapped_kwargs == {"number": literal}
-    assert doubled.operator.partial_kwargs == {"task_id": "product", "multiple": 2}
+    assert isinstance(doubled.operator, DecoratedMappedOperator)
+    assert doubled.operator.mapped_op_kwargs == {"number": literal}
+    assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
 
-    assert trippled.operator.task_id == "product__1"
-    assert trippled.operator.partial_kwargs == {"task_id": "product", "multiple": 3}
-
-    assert quadrupled.operator.task_id == "times_4"
+    assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.
+    assert trippled.operator.partial_kwargs["op_kwargs"] == {"multiple": 3}
 
     assert doubled.operator is not trippled.operator
 
-    assert [quadrupled.operator, doubled.operator, trippled.operator] == dag.tasks
+
+def test_mapped_decorator_unmap_merge_op_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1():
+            ...
+
+        @task_decorator
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).expand(arg2=task1())
+
+    unmapped = dag.get_task("task2").unmap()
+    assert set(unmapped.op_kwargs) == {"arg1", "arg2"}
+
+
+def test_mapped_decorator_converts_partial_kwargs():
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+
+        @task_decorator
+        def task1(arg):
+            ...
+
+        @task_decorator(retry_delay=30)
+        def task2(arg1, arg2):
+            ...
+
+        task2.partial(arg1=1).expand(arg2=task1.expand(arg=[1, 2]))
+
+    mapped_task2 = dag.get_task("task2")
+    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)
+    assert mapped_task2.unmap().retry_delay == timedelta(seconds=30)
+
+    mapped_task1 = dag.get_task("task1")
+    assert mapped_task2.partial_kwargs["retry_delay"] == timedelta(seconds=30)  # Operator default.
+    mapped_task1.unmap().retry_delay == timedelta(seconds=300)  # Operator default.
+
+
+def test_mapped_render_template_fields(dag_maker, session):
+    @task_decorator
+    def fn(arg1, arg2):
+        ...
+
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        xcom_arg = XComArg(task1)
+        mapped = fn.partial(arg2='{{ ti.task_id }}').expand(arg1=xcom_arg)
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=['{{ ds }}'], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=1,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    mapped_ti: TaskInstance = dr.get_task_instance(mapped.operator.task_id, session=session)
+    mapped_ti.map_index = 0
+    op = mapped.operator.render_template_fields(context=mapped_ti.get_template_context(session=session))
+    assert op
+
+    assert op.op_kwargs['arg1'] == "{{ ds }}"
+    assert op.op_kwargs['arg2'] == "fn"

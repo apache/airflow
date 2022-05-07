@@ -24,9 +24,11 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.oslogin_v1 import ImportSshPublicKeyResponse, OsLoginServiceClient
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -56,7 +58,7 @@ class OSLoginHook(GoogleBaseHook):
         if self._conn:
             return self._conn
 
-        self._conn = OsLoginServiceClient(credentials=self._get_credentials(), client_info=self.client_info)
+        self._conn = OsLoginServiceClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._conn
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -65,7 +67,7 @@ class OSLoginHook(GoogleBaseHook):
         user: str,
         ssh_public_key: Dict,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:

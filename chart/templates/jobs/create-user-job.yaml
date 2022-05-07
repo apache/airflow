@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.createUserJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.createUserJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.createUserJob.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.createUserJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.createUserJob) }}
 apiVersion: batch/v1
 kind: Job
@@ -74,6 +75,8 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
       serviceAccountName: {{ include "createUserJob.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -83,27 +86,12 @@ spec:
         - name: create-user
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          args:
-            - "bash"
-            - "-c"
-            {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
-            - 'airflow users create "$@"'
-            {{- else }}
-            - 'airflow create_user "$@"'
-            {{- end }}
-            - --
-            - "-r"
-            - {{ .Values.webserver.defaultUser.role }}
-            - "-u"
-            - {{ .Values.webserver.defaultUser.username }}
-            - "-e"
-            - {{ .Values.webserver.defaultUser.email }}
-            - "-f"
-            - {{ .Values.webserver.defaultUser.firstName }}
-            - "-l"
-            - {{ .Values.webserver.defaultUser.lastName }}
-            - "-p"
-            - "{{ .Values.webserver.defaultUser.password }}"
+          {{- if .Values.createUserJob.command }}
+          command: {{ tpl (toYaml .Values.createUserJob.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.createUserJob.args }}
+          args: {{ tpl (toYaml .Values.createUserJob.args) . | nindent 12 }}
+          {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:

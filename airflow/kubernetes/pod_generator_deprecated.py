@@ -178,7 +178,8 @@ class PodGenerator:
 
         self.container.command = cmds or []
         self.container.args = args or []
-        self.container.image_pull_policy = image_pull_policy
+        if image_pull_policy:
+            self.container.image_pull_policy = image_pull_policy
         self.container.ports = ports or []
         self.container.resources = resources
         self.container.volume_mounts = volume_mounts or []
@@ -187,7 +188,8 @@ class PodGenerator:
         self.spec = k8s.V1PodSpec(containers=[])
         self.spec.security_context = security_context
         self.spec.tolerations = tolerations
-        self.spec.dns_policy = dnspolicy
+        if dnspolicy:
+            self.spec.dns_policy = dnspolicy
         self.spec.scheduler_name = schedulername
         self.spec.host_network = hostnetwork
         self.spec.affinity = affinity
@@ -195,7 +197,8 @@ class PodGenerator:
         self.spec.init_containers = init_containers
         self.spec.volumes = volumes or []
         self.spec.node_selector = node_selectors
-        self.spec.restart_policy = restart_policy
+        if restart_policy:
+            self.spec.restart_policy = restart_policy
         self.spec.priority_class_name = priority_class_name
 
         self.spec.image_pull_secrets = []

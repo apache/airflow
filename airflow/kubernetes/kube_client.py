@@ -25,38 +25,9 @@ log = logging.getLogger(__name__)
 try:
     from kubernetes import client, config
     from kubernetes.client import Configuration
-    from kubernetes.client.api_client import ApiClient
     from kubernetes.client.rest import ApiException
 
-    from airflow.kubernetes.refresh_config import RefreshConfiguration, load_kube_config
-
     has_kubernetes = True
-
-    def _get_kube_config(
-        in_cluster: bool, cluster_context: Optional[str], config_file: Optional[str]
-    ) -> Optional[Configuration]:
-        if in_cluster:
-            # load_incluster_config set default configuration with config populated by k8s
-            config.load_incluster_config()
-            return None
-        else:
-            # this block can be replaced with just config.load_kube_config once
-            # refresh_config module is replaced with upstream fix
-            cfg = RefreshConfiguration()
-            load_kube_config(client_configuration=cfg, config_file=config_file, context=cluster_context)
-            return cfg
-
-    def _get_client_with_patched_configuration(cfg: Optional[Configuration]) -> client.CoreV1Api:
-        """
-        This is a workaround for supporting api token refresh in k8s client.
-
-        The function can be replace with `return client.CoreV1Api()` once the
-        upstream client supports token refresh.
-        """
-        if cfg:
-            return client.CoreV1Api(api_client=ApiClient(configuration=cfg))
-        else:
-            return client.CoreV1Api()
 
     def _disable_verify_ssl() -> None:
         configuration = Configuration()
@@ -126,17 +97,19 @@ def get_kube_client(
     if not has_kubernetes:
         raise _import_err
 
-    if not in_cluster:
-        if cluster_context is None:
-            cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
-        if config_file is None:
-            config_file = conf.get('kubernetes', 'config_file', fallback=None)
-
     if conf.getboolean('kubernetes', 'enable_tcp_keepalive'):
         _enable_tcp_keepalive()
 
     if not conf.getboolean('kubernetes', 'verify_ssl'):
         _disable_verify_ssl()
 
-    client_conf = _get_kube_config(in_cluster, cluster_context, config_file)
-    return _get_client_with_patched_configuration(client_conf)
+    if in_cluster:
+        config.load_incluster_config()
+    else:
+        if cluster_context is None:
+            cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+        if config_file is None:
+            config_file = conf.get('kubernetes', 'config_file', fallback=None)
+        config.load_kube_config(config_file=config_file, context=cluster_context)
+
+    return client.CoreV1Api()

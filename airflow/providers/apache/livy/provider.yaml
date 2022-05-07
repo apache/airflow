@@ -19,9 +19,13 @@
 package-name: apache-airflow-providers-apache-livy
 name: Apache Livy
 description: |
-    `Apache Livy <https://livy.apache.org/>`__
+  `Apache Livy <https://livy.apache.org/>`__
 
 versions:
+  - 2.2.3
+  - 2.2.2
+  - 2.2.1
+  - 2.2.0
   - 2.1.0
   - 2.0.0
   - 1.1.0
@@ -34,6 +38,8 @@ additional-dependencies:
 integrations:
   - integration-name: Apache Livy
     external-doc-url: https://livy.apache.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-livy/operators.rst
     logo: /integration-logos/apache/Livy.png
     tags: [apache]
 
@@ -52,7 +58,8 @@ hooks:
     python-modules:
       - airflow.providers.apache.livy.hooks.livy
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+hook-class-names:
+  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.apache.livy.hooks.livy.LivyHook
 
 connection-types:

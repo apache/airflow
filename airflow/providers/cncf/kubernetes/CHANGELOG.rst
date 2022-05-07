@@ -19,8 +19,116 @@
 Changelog
 ---------
 
-3.0.1
+4.0.1
 .....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add k8s container's error message in airflow exception (#22871)``
+* ``KubernetesHook should try incluster first when not otherwise configured (#23126)``
+* ``KubernetesPodOperator should patch "already checked" always (#22734)``
+* ``Delete old Spark Application in SparkKubernetesOperator (#21092)``
+* ``Cleanup dup code now that k8s provider requires 2.3.0+ (#22845)``
+* ``Fix ''KubernetesPodOperator'' with 'KubernetesExecutor'' on 2.3.0 (#23371)``
+* ``Fix KPO to have hyphen instead of period (#22982)``
+* ``Fix new MyPy errors in main (#22884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare documentation for cncf.kubernetes 4.0.1 release (#23374)``
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The provider in version 4.0.0 only works with Airflow 2.3+. Please upgrade
+Airflow to 2.3 version if you want to use the features or fixes in 4.* line
+of the provider.
+
+The main reason for the incompatibility is using latest Kubernetes Libraries.
+The ``cncf.kubernetes`` provider requires newer version of libraries than
+Airflow 2.1 and 2.2 used for Kubernetes Executor and that makes the provider
+incompatible with those Airflow versions.
+
+Features
+~~~~~~~~
+
+* ``Log traceback only on ''DEBUG'' for KPO logs read interruption (#22595)``
+* ``Update our approach for executor-bound dependencies (#22573)``
+* ``Optionally not follow logs in KPO pod_manager (#22412)``
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Stop crashing when empty logs are received from kubernetes client (#22566)``
+
+3.1.2 (YANKED)
+..............
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
+
+Misc
+~~~~
+
+* ``Remove RefreshConfiguration workaround for K8s token refreshing (#20759)``
+
+3.1.1 (YANKED)
+..............
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.1.0 (YANKED)
+..............
+
+Features
+~~~~~~~~
+
+* ``Add map_index label to mapped KubernetesPodOperator (#21916)``
+* ``Change KubePodOperator labels from exeuction_date to run_id (#21960)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Fix Kubernetes example with wrong operator casing (#21898)``
+* ``Remove types from KPO docstring (#21826)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add pre-commit check for docstring param types (#21398)``
+
+3.0.2 (YANKED)
+..............
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add missed deprecations for cncf (#20031)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Make ''delete_pod'' change more prominent in K8s changelog (#20753)``
+   * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+   * ``Add optional features in providers. (#21074)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+3.0.1 (YANKED)
+..............
 
 
 Misc
@@ -211,7 +319,8 @@ Bug Fixes
 * ``Fix using XCom with ''KubernetesPodOperator'' (#17760)``
 * ``Import Hooks lazily individually in providers manager (#17682)``
 
-.. Review and move the new changes to one of the sections above:
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
    * ``Fix messed-up changelog in 3 providers (#17380)``
    * ``Fix static checks (#17256)``
    * ``Update spark_kubernetes.py (#17237)``

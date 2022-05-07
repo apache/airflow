@@ -18,11 +18,13 @@
 """This module contains a Google Cloud Video Intelligence Hook."""
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.videointelligence_v1 import VideoIntelligenceServiceClient
 from google.cloud.videointelligence_v1.types import VideoContext
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -68,7 +70,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = VideoIntelligenceServiceClient(
-                credentials=self._get_credentials(), client_info=self.client_info
+                credentials=self._get_credentials(), client_info=CLIENT_INFO
             )
         return self._conn
 
@@ -81,7 +83,7 @@ class CloudVideoIntelligenceHook(GoogleBaseHook):
         video_context: Union[Dict, VideoContext] = None,
         output_uri: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:

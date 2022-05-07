@@ -18,10 +18,9 @@
 import logging
 from contextlib import suppress
 from enum import Enum, unique
-from typing import Optional, Tuple, Type
+from typing import TYPE_CHECKING, Optional, Tuple, Type
 
 from airflow.exceptions import AirflowConfigException
-from airflow.executors.base_executor import BaseExecutor
 from airflow.executors.executor_constants import (
     CELERY_EXECUTOR,
     CELERY_KUBERNETES_EXECUTOR,
@@ -29,11 +28,15 @@ from airflow.executors.executor_constants import (
     DEBUG_EXECUTOR,
     KUBERNETES_EXECUTOR,
     LOCAL_EXECUTOR,
+    LOCAL_KUBERNETES_EXECUTOR,
     SEQUENTIAL_EXECUTOR,
 )
 from airflow.utils.module_loading import import_string
 
 log = logging.getLogger(__name__)
+
+if TYPE_CHECKING:
+    from airflow.executors.base_executor import BaseExecutor
 
 
 @unique
@@ -48,9 +51,10 @@ class ConnectorSource(Enum):
 class ExecutorLoader:
     """Keeps constants for all the currently available executors."""
 
-    _default_executor: Optional[BaseExecutor] = None
+    _default_executor: Optional["BaseExecutor"] = None
     executors = {
         LOCAL_EXECUTOR: 'airflow.executors.local_executor.LocalExecutor',
+        LOCAL_KUBERNETES_EXECUTOR: 'airflow.executors.local_kubernetes_executor.LocalKubernetesExecutor',
         SEQUENTIAL_EXECUTOR: 'airflow.executors.sequential_executor.SequentialExecutor',
         CELERY_EXECUTOR: 'airflow.executors.celery_executor.CeleryExecutor',
         CELERY_KUBERNETES_EXECUTOR: 'airflow.executors.celery_kubernetes_executor.CeleryKubernetesExecutor',
@@ -60,7 +64,7 @@ class ExecutorLoader:
     }
 
     @classmethod
-    def get_default_executor(cls) -> BaseExecutor:
+    def get_default_executor(cls) -> "BaseExecutor":
         """Creates a new instance of the configured executor if none exists and returns it"""
         if cls._default_executor is not None:
             return cls._default_executor
@@ -74,7 +78,7 @@ class ExecutorLoader:
         return cls._default_executor
 
     @classmethod
-    def load_executor(cls, executor_name: str) -> BaseExecutor:
+    def load_executor(cls, executor_name: str) -> "BaseExecutor":
         """
         Loads the executor.
 
@@ -87,6 +91,9 @@ class ExecutorLoader:
         """
         if executor_name == CELERY_KUBERNETES_EXECUTOR:
             return cls.__load_celery_kubernetes_executor()
+        elif executor_name == LOCAL_KUBERNETES_EXECUTOR:
+            return cls.__load_local_kubernetes_executor()
+
         try:
             executor_cls, import_source = cls.import_executor_cls(executor_name)
             log.debug("Loading executor %s from %s", executor_name, import_source.value)
@@ -101,7 +108,7 @@ class ExecutorLoader:
         return executor_cls()
 
     @classmethod
-    def import_executor_cls(cls, executor_name: str) -> Tuple[Type[BaseExecutor], ConnectorSource]:
+    def import_executor_cls(cls, executor_name: str) -> Tuple[Type["BaseExecutor"], ConnectorSource]:
         """
         Imports the executor class.
 
@@ -127,13 +134,22 @@ class ExecutorLoader:
         return import_string(executor_name), ConnectorSource.CUSTOM_PATH
 
     @classmethod
-    def __load_celery_kubernetes_executor(cls) -> BaseExecutor:
+    def __load_celery_kubernetes_executor(cls) -> "BaseExecutor":
         """:return: an instance of CeleryKubernetesExecutor"""
         celery_executor = import_string(cls.executors[CELERY_EXECUTOR])()
         kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
 
         celery_kubernetes_executor_cls = import_string(cls.executors[CELERY_KUBERNETES_EXECUTOR])
         return celery_kubernetes_executor_cls(celery_executor, kubernetes_executor)
+
+    @classmethod
+    def __load_local_kubernetes_executor(cls) -> "BaseExecutor":
+        """:return: an instance of LocalKubernetesExecutor"""
+        local_executor = import_string(cls.executors[LOCAL_EXECUTOR])()
+        kubernetes_executor = import_string(cls.executors[KUBERNETES_EXECUTOR])()
+
+        local_kubernetes_executor_cls = import_string(cls.executors[LOCAL_KUBERNETES_EXECUTOR])
+        return local_kubernetes_executor_cls(local_executor, kubernetes_executor)
 
 
 UNPICKLEABLE_EXECUTORS = (

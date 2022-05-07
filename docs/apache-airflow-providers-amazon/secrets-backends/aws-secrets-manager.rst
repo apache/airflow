@@ -37,8 +37,9 @@ environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
 Storing and Retrieving Connections
 """"""""""""""""""""""""""""""""""
 You can store the different values for a secret in two forms: storing the conn URI in one field (default mode) or using different
-fields in Amazon Secrets Manager (setting ``full_url_mode`` as ``false`` in the backend config), as follow:
-.. image:: img/aws-secrets-manager.png
+fields in Amazon Secrets Manager (setting ``full_url_mode`` as ``false`` in the backend config), as follows:
+
+.. image:: /img/aws-secrets-manager.png
 
 By default you must use some of the following words for each kind of field:
 

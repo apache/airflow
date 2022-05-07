@@ -118,4 +118,17 @@
       </td>
     </tr>
   </table>
+  <h5>DagModel debug information</h5>
+  <table class="table table-striped table-bordered">
+    <tr>
+      <th>Attribute</th>
+      <th>Value</th>
+    </tr>
+    {% for attr, value in dag_model_attrs %}
+    <tr>
+      <td>{{ attr }}</td>
+      <td class="code wrap">{{ value }}</td>
+    </tr>
+    {% endfor %}
+  </table>
 {% endblock %}

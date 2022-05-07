@@ -114,9 +114,11 @@ class TestGoogleSheetsToGCSOperator:
         )
 
         calls = [mock.call(spreadsheet_id=SPREADSHEET_ID, range_=r) for r in RANGES]
-        mock_sheet_hook.return_value.get_values.has_calls(calls)
+        mock_sheet_hook.return_value.get_values.assert_has_calls(calls)
 
         calls = [mock.call(mock_gcs_hook, mock_sheet_hook, r, v) for r, v in zip(RANGES, data)]
-        mock_upload_data.has_calls(calls)
+        mock_upload_data.assert_called()
+        actual_call_count = mock_upload_data.call_count
+        assert len(RANGES) == actual_call_count
 
         mock_xcom.assert_called_once_with(context, "destination_objects", [PATH, PATH])

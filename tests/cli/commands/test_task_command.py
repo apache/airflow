@@ -35,14 +35,14 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
-from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 DEFAULT_DATE = days_ago(1)
 ROOT_FOLDER = os.path.realpath(
@@ -272,7 +272,6 @@ class TestCliTasks(unittest.TestCase):
 
         assert 'echo "2016-01-01"' in output
         assert 'echo "2016-01-08"' in output
-        assert 'echo "Parameter I passed in"' in output
 
     def test_cli_run_when_pickle_and_dag_cli_method_selected(self):
         """
@@ -395,7 +394,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.execution_date_str = self.execution_date.isoformat()
         self.task_args = ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
         self.log_dir = conf.get('logging', 'base_log_folder')
-        self.log_filename = f"{self.dag_id}/{self.task_id}/{self.execution_date_str}/1.log"
+        self.log_filename = f"dag_id={self.dag_id}/run_id={self.run_id}/task_id={self.task_id}/attempt=1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()
 
@@ -513,6 +512,23 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             f"task_id={self.task_id}, execution_date=20170101T000000" in logs
         )
 
+    @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
+    def test_run_task_with_pool(self):
+        pool_name = 'test_pool_run'
+
+        clear_db_pools()
+        with create_session() as session:
+            pool = Pool(pool=pool_name, slots=1)
+            session.add(pool)
+            session.commit()
+
+            assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
+            task_command.task_run(self.parser.parse_args(self.task_args + ['--pool', pool_name]))
+            assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
+
+            session.delete(pool)
+            session.commit()
+
     # For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
     @pytest.mark.quarantined
     @mock.patch("airflow.task.task_runner.standard_task_runner.CAN_FORK", False)
@@ -552,7 +568,7 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
                 ti = session.query(TaskInstance).filter_by(run_id=self.run_id).first()
                 ti.try_number = 1
 
-            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "2.log")
+            log_file_path = os.path.join(os.path.dirname(self.ti_log_file_path), "attempt=2.log")
 
             try:
                 task_command.task_run(self.parser.parse_args(self.task_args))

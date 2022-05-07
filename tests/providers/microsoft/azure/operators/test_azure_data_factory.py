@@ -231,7 +231,7 @@ class TestAzureDataFactoryRunPipelineOperator:
         )
         ti.xcom_push(key="run_id", value=PIPELINE_RUN_RESPONSE["run_id"])
 
-        url = ti.task.get_extra_links(DEFAULT_DATE, "Monitor Pipeline Run")
+        url = ti.task.get_extra_links(ti, "Monitor Pipeline Run")
         EXPECTED_PIPELINE_RUN_OP_EXTRA_LINK = (
             "https://adf.azure.com/en-us/monitoring/pipelineruns/{run_id}"
             "?factory=/subscriptions/{subscription_id}/"

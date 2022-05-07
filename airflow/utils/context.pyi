@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Container, Iterable, Mapping, Optional, Tuple, Union, overload
+from typing import Any, Container, Iterable, Mapping, Optional, Set, Tuple, Union, overload
 
 from pendulum import DateTime
 
@@ -36,6 +36,8 @@ from airflow.models.dagrun import DagRun
 from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.typing_compat import TypedDict
+
+KNOWN_CONTEXT_KEYS: Set[str]
 
 class _VariableAccessors(TypedDict):
     json: Any
@@ -48,6 +50,7 @@ class VariableAccessor:
 class ConnectionAccessor:
     def get(self, key: str, default_conn: Any = None) -> Any: ...
 
+# NOTE: Please keep this in sync with KNOWN_CONTEXT_KEYS in airflow/utils/context.py.
 class Context(TypedDict):
     conf: AirflowConfigParser
     conn: Any

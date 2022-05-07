@@ -14,19 +14,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from airflow_breeze.global_constants import MOUNT_ALL, MOUNT_NONE, MOUNT_SELECTED
 from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
-from airflow_breeze.utils.path_utils import get_airflow_sources_root
-from airflow_breeze.visuals import ASCIIART
+from airflow_breeze.utils.visuals import ASCIIART
 
 
 def test_visuals():
     assert 2051 == len(ASCIIART)
 
 
-def test_get_extra_docker_flags():
-    airflow_sources = get_airflow_sources_root()
-    all = True
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) < 10
-    all = False
-    assert len(get_extra_docker_flags(all, str(airflow_sources))) > 60
+def test_get_extra_docker_flags_all():
+    flags = get_extra_docker_flags(MOUNT_ALL)
+    assert "empty" not in "".join(flags)
+    assert len(flags) < 10
+
+
+def test_get_extra_docker_flags_selected():
+    flags = get_extra_docker_flags(MOUNT_SELECTED)
+    assert "empty" not in "".join(flags)
+    assert len(flags) > 60
+
+
+def test_get_extra_docker_flags_none():
+    flags = get_extra_docker_flags(MOUNT_NONE)
+    assert "empty" in "".join(flags)
+    assert len(flags) < 10

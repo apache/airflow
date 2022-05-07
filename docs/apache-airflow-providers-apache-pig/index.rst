@@ -23,6 +23,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/apache/pig/index>
@@ -51,7 +57,7 @@ Package apache-airflow-providers-apache-pig
 `Apache Pig <https://pig.apache.org/>`__
 
 
-Release: 2.0.1
+Release: 2.0.4
 
 Provider package
 ----------------

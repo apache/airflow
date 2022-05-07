@@ -34,7 +34,6 @@ from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 from airflow import settings
 from airflow.exceptions import AirflowException
 from airflow.utils import cli_action_loggers
-from airflow.utils.db import check_and_run_migrations, synchronize_log_template
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
@@ -42,7 +41,7 @@ from airflow.utils.session import provide_session
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.models.dag import DAG
 
 
 def _check_cli_args(args):
@@ -93,6 +92,8 @@ def action_cli(func=None, check_db=True):
             try:
                 # Check and run migrations if necessary
                 if check_db:
+                    from airflow.utils.db import check_and_run_migrations, synchronize_log_template
+
                     check_and_run_migrations()
                     synchronize_log_template()
                 return f(*args, **kwargs)
@@ -228,7 +229,7 @@ def get_dag_by_pickle(pickle_id, session=None):
 
     dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
     if not dag_pickle:
-        raise AirflowException("Who hid the pickle!? [missing pickle]")
+        raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle
     return pickle_dag
 

@@ -65,12 +65,12 @@ Control Flow
 :doc:`tasks` have dependencies declared on each other. You'll see this in a DAG either using the ``>>`` and ``<<`` operators::
 
     first_task >> [second_task, third_task]
-    third_task << fourth_task
+    fourth_task << third_task
 
 Or, with the ``set_upstream`` and ``set_downstream`` methods::
 
     first_task.set_downstream([second_task, third_task])
-    third_task.set_upstream(fourth_task)
+    fourth_task.set_upstream(third_task)
 
 These dependencies are what make up the "edges" of the graph, and how Airflow works out which order to run your tasks in. By default, a task will wait for all of its upstream tasks to succeed before it runs, but this can be customized using features like :ref:`Branching <concepts:branching>`, :ref:`LatestOnly <concepts:latest-only>`, and :ref:`Trigger Rules <concepts:trigger-rules>`.
 

@@ -54,6 +54,11 @@ class AthenaHook(AwsBaseHook):
         'CANCELLED',
     )
     SUCCESS_STATES = ('SUCCEEDED',)
+    TERMINAL_STATES = (
+        "SUCCEEDED",
+        "FAILED",
+        "CANCELLED",
+    )
 
     def __init__(self, *args: Any, sleep_time: int = 30, **kwargs: Any) -> None:
         super().__init__(client_type='athena', *args, **kwargs)  # type: ignore
@@ -200,16 +205,14 @@ class AthenaHook(AwsBaseHook):
             query_state = self.check_query_status(query_execution_id)
             if query_state is None:
                 self.log.info('Trial %s: Invalid query state. Retrying again', try_number)
-            elif query_state in self.INTERMEDIATE_STATES:
-                self.log.info(
-                    'Trial %s: Query is still in an intermediate state - %s', try_number, query_state
-                )
-            else:
+            elif query_state in self.TERMINAL_STATES:
                 self.log.info(
                     'Trial %s: Query execution completed. Final state is %s}', try_number, query_state
                 )
                 final_query_state = query_state
                 break
+            else:
+                self.log.info('Trial %s: Query is still in non-terminal state - %s', try_number, query_state)
             if max_tries and try_number >= max_tries:  # Break loop if max_tries reached
                 final_query_state = query_state
                 break

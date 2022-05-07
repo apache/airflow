@@ -38,13 +38,9 @@ class GithubOperator(BaseOperator):
         :ref:`howto/operator:GithubOperator`
 
     :param github_conn_id: reference to a pre-defined GitHub Connection
-    :type github_conn_id: str
     :param github_method: method name from GitHub Python SDK to be called
-    :type github_method: str
     :param github_method_args: required method parameters for the github_method. (templated)
-    :type github_method_args: dict
     :param result_processor: function to further process the response from GitHub API
-    :type result_processor: function
     """
 
     template_fields = ("github_method_args",)

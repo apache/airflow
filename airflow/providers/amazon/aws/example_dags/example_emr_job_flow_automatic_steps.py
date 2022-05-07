@@ -15,14 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-This is an example dag for a AWS EMR Pipeline with auto steps.
-"""
-from datetime import datetime, timedelta
+import os
+from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor
+
+JOB_FLOW_ROLE = os.getenv('EMR_JOB_FLOW_ROLE', 'EMR_EC2_DefaultRole')
+SERVICE_ROLE = os.getenv('EMR_SERVICE_ROLE', 'EMR_DefaultRole')
 
 # [START howto_operator_emr_automatic_steps_config]
 SPARK_STEPS = [
@@ -44,38 +45,40 @@ JOB_FLOW_OVERRIDES = {
         'InstanceGroups': [
             {
                 'Name': 'Primary node',
-                'Market': 'SPOT',
+                'Market': 'ON_DEMAND',
                 'InstanceRole': 'MASTER',
-                'InstanceType': 'm1.medium',
+                'InstanceType': 'm5.xlarge',
                 'InstanceCount': 1,
-            }
+            },
         ],
         'KeepJobFlowAliveWhenNoSteps': False,
         'TerminationProtected': False,
     },
     'Steps': SPARK_STEPS,
-    'JobFlowRole': 'EMR_EC2_DefaultRole',
-    'ServiceRole': 'EMR_DefaultRole',
+    'JobFlowRole': JOB_FLOW_ROLE,
+    'ServiceRole': SERVICE_ROLE,
 }
 # [END howto_operator_emr_automatic_steps_config]
 
+
 with DAG(
-    dag_id='emr_job_flow_automatic_steps_dag',
-    dagrun_timeout=timedelta(hours=2),
+    dag_id='example_emr_job_flow_automatic_steps',
+    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    schedule_interval='0 3 * * *',
-    catchup=False,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
-    # [START howto_operator_emr_automatic_steps_tasks]
+    # [START howto_operator_emr_create_job_flow]
     job_flow_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
     )
+    # [END howto_operator_emr_create_job_flow]
 
-    job_sensor = EmrJobFlowSensor(task_id='check_job_flow', job_flow_id=job_flow_creator.output)
-    # [END howto_operator_emr_automatic_steps_tasks]
-
-    # Task dependency created via `XComArgs`:
-    #   job_flow_creator >> job_sensor
+    # [START howto_sensor_emr_job_flow_sensor]
+    job_sensor = EmrJobFlowSensor(
+        task_id='check_job_flow',
+        job_flow_id=job_flow_creator.output,
+    )
+    # [END howto_sensor_emr_job_flow_sensor]

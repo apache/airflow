@@ -24,12 +24,14 @@ Cloud Tasks queues/tasks.
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.tasks_v2.types import Queue, Task
 from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
+from airflow.providers.google.cloud.links.cloud_tasks import CloudTasksLink, CloudTasksQueueLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -81,6 +83,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -89,7 +92,7 @@ class CloudTasksQueueCreateOperator(BaseOperator):
         task_queue: Queue,
         project_id: Optional[str] = None,
         queue_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -133,7 +136,11 @@ class CloudTasksQueueCreateOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
-
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=queue.name,
+        )
         return Queue.to_dict(queue)
 
 
@@ -185,6 +192,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -194,7 +202,7 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
         location: Optional[str] = None,
         queue_name: Optional[str] = None,
         update_mask: Optional[FieldMask] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -227,6 +235,11 @@ class CloudTasksQueueUpdateOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=queue.name,
         )
         return Queue.to_dict(queue)
 
@@ -269,6 +282,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -276,7 +290,7 @@ class CloudTasksQueueGetOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -305,6 +319,11 @@ class CloudTasksQueueGetOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=queue.name,
         )
         return Queue.to_dict(queue)
 
@@ -348,6 +367,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksLink(),)
 
     def __init__(
         self,
@@ -356,7 +376,7 @@ class CloudTasksQueuesListOperator(BaseOperator):
         project_id: Optional[str] = None,
         results_filter: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -387,6 +407,11 @@ class CloudTasksQueuesListOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksLink.persist(
+            operator_instance=self,
+            context=context,
+            project_id=self.project_id or hook.project_id,
         )
         return [Queue.to_dict(q) for q in queues]
 
@@ -434,7 +459,7 @@ class CloudTasksQueueDeleteOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -504,6 +529,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -511,7 +537,7 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -540,6 +566,11 @@ class CloudTasksQueuePurgeOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=queue.name,
         )
         return Queue.to_dict(queue)
 
@@ -582,6 +613,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -589,7 +621,7 @@ class CloudTasksQueuePauseOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -618,6 +650,11 @@ class CloudTasksQueuePauseOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=queue.name,
         )
         return Queue.to_dict(queue)
 
@@ -660,6 +697,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -667,7 +705,7 @@ class CloudTasksQueueResumeOperator(BaseOperator):
         location: str,
         queue_name: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -696,6 +734,11 @@ class CloudTasksQueueResumeOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=queue.name,
         )
         return Queue.to_dict(queue)
 
@@ -746,6 +789,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -756,7 +800,7 @@ class CloudTasksTaskCreateOperator(BaseOperator):
         project_id: Optional[str] = None,
         task_name: Optional[str] = None,
         response_view: Optional[Task.View] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -791,6 +835,11 @@ class CloudTasksTaskCreateOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=task.name,
         )
         return Task.to_dict(task)
 
@@ -837,6 +886,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -846,7 +896,7 @@ class CloudTasksTaskGetOperator(BaseOperator):
         task_name: str,
         project_id: Optional[str] = None,
         response_view: Optional[Task.View] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -879,6 +929,11 @@ class CloudTasksTaskGetOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=task.name,
         )
         return Task.to_dict(task)
 
@@ -925,6 +980,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -934,7 +990,7 @@ class CloudTasksTasksListOperator(BaseOperator):
         project_id: Optional[str] = None,
         response_view: Optional[Task.View] = None,
         page_size: Optional[int] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -967,6 +1023,12 @@ class CloudTasksTasksListOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=f"projects/{self.project_id or hook.project_id}/"
+            f"locations/{self.location}/queues/{self.queue_name}",
         )
         return [Task.to_dict(t) for t in tasks]
 
@@ -1017,7 +1079,7 @@ class CloudTasksTaskDeleteOperator(BaseOperator):
         queue_name: str,
         task_name: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1093,6 +1155,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
     )
+    operator_extra_links = (CloudTasksQueueLink(),)
 
     def __init__(
         self,
@@ -1102,7 +1165,7 @@ class CloudTasksTaskRunOperator(BaseOperator):
         task_name: str,
         project_id: Optional[str] = None,
         response_view: Optional[Task.View] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: MetaData = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1135,5 +1198,10 @@ class CloudTasksTaskRunOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        CloudTasksQueueLink.persist(
+            operator_instance=self,
+            context=context,
+            queue_name=task.name,
         )
         return Task.to_dict(task)

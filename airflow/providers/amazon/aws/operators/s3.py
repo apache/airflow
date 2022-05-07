@@ -244,6 +244,10 @@ class S3CopyObjectOperator(BaseOperator):
     Note: the S3 connection used here needs to have access to both
     source and destination bucket/key.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3CopyObjectOperator`
+
     :param source_bucket_key: The key of the source object. (templated)
 
         It can be either full s3:// style url or relative path from root level.
@@ -318,12 +322,102 @@ class S3CopyObjectOperator(BaseOperator):
         )
 
 
+class S3CreateObjectOperator(BaseOperator):
+    """
+    Creates a new object from `data` as string or bytes.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3CreateObjectOperator`
+
+    :param s3_bucket: Name of the S3 bucket where to save the object. (templated)
+        It should be omitted when `bucket_key` is provided as a full s3:// url.
+    :param s3_key: The key of the object to be created. (templated)
+        It can be either full s3:// style url or relative path from root level.
+        When it's specified as a full s3:// url, please omit bucket_name.
+    :param data: string or bytes to save as content.
+    :param replace: If True, it will overwrite the key if it already exists
+    :param encrypt: If True, the file will be encrypted on the server-side
+        by S3 and will be stored in an encrypted form while at rest in S3.
+    :param acl_policy: String specifying the canned ACL policy for the file being
+        uploaded to the S3 bucket.
+    :param encoding: The string to byte encoding.
+        It should be specified only when `data` is provided as string.
+    :param compression: Type of compression to use, currently only gzip is supported.
+        It can be specified only when `data` is provided as string.
+    :param aws_conn_id: Connection id of the S3 connection to use
+    :param verify: Whether or not to verify SSL certificates for S3 connection.
+        By default SSL certificates are verified.
+
+        You can provide the following values:
+
+        - False: do not validate SSL certificates. SSL will still be used,
+                 but SSL certificates will not be
+                 verified.
+        - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
+                 You can specify this argument if you want to use a different
+                 CA cert bundle than the one used by botocore.
+
+    """
+
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'data')
+
+    def __init__(
+        self,
+        *,
+        s3_bucket: Optional[str] = None,
+        s3_key: str,
+        data: Union[str, bytes],
+        replace: bool = False,
+        encrypt: bool = False,
+        acl_policy: Optional[str] = None,
+        encoding: Optional[str] = None,
+        compression: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
+        verify: Optional[Union[str, bool]] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+
+        self.s3_bucket = s3_bucket
+        self.s3_key = s3_key
+        self.data = data
+        self.replace = replace
+        self.encrypt = encrypt
+        self.acl_policy = acl_policy
+        self.encoding = encoding
+        self.compression = compression
+        self.aws_conn_id = aws_conn_id
+        self.verify = verify
+
+    def execute(self, context: 'Context'):
+        s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+
+        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, 'dest_bucket', 'dest_key')
+
+        if isinstance(self.data, str):
+            s3_hook.load_string(
+                self.data,
+                s3_key,
+                s3_bucket,
+                self.replace,
+                self.encrypt,
+                self.encoding,
+                self.acl_policy,
+                self.compression,
+            )
+        else:
+            s3_hook.load_bytes(self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy)
+
+
 class S3DeleteObjectsOperator(BaseOperator):
     """
     To enable users to delete single object or multiple objects from
     a bucket using a single HTTP request.
 
-    Users may specify up to 1000 keys to delete.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3DeleteObjectsOperator`
 
     :param bucket: Name of the bucket in which you are going to delete object(s). (templated)
     :param keys: The key(s) to delete from S3 bucket. (templated)
@@ -334,7 +428,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         When ``keys`` is a list, it's supposed to be the list of the
         keys to delete.
 
-        You may specify up to 1000 keys.
     :param prefix: Prefix of objects to delete. (templated)
         All objects matching this prefix in the bucket will be deleted.
     :param aws_conn_id: Connection id of the S3 connection to use
@@ -364,9 +457,6 @@ class S3DeleteObjectsOperator(BaseOperator):
         **kwargs,
     ):
 
-        if not bool(keys) ^ bool(prefix):
-            raise ValueError("Either keys or prefix should be set.")
-
         super().__init__(**kwargs)
         self.bucket = bucket
         self.keys = keys
@@ -374,7 +464,15 @@ class S3DeleteObjectsOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
+        if not bool(keys is None) ^ bool(prefix is None):
+            raise AirflowException("Either keys or prefix should be set.")
+
     def execute(self, context: 'Context'):
+        if not bool(self.keys is None) ^ bool(self.prefix is None):
+            raise AirflowException("Either keys or prefix should be set.")
+
+        if isinstance(self.keys, (list, str)) and not bool(self.keys):
+            return
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         keys = self.keys or s3_hook.list_keys(bucket_name=self.bucket, prefix=self.prefix)
@@ -390,7 +488,7 @@ class S3FileTransformOperator(BaseOperator):
     location.
 
     The locations of the source and the destination files in the local
-    filesystem is provided as an first and second arguments to the
+    filesystem is provided as a first and second arguments to the
     transformation script. The transformation script is expected to read the
     data from source, transform it and write the output to the local
     destination file. The operator then takes over control and uploads the
@@ -398,6 +496,10 @@ class S3FileTransformOperator(BaseOperator):
 
     S3 Select is also available to filter the source contents. Users can
     omit the transformation script if S3 Select expression is specified.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3FileTransformOperator`
 
     :param source_s3_key: The key to be retrieved from S3. (templated)
     :param dest_s3_key: The key to be written from S3. (templated)

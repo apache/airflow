@@ -23,11 +23,10 @@ from flask_appbuilder import const as c
 from flask_appbuilder.models.sqla import Base
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from sqlalchemy import and_, func, literal
-from sqlalchemy.engine.reflection import Inspector
-from sqlalchemy.orm import contains_eager
 from sqlalchemy.orm.exc import MultipleResultsFound
 from werkzeug.security import generate_password_hash
 
+from airflow.compat import sqlalchemy as sqla_compat
 from airflow.www.fab_security.manager import BaseSecurityManager
 from airflow.www.fab_security.sqla.models import (
     Action,
@@ -100,7 +99,7 @@ class SecurityManager(BaseSecurityManager):
     def create_db(self):
         try:
             engine = self.get_session.get_bind(mapper=None, clause=None)
-            inspector = Inspector.from_engine(engine)
+            inspector = sqla_compat.inspect(engine)
             if "ab_user" not in inspector.get_table_names():
                 log.info(c.LOGMSG_INF_SEC_NO_DB)
                 Base.metadata.create_all(engine)
@@ -273,12 +272,6 @@ class SecurityManager(BaseSecurityManager):
     def get_public_role(self):
         return self.get_session.query(self.role_model).filter_by(name=self.auth_role_public).one_or_none()
 
-    def get_public_permissions(self):
-        role = self.get_public_role()
-        if role:
-            return role.permissions
-        return []
-
     def get_action(self, name: str) -> Action:
         """
         Gets an existing action record.
@@ -338,19 +331,6 @@ class SecurityManager(BaseSecurityManager):
                 self.role_model.id.in_(role_ids),
             )
         ).all()
-
-    def get_role_permissions_from_db(self, role_id: int) -> List[Permission]:
-        """Get all DB permissions from a role (one single query)"""
-        return (
-            self.appbuilder.get_session.query(Permission)
-            .join(Action)
-            .join(Resource)
-            .join(Permission.role)
-            .filter(Role.id == role_id)
-            .options(contains_eager(Permission.action))
-            .options(contains_eager(Permission.resource))
-            .all()
-        )
 
     def create_action(self, name):
         """

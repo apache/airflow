@@ -160,7 +160,7 @@ class TestHelpers:
         Test query generated with dag_id and params
         """
         query = {"dag_id": "test_dag", "param": "key/to.encode"}
-        expected_url = "/graph?dag_id=test_dag&param=key%2Fto.encode"
+        expected_url = "/dags/test_dag/graph?param=key%2Fto.encode"
 
         from airflow.www.app import cached_app
 
@@ -178,13 +178,13 @@ class TestHelpers:
             ("root.group.simple-key", None, None),
             (
                 "key with space",
-                "The key (key with space) has to be made of alphanumeric "
+                "The key 'key with space' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key_with_!",
-                "The key (key_with_!) has to be made of alphanumeric "
+                "The key 'key_with_!' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
@@ -207,25 +207,25 @@ class TestHelpers:
             ("simple-key", None, None),
             (
                 "group.simple_key",
-                "The key ('group.simple_key') has to be made of alphanumeric "
+                "The key 'group.simple_key' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "root.group-name.simple_key",
-                "The key ('root.group-name.simple_key') has to be made of alphanumeric "
+                "The key 'root.group-name.simple_key' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key with space",
-                "The key ('key with space') has to be made of alphanumeric "
+                "The key 'key with space' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key_with_!",
-                "The key ('key_with_!') has to be made of alphanumeric "
+                "The key 'key_with_!' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),

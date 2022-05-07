@@ -16,13 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to Google Cloud Storage operator."""
-import warnings
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
-
-from google.cloud.bigquery.table import TableReference
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -49,8 +47,6 @@ class BigQueryToGCSOperator(BaseOperator):
     :param field_delimiter: The delimiter to use when extracting to a CSV.
     :param print_header: Whether to print a header for a CSV file extract.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -75,6 +71,7 @@ class BigQueryToGCSOperator(BaseOperator):
     )
     template_ext: Sequence[str] = ()
     ui_color = '#e4e6f0'
+    operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
         self,
@@ -86,7 +83,6 @@ class BigQueryToGCSOperator(BaseOperator):
         field_delimiter: str = ',',
         print_header: bool = True,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
         location: Optional[str] = None,
@@ -94,15 +90,6 @@ class BigQueryToGCSOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
 
         self.source_project_dataset_table = source_project_dataset_table
         self.destination_cloud_storage_uris = destination_cloud_storage_uris
@@ -128,26 +115,23 @@ class BigQueryToGCSOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
+        job_id = hook.run_extract(
+            source_project_dataset_table=self.source_project_dataset_table,
+            destination_cloud_storage_uris=self.destination_cloud_storage_uris,
+            compression=self.compression,
+            export_format=self.export_format,
+            field_delimiter=self.field_delimiter,
+            print_header=self.print_header,
+            labels=self.labels,
+        )
 
-        table_ref = TableReference.from_string(self.source_project_dataset_table, hook.project_id)
-
-        configuration: Dict[str, Any] = {
-            'extract': {
-                'sourceTable': table_ref.to_api_repr(),
-                'compression': self.compression,
-                'destinationUris': self.destination_cloud_storage_uris,
-                'destinationFormat': self.export_format,
-            }
-        }
-
-        if self.labels:
-            configuration['labels'] = self.labels
-
-        if self.export_format == 'CSV':
-            # Only set fieldDelimiter and printHeader fields if using CSV.
-            # Google does not like it if you set these fields for other export
-            # formats.
-            configuration['extract']['fieldDelimiter'] = self.field_delimiter
-            configuration['extract']['printHeader'] = self.print_header
-
-        hook.insert_job(configuration=configuration)
+        job = hook.get_job(job_id=job_id).to_api_repr()
+        conf = job["configuration"]["extract"]["sourceTable"]
+        dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
+        BigQueryTableLink.persist(
+            context=context,
+            task_instance=self,
+            dataset_id=dataset_id,
+            project_id=project_id,
+            table_id=table_id,
+        )

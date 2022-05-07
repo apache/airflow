@@ -18,9 +18,6 @@
 import unittest
 from unittest import mock
 
-import pytest
-
-from airflow import PY37
 from airflow.cli import cli_parser
 from airflow.cli.commands import triggerer_command
 
@@ -34,7 +31,6 @@ class TestTriggererCommand(unittest.TestCase):
     def setUpClass(cls):
         cls.parser = cli_parser.get_parser()
 
-    @pytest.mark.skipif(not PY37, reason="triggerer subcommand only works with Python 3.7+")
     @mock.patch("airflow.cli.commands.triggerer_command.TriggererJob")
     def test_capacity_argument(
         self,
@@ -43,4 +39,4 @@ class TestTriggererCommand(unittest.TestCase):
         """Ensure that the capacity argument is passed correctly"""
         args = self.parser.parse_args(['triggerer', '--capacity=42'])
         triggerer_command.triggerer(args)
-        mock_scheduler_job.assert_called_once_with(capacity="42")
+        mock_scheduler_job.assert_called_once_with(capacity=42)

@@ -34,7 +34,7 @@ pass the relevant file names to the ``s3_keys`` parameter and the relevant Snowf
 ``file_format`` can be used to either reference an already existing Snowflake file format or a custom string that defines
 a file format (see `docs <https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html>`__).
 
-An example usage of the S3ToSnowflakeOperator is as follows: #TODO: currently forces usage of schema parameter
+An example usage of the S3ToSnowflakeOperator is as follows:
 
 .. exampleinclude:: /../../airflow/providers/snowflake/example_dags/example_snowflake.py
     :language: python

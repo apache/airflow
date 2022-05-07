@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections & variables from Hashicorp Vault"""
+import warnings
 from typing import TYPE_CHECKING, Optional
 
 from airflow.providers.hashicorp._internal_client.vault_client import _VaultClient
@@ -168,14 +169,22 @@ class VaultBackend(BaseSecretsBackend, LoggingMixin):
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
-        Get secret value from Vault. Store the secret in the form of URI
+        Get serialized representation of connection
 
         :param conn_id: The connection id
         :rtype: str
         :return: The connection uri retrieved from the secret
         """
-        response = self.get_response(conn_id)
 
+        # Since VaultBackend implements `get_connection`, `get_conn_uri` is not used. So we
+        # don't need to implement (or direct users to use) method `get_conn_value` instead
+        warnings.warn(
+            f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+            "in a future release.",
+            PendingDeprecationWarning,
+            stacklevel=2,
+        )
+        response = self.get_response(conn_id)
         return response.get("conn_uri") if response else None
 
     # Make sure connection is imported this way for type checking, otherwise when importing

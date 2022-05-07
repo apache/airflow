@@ -53,6 +53,8 @@ class LivyOperator(BaseOperator):
     :param extra_options: A dictionary of options, where key is string and value
         depends on the option that's being modified.
     :param extra_headers: A dictionary of headers passed to the HTTP request to livy.
+    :param retry_args: Arguments which define the retry behaviour.
+            See Tenacity documentation at https://github.com/jd/tenacity
     """
 
     template_fields: Sequence[str] = ('spark_params',)
@@ -80,6 +82,7 @@ class LivyOperator(BaseOperator):
         polling_interval: int = 0,
         extra_options: Optional[Dict[str, Any]] = None,
         extra_headers: Optional[Dict[str, Any]] = None,
+        retry_args: Optional[Dict[str, Any]] = None,
         **kwargs: Any,
     ) -> None:
 
@@ -111,6 +114,7 @@ class LivyOperator(BaseOperator):
 
         self._livy_hook: Optional[LivyHook] = None
         self._batch_id: Union[int, str]
+        self.retry_args = retry_args
 
     def get_hook(self) -> LivyHook:
         """
@@ -142,11 +146,11 @@ class LivyOperator(BaseOperator):
         :param batch_id: id of the batch session to monitor.
         """
         hook = self.get_hook()
-        state = hook.get_batch_state(batch_id)
+        state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         while state not in hook.TERMINAL_STATES:
             self.log.debug('Batch with id %s is in state: %s', batch_id, state.value)
             sleep(self._polling_interval)
-            state = hook.get_batch_state(batch_id)
+            state = hook.get_batch_state(batch_id, retry_args=self.retry_args)
         self.log.info("Batch with id %s terminated with state: %s", batch_id, state.value)
         hook.dump_batch_logs(batch_id)
         if state != BatchState.SUCCESS:

@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import os
 from contextlib import closing
 from copy import deepcopy
@@ -138,11 +137,11 @@ class PostgresHook(DbApiHook):
                     conn.commit()
 
     def get_uri(self) -> str:
-        conn = self.get_connection(getattr(self, self.conn_name_attr))
-        uri = super().get_uri()
-        if conn.extra_dejson.get('client_encoding', False):
-            charset = conn.extra_dejson["client_encoding"]
-            return f"{uri}?client_encoding={charset}"
+        """
+        Extract the URI from the connection.
+        :return: the extracted uri.
+        """
+        uri = super().get_uri().replace("postgres://", "postgresql://")
         return uri
 
     def bulk_load(self, table: str, tmp_file: str) -> None:

@@ -19,8 +19,6 @@ import subprocess
 
 import pytest
 
-from airflow.models import Connection
-from airflow.utils import db
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.system_tests_class import SystemTest
 
@@ -61,8 +59,6 @@ class SparkKubernetesExampleDagsSystemTest(SystemTest):
     def setUp(self):
         super().setUp()
         kubectl_apply_list(SPARK_OPERATOR_MANIFESTS)
-        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            db.merge_conn(Connection(conn_id='kubernetes_default', conn_type='kubernetes'))
 
     def tearDown(self):
         super().tearDown()

@@ -175,6 +175,7 @@
         "end_date": { "$ref": "#/definitions/datetime" },
         "trigger_rule": { "type": "string" },
         "depends_on_past": { "type": "boolean" },
+        "ignore_first_depends_on_past": { "type": "boolean" },
         "wait_for_downstream": { "type": "boolean" },
         "retries": { "type": "number" },
         "queue": { "type": "string" },

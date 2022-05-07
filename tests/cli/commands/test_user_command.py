@@ -18,15 +18,18 @@
 import io
 import json
 import os
+import re
 import tempfile
 from contextlib import redirect_stdout
 
 import pytest
 
 from airflow.cli.commands import user_command
+from tests.test_utils.api_connexion_utils import delete_users
 
 TEST_USER1_EMAIL = 'test-user1@example.com'
 TEST_USER2_EMAIL = 'test-user2@example.com'
+TEST_USER3_EMAIL = 'test-user3@example.com'
 
 
 def _does_user_belong_to_role(appbuilder, email, rolename):
@@ -45,18 +48,9 @@ class TestCliUsers:
         self.dagbag = dagbag
         self.parser = parser
         self.appbuilder = self.app.appbuilder
-        self.clear_roles_and_roles()
+        delete_users(app)
         yield
-        self.clear_roles_and_roles()
-
-    def clear_roles_and_roles(self):
-        for email in [TEST_USER1_EMAIL, TEST_USER2_EMAIL]:
-            test_user = self.appbuilder.sm.find_user(email=email)
-            if test_user:
-                self.appbuilder.sm.del_register_user(test_user)
-        for role_name in ['FakeTeamA', 'FakeTeamB']:
-            if self.appbuilder.sm.find_role(role_name):
-                self.appbuilder.sm.delete_role(role_name)
+        delete_users(app)
 
     def test_cli_create_user_random_password(self):
         args = self.parser.parse_args(
@@ -411,3 +405,56 @@ class TestCliUsers:
                 user_command.add_role(args)
             else:
                 user_command.remove_role(args)
+
+    @pytest.mark.parametrize(
+        "user, message",
+        [
+            [
+                {
+                    "username": "imported_user1",
+                    "lastname": "doe1",
+                    "firstname": "john",
+                    "email": TEST_USER1_EMAIL,
+                    "roles": "This is not a list",
+                },
+                "Error: Input file didn't pass validation. See below:\n"
+                "[Item 0]\n"
+                "\troles: ['Not a valid list.']",
+            ],
+            [
+                {
+                    "username": "imported_user2",
+                    "lastname": "doe2",
+                    "firstname": "jon",
+                    "email": TEST_USER2_EMAIL,
+                    "roles": [],
+                },
+                "Error: Input file didn't pass validation. See below:\n"
+                "[Item 0]\n"
+                "\troles: ['Shorter than minimum length 1.']",
+            ],
+            [
+                {
+                    "username1": "imported_user3",
+                    "lastname": "doe3",
+                    "firstname": "jon",
+                    "email": TEST_USER3_EMAIL,
+                    "roles": ["Test"],
+                },
+                "Error: Input file didn't pass validation. See below:\n"
+                "[Item 0]\n"
+                "\tusername: ['Missing data for required field.']\n"
+                "\tusername1: ['Unknown field.']",
+            ],
+            [
+                "Wrong input",
+                "Error: Input file didn't pass validation. See below:\n"
+                "[Item 0]\n"
+                "\t_schema: ['Invalid input type.']",
+            ],
+        ],
+        ids=["Incorrect roles", "Empty roles", "Required field is missing", "Wrong input"],
+    )
+    def test_cli_import_users_exceptions(self, user, message):
+        with pytest.raises(SystemExit, match=re.escape(message)):
+            self._import_users_from_file([user])

@@ -20,12 +20,14 @@
 
 from typing import Dict, List, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild import CloudBuildClient
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 # Time to sleep between active checks of the operation results
@@ -84,7 +86,7 @@ class CloudBuildHook(GoogleBaseHook):
         :rtype: `google.cloud.devtools.cloudbuild_v1.CloudBuildClient`
         """
         if not self._client:
-            self._client = CloudBuildClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = CloudBuildClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -92,7 +94,7 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
@@ -130,7 +132,7 @@ class CloudBuildHook(GoogleBaseHook):
         build: Union[Dict, Build],
         project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
@@ -161,7 +163,7 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        id_ = self._get_build_id_from_operation(Operation)
+        id_ = self._get_build_id_from_operation(operation)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
@@ -177,7 +179,7 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         trigger: Union[dict, BuildTrigger],
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> BuildTrigger:
@@ -216,7 +218,7 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         trigger_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -250,7 +252,7 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
@@ -288,7 +290,7 @@ class CloudBuildHook(GoogleBaseHook):
         self,
         trigger_id: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> BuildTrigger:
@@ -328,7 +330,7 @@ class CloudBuildHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[BuildTrigger]:
@@ -378,7 +380,7 @@ class CloudBuildHook(GoogleBaseHook):
         page_size: Optional[int] = None,
         page_token: Optional[int] = None,
         filter_: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[Build]:
@@ -428,7 +430,7 @@ class CloudBuildHook(GoogleBaseHook):
         id_: str,
         project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
@@ -459,7 +461,7 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        id_ = self._get_build_id_from_operation(Operation)
+        id_ = self._get_build_id_from_operation(operation)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
@@ -477,7 +479,7 @@ class CloudBuildHook(GoogleBaseHook):
         source: Union[dict, RepoSource],
         project_id: str = PROVIDE_PROJECT_ID,
         wait: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Build:
@@ -509,7 +511,7 @@ class CloudBuildHook(GoogleBaseHook):
             metadata=metadata,
         )
 
-        id_ = self._get_build_id_from_operation(Operation)
+        id_ = self._get_build_id_from_operation(operation)
 
         if not wait:
             return self.get_build(id_=id_, project_id=project_id)
@@ -526,7 +528,7 @@ class CloudBuildHook(GoogleBaseHook):
         trigger_id: str,
         trigger: Union[dict, BuildTrigger],
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> BuildTrigger:

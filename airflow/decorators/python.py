@@ -41,17 +41,19 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
     # there are some cases we can't deepcopy the objects (e.g protobuf).
     shallow_copy_attrs: Sequence[str] = ('python_callable',)
 
-    def __init__(
-        self,
-        **kwargs,
-    ) -> None:
+    def __init__(self, *, python_callable, op_args, op_kwargs, **kwargs) -> None:
         kwargs_to_upstream = {
-            "python_callable": kwargs["python_callable"],
-            "op_args": kwargs["op_args"],
-            "op_kwargs": kwargs["op_kwargs"],
+            "python_callable": python_callable,
+            "op_args": op_args,
+            "op_kwargs": op_kwargs,
         }
-
-        super().__init__(kwargs_to_upstream=kwargs_to_upstream, **kwargs)
+        super().__init__(
+            kwargs_to_upstream=kwargs_to_upstream,
+            python_callable=python_callable,
+            op_args=op_args,
+            op_kwargs=op_kwargs,
+            **kwargs,
+        )
 
 
 T = TypeVar("T", bound=Callable)

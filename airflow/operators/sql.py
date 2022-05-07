@@ -126,6 +126,7 @@ class SQLCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
+    template_fields_renderers = {"sql": "sql"}
     ui_color = "#fff7e6"
 
     def __init__(
@@ -179,6 +180,7 @@ class SQLValueCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
+    template_fields_renderers = {"sql": "sql"}
     ui_color = "#fff7e6"
 
     def __init__(
@@ -403,6 +405,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         ".hql",
         ".sql",
     )
+    template_fields_renderers = {"sql": "sql"}
 
     def __init__(
         self,
@@ -481,6 +484,7 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
 
     template_fields: Sequence[str] = ("sql",)
     template_ext: Sequence[str] = (".sql",)
+    template_fields_renderers = {"sql": "sql"}
     ui_color = "#a22034"
     ui_fgcolor = "#F7F7F7"
 

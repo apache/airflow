@@ -17,6 +17,7 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution, ExecutionsClient
@@ -25,6 +26,7 @@ from google.cloud.workflows_v1beta import Workflow, WorkflowsClient
 from google.cloud.workflows_v1beta.services.workflows.pagers import ListWorkflowsPager
 from google.protobuf.field_mask_pb2 import FieldMask
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 
@@ -38,11 +40,11 @@ class WorkflowsHook(GoogleBaseHook):
 
     def get_workflows_client(self) -> WorkflowsClient:
         """Returns WorkflowsClient."""
-        return WorkflowsClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return WorkflowsClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     def get_executions_client(self) -> ExecutionsClient:
         """Returns ExecutionsClient."""
-        return ExecutionsClient(credentials=self._get_credentials(), client_info=self.client_info)
+        return ExecutionsClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def create_workflow(
@@ -51,7 +53,7 @@ class WorkflowsHook(GoogleBaseHook):
         workflow_id: str,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -87,7 +89,7 @@ class WorkflowsHook(GoogleBaseHook):
         workflow_id: str,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Workflow:
@@ -112,7 +114,7 @@ class WorkflowsHook(GoogleBaseHook):
         self,
         workflow: Union[Dict, Workflow],
         update_mask: Optional[FieldMask] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -148,7 +150,7 @@ class WorkflowsHook(GoogleBaseHook):
         workflow_id: str,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -178,7 +180,7 @@ class WorkflowsHook(GoogleBaseHook):
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListWorkflowsPager:
@@ -217,7 +219,7 @@ class WorkflowsHook(GoogleBaseHook):
         location: str,
         execution: Dict,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Execution:
@@ -252,7 +254,7 @@ class WorkflowsHook(GoogleBaseHook):
         execution_id: str,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Execution:
@@ -281,7 +283,7 @@ class WorkflowsHook(GoogleBaseHook):
         execution_id: str,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Execution:
@@ -311,7 +313,7 @@ class WorkflowsHook(GoogleBaseHook):
         workflow_id: str,
         location: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListExecutionsPager:

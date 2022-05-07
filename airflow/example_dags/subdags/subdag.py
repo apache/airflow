@@ -19,10 +19,10 @@
 """Helper function to generate a DAG and operators given some arguments."""
 
 # [START subdag]
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 
 
 def subdag(parent_dag_name, child_dag_name, args):
@@ -38,13 +38,13 @@ def subdag(parent_dag_name, child_dag_name, args):
     dag_subdag = DAG(
         dag_id=f'{parent_dag_name}.{child_dag_name}',
         default_args=args,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         schedule_interval="@daily",
     )
 
     for i in range(5):
-        DummyOperator(
+        EmptyOperator(
             task_id=f'{child_dag_name}-task-{i + 1}',
             default_args=args,
             dag=dag_subdag,

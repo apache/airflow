@@ -19,6 +19,69 @@
 Changelog
 ---------
 
+2.3.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.3.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Set larger limit get_partitions_by_filter in HiveMetastoreHook (#21504)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix Python 3.9 support in Hive (#21893)``
+* ``Fix key typo in 'template_fields_renderers' for 'HiveOperator' (#21525)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Add how-to guide for hive operator (#21590)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy issues in 'example_twitter_dag' (#21571)``
+   * ``Remove unnecessary/stale comments (#21572)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+* ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix MyPy errors in Apache Providers (#20422)``
+   * ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Add some type hints for Hive providers (#20210)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 2.1.0
 .....
 

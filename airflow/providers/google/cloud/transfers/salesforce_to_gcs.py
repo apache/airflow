@@ -58,6 +58,7 @@ class SalesforceToGcsOperator(BaseOperator):
         'object_name',
     )
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
 
     def __init__(
         self,

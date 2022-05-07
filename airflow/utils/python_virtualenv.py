@@ -36,13 +36,17 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     return cmd
 
 
-def _generate_pip_install_cmd_from_file(tmp_dir: str, requirements_file_path: str) -> List[str]:
-    cmd = [f'{tmp_dir}/bin/pip', 'install', '-r']
+def _generate_pip_install_cmd_from_file(
+    tmp_dir: str, requirements_file_path: str, pip_install_options: List[str]
+) -> List[str]:
+    cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options + ['-r']
     return cmd + [requirements_file_path]
 
 
-def _generate_pip_install_cmd_from_list(tmp_dir: str, requirements: List[str]) -> List[str]:
-    cmd = [f'{tmp_dir}/bin/pip', 'install']
+def _generate_pip_install_cmd_from_list(
+    tmp_dir: str, requirements: List[str], pip_install_options: List[str]
+) -> List[str]:
+    cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options
     return cmd + requirements
 
 
@@ -82,6 +86,7 @@ def prepare_virtualenv(
     system_site_packages: bool,
     requirements: Optional[List[str]] = None,
     requirements_file_path: Optional[str] = None,
+    pip_install_options: Optional[List[str]] = None,
 ) -> str:
     """Creates a virtual environment and installs the additional python packages.
 
@@ -94,6 +99,9 @@ def prepare_virtualenv(
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
     """
+    if pip_install_options is None:
+        pip_install_options = []
+
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
 
@@ -102,9 +110,11 @@ def prepare_virtualenv(
 
     pip_cmd = None
     if requirements is not None and len(requirements) != 0:
-        pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements)
+        pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements, pip_install_options)
     if requirements_file_path is not None and requirements_file_path:
-        pip_cmd = _generate_pip_install_cmd_from_file(venv_directory, requirements_file_path)
+        pip_cmd = _generate_pip_install_cmd_from_file(
+            venv_directory, requirements_file_path, pip_install_options
+        )
 
     if pip_cmd:
         execute_in_subprocess(pip_cmd)

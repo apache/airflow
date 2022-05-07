@@ -44,15 +44,26 @@ def test_trigger_dag_button_normal_exist(admin_client):
     assert "return confirmDeleteDag(this, 'example_bash_operator')" in resp.data.decode('utf-8')
 
 
-@pytest.mark.quarantined
-def test_trigger_dag_button(admin_client):
-    test_dag_id = "example_bash_operator"
-    admin_client.post(f'trigger?dag_id={test_dag_id}')
+# test trigger button with and without run_id
+@pytest.mark.parametrize(
+    "req , expected_run_id", [('', DagRunType.MANUAL), ('&run_id=test_run_id', 'test_run_id')]
+)
+def test_trigger_dag_button(admin_client, req, expected_run_id):
+    test_dag_id = 'example_bash_operator'
+    admin_client.post(f'trigger?dag_id={test_dag_id}{req}')
     with create_session() as session:
         run = session.query(DagRun).filter(DagRun.dag_id == test_dag_id).first()
     assert run is not None
-    assert DagRunType.MANUAL in run.run_id
     assert run.run_type == DagRunType.MANUAL
+    assert expected_run_id in run.run_id
+
+
+def test_duplicate_run_id(admin_client):
+    test_dag_id = 'example_bash_operator'
+    run_id = 'test_run'
+    admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
+    response = admin_client.post(f'trigger?dag_id={test_dag_id}&run_id={run_id}', follow_redirects=True)
+    check_content_in_response(f'The run_id {run_id} already exists', response)
 
 
 def test_trigger_dag_conf(admin_client):
@@ -135,6 +146,10 @@ def test_trigger_dag_form(admin_client):
         ("http://google.com", "/home"),
         ("36539'%3balert(1)%2f%2f166", "/home"),
         (
+            '"><script>alert(99)</script><a href="',
+            "&#34;&gt;&lt;script&gt;alert(99)&lt;/script&gt;&lt;a href=&#34;",
+        ),
+        (
             "%2Ftree%3Fdag_id%3Dexample_bash_operator';alert(33)//",
             "/home",
         ),
@@ -146,12 +161,7 @@ def test_trigger_dag_form_origin_url(admin_client, test_origin, expected_origin)
     test_dag_id = "example_bash_operator"
 
     resp = admin_client.get(f'trigger?dag_id={test_dag_id}&origin={test_origin}')
-    check_content_in_response(
-        '<button type="button" class="btn" onclick="location.href = \'{}\'; return false">'.format(
-            expected_origin
-        ),
-        resp,
-    )
+    check_content_in_response(f'<a class="btn" href="{expected_origin}">Cancel</a>', resp)
 
 
 @pytest.mark.parametrize(

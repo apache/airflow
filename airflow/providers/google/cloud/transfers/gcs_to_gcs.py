@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Storage operator."""
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
@@ -69,8 +68,6 @@ class GCSToGCSOperator(BaseOperator):
         If source_objects = ['foo/bah/'] and delimiter = '.avro', then only the 'files' in the
         folder 'foo/bah/' with '.avro' delimiter will be copied to the destination object.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -90,6 +87,8 @@ class GCSToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param source_object_required: Whether you want to raise an exception when the source object
+        doesn't exist. It doesn't have any effect when the source objects are folders or patterns.
 
     :Example:
 
@@ -184,23 +183,15 @@ class GCSToGCSOperator(BaseOperator):
         move_object=False,
         replace=True,
         gcp_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id=None,
         delegate_to=None,
         last_modified_time=None,
         maximum_modified_time=None,
         is_older_than=None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        source_object_required=False,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.source_bucket = source_bucket
         self.source_object = source_object
@@ -216,6 +207,7 @@ class GCSToGCSOperator(BaseOperator):
         self.maximum_modified_time = maximum_modified_time
         self.is_older_than = is_older_than
         self.impersonation_chain = impersonation_chain
+        self.source_object_required = source_object_required
 
     def execute(self, context: 'Context'):
 
@@ -313,6 +305,11 @@ class GCSToGCSOperator(BaseOperator):
                 self._copy_single_object(
                     hook=hook, source_object=prefix, destination_object=self.destination_object
                 )
+            elif self.source_object_required:
+                msg = f"{prefix} does not exist in bucket {self.source_bucket}"
+                self.log.warning(msg)
+                raise AirflowException(msg)
+
         for source_obj in objects:
             if self.destination_object is None:
                 destination_object = source_obj

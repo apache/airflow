@@ -451,7 +451,9 @@ class CloudSqlProxyRunner(LoggingMixin):
             self.log.info("cloud-sql-proxy is already present")
             return
         system = platform.system().lower()
-        processor = "amd64" if CloudSqlProxyRunner._is_os_64bit() else "386"
+        processor = os.uname().machine
+        if processor == "x86_64":
+            processor = "amd64"
         if not self.sql_proxy_version:
             download_url = CLOUD_SQL_PROXY_DOWNLOAD_URL.format(system, processor)
         else:

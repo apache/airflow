@@ -29,6 +29,8 @@ You can use Connections directly from your own code, you can use them via Hooks 
 
     echo {{ conn.<conn_id>.host }}
 
+.. _concepts_hooks:
+
 Hooks
 -----
 

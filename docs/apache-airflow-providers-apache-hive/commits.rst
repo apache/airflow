@@ -28,14 +28,66 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.3.1
+.....
+
+Latest change: 2022-03-14
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
+=================================================================================================  ===========  ====================================================================
+
+2.3.0
+.....
+
+Latest change: 2022-03-07
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`f5b96315fe <https://github.com/apache/airflow/commit/f5b96315fe65b99c0e2542831ff73a3406c4232d>`_  2022-03-07   ``Add documentation for Feb Providers release (#22056)``
+`563ecfa053 <https://github.com/apache/airflow/commit/563ecfa0539f5cbd42a715de0e25e563bd62c179>`_  2022-03-01   ``Add Python 3.9 support to Hive (#21893)``
+`f6e0ed0dcc <https://github.com/apache/airflow/commit/f6e0ed0dcc492636f6d1a3a413d5df2f9758f80d>`_  2022-02-15   ``Add how-to guide for hive operator (#21590)``
+`041babb060 <https://github.com/apache/airflow/commit/041babb0608a102fd9d83e77b7fab5d9831ec2b4>`_  2022-02-15   ``Fix mypy issues in 'example_twitter_dag' (#21571)``
+`2d6282d6b7 <https://github.com/apache/airflow/commit/2d6282d6b7d8c7603e96f0f28ebe0180855687f3>`_  2022-02-15   ``Remove unnecessary/stale comments (#21572)``
+`06010fa12a <https://github.com/apache/airflow/commit/06010fa12abe4c6b195e72d2f99f30d8ed1ba9c6>`_  2022-02-11   ``Fix key typo in 'template_fields_renderers' for 'HiveOperator' (#21525)``
+`d927507899 <https://github.com/apache/airflow/commit/d927507899c423b81bba212544e1fe07b4ca69b7>`_  2022-02-11   ``Set larger limit get_partitions_by_filter in HiveMetastoreHook (#21504)``
+=================================================================================================  ===========  ===========================================================================
+
+2.2.0
+.....
+
+Latest change: 2022-02-08
+
+=================================================================================================  ===========  =================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================================================================
+`d94fa37830 <https://github.com/apache/airflow/commit/d94fa378305957358b910cfb1fe7cb14bc793804>`_  2022-02-08   ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+`8f81b9a01c <https://github.com/apache/airflow/commit/8f81b9a01c7708a282271f9afd6b16a91011f105>`_  2022-02-08   ``Add conditional 'template_fields_renderers' check for new SQL lexers (#21403)``
+`6c3a67d4fc <https://github.com/apache/airflow/commit/6c3a67d4fccafe4ab6cd9ec8c7bacf2677f17038>`_  2022-02-05   ``Add documentation for January 2021 providers release (#21257)``
+`39e395f981 <https://github.com/apache/airflow/commit/39e395f9816c04ef2f033eb0b4f635fc3018d803>`_  2022-02-04   ``Add more SQL template fields renderers (#21237)``
+`602abe8394 <https://github.com/apache/airflow/commit/602abe8394fafe7de54df7e73af56de848cdf617>`_  2022-01-20   ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+`5569b868a9 <https://github.com/apache/airflow/commit/5569b868a990c97dfc63a0e014a814ec1cc0f953>`_  2022-01-09   ``Fix MyPy Errors for providers: Tableau, CNCF, Apache (#20654)``
+`f77417eb0d <https://github.com/apache/airflow/commit/f77417eb0d3f12e4849d80645325c02a48829278>`_  2021-12-31   ``Fix K8S changelog to be PyPI-compatible (#20614)``
+`97496ba2b4 <https://github.com/apache/airflow/commit/97496ba2b41063fa24393c58c5c648a0cdb5a7f8>`_  2021-12-31   ``Update documentation for provider December 2021 release (#20523)``
+`83f8e178ba <https://github.com/apache/airflow/commit/83f8e178ba7a3d4ca012c831a5bfc2cade9e812d>`_  2021-12-31   ``Even more typing in operators (template_fields/ext) (#20608)``
+`d56e7b56bb <https://github.com/apache/airflow/commit/d56e7b56bb9827daaf8890557147fd10bdf72a7e>`_  2021-12-30   ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+`a0821235fb <https://github.com/apache/airflow/commit/a0821235fb6877a471973295fe42283ef452abf6>`_  2021-12-30   ``Use typed Context EVERYWHERE (#20565)``
+`485ff6cc64 <https://github.com/apache/airflow/commit/485ff6cc64d8f6a15d8d6a0be50661fe6d04b2d9>`_  2021-12-29   ``Fix MyPy errors in Apache Providers (#20422)``
+`f760823b4a <https://github.com/apache/airflow/commit/f760823b4af3f0fdfacf63dae199ec4d88028f71>`_  2021-12-11   ``Add some type hints for Hive providers (#20210)``
+=================================================================================================  ===========  =================================================================================
+
 2.1.0
 .....
 
-Latest change: 2021-11-29
+Latest change: 2021-11-30
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`853576d901 <https://github.com/apache/airflow/commit/853576d9019d2aca8de1d9c587c883dcbe95b46a>`_  2021-11-30   ``Update documentation for November 2021 provider's release (#19882)``
 `16b3ab5860 <https://github.com/apache/airflow/commit/16b3ab5860bc766fa31bbeccfb08ea710ca4bae7>`_  2021-11-29   ``Improve various docstrings in Apache Hive providers (#19866)``
 `ac752e777b <https://github.com/apache/airflow/commit/ac752e777bad330d05c6aebbea940616831aa6f2>`_  2021-11-24   ``hive provider: restore HA support for metastore (#19777)``
 `f50f677514 <https://github.com/apache/airflow/commit/f50f677514b562ac83a00cde2bfd0efdfbe171e4>`_  2021-11-08   ``Fix typos in Hive transfer operator docstrings (#19474)``

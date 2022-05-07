@@ -30,7 +30,7 @@ from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError
+from airflow.providers.amazon.aws.exceptions import EcsOperatorError, EcsTaskFailToStart
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol, runtime_checkable
@@ -44,6 +44,16 @@ def should_retry(exception: Exception):
             quota_reason in failure['reason']
             for quota_reason in ['RESOURCE:MEMORY', 'RESOURCE:CPU']
             for failure in exception.failures
+        )
+    return False
+
+
+def should_retry_eni(exception: Exception):
+    """Check if exception is related to ENI (Elastic Network Interfaces)."""
+    if isinstance(exception, EcsTaskFailToStart):
+        return any(
+            eni_reason in exception.message
+            for eni_reason in ['network interface provisioning', 'ResourceInitializationError']
         )
     return False
 
@@ -115,11 +125,11 @@ class EcsTaskLogFetcher(Thread):
     def run(self) -> None:
         logs_to_skip = 0
         while not self.is_stopped():
+            time.sleep(self.fetch_interval.total_seconds())
             log_events = self._get_log_events(logs_to_skip)
             for log_event in log_events:
                 self.logger.info(self._event_to_str(log_event))
                 logs_to_skip += 1
-            time.sleep(self.fetch_interval.total_seconds())
 
     def _get_log_events(self, skip: int = 0) -> Generator:
         try:
@@ -169,7 +179,7 @@ class EcsOperator(BaseOperator):
         (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
-    :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
+    :param launch_type: the launch type on which to run your task ('EC2', 'EXTERNAL', or 'FARGATE')
     :param capacity_provider_strategy: the capacity provider strategy to use for the task.
         When capacity_provider_strategy is specified, the launch_type parameter is omitted.
         If no capacity_provider_strategy or launch_type is specified,
@@ -287,6 +297,23 @@ class EcsOperator(BaseOperator):
         if self.reattach:
             self._try_reattach_task(context)
 
+        self._start_wait_check_task(context)
+
+        self.log.info('ECS Task has been successfully executed')
+
+        if self.reattach:
+            # Clear the XCom value storing the ECS task ARN if the task has completed
+            # as we can't reattach it anymore
+            self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
+
+        if self.do_xcom_push and self.task_log_fetcher:
+            return self.task_log_fetcher.get_last_log_message()
+
+        return None
+
+    @AwsBaseHook.retry(should_retry_eni)
+    def _start_wait_check_task(self, context):
+
         if not self.arn:
             self._start_task(context)
 
@@ -305,18 +332,6 @@ class EcsOperator(BaseOperator):
             self._wait_for_task_ended()
 
         self._check_success_task()
-
-        self.log.info('ECS Task has been successfully executed')
-
-        if self.reattach:
-            # Clear the XCom value storing the ECS task ARN if the task has completed
-            # as we can't reattach it anymore
-            self._xcom_del(session, self.REATTACH_XCOM_TASK_ID_TEMPLATE.format(task_id=self.task_id))
-
-        if self.do_xcom_push and self.task_log_fetcher:
-            return self.task_log_fetcher.get_last_log_message()
-
-        return None
 
     def _xcom_del(self, session, task_id):
         session.query(XCom).filter(XCom.dag_id == self.dag_id, XCom.task_id == task_id).delete()
@@ -394,6 +409,7 @@ class EcsOperator(BaseOperator):
         )
         if previous_task_arn in running_tasks:
             self.arn = previous_task_arn
+            self.ecs_task_id = self.arn.split("/")[-1]
             self.log.info("Reattaching previously launched task: %s", self.arn)
         else:
             self.log.info("No active previously launched task found to reattach")
@@ -438,7 +454,12 @@ class EcsOperator(BaseOperator):
         for task in response['tasks']:
 
             if task.get('stopCode', '') == 'TaskFailedToStart':
-                raise AirflowException(f"The task failed to start due to: {task.get('stoppedReason', '')}")
+                # Reset task arn here otherwise the retry run will not start
+                # a new task but keep polling the old dead one
+                # I'm not resetting it for other exceptions here because
+                # EcsTaskFailToStart is the only exception that's being retried at the moment
+                self.arn = None
+                raise EcsTaskFailToStart(f"The task failed to start due to: {task.get('stoppedReason', '')}")
 
             # This is a `stoppedReason` that indicates a task has not
             # successfully finished, but there is no other indication of failure
@@ -446,9 +467,8 @@ class EcsOperator(BaseOperator):
             # https://docs.aws.amazon.com/AmazonECS/latest/developerguide/stopped-task-errors.html
             if re.match(r'Host EC2 \(instance .+?\) (stopped|terminated)\.', task.get('stoppedReason', '')):
                 raise AirflowException(
-                    'The task was stopped because the host instance terminated: {}'.format(
-                        task.get('stoppedReason', '')
-                    )
+                    f"The task was stopped because the host instance terminated:"
+                    f" {task.get('stoppedReason', '')}"
                 )
             containers = task['containers']
             for container in containers:
@@ -467,9 +487,8 @@ class EcsOperator(BaseOperator):
                     raise AirflowException(f'This task is still pending {task}')
                 elif 'error' in container.get('reason', '').lower():
                     raise AirflowException(
-                        'This containers encounter an error during launching : {}'.format(
-                            container.get('reason', '').lower()
-                        )
+                        f"This containers encounter an error during launching: "
+                        f"{container.get('reason', '').lower()}"
                     )
 
     def get_hook(self) -> AwsBaseHook:

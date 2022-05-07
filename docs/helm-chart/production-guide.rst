@@ -52,6 +52,9 @@ configure the secret name:
 
 .. _production-guide:pgbouncer:
 
+.. warning::
+  If you use ``CeleryExecutor``, keep in mind that ``resultBackendSecretName`` expects a url that starts with ``db+postgresql://``, while ``metadataSecretName`` expects ``postgresql://`` and won't work with ``db+postgresql://``. You'll need to create separate secrets with the correct scheme.
+
 PgBouncer
 ---------
 
@@ -64,7 +67,7 @@ reduce the number of open connections on the database.
   pgbouncer:
     enabled: true
 
-Depending on the size of you Airflow instance, you may want to adjust the following as well (defaults are shown):
+Depending on the size of your Airflow instance, you may want to adjust the following as well (defaults are shown):
 
 .. code-block:: yaml
 
@@ -110,6 +113,11 @@ Example to create a Kubernetes Secret from ``kubectl``:
 .. code-block:: bash
 
     kubectl create secret generic my-webserver-secret --from-literal="webserver-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+
+The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+generated using the secret key has a short expiry time though - make sure that time on ALL the machines
+that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
+"forbidden" errors when the logs are accessed.
 
 Extending and customizing Airflow Image
 ---------------------------------------
@@ -448,7 +456,7 @@ Here is the full list of secrets that can be disabled and replaced by ``_CMD`` a
 | Default secret name if secret name not specified      | Use a different Kubernetes Secret        | Airflow Environment Variable                     |
 +=======================================================+==========================================+==================================================+
 | ``<RELEASE_NAME>-airflow-metadata``                   | ``.Values.data.metadataSecretName``      | | ``AIRFLOW_CONN_AIRFLOW_DB``                    |
-|                                                       |                                          | | ``AIRFLOW__CORE__SQL_ALCHEMY_CONN``            |
+|                                                       |                                          | | ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``        |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
 | ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
 +-------------------------------------------------------+------------------------------------------+--------------------------------------------------+

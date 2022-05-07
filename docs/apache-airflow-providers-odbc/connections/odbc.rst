@@ -78,7 +78,7 @@ Extra (optional)
     .. code-block:: json
 
         {
-          "Driver": "ODBC Driver 17 for SQL Server",
+          "Driver": "ODBC Driver 18 for SQL Server",
           "ApplicationIntent": "ReadOnly",
           "TrustedConnection": "Yes"
         }
@@ -96,7 +96,7 @@ Extra (optional)
 
     .. code-block:: bash
 
-        export AIRFLOW_CONN_MSSQL_DEFAULT='mssql-odbc://my_user:XXXXXXXXXXXX@1.1.1.1:1433/my_database?Driver=ODBC+Driver+17+for+SQL+Server&ApplicationIntent=ReadOnly&TrustedConnection=Yes'
+        export AIRFLOW_CONN_MSSQL_DEFAULT='mssql-odbc://my_user:XXXXXXXXXXXX@1.1.1.1:1433/my_database?Driver=ODBC+Driver+18+for+SQL+Server&ApplicationIntent=ReadOnly&TrustedConnection=Yes'
 
     If you want to pass keyword arguments to ``pyodbc.connect``, you may supply a dictionary
     under ``connect_kwargs``.
@@ -107,7 +107,7 @@ Extra (optional)
     .. code-block:: json
 
         {
-          "Driver": "ODBC Driver 17 for SQL Server",
+          "Driver": "ODBC Driver 18 for SQL Server",
           "ApplicationIntent": "ReadOnly",
           "TrustedConnection": "Yes",
           "connect_kwargs": {

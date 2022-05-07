@@ -18,19 +18,16 @@
 ---
 name: "Build Images"
 on:  # yamllint disable-line rule:truthy
-  schedule:
-    - cron: '28 0 * * *'
   pull_request_target:
-  push:
-    branches: ['main', 'v[0-9]+-[0-9]+-test']
 permissions:
   # all other permissions are set to none
   contents: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
-  FORCE_ANSWER_TO_QUESTIONS: "yes"
+  ANSWER: "yes"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
+  DEBIAN_VERSION: "bullseye"
   DB_RESET: "true"
   VERBOSE: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
@@ -42,18 +39,14 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-  GITHUB_REGISTRY_WAIT_FOR_IMAGE: "false"
-  INSTALL_PROVIDERS_FROM_SOURCES: "true"
-  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
-  GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
+  LOGIN_TO_GITHUB_REGISTRY: "true"
+  IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
-
   build-info:
     timeout-minutes: 10
     name: "Build Info"
@@ -104,6 +97,8 @@ jobs:
         if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v2
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
@@ -114,12 +109,6 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
-      - name: env
-        run: printenv
-        env:
-          dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
-          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
-          GITHUB_CONTEXT: ${{ toJson(github) }}
       - name: Selective checks
         id: selective-checks
         env:
@@ -149,37 +138,42 @@ jobs:
               echo "::set-output name=cacheDirective::pulled"
           fi
 
-          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" && "$BUILD_IMAGES_OVERRIDE" != "false" ]]; then
+          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then
               echo "::set-output name=image-build::true"
           else
               echo "::set-output name=image-build::false"
           fi
         env:
           SELECTIVE_CHECKS_IMAGE_BUILD: ${{ steps.selective-checks.outputs.image-build }}
-          BUILD_IMAGES_OVERRIDE: ${{ secrets.AIRFLOW_GITHUB_REGISTRY_WAIT_FOR_IMAGE }}
+      - name: env
+        run: printenv
+        env:
+          dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
+          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
+          GITHUB_CONTEXT: ${{ toJson(github) }}
 
   build-ci-images:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build CI images ${{matrix.python-version}}"
+    name: "Build CI image ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
     strategy:
       matrix:
-        # We need to attempt to build all possible versions here because pull_request_target
-        # event is run for both main and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
-    if: needs.build-info.outputs.image-build == 'true'
+    if: |
+      needs.build-info.outputs.image-build == 'true' &&
+      github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
-      BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+      BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v2
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
@@ -187,8 +181,8 @@ jobs:
           submodules: recursive
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # any code that comes from the sources coming from the PR. Therefore, we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -198,6 +192,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -218,45 +215,57 @@ jobs:
         # changed in the image built - we should only override those that are executed to build
         # the image.
         run: |
-          rm -rf "scripts/ci"
-          mv "main-airflow/scripts/ci" "scripts"
+          rm -rfv "scripts/ci"
+          rm -rfv "dev"
+          mv -v "main-airflow/scripts/ci" "scripts"
+          mv -v "main-airflow/dev" "."
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-      - name: "Push CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_push_ci_images.sh
+        run: breeze free-space
+      - name: Build & Push CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: breeze build-image --push-image
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        if: failure() || cancelled()
+        run: breeze build-image --push-image --empty-image
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
+        if: failure() || cancelled()
+        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   build-prod-images:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build PROD images ${{matrix.python-version}}"
+    name: "Build PROD image ${{matrix.python-version}}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-ci-images]
     strategy:
       matrix:
-        # We need to attempt to build all possible versions here because pull_request_target
-        # event is run for both main and v1-10-tests
         python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
       fail-fast: true
-    if: needs.build-info.outputs.image-build == 'true'
+    if: |
+      needs.build-info.outputs.image-build == 'true' &&
+      github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
-      BACKEND: postgres
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      VERSION_SUFFIX_FOR_PYPI: ".dev0"
-      INSTALL_PROVIDERS_FROM_SOURCES: >
-        ${{ needs.build-info.outputs.defaultBranch == 'main' && 'true' || 'false' }}
+      BACKEND: sqlite
     steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v2
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
@@ -265,7 +274,7 @@ jobs:
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH via custom grep/awk/sed commands
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
           DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
@@ -275,6 +284,9 @@ jobs:
             scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            cut -d "=" -f 3 | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -295,58 +307,54 @@ jobs:
         # changed in the image built - we should only override those that are executed to build
         # the image.
         run: |
-          rm -rf "scripts/ci"
-          mv "main-airflow/scripts/ci" "scripts"
+          rm -rfv "scripts/ci"
+          rm -rfv "dev"
+          mv -v "main-airflow/scripts/ci" "scripts"
+          mv -v "main-airflow/dev" "."
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
-      - name: "Build CI images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_ci_image_on_ci.sh
-        # Pull images built in the previous step (so GITHUB_REGISTRY_PULL_IMAGE_TAG needs to be overridden)
+        run: breeze free-space
+      - name: >
+          Pull CI image for PROD build:
+          ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: breeze pull-image --tag-as-latest
         env:
-          GITHUB_REGISTRY_WAIT_FOR_IMAGE: "true"
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: ${{ github.event.pull_request.head.sha || github.sha }}
-      - name: "Build PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_prepare_prod_image_on_ci.sh
-      - name: "Push PROD images ${{ matrix.python-version }}:${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: ./scripts/ci/images/ci_push_production_images.sh
-
-  cancel-on-ci-build:
-    permissions:
-      actions: write
-    name: "Cancel `Tests` jobs on workflow failed/cancelled"
-    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
-    if: failure() || cancelled()
-    needs: [build-ci-images, build-prod-images]
-    env:
-      branch: ${{ github.event.pull_request.head.ref }}
-      thisRun: ${{ github.run_id }}
-    steps:
-      - name: "Find running `Tests` jobs for ${{ env.GITHUB_REGISTRY_PUSH_IMAGE_TAG }}"
-        run: |
-          if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
-            event_filter="event=pull_request&"
-          else
-            branch="${GITHUB_REF#refs/heads/}"
-            event_filter=""
-          fi
-
-          for cancel_url in $(
-              gh api "/repos/$GITHUB_REPOSITORY/actions/runs?${event_filter}branch=${branch}" \
-                  jq -r '
-                    .workflow_runs[] |
-                    select(.head_sha == $ENV.GITHUB_REGISTRY_PUSH_IMAGE_TAG and .status != "completed") |
-                    .cancel_url
-                  ' \
-          ); do
-            # One of these URls will be _this_ workflow, so lets exclude that!
-            [[ $cancel_url  == */$thisRun/* ]] && continue
-
-            echo "Cancelling $cancel_url"
-            gh api -X POST --silent "$cancel_url"
-          done
+          # Always use default Python version of CI image for preparing packages
+          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Cleanup dist and context file"
+        run: rm -fv ./dist/*  ./docker-context-files/*
+      - name: "Prepare providers packages"
+        run: >
+          breeze prepare-provider-packages
+          --package-list-file ./scripts/ci/installed_providers.txt
+          --package-format wheel
+          --version-suffix-for-pypi dev0
+      - name: "Prepare airflow package"
+        run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
+      - name: "Move dist packages to docker-context files"
+        run: mv -v ./dist/*.whl ./docker-context-files
+      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: >
+          breeze build-prod-image
+          --push-image
+          --install-packages-from-context
+          --disable-airflow-repo-cache
+          --airflow-is-in-context
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: Push empty PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        if: failure() || cancelled()
+        run: breeze build-prod-image --cleanup-context --push-image --empty-image
+        env:
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()

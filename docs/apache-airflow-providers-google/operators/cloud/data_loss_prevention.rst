@@ -297,7 +297,7 @@ Configuration information defines how you want the sensitive data de-identified.
 
 This config can either be saved and persisted in de-identification templates or defined in a :class:`~google.cloud.dlp_v2.types.DeidentifyConfig` object:
 
-.. literalinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dlp.py
     :language: python
     :start-after: [START dlp_deidentify_config_example]
     :end-before: [END dlp_deidentify_config_example]

@@ -19,7 +19,7 @@
 """
 Example Airflow DAG that shows the complex DAG structure.
 """
-from datetime import datetime
+import pendulum
 
 from airflow import models
 from airflow.models.baseoperator import chain
@@ -28,7 +28,7 @@ from airflow.operators.bash import BashOperator
 with models.DAG(
     dag_id="example_complex",
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=['example', 'example2', 'example3'],
 ) as dag:

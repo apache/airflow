@@ -183,20 +183,20 @@ def test_operator_extra_links(dag_maker, create_task_instance_of_operator):
     ), "Operator link type should be preserved during deserialization"
 
     assert (
-        ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == ""
+        ti.task.get_extra_links(ti, EmrClusterLink.name) == ""
     ), "Operator link should only be added if job id is available in XCom"
 
     assert (
-        deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == ""
+        deserialized_task.get_extra_links(ti, EmrClusterLink.name) == ""
     ), "Operator link should be empty for deserialized task with no XCom push"
 
     ti.xcom_push(key=XCOM_RETURN_KEY, value='j-SomeClusterId')
 
     expected = "https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:j-SomeClusterId"
     assert (
-        deserialized_task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected
+        deserialized_task.get_extra_links(ti, EmrClusterLink.name) == expected
     ), "Operator link should be preserved in deserialized tasks after execution"
 
     assert (
-        ti.task.get_extra_links(DEFAULT_DATE, EmrClusterLink.name) == expected
+        ti.task.get_extra_links(ti, EmrClusterLink.name) == expected
     ), "Operator link should be preserved after execution"

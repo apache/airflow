@@ -35,6 +35,10 @@ class HiveToDynamoDBOperator(BaseOperator):
     into memory before being pushed to DynamoDB, so this operator should
     be used for smallish amount of data.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/transfer:HiveToDynamoDBOperator`
+
     :param sql: SQL query to execute against the hive database. (templated)
     :param table_name: target DynamoDB table
     :param table_keys: partition key and sort key
@@ -50,6 +54,7 @@ class HiveToDynamoDBOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('sql',)
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {"sql": "hql"}
     ui_color = '#a0e08c'
 
     def __init__(

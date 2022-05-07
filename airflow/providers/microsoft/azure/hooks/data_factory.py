@@ -30,7 +30,7 @@
 import inspect
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Set, Union
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Union
 
 from azure.core.polling import LROPoller
 from azure.identity import ClientSecretCredential, DefaultAzureCredential
@@ -891,3 +891,23 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         """
         self.get_conn().trigger_runs.cancel(resource_group_name, factory_name, trigger_name, run_id, **config)
+
+    def test_connection(self) -> Tuple[bool, str]:
+        """Test a configured Azure Data Factory connection."""
+        success = (True, "Successfully connected to Azure Data Factory.")
+
+        try:
+            # Attempt to list existing factories under the configured subscription and retrieve the first in
+            # the returned iterator. The Azure Data Factory API does allow for creation of a
+            # DataFactoryManagementClient with incorrect values but then will fail properly once items are
+            # retrieved using the client. We need to _actually_ try to retrieve an object to properly test the
+            # connection.
+            next(self.get_conn().factories.list())
+            return success
+        except StopIteration:
+            # If the iterator returned is empty it should still be considered a successful connection since
+            # it's possible to create a Data Factory via the ``AzureDataFactoryHook`` and none could
+            # legitimately exist yet.
+            return success
+        except Exception as e:
+            return False, str(e)

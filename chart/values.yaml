@@ -46,10 +46,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.3"
+defaultAirflowTag: "2.3.0"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.2.3"
+airflowVersion: "2.3.0"
 
 # Images
 images:
@@ -78,7 +78,7 @@ images:
     pullPolicy: IfNotPresent
   redis:
     repository: redis
-    tag: 6-buster
+    tag: 6-bullseye
     pullPolicy: IfNotPresent
   pgbouncer:
     repository: apache/airflow
@@ -90,13 +90,14 @@ images:
     pullPolicy: IfNotPresent
   gitSync:
     repository: k8s.gcr.io/git-sync/git-sync
-    tag: v3.3.0
+    tag: v3.4.0
     pullPolicy: IfNotPresent
 
 # Select certain nodes for airflow pods.
 nodeSelector: {}
 affinity: {}
 tolerations: []
+topologySpreadConstraints: []
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
@@ -219,7 +220,7 @@ rbac:
   createSCCRoleBinding: false
 
 # Airflow executor
-# Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
+# One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
@@ -245,7 +246,9 @@ secret: []
 # in this case disable setting of those variables by setting the relevant configuration to false.
 enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__FERNET_KEY: true
+  # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
   AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
@@ -474,6 +477,8 @@ workers:
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
+    # Annotations to add to worker volumes
+    annotations: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar
@@ -514,6 +519,7 @@ workers:
 
   # Select certain nodes for airflow worker pods.
   nodeSelector: {}
+  priorityClassName: ~
   affinity: {}
   # default worker affinity is:
   #  podAntiAffinity:
@@ -525,6 +531,7 @@ workers:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
   # hostAliases to use in worker pods.
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -562,6 +569,7 @@ scheduler:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command: ~
   # Airflow 2.0 allows users to run multiple schedulers,
   # However this feature is only recommended for MySQL 8+ and Postgres
   replicas: 1
@@ -637,6 +645,9 @@ scheduler:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
 
   podAnnotations: {}
 
@@ -657,8 +668,36 @@ scheduler:
     #   cpu: 100m
     #   memory: 128Mi
 
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
+
 # Airflow create user job settings
 createUserJob:
+  # Command to use when running the create user job (templated).
+  command: ~
+  # Args to use when running the create user job (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "users create" "create_user" }} "$@"
+    - --
+    - "-r"
+    - "{{ .Values.webserver.defaultUser.role }}"
+    - "-u"
+    - "{{ .Values.webserver.defaultUser.username }}"
+    - "-e"
+    - "{{ .Values.webserver.defaultUser.email }}"
+    - "-f"
+    - "{{ .Values.webserver.defaultUser.firstName }}"
+    - "-l"
+    - "{{ .Values.webserver.defaultUser.lastName }}"
+    - "-p"
+    - "{{ .Values.webserver.defaultUser.password }}"
+
   # Annotations on the create user job pod
   annotations: {}
   # jobAnnotations are annotations on the create user job
@@ -691,6 +730,7 @@ createUserJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -705,6 +745,18 @@ createUserJob:
 
 # Airflow database migration job settings
 migrateDatabaseJob:
+  enabled: true
+  # Command to use when running the migrate database job (templated).
+  command: ~
+  # Args to use when running the migrate database job (templated).
+  args:
+    - "bash"
+    - "-c"
+    # The format below is necessary to get `helm lint` happy
+    - |-
+      exec \
+      airflow {{ semverCompare ">=2.0.0" .Values.airflowVersion | ternary "db upgrade" "upgradedb" }}
+
   # Annotations on the database migration pod
   annotations: {}
   # jobAnnotations are annotations on the database migration job
@@ -745,6 +797,7 @@ migrateDatabaseJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -782,6 +835,14 @@ webserver:
 
     # Annotations to add to webserver kubernetes service account.
     annotations: {}
+
+  # Webserver pod disruption budget
+  podDisruptionBudget:
+    enabled: false
+
+    # PDB configuration
+    config:
+      maxUnavailable: 1
 
   # Allow overriding Update Strategy for Webserver
   strategy: ~
@@ -836,7 +897,7 @@ webserver:
   #   from airflow import configuration as conf
 
   #   # The SQLAlchemy connection string.
-  #   SQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')
+  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
@@ -866,6 +927,7 @@ webserver:
 
   # Select certain nodes for airflow webserver pods.
   nodeSelector: {}
+  priorityClassName: ~
   affinity: {}
   # default webserver affinity is:
   #  podAntiAffinity:
@@ -877,8 +939,13 @@ webserver:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
 
   podAnnotations: {}
+
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
 
 # Airflow Triggerer Config
 triggerer:
@@ -904,6 +971,7 @@ triggerer:
     timeoutSeconds: 20
     failureThreshold: 5
     periodSeconds: 60
+    command: ~
 
   # Create ServiceAccount
   serviceAccount:
@@ -959,8 +1027,15 @@ triggerer:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
 
   podAnnotations: {}
+
+  waitForMigrations:
+    # Whether to create init container to wait for db migrations
+    enabled: true
 
 # Flower settings
 flower:
@@ -1043,15 +1118,19 @@ flower:
   extraContainers: []
   # Mount additional volumes into the flower pods.
   extraVolumes: []
+  extraVolumeMounts: []
 
   # Select certain nodes for airflow flower pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
 
   podAnnotations: {}
 
-# Statsd settings
+# StatsD settings
 statsd:
   enabled: true
 
@@ -1066,7 +1145,8 @@ statsd:
     # Annotations to add to worker kubernetes service account.
     annotations: {}
 
-  # When not set, the values defined in the global securityContext will be used
+  uid: 65534
+  # When not set, `statsd.uid` will be used
   securityContext: {}
   #  runAsUser: 65534
   #  fsGroup: 0
@@ -1085,15 +1165,16 @@ statsd:
   service:
     extraAnnotations: {}
 
-  # Select certain nodes for statsd pods.
+  # Select certain nodes for StatsD pods.
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
-  # Additional mappings for statsd exporter.
+  priorityClassName: ~
+
+  # Additional mappings for StatsD exporter.
   extraMappings: []
-
-  uid: 65534
 
 # PgBouncer settings
 pgbouncer:
@@ -1103,6 +1184,8 @@ pgbouncer:
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
   args: ~
+  auth_type: md5
+  auth_file: /etc/pgbouncer/users.txt
 
   # Create ServiceAccount
   serviceAccount:
@@ -1195,6 +1278,9 @@ pgbouncer:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
+
+  priorityClassName: ~
 
   uid: 65534
 
@@ -1231,6 +1317,8 @@ redis:
     size: 1Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
     storageClassName:
+    # Annotations to add to redis volumes
+    annotations: {}
 
   resources: {}
   #  limits:
@@ -1256,6 +1344,14 @@ redis:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
+
+  # Set to 0 for backwards-compatiblity
+  uid: 0
+  # If not set, `redis.uid` will be used
+  securityContext: {}
+  #  runAsUser: 999
+  #  runAsGroup: 0
 
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
@@ -1317,6 +1413,9 @@ cleanup:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
+
+  podAnnotations: {}
 
   resources: {}
   #  limits:
@@ -1368,9 +1467,6 @@ config:
     # For Airflow 1.10, backward compatibility; moved to [logging] in 2.0
     colored_console_log: 'False'
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
-  # Authentication backend used for the experimental API
-  api:
-    auth_backend: airflow.api.auth.backend.deny_all
   logging:
     remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
     colored_console_log: 'False'
@@ -1459,6 +1555,8 @@ dags:
     accessMode: ReadWriteOnce
     ## the name of an existing PVC to use
     existingClaim:
+    ## optional subpath for dag volume mount
+    subPath: ~
   gitSync:
     enabled: false
 

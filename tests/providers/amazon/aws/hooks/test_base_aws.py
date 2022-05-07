@@ -27,7 +27,12 @@ import pytest
 from moto.core import ACCOUNT_ID
 
 from airflow.models import Connection
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import (
+    AwsBaseHook,
+    BaseSessionFactory,
+    resolve_session_factory,
+)
+from tests.test_utils.config import conf_vars
 
 try:
     from moto import mock_dynamodb2, mock_emr, mock_iam, mock_sts
@@ -104,7 +109,28 @@ SAML_ASSERTION = """
 )
 
 
+class CustomSessionFactory(BaseSessionFactory):
+    def create_session(self):
+        return mock.MagicMock()
+
+
 class TestAwsBaseHook(unittest.TestCase):
+    @conf_vars(
+        {("aws", "session_factory"): "tests.providers.amazon.aws.hooks.test_base_aws.CustomSessionFactory"}
+    )
+    def test_resolve_session_factory_class(self):
+        cls = resolve_session_factory()
+        assert issubclass(cls, CustomSessionFactory)
+
+    @conf_vars({("aws", "session_factory"): ""})
+    def test_resolve_session_factory_class_fallback_to_base_session_factory(self):
+        cls = resolve_session_factory()
+        assert issubclass(cls, BaseSessionFactory)
+
+    def test_resolve_session_factory_class_fallback_to_base_session_factory_no_config(self):
+        cls = resolve_session_factory()
+        assert issubclass(cls, BaseSessionFactory)
+
     @unittest.skipIf(mock_emr is None, 'mock_emr package not present')
     @mock_emr
     def test_get_client_type_returns_a_boto3_client_of_the_requested_type(self):
@@ -144,7 +170,7 @@ class TestAwsBaseHook(unittest.TestCase):
         warning_message = """client_type is deprecated. Set client_type from class attribute."""
         with pytest.warns(DeprecationWarning) as warnings:
             hook.get_client_type(client_type='emr')
-            assert warning_message == str(warnings[0].message)
+            assert warning_message in [str(w.message) for w in warnings]
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
@@ -213,7 +239,7 @@ class TestAwsBaseHook(unittest.TestCase):
         warning_message = """resource_type is deprecated. Set resource_type from class attribute."""
         with pytest.warns(DeprecationWarning) as warnings:
             hook.get_resource_type('dynamodb')
-            assert warning_message == str(warnings[0].message)
+            assert warning_message in [str(w.message) for w in warnings]
 
     @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
     @mock_dynamodb2
@@ -391,6 +417,7 @@ class TestAwsBaseHook(unittest.TestCase):
                 }
             )
         )
+        mock_connection.conn_type = 'aws'
 
         # Store original __import__
         orig_import = __import__
@@ -596,7 +623,7 @@ class TestAwsBaseHook(unittest.TestCase):
         # Test with credentials that have not expired
         expire_on_calls = [False]
         with mock.patch(
-            'airflow.providers.amazon.aws.hooks.base_aws._SessionFactory._refresh_credentials'
+            'airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory._refresh_credentials'
         ) as mock_refresh:
             mock_refresh.side_effect = mock_refresh_credentials
             client = hook.get_client_type('sts')
@@ -610,7 +637,7 @@ class TestAwsBaseHook(unittest.TestCase):
         # Test with credentials that have expired
         expire_on_calls = [False, True]
         with mock.patch(
-            'airflow.providers.amazon.aws.hooks.base_aws._SessionFactory._refresh_credentials'
+            'airflow.providers.amazon.aws.hooks.base_aws.BaseSessionFactory._refresh_credentials'
         ) as mock_refresh:
             mock_refresh.side_effect = mock_refresh_credentials
             client = hook.get_client_type('sts')

@@ -23,7 +23,7 @@ from unittest.mock import Mock, PropertyMock, patch
 
 import pytest
 
-from airflow import PY38, PY39
+from airflow import PY38
 
 if PY38:
     MsSqlToHiveTransferOperator: None = None
@@ -36,12 +36,6 @@ except ImportError:
     pymssql = None
 
 
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
-)
 @pytest.mark.skipif(PY38, reason="Mssql package not available when Python >= 3.8.")
 @pytest.mark.skipif(pymssql is None, reason='pymssql package not present')
 class TestMsSqlToHiveTransfer(unittest.TestCase):

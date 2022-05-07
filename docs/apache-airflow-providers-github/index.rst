@@ -76,7 +76,7 @@ Package apache-airflow-providers-github
 `Github <https://www.github.com/>`__
 
 
-Release: 1.0.0
+Release: 1.0.3
 
 Provider package
 ----------------
@@ -93,10 +93,10 @@ You can install this package on top of an existing Airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``PyGithub``
-===================  ==================
+=============  ==================
+PIP package    Version required
+=============  ==================
+``pygithub``
+=============  ==================
 
 .. include:: ../../airflow/providers/github/CHANGELOG.rst

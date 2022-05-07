@@ -29,7 +29,7 @@ from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Opt
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.utils.context import Context, context_copy_partial, context_merge
@@ -133,6 +133,8 @@ class PythonOperator(BaseOperator):
         'op_kwargs',
     )
 
+    mapped_arguments_validated_by_init = True
+
     def __init__(
         self,
         *,
@@ -208,8 +210,10 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
             branches = {branch}
         elif isinstance(branch, list):
             branches = set(branch)
+        elif branch is None:
+            branches = set()
         else:
-            raise AirflowException("Branch callable must return either a task ID or a list of IDs")
+            raise AirflowException("Branch callable must return either None, a task ID, or a list of IDs")
         valid_task_ids = set(context["dag"].task_ids)
         invalid_task_ids = branches - valid_task_ids
         if invalid_task_ids:
@@ -222,16 +226,33 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
-    Allows a workflow to continue only if a condition is met. Otherwise, the
-    workflow "short-circuits" and downstream tasks are skipped.
+    Allows a pipeline to continue based on the result of a ``python_callable``.
 
-    The ShortCircuitOperator is derived from the PythonOperator. It evaluates a
-    condition and short-circuits the workflow if the condition is False. Any
-    downstream tasks are marked with a state of "skipped". If the condition is
-    True, downstream tasks proceed as normal.
+    The ShortCircuitOperator is derived from the PythonOperator and evaluates the result of a
+    ``python_callable``. If the returned result is False or a falsy value, the pipeline will be
+    short-circuited. Downstream tasks will be marked with a state of "skipped" based on the short-circuiting
+    mode configured. If the returned result is True or a truthy value, downstream tasks proceed as normal and
+    an ``XCom`` of the returned result is pushed.
 
-    The condition is determined by the result of `python_callable`.
+    The short-circuiting can be configured to either respect or ignore the ``trigger_rule`` set for
+    downstream tasks. If ``ignore_downstream_trigger_rules`` is set to True, the default setting, all
+    downstream tasks are skipped without considering the ``trigger_rule`` defined for tasks. However, if this
+    parameter is set to False, the direct downstream tasks are skipped but the specified ``trigger_rule`` for
+    other subsequent downstream tasks are respected. In this mode, the operator assumes the direct downstream
+    tasks were purposely meant to be skipped but perhaps not other subsequent tasks.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:ShortCircuitOperator`
+
+    :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
+        be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
+        skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
     """
+
+    def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
+        super().__init__(**kwargs)
+        self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
 
     def execute(self, context: Context) -> Any:
         condition = super().execute(context)
@@ -241,13 +262,21 @@ class ShortCircuitOperator(PythonOperator, SkipMixin):
             self.log.info('Proceeding with downstream tasks...')
             return condition
 
-        self.log.info('Skipping downstream tasks...')
-
-        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task_ids %s", downstream_tasks)
+        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
+        self.log.debug("Downstream task IDs %s", downstream_tasks)
 
         if downstream_tasks:
-            self.skip(context["dag_run"], context["logical_date"], downstream_tasks)
+            dag_run = context["dag_run"]
+            execution_date = dag_run.execution_date
+
+            if self.ignore_downstream_trigger_rules is True:
+                self.log.info("Skipping all downstream tasks...")
+                self.skip(dag_run, execution_date, downstream_tasks)
+            else:
+                self.log.info("Skipping downstream tasks while respecting trigger rules...")
+                # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
+                # Scheduler handle the remaining downstream task(s) appropriately.
+                self.skip(dag_run, execution_date, context["task"].get_direct_relatives(upstream=False))
 
         self.log.info("Done.")
 
@@ -283,6 +312,8 @@ class PythonVirtualenvOperator(PythonOperator):
     :param system_site_packages: Whether to include
         system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
+    :param pip_install_options: a list of pip install options when installing requirements
+        See 'pip install -h' for available options
     :param op_args: A list of positional arguments to pass to python_callable.
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
     :param string_args: Strings that are present in the global var virtualenv_string_args,
@@ -340,6 +371,7 @@ class PythonVirtualenvOperator(PythonOperator):
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
+        pip_install_options: Optional[List[str]] = None,
         op_args: Optional[Collection[Any]] = None,
         op_kwargs: Optional[Mapping[str, Any]] = None,
         string_args: Optional[Iterable[str]] = None,
@@ -382,6 +414,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
+        self.pip_install_options = pip_install_options
         self.pickling_library = dill if self.use_dill else pickle
 
     def execute(self, context: Context) -> Any:
@@ -420,6 +453,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
                 requirements_file_path=requirements_file_name,
+                pip_install_options=self.pip_install_options,
             )
 
             self._write_args(input_filename)

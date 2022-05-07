@@ -73,29 +73,56 @@ class StandardTaskRunner(BaseTaskRunner):
             # [1:] - remove "airflow" from the start of the command
             args = parser.parse_args(self._command[1:])
 
+            # We prefer the job_id passed on the command-line because at this time, the
+            # task instance may not have been updated.
+            job_id = getattr(args, "job_id", self._task_instance.job_id)
             self.log.info('Running: %s', self._command)
-            self.log.info('Job %s: Subtask %s', self._task_instance.job_id, self._task_instance.task_id)
+            self.log.info('Job %s: Subtask %s', job_id, self._task_instance.task_id)
 
             proc_title = "airflow task runner: {0.dag_id} {0.task_id} {0.execution_date_or_run_id}"
-            if hasattr(args, "job_id"):
+            if job_id is not None:
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
-
+            return_code = 0
             try:
                 args.func(args, dag=self.dag)
-                return_code = 0
-            except Exception:
+            except Exception as exc:
                 return_code = 1
-                self.log.exception(
-                    "Failed to execute job %s for task %s",
-                    self._task_instance.job_id,
+
+                self.log.error(
+                    "Failed to execute job %s for task %s (%s; %r)",
+                    job_id,
                     self._task_instance.task_id,
+                    exc,
+                    os.getpid(),
                 )
+            except SystemExit as sys_ex:
+                # Someone called sys.exit() in the fork - mistakenly. You should not run sys.exit() in
+                # the fork because you can mistakenly execute atexit that were set by the parent process
+                # before fork happened
+                return_code = sys_ex.code
+            except BaseException:
+                # while we want to handle Also Base exceptions here - we do not want to log them (this
+                # is the default behaviour anyway. Setting the return code here to 2 to indicate that
+                # this had happened.
+                return_code = 2
             finally:
-                # Explicitly flush any pending exception to Sentry if enabled
-                Sentry.flush()
-                logging.shutdown()
-                os._exit(return_code)
+                try:
+                    # Explicitly flush any pending exception to Sentry and logging if enabled
+                    Sentry.flush()
+                    logging.shutdown()
+                except BaseException:
+                    # also make sure to silently ignore ALL POSSIBLE exceptions thrown in the flush/shutdown,
+                    # otherwise os._exit() might never be called. We could have used `except:` but
+                    # except BaseException is more explicit (and linters do not comply).
+                    pass
+            # We run os._exit() making sure it is not run within the `finally` clause.
+            # We cannot run os._exit() in finally clause, because during finally clause processing, the
+            # Exception handled is held in memory as well as stack trace and possibly some objects that
+            # might need to be finalized. Running os._exit() inside the `finally` clause might cause effects
+            # similar to https://github.com/apache/airflow/issues/22404. There Temporary file has not been
+            # deleted at os._exit()
+            os._exit(return_code)
 
     def return_code(self, timeout: int = 0) -> Optional[int]:
         # We call this multiple times, but we can only wait on the process once

@@ -19,10 +19,11 @@
 import datetime
 import subprocess
 import sys
-import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+
+import pendulum
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -70,8 +71,6 @@ class GCSCreateBucketOperator(BaseOperator):
     :param project_id: The ID of the Google Cloud Project. (templated)
     :param labels: User-provided labels, in key/value pairs.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -119,22 +118,11 @@ class GCSCreateBucketOperator(BaseOperator):
         project_id: Optional[str] = None,
         labels: Optional[Dict] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket_name = bucket_name
         self.resource = resource
         self.storage_class = storage_class
@@ -178,8 +166,6 @@ class GCSListObjectsOperator(BaseOperator):
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -221,22 +207,11 @@ class GCSListObjectsOperator(BaseOperator):
         prefix: Optional[str] = None,
         delimiter: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter
@@ -274,8 +249,6 @@ class GCSDeleteObjectsOperator(BaseOperator):
     :param prefix: Prefix of objects to delete. All objects matching this
         prefix in the bucket will be deleted.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -303,20 +276,10 @@ class GCSDeleteObjectsOperator(BaseOperator):
         objects: Optional[List[str]] = None,
         prefix: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket_name = bucket_name
         self.objects = objects
@@ -364,8 +327,6 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -394,21 +355,10 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         role: str,
         user_project: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket = bucket
         self.entity = entity
         self.role = role
@@ -447,8 +397,6 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -481,21 +429,10 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         generation: Optional[int] = None,
         user_project: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket = bucket
         self.object_name = object_name
         self.entity = entity
@@ -534,8 +471,12 @@ class GCSFileTransformOperator(BaseOperator):
     data from source, transform it and write the output to the local
     destination file.
 
-    :param source_bucket: The key to be retrieved from S3. (templated)
-    :param destination_bucket: The key to be written from S3. (templated)
+    :param source_bucket: The bucket to locate the source_object. (templated)
+    :param source_object: The key to be retrieved from GCS. (templated)
+    :param destination_bucket: The bucket to upload the key after transformation.
+        If not provided, source_bucket will be used. (templated)
+    :param destination_object: The key to be written in GCS.
+        If not provided, source_object will be used. (templated)
     :param transform_script: location of the executable transformation script or list of arguments
         passed to subprocess ex. `['python', 'script.py', 10]`. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -551,7 +492,9 @@ class GCSFileTransformOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         'source_bucket',
+        'source_object',
         'destination_bucket',
+        'destination_object',
         'transform_script',
         'impersonation_chain',
     )
@@ -740,16 +683,20 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         try:
             timespan_start = context["data_interval_start"]
             timespan_end = context["data_interval_end"]
-        except KeyError:  # Data interval context variables are only available in Airflow 2.2+
-            timespan_start = timezone.coerce_datetime(context["execution_date"])
-            timespan_end = timezone.coerce_datetime(context["dag"].following_schedule(timespan_start))
+        except KeyError:
+            timespan_start = pendulum.instance(context["execution_date"])
+            following_execution_date = context["dag"].following_schedule(context["execution_date"])
+            if following_execution_date is None:
+                timespan_end = None
+            else:
+                timespan_end = pendulum.instance(following_execution_date)
 
         if timespan_end is None:  # Only possible in Airflow before 2.2.
             self.log.warning("No following schedule found, setting timespan end to max %s", timespan_end)
-            timespan_end = timezone.coerce_datetime(DateTime.max)
+            timespan_end = DateTime.max
         elif timespan_start >= timespan_end:  # Airflow 2.2 sets start == end for non-perodic schedules.
             self.log.warning("DAG schedule not periodic, setting timespan end to max %s", timespan_end)
-            timespan_end = timezone.coerce_datetime(DateTime.max)
+            timespan_end = DateTime.max
 
         timespan_start = timespan_start.in_timezone(timezone.utc)
         timespan_end = timespan_end.in_timezone(timezone.utc)
@@ -865,7 +812,6 @@ class GCSDeleteBucketOperator(BaseOperator):
     :param bucket_name: name of the bucket which will be deleted
     :param force: false not allow to delete non empty bucket, set force=True
         allows to delete non empty bucket
-    :type: bool
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token

@@ -17,8 +17,7 @@
 # under the License.
 import pytest
 
-from airflow.providers.amazon.aws.example_dags.example_imap_attachment_to_s3 import S3_DESTINATION_KEY
-from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.example_dags.example_imap_attachment_to_s3 import S3_BUCKET
 from tests.test_utils.amazon_system_helpers import (
     AWS_DAG_FOLDER,
     AmazonSystemTest,
@@ -26,12 +25,10 @@ from tests.test_utils.amazon_system_helpers import (
     provide_aws_s3_bucket,
 )
 
-BUCKET, _ = S3Hook.parse_s3_url(S3_DESTINATION_KEY)
-
 
 @pytest.fixture
 def provide_s3_bucket():
-    with provide_aws_s3_bucket(BUCKET):
+    with provide_aws_s3_bucket(S3_BUCKET):
         yield
 
 

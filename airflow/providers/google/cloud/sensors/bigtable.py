@@ -23,6 +23,7 @@ from google.cloud.bigtable.table import ClusterState
 from google.cloud.bigtable_admin_v2 import enums
 
 from airflow.providers.google.cloud.hooks.bigtable import BigtableHook
+from airflow.providers.google.cloud.links.bigtable import BigtableTablesLink
 from airflow.providers.google.cloud.operators.bigtable import BigtableValidationMixin
 from airflow.sensors.base import BaseSensorOperator
 
@@ -62,6 +63,7 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
         'table_id',
         'impersonation_chain',
     )
+    operator_extra_links = (BigtableTablesLink(),)
 
     def __init__(
         self,
@@ -111,4 +113,5 @@ class BigtableTableReplicationCompletedSensor(BaseSensorOperator, BigtableValida
             return False
 
         self.log.info("Table '%s' is replicated.", self.table_id)
+        BigtableTablesLink.persist(context=context, task_instance=self)
         return True

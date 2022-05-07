@@ -121,7 +121,7 @@ Bad example:
 
 .. code-block:: python
 
-  from datetime import datetime
+  import pendulum
 
   from airflow import DAG
   from airflow.operators.python import PythonOperator
@@ -131,7 +131,7 @@ Bad example:
   with DAG(
       dag_id="example_python_operator",
       schedule_interval=None,
-      start_date=datetime(2021, 1, 1),
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
   ) as dag:
@@ -151,7 +151,7 @@ Good example:
 
 .. code-block:: python
 
-  from datetime import datetime
+  import pendulum
 
   from airflow import DAG
   from airflow.operators.python import PythonOperator
@@ -159,7 +159,7 @@ Good example:
   with DAG(
       dag_id="example_python_operator",
       schedule_interval=None,
-      start_date=datetime(2021, 1, 1),
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
       catchup=False,
       tags=["example"],
   ) as dag:
@@ -181,6 +181,10 @@ Good example:
 
 Dynamic DAG Generation
 ----------------------
+Sometimes writing DAGs manually isn't practical.
+Maybe you have a lot of DAGs that do similar things with just a parameter changing between them.
+Or maybe you need a set of DAGs to load tables, but don't want to manually update DAGs every time those tables change.
+In these and other cases, it can be more useful to dynamically generate DAGs.
 
 Avoiding excessive processing at the top level code described in the previous chapter is especially important
 in case of dynamic DAG configuration, which can be configured essentially in one of those ways:
@@ -190,92 +194,7 @@ in case of dynamic DAG configuration, which can be configured essentially in one
 * via externally provided, generated Python code, containing meta-data in the DAG folder
 * via externally provided, generated configuration meta-data file in the DAG folder
 
-All cases are described in the following sections.
-
-Dynamic DAGs with environment variables
-.......................................
-
-If you want to use variables to configure your code, you should always use
-`environment variables <https://wiki.archlinux.org/title/environment_variables>`_ in your
-top-level code rather than :doc:`Airflow Variables </concepts/variables>`. Using Airflow Variables
-at top-level code creates a connection to metadata DB of Airflow to fetch the value, which can slow
-down parsing and place extra load on the DB. See the `Airflow Variables <_best_practices/airflow_variables>`_
-on how to make best use of Airflow Variables in your DAGs using Jinja templates .
-
-For example you could set ``DEPLOYMENT`` variable differently for your production and development
-environments. The variable ``DEPLOYMENT`` could be set to ``PROD`` in your production environment and to
-``DEV`` in your development environment. Then you could build your dag differently in production and
-development environment, depending on the value of the environment variable.
-
-.. code-block:: python
-
-    deployment = os.environ.get("DEPLOYMENT", "PROD")
-    if deployment == "PROD":
-        task = Operator(param="prod-param")
-    elif deployment == "DEV":
-        task = Operator(param="dev-param")
-
-
-Generating Python code with embedded meta-data
-..............................................
-
-You can externally generate Python code containing the meta-data as importable constants.
-Such constant can then be imported directly by your DAG and used to construct the object and build
-the dependencies. This makes it easy to import such code from multiple DAGs without the need to find,
-load and parse the meta-data stored in the constant - this is done automatically by Python interpreter
-when it processes the "import" statement. This sounds strange at first, but it is surprisingly easy
-to generate such code and make sure this is a valid Python code that you can import from your DAGs.
-
-For example assume you dynamically generate (in your DAG folder), the ``my_company_utils/common.py`` file:
-
-.. code-block:: python
-
-    # This file is generated automatically !
-    ALL_TASKS = ["task1", "task2", "task3"]
-
-Then you can import and use the ``ALL_TASKS`` constant in all your DAGs like that:
-
-.. code-block:: python
-
-    from my_company_utils.common import ALL_TASKS
-
-    with DAG(
-        dag_id="my_dag",
-        schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
-        catchup=False,
-    ) as dag:
-        for task in ALL_TASKS:
-            # create your operators and relations here
-            pass
-
-Don't forget that in this case you need to add empty ``__init__.py`` file in the ``my_company_utils`` folder
-and you should add the ``my_company_utils/.*`` line to ``.airflowignore`` file, so that the whole folder is
-ignored by the scheduler when it looks for DAGs.
-
-
-Dynamic DAGs with external configuration from a structured data file
-....................................................................
-
-If you need to use a more complex meta-data to prepare your DAG structure and you would prefer to keep the
-data in a structured non-python format, you should export the data to the DAG folder in a file and push
-it to the DAG folder, rather than try to pull the data by the DAG's top-level code - for the reasons
-explained in the parent :ref:`best_practices/top_level_code`.
-
-The meta-data should be exported and stored together with the DAGs in a convenient file format (JSON, YAML
-formats are good candidates) in DAG folder. Ideally, the meta-data should be published in the same
-package/folder as the module of the DAG file you load it from, because then you can find location of
-the meta-data file in your DAG easily. The location of the file to read can be found using the
-``__file__`` attribute of the module containing the DAG:
-
-.. code-block:: python
-
-    my_dir = os.path.dirname(os.path.abspath(__file__))
-    configuration_file_path = os.path.join(my_dir, "config.yaml")
-    with open(configuration_file_path) as yaml_file:
-        configuration = yaml.safe_load(yaml_file)
-    # Configuration dict is available here
-
+Some cases of dynamic DAG generation are described in the :doc:`howto/dynamic-dag-generation` section.
 
 .. _best_practices/airflow_variables:
 
@@ -325,6 +244,84 @@ each parameter by following the links):
 * :ref:`config:scheduler__parsing_processes`
 * :ref:`config:scheduler__file_parsing_sort_mode`
 
+Example of watcher pattern with trigger rules
+---------------------------------------------
+
+The watcher pattern is how we call a DAG with a task that is "watching" the states of the other tasks.
+It's primary purpose is to fail a DAG Run when any other task fail.
+The need came from the Airflow system tests that are DAGs with different tasks (similarly like a test containing steps).
+
+Normally, when any task fails, all other tasks are not executed and the whole DAG Run gets failed status too. But
+when we use trigger rules, we can disrupt the normal flow of running tasks and the whole DAG may represent different
+status that we expect. For example, we can have a teardown task (with trigger rule set to ``TriggerRule.ALL_DONE``)
+that will be executed regardless of the state of the other tasks (e.g. to clean up the resources). In such
+situation, the DAG would always run this task and the DAG Run will get the status of this particular task, so we can
+potentially lose the information about failing tasks. If we want to ensure that the DAG with teardown task would fail
+if any task fails, we need to  use the watcher pattern. The watcher task is a task that will always fail if
+triggered, but it needs to be triggered only if any other task fails. It needs to have a trigger rule set to
+``TriggerRule.ONE_FAILED`` and it needs also to be a  downstream task for all other tasks in the DAG. Thanks to
+this, if every other task will pass, the watcher will be skipped, but when something fails, the watcher task will be
+executed and fail making the DAG Run fail too.
+
+.. note::
+
+    Be aware that trigger rules only rely on the direct upstream (parent) tasks, e.g. ``TriggerRule.ONE_FAILED``
+    will ignore any failed (or ``upstream_failed``) tasks that are not a direct parent of the parameterized task.
+
+It's easier to grab the concept with an example. Let's say that we have the following DAG:
+
+.. code-block:: python
+
+    from datetime import datetime
+    from airflow import DAG
+    from airflow.decorators import task
+    from airflow.exceptions import AirflowException
+    from airflow.operators.bash import BashOperator
+    from airflow.operators.python import PythonOperator
+    from airflow.utils.trigger_rule import TriggerRule
+
+
+    @task(trigger_rule=TriggerRule.ONE_FAILED, retries=0)
+    def watcher():
+        raise AirflowException("Failing task because one or more upstream tasks failed.")
+
+
+    with DAG(
+        dag_id="watcher_example",
+        schedule_interval="@once",
+        start_date=datetime(2021, 1, 1),
+        catchup=False,
+    ) as dag:
+        failing_task = BashOperator(
+            task_id="failing_task", bash_command="exit 1", retries=0
+        )
+        passing_task = BashOperator(
+            task_id="passing_task", bash_command="echo passing_task"
+        )
+        teardown = BashOperator(
+            task_id="teardown",
+            bash_command="echo teardown",
+            trigger_rule=TriggerRule.ALL_DONE,
+        )
+
+        failing_task >> passing_task >> teardown
+        list(dag.tasks) >> watcher()
+
+The visual representation of this DAG after execution looks like this:
+
+.. image:: /img/watcher.png
+
+We have several tasks that serve different purposes:
+
+- ``failing_task`` always fails,
+- ``passing_task`` always succeeds (if executed),
+- ``teardown`` is always triggered (regardless the states of the other tasks) and it should always succeed,
+- ``watcher`` is a downstream task for each other task, i.e. it will be triggered when any task fails and thus fail the whole DAG Run, since it's a leaf task.
+
+It's important to note, that without ``watcher`` task, the whole DAG Run will get the ``success`` state, since the only failing task is not the leaf task, and the ``teardown`` task will finish with ``success``.
+If we want the ``watcher`` to monitor the state of all tasks, we need to make it dependent on all of them separately. Thanks to this, we can fail the DAG Run if any of the tasks fail. Note that the watcher task has a trigger rule set to ``"one_failed"``.
+On the other hand, without the ``teardown`` task, the ``watcher`` task will not be needed, because ``failing_task`` will propagate its ``failed`` state to downstream task ``passed_task`` and the whole DAG Run will also get the ``failed`` status.
+
 .. _best_practices/reducing_dag_complexity:
 
 Reducing DAG complexity
@@ -351,7 +348,7 @@ want to optimize your DAGs there are the following actions you can take:
 
 * Make your DAG generate simpler structure. Every task dependency adds additional processing overhead for
   scheduling and execution. The DAG that has simple linear structure ``A -> B -> C`` will experience
-  less delays in task scheduling that DAG that has a deeply nested tree structure with exponentially growing
+  less delays in task scheduling than DAG that has a deeply nested tree structure with exponentially growing
   number of depending tasks for example. If you can make your DAGs more linear - where at single point in
   execution there are as few potential candidates to run among the tasks, this will likely improve overall
   scheduling performance.
@@ -486,13 +483,14 @@ This is an example test want to verify the structure of a code-generated DAG aga
 .. code-block:: python
 
     import datetime
+    import pendulum
 
     import pytest
 
-    from airflow.utils.state import DagRunState
+    from airflow.utils.state import DagRunState, TaskInstanceState
     from airflow.utils.types import DagRunType
 
-    DATA_INTERVAL_START = datetime.datetime(2021, 9, 13)
+    DATA_INTERVAL_START = pendulum.datetime(2021, 9, 13, tz="UTC")
     DATA_INTERVAL_END = DATA_INTERVAL_START + datetime.timedelta(days=1)
 
     TEST_DAG_ID = "my_custom_operator_dag"
@@ -524,7 +522,7 @@ This is an example test want to verify the structure of a code-generated DAG aga
         ti = dagrun.get_task_instance(task_id=TEST_TASK_ID)
         ti.task = dag.get_task(task_id=TEST_TASK_ID)
         ti.run(ignore_ti_state=True)
-        assert ti.state == State.SUCCESS
+        assert ti.state == TaskInstanceState.SUCCESS
         # Assert something related to tasks results.
 
 
@@ -590,3 +588,43 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
     conn_uri = conn.get_uri()
     with mock.patch.dict("os.environ", AIRFLOW_CONN_MY_CONN=conn_uri):
         assert "cat" == Connection.get("my_conn").login
+
+Metadata DB maintenance
+-----------------------
+
+Over time, the metadata database will increase its storage footprint as more DAG and task runs and event logs accumulate.
+
+You can use the Airflow CLI to purge old data with the command ``airflow db clean``.
+
+See :ref:`db clean usage<cli-db-clean>` for more details.
+
+Upgrades and downgrades
+-----------------------
+
+Backup your database
+^^^^^^^^^^^^^^^^^^^^
+
+It's always a wise idea to backup the metadata database before undertaking any operation modifying the database.
+
+Disable the scheduler
+^^^^^^^^^^^^^^^^^^^^^
+
+You might consider disabling the Airflow cluster while you perform such maintenance.
+
+One way to do so would be to set the param ``[scheduler] > use_job_schedule`` to ``False`` and wait for any running DAGs to complete; after this no new DAG runs will be created unless externally triggered.
+
+A *better* way (though it's a bit more manual) is to use the ``dags pause`` command.  You'll need to keep track of the DAGs that are paused before you begin this operation so that you know which ones to unpause after maintenance is complete.  First run ``airflow dags list`` and store the list of unpaused DAGs.  Then use this same list to run both ``dags pause`` for each DAG prior to maintenance, and ``dags unpause`` after.  A benefit of this is you can try un-pausing just one or two DAGs (perhaps dedicated :ref:`test dags <integration-test-dags>`) after the upgrade to make sure things are working before turning everything back on.
+
+.. _integration-test-dags:
+
+Add "integration test" DAGs
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
+
+For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
+
+Prune data before upgrading
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Some database migrations can be time-consuming.  If your metadata database is very large, consider pruning some of the old data with the :ref:`db clean<cli-db-clean>` command prior to performing the upgrade.  *Use with caution.*

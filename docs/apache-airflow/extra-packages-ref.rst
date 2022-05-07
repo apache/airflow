@@ -96,7 +96,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
     :substitutions:
 
     pip install apache-airflow[google,amazon,apache.spark]==|version| \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
 upgrade those providers manually if you want to use latest versions of the providers.
@@ -165,6 +165,8 @@ Those are extras that add dependencies needed for integration with external serv
 | databricks          | ``pip install 'apache-airflow[databricks]'``        | Databricks hooks and operators                      |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | datadog             | ``pip install 'apache-airflow[datadog]'``           | Datadog hooks and sensors                           |
++---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| dbt.cloud           | ``pip install 'apache-airflow[dbt.cloud]'``         | dbt Cloud hooks and operators                       |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | dingding            | ``pip install 'apache-airflow[dingding]'``          | Dingding hooks and sensors                          |
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
@@ -253,6 +255,8 @@ Those are extras that add dependencies needed for integration with other softwar
 | singularity         | ``pip install 'apache-airflow[singularity]'``       | Singularity container operator            |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | trino               | ``pip install 'apache-airflow[trino]'``             | All Trino related operators & hooks       |
++---------------------+-----------------------------------------------------+-------------------------------------------+
+| arangodb            | ``pip install 'apache-airflow[arangodb]'``          | ArangoDB operators, sensors and hook      |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 
 

@@ -31,6 +31,7 @@ from airflow.providers.google.cloud.hooks.dataflow import (
     process_line_and_extract_dataflow_job_id_callback,
 )
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.cloud.links.dataflow import DataflowJobLink
 from airflow.version import version
 
 if TYPE_CHECKING:
@@ -81,7 +82,7 @@ class DataflowConfiguration:
         instead of canceling during killing task instance. See:
         https://cloud.google.com/dataflow/docs/guides/stopping-a-pipeline
     :param cancel_timeout: How long (in seconds) operator should wait for the pipeline to be
-        successfully cancelled when task is being killed.
+        successfully cancelled when task is being killed. (optional) default to 300s
     :param wait_until_finished: (Optional)
         If True, wait for the end of pipeline execution before exiting.
         If False, only submits job.
@@ -123,6 +124,7 @@ class DataflowConfiguration:
         WaitForRun = wait until job finished and the run job.
         Supported only by:
         :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
+    :param service_account: Run the job as a specific service account, instead of the default GCE robot.
     """
 
     template_fields: Sequence[str] = ("job_name", "location")
@@ -143,6 +145,7 @@ class DataflowConfiguration:
         wait_until_finished: Optional[bool] = None,
         multiple_jobs: Optional[bool] = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
+        service_account: Optional[str] = None,
     ) -> None:
         self.job_name = job_name
         self.append_job_name = append_job_name
@@ -157,6 +160,7 @@ class DataflowConfiguration:
         self.wait_until_finished = wait_until_finished
         self.multiple_jobs = multiple_jobs
         self.check_if_running = check_if_running
+        self.service_account = service_account
 
 
 class DataflowCreateJavaJobOperator(BaseOperator):
@@ -221,7 +225,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
         * If the value is False, this option will be skipped
         * If the value is True, the single option - ``--key`` (without value) will be added.
         * If the value is list, the many options will be added for each key.
-          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key=B`` options
           will be left
         * Other value types will be replaced with the Python textual representation.
 
@@ -315,7 +319,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                "labels": {"foo": "bar"},
            },
            gcp_conn_id="airflow-conn-id",
-           dag=my - dag,
+           dag=my_dag,
        )
 
     """
@@ -409,33 +413,33 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
-                is_running = False
-                if self.check_if_running != CheckJobRunning.IgnoreJob:
+            is_running = False
+            if self.check_if_running != CheckJobRunning.IgnoreJob:
+                is_running = self.dataflow_hook.is_job_dataflow_running(
+                    name=self.job_name,
+                    variables=pipeline_options,
+                )
+                while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
+
                     is_running = self.dataflow_hook.is_job_dataflow_running(
                         name=self.job_name,
                         variables=pipeline_options,
                     )
-                    while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-
-                        is_running = self.dataflow_hook.is_job_dataflow_running(
-                            name=self.job_name,
-                            variables=pipeline_options,
-                        )
-                if not is_running:
-                    pipeline_options["jobName"] = job_name
-                    with self.dataflow_hook.provide_authorized_gcloud():
-                        self.beam_hook.start_java_pipeline(
-                            variables=pipeline_options,
-                            jar=self.jar,
-                            job_class=self.job_class,
-                            process_line_callback=process_line_callback,
-                        )
-                    self.dataflow_hook.wait_for_done(
-                        job_name=job_name,
-                        location=self.location,
-                        job_id=self.job_id,
-                        multiple_jobs=self.multiple_jobs,
+            if not is_running:
+                pipeline_options["jobName"] = job_name
+                with self.dataflow_hook.provide_authorized_gcloud():
+                    self.beam_hook.start_java_pipeline(
+                        variables=pipeline_options,
+                        jar=self.jar,
+                        job_class=self.job_class,
+                        process_line_callback=process_line_callback,
                     )
+                self.dataflow_hook.wait_for_done(
+                    job_name=job_name,
+                    location=self.location,
+                    job_id=self.job_id,
+                    multiple_jobs=self.multiple_jobs,
+                )
 
         return {"job_id": self.job_id}
 
@@ -559,7 +563,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
                "outputFile": "gs://bucket/output/my_output.txt",
            },
            gcp_conn_id="airflow-conn-id",
-           dag=my - dag,
+           dag=my_dag,
        )
 
     ``template``, ``dataflow_default_options``, ``parameters``, and ``job_name`` are
@@ -586,8 +590,10 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "environment",
+        "dataflow_default_options",
     )
     ui_color = "#0273d4"
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -638,6 +644,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         options = self.dataflow_default_options
         options.update(self.options)
@@ -723,6 +730,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ("body", "location", "project_id", "gcp_conn_id")
+    operator_extra_links = (DataflowJobLink(),)
 
     def __init__(
         self,
@@ -760,6 +768,7 @@ class DataflowStartFlexTemplateOperator(BaseOperator):
 
         def set_current_job(current_job):
             self.job = current_job
+            DataflowJobLink.persist(self, context, self.project_id, self.location, self.job.get("id"))
 
         job = self.hook.start_flex_template(
             body=self.body,
@@ -822,6 +831,7 @@ class DataflowStartSqlJobOperator(BaseOperator):
         "project_id",
         "gcp_conn_id",
     )
+    template_fields_renderers = {"query": "sql"}
 
     def __init__(
         self,
@@ -912,7 +922,7 @@ class DataflowCreatePythonJobOperator(BaseOperator):
         * If the value is False, this option will be skipped
         * If the value is True, the single option - ``--key`` (without value) will be added.
         * If the value is list, the many options will be added for each key.
-          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key-B`` options
+          If the value is ``['A', 'B']`` and the key is ``key`` then the ``--key=A --key=B`` options
           will be left
         * Other value types will be replaced with the Python textual representation.
 

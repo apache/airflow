@@ -16,8 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 # --------------------------------------------------------------------------------
-# Written By: Ekhtiar Syed
-# Last Update: 8th April 2016
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
@@ -31,7 +29,11 @@ This is an example dag for using the WinRMOperator.
 from datetime import datetime, timedelta
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+
+try:
+    from airflow.operators.empty import EmptyOperator
+except ModuleNotFoundError:
+    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
@@ -44,14 +46,18 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    run_this_last = DummyOperator(task_id='run_this_last')
+    run_this_last = EmptyOperator(task_id='run_this_last')
 
+    # [START create_hook]
     winRMHook = WinRMHook(ssh_conn_id='ssh_POC1')
+    # [END create_hook]
 
+    # [START run_operator]
     t1 = WinRMOperator(task_id="wintask1", command='ls -altr', winrm_hook=winRMHook)
 
     t2 = WinRMOperator(task_id="wintask2", command='sleep 60', winrm_hook=winRMHook)
 
     t3 = WinRMOperator(task_id="wintask3", command='echo \'luke test\' ', winrm_hook=winRMHook)
+    # [END run_operator]
 
     [t1, t2, t3] >> run_this_last

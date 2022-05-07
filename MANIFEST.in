@@ -18,7 +18,7 @@
 
 include NOTICE
 include LICENSE
-include CHANGELOG.txt
+include RELEASE_NOTES.rst
 include README.md
 graft licenses
 graft airflow/www

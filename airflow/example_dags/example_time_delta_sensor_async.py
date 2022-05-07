@@ -21,19 +21,21 @@ Example DAG demonstrating ``TimeDeltaSensorAsync``, a drop in replacement for ``
 defers and doesn't occupy a worker slot while it waits
 """
 
-from datetime import datetime, timedelta
+import datetime
+
+import pendulum
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.time_delta import TimeDeltaSensorAsync
 
 with DAG(
     dag_id="example_time_delta_sensor_async",
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
 ) as dag:
-    wait = TimeDeltaSensorAsync(task_id="wait", delta=timedelta(seconds=10))
-    finish = DummyOperator(task_id="finish")
+    wait = TimeDeltaSensorAsync(task_id="wait", delta=datetime.timedelta(seconds=10))
+    finish = EmptyOperator(task_id="finish")
     wait >> finish

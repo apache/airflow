@@ -684,10 +684,11 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             assert os.environ[CREDENTIALS] == key_path
 
-        mock_check_output.has_calls(
-            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+        calls = [
             mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/key-path']),
-        )
+            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+        ]
+        mock_check_output.assert_has_calls(calls)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -708,12 +709,11 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             assert os.environ[CREDENTIALS] == file_name
 
-        mock_check_output.has_calls(
-            [
-                mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
-                mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']),
-            ]
-        )
+        calls = [
+            mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']),
+            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+        ]
+        mock_check_output.assert_has_calls(calls)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',

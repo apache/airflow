@@ -22,13 +22,12 @@ together when the DAG is displayed graphically.
 import copy
 import re
 import weakref
-from typing import TYPE_CHECKING, Any, Dict, Generator, Iterable, List, Optional, Sequence, Set, Tuple, Union
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Set, Tuple, Union
 
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
-from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     from airflow.models.baseoperator import BaseOperator
@@ -92,7 +91,6 @@ class TaskGroup(DAGNode):
             # used_group_ids is shared across all TaskGroups in the same DAG to keep track
             # of used group_id to avoid duplication.
             self.used_group_ids = set()
-            self._parent_group = None
             self.dag = dag
         else:
             if prefix_group_id:
@@ -108,28 +106,29 @@ class TaskGroup(DAGNode):
             if not parent_group and not dag:
                 raise AirflowException("TaskGroup can only be used inside a dag")
 
-            self._parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
-            if not self._parent_group:
+            parent_group = parent_group or TaskGroupContext.get_current_task_group(dag)
+            if not parent_group:
                 raise AirflowException("TaskGroup must have a parent_group except for the root TaskGroup")
-            if dag is not self._parent_group.dag:
+            if dag is not parent_group.dag:
                 raise RuntimeError(
-                    "Cannot mix TaskGroups from different DAGs: %s and %s", dag, self._parent_group.dag
+                    "Cannot mix TaskGroups from different DAGs: %s and %s", dag, parent_group.dag
                 )
 
-            self.used_group_ids = self._parent_group.used_group_ids
+            self.used_group_ids = parent_group.used_group_ids
 
         # if given group_id already used assign suffix by incrementing largest used suffix integer
         # Example : task_group ==> task_group__1 -> task_group__2 -> task_group__3
         self._group_id = group_id
         self._check_for_group_id_collisions(add_suffix_on_collision)
 
+        self.children: Dict[str, DAGNode] = {}
+        if parent_group:
+            parent_group.add(self)
+
         self.used_group_ids.add(self.group_id)
         if self.group_id:
             self.used_group_ids.add(self.downstream_join_id)
             self.used_group_ids.add(self.upstream_join_id)
-        self.children: Dict[str, DAGNode] = {}
-        if self._parent_group:
-            self._parent_group.add(self)
 
         self.tooltip = tooltip
         self.ui_color = ui_color
@@ -175,6 +174,10 @@ class TaskGroup(DAGNode):
         """Returns True if this TaskGroup is the root TaskGroup. Otherwise False"""
         return not self.group_id
 
+    @property
+    def parent_group(self) -> Optional["TaskGroup"]:
+        return self.task_group
+
     def __iter__(self):
         for child in self.children.values():
             if isinstance(child, TaskGroup):
@@ -184,6 +187,8 @@ class TaskGroup(DAGNode):
 
     def add(self, task: DAGNode) -> None:
         """Add a task to this TaskGroup."""
+        # Set the TG first, as setting it might change the return value of node_id!
+        task.task_group = weakref.proxy(self)
         key = task.node_id
 
         if key in self.children:
@@ -201,7 +206,6 @@ class TaskGroup(DAGNode):
                 raise AirflowException("Cannot add a non-empty TaskGroup")
 
         self.children[key] = task
-        task.task_group = weakref.proxy(self)
 
     def _remove(self, task: DAGNode) -> None:
         key = task.node_id
@@ -211,13 +215,12 @@ class TaskGroup(DAGNode):
 
         self.used_group_ids.remove(key)
         del self.children[key]
-        task.task_group = None
 
     @property
     def group_id(self) -> Optional[str]:
         """group_id of this TaskGroup."""
-        if self._parent_group and self._parent_group.prefix_group_id and self._parent_group.group_id:
-            return self._parent_group.child_id(self._group_id)
+        if self.task_group and self.task_group.prefix_group_id and self.task_group.group_id:
+            return self.task_group.child_id(self._group_id)
 
         return self._group_id
 
@@ -375,33 +378,64 @@ class TaskGroup(DAGNode):
 
         return DagAttributeTypes.TASK_GROUP, SerializedTaskGroup.serialize_task_group(self)
 
-    def map(self, arg: Iterable) -> "MappedTaskGroup":
-        if self.children:
-            raise RuntimeError("Cannot map a TaskGroup that already has children")
-        if not self.group_id:
-            raise RuntimeError("Cannot map a TaskGroup before it has a group_id")
-        if self._parent_group:
-            self._parent_group._remove(self)
-        return MappedTaskGroup(group_id=self._group_id, dag=self.dag, mapped_arg=arg)
+    def topological_sort(self, _include_subdag_tasks: bool = False):
+        """
+        Sorts children in topographical order, such that a task comes after any of its
+        upstream dependencies.
 
+        :return: list of tasks in topological order
+        """
+        # This uses a modified version of Kahn's Topological Sort algorithm to
+        # not have to pre-compute the "in-degree" of the nodes.
+        from airflow.operators.subdag import SubDagOperator  # Avoid circular import
 
-class MappedTaskGroup(TaskGroup):
-    """
-    A TaskGroup that is dynamically expanded at run time.
+        graph_unsorted = copy.copy(self.children)
 
-    Do not create instances of this class directly, instead use :meth:`TaskGroup.map`
-    """
+        graph_sorted: List[DAGNode] = []
 
-    mapped_arg: Any = NOTSET
-    mapped_kwargs: Dict[str, Any]
-    partial_kwargs: Dict[str, Any]
+        # special case
+        if len(self.children) == 0:
+            return graph_sorted
 
-    def __init__(self, group_id: Optional[str] = None, mapped_arg: Any = NOTSET, **kwargs):
-        if mapped_arg is not NOTSET:
-            self.mapped_arg = mapped_arg
-        self.mapped_kwargs = {}
-        self.partial_kwargs = {}
-        super().__init__(group_id=group_id, **kwargs)
+        # Run until the unsorted graph is empty.
+        while graph_unsorted:
+            # Go through each of the node/edges pairs in the unsorted graph. If a set of edges doesn't contain
+            # any nodes that haven't been resolved, that is, that are still in the unsorted graph, remove the
+            # pair from the unsorted graph, and append it to the sorted graph. Note here that by using using
+            # the values() method for iterating, a copy of the unsorted graph is used, allowing us to modify
+            # the unsorted graph as we move through it.
+            #
+            # We also keep a flag for checking that graph is acyclic, which is true if any nodes are resolved
+            # during each pass through the graph. If not, we need to exit as the graph therefore can't be
+            # sorted.
+            acyclic = False
+            for node in list(graph_unsorted.values()):
+                for edge in node.upstream_list:
+                    if edge.node_id in graph_unsorted:
+                        break
+                    # Check for task's group is a child (or grand child) of this TG,
+                    tg = edge.task_group
+                    while tg:
+                        if tg.node_id in graph_unsorted:
+                            break
+                        tg = tg.task_group
+
+                    if tg:
+                        # We are already going to visit that TG
+                        break
+                else:
+                    acyclic = True
+                    del graph_unsorted[node.node_id]
+                    graph_sorted.append(node)
+                    if _include_subdag_tasks and isinstance(node, SubDagOperator):
+                        graph_sorted.extend(
+                            node.subdag.task_group.topological_sort(_include_subdag_tasks=True)
+                        )
+
+            if not acyclic:
+                raise AirflowDagCycleException(f"A cyclic dependency occurred in dag: {self.dag_id}")
+
+        return graph_sorted
 
 
 class TaskGroupContext:

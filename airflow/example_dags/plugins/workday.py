@@ -22,13 +22,10 @@
 from datetime import timedelta
 from typing import Optional
 
-from pendulum import Date, DateTime, Time, timezone
+from pendulum import UTC, Date, DateTime, Time
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-
-# MyPy Does not recognize callable modules https://github.com/python/mypy/issues/9240
-UTC = timezone("UTC")  # type: ignore
 
 
 class AfterWorkdayTimetable(Timetable):

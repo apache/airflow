@@ -40,6 +40,10 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
         'default': f'{DEFAULT_FORMAT_PREFIX}execution_date',
         'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}EXECUTION_DATE',
     },
+    'AIRFLOW_CONTEXT_TRY_NUMBER': {
+        'default': f'{DEFAULT_FORMAT_PREFIX}try_number',
+        'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}TRY_NUMBER',
+    },
     'AIRFLOW_CONTEXT_DAG_RUN_ID': {
         'default': f'{DEFAULT_FORMAT_PREFIX}dag_run_id',
         'env_var_format': f'{ENV_VAR_FORMAT_PREFIX}DAG_RUN_ID',
@@ -82,6 +86,7 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
         (task_instance, 'dag_id', 'AIRFLOW_CONTEXT_DAG_ID'),
         (task_instance, 'task_id', 'AIRFLOW_CONTEXT_TASK_ID'),
         (task_instance, 'execution_date', 'AIRFLOW_CONTEXT_EXECUTION_DATE'),
+        (task_instance, 'try_number', 'AIRFLOW_CONTEXT_TRY_NUMBER'),
         (dag_run, 'run_id', 'AIRFLOW_CONTEXT_DAG_RUN_ID'),
     ]
 
@@ -111,6 +116,8 @@ def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool 
             elif isinstance(_attr, list):
                 # os env variable value needs to be string
                 params[mapping_value] = ','.join(_attr)
+            else:
+                params[mapping_value] = str(_attr)
 
     return params
 

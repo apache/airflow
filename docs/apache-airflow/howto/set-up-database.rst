@@ -44,18 +44,18 @@ Database URI
 ------------
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
-You can do this in option ``sql_alchemy_conn`` in section ``[core]``. It is also common to configure
-this option with ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` environment variable.
+You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
+this option with ``AIRFLOW__DATABE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
 
-If you want to check the current value, you can use ``airflow config get-value core sql_alchemy_conn`` command as in
+If you want to check the current value, you can use ``airflow config get-value database sql_alchemy_conn`` command as in
 the example below.
 
 .. code-block:: bash
 
-    $ airflow config get-value core sql_alchemy_conn
+    $ airflow config get-value database sql_alchemy_conn
     sqlite:////tmp/airflow/airflow.db
 
 The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
@@ -86,7 +86,7 @@ You can make sure which version is used by the interpreter by running this check
 .. code-block:: bash
 
     root@b8a8e73caa2c:/opt/airflow# python
-    Python 3.6.12 (default, Nov 25 2020, 03:59:00)
+    Python 3.8.10 (default, Mar 15 2022, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import sqlite3
@@ -169,6 +169,24 @@ the database configuration to load your change. See
 `The pg_hba.conf File <https://www.postgresql.org/docs/current/auth-pg-hba-conf.html>`__
 in the Postgres documentation to learn more.
 
+.. warning::
+
+   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
+   In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
+   SQLAlchemy 1.4.0+ results in:
+
+   .. code-block::
+
+      >       raise exc.NoSuchModuleError(
+                  "Can't load plugin: %s:%s" % (self.group, name)
+              )
+      E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
+
+   If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
+   1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+
+   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
+
 We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
 
 .. code-block:: text
@@ -210,11 +228,11 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    services will close idle connections after some time of inactivity (typically 300 seconds),
    which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
    The ``keepalive`` settings can be changed via ``sql_alchemy_connect_args`` configuration parameter
-   :doc:`../configurations-ref` in ``[core]`` section. You can configure the args for example in your
+   :doc:`../configurations-ref` in ``[database]`` section. You can configure the args for example in your
    local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary
    that stores the configuration parameters. You can read about
    `Postgres Keepalives <https://www.postgresql.org/docs/current/libpq-connect.html>`_.
-   An example setup for ``keepalives`` that has been observe to fix the problem might be:
+   An example setup for ``keepalives`` that has been observed to fix the problem might be:
 
    .. code-block:: python
 
@@ -224,6 +242,13 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
           "keepalives_interval": 5,
           "keepalives_count": 5,
       }
+
+   Then, if it were placed in ``airflow_local_settings.py``, the config import path would be:
+
+   .. code-block:: text
+
+      sql_alchemy_connect_args = airflow_local_settings.keepalive_kwargs
+
 
 
 .. spelling::
@@ -306,13 +331,23 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 
 .. code-block:: text
 
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+17+for+SQL+Server]
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
 
 
 Other configuration options
 ---------------------------
 
 There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:core>` for ``sqlalchemy_*`` option in ``[core]`` section.
+
+For instance, you can specify a database schema where Airflow will create its required tables. If you want Airflow to install its tables in the ``airflow`` schema of a PostgreSQL database, specify these environment variables:
+
+.. code-block:: bash
+
+    export AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__CORE__SQL_ALCHEMY_SCHEMA="airflow"
+
+Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
+
 
 Initialize the database
 -----------------------

@@ -24,7 +24,7 @@ from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
@@ -40,6 +40,8 @@ class ExternalTaskSensorLink(BaseOperatorLink):
     name = 'External DAG'
 
     def get_link(self, operator, dttm):
+        ti = TaskInstance(task=operator, execution_date=dttm)
+        operator.render_template_fields(ti.get_template_context())
         query = {"dag_id": operator.external_dag_id, "execution_date": dttm.isoformat()}
         return build_airflow_url_with_query(query)
 
@@ -75,7 +77,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         or DAG does not exist (default value: False).
     """
 
-    template_fields = ['external_dag_id', 'external_task_id']
+    template_fields = ['external_dag_id', 'external_task_id', 'external_task_ids']
     ui_color = '#19647e'
 
     @property
@@ -215,6 +217,9 @@ class ExternalTaskSensor(BaseSensorOperator):
         """
         TI = TaskInstance
         DR = DagRun
+        if not dttm_filter:
+            return 0
+
         if self.external_task_ids:
             count = (
                 session.query(func.count())  # .count() is inefficient
@@ -260,7 +265,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         return kwargs_callable(logical_date, **kwargs)
 
 
-class ExternalTaskMarker(DummyOperator):
+class ExternalTaskMarker(EmptyOperator):
     """
     Use this operator to indicate that a task on a different DAG depends on this task.
     When this task is cleared with "Recursive" selected, Airflow will clear the task on

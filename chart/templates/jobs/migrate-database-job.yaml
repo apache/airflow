@@ -18,9 +18,11 @@
 ################################
 ## Airflow Run Migrations
 #################################
+{{- if .Values.migrateDatabaseJob.enabled }}
 {{- $nodeSelector := or .Values.migrateDatabaseJob.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.migrateDatabaseJob.affinity .Values.affinity }}
 {{- $tolerations := or .Values.migrateDatabaseJob.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.migrateDatabaseJob.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.migrateDatabaseJob) }}
 apiVersion: batch/v1
 kind: Job
@@ -73,6 +75,8 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
       serviceAccountName: {{ include "migrateDatabaseJob.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -82,15 +86,17 @@ spec:
         - name: run-airflow-migrations
           image: {{ template "airflow_image_for_migrations" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
-          # Support running against 1.10.x and 2.x
-          {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
-          args: ["bash", "-c", "airflow db upgrade"]
-          {{- else }}
-          args: ["bash", "-c", "airflow upgradedb"]
+          {{- if .Values.migrateDatabaseJob.command }}
+          command: {{ tpl (toYaml .Values.migrateDatabaseJob.command) . | nindent 12 }}
+          {{- end }}
+          {{- if .Values.migrateDatabaseJob.args }}
+          args: {{ tpl (toYaml .Values.migrateDatabaseJob.args) . | nindent 12 }}
           {{- end }}
           envFrom:
           {{- include "custom_airflow_environment_from" . | default "\n  []" | indent 10 }}
           env:
+            - name: PYTHONUNBUFFERED
+              value: "1"
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           resources:
@@ -112,4 +118,5 @@ spec:
             name: {{ template "airflow_config" . }}
 {{- if .Values.migrateDatabaseJob.extraVolumes }}
 {{ toYaml .Values.migrateDatabaseJob.extraVolumes | nindent 8 }}
+{{- end }}
 {{- end }}

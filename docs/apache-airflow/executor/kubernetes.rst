@@ -154,7 +154,8 @@ Here is an example of a task with both features:
 .. code-block:: python
 
     import os
-    from datetime import datetime
+
+    import pendulum
 
     from airflow import DAG
     from airflow.decorators import task
@@ -166,7 +167,7 @@ Here is an example of a task with both features:
     with DAG(
         dag_id="example_pod_template_file",
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=["example3"],
     ) as dag:

@@ -221,6 +221,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         'impersonation_chain',
     )
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'query': 'sql'}
     # [END gcp_spanner_query_template_fields]
 
     def __init__(
@@ -324,6 +325,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         'impersonation_chain',
     )
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'ddl_statements': 'sql'}
     # [END gcp_spanner_database_deploy_template_fields]
 
     def __init__(
@@ -421,6 +423,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         'impersonation_chain',
     )
     template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'ddl_statements': 'sql'}
     # [END gcp_spanner_database_update_template_fields]
 
     def __init__(

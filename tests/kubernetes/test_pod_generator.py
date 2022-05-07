@@ -450,6 +450,43 @@ class TestPodGenerator:
         assert expected_dict == result_dict
 
     @mock.patch('uuid.uuid4')
+    def test_construct_pod_mapped_task(self, mock_uuid):
+        template_file = sys.path[0] + '/tests/kubernetes/pod_generator_base.yaml'
+        worker_config = PodGenerator.deserialize_model_file(template_file)
+        mock_uuid.return_value = self.static_uuid
+
+        result = PodGenerator.construct_pod(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            pod_id='pod_id',
+            try_number=self.try_number,
+            kube_image='',
+            map_index=0,
+            date=self.execution_date,
+            args=['command'],
+            pod_override_object=None,
+            base_worker_pod=worker_config,
+            namespace='test_namespace',
+            scheduler_job_id='uuid',
+        )
+        expected = self.expected
+        expected.metadata.labels = self.labels
+        expected.metadata.labels['app'] = 'myapp'
+        expected.metadata.labels['map_index'] = '0'
+        expected.metadata.annotations = self.annotations
+        expected.metadata.annotations['map_index'] = '0'
+        expected.metadata.name = 'pod_id-' + self.static_uuid.hex
+        expected.metadata.namespace = 'test_namespace'
+        expected.spec.containers[0].args = ['command']
+        del expected.spec.containers[0].env_from[1:]
+        del expected.spec.containers[0].env[-1:]
+        expected.spec.containers[0].env.append(k8s.V1EnvVar(name="AIRFLOW_IS_K8S_EXECUTOR_POD", value='True'))
+        result_dict = self.k8s_client.sanitize_for_serialization(result)
+        expected_dict = self.k8s_client.sanitize_for_serialization(expected)
+
+        assert expected_dict == result_dict
+
+    @mock.patch('uuid.uuid4')
     def test_construct_pod_empty_executor_config(self, mock_uuid):
         path = sys.path[0] + '/tests/kubernetes/pod_generator_base_with_secrets.yaml'
         worker_config = PodGenerator.deserialize_model_file(path)

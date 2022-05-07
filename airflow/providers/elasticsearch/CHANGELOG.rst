@@ -19,6 +19,79 @@
 Changelog
 ---------
 
+3.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make ElasticSearch Provider compatible for Airflow<2.3 (#22814)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+
+3.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+* ``Fix "run_id" k8s and elasticsearch compatibility with Airflow 2.1 (#22385)``
+
+3.0.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Change default log filename template to include map_index (#21495)``
+
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Type TaskInstance.task to Operator and call unmap() when needed (#21563)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Emit "logs not found" message when ES logs appear to be missing (#21261)``
+* ``Use compat data interval shim in log handlers (#21289)``
+
+Misc
+~~~~
+
+* ``Clarify ElasticsearchTaskHandler docstring (#21255)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix mypy for providers: elasticsearch, oracle, yandex (#20344)``
+   * ``Fix duplicate changelog entries (#19759)``
+   * ``Add pre-commit check for docstring param types (#21398)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+
 2.1.0
 .....
 

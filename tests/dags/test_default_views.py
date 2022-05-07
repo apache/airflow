@@ -24,7 +24,7 @@ tree_dag = DAG(
     dag_id='test_tree_view',
     default_args=args,
     schedule_interval='0 0 * * *',
-    default_view='tree',
+    default_view='grid',
 )
 
 graph_dag = DAG(

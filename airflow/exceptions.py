@@ -23,10 +23,6 @@ import datetime
 import warnings
 from typing import Any, Dict, List, NamedTuple, Optional, Sized
 
-from airflow.api_connexion.exceptions import NotFound as ApiConnexionNotFound
-from airflow.utils.code_utils import prepare_code_snippet
-from airflow.utils.platform import is_tty
-
 
 class AirflowException(Exception):
     """
@@ -44,7 +40,7 @@ class AirflowBadRequest(AirflowException):
     status_code = 400
 
 
-class AirflowNotFoundException(AirflowException, ApiConnexionNotFound):
+class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
     status_code = 404
@@ -100,6 +96,17 @@ class AirflowFailException(AirflowException):
 
 class AirflowOptionalProviderFeatureException(AirflowException):
     """Raise by providers when imports are missing for optional provider features."""
+
+
+class UnmappableOperator(AirflowException):
+    """Raise when an operator is not implemented to be mappable."""
+
+
+class XComForMappingNotPushed(AirflowException):
+    """Raise when a mapped downstream's dependency fails to push XCom for task mapping."""
+
+    def __str__(self) -> str:
+        return "did not push XCom for task mapping"
 
 
 class UnmappableXComTypePushed(AirflowException):
@@ -249,6 +256,9 @@ class AirflowFileParseException(AirflowException):
         self.parse_errors = parse_errors
 
     def __str__(self):
+        from airflow.utils.code_utils import prepare_code_snippet
+        from airflow.utils.platform import is_tty
+
         result = f"{self.msg}\nFilename: {self.file_path}\n\n"
 
         for error_no, parse_error in enumerate(self.parse_errors, 1):

@@ -24,7 +24,13 @@ import pytest
 from airflow.configuration import initialize_config
 from airflow.plugins_manager import AirflowPlugin, EntryPointSource
 from airflow.www import views
-from airflow.www.views import get_key_paths, get_safe_url, get_value_from_path, truncate_task_duration
+from airflow.www.views import (
+    get_key_paths,
+    get_safe_url,
+    get_task_stats_from_query,
+    get_value_from_path,
+    truncate_task_duration,
+)
 from tests.test_utils.config import conf_vars
 from tests.test_utils.mock_plugins import mock_plugin_manager
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response
@@ -210,7 +216,7 @@ def test_mark_task_instance_state(test_app):
     - Set DagRun to QUEUED.
     """
     from airflow.models import DAG, DagBag, TaskInstance
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
     from airflow.utils.session import create_session
     from airflow.utils.state import State
     from airflow.utils.timezone import datetime
@@ -221,11 +227,11 @@ def test_mark_task_instance_state(test_app):
     clear_db_runs()
     start_date = datetime(2020, 1, 1)
     with DAG("test_mark_task_instance_state", start_date=start_date) as dag:
-        task_1 = DummyOperator(task_id="task_1")
-        task_2 = DummyOperator(task_id="task_2")
-        task_3 = DummyOperator(task_id="task_3")
-        task_4 = DummyOperator(task_id="task_4")
-        task_5 = DummyOperator(task_id="task_5")
+        task_1 = EmptyOperator(task_id="task_1")
+        task_2 = EmptyOperator(task_id="task_2")
+        task_3 = EmptyOperator(task_id="task_3")
+        task_4 = EmptyOperator(task_id="task_4")
+        task_5 = EmptyOperator(task_id="task_5")
 
         task_1 >> [task_2, task_3, task_4, task_5]
 
@@ -265,9 +271,10 @@ def test_mark_task_instance_state(test_app):
 
         view._mark_task_instance_state(
             dag_id=dag.dag_id,
+            run_id=dagrun.run_id,
             task_id=task_1.task_id,
+            map_indexes=None,
             origin="",
-            dag_run_id=dagrun.run_id,
             upstream=False,
             downstream=False,
             future=False,
@@ -339,3 +346,30 @@ def test_dag_edit_privileged_requires_view_has_action_decorators(cls: type):
     action_funcs = action_funcs - {"action_post"}
     for action_function in action_funcs:
         assert_decorator_used(cls, action_function, views.action_has_dag_edit_access)
+
+
+def test_get_task_stats_from_query():
+    query_data = [
+        ['dag1', 'queued', True, 1],
+        ['dag1', 'running', True, 2],
+        ['dag1', 'success', False, 3],
+        ['dag2', 'running', True, 4],
+        ['dag2', 'success', True, 5],
+        ['dag3', 'success', False, 6],
+    ]
+    expected_data = {
+        'dag1': {
+            'queued': 1,
+            'running': 2,
+        },
+        'dag2': {
+            'running': 4,
+            'success': 5,
+        },
+        'dag3': {
+            'success': 6,
+        },
+    }
+
+    data = get_task_stats_from_query(query_data)
+    assert data == expected_data

@@ -23,8 +23,8 @@ from freezegun import freeze_time
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG, DagRun, TaskInstance as TI
-from airflow.operators.dummy import DummyOperator
+from airflow.models import DAG, DagRun, TaskInstance as TI, XCom
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -42,10 +42,10 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
     @classmethod
     def setUpClass(cls):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
+            session.query(XCom).delete()
 
     def setUp(self):
         self.dag = DAG(
@@ -53,15 +53,15 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
             start_date=DEFAULT_DATE,
             schedule_interval=INTERVAL,
         )
-        self.branch_1 = DummyOperator(task_id="branch_1", dag=self.dag)
-        self.branch_2 = DummyOperator(task_id="branch_2", dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
 
     def tearDown(self):
-
         with create_session() as session:
             session.query(DagRun).delete()
             session.query(TI).delete()
+            session.query(XCom).delete()
 
     def _assert_task_ids_match_states(self, dr, task_ids_to_states):
         """Helper that asserts task instances with a given id are in a given state"""
@@ -109,7 +109,7 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.branch_3 = DummyOperator(task_id="branch_3", dag=self.dag)
+        self.branch_3 = EmptyOperator(task_id="branch_3", dag=self.dag)
         self.branch_3.set_upstream(branch_op)
         self.dag.clear()
 

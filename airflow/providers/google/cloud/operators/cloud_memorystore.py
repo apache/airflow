@@ -25,6 +25,7 @@ Operators for Google Cloud Memorystore service.
 """
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, InputConfig, Instance, OutputConfig
@@ -101,7 +102,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         instance_id: str,
         instance: Union[Dict, Instance],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -180,7 +181,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -264,7 +265,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         instance: str,
         output_config: Union[Dict, OutputConfig],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -348,7 +349,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -426,7 +427,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -512,7 +513,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         instance: str,
         input_config: Union[Dict, InputConfig],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -594,7 +595,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         location: str,
         page_size: int,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -691,7 +692,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -774,7 +775,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -877,7 +878,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         instance: Union[Dict, Instance],
         input_config: Union[Dict, InputConfig],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -976,7 +977,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         instance: str,
         output_config: Union[Dict, OutputConfig],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1063,7 +1064,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
         location: str,
         instance_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1149,7 +1150,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         instance_id: str,
         instance: Union[Dict, cloud_memcache.Instance],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1215,7 +1216,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1288,7 +1289,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
         location: str,
         instance: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1365,7 +1366,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
         *,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1406,7 +1407,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         -  ``displayName``
 
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMas`
+        :class:`~google.protobuf.field_mask_pb2.FieldMask`
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -1452,12 +1453,12 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, cloud_memcache.Instance],
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1504,8 +1505,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
 
     :param update_mask: Required. Mask of fields to update.
         If a dict is provided, it must be of the same form as the protobuf message
-        :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask`
-        Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.field_mask.FieldMask]
+        :class:`~google.protobuf.field_mask_pb2.FieldMask`
     :param parameters: The parameters to apply to the instance.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters`
@@ -1536,12 +1536,12 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, cloud_memcache.field_mask.FieldMask],
+        update_mask: Union[Dict, FieldMask],
         parameters: Union[Dict, cloud_memcache.MemcacheParameters],
         location: str,
         instance_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

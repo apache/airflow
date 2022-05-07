@@ -19,9 +19,12 @@
 package-name: apache-airflow-providers-apache-pig
 name: Apache Pig
 description: |
-    `Apache Pig <https://pig.apache.org/>`__
+  `Apache Pig <https://pig.apache.org/>`__
 
 versions:
+  - 2.0.4
+  - 2.0.3
+  - 2.0.2
   - 2.0.1
   - 2.0.0
   - 1.0.1
@@ -33,6 +36,8 @@ additional-dependencies:
 integrations:
   - integration-name: Apache Pig
     external-doc-url: https://pig.apache.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-pig/operators.rst
     logo: /integration-logos/apache/pig.png
     tags: [apache]
 
@@ -46,7 +51,8 @@ hooks:
     python-modules:
       - airflow.providers.apache.pig.hooks.pig
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+hook-class-names:
+  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.apache.pig.hooks.pig.PigCliHook
 
 connection-types:

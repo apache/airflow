@@ -76,6 +76,9 @@ Python Pipelines with DataflowRunner
     :start-after: [START howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
     :end-before: [END howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
 
+|
+|
+
 .. _howto/operator:BeamRunJavaPipelineOperator:
 
 Run Java Pipelines in Apache Beam
@@ -103,6 +106,51 @@ Java Pipelines with DataflowRunner
     :dedent: 4
     :start-after: [START howto_operator_start_java_dataflow_runner_pipeline]
     :end-before: [END howto_operator_start_java_dataflow_runner_pipeline
+
+|
+|
+
+.. _howto/operator:BeamRunGoPipelineOperator:
+
+Run Go Pipelines in Apache Beam
+===============================
+
+The ``go_file`` argument must be specified for
+:class:`~airflow.providers.apache.beam.operators.beam.BeamRunGoPipelineOperator`
+as it contains the pipeline to be executed by Beam. The Go file can be available on GCS that Airflow
+has the ability to download or available on the local filesystem (provide the absolute path to it). When running
+from the local filesystem the equivalent will be ``go run <go_file>``. If pulling from GCS bucket, beforehand it will
+init the module and install dependencies with ``go run init example.com/main`` and ``go mod tidy``.
+
+Go Pipelines with DirectRunner
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_go_direct_runner_pipeline_local_file]
+    :end-before: [END howto_operator_start_go_direct_runner_pipeline_local_file]
+
+.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_go_direct_runner_pipeline_gcs_file]
+    :end-before: [END howto_operator_start_go_direct_runner_pipeline_gcs_file]
+
+Go Pipelines with DataflowRunner
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
+    :end-before: [END howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
+
+.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_start_go_dataflow_runner_pipeline_async_gcs_file]
+    :end-before: [END howto_operator_start_go_dataflow_runner_pipeline_async_gcs_file]
 
 Reference
 ^^^^^^^^^

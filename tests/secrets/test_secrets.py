@@ -94,10 +94,10 @@ class TestConnectionsFromSecrets(unittest.TestCase):
     )
     @mock.patch(
         "airflow.providers.amazon.aws.secrets.systems_manager."
-        "SystemsManagerParameterStoreBackend.get_conn_uri"
+        "SystemsManagerParameterStoreBackend.get_connection"
     )
-    def test_backend_fallback_to_env_var(self, mock_get_uri):
-        mock_get_uri.return_value = None
+    def test_backend_fallback_to_env_var(self, mock_get_connection):
+        mock_get_connection.return_value = None
 
         backends = ensure_secrets_loaded()
         backend_classes = [backend.__class__.__name__ for backend in backends]
@@ -106,7 +106,7 @@ class TestConnectionsFromSecrets(unittest.TestCase):
         conn = Connection.get_connection_from_secrets(conn_id="test_mysql")
 
         # Assert that SystemsManagerParameterStoreBackend.get_conn_uri was called
-        mock_get_uri.assert_called_once_with(conn_id='test_mysql')
+        mock_get_connection.assert_called_once_with(conn_id='test_mysql')
 
         assert 'mysql://airflow:airflow@host:5432/airflow' == conn.get_uri()
 

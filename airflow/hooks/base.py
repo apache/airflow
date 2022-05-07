@@ -22,7 +22,6 @@ from typing import TYPE_CHECKING, Any, Dict, List
 
 from airflow.typing_compat import Protocol
 from airflow.utils.log.logging_mixin import LoggingMixin
-from airflow.utils.log.secrets_masker import redact
 
 if TYPE_CHECKING:
     from airflow.models.connection import Connection  # Avoid circular imports.
@@ -66,18 +65,7 @@ class BaseHook(LoggingMixin):
         from airflow.models.connection import Connection
 
         conn = Connection.get_connection_from_secrets(conn_id)
-        if conn.host:
-            log.info(
-                "Using connection to: id: %s. Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
-                "extra: %s",
-                conn.conn_id,
-                conn.host,
-                conn.port,
-                conn.schema,
-                conn.login,
-                redact(conn.password),
-                redact(conn.extra_dejson),
-            )
+        log.info("Using connection ID '%s' for task execution.", conn.conn_id)
         return conn
 
     @classmethod

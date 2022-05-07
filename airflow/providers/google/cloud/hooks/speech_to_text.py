@@ -18,10 +18,12 @@
 """This module contains a Google Cloud Speech Hook."""
 from typing import Dict, Optional, Sequence, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.speech_v1 import SpeechClient
 from google.cloud.speech_v1.types import RecognitionAudio, RecognitionConfig
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -64,7 +66,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         :rtype: google.cloud.speech_v1.SpeechClient
         """
         if not self._client:
-            self._client = SpeechClient(credentials=self._get_credentials(), client_info=self.client_info)
+            self._client = SpeechClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._client
 
     @GoogleBaseHook.quota_retry()
@@ -72,7 +74,7 @@ class CloudSpeechToTextHook(GoogleBaseHook):
         self,
         config: Union[Dict, RecognitionConfig],
         audio: Union[Dict, RecognitionAudio],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
     ):
         """

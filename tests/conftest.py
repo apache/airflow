@@ -166,31 +166,17 @@ def pytest_addoption(parser):
 
 
 def initial_db_init():
-    if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-        print("Attempting to reset the db using airflow command")
-        os.system("airflow resetdb -y")
-    else:
-        from airflow.utils import db
+    from airflow.utils import db
 
-        db.resetdb()
+    db.resetdb()
+    db.bootstrap_dagbag()
 
 
 @pytest.fixture(autouse=True, scope="session")
-def breeze_test_helper(request):
+def initialize_airflow_tests(request):
     """
-    Helper that setups Airflow testing environment. It does the same thing
-    as the old 'run-tests' script.
+    Helper that setups Airflow testing environment.
     """
-
-    # fixme: this should use some other env variable ex. RUNNING_ON_K8S
-    if os.environ.get("SKIP_INIT_DB"):
-        print("Skipping db initialization. Tests do not require database")
-        return
-
-    from airflow import __version__
-
-    if __version__.startswith("1.10"):
-        os.environ['RUN_AIRFLOW_1_10'] = "true"
 
     print(" AIRFLOW ".center(60, "="))
 
@@ -242,7 +228,6 @@ def pytest_configure(config):
     config.addinivalue_line(
         "markers", "credential_file(name): mark tests that require credential file in CREDENTIALS_DIR"
     )
-    config.addinivalue_line("markers", "airflow_2: mark tests that works only on Airflow 2.0 / master")
 
 
 def skip_if_not_marked_with_integration(selected_integrations, item):
@@ -342,12 +327,6 @@ def skip_if_credential_file_missing(item):
             pytest.skip(f"The test requires credential file {credential_path}: {item}")
 
 
-def skip_if_airflow_2_test(item):
-    for _ in item.iter_markers(name="airflow_2"):
-        if os.environ.get("RUN_AIRFLOW_1_10") == "true":
-            pytest.skip("The test works only with Airflow 2.0 / main branch")
-
-
 def pytest_runtest_setup(item):
     selected_integrations_list = item.config.getoption("--integration")
     selected_systems_list = item.config.getoption("--system")
@@ -373,7 +352,6 @@ def pytest_runtest_setup(item):
     if not include_quarantined:
         skip_quarantined_test(item)
     skip_if_credential_file_missing(item)
-    skip_if_airflow_2_test(item)
 
 
 @pytest.fixture
@@ -428,8 +406,8 @@ def dag_maker(request):
     the same argument as DAG::
 
         with dag_maker(dag_id="mydag") as dag:
-            task1 = DummyOperator(task_id='mytask')
-            task2 = DummyOperator(task_id='mytask2')
+            task1 = EmptyOperator(task_id='mytask')
+            task2 = EmptyOperator(task_id='mytask2')
 
     If the DagModel you want to use needs different parameters than the one
     automatically created by the dag_maker, you have to update the DagModel as below::
@@ -643,13 +621,13 @@ def dag_maker(request):
 @pytest.fixture
 def create_dummy_dag(dag_maker):
     """
-    This fixture creates a `DAG` with a single `DummyOperator` task.
+    This fixture creates a `DAG` with a single `EmptyOperator` task.
     DagRun and DagModel is also created.
 
     Apart from the already existing arguments, any other argument in kwargs
-    is passed to the DAG and not to the DummyOperator task.
+    is passed to the DAG and not to the EmptyOperator task.
 
-    If you have an argument that you want to pass to the DummyOperator that
+    If you have an argument that you want to pass to the EmptyOperator that
     is not here, please use `default_args` so that the DAG will pass it to the
     Task::
 
@@ -657,7 +635,7 @@ def create_dummy_dag(dag_maker):
 
     You cannot be able to alter the created DagRun or DagModel, use `dag_maker` fixture instead.
     """
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
     from airflow.utils.types import DagRunType
 
     def create_dag(
@@ -676,7 +654,7 @@ def create_dummy_dag(dag_maker):
         **kwargs,
     ):
         with dag_maker(dag_id, **kwargs) as dag:
-            op = DummyOperator(
+            op = EmptyOperator(
                 task_id=task_id,
                 max_active_tis_per_dag=max_active_tis_per_dag,
                 executor_config=executor_config,

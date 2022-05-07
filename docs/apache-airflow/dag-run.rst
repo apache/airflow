@@ -18,6 +18,30 @@
 DAG Runs
 =========
 A DAG Run is an object representing an instantiation of the DAG in time.
+Any time the DAG is executed, a DAG Run is created and all tasks inside it are executed. The status of the DAG Run depends on the tasks states.
+Each DAG Run is run separately from another, meaning that you can have running DAG many times at the same time.
+
+.. _dag-run:dag-run-status:
+
+DAG Run Status
+''''''''''''''
+
+A DAG Run status is determined when the execution of the DAG is finished.
+The execution of the DAG depends on its containing tasks and their dependencies.
+The status is assigned to the DAG Run when all of the tasks are in the one of the terminal states (i.e. if there is no possible transition to another state) like ``success``, ``failed`` or ``skipped``.
+The DAG Run is having the status assigned based on the so-called "leaf nodes" or simply "leaves". Leaf nodes are the tasks with no children.
+
+There are two possible terminal states for the DAG Run:
+
+- ``success`` if all of the leaf nodes states are either ``success`` or ``skipped``,
+- ``failed`` if any of the leaf nodes state is either ``failed`` or ``upstream_failed``.
+
+.. note::
+    Be careful if some of your tasks have defined some specific `trigger rule <dags.html#trigger-rules>`_.
+    These can lead to some unexpected behavior, e.g. if you have a leaf task with trigger rule `"all_done"`, it will be executed regardless of the states of the rest of the tasks and if it will succeed, then the whole DAG Run will also be marked as ``success``, even if something failed in the middle.
+
+Cron Presets
+''''''''''''
 
 Each DAG may or may not have a schedule, which informs how DAG Runs are
 created. ``schedule_interval`` is defined as a DAG argument, which can be passed a
@@ -26,9 +50,6 @@ a ``str``, a ``datetime.timedelta`` object, or one of the following cron "preset
 
 .. tip::
     You can use an online editor for CRON expressions such as `Crontab guru <https://crontab.guru/>`_
-
-Cron Presets
-''''''''''''
 
 +----------------+----------------------------------------------------------------+-----------------+
 | preset         | meaning                                                        | cron            |
@@ -84,6 +105,8 @@ scheduled one interval after ``start_date``.
 
     If ``schedule_interval`` is not enough to express your DAG's schedule,
     logical date, or data interval, see :doc:`/concepts/timetable`.
+    For more information on ``logical date``, see :ref:`concepts:dag-run` and
+    :ref:`faq:what-does-execution-date-mean`
 
 Re-run DAG
 ''''''''''
@@ -111,17 +134,18 @@ in the configuration file. When turned off, the scheduler creates a DAG run only
     """
     from airflow.models.dag import DAG
     from airflow.operators.bash import BashOperator
-    from datetime import datetime, timedelta
 
+    import datetime
+    import pendulum
 
     dag = DAG(
         "tutorial",
         default_args={
             "depends_on_past": True,
             "retries": 1,
-            "retry_delay": timedelta(minutes=3),
+            "retry_delay": datetime.timedelta(minutes=3),
         },
-        start_date=datetime(2015, 12, 1),
+        start_date=pendulum.datetime(2015, 12, 1, tz="UTC"),
         description="A simple tutorial DAG",
         schedule_interval="@daily",
         catchup=False,
@@ -223,7 +247,7 @@ Example of a parameterized DAG:
 
 .. code-block:: python
 
-    from datetime import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.operators.bash import BashOperator
@@ -231,7 +255,7 @@ Example of a parameterized DAG:
     dag = DAG(
         "example_parameterized_dag",
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
     )
 

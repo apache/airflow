@@ -20,6 +20,12 @@
 
 Content
 -------
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
+
 
 .. toctree::
     :maxdepth: 1
@@ -45,7 +51,7 @@ Package apache-airflow-providers-apache-sqoop
 `Apache Sqoop <https://sqoop.apache.org/>`__
 
 
-Release: 2.0.2
+Release: 2.1.3
 
 Provider package
 ----------------

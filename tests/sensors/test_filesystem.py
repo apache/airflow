@@ -17,7 +17,7 @@
 # under the License.
 #
 
-import os.path
+import os
 import shutil
 import tempfile
 import unittest
@@ -131,6 +131,38 @@ class TestFileSensor(unittest.TestCase):
             task._hook = self.hook
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_wildcard_empty_directory(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with tempfile.TemporaryDirectory(suffix='subdir', dir=temp_dir):
+                task = FileSensor(
+                    task_id='test',
+                    filepath=os.path.join(temp_dir, '*dir'),
+                    fs_conn_id='fs_default',
+                    dag=self.dag,
+                    timeout=0,
+                )
+                task._hook = self.hook
+
+                # No files in dir
+                with pytest.raises(AirflowSensorTimeout):
+                    task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+    def test_wildcard_directory_with_files(self):
+        with tempfile.TemporaryDirectory() as temp_dir:
+            with tempfile.TemporaryDirectory(suffix='subdir', dir=temp_dir) as subdir:
+                task = FileSensor(
+                    task_id='test',
+                    filepath=os.path.join(temp_dir, '*dir'),
+                    fs_conn_id='fs_default',
+                    dag=self.dag,
+                    timeout=0,
+                )
+                task._hook = self.hook
+
+                # `touch` the file in subdir
+                open(os.path.join(subdir, 'file'), 'a').close()
+                task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
     def test_wildcared_directory(self):
         temp_dir = tempfile.mkdtemp()
         subdir = tempfile.mkdtemp(dir=temp_dir)
@@ -146,7 +178,7 @@ class TestFileSensor(unittest.TestCase):
         task._hook = self.hook
 
         try:
-            # `touch` the dir
+            # `touch` the file in subdir
             open(subdir + "/file", "a").close()
             task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
         finally:

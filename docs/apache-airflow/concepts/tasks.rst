@@ -36,6 +36,12 @@ Relationships
 
 The key part of using Tasks is defining how they relate to each other - their *dependencies*, or as we say in Airflow, their *upstream* and *downstream* tasks. You declare your Tasks first, and then you declare their dependencies second.
 
+.. note::
+
+    We call the *upstream* task the one that is directly preceding the other task. We used to call it a parent task before.
+    Be aware that this concept does not describe the tasks that are higher in the tasks hierarchy (i.e. they are not a direct parents of the task).
+    Same definition applies to *downstream* task, which needs to be a direct child of the other task.
+
 There are two ways of declaring dependencies - using the ``>>`` and ``<<`` (bitshift) operators::
 
     first_task >> second_task >> [third_task, fourth_task]
@@ -123,7 +129,7 @@ without retrying.
 The following ``SFTPSensor`` example illustrates this. The ``sensor`` is in ``reschedule`` mode, meaning it
 is periodically executed and rescheduled until it succeeds.
 
-- Each time the sensor pokes the SFTP server, it is allowed to take maximum 60 seconds as defined by ``execution_time``.
+- Each time the sensor pokes the SFTP server, it is allowed to take maximum 60 seconds as defined by ``execution_timeout``.
 - If it takes the sensor more than 60 seconds to poke the SFTP server, ``AirflowTaskTimeout`` will be raised.
   The sensor is allowed to retry when this happens. It can retry up to 2 times as defined by ``retries``.
 - From the start of the first execution, till it eventually succeeds (i.e. after the file 'root/test' appears),

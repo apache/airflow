@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import json
 import os
-from typing import Any, Iterable, Optional
+import warnings
+from typing import Any, Callable, Iterable, Optional, overload
 
 import trino
 from trino.exceptions import DatabaseError
@@ -26,6 +28,37 @@ from airflow import AirflowException
 from airflow.configuration import conf
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
+
+try:
+    from airflow.utils.operator_helpers import DEFAULT_FORMAT_PREFIX
+except ImportError:
+    # This is from airflow.utils.operator_helpers,
+    # For the sake of provider backward compatibility, this is hardcoded if import fails
+    # https://github.com/apache/airflow/pull/22416#issuecomment-1075531290
+    DEFAULT_FORMAT_PREFIX = 'airflow.ctx.'
+
+
+def generate_trino_client_info() -> str:
+    """Return json string with dag_id, task_id, execution_date and try_number"""
+    context_var = {
+        format_map['default'].replace(DEFAULT_FORMAT_PREFIX, ''): os.environ.get(
+            format_map['env_var_format'], ''
+        )
+        for format_map in AIRFLOW_VAR_NAME_FORMAT_MAPPING.values()
+    }
+    # try_number isn't available in context for airflow < 2.2.5
+    # https://github.com/apache/airflow/issues/23059
+    try_number = context_var.get('try_number', '')
+    task_info = {
+        'dag_id': context_var['dag_id'],
+        'task_id': context_var['task_id'],
+        'execution_date': context_var['execution_date'],
+        'try_number': try_number,
+        'dag_run_id': context_var['dag_run_id'],
+        'dag_owner': context_var['dag_owner'],
+    }
+    return json.dumps(task_info, sort_keys=True)
 
 
 class TrinoException(Exception):
@@ -63,12 +96,15 @@ class TrinoHook(DbApiHook):
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
+        user = db.login
         if db.password and extra.get('auth') == 'kerberos':
             raise AirflowException("Kerberos authorization doesn't support password.")
         elif db.password:
-            auth = trino.auth.BasicAuthentication(db.login, db.password)
+            auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
+        elif extra.get('auth') == 'jwt':
+            auth = trino.auth.JWTAuthentication(token=extra.get('jwt__token'))
         elif extra.get('auth') == 'kerberos':
-            auth = trino.auth.KerberosAuthentication(
+            auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
                 config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
                 service_name=extra.get('kerberos__service_name'),
                 mutual_authentication=_boolify(extra.get('kerberos__mutual_authentication', False)),
@@ -81,16 +117,24 @@ class TrinoHook(DbApiHook):
                 delegate=_boolify(extra.get('kerberos__delegate', False)),
                 ca_bundle=extra.get('kerberos__ca_bundle'),
             )
+
+        if _boolify(extra.get('impersonate_as_owner', False)):
+            user = os.getenv('AIRFLOW_CTX_DAG_OWNER', None)
+            if user is None:
+                user = db.login
+        http_headers = {"X-Trino-Client-Info": generate_trino_client_info()}
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
-            user=db.login,
+            user=user,
             source=extra.get('source', 'airflow'),
             http_scheme=extra.get('protocol', 'http'),
+            http_headers=http_headers,
             catalog=extra.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
+            # type: ignore[func-returns-value]
+            isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get('verify', True)),
         )
 
@@ -106,27 +150,93 @@ class TrinoHook(DbApiHook):
     def _strip_sql(sql: str) -> str:
         return sql.strip().rstrip(';')
 
-    def get_records(self, hql, parameters: Optional[dict] = None):
-        """Get a set of records from Trino"""
+    @overload
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None):
+        """Get a set of records from Trino
+
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+
+    @overload
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+        """:sphinx-autoapi-skip:"""
+
+    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
         try:
-            return super().get_records(self._strip_sql(hql), parameters)
+            return super().get_records(self._strip_sql(sql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_first(self, hql: str, parameters: Optional[dict] = None) -> Any:
-        """Returns only the first row, regardless of how many rows the query returns."""
+    @overload
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
+        """Returns only the first row, regardless of how many rows the query returns.
+
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+
+    @overload
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+        """:sphinx-autoapi-skip:"""
+
+    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
         try:
-            return super().get_first(self._strip_sql(hql), parameters)
+            return super().get_first(self._strip_sql(sql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
-    def get_pandas_df(self, hql, parameters=None, **kwargs):
-        """Get a pandas dataframe from a sql query."""
+    @overload
+    def get_pandas_df(
+        self, sql: str = "", parameters: Optional[dict] = None, **kwargs
+    ):  # type: ignore[override]
+        """Get a pandas dataframe from a sql query.
+
+        :param sql: SQL statement to be executed.
+        :param parameters: The parameters to render the SQL query with.
+        """
+
+    @overload
+    def get_pandas_df(
+        self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
+    ):  # type: ignore[override]
+        """:sphinx-autoapi-skip:"""
+
+    def get_pandas_df(
+        self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
+    ):  # type: ignore[override]
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
         import pandas
 
         cursor = self.get_cursor()
         try:
-            cursor.execute(self._strip_sql(hql), parameters)
+            cursor.execute(self._strip_sql(sql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
             raise TrinoException(e)
@@ -138,9 +248,47 @@ class TrinoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
-    def run(self, hql, autocommit: bool = False, parameters: Optional[dict] = None, handler=None) -> None:
+    @overload
+    def run(
+        self,
+        sql: str = "",
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+    ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
-        return super().run(sql=self._strip_sql(hql), parameters=parameters)
+
+    @overload
+    def run(
+        self,
+        sql: str = "",
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+        hql: str = "",
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+
+    def run(
+        self,
+        sql: str = "",
+        autocommit: bool = False,
+        parameters: Optional[dict] = None,
+        handler: Optional[Callable] = None,
+        hql: str = "",
+    ) -> None:
+        """:sphinx-autoapi-skip:"""
+        if hql:
+            warnings.warn(
+                "The hql parameter has been deprecated. You should pass the sql parameter.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            sql = hql
+
+        return super().run(
+            sql=self._strip_sql(sql), autocommit=autocommit, parameters=parameters, handler=handler
+        )
 
     def insert_rows(
         self,
@@ -169,4 +317,4 @@ class TrinoHook(DbApiHook):
             )
             commit_every = 0
 
-        super().insert_rows(table, rows, target_fields, commit_every)
+        super().insert_rows(table, rows, target_fields, commit_every, replace)

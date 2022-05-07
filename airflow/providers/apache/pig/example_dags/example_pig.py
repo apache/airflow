@@ -30,9 +30,11 @@ dag = DAG(
     tags=['example'],
 )
 
+# [START create_pig]
 run_this = PigOperator(
     task_id="run_example_pig_script",
     pig="ls /;",
     pig_opts="-x local",
     dag=dag,
 )
+# [END create_pig]

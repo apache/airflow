@@ -34,7 +34,7 @@ if not IS_WINDOWS:
     import pty
 
 from contextlib import contextmanager
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile
@@ -155,15 +155,16 @@ def reap_process_group(
     return returncodes
 
 
-def execute_in_subprocess(cmd: List[str]):
+def execute_in_subprocess(cmd: List[str], cwd: Optional[str] = None) -> None:
     """
     Execute a process and stream output to logger
 
     :param cmd: command and arguments to run
+    :param cwd: Current working directory passed to the Popen constructor
     """
     log.info("Executing cmd: %s", " ".join(shlex.quote(c) for c in cmd))
     with subprocess.Popen(
-        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True
+        cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, bufsize=0, close_fds=True, cwd=cwd
     ) as proc:
         log.info("Output:")
         if proc.stdout:
@@ -176,7 +177,7 @@ def execute_in_subprocess(cmd: List[str]):
         raise subprocess.CalledProcessError(exit_code, cmd)
 
 
-def execute_interactive(cmd: List[str], **kwargs):
+def execute_interactive(cmd: List[str], **kwargs) -> None:
     """
     Runs the new command as a subprocess and ensures that the terminal's state is restored to its original
     state after the process is completed e.g. if the subprocess hides the cursor, it will be restored after

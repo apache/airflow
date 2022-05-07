@@ -34,6 +34,7 @@ HOOK_GET_CONNECTION = 'airflow.providers.trino.hooks.trino.TrinoHook.get_connect
 BASIC_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication'
 KERBEROS_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication'
 TRINO_DBAPI_CONNECT = 'airflow.providers.trino.hooks.trino.trino.dbapi.connect'
+JWT_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication'
 
 
 class TestTrinoHookConn:
@@ -45,6 +46,41 @@ class TestTrinoHookConn:
         TrinoHook().get_conn()
         self.assert_connection_called_with(mock_connect, auth=mock_basic_auth)
         mock_basic_auth.assert_called_once_with('login', 'password')
+
+    @patch('airflow.providers.trino.hooks.trino.generate_trino_client_info')
+    @patch(BASIC_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_http_headers(
+        self,
+        mock_get_connection,
+        mock_connect,
+        mock_basic_auth,
+        mocked_generate_airflow_trino_client_info_header,
+    ):
+        mock_get_connection.return_value = Connection(
+            login='login', password='password', host='host', schema='hive'
+        )
+        client = json.dumps(
+            {
+                "dag_id": "dag-id",
+                "execution_date": "2022-01-01T00:00:00",
+                "task_id": "task-id",
+                "try_number": "1",
+                "dag_run_id": "dag-run-id",
+                "dag_owner": "dag-owner",
+            },
+            sort_keys=True,
+        )
+        http_headers = {'X-Trino-Client-Info': client}
+
+        mocked_generate_airflow_trino_client_info_header.return_value = http_headers['X-Trino-Client-Info']
+
+        conn = TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_basic_auth, http_headers=http_headers)
+
+        mock_basic_auth.assert_called_once_with('login', 'password')
+        assert mock_connect.return_value == conn
 
     @patch(HOOK_GET_CONNECTION)
     def test_get_conn_invalid_auth(self, mock_get_connection):
@@ -58,6 +94,21 @@ class TestTrinoHookConn:
             AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
         ):
             TrinoHook().get_conn()
+
+    @patch(JWT_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_get_conn_jwt_auth(self, mock_get_connection, mock_connect, mock_jwt_auth):
+        extras = {
+            'auth': 'jwt',
+            'jwt__token': 'TEST_JWT_TOKEN',
+        }
+        self.set_get_connection_return_value(
+            mock_get_connection,
+            extra=json.dumps(extras),
+        )
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
     @patch(KERBEROS_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
@@ -108,12 +159,13 @@ class TestTrinoHookConn:
         mock_get_connection.return_value = mocked_connection
 
     @staticmethod
-    def assert_connection_called_with(mock_connect, auth=None, verify=True):
+    def assert_connection_called_with(mock_connect, http_headers=mock.ANY, auth=None, verify=True):
         mock_connect.assert_called_once_with(
             catalog='hive',
             host='host',
             port=None,
             http_scheme='http',
+            http_headers=http_headers,
             schema='hive',
             source='airflow',
             user='login',
@@ -149,8 +201,9 @@ class TestTrinoHook(unittest.TestCase):
         rows = [("hello",), ("world",)]
         target_fields = None
         commit_every = 10
-        self.db_hook.insert_rows(table, rows, target_fields, commit_every)
-        mock_insert_rows.assert_called_once_with(table, rows, None, 10)
+        replace = True
+        self.db_hook.insert_rows(table, rows, target_fields, commit_every, replace)
+        mock_insert_rows.assert_called_once_with(table, rows, None, 10, True)
 
     def test_get_first_record(self):
         statement = 'SQL'
@@ -186,6 +239,15 @@ class TestTrinoHook(unittest.TestCase):
         assert result_sets[1][0] == df.values.tolist()[1][0]
 
         self.cur.execute.assert_called_once_with(statement, None)
+
+    @patch('airflow.hooks.dbapi.DbApiHook.run')
+    def test_run(self, mock_run):
+        hql = "SELECT 1"
+        autocommit = False
+        parameters = {"hello": "world"}
+        handler = str
+        self.db_hook.run(hql, autocommit, parameters, handler)
+        mock_run.assert_called_once_with(sql=hql, autocommit=False, parameters=parameters, handler=str)
 
 
 class TestTrinoHookIntegration(unittest.TestCase):

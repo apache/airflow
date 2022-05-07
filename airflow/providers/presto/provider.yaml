@@ -22,6 +22,10 @@ description: |
     `Presto <https://prestodb.github.io/>`__
 
 versions:
+  - 2.2.0
+  - 2.1.2
+  - 2.1.1
+  - 2.1.0
   - 2.0.1
   - 2.0.0
   - 1.0.2
@@ -41,6 +45,12 @@ hooks:
   - integration-name: Presto
     python-modules:
       - airflow.providers.presto.hooks.presto
+
+transfers:
+  - source-integration-name: Google Cloud Storage (GCS)
+    target-integration-name: Presto
+    how-to-guide: /docs/apache-airflow-providers-presto/operators/transfer/gcs_to_presto.rst
+    python-module: airflow.providers.presto.transfers.gcs_to_presto
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.presto.hooks.presto.PrestoHook

@@ -15,20 +15,26 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from unittest import mock
 
 from airflow.models import DAG
 from airflow.providers.snowflake.transfers.snowflake_to_slack import SnowflakeToSlackOperator
 from airflow.utils import timezone
+from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_ID = 'snowflake_to_slack_unit_test'
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 
 
-class TestSnowflakeToSlackOperator(unittest.TestCase):
-    def setUp(self):
+class TestSnowflakeToSlackOperator:
+    def setup_class(self):
+        clear_db_runs()
+
+    def setup_method(self):
         self.example_dag = DAG('unit_test_dag_snowflake_to_slack', start_date=DEFAULT_DATE)
+
+    def teardown_method(self):
+        clear_db_runs()
 
     @staticmethod
     def _construct_operator(**kwargs):

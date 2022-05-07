@@ -20,7 +20,7 @@
 import datetime
 import ftplib
 import os.path
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Tuple
 
 from airflow.hooks.base import BaseHook
 
@@ -259,6 +259,15 @@ class FTPHook(BaseHook):
         conn = self.get_conn()
         size = conn.size(path)
         return int(size) if size else None
+
+    def test_connection(self) -> Tuple[bool, str]:
+        """Test the FTP connection by calling path with directory"""
+        try:
+            conn = self.get_conn()
+            conn.pwd
+            return True, "Connection successfully tested"
+        except Exception as e:
+            return False, str(e)
 
 
 class FTPSHook(FTPHook):

@@ -128,7 +128,7 @@ class SkipMixin(LoggingMixin):
                 session=session,
             )
 
-    def skip_all_except(self, ti: TaskInstance, branch_task_ids: Union[str, Iterable[str]]):
+    def skip_all_except(self, ti: TaskInstance, branch_task_ids: Union[None, str, Iterable[str]]):
         """
         This method implements the logic for a branching operator; given a single
         task ID or list of task IDs to follow, this skips all other tasks
@@ -140,12 +140,15 @@ class SkipMixin(LoggingMixin):
         self.log.info("Following branch %s", branch_task_ids)
         if isinstance(branch_task_ids, str):
             branch_task_ids = {branch_task_ids}
+        elif branch_task_ids is None:
+            branch_task_ids = ()
 
         branch_task_ids = set(branch_task_ids)
 
         dag_run = ti.get_dagrun()
         task = ti.task
         dag = task.dag
+        assert dag  # For Mypy.
 
         # At runtime, the downstream list will only be operators
         downstream_tasks = cast("List[BaseOperator]", task.downstream_list)

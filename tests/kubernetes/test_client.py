@@ -22,25 +22,21 @@ from unittest import mock
 from kubernetes.client import Configuration
 from urllib3.connection import HTTPConnection, HTTPSConnection
 
-from airflow.kubernetes.kube_client import (
-    RefreshConfiguration,
-    _disable_verify_ssl,
-    _enable_tcp_keepalive,
-    get_kube_client,
-)
+from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive, get_kube_client
 
 
 class TestClient(unittest.TestCase):
     @mock.patch('airflow.kubernetes.kube_client.config')
-    def test_load_cluster_config(self, _):
-        client = get_kube_client(in_cluster=True)
-        assert not isinstance(client.api_client.configuration, RefreshConfiguration)
+    def test_load_cluster_config(self, config):
+        get_kube_client(in_cluster=True)
+        assert config.load_incluster_config.called
+        assert config.load_kube_config.not_called
 
     @mock.patch('airflow.kubernetes.kube_client.config')
-    @mock.patch('airflow.kubernetes.refresh_config._get_kube_config_loader_for_yaml_file')
-    def test_load_file_config(self, _, _2):
-        client = get_kube_client(in_cluster=False)
-        assert isinstance(client.api_client.configuration, RefreshConfiguration)
+    def test_load_file_config(self, config):
+        get_kube_client(in_cluster=False)
+        assert config.load_incluster_config.not_called
+        assert config.load_kube_config.called
 
     def test_enable_tcp_keepalive(self):
         socket_options = [

@@ -42,19 +42,18 @@ VPC_CONFIG = {
 
 
 with DAG(
-    dag_id='example_eks_using_defaults_dag',
-    default_args={'cluster_name': CLUSTER_NAME},
+    dag_id='example_eks_with_nodegroup_in_one_step',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    catchup=False,
-    max_active_runs=1,
     tags=['example'],
+    catchup=False,
 ) as dag:
 
     # [START howto_operator_eks_create_cluster_with_nodegroup]
     # Create an Amazon EKS cluster control plane and an EKS nodegroup compute platform in one step.
     create_cluster_and_nodegroup = EksCreateClusterOperator(
         task_id='create_eks_cluster_and_nodegroup',
+        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         cluster_role_arn=ROLE_ARN,
         nodegroup_role_arn=ROLE_ARN,
@@ -68,12 +67,14 @@ with DAG(
 
     await_create_nodegroup = EksNodegroupStateSensor(
         task_id='wait_for_create_nodegroup',
+        cluster_name=CLUSTER_NAME,
         nodegroup_name=NODEGROUP_NAME,
         target_state=NodegroupStates.ACTIVE,
     )
 
     start_pod = EksPodOperator(
         task_id="run_pod",
+        cluster_name=CLUSTER_NAME,
         pod_name="run_pod",
         image="amazon/aws-cli:latest",
         cmds=["sh", "-c", "echo Test Airflow; date"],
@@ -86,11 +87,16 @@ with DAG(
     # [START howto_operator_eks_force_delete_cluster]
     # An Amazon EKS cluster can not be deleted with attached resources such as nodegroups or Fargate profiles.
     # Setting the `force` to `True` will delete any attached resources before deleting the cluster.
-    delete_all = EksDeleteClusterOperator(task_id='delete_nodegroup_and_cluster', force_delete_compute=True)
+    delete_all = EksDeleteClusterOperator(
+        task_id='delete_nodegroup_and_cluster',
+        cluster_name=CLUSTER_NAME,
+        force_delete_compute=True,
+    )
     # [END howto_operator_eks_force_delete_cluster]
 
     await_delete_cluster = EksClusterStateSensor(
         task_id='wait_for_delete_cluster',
+        cluster_name=CLUSTER_NAME,
         target_state=ClusterStates.NONEXISTENT,
     )
 

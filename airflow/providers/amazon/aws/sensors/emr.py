@@ -122,6 +122,10 @@ class EmrContainerSensor(BaseSensorOperator):
     Asks for the state of the job run until it reaches a failure state or success state.
     If the job run fails, the task will fail.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrContainerSensor`
+
     :param job_id: job_id to check the state of
     :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None
@@ -189,6 +193,10 @@ class EmrJobFlowSensor(EmrBaseSensor):
     When target_states is set to ['RUNNING', 'WAITING'] sensor waits
     until job flow to be ready (after 'STARTING' and 'BOOTSTRAPPING' states)
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrJobFlowSensor`
+
     :param job_flow_id: job_flow_id to check the state of
     :param target_states: the target states, sensor waits until
         job flow reaches any of these states
@@ -250,8 +258,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
         cluster_status = response['Cluster']['Status']
         state_change_reason = cluster_status.get('StateChangeReason')
         if state_change_reason:
-            return 'for code: {} with message {}'.format(
-                state_change_reason.get('Code', 'No code'), state_change_reason.get('Message', 'Unknown')
+            return (
+                f"for code: {state_change_reason.get('Code', 'No code')} "
+                f"with message {state_change_reason.get('Message', 'Unknown')}"
             )
         return None
 
@@ -262,6 +271,10 @@ class EmrStepSensor(EmrBaseSensor):
     If it fails the sensor errors, failing the task.
 
     With the default target states, sensor waits step to be completed.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrStepSensor`
 
     :param job_flow_id: job_flow_id which contains the step check the state of
     :param step_id: step to check the state of
@@ -326,7 +339,8 @@ class EmrStepSensor(EmrBaseSensor):
         """
         fail_details = response['Step']['Status'].get('FailureDetails')
         if fail_details:
-            return 'for reason {} with message {} and log file {}'.format(
-                fail_details.get('Reason'), fail_details.get('Message'), fail_details.get('LogFile')
+            return (
+                f"for reason {fail_details.get('Reason')} "
+                f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
             )
         return None

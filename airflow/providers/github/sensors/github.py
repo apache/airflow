@@ -33,13 +33,9 @@ class GithubSensor(BaseSensorOperator):
     Base GithubSensor which can monitor for any change.
 
     :param github_conn_id: reference to a pre-defined Github Connection
-    :type github_conn_id: str
     :param method_name: method name from PyGithub to be executed
-    :type method_name: str
     :param method_params: parameters for the method method_name
-    :type method_params: dict
     :param result_processor: function that return boolean and act as a sensor response
-    :type result_processor: function
     """
 
     def __init__(
@@ -75,9 +71,7 @@ class BaseGithubRepositorySensor(GithubSensor):
     Base GitHub sensor at Repository level.
 
     :param github_conn_id: reference to a pre-defined GitHub Connection
-    :type github_conn_id: str
     :param repository_name: full qualified name of the repository to be monitored, ex. "apache/airflow"
-    :type repository_name: str
     """
 
     def __init__(
@@ -109,11 +103,8 @@ class GithubTagSensor(BaseGithubRepositorySensor):
     Monitors a github tag for its creation.
 
     :param github_conn_id: reference to a pre-defined Github Connection
-    :type github_conn_id: str
     :param tag_name: name of the tag to be monitored
-    :type tag_name: str
     :param repository_name: fully qualified name of the repository to be monitored, ex. "apache/airflow"
-    :type repository_name: str
     """
 
     template_fields = ("tag_name",)
@@ -147,7 +138,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
                 all_tags = [x.name for x in repo.get_tags()]
                 result = self.tag_name in all_tags
 
-        except GithubException as github_error:
+        except GithubException as github_error:  # type: ignore[misc]
             raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
         except Exception as e:
             raise AirflowException(f"Github operator error: {str(e)}")

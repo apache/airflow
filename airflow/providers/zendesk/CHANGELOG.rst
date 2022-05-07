@@ -19,6 +19,54 @@
 Changelog
 ---------
 
+3.0.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+3.0.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.0.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``Update Zendesk example DAG to use TaskFlow API (#21411)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.0.0
+.....
+
+Misc
+~~~
+``ZendeskHook`` moved from using ``zdesk`` to ``zenpy`` package.
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+Changed the return type of ``ZendeskHook.get_conn`` to return a ``zenpy.Zenpy`` object instead of a ``zdesk.Zendesk`` object.
+Deleted the ``ZendeskHook.call``, alternatively you can use the ``ZendeskHook.get`` method to make custom get calls to Zendesk API.
+``Zendesk`` and ``ZendeskError`` classes are removed from ``airflow.hooks.zendesk_hook`` imports.
+
+* ``Switch from zdesk to zenpy in ZendeskHook (#21349)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+
 2.0.1
 .....
 

@@ -127,8 +127,11 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
 
-    def __init__(self, cron: str, timezone: Timezone) -> None:
+    def __init__(self, cron: str, timezone: Union[str, Timezone]) -> None:
         self._expression = cron_presets.get(cron, cron)
+
+        if isinstance(timezone, str):
+            timezone = Timezone(timezone)
         self._timezone = timezone
 
         descriptor = ExpressionDescriptor(
@@ -232,7 +235,7 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
             raise AssertionError("next schedule shouldn't be earlier")
         if earliest is None:
             return new_start
-        return max(new_start, earliest)
+        return max(new_start, self._align(earliest))
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
         # Get the last complete period before run_after, e.g. if a DAG run is

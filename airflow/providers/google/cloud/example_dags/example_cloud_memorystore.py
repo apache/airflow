@@ -21,8 +21,8 @@ Example Airflow DAG for Google Cloud Memorystore service.
 import os
 from datetime import datetime
 
-from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -305,7 +305,7 @@ with models.DAG(
         location="europe-north1",
         instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
         project_id=GCP_PROJECT_ID,
-        update_mask=cloud_memcache.field_mask.FieldMask(paths=["node_count"]),
+        update_mask=FieldMask(paths=["node_count"]),
         instance={"node_count": 2},
     )
     # [END howto_operator_update_instance_memcached]

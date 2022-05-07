@@ -44,11 +44,11 @@ pytest "${PYTEST_ARGS[@]}"
 RES=$?
 
 set +x
-if [[ "${RES}" == "0" && ${GITHUB_ACTIONS} == "true" ]]; then
+if [[ "${RES}" == "0" && ( ${GITHUB_ACTIONS=} == "true" || ${GITHUB_ACTIONS} == "True" ) ]]; then
     echo "All tests successful"
 fi
 
-if [[ ${GITHUB_ACTIONS} == "true" ]]; then
+if [[ ${GITHUB_ACTIONS=} == "true" || ${GITHUB_ACTIONS} == "True" ]]; then
     dump_airflow_logs
 fi
 

@@ -79,10 +79,10 @@ class HiveOperatorTest(TestHiveEnvironment):
         mock_get_hook.return_value = mock_hook
         op = HiveOperator(task_id='test_mapred_job_name', hql=self.hql, dag=self.dag)
 
-        fake_dagrun_id = "test_mapred_job_name"
+        fake_run_id = "test_mapred_job_name"
         fake_execution_date = timezone.datetime(2018, 6, 19)
         fake_ti = TaskInstance(task=op)
-        fake_ti.dag_run = DagRun(run_id=fake_dagrun_id, execution_date=fake_execution_date)
+        fake_ti.dag_run = DagRun(run_id=fake_run_id, execution_date=fake_execution_date)
         fake_ti.hostname = 'fake_hostname'
         fake_context = {'ti': fake_ti}
 

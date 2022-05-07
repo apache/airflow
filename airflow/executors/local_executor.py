@@ -125,12 +125,12 @@ class LocalWorkerBase(Process, LoggingMixin):
             ret = 0
             return State.SUCCESS
         except Exception as e:
-            self.log.error("Failed to execute task %s.", str(e))
+            self.log.exception("Failed to execute task %s.", e)
+            return State.FAILED
         finally:
             Sentry.flush()
             logging.shutdown()
             os._exit(ret)
-            raise RuntimeError('unreachable -- keep mypy happy')
 
     @abstractmethod
     def do_work(self):
@@ -203,6 +203,8 @@ class LocalExecutor(BaseExecutor):
 
     def __init__(self, parallelism: int = PARALLELISM):
         super().__init__(parallelism=parallelism)
+        if self.parallelism < 0:
+            raise AirflowException("parallelism must be bigger than or equal to 0")
         self.manager: Optional[SyncManager] = None
         self.result_queue: Optional['Queue[TaskInstanceStateType]'] = None
         self.workers: List[QueuedLocalWorker] = []

@@ -23,7 +23,6 @@ do
    if [[ ${file} =~ .*airflow_providers_(.*)-(.*)-py3.* ]]; then
         provider="providers-${BASH_REMATCH[1]}"
         tag="${provider//_/-}/${BASH_REMATCH[2]}"
-        git tag "${tag}"
-        git push apache "${tag}"
+        (git tag "${tag}" && git push apache "${tag}") || true
    fi
 done

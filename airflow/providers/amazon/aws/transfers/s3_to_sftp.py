@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import warnings
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Optional, Sequence
 from urllib.parse import urlparse
 
 from airflow.models import BaseOperator
@@ -26,6 +26,10 @@ from airflow.providers.ssh.hooks.ssh import SSHHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+_DEPRECATION_MSG = (
+    "The s3_conn_id parameter has been deprecated. You should pass instead the aws_conn_id parameter."
+)
 
 
 class S3ToSFTPOperator(BaseOperator):
@@ -40,8 +44,7 @@ class S3ToSFTPOperator(BaseOperator):
         establishing a connection to the SFTP server.
     :param sftp_path: The sftp remote path. This is the specified file path for
         uploading file to the SFTP server.
-    :param s3_conn_id: The s3 connection id. The name or identifier for
-        establishing a connection to S3
+    :param aws_conn_id: aws connection to use
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket from
         where the file is downloaded.
     :param s3_key: The targeted s3 key. This is the specified file path for
@@ -57,15 +60,20 @@ class S3ToSFTPOperator(BaseOperator):
         s3_key: str,
         sftp_path: str,
         sftp_conn_id: str = 'ssh_default',
-        s3_conn_id: str = 'aws_default',
+        s3_conn_id: Optional[str] = None,
+        aws_conn_id: str = 'aws_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if s3_conn_id:
+            warnings.warn(_DEPRECATION_MSG, DeprecationWarning, stacklevel=3)
+            aws_conn_id = s3_conn_id
+
         self.sftp_conn_id = sftp_conn_id
         self.sftp_path = sftp_path
         self.s3_bucket = s3_bucket
         self.s3_key = s3_key
-        self.s3_conn_id = s3_conn_id
+        self.aws_conn_id = aws_conn_id
 
     @staticmethod
     def get_s3_key(s3_key: str) -> str:
@@ -76,7 +84,7 @@ class S3ToSFTPOperator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         self.s3_key = self.get_s3_key(self.s3_key)
         ssh_hook = SSHHook(ssh_conn_id=self.sftp_conn_id)
-        s3_hook = S3Hook(self.s3_conn_id)
+        s3_hook = S3Hook(self.aws_conn_id)
 
         s3_client = s3_hook.get_conn()
         sftp_client = ssh_hook.get_conn().open_sftp()

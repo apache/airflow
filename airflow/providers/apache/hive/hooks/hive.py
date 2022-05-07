@@ -556,7 +556,9 @@ class HiveMetastoreHook(BaseHook):
         True
         """
         with self.metastore as client:
-            partitions = client.get_partitions_by_filter(schema, table, partition, 1)
+            partitions = client.get_partitions_by_filter(
+                schema, table, partition, HiveMetastoreHook.MAX_PART_COUNT
+            )
 
         return bool(partitions)
 

@@ -49,12 +49,13 @@
 !.flake8
 !.dockerignore
 !pytest.ini
-!CHANGELOG.txt
+!RELEASE_NOTES.rst
 !LICENSE
 !MANIFEST.in
 !NOTICE
 !.github
 !empty
+!Dockerfile
 
 # This folder is for you if you want to add any packages to the docker context when you build your own
 # docker image. most of other files and any new folder you add will be excluded by default

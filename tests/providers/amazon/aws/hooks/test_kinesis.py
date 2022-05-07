@@ -58,7 +58,7 @@ class TestFirehoseHook:
         )
 
         stream_arn = response['DeliveryStreamARN']
-        assert stream_arn == "arn:aws:firehose:us-east-1:123456789012:/delivery_stream/test_airflow"
+        assert stream_arn == "arn:aws:firehose:us-east-1:123456789012:deliverystream/test_airflow"
 
         records = [{"Data": str(uuid.uuid4())} for _ in range(100)]
 

@@ -23,6 +23,7 @@
 
 - [Overview](#overview)
 - [Deciding when to release](#deciding-when-to-release)
+- [Verifying providers](#verifying-providers)
 - [Generating provider documentation](#generating-provider-documentation)
 - [Content of the release notes](#content-of-the-release-notes)
 - [Preparing packages](#preparing-packages)
@@ -37,7 +38,7 @@ The provider packages are packages (per `provider`) that are not part of the cor
 
 Once you release the packages, you can simply install them with:
 
-```
+```bash
 pip install apache-airflow-providers-<PROVIDER>[<EXTRAS>]
 ```
 
@@ -57,12 +58,27 @@ marking those as patches/features/backwards incompatible changes.
 Details to be hashed out in [the related issue](https://github.com/apache/airflow/issues/11425)
 
 
+# Verifying providers
+
+You can verify if all providers are properly named and importable.
+
+```bash
+breeze verify-provider-packages
+```
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+```bash
+breeze verify-provider-packages --use-airflow-version 2.1.0
+```
+
+
 # Generating provider documentation
 
 When you want to prepare release notes for a package, you need to run:
 
-```
-./breeze prepare-provider-documentation <PACKAGE_ID> ...
+```bash
+breeze prepare-provider-documentation <PACKAGE_ID> ...
 ```
 
 The version for each package is going to be updated separately for each package when we agree to the
@@ -79,8 +95,8 @@ If you do not change version number, you can iterate with merges and release can
 release date without providing
 the date (to update the existing release notes)
 
-```
-./breeze prepare-provider-documentation google
+```bash
+breeze prepare-provider-documentation google
 ```
 
 
@@ -119,47 +135,34 @@ the folders (for example Apache Hive's PACKAGE_ID is `apache.hive` ). You can se
 providers by running:
 
 ```bash
-./breeze prepare-provider-packages -- --help
+breeze prepare-provider-packages --help
 ```
 
 The examples below show how you can build selected packages, but you can also build all packages by
 omitting the package ids altogether.
 
-* To build the release candidate packages for SVN Apache upload run the following command:
-
-```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-svn=rc1 [PACKAGE_ID] ...
-```
-
-for example:
-
-```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-svn=rc1 http ...
-```
-
 * To build the release candidate packages for PyPI upload run the following command:
 
 ```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
+breeze prepare-provider-packages --package-format both --version-suffix-for-pypi=rc1 [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages package-format both --version-suffix-for-pypi=rc1 http ...
+breeze prepare-provider-packages --package-format both --version-suffix-for-pypi=rc1 http ...
 ```
-
 
 * To build the final release packages run the following command:
 
 ```bash
-./breeze prepare-provider-packages package-format both [PACKAGE_ID] ...
+breeze prepare-provider-packages --package-format both [PACKAGE_ID] ...
 ```
 
 for example:
 
 ```bash
-./breeze prepare-provider-packages package-format both http ...
+breeze prepare-provider-packages --package-format both http ...
 ```
 
 * For each package, this creates a wheel package and source distribution package in your `dist` folder with

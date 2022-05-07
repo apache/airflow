@@ -34,6 +34,21 @@ Prerequisite Tasks
 Manage Amazon EKS Clusters
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
+.. _howto/sensor:EksClusterStateSensor:
+
+Amazon EKS Cluster State Sensor
+"""""""""""""""""""""""""""""""
+
+To check the state of an Amazon EKS Cluster until it reaches the target state or another terminal
+state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksClusterStateSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_eks_cluster]
+    :end-before: [END howto_sensor_eks_cluster]
+
+
 .. _howto/operator:EksCreateClusterOperator:
 
 Create an Amazon EKS Cluster
@@ -48,6 +63,7 @@ Note: An AWS IAM role with the following permissions is required:
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster]
     :end-before: [END howto_operator_eks_create_cluster]
 
@@ -61,6 +77,7 @@ To delete an existing Amazon EKS Cluster you can use
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_delete_cluster]
     :end-before: [END howto_operator_eks_delete_cluster]
 
@@ -70,12 +87,27 @@ Note: If the cluster has any attached resources, such as an Amazon EKS Nodegroup
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroup_in_one_step.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_force_delete_cluster]
     :end-before: [END howto_operator_eks_force_delete_cluster]
 
 
 Manage Amazon EKS Managed Nodegroups
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/sensor:EksNodegroupStateSensor:
+
+Amazon EKS Managed Nodegroup State Sensor
+"""""""""""""""""""""""""""""""""""""""""
+
+To check the state of an Amazon EKS managed node group until it reaches the target state or another terminal
+state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksNodegroupStateSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_eks_nodegroup]
+    :end-before: [END howto_sensor_eks_nodegroup]
 
 .. _howto/operator:EksCreateNodegroupOperator:
 
@@ -92,6 +124,7 @@ Note:  An AWS IAM role with the following permissions is required:
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_create_nodegroup]
     :end-before: [END howto_operator_eks_create_nodegroup]
 
@@ -105,6 +138,7 @@ To delete an existing Amazon EKS Managed Nodegroup you can use
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_delete_nodegroup]
     :end-before: [END howto_operator_eks_delete_nodegroup]
 
@@ -124,6 +158,7 @@ Note: An AWS IAM role with the following permissions is required:
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroup_in_one_step.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster_with_nodegroup]
     :end-before: [END howto_operator_eks_create_cluster_with_nodegroup]
 
@@ -142,11 +177,27 @@ Note: An AWS IAM role with the following permissions is required:
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_in_one_step.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_create_cluster_with_fargate_profile]
     :end-before: [END howto_operator_eks_create_cluster_with_fargate_profile]
 
 Manage AWS Fargate Profiles
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+.. _howto/sensor:EksFargateProfileStateSensor:
+
+AWS Fargate Profile State Sensor
+""""""""""""""""""""""""""""""""
+
+To check the state of an AWS Fargate profile until it reaches the target state or another terminal
+state you can use :class:`~airflow.providers.amazon.aws.sensors.eks.EksFargateProfileSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_eks_fargate]
+    :end-before: [END howto_sensor_eks_fargate]
+
 
 .. _howto/operator:EksCreateFargateProfileOperator:
 
@@ -163,6 +214,7 @@ Note:  An AWS IAM role with the following permissions is required:
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_create_fargate_profile]
     :end-before: [END howto_operator_eks_create_fargate_profile]
 
@@ -176,6 +228,7 @@ To delete an existing AWS Fargate Profile you can use
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_fargate_profile.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_delete_fargate_profile]
     :end-before: [END howto_operator_eks_delete_fargate_profile]
 
@@ -191,6 +244,7 @@ Note: An Amazon EKS Cluster with underlying compute infrastructure is required.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_eks_with_nodegroups.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_eks_pod_operator]
     :end-before: [END howto_operator_eks_pod_operator]
 

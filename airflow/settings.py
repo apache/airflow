@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import TYPE_CHECKING, Callable, List, Optional
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 import pendulum
 import sqlalchemy
@@ -120,7 +120,20 @@ def custom_show_warning(message, category, filename, lineno, file=None, line=Non
     write_console.print(msg, soft_wrap=True)
 
 
-warnings.showwarning = custom_show_warning
+def replace_showwarning(replacement):
+    """Replace ``warnings.showwarning``, returning the original.
+
+    This is useful since we want to "reset" the ``showwarning`` hook on exit to
+    avoid lazy-loading issues. If a warning is emitted after Python cleaned up
+    the import system, we would no longer be able to import ``rich``.
+    """
+    original = warnings.showwarning
+    warnings.showwarning = replacement
+    return original
+
+
+original_show_warning = replace_showwarning(custom_show_warning)
+atexit.register(functools.partial(replace_showwarning, original_show_warning))
 
 
 def task_policy(task) -> None:
@@ -209,13 +222,25 @@ def get_airflow_context_vars(context):
     return {}
 
 
+def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+    """
+    This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
+
+    It is useful when there are a few DAG files requiring longer parsing times, while others do not.
+    You can control them separately instead of having one value for all DAG files.
+
+    If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+    """
+    return conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
+
+
 def configure_vars():
     """Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
-    SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
+    SQL_ALCHEMY_CONN = conf.get('database', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
@@ -237,8 +262,8 @@ def configure_orm(disable_connection_pool=False):
     global Session
     engine_args = prepare_engine_args(disable_connection_pool)
 
-    if conf.has_option('core', 'sql_alchemy_connect_args'):
-        connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
+    if conf.has_option('database', 'sql_alchemy_connect_args'):
+        connect_args = conf.getimport('database', 'sql_alchemy_connect_args')
     else:
         connect_args = {}
 
@@ -296,16 +321,18 @@ def prepare_engine_args(disable_connection_pool=False):
             default_args = default.copy()
             break
 
-    engine_args: dict = conf.getjson('core', 'sql_alchemy_engine_args', fallback=default_args)  # type: ignore
+    engine_args: dict = conf.getjson(
+        'database', 'sql_alchemy_engine_args', fallback=default_args
+    )  # type: ignore
 
-    if disable_connection_pool or not conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED'):
+    if disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
-        pool_size = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
+        pool_size = conf.getint('database', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
 
         # The maximum overflow size of the pool.
         # When the number of checked-out connections reaches the size set in pool_size,
@@ -317,20 +344,20 @@ def prepare_engine_args(disable_connection_pool=False):
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
-        max_overflow = conf.getint('core', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
+        max_overflow = conf.getint('database', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
 
         # The DB server already has a value for wait_timeout (number of seconds after
         # which an idle sleeping connection should be killed). Since other DBs may
         # co-exist on the same server, SQLAlchemy should set its
         # pool_recycle to an equal or smaller value.
-        pool_recycle = conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
+        pool_recycle = conf.getint('database', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
 
         # Check connection at the start of each connection pool checkout.
         # Typically, this is a simple statement like “SELECT 1”, but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
-        pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
+        pool_pre_ping = conf.getboolean('database', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
         log.debug(
             "settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
@@ -361,7 +388,7 @@ def prepare_engine_args(disable_connection_pool=False):
 
     # Allow the user to specify an encoding for their DB otherwise default
     # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
+    engine_args['encoding'] = conf.get('database', 'SQL_ENGINE_ENCODING', fallback='utf-8')
 
     return engine_args
 
@@ -378,6 +405,12 @@ def dispose_orm():
     if engine:
         engine.dispose()
         engine = None
+
+
+def reconfigure_orm(disable_connection_pool=False):
+    """Properly close database connections and re-configure ORM"""
+    dispose_orm()
+    configure_orm(disable_connection_pool=disable_connection_pool)
 
 
 def configure_adapters():
@@ -546,6 +579,9 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0', 'LIGHTORANGE': '#FF9933'}
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_update_interval', fallback=30)
 
+# If set to True, serialized DAGs is compressed before writing to DB,
+COMPRESS_SERIALIZED_DAGS = conf.getboolean('core', 'compress_serialized_dags', fallback=False)
+
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
@@ -578,6 +614,7 @@ LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallbac
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
+    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
 
 HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')

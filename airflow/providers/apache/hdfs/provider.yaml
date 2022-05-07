@@ -19,10 +19,13 @@
 package-name: apache-airflow-providers-apache-hdfs
 name: Apache HDFS
 description: |
-    `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
-    and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
+  `Hadoop Distributed File System (HDFS) <https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html>`__
+  and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 versions:
+  - 2.2.3
+  - 2.2.2
+  - 2.2.1
   - 2.2.0
   - 2.1.1
   - 2.1.0
@@ -37,11 +40,13 @@ integrations:
   - integration-name: Hadoop Distributed File System (HDFS)
     external-doc-url: https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html
     how-to-guide:
-      - /docs/apache-airflow-providers-apache-hdfs/operators.rst
+      - /docs/apache-airflow-providers-apache-hdfs/operators/hdfs.rst
     logo: /integration-logos/apache/hadoop.png
     tags: [apache]
   - integration-name: WebHDFS
     external-doc-url: https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-hdfs/operators/webhdfs.rst
     logo: /integration-logos/apache/hadoop.png
     tags: [apache]
 
@@ -61,7 +66,8 @@ hooks:
     python-modules:
       - airflow.providers.apache.hdfs.hooks.webhdfs
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+hook-class-names:
+  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.apache.hdfs.hooks.hdfs.HDFSHook
 
 connection-types:

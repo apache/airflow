@@ -20,7 +20,8 @@ This is an example dag for using a Kubernetes Executor Configuration.
 """
 import logging
 import os
-from datetime import datetime
+
+import pendulum
 
 from airflow import DAG
 from airflow.configuration import conf
@@ -41,11 +42,12 @@ except ImportError:
     )
     k8s = None
 
+
 if k8s:
     with DAG(
         dag_id='example_kubernetes_executor',
         schedule_interval=None,
-        start_date=datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         catchup=False,
         tags=['example3'],
     ) as dag:
@@ -57,8 +59,6 @@ if k8s:
         @task(executor_config=start_task_executor_config)
         def start_task():
             print_stuff()
-
-        start_task = start_task()
 
         # [START task_with_volume]
         executor_config_volume_mount = {
@@ -229,4 +229,9 @@ if k8s:
 
         four_task = task_with_resource_limits()
 
-        start_task >> [volume_task, other_ns_task, sidecar_task] >> third_task >> [base_image_task, four_task]
+        (
+            start_task()
+            >> [volume_task, other_ns_task, sidecar_task]
+            >> third_task
+            >> [base_image_task, four_task]
+        )

@@ -23,9 +23,10 @@ import tarfile
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
-from docker import APIClient, tls
-from docker.errors import APIError
-from docker.types import Mount
+from docker import APIClient, tls  # type: ignore[attr-defined]
+from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
+from docker.errors import APIError  # type: ignore[attr-defined]
+from docker.types import Mount  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -33,6 +34,15 @@ from airflow.providers.docker.hooks.docker import DockerHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+def stringify(line: Union[str, bytes]):
+    """Make sure string is returned even if bytes are passed. Docker stream can return bytes."""
+    decode_method = getattr(line, 'decode', None)
+    if decode_method:
+        return decode_method(encoding='utf-8', errors='surrogateescape')
+    else:
+        return line
 
 
 class DockerOperator(BaseOperator):
@@ -81,6 +91,13 @@ class DockerOperator(BaseOperator):
     :param host_tmp_dir: Specify the location of the temporary directory on the host which will
         be mapped to tmp_dir. If not provided defaults to using the standard system temp directory.
     :param network_mode: Network mode for the container.
+        It can be one of the following:
+        bridge - Create new network stack for the container with default docker bridge network
+        None - No networking for this container
+        container:<name|id> - Use the network stack of another container specified via <name|id>
+        host - Use the host network stack. Incompatible with `port_bindings`
+        '<network-name>|<network-id>' - Connects the container to user created network
+        (using `docker network create` command)
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
     :param tls_client_cert: Path to the PEM-encoded certificate
@@ -165,6 +182,7 @@ class DockerOperator(BaseOperator):
         extra_hosts: Optional[Dict[str, str]] = None,
         retrieve_output: bool = False,
         retrieve_output_path: Optional[str] = None,
+        timeout: int = DEFAULT_TIMEOUT_SECONDS,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -208,6 +226,7 @@ class DockerOperator(BaseOperator):
         self.container = None
         self.retrieve_output = retrieve_output
         self.retrieve_output_path = retrieve_output_path
+        self.timeout = timeout
 
     def get_hook(self) -> DockerHook:
         """
@@ -220,9 +239,10 @@ class DockerOperator(BaseOperator):
             base_url=self.docker_url,
             version=self.api_version,
             tls=self.__get_tls_config(),
+            timeout=self.timeout,
         )
 
-    def _run_image(self) -> Optional[str]:
+    def _run_image(self) -> Optional[Union[List[str], str]]:
         """Run a Docker container with the provided image"""
         self.log.info('Starting docker container from image %s', self.image)
         if not self.cli:
@@ -245,7 +265,9 @@ class DockerOperator(BaseOperator):
         else:
             return self._run_image_with_mounts(self.mounts, add_tmp_variable=False)
 
-    def _run_image_with_mounts(self, target_mounts, add_tmp_variable: bool) -> Optional[str]:
+    def _run_image_with_mounts(
+        self, target_mounts, add_tmp_variable: bool
+    ) -> Optional[Union[List[str], str]]:
         if add_tmp_variable:
             self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
         else:
@@ -275,32 +297,40 @@ class DockerOperator(BaseOperator):
             working_dir=self.working_dir,
             tty=self.tty,
         )
-        lines = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
+        logstream = self.cli.attach(container=self.container['Id'], stdout=True, stderr=True, stream=True)
         try:
             self.cli.start(self.container['Id'])
 
-            line = ''
-            res_lines = []
-            return_value = None
-            for line in lines:
-                if hasattr(line, 'decode'):
-                    # Note that lines returned can also be byte sequences so we have to handle decode here
-                    line = line.decode('utf-8')
-                line = line.strip()
-                res_lines.append(line)
-                self.log.info(line)
+            log_lines = []
+            for log_chunk in logstream:
+                log_chunk = stringify(log_chunk).strip()
+                log_lines.append(log_chunk)
+                self.log.info("%s", log_chunk)
+
             result = self.cli.wait(self.container['Id'])
             if result['StatusCode'] != 0:
-                res_lines = "\n".join(res_lines)
-                raise AirflowException('docker container failed: ' + repr(result) + f"lines {res_lines}")
-            if self.retrieve_output and not return_value:
-                return_value = self._attempt_to_retrieve_result()
-            ret = None
+                joined_log_lines = "\n".join(log_lines)
+                raise AirflowException(f'Docker container failed: {repr(result)} lines {joined_log_lines}')
+
             if self.retrieve_output:
-                ret = return_value
+                return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                ret = self._get_return_value_from_logs(res_lines, line)
-            return ret
+                log_parameters = {
+                    'container': self.container['Id'],
+                    'stdout': True,
+                    'stderr': True,
+                    'stream': True,
+                }
+                try:
+                    if self.xcom_all:
+                        return [stringify(line).strip() for line in self.cli.logs(**log_parameters)]
+                    else:
+                        lines = [stringify(line).strip() for line in self.cli.logs(**log_parameters, tail=1)]
+                        return lines[-1] if lines else None
+                except StopIteration:
+                    # handle the case when there is not a single line to iterate on
+                    return None
+            return None
         finally:
             if self.auto_remove:
                 self.cli.remove_container(self.container['Id'])
@@ -326,13 +356,9 @@ class DockerOperator(BaseOperator):
             return lib.loads(file.read())
 
         try:
-            return_value = copy_from_docker(self.container['Id'], self.retrieve_output_path)
-            return return_value
+            return copy_from_docker(self.container['Id'], self.retrieve_output_path)
         except APIError:
             return None
-
-    def _get_return_value_from_logs(self, res_lines, line):
-        return res_lines if self.xcom_all else line
 
     def execute(self, context: 'Context') -> Optional[str]:
         self.cli = self._get_cli()
@@ -365,7 +391,9 @@ class DockerOperator(BaseOperator):
             return self.get_hook().get_conn()
         else:
             tls_config = self.__get_tls_config()
-            return APIClient(base_url=self.docker_url, version=self.api_version, tls=tls_config)
+            return APIClient(
+                base_url=self.docker_url, version=self.api_version, tls=tls_config, timeout=self.timeout
+            )
 
     @staticmethod
     def format_command(command: Union[str, List[str]]) -> Union[List[str], str]:
@@ -384,6 +412,9 @@ class DockerOperator(BaseOperator):
     def on_kill(self) -> None:
         if self.cli is not None:
             self.log.info('Stopping docker container')
+            if self.container is None:
+                self.log.info('Not attempting to kill container as it was not created')
+                return
             self.cli.stop(self.container['Id'])
 
     def __get_tls_config(self) -> Optional[tls.TLSConfig]:

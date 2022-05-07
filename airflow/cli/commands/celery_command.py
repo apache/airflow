@@ -23,7 +23,7 @@ from typing import Optional
 import daemon
 import psutil
 import sqlalchemy.exc
-from celery import maybe_patch_concurrency
+from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 
@@ -100,6 +100,8 @@ def _run_worker(options, skip_serve_logs):
 @cli_utils.action_cli
 def worker(args):
     """Starts Airflow Celery worker"""
+    # Disable connection pool so that celery worker does not hold an unnecessary db connection
+    settings.reconfigure_orm(disable_connection_pool=True)
     if not settings.validate_session():
         raise SystemExit("Worker exiting, database connection precheck failed.")
 
@@ -134,6 +136,10 @@ def worker(args):
             # it, we raced to create the tables and lost.
             pass
 
+    # backwards-compatible: https://github.com/apache/airflow/pull/21506#pullrequestreview-879893763
+    celery_log_level = conf.get('logging', 'CELERY_LOGGING_LEVEL')
+    if not celery_log_level:
+        celery_log_level = conf.get('logging', 'LOGGING_LEVEL')
     # Setup Celery worker
     options = [
         'worker',
@@ -146,7 +152,7 @@ def worker(args):
         '--hostname',
         args.celery_hostname,
         '--loglevel',
-        conf.get('logging', 'LOGGING_LEVEL'),
+        celery_log_level,
         '--pidfile',
         pid_file_path,
     ]

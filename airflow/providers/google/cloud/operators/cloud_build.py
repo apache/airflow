@@ -20,12 +20,12 @@
 
 import json
 import re
-import warnings
 from copy import deepcopy
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple, Union
 from urllib.parse import unquote, urlparse
 
 import yaml
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.devtools.cloudbuild_v1.types import Build, BuildTrigger, RepoSource
 
@@ -76,7 +76,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         *,
         id_: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -112,11 +112,8 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:CloudBuildCreateBuildOperator`
 
-    :param build: Optional, the build resource to create. If a dict is provided, it must be of
+    :param build: The build resource to create. If a dict is provided, it must be of
         the same form as the protobuf message `google.cloud.devtools.cloudbuild_v1.types.Build`.
-        Only either build or body should be passed.
-    :param body: (Deprecated) The build resource to create.
-        This parameter has been deprecated. You should pass the build parameter instead.
     :param project_id: Optional, Google Cloud Project project_id where the function belongs.
         If set to None or missing, the default project_id from the GCP connection is used.
     :param wait: Optional, wait for operation to finish.
@@ -138,16 +135,15 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     :rtype: dict
     """
 
-    template_fields: Sequence[str] = ("project_id", "build", "body", "gcp_conn_id", "impersonation_chain")
+    template_fields: Sequence[str] = ("project_id", "build", "gcp_conn_id", "impersonation_chain")
 
     def __init__(
         self,
         *,
-        build: Optional[Union[Dict, Build]] = None,
-        body: Optional[Dict] = None,
+        build: Union[Dict, Build],
         project_id: Optional[str] = None,
         wait: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -162,25 +158,9 @@ class CloudBuildCreateBuildOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
-        self.body = body
-
-        if body and build:
-            raise AirflowException("You should not pass both build or body parameters. Both are set.")
-        if body is not None:
-            warnings.warn(
-                "The body parameter has been deprecated. You should pass body using the build parameter.",
-                DeprecationWarning,
-                stacklevel=4,
-            )
-            actual_build = body
-        else:
-            if build is None:
-                raise AirflowException("You should pass one of the build or body parameters. Both are None")
-            actual_build = build
-
-        self.build = actual_build
+        self.build = build
         # Not template fields to keep original value
-        self.build_raw = actual_build
+        self.build_raw = build
 
     def prepare_template(self) -> None:
         # if no file is specified, skip
@@ -188,7 +168,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
             return
         with open(self.build_raw) as file:
             if any(self.build_raw.endswith(ext) for ext in ['.yaml', '.yml']):
-                self.build = yaml.load(file.read(), Loader=yaml.FullLoader)
+                self.build = yaml.safe_load(file.read())
             if self.build_raw.endswith('.json'):
                 self.build = json.loads(file.read())
 
@@ -245,7 +225,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         *,
         trigger: Union[dict, BuildTrigger],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -307,7 +287,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         *,
         trigger_id: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -370,7 +350,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
         *,
         id_: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -434,7 +414,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         *,
         trigger_id: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -502,7 +482,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -574,7 +554,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         filter_: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -645,7 +625,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         id_: str,
         project_id: Optional[str] = None,
         wait: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -716,7 +696,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         source: Union[dict, RepoSource],
         project_id: Optional[str] = None,
         wait: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -787,7 +767,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         trigger_id: str,
         trigger: Union[dict, BuildTrigger],
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

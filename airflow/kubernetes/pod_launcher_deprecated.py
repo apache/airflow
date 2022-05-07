@@ -149,7 +149,8 @@ class PodLauncher(LoggingMixin):
                 logs = self.read_pod_logs(pod, timestamps=True, since_seconds=read_logs_since_sec)
                 for line in logs:
                     timestamp, message = self.parse_log_line(line.decode('utf-8'))
-                    last_log_time = pendulum.parse(timestamp)
+                    if timestamp:
+                        last_log_time = pendulum.parse(timestamp)
                     self.log.info(message)
                 time.sleep(1)
 
@@ -174,7 +175,7 @@ class PodLauncher(LoggingMixin):
             time.sleep(2)
         return self._task_status(self.read_pod(pod)), result
 
-    def parse_log_line(self, line: str) -> Tuple[str, str]:
+    def parse_log_line(self, line: str) -> Tuple[Optional[str], str]:
         """
         Parse K8s log line and returns the final state
 
@@ -184,7 +185,11 @@ class PodLauncher(LoggingMixin):
         """
         split_at = line.find(' ')
         if split_at == -1:
-            raise Exception(f'Log not in "{{timestamp}} {{log}}" format. Got: {line}')
+            self.log.error(
+                f"Error parsing timestamp (no timestamp in message: '{line}'). "
+                "Will continue execution but won't update timestamp"
+            )
+            return None, line
         timestamp = line[:split_at]
         message = line[split_at + 1 :].rstrip()
         return timestamp, message

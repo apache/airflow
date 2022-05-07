@@ -18,46 +18,18 @@
 Configuring Airflow
 -------------------
 
-All Airflow configuration parameters (equivalent of ``airflow.cfg``) are
-stored in
-`values.yaml <https://github.com/apache/airflow/blob/main/chart/values.yaml>`__
-under the ``config`` key . The following code demonstrates how one would
-allow webserver users to view the config from within the webserver
-application. See the bottom line of the example:
+The chart allows for setting arbitrary Airflow configuration in values under the ``config`` key.
+Some of the defaults in the chart differ from those of core Airflow and can be found in
+`values.yaml <https://github.com/apache/airflow/blob/main/chart/values.yaml>`__.
+
+As an example of setting arbitrary configuration, the following yaml demonstrates how one would
+allow webserver users to view the config from within the UI:
 
 .. code-block:: yaml
 
-   # Config settings to go into the mounted airflow.cfg
-   #
-   # Please note that these values are passed through the ``tpl`` function, so are
-   # all subject to being rendered as go templates. If you need to include a
-   # literal ``{{`` in a value, it must be expressed like this:
-   #
-   #    a: '{{ "{{ not a template }}" }}'
-   #
-   # yamllint disable rule:line-length
    config:
-     core:
-       dags_folder: '{{ include "airflow_dags" . }}'
-       load_examples: 'False'   # <<<<<<<< This is ignored when used with the official Docker image, see below on how to load examples
-       executor: '{{ .Values.executor }}'
-       # For Airflow 1.10, backward compatibility
-       colored_console_log: 'False'
-       remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
-     # Authentication backend used for the experimental API
-     api:
-       auth_backend: airflow.api.auth.backend.deny_all
-     logging:
-       remote_logging: '{{- ternary "True" "False" .Values.elasticsearch.enabled }}'
-       colored_console_log: 'False'
-     metrics:
-       statsd_on: '{{ ternary "True" "False" .Values.statsd.enabled }}'
-       statsd_port: 9125
-       statsd_prefix: airflow
-       statsd_host: '{{ printf "%s-statsd" .Release.Name }}'
      webserver:
-       enable_proxy_fix: 'True'
-       expose_config: 'True'   # <<<<<<<<<< BY DEFAULT THIS IS 'False' BUT WE CHANGE IT TO 'True' PRIOR TO INSTALLING THE CHART
+       expose_config: 'True'  # by default this is 'False'
 
 Generally speaking, it is useful to familiarize oneself with the Airflow
 configuration prior to installing and deploying the service.
@@ -65,12 +37,12 @@ configuration prior to installing and deploying the service.
 .. note::
 
   The recommended way to load example DAGs using the official Docker image and chart is to configure the ``AIRFLOW__CORE__LOAD_EXAMPLES`` environment variable
-  in ``extraEnv`` (see :doc:`Parameters reference <parameters-ref>`). Because the official Docker image has ``AIRFLOW__CORE__LOAD_EXAMPLES=False``
-  set within the image, so you need to override it when deploying the chart.
+  in ``extraEnv`` (see :doc:`Parameters reference <parameters-ref>`). The official Docker image has ``AIRFLOW__CORE__LOAD_EXAMPLES=False``
+  set within the image, so you need to override it with an environment variable when deploying the chart in order for the examples to be present.
 
 .. note::
 
-  The  ``AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS`` variable is not used by the Chart. Airflow Helm Chart is
+  The  ``AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS`` variable is not used by the Chart. Airflow Helm Chart is
   intended to be used as production deployment and loading default connections is not supposed to be handled
   during Chart installation. The Chart is intended to install and configure the Apache Airflow software
   and create database structure, but not to fill-in the data which should be managed by the users.

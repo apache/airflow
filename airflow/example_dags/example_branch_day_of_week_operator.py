@@ -19,22 +19,22 @@
 """
 Example DAG demonstrating the usage of BranchDayOfWeekOperator.
 """
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
 
 with DAG(
     dag_id="example_weekday_branch_operator",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     tags=["example"],
     schedule_interval="@daily",
 ) as dag:
     # [START howto_operator_day_of_week_branch]
-    dummy_task_1 = DummyOperator(task_id='branch_true', dag=dag)
-    dummy_task_2 = DummyOperator(task_id='branch_false', dag=dag)
+    empty_task_1 = EmptyOperator(task_id='branch_true', dag=dag)
+    empty_task_2 = EmptyOperator(task_id='branch_false', dag=dag)
 
     branch = BranchDayOfWeekOperator(
         task_id="make_choice",
@@ -43,6 +43,6 @@ with DAG(
         week_day="Monday",
     )
 
-    # Run dummy_task_1 if branch executes on Monday
-    branch >> [dummy_task_1, dummy_task_2]
+    # Run empty_task_1 if branch executes on Monday
+    branch >> [empty_task_1, empty_task_2]
     # [END howto_operator_day_of_week_branch]

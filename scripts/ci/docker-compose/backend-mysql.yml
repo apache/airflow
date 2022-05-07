@@ -20,7 +20,7 @@ services:
   airflow:
     environment:
       - BACKEND=mysql
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow?charset=utf8mb4
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=mysql://root@mysql/airflow?charset=utf8mb4
       - AIRFLOW__CELERY__RESULT_BACKEND=db+mysql://root@mysql/airflow?charset=utf8mb4
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:

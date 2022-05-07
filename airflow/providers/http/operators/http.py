@@ -41,8 +41,6 @@ class SimpleHttpOperator(BaseOperator):
     :param method: The HTTP method to use, default = "POST"
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
-    :type data: For POST/PUT, depends on the content-type parameter,
-        for GET a dictionary of key/value string pairs
     :param headers: The HTTP headers to be added to the GET request
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument

@@ -22,6 +22,7 @@ from airflow.models import (
     DagModel,
     DagRun,
     DagTag,
+    DbCallbackRequest,
     Log,
     Pool,
     RenderedTaskInstanceFields,
@@ -87,6 +88,11 @@ def clear_db_variables():
 def clear_db_dag_code():
     with create_session() as session:
         session.query(DagCode).delete()
+
+
+def clear_db_callbacks():
+    with create_session() as session:
+        session.query(DbCallbackRequest).delete()
 
 
 def set_default_pool_slots(slots):

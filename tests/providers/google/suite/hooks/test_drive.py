@@ -245,6 +245,7 @@ class TestGoogleDriveHook(unittest.TestCase):
                     body={"name": "remote_path", "parents": ["root"]},
                     fields="id",
                     media_body=mock_media_file_upload.return_value,
+                    supportsAllDrives=True,
                 )
             ]
         )
@@ -274,6 +275,7 @@ class TestGoogleDriveHook(unittest.TestCase):
                     body={"name": "remote_path", "parents": ["PARENT_ID"]},
                     fields="id",
                     media_body=mock_media_file_upload.return_value,
+                    supportsAllDrives=True,
                 )
             ]
         )

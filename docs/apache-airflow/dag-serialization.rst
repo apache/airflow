@@ -76,6 +76,7 @@ Add the following settings in ``airflow.cfg``:
     min_serialized_dag_update_interval = 30
     min_serialized_dag_fetch_interval = 10
     max_num_rendered_ti_fields_per_task = 30
+    compress_serialized_dags = False
 
 *   ``min_serialized_dag_update_interval``: This flag sets the minimum interval (in seconds) after which
     the serialized DAGs in the DB should be updated. This helps in reducing database write rate.
@@ -84,6 +85,8 @@ Add the following settings in ``airflow.cfg``:
     load on the DB, but at the expense of displaying a possibly stale cached version of the DAG.
 *   ``max_num_rendered_ti_fields_per_task``: This option controls the maximum number of Rendered Task Instance
     Fields (Template Fields) per task to store in the Database.
+*   ``compress_serialized_dags``: This option controls whether to compress the Serialized DAG to the Database.
+    It is useful when there are very large DAGs in your cluster. When ``True``, this will disable the DAG dependencies view.
 
 If you are updating Airflow from <1.10.7, please do not forget to run ``airflow db upgrade``.
 

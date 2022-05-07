@@ -20,6 +20,7 @@ from unittest import mock
 
 import pytest
 
+from airflow.providers_manager import ProviderInfo
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import create_user, delete_user
 
@@ -27,7 +28,7 @@ MOCK_PROVIDERS = OrderedDict(
     [
         (
             'apache-airflow-providers-amazon',
-            (
+            ProviderInfo(
                 '1.0.0',
                 {
                     'package-name': 'apache-airflow-providers-amazon',
@@ -35,11 +36,12 @@ MOCK_PROVIDERS = OrderedDict(
                     'description': '`Amazon Web Services (AWS) <https://aws.amazon.com/>`__.\n',
                     'versions': ['1.0.0'],
                 },
+                'package',
             ),
         ),
         (
             'apache-airflow-providers-apache-cassandra',
-            (
+            ProviderInfo(
                 '1.0.0',
                 {
                     'package-name': 'apache-airflow-providers-apache-cassandra',
@@ -47,6 +49,7 @@ MOCK_PROVIDERS = OrderedDict(
                     'description': '`Apache Cassandra <http://cassandra.apache.org/>`__.\n',
                     'versions': ['1.0.0'],
                 },
+                'package',
             ),
         ),
     ]

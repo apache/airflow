@@ -19,13 +19,11 @@
 
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
 from azure.identity import ManagedIdentityCredential
 from azure.storage.blob import BlobServiceClient
-from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -40,8 +38,8 @@ CONN_STRING = (
 ACCESS_KEY_STRING = "AccountName=name;skdkskd"
 
 
-class TestWasbHook(unittest.TestCase):
-    def setUp(self):
+class TestWasbHook:
+    def setup(self):
         db.merge_conn(Connection(conn_id='wasb_test_key', conn_type='wasb', login='login', password='key'))
         self.connection_type = 'wasb'
         self.connection_string_id = 'azure_test_connection_string'
@@ -123,8 +121,8 @@ class TestWasbHook(unittest.TestCase):
 
     def test_key(self):
         hook = WasbHook(wasb_conn_id='wasb_test_key')
-        self.assertEqual(hook.conn_id, 'wasb_test_key')
-        self.assertIsInstance(hook.connection, BlobServiceClient)
+        assert hook.conn_id == 'wasb_test_key'
+        assert isinstance(hook.blob_service_client, BlobServiceClient)
 
     def test_public_read(self):
         hook = WasbHook(wasb_conn_id=self.public_read_conn_id, public_read=True)
@@ -141,11 +139,12 @@ class TestWasbHook(unittest.TestCase):
 
     def test_managed_identity(self):
         hook = WasbHook(wasb_conn_id=self.managed_identity_conn_id)
-        self.assertIsInstance(hook.get_conn(), BlobServiceClient)
-        self.assertIsInstance(hook.get_conn().credential, ManagedIdentityCredential)
+        assert isinstance(hook.get_conn(), BlobServiceClient)
+        assert isinstance(hook.get_conn().credential, ManagedIdentityCredential)
 
-    @parameterized.expand(
-        [
+    @pytest.mark.parametrize(
+        argnames="conn_id_str, extra_key",
+        argvalues=[
             ('sas_conn_id', 'sas_token'),
             ('extra__wasb__sas_conn_id', 'extra__wasb__sas_token'),
             ('http_sas_conn_id', 'sas_token'),
@@ -165,10 +164,9 @@ class TestWasbHook(unittest.TestCase):
     def test_check_for_blob(self, mock_service):
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         assert hook.check_for_blob(container_name='mycontainer', blob_name='myblob')
-        mock_container_client = mock_service.return_value.get_container_client
-        mock_container_client.assert_called_once_with('mycontainer')
-        mock_container_client.return_value.get_blob_client.assert_called_once_with('myblob')
-        mock_container_client.return_value.get_blob_client.return_value.get_blob_properties.assert_called()
+        mock_blob_client = mock_service.return_value.get_blob_client
+        mock_blob_client.assert_called_once_with(container='mycontainer', blob='myblob')
+        mock_blob_client.return_value.get_blob_properties.assert_called()
 
     @mock.patch.object(WasbHook, 'get_blobs_list')
     def test_check_for_prefix(self, get_blobs_list):
@@ -193,18 +191,33 @@ class TestWasbHook(unittest.TestCase):
             name_starts_with='my', include=None, delimiter='/'
         )
 
+    @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
     @mock.patch.object(WasbHook, 'upload')
-    def test_load_file(self, mock_upload):
+    def test_load_file(self, mock_upload, create_container):
         with mock.patch("builtins.open", mock.mock_open(read_data="data")):
             hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
-            hook.load_file('path', 'container', 'blob', max_connections=1)
-        mock_upload.assert_called()
+            hook.load_file('path', 'container', 'blob', create_container, max_connections=1)
 
+        mock_upload.assert_called_with(
+            container_name='container',
+            blob_name='blob',
+            data=mock.ANY,
+            create_container=create_container,
+            max_connections=1,
+        )
+
+    @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
     @mock.patch.object(WasbHook, 'upload')
-    def test_load_string(self, mock_upload):
+    def test_load_string(self, mock_upload, create_container):
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
-        hook.load_string('big string', 'container', 'blob', max_connections=1)
-        mock_upload.assert_called_once_with('container', 'blob', 'big string', max_connections=1)
+        hook.load_string('big string', 'container', 'blob', create_container, max_connections=1)
+        mock_upload.assert_called_once_with(
+            container_name='container',
+            blob_name='blob',
+            data='big string',
+            create_container=create_container,
+            max_connections=1,
+        )
 
     @mock.patch.object(WasbHook, 'download')
     def test_get_file(self, mock_download):
@@ -221,27 +234,34 @@ class TestWasbHook(unittest.TestCase):
         hook.read_file('container', 'blob', max_connections=1)
         mock_download.assert_called_once_with('container', 'blob', max_connections=1)
 
+    @pytest.mark.parametrize(argnames="create_container", argvalues=[True, False])
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
-    def test_upload(self, mock_service):
+    def test_upload(self, mock_service, create_container):
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook.upload(
-            container_name='mycontainer', blob_name='myblob', data=b'mydata', blob_type='BlockBlob', length=4
+            container_name='mycontainer',
+            blob_name='myblob',
+            data=b'mydata',
+            create_container=create_container,
+            blob_type='BlockBlob',
+            length=4,
         )
-        mock_cn_client = mock_service.return_value.get_container_client
-        mock_cn_client.assert_called_once_with('mycontainer')
-        mock_cn_client.return_value.get_blob_client.assert_called_once_with('myblob')
-        mock_cn_client.return_value.get_blob_client.return_value.upload_blob.assert_called_once_with(
-            b'mydata', 'BlockBlob', length=4
-        )
+        mock_blob_client = mock_service.return_value.get_blob_client
+        mock_blob_client.assert_called_once_with(container='mycontainer', blob='myblob')
+        mock_blob_client.return_value.upload_blob.assert_called_once_with(b'mydata', 'BlockBlob', length=4)
+
+        mock_container_client = mock_service.return_value.get_container_client
+        if create_container:
+            mock_container_client.assert_called_with('mycontainer')
+        else:
+            mock_container_client.assert_not_called()
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     def test_download(self, mock_service):
-        container_client = mock_service.return_value.get_container_client
-        blob_client = container_client.return_value.get_blob_client
+        blob_client = mock_service.return_value.get_blob_client
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook.download(container_name='mycontainer', blob_name='myblob', offset=2, length=4)
-        container_client.assert_called_once_with('mycontainer')
-        blob_client.assert_called_once_with('myblob')
+        blob_client.assert_called_once_with(container='mycontainer', blob='myblob')
         blob_client.return_value.download_blob.assert_called_once_with(offset=2, length=4)
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
@@ -254,9 +274,8 @@ class TestWasbHook(unittest.TestCase):
     def test_get_blob_client(self, mock_service):
         hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
         hook._get_blob_client(container_name='mycontainer', blob_name='myblob')
-        mock_instance = mock_service.return_value.get_container_client
-        mock_instance.assert_called_once_with('mycontainer')
-        mock_instance.return_value.get_blob_client.assert_called_once_with('myblob')
+        mock_instance = mock_service.return_value.get_blob_client
+        mock_instance.assert_called_once_with(container='mycontainer', blob='myblob')
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     def test_create_container(self, mock_service):

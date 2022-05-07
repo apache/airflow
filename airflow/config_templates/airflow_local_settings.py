@@ -248,6 +248,17 @@ if REMOTE_LOGGING:
         }
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(STACKDRIVER_REMOTE_HANDLERS)
+    elif REMOTE_BASE_LOG_FOLDER.startswith('oss://'):
+        OSS_REMOTE_HANDLERS = {
+            'task': {
+                'class': 'airflow.providers.alibaba.cloud.log.oss_task_handler.OSSTaskHandler',
+                'formatter': 'airflow',
+                'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
+                'oss_log_folder': REMOTE_BASE_LOG_FOLDER,
+                'filename_template': FILENAME_TEMPLATE,
+            },
+        }
+        DEFAULT_LOGGING_CONFIG['handlers'].update(OSS_REMOTE_HANDLERS)
     elif ELASTICSEARCH_HOST:
         ELASTICSEARCH_LOG_ID_TEMPLATE: str = conf.get('elasticsearch', 'LOG_ID_TEMPLATE')
         ELASTICSEARCH_END_OF_LOG_MARK: str = conf.get('elasticsearch', 'END_OF_LOG_MARK')

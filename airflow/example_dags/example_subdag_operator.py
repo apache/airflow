@@ -21,7 +21,7 @@
 # [START example_subdag_operator]
 from airflow import DAG
 from airflow.example_dags.subdags.subdag import subdag
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SubDagOperator
 from airflow.utils.dates import days_ago
 
@@ -35,7 +35,7 @@ with DAG(
     tags=['example'],
 ) as dag:
 
-    start = DummyOperator(
+    start = EmptyOperator(
         task_id='start',
     )
 
@@ -44,7 +44,7 @@ with DAG(
         subdag=subdag(DAG_NAME, 'section-1', dag.default_args),
     )
 
-    some_other_task = DummyOperator(
+    some_other_task = EmptyOperator(
         task_id='some-other-task',
     )
 
@@ -53,7 +53,7 @@ with DAG(
         subdag=subdag(DAG_NAME, 'section-2', dag.default_args),
     )
 
-    end = DummyOperator(
+    end = EmptyOperator(
         task_id='end',
     )
 

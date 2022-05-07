@@ -56,7 +56,12 @@ def backup_modules():
 @pytest.fixture(scope="module")
 def log_app(backup_modules):
     @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
+        skip_all_except=[
+            "init_appbuilder",
+            "init_jinja_globals",
+            "init_appbuilder_views",
+            "init_api_connexion",
+        ]
     )
     @conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'})
     def factory():
@@ -216,10 +221,11 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
         "try_number={}&metadata={}&format=file"
     )
     try_number = 1
+    date = DEFAULT_DATE.isoformat()
     url = url_template.format(
         DAG_ID,
         TASK_ID,
-        urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
+        urllib.parse.quote_plus(date),
         try_number,
         "{}",
     )
@@ -227,7 +233,10 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
 
     content_disposition = response.headers['Content-Disposition']
     assert content_disposition.startswith('attachment')
-    assert f'{DAG_ID}/{TASK_ID}/{DEFAULT_DATE.isoformat()}/{try_number}.log' in content_disposition
+    assert (
+        f'dag_id={DAG_ID}/run_id=scheduled__{date}/task_id={TASK_ID}/attempt={try_number}.log'
+        in content_disposition
+    )
     assert 200 == response.status_code
     assert 'Log for testing.' in response.data.decode('utf-8')
     assert 'localhost\n' in response.data.decode('utf-8')
@@ -236,41 +245,12 @@ def test_get_logs_with_metadata_as_download_file(log_admin_client):
 DIFFERENT_LOG_FILENAME = "{{ ti.dag_id }}/{{ ti.run_id }}/{{ ti.task_id }}/{{ try_number }}.log"
 
 
-@conf_vars({("core", "log_filename_template"): DIFFERENT_LOG_FILENAME})
-def test_get_logs_for_changed_filename_format_config(log_admin_client):
-    url_template = (
-        "get_logs_with_metadata?dag_id={}&"
-        "task_id={}&execution_date={}&"
-        "try_number={}&metadata={}&format=file"
-    )
-    try_number = 1
-    url = url_template.format(
-        DAG_ID,
-        TASK_ID,
-        urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
-        try_number,
-        "{}",
-    )
-    response = log_admin_client.get(url)
-
-    # Should still find the log under previous filename, not the new config value.
-    content_disposition = response.headers['Content-Disposition']
-    assert content_disposition.startswith('attachment')
-    assert f'{DAG_ID}/{TASK_ID}/{DEFAULT_DATE.isoformat()}/{try_number}.log' in content_disposition
-    assert 200 == response.status_code
-    assert 'Log for testing.' in response.data.decode('utf-8')
-
-
 @pytest.fixture()
 def dag_run_with_log_filename():
     run_filters = [DagRun.dag_id == DAG_ID, DagRun.execution_date == DEFAULT_DATE]
     with create_session() as session:
         log_template = session.merge(
-            LogTemplate(
-                filename=DIFFERENT_LOG_FILENAME,
-                task_prefix="irrelevant",
-                elasticsearch_id="irrelevant",
-            ),
+            LogTemplate(filename=DIFFERENT_LOG_FILENAME, elasticsearch_id="irrelevant")
         )
         session.flush()  # To populate 'log_template.id'.
         run_query = session.query(DagRun).filter(*run_filters)
@@ -355,6 +335,26 @@ def test_get_logs_with_metadata(log_admin_client, metadata):
     assert '"message":' in data
     assert '"metadata":' in data
     assert 'Log for testing.' in data
+
+
+def test_get_logs_with_invalid_metadata(log_admin_client):
+    """Test invalid metadata JSON returns error message"""
+    metadata = "invalid"
+    url_template = "get_logs_with_metadata?dag_id={}&task_id={}&execution_date={}&try_number={}&metadata={}"
+    response = log_admin_client.get(
+        url_template.format(
+            DAG_ID,
+            TASK_ID,
+            urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
+            1,
+            metadata,
+        ),
+        data={"username": "test", "password": "test"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Invalid JSON metadata"}
 
 
 @unittest.mock.patch(

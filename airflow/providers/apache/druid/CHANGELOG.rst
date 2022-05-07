@@ -19,6 +19,50 @@
 Changelog
 ---------
 
+2.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.3.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.3.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+
+Bug Fixes
+~~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
 2.2.0
 .....
 

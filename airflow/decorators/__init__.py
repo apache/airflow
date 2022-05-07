@@ -18,6 +18,7 @@
 from typing import Any
 
 from airflow.decorators.base import TaskDecorator
+from airflow.decorators.branch_python import branch_task
 from airflow.decorators.python import python_task
 from airflow.decorators.python_virtualenv import virtualenv_task
 from airflow.decorators.task_group import task_group
@@ -33,6 +34,7 @@ __all__ = [
     "task_group",
     "python_task",
     "virtualenv_task",
+    "branch_task",
 ]
 
 
@@ -41,6 +43,7 @@ class TaskDecoratorCollection:
 
     python: Any = staticmethod(python_task)
     virtualenv = staticmethod(virtualenv_task)
+    branch = staticmethod(branch_task)
 
     __call__ = python  # Alias '@task' to '@task.python'.
 

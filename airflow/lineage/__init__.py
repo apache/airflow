@@ -141,11 +141,11 @@ def prepare_lineage(func: T) -> T:
 
     @wraps(func)
     def wrapper(self, context, *args, **kwargs):
-        from airflow.models.base import Operator
+        from airflow.models.abstractoperator import AbstractOperator
 
         self.log.debug("Preparing lineage inlets and outlets")
 
-        if isinstance(self._inlets, (str, Operator)) or attr.has(self._inlets):
+        if isinstance(self._inlets, (str, AbstractOperator)) or attr.has(self._inlets):
             self._inlets = [
                 self._inlets,
             ]
@@ -153,8 +153,8 @@ def prepare_lineage(func: T) -> T:
         if self._inlets and isinstance(self._inlets, list):
             # get task_ids that are specified as parameter and make sure they are upstream
             task_ids = (
-                set(filter(lambda x: isinstance(x, str) and x.lower() != AUTO, self._inlets))
-                .union(map(lambda op: op.task_id, filter(lambda op: isinstance(op, Operator), self._inlets)))
+                {o for o in self._inlets if isinstance(o, str)}
+                .union(op.task_id for op in self._inlets if isinstance(op, AbstractOperator))
                 .intersection(self.get_flat_relative_ids(upstream=True))
             )
 

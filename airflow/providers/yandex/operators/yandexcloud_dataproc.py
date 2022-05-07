@@ -220,7 +220,7 @@ class DataprocCreateHiveJobOperator(BaseOperator):
     :param continue_on_failure: Whether to continue executing queries if a query fails.
     :param name: Name of the job. Used for labeling.
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
+                       Will try to take the ID from Dataproc Hook object if it's specified. (templated)
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     """
 
@@ -282,7 +282,7 @@ class DataprocCreateMapReduceJobOperator(BaseOperator):
     :param args: Arguments to be passed to the job.
     :param name: Name of the job. Used for labeling.
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
+                       Will try to take the ID from Dataproc Hook object if it's specified. (templated)
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     """
 
@@ -349,7 +349,7 @@ class DataprocCreateSparkJobOperator(BaseOperator):
     :param args: Arguments to be passed to the job.
     :param name: Name of the job. Used for labeling.
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
+                       Will try to take the ID from Dataproc Hook object if it's specified. (templated)
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
     :param repositories: List of additional remote repositories to search for the maven coordinates
@@ -430,7 +430,7 @@ class DataprocCreatePysparkJobOperator(BaseOperator):
     :param args: Arguments to be passed to the job.
     :param name: Name of the job. Used for labeling.
     :param cluster_id: ID of the cluster to run job in.
-                       Will try to take the ID from Dataproc Hook object if ot specified. (templated)
+                       Will try to take the ID from Dataproc Hook object if it's specified. (templated)
     :param connection_id: ID of the Yandex.Cloud Airflow connection.
     :param packages: List of maven coordinates of jars to include on the driver and executor classpaths.
     :param repositories: List of additional remote repositories to search for the maven coordinates

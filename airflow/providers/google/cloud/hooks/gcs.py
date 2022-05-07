@@ -22,7 +22,6 @@ import gzip as gz
 import os
 import shutil
 import time
-import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
@@ -40,6 +39,7 @@ from google.cloud.exceptions import GoogleCloudError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.utils.helpers import normalize_directory_path
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils import timezone
 from airflow.version import version
@@ -132,19 +132,8 @@ class GCSHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -155,7 +144,7 @@ class GCSHook(GoogleBaseHook):
         """Returns a Google Cloud Storage service object."""
         if not self._conn:
             self._conn = storage.Client(
-                credentials=self._get_credentials(), client_info=self.client_info, project=self.project_id
+                credentials=self._get_credentials(), client_info=CLIENT_INFO, project=self.project_id
             )
 
         return self._conn
@@ -383,6 +372,7 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
+        dir: Optional[str] = None,
     ):
         """
         Downloads the file to a temporary directory and returns a file handle
@@ -393,12 +383,13 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: The bucket to fetch from.
         :param object_name: The object to fetch.
         :param object_url: File reference url. Must start with "gs: //"
+        :param dir: The tmp sub directory to download the file to. (passed to NamedTemporaryFile)
         :return: File handler
         """
         if object_name is None:
             raise ValueError("Object name can not be empty")
         _, _, file_name = object_name.rpartition("/")
-        with NamedTemporaryFile(suffix=file_name) as tmp_file:
+        with NamedTemporaryFile(suffix=file_name, dir=dir) as tmp_file:
             self.download(bucket_name=bucket_name, object_name=object_name, filename=tmp_file.name)
             tmp_file.flush()
             yield tmp_file
@@ -444,6 +435,7 @@ class GCSHook(GoogleBaseHook):
         chunk_size: Optional[int] = None,
         timeout: Optional[int] = DEFAULT_TIMEOUT,
         num_max_attempts: int = 1,
+        metadata: Optional[dict] = None,
     ) -> None:
         """
         Uploads a local file or file data as string or bytes to Google Cloud Storage.
@@ -458,6 +450,7 @@ class GCSHook(GoogleBaseHook):
         :param chunk_size: Blob chunk size.
         :param timeout: Request timeout in seconds.
         :param num_max_attempts: Number of attempts to try to upload the file.
+        :param metadata: The metadata to be uploaded with the file.
         """
 
         def _call_with_retry(f: Callable[[], None]) -> None:
@@ -490,6 +483,10 @@ class GCSHook(GoogleBaseHook):
         client = self.get_conn()
         bucket = client.bucket(bucket_name)
         blob = bucket.blob(blob_name=object_name, chunk_size=chunk_size)
+
+        if metadata:
+            blob.metadata = metadata
+
         if filename and data:
             raise ValueError(
                 "'filename' and 'data' parameter provided. Please "
@@ -662,7 +659,6 @@ class GCSHook(GoogleBaseHook):
         :param bucket_name: name of the bucket which will be deleted
         :param force: false not allow to delete non empty bucket, set force=True
             allows to delete non empty bucket
-        :type: bool
         """
         client = self.get_conn()
         bucket = client.bucket(bucket_name)

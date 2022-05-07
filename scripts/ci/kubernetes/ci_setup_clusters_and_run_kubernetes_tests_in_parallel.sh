@@ -22,6 +22,7 @@ source "${LIBRARIES_DIR}/_all_libs.sh"
 export SEMAPHORE_NAME="kubernetes-tests"
 
 initialization::set_output_color_variables
+initialization::initialize_image_build_variables
 
 parallel::make_sure_gnu_parallel_is_installed
 parallel::make_sure_python_versions_are_specified

@@ -27,6 +27,10 @@ class RedshiftClusterSensor(BaseSensorOperator):
     """
     Waits for a Redshift cluster to reach a specific status.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:RedshiftClusterSensor`
+
     :param cluster_identifier: The identifier for the cluster being pinged.
     :param target_status: The cluster status desired.
     """

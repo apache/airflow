@@ -51,12 +51,27 @@ class DAGSchema(SQLAlchemySchema):
     is_paused = auto_field()
     is_active = auto_field(dump_only=True)
     is_subdag = auto_field(dump_only=True)
+    last_parsed_time = auto_field(dump_only=True)
+    last_pickled = auto_field(dump_only=True)
+    last_expired = auto_field(dump_only=True)
+    scheduler_lock = auto_field(dump_only=True)
+    pickle_id = auto_field(dump_only=True)
+    default_view = auto_field(dump_only=True)
     fileloc = auto_field(dump_only=True)
     file_token = fields.Method("get_token", dump_only=True)
     owners = fields.Method("get_owners", dump_only=True)
     description = auto_field(dump_only=True)
     schedule_interval = fields.Nested(ScheduleIntervalSchema)
+    timetable_description = auto_field(dump_only=True)
     tags = fields.List(fields.Nested(DagTagSchema), dump_only=True)
+    max_active_tasks = auto_field(dump_only=True)
+    max_active_runs = auto_field(dump_only=True)
+    has_task_concurrency_limits = auto_field(dump_only=True)
+    has_import_errors = auto_field(dump_only=True)
+    next_dagrun = auto_field(dump_only=True)
+    next_dagrun_data_interval_start = auto_field(dump_only=True)
+    next_dagrun_data_interval_end = auto_field(dump_only=True)
+    next_dagrun_create_after = auto_field(dump_only=True)
 
     @staticmethod
     def get_owners(obj: DagModel):
@@ -89,6 +104,11 @@ class DAGDetailSchema(DAGSchema):
     tags = fields.Method("get_tags", dump_only=True)  # type: ignore
     is_paused = fields.Method("get_is_paused", dump_only=True)
     is_active = fields.Method("get_is_active", dump_only=True)
+    is_paused_upon_creation = fields.Boolean()
+    end_date = fields.DateTime(dump_only=True)
+    template_search_path = fields.String(dump_only=True)
+    render_template_as_native_obj = fields.Boolean(dump_only=True)
+    last_loaded = fields.DateTime(dump_only=True, data_key='last_parsed')
 
     @staticmethod
     def get_concurrency(obj: DAG):

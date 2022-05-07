@@ -27,7 +27,7 @@ class TestGetCurrentApiClient(unittest.TestCase):
     @mock.patch("airflow.api.auth.backend.default.CLIENT_AUTH", "CLIENT_AUTH")
     @conf_vars(
         {
-            ("api", 'auth_backend'): 'airflow.api.auth.backend.default',
+            ("api", 'auth_backends'): 'airflow.api.auth.backend.default',
             ("cli", 'api_client'): 'airflow.api.client.json_client',
             ("cli", 'endpoint_url'): 'http://localhost:1234',
         }
@@ -44,7 +44,7 @@ class TestGetCurrentApiClient(unittest.TestCase):
     @mock.patch("airflow.providers.google.common.auth_backend.google_openid.create_client_session")
     @conf_vars(
         {
-            ("api", 'auth_backend'): 'airflow.providers.google.common.auth_backend.google_openid',
+            ("api", 'auth_backends'): 'airflow.providers.google.common.auth_backend.google_openid',
             ("cli", 'api_client'): 'airflow.api.client.json_client',
             ("cli", 'endpoint_url'): 'http://localhost:1234',
         }

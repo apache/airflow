@@ -253,6 +253,13 @@ def days_ago(n, hour=0, minute=0, second=0, microsecond=0):
     Get a datetime object representing `n` days ago. By default the time is
     set to midnight.
     """
+    warnings.warn(
+        "Function `days_ago` is deprecated and will be removed in Airflow 3.0. "
+        "You can achieve equivalent behavior with `pendulum.today('UTC').add(days=-N, ...)`",
+        DeprecationWarning,
+        stacklevel=2,
+    )
+
     today = timezone.utcnow().replace(hour=hour, minute=minute, second=second, microsecond=microsecond)
     return today - timedelta(days=n)
 

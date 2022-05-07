@@ -119,6 +119,35 @@ How do I trigger tasks based on another task's failure?
 
 You can achieve this with :ref:`concepts:trigger-rules`.
 
+How to control DAG file parsing timeout for different DAG files?
+----------------------------------------------------------------
+
+(only valid for Airflow >= 2.3.0)
+
+You can add a ``get_dagbag_import_timeout`` function in your ``airflow_local_settings.py`` which gets
+called right before a DAG file is parsed. You can return different timeout value based on the DAG file.
+When the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+
+.. code-block:: python
+   :caption: airflow_local_settings.py
+   :name: airflow_local_settings.py
+
+    def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+        """
+        This setting allows to dynamically control the DAG file parsing timeout.
+
+        It is useful when there are a few DAG files requiring longer parsing times, while others do not.
+        You can control them separately instead of having one value for all DAG files.
+
+        If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+        """
+        if "slow" in dag_file_path:
+            return 90
+        if "no-timeout" in dag_file_path:
+            return 0
+        return conf.getfloat("core", "DAGBAG_IMPORT_TIMEOUT")
+
+
 When there are a lot (>1000) of dags files, how to speed up parsing of new files?
 ---------------------------------------------------------------------------------
 
@@ -149,7 +178,8 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
 
     from airflow import DAG
     from airflow.operators.python_operator import PythonOperator
-    from datetime import datetime
+
+    import pendulum
 
 
     def create_dag(dag_id, schedule, dag_number, default_args):
@@ -157,7 +187,12 @@ until ``min_file_process_interval`` is reached since DAG Parser will look for mo
             print("Hello World")
             print("This is DAG: {}".format(str(dag_number)))
 
-        dag = DAG(dag_id, schedule_interval=schedule, default_args=default_args)
+        dag = DAG(
+            dag_id,
+            schedule_interval=schedule,
+            default_args=default_args,
+            pendulum.datetime(2021, 9, 13, tz="UTC"),
+        )
 
         with dag:
             t1 = PythonOperator(task_id="hello_world", python_callable=hello_world_py)
@@ -213,6 +248,16 @@ backfill CLI command, gets overridden by the backfill's ``start_date`` commands.
 This allows for a backfill on tasks that have ``depends_on_past=True`` to
 actually start. If this were not the case, the backfill just would not start.
 
+Using time zones
+----------------
+
+Creating a time zone aware datetime (e.g. DAG's ``start_date``) is quite simple. Just make sure to supply
+a time zone aware dates using ``pendulum``. Don't try to use standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
+have limitations and we deliberately disallow using them in DAGs.
+
+
+.. _faq:what-does-execution-date-mean:
 
 What does ``execution_date`` mean?
 ----------------------------------
@@ -247,6 +292,11 @@ misunderstandings.
 
 Note that ``ds`` (the YYYY-MM-DD form of ``data_interval_start``) refers to
 *date* ***string***, not *date* ***start*** as may be confusing to some.
+
+.. tip::
+
+    For more information on ``logical date``, see :ref:`data-interval` and
+    :ref:`concepts:dag-run`.
 
 
 How to create DAGs dynamically?
@@ -353,11 +403,11 @@ upstream task.
 
 .. code-block:: python
 
+    import pendulum
+
     from airflow.decorators import dag, task
     from airflow.exceptions import AirflowException
     from airflow.utils.trigger_rule import TriggerRule
-
-    from datetime import datetime
 
 
     @task
@@ -372,7 +422,7 @@ upstream task.
         pass
 
 
-    @dag(schedule_interval="@once", start_date=datetime(2021, 1, 1))
+    @dag(schedule_interval="@once", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"))
     def my_dag():
         a = a_func()
         b = b_func()

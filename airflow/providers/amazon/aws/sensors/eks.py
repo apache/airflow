@@ -60,6 +60,10 @@ class EksClusterStateSensor(BaseSensorOperator):
     """
     Check the state of an Amazon EKS Cluster until it reaches the target state or another terminal state.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EksClusterStateSensor`
+
     :param cluster_name: The name of the Cluster to watch. (templated)
     :param target_state: Target state of the Cluster. (templated)
     :param region: Which AWS region the connection should use. (templated)
@@ -115,6 +119,10 @@ class EksClusterStateSensor(BaseSensorOperator):
 class EksFargateProfileStateSensor(BaseSensorOperator):
     """
     Check the state of an AWS Fargate profile until it reaches the target state or another terminal state.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/sensor:EksFargateProfileStateSensor`
 
     :param cluster_name: The name of the Cluster which the AWS Fargate profile is attached to. (templated)
     :param fargate_profile_name: The name of the Fargate profile to watch. (templated)
@@ -182,6 +190,10 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
 class EksNodegroupStateSensor(BaseSensorOperator):
     """
     Check the state of an EKS managed node group until it reaches the target state or another terminal state.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EksNodegroupStateSensor`
 
     :param cluster_name: The name of the Cluster which the Nodegroup is attached to. (templated)
     :param nodegroup_name: The name of the Nodegroup to watch. (templated)

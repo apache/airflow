@@ -58,13 +58,10 @@ Package apache-airflow-providers-qubole
 `Qubole <https://www.qubole.com/>`__
 
 
-Release: 2.0.1
+Release: 2.1.3
 
 Provider package
 ----------------
-
-`Qubole <https://www.qubole.com/>`__ is an open, simple, and secure data lake platform for machine learning, streaming and adhoc analytics.
-Qubole delivers a Self-Service Platform for Big Data Analytics built on Amazon Web Services, Microsoft and Google Clouds.
 
 This is a provider package for ``qubole`` provider. All classes for this provider package
 are in ``airflow.providers.qubole`` python package.

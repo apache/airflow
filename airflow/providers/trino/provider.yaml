@@ -22,6 +22,10 @@ description: |
     `Trino <https://trino.io/>`__
 
 versions:
+  - 2.2.0
+  - 2.1.2
+  - 2.1.1
+  - 2.1.0
   - 2.0.2
   - 2.0.1
   - 2.0.0
@@ -40,6 +44,12 @@ hooks:
   - integration-name: Trino
     python-modules:
       - airflow.providers.trino.hooks.trino
+
+transfers:
+  - source-integration-name: Google Cloud Storage (GCS)
+    target-integration-name: Trino
+    how-to-guide: /docs/apache-airflow-providers-trino/operators/transfer/gcs_to_trino.rst
+    python-module: airflow.providers.trino.transfers.gcs_to_trino
 
 hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.trino.hooks.trino.TrinoHook

@@ -15,7 +15,7 @@
         "Triggerer",
         "Flower",
         "Redis",
-        "Statsd",
+        "StatsD",
         "Jobs",
         "Kubernetes",
         "Ingress",
@@ -67,13 +67,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.2.3",
+            "default": "2.3.0",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.2.3",
+            "default": "2.3.0",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -114,6 +114,16 @@
             "items": {
                 "type": "object",
                 "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+            }
+        },
+        "topologySpreadConstraints": {
+            "description": "Specify topology spread constraints for all pods.",
+            "type": "array",
+            "default": [],
+            "x-docsSection": "Kubernetes",
+            "items": {
+                "type": "object",
+                "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
             }
         },
         "labels": {
@@ -405,6 +415,7 @@
             "default": "CeleryExecutor",
             "enum": [
                 "LocalExecutor",
+                "LocalKubernetesExecutor",
                 "CeleryExecutor",
                 "KubernetesExecutor",
                 "CeleryKubernetesExecutor"
@@ -531,21 +542,21 @@
                     }
                 },
                 "statsd": {
-                    "description": "Configuration of the statsd image.",
+                    "description": "Configuration of the StatsD image.",
                     "type": "object",
                     "properties": {
                         "repository": {
-                            "description": "The statsd image repository.",
+                            "description": "The StatsD image repository.",
                             "type": "string",
                             "default": "apache/airflow"
                         },
                         "tag": {
-                            "description": "The statsd image tag.",
+                            "description": "The StatsD image tag.",
                             "type": "string",
                             "default": "airflow-statsd-exporter-2021.04.28-v0.17.0"
                         },
                         "pullPolicy": {
-                            "description": "The statsd image pull policy.",
+                            "description": "The StatsD image pull policy.",
                             "type": "string",
                             "enum": [
                                 "Always",
@@ -568,7 +579,7 @@
                         "tag": {
                             "description": "The redis image tag.",
                             "type": "string",
-                            "default": "6-buster"
+                            "default": "6-bullseye"
                         },
                         "pullPolicy": {
                             "description": "The redis image pull policy.",
@@ -646,7 +657,7 @@
                         "tag": {
                             "description": "The gitSync image tag.",
                             "type": "string",
-                            "default": "v3.3.0"
+                            "default": "v3.4.0"
                         },
                         "pullPolicy": {
                             "description": "The gitSync image pull policy.",
@@ -738,6 +749,11 @@
                 },
                 "AIRFLOW__CORE__SQL_ALCHEMY_CONN": {
                     "description": "Enable ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
+                    "type": "boolean",
+                    "default": true
+                },
+                "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": {
+                    "description": "Enable ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` variable to be read from the Metadata Secret",
                     "type": "boolean",
                     "default": true
                 },
@@ -1250,6 +1266,14 @@
                             "description": "Execute init container to chown log directory. This is currently only needed in kind, due to usage of local-path provisioner.",
                             "type": "boolean",
                             "default": false
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to worker volumes.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -1351,6 +1375,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for worker pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for worker pods.",
                     "type": "object",
@@ -1364,6 +1396,15 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for worker pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "hostAliases": {
@@ -1496,6 +1537,19 @@
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
                             "type": "integer",
                             "default": 60
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
                         }
                     }
                 },
@@ -1590,7 +1644,10 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for scheduler.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }
@@ -1660,6 +1717,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for scheduler pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for scheduler pods.",
                     "type": "object",
@@ -1673,6 +1738,15 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for scheduler pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "podAnnotations": {
@@ -1754,6 +1828,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -1792,6 +1878,19 @@
                             "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
                             "type": "integer",
                             "default": 60
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
                         }
                     }
                 },
@@ -1930,6 +2029,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for triggerer pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for triggerer pods.",
                     "type": "object",
@@ -1943,6 +2050,15 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for triggerer pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "terminationGracePeriodSeconds": {
@@ -1970,6 +2086,18 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
                 }
             }
         },
@@ -1979,6 +2107,45 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "command": {
+                    "description": "Command to use when running create user job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running create user job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"users create\" \"create_user\" }} \"$@\"",
+                        "--",
+                        "-r",
+                        "{{ .Values.webserver.defaultUser.role }}",
+                        "-u",
+                        "{{ .Values.webserver.defaultUser.username }}",
+                        "-e",
+                        "{{ .Values.webserver.defaultUser.email }}",
+                        "-f",
+                        "{{ .Values.webserver.defaultUser.firstName }}",
+                        "-l",
+                        "{{ .Values.webserver.defaultUser.lastName }}",
+                        "-p",
+                        "{{ .Values.webserver.defaultUser.password }}"
+                    ]
+                },
                 "annotations": {
                     "description": "Annotations to add to the create user job pod.",
                     "type": "object",
@@ -2070,6 +2237,15 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for the create user job pod.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "securityContext": {
                     "description": "Security context for the create user job pod. If not set, the values from `securityContext` will be used.",
                     "type": "object",
@@ -2114,6 +2290,37 @@
             "x-docsSection": "Jobs",
             "additionalProperties": false,
             "properties": {
+                "enabled": {
+                    "description": "Enable migrate database job.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "command": {
+                    "description": "Command to use when running migrate database job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running migrate database job (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec \\\nairflow {{ semverCompare \">=2.0.0\" .Values.airflowVersion | ternary \"db upgrade\" \"upgradedb\" }}"
+                    ]
+                },
                 "annotations": {
                     "description": "Annotations to add to the migrate database job pod.",
                     "type": "object",
@@ -2220,6 +2427,15 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for migrate database job pod.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "securityContext": {
@@ -2369,6 +2585,33 @@
                             "default": {},
                             "additionalProperties": {
                                 "type": "string"
+                            }
+                        }
+                    }
+                },
+                "podDisruptionBudget": {
+                    "description": "Webserver pod disruption budget.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable pod disruption budget.",
+                            "type": "boolean",
+                            "default": false
+                        },
+                        "config": {
+                            "description": "Disruption budget configuration.",
+                            "type": "object",
+                            "additionalProperties": false,
+                            "properties": {
+                                "maxUnavailable": {
+                                    "description": "Max unavailable pods for webserver.",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
+                                    "default": 1
+                                }
                             }
                         }
                     }
@@ -2536,7 +2779,7 @@
                     "x-docsSection": "Common",
                     "default": null,
                     "examples": [
-                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
+                        "from airflow import configuration as conf\n\n# The SQLAlchemy connection string.\nSQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')\n\n# Flask-WTF flag for CSRF\nCSRF_ENABLED = True"
                     ]
                 },
                 "service": {
@@ -2632,6 +2875,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for webserver pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for webserver pods.",
                     "type": "object",
@@ -2647,12 +2898,34 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for webserver pods.",
+                    "type": "array",
+                    "default": [],
+                    "x-docsSection": "Kubernetes",
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "podAnnotations": {
                     "description": "Annotations to add to the webserver pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
                         "type": "string"
+                    }
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
                     }
                 }
             }
@@ -2907,6 +3180,14 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
                     }
                 },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into the flower pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                    }
+                },
                 "nodeSelector": {
                     "description": "Select certain nodes for Flower pods.",
                     "type": "object",
@@ -2914,6 +3195,14 @@
                     "additionalProperties": {
                         "type": "string"
                     }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for Flower pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
                 },
                 "affinity": {
                     "description": "Specify scheduling constraints for Flower pods.",
@@ -2928,6 +3217,15 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for Flower pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "podAnnotations": {
@@ -2956,7 +3254,7 @@
         "statsd": {
             "description": "StatsD settings.",
             "type": "object",
-            "x-docsSection": "Statsd",
+            "x-docsSection": "StatsD",
             "additionalProperties": false,
             "properties": {
                 "enabled": {
@@ -3046,6 +3344,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for StatsD pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for StatsD pods.",
                     "type": "object",
@@ -3061,13 +3367,22 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for StatsD pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "extraMappings": {
                     "description": "Additional mappings for StatsD exporter.",
                     "type": "array",
                     "default": []
                 },
                 "securityContext": {
-                    "description": "Security context for the statsd pod. If not set, the values from `securityContext` will be used.",
+                    "description": "Security context for the StatsD pod. If not set, `statsd.uid` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},
@@ -3169,7 +3484,10 @@
                             "properties": {
                                 "maxUnavailable": {
                                     "description": "Max unavailable pods for PgBouncer.",
-                                    "type": "integer",
+                                    "type": [
+                                        "integer",
+                                        "string"
+                                    ],
                                     "default": 1
                                 }
                             }
@@ -3213,6 +3531,16 @@
                     "description": "Increase PgBouncer verbosity.",
                     "type": "integer",
                     "default": 0
+                },
+                "auth_type": {
+                    "description": "Method of authenticating users",
+                    "type": "string",
+                    "default": "md5"
+                },
+                "auth_file": {
+                    "description": "The name of the file to load user names and passwords from",
+                    "type": "string",
+                    "default": "/etc/pgbouncer/users.txt"
                 },
                 "logDisconnections": {
                     "description": "Log disconnections with reasons.",
@@ -3347,6 +3675,14 @@
                         "type": "string"
                     }
                 },
+                "priorityClassName": {
+                    "description": "Specify priority for PgBouncer pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
                 "affinity": {
                     "description": "Specify scheduling constraints for PgBouncer pods.",
                     "type": "object",
@@ -3360,6 +3696,15 @@
                     "items": {
                         "type": "object",
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for PgBouncer pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
                     }
                 },
                 "uid": {
@@ -3444,6 +3789,14 @@
                                 "null"
                             ],
                             "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to redis volumes.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
                         }
                     }
                 },
@@ -3509,6 +3862,15 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for Redis pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
                 "serviceAccount": {
                     "description": "Create ServiceAccount.",
                     "type": "object",
@@ -3535,6 +3897,24 @@
                             }
                         }
                     }
+                },
+                "securityContext": {
+                    "description": "Security context for the cleanup job pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 999,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "uid": {
+                    "description": "Redis run as user parameter.",
+                    "type": "integer",
+                    "default": 0
                 }
             }
         },
@@ -3790,6 +4170,23 @@
                         "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
                     }
                 },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for cleanup pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "resources": {
                     "description": "Resources for or cleanup pods",
                     "type": "object",
@@ -3949,6 +4346,22 @@
                         },
                         "existingClaim": {
                             "description": "The name of an existing PVC to use.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations for the dag PVC",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        },
+                        "subPath": {
+                            "description": "Subpath within the PVC where dags are located.",
                             "type": [
                                 "string",
                                 "null"
@@ -6177,6 +6590,35 @@
                     "type": "string"
                 }
             },
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.core.v1.TopologySpreadConstraint": {
+            "description": "TopologySpreadConstraint specifies how to spread matching pods among the given topology.",
+            "properties": {
+                "labelSelector": {
+                    "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.LabelSelector",
+                    "description": "LabelSelector is used to find matching pods. Pods that match this label selector are counted to determine the number of pods in their corresponding topology domain."
+                },
+                "maxSkew": {
+                    "description": "MaxSkew describes the degree to which pods may be unevenly distributed. When `whenUnsatisfiable=DoNotSchedule`, it is the maximum permitted difference between the number of matching pods in the target topology and the global minimum. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 1/1/0: | zone1 | zone2 | zone3 | |   P   |   P   |       | - if MaxSkew is 1, incoming pod can only be scheduled to zone3 to become 1/1/1; scheduling it onto zone1(zone2) would make the ActualSkew(2-0) on zone1(zone2) violate MaxSkew(1). - if MaxSkew is 2, incoming pod can be scheduled onto any zone. When `whenUnsatisfiable=ScheduleAnyway`, it is used to give higher precedence to topologies that satisfy it. It's a required field. Default value is 1 and 0 is not allowed.",
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "topologyKey": {
+                    "description": "TopologyKey is the key of node labels. Nodes that have a label with this key and identical values are considered to be in the same topology. We consider each <key, value> as a \"bucket\", and try to put balanced number of pods into each bucket. It's a required field.",
+                    "type": "string"
+                },
+                "whenUnsatisfiable": {
+                    "description": "WhenUnsatisfiable indicates how to deal with a pod if it doesn't satisfy the spread constraint. - DoNotSchedule (default) tells the scheduler not to schedule it. - ScheduleAnyway tells the scheduler to schedule the pod in any location,\n  but giving higher precedence to topologies that would help reduce the\n  skew.\nA constraint is considered \"Unsatisfiable\" for an incoming pod if and only if every possible node assigment for that pod would violate \"MaxSkew\" on some topology. For example, in a 3-zone cluster, MaxSkew is set to 1, and pods with the same labelSelector spread as 3/1/1: | zone1 | zone2 | zone3 | | P P P |   P   |   P   | If WhenUnsatisfiable is set to DoNotSchedule, incoming pod can only be scheduled to zone2(zone3) to become 3/2/1(3/1/2) as ActualSkew(2-1) on zone2(zone3) satisfies MaxSkew(1). In other words, the cluster can still be imbalanced, but scheduler won't make it *more* imbalanced. It's a required field.",
+                    "type": "string"
+                }
+            },
+            "required": [
+                "maxSkew",
+                "topologyKey",
+                "whenUnsatisfiable"
+            ],
             "type": "object",
             "additionalProperties": false
         },

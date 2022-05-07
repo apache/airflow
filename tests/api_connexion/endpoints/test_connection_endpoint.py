@@ -136,6 +136,22 @@ class TestGetConnection(TestConnectionEndpoint):
             'extra': "{'param': 'value'}",
         }
 
+    def test_should_mask_sensitive_values_in_extra(self, session):
+        connection_model = Connection(
+            conn_id='test-connection-id',
+            conn_type='mysql',
+            description='test description',
+            extra={"nonsensitive": "just_a_value", "api_token": "secretvalue"},
+        )
+        session.add(connection_model)
+        session.commit()
+
+        response = self.client.get(
+            "/api/v1/connections/test-connection-id", environ_overrides={'REMOTE_USER': "test"}
+        )
+
+        assert response.json['extra'] == '{"nonsensitive": "just_a_value", "api_token": "***"}'
+
     def test_should_respond_404(self):
         response = self.client.get(
             "/api/v1/connections/invalid-connection", environ_overrides={'REMOTE_USER': "test"}
@@ -510,6 +526,18 @@ class TestPostConnection(TestConnectionEndpoint):
         connection = session.query(Connection).all()
         assert len(connection) == 1
         assert connection[0].conn_id == 'test-connection-id'
+
+    def test_post_should_respond_200_extra_null(self, session):
+        payload = {"connection_id": "test-connection-id", "conn_type": 'test_type', "extra": None}
+        response = self.client.post(
+            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+        assert response.json["extra"] is None
+        connection = session.query(Connection).all()
+        assert len(connection) == 1
+        assert connection[0].conn_id == "test-connection-id"
+        assert connection[0].extra is None
 
     def test_post_should_respond_400_for_invalid_payload(self):
         payload = {

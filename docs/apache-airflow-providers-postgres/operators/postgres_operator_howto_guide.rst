@@ -154,6 +154,18 @@ class.
       params={"begin_date": "2020-01-01", "end_date": "2020-12-31"},
   )
 
+Passing Server Configuration Parameters into PostgresOperator
+-------------------------------------------------------------
+
+PostgresOperator provides the optional ``runtime_parameters`` attribute which makes it possible to set
+the `server configuration parameter values <https://www.postgresql.org/docs/current/runtime-config-client.html>`_ for the SQL request during runtime.
+
+.. exampleinclude:: /../../airflow/providers/postgres/example_dags/example_postgres.py
+    :language: python
+    :start-after: [START postgres_operator_howto_guide_get_birth_date]
+    :end-before: [END postgres_operator_howto_guide_get_birth_date]
+
+
 The complete Postgres Operator DAG
 ----------------------------------
 
@@ -172,4 +184,5 @@ In this how-to guide we explored the Apache Airflow PostgreOperator. Let's quick
 In Airflow-2.0, PostgresOperator class now resides in the ``providers`` package. It is best practice to create subdirectory
 called ``sql`` in your ``dags`` directory where you can store your sql files. This will make your code more elegant and more
 maintainable. And finally, we looked at the different ways you can dynamically pass parameters into our PostgresOperator
-tasks using ``parameters`` or ``params`` attribute.
+tasks using ``parameters`` or ``params`` attribute and how you can control the server configuration parameters by passing
+the ``runtime_parameters`` attribute.

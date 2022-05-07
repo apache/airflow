@@ -43,6 +43,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self._job_id: Optional[int] = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
+        self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
 
     @property
     def queued_tasks(self) -> Dict[TaskInstanceKey, QueuedTaskInstanceType]:
@@ -107,7 +108,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         cfg_path: Optional[str] = None,
     ) -> None:
         """Queues task instance via celery or kubernetes executor"""
-        executor = self._router(SimpleTaskInstance(task_instance))
+        executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )

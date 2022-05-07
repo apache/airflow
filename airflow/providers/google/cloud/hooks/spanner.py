@@ -26,6 +26,7 @@ from google.cloud.spanner_v1.transaction import Transaction
 from google.longrunning.operations_grpc_pb2 import Operation
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -60,7 +61,7 @@ class SpannerHook(GoogleBaseHook):
         """
         if not self._client:
             self._client = Client(
-                project=project_id, credentials=self._get_credentials(), client_info=self.client_info
+                project=project_id, credentials=self._get_credentials(), client_info=CLIENT_INFO
             )
         return self._client
 

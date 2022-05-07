@@ -26,18 +26,22 @@ import time
 import warnings
 from collections import defaultdict
 from datetime import timedelta
-from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Tuple
+from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
 
-from sqlalchemy import and_, func, not_, or_, text, tuple_
+from sqlalchemy import func, not_, or_, text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
+from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
+from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
+from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -47,12 +51,17 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
-from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.sqlalchemy import is_lock_not_available_error, prohibit_commit, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import (
+    is_lock_not_available_error,
+    prohibit_commit,
+    skip_locked,
+    tuple_in_condition,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
@@ -123,7 +132,9 @@ class SchedulerJob(BaseJob):
             )
             scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
-
+        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
+        self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
+        self._standalone_dag_processor = conf.getboolean("scheduler", "standalone_dag_processor")
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
 
@@ -131,10 +142,10 @@ class SchedulerJob(BaseJob):
             self._log = log
 
         # Check what SQL backend we use
-        sql_conn: str = conf.get('core', 'sql_alchemy_conn').lower()
+        sql_conn: str = conf.get('database', 'sql_alchemy_conn').lower()
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
-
+        # Dag Processor agent - not used in Dag Processor standalone mode.
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
@@ -266,54 +277,16 @@ class SchedulerJob(BaseJob):
 
         if pool_slots_free == 0:
             self.log.debug("All pools are full!")
-            return executable_tis
+            return []
 
         max_tis = min(max_tis, pool_slots_free)
 
-        # Get all task instances associated with scheduled
-        # DagRuns which are not backfilled, in the given states,
-        # and the dag is not paused
-        query = (
-            session.query(TI)
-            .join(TI.dag_run)
-            .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state == DagRunState.RUNNING)
-            .join(TI.dag_model)
-            .filter(not_(DM.is_paused))
-            .filter(TI.state == TaskInstanceState.SCHEDULED)
-            .options(selectinload('dag_model'))
-            .order_by(-TI.priority_weight, DR.execution_date)
-        )
-        starved_pools = [pool_name for pool_name, stats in pools.items() if stats['open'] <= 0]
-        if starved_pools:
-            query = query.filter(not_(TI.pool.in_(starved_pools)))
-
-        query = query.limit(max_tis)
-
-        task_instances_to_examine: List[TI] = with_row_locks(
-            query,
-            of=TI,
-            session=session,
-            **skip_locked(session=session),
-        ).all()
-        # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
-        # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
-
-        if len(task_instances_to_examine) == 0:
-            self.log.debug("No tasks to consider for execution.")
-            return executable_tis
-
-        # Put one task instance on each line
-        task_instance_str = "\n\t".join(repr(x) for x in task_instances_to_examine)
-        self.log.info("%s tasks up for execution:\n\t%s", len(task_instances_to_examine), task_instance_str)
-
-        pool_to_task_instances: DefaultDict[str, List[models.Pool]] = defaultdict(list)
-        for task_instance in task_instances_to_examine:
-            pool_to_task_instances[task_instance.pool].append(task_instance)
+        starved_pools = {pool_name for pool_name, stats in pools.items() if stats['open'] <= 0}
 
         # dag_id to # of running tasks and (dag_id, task_id) to # of running tasks.
-        dag_max_active_tasks_map: DefaultDict[str, int]
+        dag_active_tasks_map: DefaultDict[str, int]
         task_concurrency_map: DefaultDict[Tuple[str, str], int]
-        dag_max_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
+        dag_active_tasks_map, task_concurrency_map = self.__get_concurrency_maps(
             states=list(EXECUTION_STATES), session=session
         )
 
@@ -321,17 +294,88 @@ class SchedulerJob(BaseJob):
         # Number of tasks that cannot be scheduled because of no open slot in pool
         num_starving_tasks_total = 0
 
-        # Go through each pool, and queue up a task for execution if there are
-        # any open slots in the pool.
+        # dag and task ids that can't be queued because of concurrency limits
+        starved_dags: Set[str] = set()
+        starved_tasks: Set[Tuple[str, str]] = set()
 
-        for pool, task_instances in pool_to_task_instances.items():
-            pool_name = pool
-            if pool not in pools:
-                self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool)
-                continue
+        pool_num_starving_tasks: DefaultDict[str, int] = defaultdict(int)
 
-            pool_total = pools[pool]["total"]
-            for task_instance in task_instances:
+        for loop_count in itertools.count(start=1):
+
+            num_starved_pools = len(starved_pools)
+            num_starved_dags = len(starved_dags)
+            num_starved_tasks = len(starved_tasks)
+
+            # Get task instances associated with scheduled
+            # DagRuns which are not backfilled, in the given states,
+            # and the dag is not paused
+            query = (
+                session.query(TI)
+                .join(TI.dag_run)
+                .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state == DagRunState.RUNNING)
+                .join(TI.dag_model)
+                .filter(not_(DM.is_paused))
+                .filter(TI.state == TaskInstanceState.SCHEDULED)
+                .options(selectinload('dag_model'))
+                .order_by(-TI.priority_weight, DR.execution_date)
+            )
+
+            if starved_pools:
+                query = query.filter(not_(TI.pool.in_(starved_pools)))
+
+            if starved_dags:
+                query = query.filter(not_(TI.dag_id.in_(starved_dags)))
+
+            if starved_tasks:
+                task_filter = tuple_in_condition((TaskInstance.dag_id, TaskInstance.task_id), starved_tasks)
+                query = query.filter(not_(task_filter))
+
+            query = query.limit(max_tis)
+
+            task_instances_to_examine: List[TI] = with_row_locks(
+                query,
+                of=TI,
+                session=session,
+                **skip_locked(session=session),
+            ).all()
+            # TODO[HA]: This was wrong before anyway, as it only looked at a sub-set of dags, not everything.
+            # Stats.gauge('scheduler.tasks.pending', len(task_instances_to_examine))
+
+            if len(task_instances_to_examine) == 0:
+                self.log.debug("No tasks to consider for execution.")
+                break
+
+            # Put one task instance on each line
+            task_instance_str = "\n\t".join(repr(x) for x in task_instances_to_examine)
+            self.log.info(
+                "%s tasks up for execution:\n\t%s", len(task_instances_to_examine), task_instance_str
+            )
+
+            for task_instance in task_instances_to_examine:
+                pool_name = task_instance.pool
+
+                pool_stats = pools.get(pool_name)
+                if not pool_stats:
+                    self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
+                    starved_pools.add(pool_name)
+                    continue
+
+                # Make sure to emit metrics if pool has no starving tasks
+                pool_num_starving_tasks.setdefault(pool_name, 0)
+
+                pool_total = pool_stats["total"]
+                open_slots = pool_stats["open"]
+
+                if open_slots <= 0:
+                    self.log.info(
+                        "Not scheduling since there are %s open slots in pool %s", open_slots, pool_name
+                    )
+                    # Can't schedule any more since there are no more open slots.
+                    pool_num_starving_tasks[pool_name] += 1
+                    num_starving_tasks_total += 1
+                    starved_pools.add(pool_name)
+                    continue
+
                 if task_instance.pool_slots > pool_total:
                     self.log.warning(
                         "Not executing %s. Requested pool slots (%s) are greater than "
@@ -339,48 +383,42 @@ class SchedulerJob(BaseJob):
                         task_instance,
                         task_instance.pool_slots,
                         pool_total,
-                        pool,
+                        pool_name,
                     )
-                    task_instances.remove(task_instance)
 
-            open_slots = pools[pool]["open"]
+                    pool_num_starving_tasks[pool_name] += 1
+                    num_starving_tasks_total += 1
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    continue
 
-            num_ready = len(task_instances)
-            self.log.info(
-                "Figuring out tasks to run in Pool(name=%s) with %s open slots "
-                "and %s task instances ready to be queued",
-                pool,
-                open_slots,
-                num_ready,
-            )
-
-            priority_sorted_task_instances = sorted(
-                task_instances, key=lambda ti: (-ti.priority_weight, ti.execution_date)
-            )
-
-            num_starving_tasks = 0
-            for current_index, task_instance in enumerate(priority_sorted_task_instances):
-                if open_slots <= 0:
-                    self.log.info("Not scheduling since there are %s open slots in pool %s", open_slots, pool)
-                    # Can't schedule any more since there are no more open slots.
-                    num_unhandled = len(priority_sorted_task_instances) - current_index
-                    num_starving_tasks += num_unhandled
-                    num_starving_tasks_total += num_unhandled
-                    break
+                if task_instance.pool_slots > open_slots:
+                    self.log.info(
+                        "Not executing %s since it requires %s slots "
+                        "but there are %s open slots in the pool %s.",
+                        task_instance,
+                        task_instance.pool_slots,
+                        open_slots,
+                        pool_name,
+                    )
+                    pool_num_starving_tasks[pool_name] += 1
+                    num_starving_tasks_total += 1
+                    starved_tasks.add((task_instance.dag_id, task_instance.task_id))
+                    # Though we can execute tasks with lower priority if there's enough room
+                    continue
 
                 # Check to make sure that the task max_active_tasks of the DAG hasn't been
                 # reached.
                 dag_id = task_instance.dag_id
 
-                current_max_active_tasks_per_dag = dag_max_active_tasks_map[dag_id]
+                current_active_tasks_per_dag = dag_active_tasks_map[dag_id]
                 max_active_tasks_per_dag_limit = task_instance.dag_model.max_active_tasks
                 self.log.info(
                     "DAG %s has %s/%s running and queued tasks",
                     dag_id,
-                    current_max_active_tasks_per_dag,
+                    current_active_tasks_per_dag,
                     max_active_tasks_per_dag_limit,
                 )
-                if current_max_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
+                if current_active_tasks_per_dag >= max_active_tasks_per_dag_limit:
                     self.log.info(
                         "Not executing %s since the number of tasks running or queued "
                         "from DAG %s is >= to the DAG's max_active_tasks limit of %s",
@@ -388,9 +426,9 @@ class SchedulerJob(BaseJob):
                         dag_id,
                         max_active_tasks_per_dag_limit,
                     )
+                    starved_dags.add(dag_id)
                     continue
 
-                task_concurrency_limit: Optional[int] = None
                 if task_instance.dag_model.has_task_concurrency_limits:
                     # Many dags don't have a task_concurrency, so where we can avoid loading the full
                     # serialized DAG the better.
@@ -406,6 +444,8 @@ class SchedulerJob(BaseJob):
                             {TI.state: State.FAILED}, synchronize_session='fetch'
                         )
                         continue
+
+                    task_concurrency_limit: Optional[int] = None
                     if serialized_dag.has_task(task_instance.task_id):
                         task_concurrency_limit = serialized_dag.get_task(
                             task_instance.task_id
@@ -422,36 +462,44 @@ class SchedulerJob(BaseJob):
                                 " this task has been reached.",
                                 task_instance,
                             )
+                            starved_tasks.add((task_instance.dag_id, task_instance.task_id))
                             continue
-
-                if task_instance.pool_slots > open_slots:
-                    self.log.info(
-                        "Not executing %s since it requires %s slots "
-                        "but there are %s open slots in the pool %s.",
-                        task_instance,
-                        task_instance.pool_slots,
-                        open_slots,
-                        pool,
-                    )
-                    num_starving_tasks += 1
-                    num_starving_tasks_total += 1
-                    # Though we can execute tasks with lower priority if there's enough room
-                    continue
 
                 executable_tis.append(task_instance)
                 open_slots -= task_instance.pool_slots
-                dag_max_active_tasks_map[dag_id] += 1
+                dag_active_tasks_map[dag_id] += 1
                 task_concurrency_map[(task_instance.dag_id, task_instance.task_id)] += 1
 
+                pool_stats["open"] = open_slots
+
+            is_done = executable_tis or len(task_instances_to_examine) < max_tis
+            # Check this to avoid accidental infinite loops
+            found_new_filters = (
+                len(starved_pools) > num_starved_pools
+                or len(starved_dags) > num_starved_dags
+                or len(starved_tasks) > num_starved_tasks
+            )
+
+            if is_done or not found_new_filters:
+                break
+
+            self.log.debug(
+                "Found no task instances to queue on the %s. iteration "
+                "but there could be more candidate task instances to check.",
+                loop_count,
+            )
+
+        for pool_name, num_starving_tasks in pool_num_starving_tasks.items():
             Stats.gauge(f'pool.starving_tasks.{pool_name}', num_starving_tasks)
 
         Stats.gauge('scheduler.tasks.starving', num_starving_tasks_total)
         Stats.gauge('scheduler.tasks.running', num_tasks_in_executor)
         Stats.gauge('scheduler.tasks.executable', len(executable_tis))
 
-        task_instance_str = "\n\t".join(repr(x) for x in executable_tis)
-        self.log.info("Setting the following tasks to queued state:\n\t%s", task_instance_str)
         if len(executable_tis) > 0:
+            task_instance_str = "\n\t".join(repr(x) for x in executable_tis)
+            self.log.info("Setting the following tasks to queued state:\n\t%s", task_instance_str)
+
             # set TIs to queued state
             filter_for_tis = TI.filter_for_tis(executable_tis)
             session.query(TI).filter(filter_for_tis).update(
@@ -532,9 +580,9 @@ class SchedulerJob(BaseJob):
     @provide_session
     def _process_executor_events(self, session: Session = None) -> int:
         """Respond to executor events."""
-        if not self.processor_agent:
+        if not self._standalone_dag_processor and not self.processor_agent:
             raise ValueError("Processor agent is not started.")
-        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str], int] = {}
+        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str, int], int] = {}
         event_buffer = self.executor.get_event_buffer()
         tis_with_right_state: List[TaskInstanceKey] = []
 
@@ -583,16 +631,18 @@ class SchedulerJob(BaseJob):
                 continue
 
             msg = (
-                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, "
+                "TaskInstance Finished: dag_id=%s, task_id=%s, run_id=%s, map_index=%s, "
                 "run_start_date=%s, run_end_date=%s, "
                 "run_duration=%s, state=%s, executor_state=%s, try_number=%s, max_tries=%s, job_id=%s, "
-                "pool=%s, queue=%s, priority_weight=%d, operator=%s"
+                "pool=%s, queue=%s, priority_weight=%d, operator=%s, queued_dttm=%s, "
+                "queued_by_job_id=%s, pid=%s"
             )
             self.log.info(
                 msg,
                 ti.dag_id,
                 ti.task_id,
                 ti.run_id,
+                ti.map_index,
                 ti.start_date,
                 ti.end_date,
                 ti.duration,
@@ -605,6 +655,9 @@ class SchedulerJob(BaseJob):
                 ti.queue,
                 ti.priority_weight,
                 ti.operator,
+                ti.queued_dttm,
+                ti.queued_by_job_id,
+                ti.pid,
             )
 
             if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
@@ -627,10 +680,10 @@ class SchedulerJob(BaseJob):
                 if task.on_retry_callback or task.on_failure_callback:
                     request = TaskCallbackRequest(
                         full_filepath=ti.dag_model.fileloc,
-                        simple_task_instance=SimpleTaskInstance(ti),
+                        simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
-                    self.processor_agent.send_callback_to_execute(request)
+                    self.executor.send_callback(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
@@ -650,38 +703,50 @@ class SchedulerJob(BaseJob):
 
         processor_timeout_seconds: int = conf.getint('core', 'dag_file_processor_timeout')
         processor_timeout = timedelta(seconds=processor_timeout_seconds)
-        self.processor_agent = DagFileProcessorAgent(
-            dag_directory=self.subdir,
-            max_runs=self.num_times_parse_dags,
-            processor_timeout=processor_timeout,
-            dag_ids=[],
-            pickle_dags=pickle_dags,
-            async_mode=async_mode,
-        )
+        if not self._standalone_dag_processor:
+            self.processor_agent = DagFileProcessorAgent(
+                dag_directory=self.subdir,
+                max_runs=self.num_times_parse_dags,
+                processor_timeout=processor_timeout,
+                dag_ids=[],
+                pickle_dags=pickle_dags,
+                async_mode=async_mode,
+            )
 
         try:
             self.executor.job_id = self.id
+            if self.processor_agent:
+                self.log.debug("Using PipeCallbackSink as callback sink.")
+                self.executor.callback_sink = PipeCallbackSink(
+                    get_sink_pipe=self.processor_agent.get_callbacks_pipe
+                )
+            else:
+                self.log.debug("Using DatabaseCallbackSink as callback sink.")
+                self.executor.callback_sink = DatabaseCallbackSink()
+
             self.executor.start()
 
             self.register_signals()
 
-            self.processor_agent.start()
+            if self.processor_agent:
+                self.processor_agent.start()
 
             execute_start_time = timezone.utcnow()
 
             self._run_scheduler_loop()
 
-            # Stop any processors
-            self.processor_agent.terminate()
+            if self.processor_agent:
+                # Stop any processors
+                self.processor_agent.terminate()
 
-            # Verify that all files were processed, and if so, deactivate DAGs that
-            # haven't been touched by the scheduler as they likely have been
-            # deleted.
-            if self.processor_agent.all_files_processed:
-                self.log.info(
-                    "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
-                )
-                models.DAG.deactivate_stale_dags(execute_start_time)
+                # Verify that all files were processed, and if so, deactivate DAGs that
+                # haven't been touched by the scheduler as they likely have been
+                # deleted.
+                if self.processor_agent.all_files_processed:
+                    self.log.info(
+                        "Deactivating DAGs that haven't been touched since %s", execute_start_time.isoformat()
+                    )
+                    models.DAG.deactivate_stale_dags(execute_start_time)
 
             settings.Session.remove()  # type: ignore
         except Exception:
@@ -692,10 +757,11 @@ class SchedulerJob(BaseJob):
                 self.executor.end()
             except Exception:
                 self.log.exception("Exception when executing Executor.end")
-            try:
-                self.processor_agent.end()
-            except Exception:
-                self.log.exception("Exception when executing DagFileProcessorAgent.end")
+            if self.processor_agent:
+                try:
+                    self.processor_agent.end()
+                except Exception:
+                    self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
 
     def _run_scheduler_loop(self) -> None:
@@ -715,7 +781,7 @@ class SchedulerJob(BaseJob):
 
         :rtype: None
         """
-        if not self.processor_agent:
+        if not self.processor_agent and not self._standalone_dag_processor:
             raise ValueError("Processor agent is not started.")
         is_unit_test: bool = conf.getboolean('core', 'unit_test_mode')
 
@@ -739,10 +805,15 @@ class SchedulerJob(BaseJob):
             self._emit_pool_metrics,
         )
 
+        timers.call_regular_interval(
+            conf.getfloat('scheduler', 'zombie_detection_interval', fallback=10.0),
+            self._find_zombies,
+        )
+
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
 
-                if self.using_sqlite:
+                if self.using_sqlite and self.processor_agent:
                     self.processor_agent.run_single_parsing_loop()
                     # For the sqlite case w/ 1 thread, wait until the processor
                     # is finished to avoid concurrent access to the DB.
@@ -755,8 +826,8 @@ class SchedulerJob(BaseJob):
                     self.executor.heartbeat()
                     session.expunge_all()
                     num_finished_events = self._process_executor_events(session=session)
-
-                self.processor_agent.heartbeat()
+                if self.processor_agent:
+                    self.processor_agent.heartbeat()
 
                 # Heartbeat the scheduler periodically
                 self.heartbeat(only_if_necessary=True)
@@ -780,7 +851,7 @@ class SchedulerJob(BaseJob):
                     loop_count,
                 )
                 break
-            if self.processor_agent.done:
+            if self.processor_agent and self.processor_agent.done:
                 self.log.info(
                     "Exiting scheduler loop as requested DAG parse count (%d) has been reached after %d"
                     " scheduler loops",
@@ -806,7 +877,7 @@ class SchedulerJob(BaseJob):
 
           By "next oldest", we mean hasn't been examined/scheduled in the most time.
 
-          The reason we don't select all dagruns at once because the rows are selected with row locks, meaning
+          We don't select all dagruns at once, because the rows are selected with row locks, meaning
           that only one scheduler can "process them", even it is waiting behind other dags. Increasing this
           limit will allow more throughput for smaller DAGs but will likely slow down throughput for larger
           (>500 tasks.) DAGs
@@ -821,7 +892,6 @@ class SchedulerJob(BaseJob):
         """
         # Put a check in place to make sure we don't commit unexpectedly
         with prohibit_commit(session) as guard:
-
             if settings.USE_JOB_SCHEDULE:
                 self._create_dagruns_for_dags(guard, session)
 
@@ -838,46 +908,49 @@ class SchedulerJob(BaseJob):
 
             guard.commit()
 
-            # Send the callbacks after we commit to ensure the context is up to date when it gets run
-            for dag_run, callback_to_run in callback_tuples:
-                dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
-                if not dag:
-                    self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
-                    continue
+        # Send the callbacks after we commit to ensure the context is up to date when it gets run
+        for dag_run, callback_to_run in callback_tuples:
+            dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
+            if not dag:
+                self.log.error("DAG '%s' not found in serialized_dag table", dag_run.dag_id)
+                continue
+            # Sending callbacks there as in standalone_dag_processor they are adding to the database,
+            # so it must be done outside of prohibit_commit.
+            self._send_dag_callbacks_to_processor(dag, callback_to_run)
 
-                self._send_dag_callbacks_to_processor(dag, callback_to_run)
-
+        with prohibit_commit(session) as guard:
             # Without this, the session has an invalid view of the DB
             session.expunge_all()
             # END: schedule TIs
 
-            try:
-                if self.executor.slots_available <= 0:
-                    # We know we can't do anything here, so don't even try!
-                    self.log.debug("Executor full, skipping critical section")
-                    return 0
+            if self.executor.slots_available <= 0:
+                # We know we can't do anything here, so don't even try!
+                self.log.debug("Executor full, skipping critical section")
+                num_queued_tis = 0
+            else:
+                try:
+                    timer = Stats.timer('scheduler.critical_section_duration')
+                    timer.start()
 
-                timer = Stats.timer('scheduler.critical_section_duration')
-                timer.start()
+                    # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
+                    num_queued_tis = self._critical_section_execute_task_instances(session=session)
 
-                # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
-                num_queued_tis = self._critical_section_execute_task_instances(session=session)
+                    # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
+                    # metric, way down
+                    timer.stop(send=True)
+                except OperationalError as e:
+                    timer.stop(send=False)
 
-                # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
-                # metric, way down
-                timer.stop(send=True)
-            except OperationalError as e:
-                timer.stop(send=False)
-
-                if is_lock_not_available_error(error=e):
-                    self.log.debug("Critical section lock held by another Scheduler")
-                    Stats.incr('scheduler.critical_section_busy')
-                    session.rollback()
-                    return 0
-                raise
+                    if is_lock_not_available_error(error=e):
+                        self.log.debug("Critical section lock held by another Scheduler")
+                        Stats.incr('scheduler.critical_section_busy')
+                        session.rollback()
+                        return 0
+                    raise
 
             guard.commit()
-            return num_queued_tis
+
+        return num_queued_tis
 
     @retry_db_transaction
     def _get_next_dagruns_to_examine(self, state: DagRunState, session: Session):
@@ -903,24 +976,15 @@ class SchedulerJob(BaseJob):
         # as DagModel.dag_id and DagModel.next_dagrun
         # This list is used to verify if the DagRun already exist so that we don't attempt to create
         # duplicate dag runs
-
-        if session.bind.dialect.name == 'mssql':
-            existing_dagruns_filter = or_(
-                *(
-                    and_(
-                        DagRun.dag_id == dm.dag_id,
-                        DagRun.execution_date == dm.next_dagrun,
-                    )
-                    for dm in dag_models
-                )
-            )
-        else:
-            existing_dagruns_filter = tuple_(DagRun.dag_id, DagRun.execution_date).in_(
-                [(dm.dag_id, dm.next_dagrun) for dm in dag_models]
-            )
-
         existing_dagruns = (
-            session.query(DagRun.dag_id, DagRun.execution_date).filter(existing_dagruns_filter).all()
+            session.query(DagRun.dag_id, DagRun.execution_date)
+            .filter(
+                tuple_in_condition(
+                    (DagRun.dag_id, DagRun.execution_date),
+                    ((dm.dag_id, dm.next_dagrun) for dm in dag_models),
+                ),
+            )
+            .all()
         )
 
         active_runs_of_dags = defaultdict(
@@ -1112,27 +1176,23 @@ class SchedulerJob(BaseJob):
         dag_run.verify_integrity(session=session)
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.processor_agent.send_callback_to_execute(callback)
+            self.executor.send_callback(callback)
+        else:
+            self.log.debug("callback is empty")
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
         if not settings.CHECK_SLAS:
             return
 
-        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
+        if not any(isinstance(task.sla, timedelta) for task in dag.tasks):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
-        if not self.processor_agent:
-            raise ValueError("Processor agent is not started.")
-
-        self.processor_agent.send_sla_callback_request_to_execute(
-            full_filepath=dag.fileloc, dag_id=dag.dag_id
-        )
+        request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
+        self.executor.send_callback(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
@@ -1259,3 +1319,39 @@ class SchedulerJob(BaseJob):
         )
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
+
+    @provide_session
+    def _find_zombies(self, session):
+        """
+        Find zombie task instances, which are tasks haven't heartbeated for too long
+        and update the current zombie list.
+        """
+        self.log.debug("Finding 'running' jobs without a recent heartbeat")
+        limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
+
+        zombies = (
+            session.query(TaskInstance, DagModel.fileloc)
+            .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
+            .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
+            .filter(TaskInstance.state == State.RUNNING)
+            .filter(
+                or_(
+                    LocalTaskJob.state != State.RUNNING,
+                    LocalTaskJob.latest_heartbeat < limit_dttm,
+                )
+            )
+            .all()
+        )
+
+        if zombies:
+            self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
+
+        for ti, file_loc in zombies:
+            request = TaskCallbackRequest(
+                full_filepath=file_loc,
+                simple_task_instance=SimpleTaskInstance.from_ti(ti),
+                msg=f"Detected {ti} as zombie",
+            )
+            self.log.error("Detected zombie job: %s", request)
+            self.executor.send_callback(request)
+            Stats.incr('zombies_killed')

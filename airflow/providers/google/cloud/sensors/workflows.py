@@ -17,6 +17,7 @@
 
 from typing import TYPE_CHECKING, Optional, Sequence, Set, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution
 
@@ -58,7 +59,7 @@ class WorkflowExecutionSensor(BaseSensorOperator):
         project_id: str,
         success_states: Optional[Set[Execution.State]] = None,
         failure_states: Optional[Set[Execution.State]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         request_timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

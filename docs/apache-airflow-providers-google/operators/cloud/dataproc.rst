@@ -32,6 +32,7 @@ Prerequisite Tasks
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
+.. _howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator:
 
 Create a Cluster
 ----------------
@@ -56,6 +57,23 @@ With this configuration we can create the cluster:
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
+
+For create Dataproc cluster in Google Kubernetes Engine you should use this cluster configuration:
+
+.. exampleinclude:: /../../tests/system/providers/google/dataproc/example_dataproc_gke.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster_in_gke_config]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_in_gke_config]
+
+With this configuration we can create the cluster:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/dataproc/example_dataproc_gke.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
 
 Generating Cluster Config
 ^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -211,6 +229,15 @@ Once a workflow is created users can trigger it using
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
+
+The inline operator is an alternative. It creates a workflow, run it, and delete it afterwards:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`:
+
+.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
+    :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
 
 Create a Batch
 --------------

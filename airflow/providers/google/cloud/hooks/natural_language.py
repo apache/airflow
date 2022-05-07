@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Natural Language Hook."""
 from typing import Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.language_v1 import LanguageServiceClient, enums
 from google.cloud.language_v1.types import (
@@ -31,6 +32,7 @@ from google.cloud.language_v1.types import (
     Document,
 )
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -73,9 +75,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :rtype: google.cloud.language_v1.LanguageServiceClient
         """
         if not self._conn:
-            self._conn = LanguageServiceClient(
-                credentials=self._get_credentials(), client_info=self.client_info
-            )
+            self._conn = LanguageServiceClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._conn
 
     @GoogleBaseHook.quota_retry()
@@ -83,7 +83,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeEntitiesResponse:
@@ -112,7 +112,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeEntitySentimentResponse:
@@ -141,7 +141,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeSentimentResponse:
@@ -169,7 +169,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeSyntaxResponse:
@@ -199,7 +199,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         document: Union[dict, Document],
         features: Union[dict, AnnotateTextRequest.Features],
         encoding_type: enums.EncodingType = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnnotateTextResponse:
@@ -234,7 +234,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def classify_text(
         self,
         document: Union[dict, Document],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ClassifyTextResponse:

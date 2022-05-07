@@ -1045,9 +1045,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
             wait_until_finished=self.dataflow_hook.wait_until_finished,
         )
-        mock_controller.return_value.get_jobs.wait_for_done.assrt_called_once_with()
-        mock_controller.return_value.get_jobs.assrt_called_once_with()
-
+        mock_controller.return_value.get_jobs.assert_called_once_with(refresh=True)
         assert result == {"id": TEST_JOB_ID}
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))

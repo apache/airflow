@@ -22,7 +22,8 @@ import json
 from typing import Any, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import InvalidArgument
-from google.api_core.gapic_v1.method import DEFAULT
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.retry import Retry
 from google.cloud import monitoring_v3
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -67,7 +68,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
@@ -126,7 +127,7 @@ class StackdriverHook(GoogleBaseHook):
         new_state: bool,
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -148,7 +149,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -181,7 +182,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -214,7 +215,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         alerts: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -310,7 +311,7 @@ class StackdriverHook(GoogleBaseHook):
     def delete_alert_policy(
         self,
         name: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -342,7 +343,7 @@ class StackdriverHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Any:
@@ -401,7 +402,7 @@ class StackdriverHook(GoogleBaseHook):
         new_state: bool,
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -425,7 +426,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         project_id: str = PROVIDE_PROJECT_ID,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -458,7 +459,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         project_id: str,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -491,7 +492,7 @@ class StackdriverHook(GoogleBaseHook):
         self,
         channels: str,
         project_id: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> dict:
@@ -552,7 +553,7 @@ class StackdriverHook(GoogleBaseHook):
     def delete_notification_channel(
         self,
         name: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
