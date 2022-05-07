@@ -43,6 +43,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self._job_id: Optional[int] = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
+        self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
 
     @property
     def queued_tasks(self) -> Dict[TaskInstanceKey, QueuedTaskInstanceType]:

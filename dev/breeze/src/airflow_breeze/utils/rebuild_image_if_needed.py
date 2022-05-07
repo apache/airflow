@@ -55,4 +55,4 @@ def rebuild_ci_image_if_needed(
             f'[warning]{build_params.the_image_type} image not built locally. Forcing build.[/]'
         )
         ci_image_params.force_build = True
-    build_ci_image(verbose, dry_run=dry_run, with_ci_group=False, ci_image_params=ci_image_params)
+    build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params)

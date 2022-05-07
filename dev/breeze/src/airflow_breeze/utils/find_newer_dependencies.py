@@ -45,7 +45,7 @@ def find_newer_dependencies(
     from packaging import version
 
     constraints = requests.get(
-        f"https://raw.githubusercontent.com/" f"apache/airflow/{constraints_branch}/constraints-{python}.txt"
+        f"https://raw.githubusercontent.com/apache/airflow/{constraints_branch}/constraints-{python}.txt"
     ).text
     package_lines = list(filter(lambda x: not x.startswith("#"), constraints.splitlines()))
     constrained_packages: Dict[str, Any] = {}

@@ -15,14 +15,17 @@
 # specific language governing permissions and limitations
 # under the License.
 """Breeze shell paameters."""
+import os
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional, Tuple
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_DEBIAN_VERSIONS,
+    ALLOWED_GENERATE_CONSTRAINTS_MODES,
+    ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
     ALLOWED_POSTGRES_VERSIONS,
@@ -56,7 +59,15 @@ class ShellParams:
     dry_run: bool = False
     load_example_dags: bool = False
     load_default_connections: bool = False
-    use_airflow_version: str = ""
+    use_airflow_version: Optional[str] = None
+    airflow_extras: str = ""
+    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    use_packages_from_dist: bool = False
+    package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
+    generate_constraints_mode: str = ALLOWED_GENERATE_CONSTRAINTS_MODES[0]
+    install_providers_from_sources: bool = True
+    skip_environment_initialization: bool = False
+    version_suffix_for_pypi: str = ""
     install_airflow_version: str = ""
     image_tag: str = "latest"
     github_repository: str = "apache/airflow"
@@ -64,8 +75,8 @@ class ShellParams:
     forward_credentials: str = "false"
     airflow_branch: str = AIRFLOW_BRANCH
     start_airflow: str = "false"
-    skip_package_verification: bool = False
-    github_actions: str = ""
+    github_token: str = os.environ.get('GITHUB_TOKEN', "")
+    github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
     issue_id: str = ""
     num_runs: str = ""
     answer: Optional[str] = None
@@ -196,7 +207,7 @@ class ShellParams:
         compose_ci_file.extend([backend_port_docker_compose_file])
         if self.forward_credentials:
             compose_ci_file.append(forward_credentials_docker_compose_file)
-        if len(self.use_airflow_version) > 0:
+        if self.use_airflow_version is not None:
             compose_ci_file.append(remove_sources_docker_compose_file)
         if "all" in self.integration:
             integrations = AVAILABLE_INTEGRATIONS

@@ -1,0 +1,152 @@
+<svg width="1720.0" height="978" viewBox="0 0 1720.0 978"
+     xmlns="http://www.w3.org/2000/svg">
+    <style>
+        @font-face {
+            font-family: "Rich Fira Code";
+            src: local("FiraCode-Regular"),
+                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+            font-style: normal;
+            font-weight: 400;
+        }
+        @font-face {
+            font-family: "Rich Fira Code";
+            src: local("FiraCode-Bold"),
+                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+            font-style: bold;
+            font-weight: 700;
+        }
+        .rich-svg-3603185097-terminal-wrapper span {
+            display: inline-block;
+            white-space: pre;
+            vertical-align: top;
+            font-size: 18px;
+            font-family:'Rich Fira Code','Cascadia Code',Monaco,Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace;
+        }
+        .rich-svg-3603185097-terminal-wrapper a {
+            text-decoration: none;
+            color: inherit;
+        }
+        .rich-svg-3603185097-terminal-body .blink {
+           animation: rich-svg-3603185097-blinker 1s infinite;
+        }
+        @keyframes rich-svg-3603185097-blinker {
+            from { opacity: 1.0; }
+            50% { opacity: 0.3; }
+            to { opacity: 1.0; }
+        }
+        .rich-svg-3603185097-terminal-wrapper {
+            padding: 140px;
+            padding-top: 100px;
+        }
+        .rich-svg-3603185097-terminal {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #0c0c0c;
+            border-radius: 14px;
+            box-shadow: 0 0 0 1px #484848;
+        }
+        .rich-svg-3603185097-terminal:after {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            content: '';
+            border-radius: 14px;
+            background: rgb(71,77,102);
+            background: linear-gradient(90deg, #804D69 0%, #4E4B89 100%);
+            transform: rotate(-4.5deg);
+            z-index: -1;
+        }
+        .rich-svg-3603185097-terminal-header {
+            position: relative;
+            width: 100%;
+            background-color: #2e2e2e;
+            margin-bottom: 12px;
+            font-weight: bold;
+            border-radius: 14px 14px 0 0;
+            color: #f2f2f2;
+            font-size: 18px;
+            box-shadow: inset 0px -1px 0px 0px #4e4e4e,
+                        inset 0px -4px 8px 0px #1a1a1a;
+        }
+        .rich-svg-3603185097-terminal-title-tab {
+            display: inline-block;
+            margin-top: 14px;
+            margin-left: 124px;
+            font-family: sans-serif;
+            padding: 14px 28px;
+            border-radius: 6px 6px 0 0;
+            background-color: #0c0c0c;
+            box-shadow: inset 0px 1px 0px 0px #4e4e4e,
+                        0px -4px 4px 0px #1e1e1e,
+                        inset 1px 0px 0px 0px #4e4e4e,
+                        inset -1px 0px 0px 0px #4e4e4e;
+        }
+        .rich-svg-3603185097-terminal-traffic-lights {
+            position: absolute;
+            top: 24px;
+            left: 20px;
+        }
+        .rich-svg-3603185097-terminal-body {
+            line-height: 22px;
+            padding: 14px;
+        }
+        .rich-svg-3603185097-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
+.rich-svg-3603185097-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
+.rich-svg-3603185097-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-3603185097-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
+.rich-svg-3603185097-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
+.rich-svg-3603185097-terminal-body .r6 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
+.rich-svg-3603185097-terminal-body .r7 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
+    </style>
+    <foreignObject x="0" y="0" width="100%" height="100%">
+        <body xmlns="http://www.w3.org/1999/xhtml">
+            <div class="rich-svg-3603185097-terminal-wrapper">
+                <div class="rich-svg-3603185097-terminal">
+                    <div class="rich-svg-3603185097-terminal-header">
+                        <svg class="rich-svg-3603185097-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
+                            <circle cx="14" cy="8" r="8" fill="#ff6159"/>
+                            <circle cx="38" cy="8" r="8" fill="#ffbd2e"/>
+                            <circle cx="62" cy="8" r="8" fill="#28c941"/>
+                        </svg>
+                        <div class="rich-svg-3603185097-terminal-title-tab">Command: verify-provider-packages</div>
+                    </div>
+                    <div class="rich-svg-3603185097-terminal-body">
+                        <div><span class="r2">                                                                                                                        </span></div>
+<div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze verify-provider-packages [OPTIONS]                                                                       </span></div>
+<div><span class="r2">                                                                                                                        </span></div>
+<div><span class="r1"> </span><span class="r1">Verifies if all provider code is following expectations for providers.                                                </span><span class="r1"> </span></div>
+<div><span class="r1">                                                                                                                        </span></div>
+<div><span class="r4">╭─ Provider verification flags ────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-airflow-version</span><span class="r1">       Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              `sdist` if Airflow should be removed, installed from wheel packages or sdist packages   </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              available in dist folder respectively. Important! Using it Implies </span><span class="r5">--mount-sources</span><span class="r1">      </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              `none`.                                                                                 </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              </span><span class="r6">(none | wheel | sdist | &lt;airflow_version&gt;)                                            </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--airflow-extras</span><span class="r1">            Airflow extras to install when </span><span class="r5">--use-airflow-version</span><span class="r1"> is used </span><span class="r6">(TEXT)</span><span class="r1">                   </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--use-packages-from-dist</span><span class="r1">    Install all found packages (</span><span class="r5">--package-format</span><span class="r1"> determines type) from &#x27;dist&#x27; folder when   </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              entering breeze.                                                                        </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--package-format</span><span class="r1">            </span><span class="r1">Format of packages that should be installed from dist.</span><span class="r1"> </span><span class="r6">(wheel | sdist)</span><span class="r1">                </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                              </span><span class="r4">[default: wheel]                                      </span><span class="r1"> </span><span class="r1">                               </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--debug</span><span class="r1">                     </span><span class="r1">Drop user in shell instead of running the command. Useful for debugging.              </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
+<div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--airflow-constraints-reference</span><span class="r1">  </span><span class="r1">  </span><span class="r1">  Constraint reference to use. Useful with </span><span class="r5">--use-airflow-version</span><span class="r1"> parameter to    </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                                       specify constraints for the installed version and to find newer dependencies   </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                                       </span><span class="r6">(TEXT)                                                                       </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--verbose</span><span class="r1">                        </span><span class="r7">-v</span><span class="r1">  </span><span class="r1">Print verbose information about performed steps.                             </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--dry-run</span><span class="r1">                        </span><span class="r7">-D</span><span class="r1">  </span><span class="r1">If dry-run is set, commands are only printed, not executed.                  </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--github-repository</span><span class="r1">              </span><span class="r7">-g</span><span class="r1">  </span><span class="r1">GitHub repository used to pull, push run images.</span><span class="r1"> </span><span class="r6">(TEXT)</span><span class="r1">                      </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">                                       </span><span class="r4">[default: apache/airflow]                       </span><span class="r1"> </span><span class="r1">                            </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--help</span><span class="r1">                           </span><span class="r7">-h</span><span class="r1">  </span><span class="r1">Show this message and exit.                                                  </span><span class="r1">  </span><span class="r4">│</span></div>
+<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
+<div><span class="r1"></span><span class="r1">                                                                                                                        </span></div>
+                    </div>
+                </div>
+            </div>
+        </body>
+    </foreignObject>
+</svg>

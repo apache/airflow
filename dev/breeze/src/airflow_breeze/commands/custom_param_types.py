@@ -16,7 +16,8 @@
 # under the License.
 
 from dataclasses import dataclass
-from typing import Any
+from re import match
+from typing import Any, Sequence
 
 import click
 
@@ -26,6 +27,7 @@ from airflow_breeze.utils.cache import (
     read_from_cache_file,
     write_to_cache_file,
 )
+from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.recording import output_file_for_recording
 
@@ -39,8 +41,12 @@ class BetterChoice(click.Choice):
 
     name = "BetterChoice"
 
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.all_choices: Sequence[str] = self.choices
+
     def get_metavar(self, param) -> str:
-        choices_str = " | ".join(self.choices)
+        choices_str = " | ".join(self.all_choices)
         # Use curly braces to indicate a required argument.
         if param.required and param.param_type_name == "argument":
             return f"{{{choices_str}}}"
@@ -51,6 +57,18 @@ class BetterChoice(click.Choice):
 
         # Use square braces to indicate an option or optional argument.
         return f"[{choices_str}]"
+
+
+class AnswerChoice(BetterChoice):
+    """
+    Stores forced answer if it has been selected
+    """
+
+    name = "AnswerChoice"
+
+    def convert(self, value, param, ctx):
+        set_forced_answer(value)
+        return super().convert(value, param, ctx)
 
 
 @dataclass
@@ -113,3 +131,16 @@ class CacheableChoice(click.Choice):
 
     def __init__(self, choices, case_sensitive: bool = True) -> None:
         super().__init__(choices=choices, case_sensitive=case_sensitive)
+
+
+class UseAirflowVersionType(BetterChoice):
+    """Extends choice with dynamic version number."""
+
+    def __init__(self, *args):
+        super().__init__(*args)
+        self.all_choices = [*self.choices, "<airflow_version>"]
+
+    def convert(self, value, param, ctx):
+        if match(r"^\d*\.\d*\.\d*\S*$", value):
+            return value
+        return super().convert(value, param, ctx)

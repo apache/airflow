@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     TrinoTransferOperator types <operators/transfer/gcs_to_trino>
+    Connection types <connections>
 
 .. toctree::
     :maxdepth: 1

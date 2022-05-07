@@ -23,9 +23,11 @@ from airflow_breeze.shell.shell_params import ShellParams
 from airflow_breeze.utils.cache import read_from_cache_file
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
+    check_docker_compose_version,
     check_docker_is_running,
     check_docker_resources,
-    construct_env_variables_docker_compose_command,
+    check_docker_version,
+    get_env_variables_for_docker_commands,
 )
 from airflow_breeze.utils.rebuild_image_if_needed import rebuild_ci_image_if_needed
 from airflow_breeze.utils.run_utils import filter_out_none, run_command
@@ -46,12 +48,9 @@ def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.Calle
     """
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
-    if not check_docker_is_running(verbose):
-        get_console().print(
-            '[error]Docker is not running.[/]\n'
-            '[warning]Please make sure Docker is installed and running.[/]'
-        )
-        sys.exit(1)
+    check_docker_is_running(verbose)
+    check_docker_version(verbose)
+    check_docker_compose_version(verbose)
     if read_from_cache_file('suppress_asciiart') is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file('suppress_cheatsheet') is None:
@@ -81,7 +80,7 @@ def run_shell_with_build_image_checks(
     shell_params.print_badge_info()
     cmd = ['docker-compose', 'run', '--service-ports', "-e", "BREEZE", '--rm', 'airflow']
     cmd_added = shell_params.command_passed
-    env_variables = construct_env_variables_docker_compose_command(shell_params)
+    env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
 
@@ -106,7 +105,7 @@ def find_airflow_container(verbose, dry_run) -> Optional[str]:
     exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
     check_docker_resources(exec_shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
     exec_shell_params.print_badge_info()
-    env_variables = construct_env_variables_docker_compose_command(exec_shell_params)
+    env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     cmd = ['docker-compose', 'ps', '--all', '--filter', 'status=running', 'airflow']
     docker_compose_ps_command = run_command(
         cmd, verbose=verbose, dry_run=dry_run, text=True, capture_output=True, env=env_variables, check=False
