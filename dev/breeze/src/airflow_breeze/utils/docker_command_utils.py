@@ -22,9 +22,9 @@ import sys
 from random import randint
 from typing import Dict, List, Tuple, Union
 
-from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
-from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
-from airflow_breeze.shell.shell_params import ShellParams
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.registry import login_to_docker_registry
@@ -297,7 +297,7 @@ def get_env_variable_value(arg_name: str, params: Union[BuildCiParams, BuildProd
 
 
 def construct_arguments_for_docker_build_command(
-    image_params: Union[BuildCiParams, BuildProdParams], required_args: List[str], optional_args: List[str]
+    image_params: Union[BuildCiParams, BuildProdParams]
 ) -> List[str]:
     """
     Constructs docker compose command arguments list based on parameters passed. Maps arguments to
@@ -309,18 +309,16 @@ def construct_arguments_for_docker_build_command(
       for the need of always triggering upgrade for docker build.
 
     :param image_params: parameters of the image
-    :param required_args: build argument that are required
-    :param optional_args: build arguments that are optional (should not be used if missing or empty)
     :return: list of `--build-arg` commands to use for the parameters passed
     """
 
     args_command = []
-    for required_arg in required_args:
+    for required_arg in image_params.required_image_args:
         args_command.append("--build-arg")
         args_command.append(
             required_arg.upper() + "=" + get_env_variable_value(arg_name=required_arg, params=image_params)
         )
-    for optional_arg in optional_args:
+    for optional_arg in image_params.optional_image_args:
         param_value = get_env_variable_value(optional_arg, params=image_params)
         if len(param_value) > 0:
             args_command.append("--build-arg")
@@ -332,22 +330,16 @@ def construct_arguments_for_docker_build_command(
 def construct_docker_build_command(
     image_params: Union[BuildProdParams, BuildCiParams],
     verbose: bool,
-    required_args: List[str],
-    optional_args: List[str],
     production_image: bool,
 ) -> List[str]:
     """
     Constructs docker build command based on the parameters passed.
     :param image_params: parameters of the image
     :param verbose: print commands when running
-    :param required_args: build argument that are required
-    :param optional_args: build arguments that are optional (should not be used if missing or empty)
     :param production_image: whether this is production image or ci image
     :return: Command to run as list of string
     """
-    arguments = construct_arguments_for_docker_build_command(
-        image_params, required_args=required_args, optional_args=optional_args
-    )
+    arguments = construct_arguments_for_docker_build_command(image_params)
     build_command = prepare_build_command(
         prepare_buildx_cache=image_params.prepare_buildx_cache, verbose=verbose
     )

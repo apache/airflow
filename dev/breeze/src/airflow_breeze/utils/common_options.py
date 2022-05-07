@@ -20,13 +20,6 @@ import multiprocessing as mp
 import click
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-from airflow_breeze.commands.custom_param_types import (
-    AnswerChoice,
-    BetterChoice,
-    CacheableChoice,
-    CacheableDefault,
-    UseAirflowVersionType,
-)
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
@@ -43,6 +36,13 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
     get_available_packages,
+)
+from airflow_breeze.utils.custom_param_types import (
+    AnswerChoice,
+    BetterChoice,
+    CacheableChoice,
+    CacheableDefault,
+    UseAirflowVersionType,
 )
 from airflow_breeze.utils.recording import output_file_for_recording
 

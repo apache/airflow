@@ -14,4 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Building PROD Image."""
+
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.utils.cache import touch_cache_file
+from airflow_breeze.utils.md5_build_check import calculate_md5_checksum_for_files
+from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
+
+
+def mark_image_as_refreshed(ci_image_params: BuildCiParams):
+    ci_image_cache_dir = BUILD_CACHE_DIR / ci_image_params.airflow_branch
+    ci_image_cache_dir.mkdir(parents=True, exist_ok=True)
+    touch_cache_file(f"built_{ci_image_params.python}", root_dir=ci_image_cache_dir)
+    calculate_md5_checksum_for_files(ci_image_params.md5sum_cache_dir, update=True)

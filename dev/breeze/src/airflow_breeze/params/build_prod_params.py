@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Parameters to build PROD image."""
+
 import json
 import os
 import re
@@ -311,3 +311,40 @@ class BuildProdParams:
         """Construct PROD image link"""
         image = f'{self.airflow_base_image_name}/{self.airflow_branch}/prod/python{self.python}'
         return image if self.image_tag is None else image + f":{self.image_tag}"
+
+    required_image_args = [
+        "python_base_image",
+        "install_mysql_client",
+        "install_mssql_client",
+        "install_postgres_client",
+        "airflow_version",
+        "airflow_branch",
+        "airflow_extras",
+        "airflow_pre_cached_pip_packages",
+        "docker_context_files",
+        "extras",
+        "additional_airflow_extras",
+        "additional_python_deps",
+        "additional_dev_apt_command",
+        "additional_dev_apt_deps",
+        "additional_dev_apt_env",
+        "additional_runtime_apt_command",
+        "additional_runtime_apt_deps",
+        "additional_runtime_apt_env",
+        "upgrade_to_newer_dependencies",
+        "constraints_github_repository",
+        "airflow_constraints",
+        "airflow_image_repository",
+        "airflow_image_date_created",
+        "build_id",
+        "airflow_image_readme_url",
+        "install_providers_from_sources",
+        "airflow_is_in_context",
+        "install_packages_from_context",
+    ]
+    optional_image_args = [
+        "dev_apt_command",
+        "dev_apt_deps",
+        "runtime_apt_command",
+        "runtime_apt_deps",
+    ]

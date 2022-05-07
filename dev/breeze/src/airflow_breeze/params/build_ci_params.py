@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""Parameters for Build CI Image."""
+
 import os
 from dataclasses import dataclass
 from datetime import datetime
@@ -148,32 +148,31 @@ class BuildCiParams:
     def md5sum_cache_dir(self) -> Path:
         return Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, "CI")
 
-
-REQUIRED_CI_IMAGE_ARGS = [
-    "python_base_image",
-    "airflow_version",
-    "airflow_branch",
-    "airflow_extras",
-    "airflow_pre_cached_pip_packages",
-    "additional_airflow_extras",
-    "additional_python_deps",
-    "additional_dev_apt_command",
-    "additional_dev_apt_deps",
-    "additional_dev_apt_env",
-    "additional_runtime_apt_command",
-    "additional_runtime_apt_deps",
-    "additional_runtime_apt_env",
-    "upgrade_to_newer_dependencies",
-    "constraints_github_repository",
-    "airflow_constraints_reference",
-    "airflow_constraints",
-    "airflow_image_repository",
-    "airflow_image_date_created",
-    "build_id",
-]
-OPTIONAL_CI_IMAGE_ARGS = [
-    "dev_apt_command",
-    "dev_apt_deps",
-    "runtime_apt_command",
-    "runtime_apt_deps",
-]
+    required_image_args = [
+        "python_base_image",
+        "airflow_version",
+        "airflow_branch",
+        "airflow_extras",
+        "airflow_pre_cached_pip_packages",
+        "additional_airflow_extras",
+        "additional_python_deps",
+        "additional_dev_apt_command",
+        "additional_dev_apt_deps",
+        "additional_dev_apt_env",
+        "additional_runtime_apt_command",
+        "additional_runtime_apt_deps",
+        "additional_runtime_apt_env",
+        "upgrade_to_newer_dependencies",
+        "constraints_github_repository",
+        "airflow_constraints_reference",
+        "airflow_constraints",
+        "airflow_image_repository",
+        "airflow_image_date_created",
+        "build_id",
+    ]
+    optional_image_args = [
+        "dev_apt_command",
+        "dev_apt_deps",
+        "runtime_apt_command",
+        "runtime_apt_deps",
+    ]
