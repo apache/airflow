@@ -15,7 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow_breeze.commands.common_options import (
+from airflow_breeze.configure_rich_click import click
+from airflow_breeze.utils.common_options import (
     option_airflow_extras,
     option_answer,
     option_backend,
@@ -36,7 +37,6 @@ from airflow_breeze.commands.common_options import (
     option_use_packages_from_dist,
     option_verbose,
 )
-from airflow_breeze.commands.configure_rich_click import click
 from airflow_breeze.utils.path_utils import create_directories
 
 

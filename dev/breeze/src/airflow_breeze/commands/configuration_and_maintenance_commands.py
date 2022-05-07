@@ -25,7 +25,11 @@ from typing import Optional
 import click
 
 from airflow_breeze import NAME, VERSION
-from airflow_breeze.commands.common_options import (
+from airflow_breeze.commands.main_command import main
+from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
+from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
+from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_dry_run,
@@ -36,10 +40,6 @@ from airflow_breeze.commands.common_options import (
     option_python,
     option_verbose,
 )
-from airflow_breeze.commands.main import main
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
-from airflow_breeze.shell.shell_params import ShellParams
-from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
