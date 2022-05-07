@@ -555,6 +555,7 @@ do not need or have no access to run). Those are usually connected with releasin
   ``breeze prepare-provider-packages`` (when releasing provider packages)
 * Finding the updated dependencies since the last successful build when we have conflict with
   ``breeze find-newer-dependencies`` command
+* Release production images to DockerHub with ``breeze release-prod-images`` command
 
 
 Details of Breeze usage
@@ -946,6 +947,34 @@ Those are all available flags of ``verify-prod-image`` command:
   :width: 100%
   :alt: Breeze verify-prod-image
 
+Releasing Production images to DockerHub
+----------------------------------------
+
+The **Production image** can be released by release managers who have permissions to push the image. This
+happens only when there is an RC candidate or final version of Airflow released.
+
+You release "regular" and "slim" images as separate steps.
+
+Releasing "regular" images:
+
+.. code-block:: bash
+
+     breeze release-prod-images --airflow-version 2.4.0
+
+Or "slim" images:
+
+.. code-block:: bash
+
+     breeze release-prod-images --airflow-version 2.4.0 --slim-images
+
+By default when you are releasing the "final" image, we also tag image with "latest" tags but this
+step can be skipped if you pass the ``--skip-latest`` flag.
+
+These are all of the available flags for the ``release-prod-images`` command:
+
+.. image:: ./images/breeze/output-release-prod-images.svg
+  :width: 100%
+  :alt: Release prod images
 
 
 Running static checks

@@ -37,8 +37,8 @@ GHCR_IO_PREFIX = "ghcr.io"
 
 
 GHCR_IO_IMAGES = [
-    "{prefix}/{repo}/{branch}/ci/python{python_version}:latest",
-    "{prefix}/{repo}/{branch}/prod/python{python_version}:latest",
+    "{prefix}/{repo}/{branch}/ci/python{python}:latest",
+    "{prefix}/{repo}/{branch}/prod/python{python}:latest",
 ]
 
 
@@ -61,9 +61,10 @@ def pull_push_all_images(
                 prefix=target_prefix, branch=target_branch, repo=target_repo, python=python
             )
             print(f"Copying image: {source_image} -> {target_image}")
-            subprocess.run(["docker", "pull", source_image], check=True)
-            subprocess.run(["docker", "tag", source_image, target_image], check=True)
-            subprocess.run(["docker", "push", target_image], check=True)
+            subprocess.run(
+                ["regctl", "image", "copy", "--force-recursive", "--digest-tags", source_image, target_image],
+                check=True,
+            )
 
 
 @click.group(invoke_without_command=True)

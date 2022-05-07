@@ -51,6 +51,11 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID.                           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS``                  | ``constraints``                          | Type of constraints to build the image.     |
+|                                          |                                          | This can be ``constraints`` for regular     |
+|                                          |                                          | images or ``constraints-no-providers`` for  |
+|                                          |                                          | slim images.                                |
++------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | Reference (branch or tag) from GitHub       |
 |                                          |                                          | where constraints file is taken from        |
 |                                          |                                          | It can be ``constraints-main`` or           |
