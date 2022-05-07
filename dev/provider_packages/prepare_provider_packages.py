@@ -706,6 +706,7 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
                 subprocess.check_output(
                     remote_add_command,
                     stderr=subprocess.STDOUT,
+                    text=True,
                 )
             except subprocess.CalledProcessError as ex:
                 console.print("[red]Error: when adding remote:[/]", ex)
@@ -1602,7 +1603,7 @@ def build_provider_packages(
             verify_setup_cfg_prepared(provider_package)
 
             console.print(f"Building provider package: {provider_package} in format {package_format}")
-            command = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
+            command: List[str] = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
             if version_suffix is not None:
                 command.extend(['egg_info', '--tag-build', version_suffix])
             if package_format in ['sdist', 'both']:
@@ -1611,10 +1612,10 @@ def build_provider_packages(
                 command.extend(["bdist_wheel", "--bdist-dir", tmp_dist_dir])
             console.print(f"Executing command: '{' '.join(command)}'")
             try:
-                subprocess.check_call(command, stdout=subprocess.DEVNULL)
+                subprocess.check_call(args=command, stdout=subprocess.DEVNULL)
             except subprocess.CalledProcessError as ex:
-                console.print(ex.output.decode())
-                raise Exception("The command returned an error %s", command)
+                console.print("[red]The command returned an error %s", ex)
+                sys.exit(ex.returncode)
             console.print(
                 f"[green]Prepared provider package {provider_package} in format {package_format}[/]"
             )

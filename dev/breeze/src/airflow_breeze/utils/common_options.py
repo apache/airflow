@@ -23,6 +23,8 @@ from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
+    ALLOWED_CONSTRAINTS_MODES_CI,
+    ALLOWED_CONSTRAINTS_MODES_PROD,
     ALLOWED_DEBIAN_VERSIONS,
     ALLOWED_EXECUTORS,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
@@ -131,7 +133,7 @@ option_use_airflow_version = click.option(
     '--use-airflow-version',
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or `sdist`"
     " if Airflow should be removed, installed from wheel packages or sdist packages available in dist "
-    "folder respectively. Important! Using it Implies --mount-sources `none`.",
+    "folder respectively. Implies --mount-sources `none`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar='USE_AIRFLOW_VERSION',
 )
@@ -173,11 +175,6 @@ option_docker_cache = click.option(
     default=ALLOWED_BUILD_CACHE[0],
     show_default=True,
     type=BetterChoice(ALLOWED_BUILD_CACHE),
-)
-option_login_to_github_registry = click.option(
-    '--login-to-github-registry',
-    help='Logs in to GitHub registry.',
-    envvar='LOGIN_TO_GITHUB_REGISTRY',
 )
 option_github_token = click.option(
     '--github-token',
@@ -285,16 +282,10 @@ option_runtime_apt_deps = click.option(
     help='Apt runtime dependencies to use when building the images.',
     envvar='RUNTIME_APT_DEPS',
 )
-option_skip_rebuild_check = click.option(
-    '-r',
-    '--skip-rebuild-check',
-    help="Skips checking if rebuild is needed",
-    is_flag=True,
-    envvar='SKIP_REBUILD_CHECK',
-)
 option_prepare_buildx_cache = click.option(
     '--prepare-buildx-cache',
-    help='Prepares build cache rather than build images locally.',
+    help='Prepares build cache additionally to building images (this is done as two separate steps after'
+    'the images are build). Implies --push-image flag',
     is_flag=True,
     envvar='PREPARE_BUILDX_CACHE',
 )
@@ -427,4 +418,18 @@ option_airflow_constraints_reference = click.option(
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
     "constraints for the installed version and to find newer dependencies",
     envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+)
+option_airflow_constraints_mode_ci = click.option(
+    '--airflow-constraints-mode',
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),
+    default=ALLOWED_CONSTRAINTS_MODES_CI[0],
+    show_default=True,
+    help='Mode of constraints for CI image building',
+)
+option_airflow_constraints_mode_prod = click.option(
+    '--airflow-constraints-mode',
+    type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_PROD),
+    default=ALLOWED_CONSTRAINTS_MODES_PROD[0],
+    show_default=True,
+    help='Mode of constraints for PROD image building',
 )
