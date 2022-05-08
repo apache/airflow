@@ -130,11 +130,11 @@ class TestOpsgenieAlertHook(unittest.TestCase):
 
         # Then
         hook.close_alert(
-            identifier=identifier, identifier_type=identifier_type, payload=pay_load, kwargs=kwargs
+            identifier=identifier, identifier_type=identifier_type, payload=pay_load, **kwargs
         )
         close_alert_mock.assert_called_once_with(
             identifier=identifier,
             identifier_type=identifier_type,
             close_alert_payload=CloseAlertPayload(**pay_load),
-            kwargs=kwargs,
+            **kwargs,
         )

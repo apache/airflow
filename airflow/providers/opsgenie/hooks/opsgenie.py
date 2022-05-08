@@ -103,7 +103,7 @@ class OpsgenieAlertHook(BaseHook):
         identifier: str,
         identifier_type: Optional[str] = 'id',
         payload: Optional[dict] = None,
-        kwargs: Optional[dict] = None,
+        **kwargs: Optional[dict],
     ) -> SuccessResponse:
         """
         Close an alert in Opsgenie
