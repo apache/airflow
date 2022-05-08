@@ -131,7 +131,7 @@ def num_to_prefix(idx: int) -> str:
 
 
 def ensure_mod_prefix(mod, idx, version):
-    prefix = '_'.join(version) + '_' + num_to_prefix(idx)
+    prefix = num_to_prefix(idx) + '_'.join(version) + '_'
     match = re.match(r'([0-9]+)_([0-9]+)_([0-9]+)_([0-9_]+_)([a-z0-9]+_.+)', mod)
     if match:
         mod = match.group(5)
