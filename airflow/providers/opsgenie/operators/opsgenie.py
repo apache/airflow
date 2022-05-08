@@ -206,5 +206,5 @@ class OpsgenieCloseAlertOperator(BaseOperator):
             identifier=self.identifier,
             identifier_type=self.identifier_type,
             payload=self._build_opsgenie_close_alert_payload(),
-            **self.close_alert_kwargs,
+            **(self.close_alert_kwargs or {}),
         )
