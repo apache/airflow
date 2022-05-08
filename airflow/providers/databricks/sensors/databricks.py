@@ -18,23 +18,62 @@
 #
 """This module contains Databricks sensors."""
 
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import Dict, Any, List, Optional, Sequence, Tuple
 from datetime import datetime
 from airflow.sensors.base import BaseSensorOperator
-from airflow.providers.databricks.hooks.databricks import DatabricksSQLHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 
 
-class DatabricksPartitionTableSensor(BaseSensorOperator):
+from airflow.utils.context import Context
+
+
+class DatabricksBaseSensor(BaseSensorOperator):
+
+    def __init__(
+        self,
+        *,
+        databricks_conn_id: str = DatabricksSqlHook.default_conn_name,
+        http_path: Optional[str] = None,
+        sql_endpoint_name: Optional[str] = None,
+        session_configuration=None,
+        http_headers: Optional[List[Tuple[str, str]]] = None,
+        catalog: Optional[str] = None,
+        schema: Optional[str] = None,
+        client_parameters: Optional[Dict[str, Any]] = None,
+        **kwargs,
+    ) -> None:
+        """Creates a new ``DatabricksSqlSensor``."""
+        super().__init__(**kwargs)
+        self.databricks_conn_id = databricks_conn_id
+        self._http_path = http_path
+        self._sql_endpoint_name = sql_endpoint_name
+        self.session_config = session_configuration
+        self.http_headers = http_headers
+        self.catalog = catalog
+        self.schema = schema
+        self.client_parameters = client_parameters or {}
+
+    def _get_hook(self) -> DatabricksSqlHook:
+        return DatabricksSqlHook(
+            self.databricks_conn_id,
+            http_path=self._http_path,
+            session_configuration=self.session_config,
+            sql_endpoint_name=self._sql_endpoint_name,
+            http_headers=self.http_headers,
+            catalog=self.catalog,
+            schema=self.schema,
+            **self.client_parameters,
+        )
+
+
+class DatabricksPartitionTableSensor(DatabricksBaseSensor):
     """
     Waits for a partition to show up in Databricks.
 
     :param table: The name of the table to wait for, supports the dot
         notation (my_database.my_table)
     :param partition: The partition clause to wait for.
-    :param database: The name of the database in Databrick. It uses 'default' if nothing is provided
+    :param database: The name of the database in Databricks. It uses 'default' if nothing is provided
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     """
     template_fields: Sequence[str] = (
@@ -53,17 +92,16 @@ class DatabricksPartitionTableSensor(BaseSensorOperator):
         self.databricks_conn_id = databricks_conn_id
         self.table = table
         self.partition = partition
-        self.database = 'default' if not database else database
+        self.database = database
 
     def poke(self, context: Context) -> bool:
-        databricks_sql_hook = DatabricksSQLHook(databricks_conn_id=self.databricks_conn_id)
+        hook = self._get_hook()
+        _, result = hook.run(f'SHOW PARTITIONS {self.database}.{self.table}')
+        record = result[0] if result else {}
+        return self.partition in record
 
-        for partition in databricks_sql_hook.execute_sql(f'SHOW PARTITIONS {self.database}.{self.table}'):
-            if partition == self.partition:
-                return True
 
-
-class DatabricksDeltaTableChangeSensor(BaseSensorOperator):
+class DatabricksDeltaTableChangeSensor(DatabricksBaseSensor):
     """
     Waits for Delta table event
 
@@ -77,31 +115,26 @@ class DatabricksDeltaTableChangeSensor(BaseSensorOperator):
     template_fields: Sequence[str] = (
         'database',
         'table',
-        'partition',
     )
 
     def __init__(self, *,
                  databricks_conn_id: str,
                  table: str,
                  timestamp: datetime,
-                 operation: str,
                  database: Optional[str] = 'default',
                  **kwargs: Any):
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
         self.table = table
         self.timestamp = timestamp
-        self.operation = operation
         self.database = 'default' if not database else database
 
     def poke(self, context: Context) -> bool:
-        databricks_sql_hook = DatabricksSQLHook(databricks_conn_id=self.databricks_conn_id)
+        hook = self._get_hook()
 
-        new_events_count = databricks_sql_hook.execute_sql(
-            f'SELECT COUNT(1) from (DESCRIBE '
+        _, results = hook.run(
+            f'SELECT COUNT(1) as new_events from (DESCRIBE '
             f'HISTORY {self.database}.{self.table}) '
-            f'WHERE timestamp > {self.timestamp} '
-            f'{f"AND operation = {self.operation}" if self.operation else ""}')
+            f'WHERE timestamp > "{self.timestamp}"')
 
-        if new_events_count:
-            return True
+        return results[0].new_events > 0
