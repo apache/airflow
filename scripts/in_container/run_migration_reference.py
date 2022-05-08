@@ -130,18 +130,19 @@ def num_to_prefix(idx: int) -> str:
     return f"000{idx+1}"[-4:] + '_'
 
 
-def ensure_mod_prefix(mod, idx):
-    prefix = num_to_prefix(idx)
-    match = re.match(r'([0-9_]+_)([a-z0-9]+_.+)', mod)
+def ensure_mod_prefix(mod, idx, version):
+    prefix = '_'.join(version) + '_' + num_to_prefix(idx)
+    match = re.match(r'([0-9]{1,3})_([0-9]{1,3})_([0-9]{1,3})_([0-9_]+_)([a-z0-9]+_.+)', mod)
     if match:
-        mod = match.group(2)
+        mod = match.group(5)
     return prefix + mod
 
 
 def ensure_filenames_are_sorted(revisions):
     for idx, rev in enumerate(revisions):
         mod_path = Path(rev.module.__file__)
-        correct_mod_basename = ensure_mod_prefix(mod_path.name, idx)
+        version = rev.module.airflow_version.split('.')
+        correct_mod_basename = ensure_mod_prefix(mod_path.name, idx, version)
         if mod_path.name != correct_mod_basename:
             os.rename(mod_path, Path(mod_path.parent, correct_mod_basename))
 
