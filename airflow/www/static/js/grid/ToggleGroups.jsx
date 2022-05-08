@@ -17,15 +17,9 @@
  * under the License.
  */
 
-/* global localStorage, CustomEvent, document */
-
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { Flex, IconButton } from '@chakra-ui/react';
 import { MdExpand, MdCompress } from 'react-icons/md';
-
-import { getMetaValue } from '../utils';
-
-const dagId = getMetaValue('dag_id');
 
 const getGroupIds = (groups) => {
   const groupIds = [];
@@ -39,44 +33,22 @@ const getGroupIds = (groups) => {
   return groupIds;
 };
 
-const ToggleGroups = ({ groups }) => {
-  const openGroupsKey = `${dagId}/open-groups`;
+const ToggleGroups = ({ groups, openGroupIds, onToggleGroups }) => {
   const allGroupIds = getGroupIds(groups.children);
-  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
-  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
   const isExpandDisabled = allGroupIds.length === openGroupIds.length;
   const isCollapseDisabled = !openGroupIds.length;
-
-  // Listen to changes from ToggleGroups
-  useEffect(() => {
-    const handleChange = ({ detail }) => {
-      if (detail.dagId === dagId) {
-        setOpenGroupIds(detail.openGroups);
-      }
-    };
-    document.addEventListener('toggleGroup', handleChange);
-    return () => {
-      document.removeEventListener('toggleGroup', handleChange);
-    };
-  });
 
   // Don't show button if the DAG has no task groups
   const hasGroups = groups.children.find((c) => !!c.children);
   if (!hasGroups) return null;
 
   const onExpand = () => {
-    const openEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: allGroupIds } });
-    document.dispatchEvent(openEvent);
-    localStorage.setItem(openGroupsKey, JSON.stringify(allGroupIds));
-    setOpenGroupIds(allGroupIds);
+    onToggleGroups(allGroupIds);
   };
 
   const onCollapse = () => {
-    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: [] } });
-    document.dispatchEvent(closeEvent);
-    localStorage.removeItem(openGroupsKey);
-    setOpenGroupIds([]);
+    onToggleGroups([]);
   };
 
   return (

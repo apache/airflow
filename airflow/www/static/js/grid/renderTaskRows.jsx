@@ -17,15 +17,12 @@
  * under the License.
  */
 
-/* global localStorage, document, CustomEvent */
-
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   Tr,
   Td,
   Box,
   Flex,
-  useDisclosure,
   Collapse,
   useTheme,
 } from '@chakra-ui/react';
@@ -33,15 +30,11 @@ import {
 import StatusBox, { boxSize, boxSizePx } from './StatusBox';
 import TaskName from './TaskName';
 
-import { getMetaValue } from '../utils';
 import useSelection from './utils/useSelection';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
 const columnWidth = boxSize + 2 * boxPadding;
-
-// dagId comes from dag.html
-const dagId = getMetaValue('dag_id');
 
 const renderTaskRows = ({
   task, level = 0, ...rest
@@ -87,14 +80,14 @@ const TaskInstances = ({
   </Flex>
 );
 
-const openGroupsKey = `${dagId}/open-groups`;
-
 const Row = (props) => {
   const {
     task,
     level,
     isParentOpen = true,
     dagRunIds,
+    openGroupIds,
+    onToggleGroups,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -103,52 +96,27 @@ const Row = (props) => {
   const isGroup = !!task.children;
   const isSelected = selected.taskId === task.id;
 
-  const openGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
-  const defaultIsOpen = openGroups.some((g) => g === task.label);
-
-  const {
-    isOpen, onToggle, onOpen, onClose,
-  } = useDisclosure({ defaultIsOpen });
+  const isOpen = openGroupIds.some((g) => g === task.label);
 
   const parentTasks = task.id.split('.');
   parentTasks.splice(-1);
 
-  const isFullyOpen = isParentOpen && parentTasks.every((p) => openGroups.some((g) => g === p));
-
-  // Listen to changes from ToggleGroups
-  useEffect(() => {
-    const handleChange = ({ detail }) => {
-      if (detail.dagId === dagId) {
-        if (!detail.openGroups.length) onClose();
-        else if (detail.openGroups) onOpen();
-      }
-    };
-    if (isGroup) document.addEventListener('toggleGroups', handleChange);
-    return () => {
-      if (isGroup) document.removeEventListener('toggleGroups', handleChange);
-    };
-  });
+  const isFullyOpen = isParentOpen && parentTasks.every((p) => openGroupIds.some((g) => g === p));
 
   // assure the function is the same across renders
   const memoizedToggle = useCallback(
     () => {
       if (isGroup) {
-        const openGroudIds = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
+        let newGroupIds = [];
         if (!isOpen) {
-          const newGroupIds = [...openGroudIds, task.label];
-          localStorage.setItem(openGroupsKey, JSON.stringify(newGroupIds));
-          const openEvent = new CustomEvent('toggleGroup', { detail: { dagId, openGroups: newGroupIds } });
-          document.dispatchEvent(openEvent);
+          newGroupIds = [...openGroupIds, task.label];
         } else {
-          const newGroupIds = openGroudIds.filter((g) => g !== task.label);
-          const closeEvent = new CustomEvent('toggleGroup', { detail: { dagId, openGroups: newGroupIds } });
-          document.dispatchEvent(closeEvent);
-          localStorage.setItem(openGroupsKey, newGroupIds);
+          newGroupIds = openGroupIds.filter((g) => g !== task.label);
         }
-        onToggle();
+        onToggleGroups(newGroupIds);
       }
     },
-    [onToggle, isGroup, isOpen, task.label],
+    [isGroup, isOpen, task.label, openGroupIds, onToggleGroups],
   );
 
   return (
