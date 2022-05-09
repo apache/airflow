@@ -89,6 +89,18 @@ class TestKubernetesPodOperator:
         self.await_pod_completion_patch.stop()
         self.client_patch.stop()
 
+    def test_template_fields(self):
+        assert 9 == KubernetesPodOperator.template_fields.__len__()
+        KubernetesPodOperator.template_fields.__contains__('image')
+        KubernetesPodOperator.template_fields.__contains__('cmds')
+        KubernetesPodOperator.template_fields.__contains__('arguments')
+        KubernetesPodOperator.template_fields.__contains__('env_vars')
+        KubernetesPodOperator.template_fields.__contains__('labels')
+        KubernetesPodOperator.template_fields.__contains__('config_file')
+        KubernetesPodOperator.template_fields.__contains__('pod_template_file')
+        KubernetesPodOperator.template_fields.__contains__('namespace')
+        KubernetesPodOperator.template_fields.__contains__('resources')
+
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id='dag') as dag:
             operator.dag = dag
@@ -845,7 +857,6 @@ class TestKubernetesPodOperator:
 
 def test__suppress():
     with mock.patch('logging.Logger.error') as mock_error:
-
         with _suppress(ValueError):
             raise ValueError("failure")
 
