@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-07T11:13:21Z
+# This constraints file was automatically generated on 2022-05-09T21:38:02Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -65,7 +65,7 @@ argcomplete==2.0.0
 arrow==1.2.2
 asana==0.10.13
 asn1crypto==1.5.1
-astroid==2.11.4
+astroid==2.11.5
 asttokens==2.0.5
 async-timeout==4.0.2
 atlasclient==1.0.0
@@ -98,9 +98,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.22.9
+boto3==1.22.10
 boto==2.49.0
-botocore==1.25.9
+botocore==1.25.10
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -135,7 +135,7 @@ cx-Oracle==8.3.0
 dask==2022.5.0
 databricks-sql-connector==2.0.2
 datadog==0.44.0
-db-dtypes==1.0.0
+db-dtypes==1.0.1
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -254,7 +254,7 @@ json-merge-patch==0.2
 jsondiff==2.0.0
 jsonpath-ng==1.5.3
 jsonschema==4.5.1
-jupyter-client==7.3.0
+jupyter-client==7.3.1
 jupyter-core==4.10.0
 jwcrypto==1.2
 keyring==23.5.0
@@ -291,7 +291,7 @@ mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.29
 mysqlclient==2.1.0
-nbclient==0.6.2
+nbclient==0.6.3
 nbformat==5.4.0
 neo4j==4.4.3
 nest-asyncio==1.5.5
@@ -375,7 +375,7 @@ pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
 pytest-xdist==2.5.0
 pytest==6.2.5
-python-arango==7.3.3
+python-arango==7.3.4
 python-daemon==2.3.0
 python-dateutil==2.8.2
 python-http-client==3.3.7
@@ -405,7 +405,7 @@ requests==2.27.1
 responses==0.20.0
 rfc3986==1.5.0
 rich-click==1.3.0
-rich==12.3.0
+rich==12.4.1
 rsa==4.8
 s3transfer==0.5.2
 sasl==0.3.1
