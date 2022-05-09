@@ -240,6 +240,7 @@ with models.DAG(
         instance=INSTANCE_NAME, database=DB_NAME, task_id='sql_db_delete_task'
     )
     # [END howto_operator_cloudsql_db_delete]
+    sql_db_delete_task.trigger_rule = TriggerRule.ALL_DONE
 
     # ############################################## #
     # ### INSTANCES TEAR DOWN ###################### #
@@ -255,12 +256,15 @@ with models.DAG(
         instance=READ_REPLICA_NAME, task_id='sql_instance_read_replica_delete_task'
     )
     # [END howto_operator_cloudsql_replicas_delete]
+    sql_instance_failover_replica_delete_task.trigger_rule = TriggerRule.ALL_DONE
+    sql_instance_read_replica_delete_task.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSQLDeleteInstanceOperator(
         instance=INSTANCE_NAME, task_id='sql_instance_delete_task'
     )
     # [END howto_operator_cloudsql_delete]
+    sql_instance_delete_task.trigger_rule = TriggerRule.ALL_DONE
 
     delete_bucket = GCSDeleteBucketOperator(
         task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
