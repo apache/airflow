@@ -30,6 +30,7 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteObjectsOperator,
     S3FileTransformOperator,
     S3GetBucketTaggingOperator,
+    S3ListOperator,
     S3PutBucketTaggingOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
@@ -115,6 +116,14 @@ with DAG(
     )
     # [END howto_operator_s3_create_object]
 
+    # [START howto_operator_s3_list]
+    list_keys = S3ListOperator(
+        task_id="s3_list_operator",
+        bucket=BUCKET_NAME,
+        prefix=PREFIX,
+    )
+    # [END howto_operator_s3_list]
+
     # [START howto_sensor_s3_key_single_key]
     # Check if a file exists
     s3_sensor_one_key = S3KeySensor(
@@ -193,6 +202,7 @@ with DAG(
         get_tagging,
         delete_tagging,
         s3_create_object,
+        list_keys,
         [s3_sensor_one_key, s3_sensor_two_keys, s3_sensor_key_function],
         s3_copy_object,
         s3_sensor_keys_unchanged,
