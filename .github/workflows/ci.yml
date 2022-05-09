@@ -45,7 +45,6 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  LOGIN_TO_GITHUB_REGISTRY: "true"
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
 
@@ -265,7 +264,7 @@ jobs:
           if [[ "${{ github.event_name }}" == 'schedule' ]]; then
               echo "::set-output name=cacheDirective::disabled"
           else
-              echo "::set-output name=cacheDirective::pulled"
+              echo "::set-output name=cacheDirective::registry"
           fi
 
           if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then
@@ -1608,9 +1607,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Generate constraints"
         run: |
-          breeze generate-constraints --run-in-parallel --generate-constraints-mode source-providers
-          breeze generate-constraints --run-in-parallel --generate-constraints-mode pypi-providers
-          breeze generate-constraints --run-in-parallel --generate-constraints-mode no-providers
+          breeze generate-constraints --run-in-parallel \
+              --airflow-constraints-mode constraints-source-providers
+          breeze generate-constraints --run-in-parallel --airflow-constraints-mode constraints-no-providers
+          breeze generate-constraints --run-in-parallel --airflow-constraints-mode constraints
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
       - name: "Set constraints branch name"

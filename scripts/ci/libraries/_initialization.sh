@@ -453,7 +453,7 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
     # Determines which providers are used to generate constraints - source, pypi or no providers
-    export GENERATE_CONSTRAINTS_MODE=${GENERATE_CONSTRAINTS_MODE:="source-providers"}
+    export AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}
 
     # By default we install latest airflow from PyPI or sources. You can set this parameter to false
     # if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
@@ -474,7 +474,7 @@ function initialization::initialize_image_build_variables() {
     #   * 'constraints' = for constraints with PyPI released providers (default for installations)
     #   * 'constraints-source-providers' for constraints with source version of providers (defaults in Breeze and CI)
     #   * 'constraints-no-providers' for constraints without providers
-    export AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS:="constraints-source-providers"}"
+    export AIRFLOW_CONSTRAINTS_MODE="${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}"
 
     # Replace airflow at runtime in CI image with the one specified
     #   * none - just removes airflow
