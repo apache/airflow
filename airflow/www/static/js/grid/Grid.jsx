@@ -43,11 +43,11 @@ const Grid = ({ isPanelOpen = false }) => {
   const tableRef = useRef();
 
   const { data: { groups, dagRuns } } = useGridData();
+  const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const openGroupsKey = `${dagId}/open-groups`;
   const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
   const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
-
 
   const onToggleGroups = (groupIds) => {
     localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
