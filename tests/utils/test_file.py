@@ -82,14 +82,12 @@ class TestOpenMaybeZipped(unittest.TestCase):
 
 class TestListPyFilesPath():
     @pytest.fixture()
-    def test_dir(self):
-        import tempfile
+    def test_dir(self, tmp_path):
         # create test tree with symlinks
-        tmp_dir = tempfile.mkdtemp(prefix="onotole")
-        source = os.path.join(tmp_dir, "folder")
-        target = os.path.join(tmp_dir, "symlink")
+        source = os.path.join(tmp_path, "folder")
+        target = os.path.join(tmp_path, "symlink")
         py_file = os.path.join(source, "hello_world.py")
-        ignore_file = os.path.join(tmp_dir, ".airflowignore")
+        ignore_file = os.path.join(tmp_path, ".airflowignore")
         os.mkdir(source)
         os.symlink(source, target)
         # write ignore files
@@ -98,11 +96,7 @@ class TestListPyFilesPath():
         # write sample pyfile
         with open(py_file, 'w') as f:
             f.write("print('hello world')")
-
-        yield tmp_dir
-
-        import shutil
-        shutil.rmtree(tmp_dir)
+        return tmp_path
 
     def test_find_path_from_directory_regex_ignore(self):
         should_ignore = [
