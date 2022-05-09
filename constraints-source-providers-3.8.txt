@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-09T10:53:48Z
+# This constraints file was automatically generated on 2022-05-09T21:38:02Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -65,7 +65,7 @@ argcomplete==2.0.0
 arrow==1.2.2
 asana==0.10.13
 asn1crypto==1.5.1
-astroid==2.11.4
+astroid==2.11.5
 asttokens==2.0.5
 async-timeout==4.0.2
 atlasclient==1.0.0
@@ -99,9 +99,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.22.9
+boto3==1.22.10
 boto==2.49.0
-botocore==1.25.9
+botocore==1.25.10
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.6.0
@@ -136,7 +136,7 @@ cx-Oracle==8.3.0
 dask==2022.5.0
 databricks-sql-connector==2.0.2
 datadog==0.44.0
-db-dtypes==1.0.0
+db-dtypes==1.0.1
 decorator==5.1.1
 defusedxml==0.7.1
 dill==0.3.1.1
@@ -293,7 +293,7 @@ mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.29
 mysqlclient==2.1.0
-nbclient==0.6.2
+nbclient==0.6.3
 nbformat==5.4.0
 neo4j==4.4.3
 nest-asyncio==1.5.5
