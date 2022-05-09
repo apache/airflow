@@ -44,22 +44,29 @@ from airflow.providers.google.cloud.operators.cloud_sql import (
 )
 from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator,
+    GCSCreateBucketOperator,
+    GCSDeleteBucketOperator,
     GCSObjectCreateAclEntryOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
-GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
-INSTANCE_NAME = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql')
-INSTANCE_NAME2 = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME2', 'test-mysql2')
-DB_NAME = os.environ.get('GCSQL_MYSQL_DATABASE_NAME', 'testdb')
+ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
+PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
+DAG_ID = "cloudsql"
 
-EXPORT_URI = os.environ.get('GCSQL_MYSQL_EXPORT_URI', 'gs://INVALID BUCKET NAME/fileName')
-IMPORT_URI = os.environ.get('GCSQL_MYSQL_IMPORT_URI', 'gs://INVALID BUCKET NAME/fileName')
+INSTANCE_NAME = f"{DAG_ID}-{ENV_ID}-instance"
+DB_NAME = f"{DAG_ID}-{ENV_ID}-db"
+
+BUCKET_NAME = f"{DAG_ID}_{ENV_ID}_bucket"
+FILE_NAME = f"{DAG_ID}_{ENV_ID}_exportImportTestFile"
+FILE_URI = f"gs://{BUCKET_NAME}/{FILE_NAME}"
+
+FAILOVER_REPLICA_NAME = f"{INSTANCE_NAME}-failover-replica"
+READ_REPLICA_NAME = f"{INSTANCE_NAME}-read-replica"
+
 
 # Bodies below represent Cloud SQL instance resources:
 # https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances
-
-FAILOVER_REPLICA_NAME = INSTANCE_NAME + "-failover-replica"
-READ_REPLICA_NAME = INSTANCE_NAME + "-read-replica"
 
 # [START howto_operator_cloudsql_create_body]
 body = {
@@ -89,15 +96,6 @@ body = {
 }
 # [END howto_operator_cloudsql_create_body]
 
-body2 = {
-    "name": INSTANCE_NAME2,
-    "settings": {
-        "tier": "db-n1-standard-1",
-    },
-    "databaseVersion": "MYSQL_5_7",
-    "region": "europe-west4",
-}
-
 # [START howto_operator_cloudsql_create_replica]
 read_replica_body = {
     "name": READ_REPLICA_NAME,
@@ -125,46 +123,44 @@ patch_body = {
 export_body = {
     "exportContext": {
         "fileType": "sql",
-        "uri": EXPORT_URI,
+        "uri": FILE_URI,
         "sqlExportOptions": {"schemaOnly": False},
         "offload": True,
     }
 }
 # [END howto_operator_cloudsql_export_body]
 # [START howto_operator_cloudsql_import_body]
-import_body = {"importContext": {"fileType": "sql", "uri": IMPORT_URI}}
+import_body = {"importContext": {"fileType": "sql", "uri": FILE_URI}}
 # [END howto_operator_cloudsql_import_body]
 # [START howto_operator_cloudsql_db_create_body]
-db_create_body = {"instance": INSTANCE_NAME, "name": DB_NAME, "project": GCP_PROJECT_ID}
+db_create_body = {"instance": INSTANCE_NAME, "name": DB_NAME, "project": PROJECT_ID}
 # [END howto_operator_cloudsql_db_create_body]
 # [START howto_operator_cloudsql_db_patch_body]
 db_patch_body = {"charset": "utf16", "collation": "utf16_general_ci"}
 # [END howto_operator_cloudsql_db_patch_body]
 
 with models.DAG(
-    'example_gcp_sql',
-    schedule_interval='@once',  # Override to match your needs
+    DAG_ID,
+    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example", "cloud_sql"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME
+    )
+
     # ############################################## #
     # ### INSTANCES SET UP ######################### #
     # ############################################## #
 
     # [START howto_operator_cloudsql_create]
     sql_instance_create_task = CloudSQLCreateInstanceOperator(
-        project_id=GCP_PROJECT_ID, body=body, instance=INSTANCE_NAME, task_id='sql_instance_create_task'
-    )
-    # [END howto_operator_cloudsql_create]
-
-    sql_instance_create_2_task = CloudSQLCreateInstanceOperator(
-        project_id=GCP_PROJECT_ID, body=body2, instance=INSTANCE_NAME2, task_id='sql_instance_create_task2'
+        body=body, instance=INSTANCE_NAME, task_id='sql_instance_create_task'
     )
     # [END howto_operator_cloudsql_create]
 
     sql_instance_read_replica_create = CloudSQLCreateInstanceOperator(
-        project_id=GCP_PROJECT_ID,
         body=read_replica_body,
         instance=READ_REPLICA_NAME,
         task_id='sql_instance_read_replica_create',
@@ -176,93 +172,62 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_patch]
     sql_instance_patch_task = CloudSQLInstancePatchOperator(
-        project_id=GCP_PROJECT_ID, body=patch_body, instance=INSTANCE_NAME, task_id='sql_instance_patch_task'
+        body=patch_body, instance=INSTANCE_NAME, task_id='sql_instance_patch_task'
     )
     # [END howto_operator_cloudsql_patch]
 
-    sql_instance_patch_task2 = CloudSQLInstancePatchOperator(
-        project_id=GCP_PROJECT_ID, body=patch_body, instance=INSTANCE_NAME, task_id='sql_instance_patch_task2'
-    )
-
     # [START howto_operator_cloudsql_db_create]
     sql_db_create_task = CloudSQLCreateInstanceDatabaseOperator(
-        project_id=GCP_PROJECT_ID, body=db_create_body, instance=INSTANCE_NAME, task_id='sql_db_create_task'
-    )
-    sql_db_create_task2 = CloudSQLCreateInstanceDatabaseOperator(
-        body=db_create_body, instance=INSTANCE_NAME, task_id='sql_db_create_task2'
+        body=db_create_body, instance=INSTANCE_NAME, task_id='sql_db_create_task'
     )
     # [END howto_operator_cloudsql_db_create]
 
     # [START howto_operator_cloudsql_db_patch]
     sql_db_patch_task = CloudSQLPatchInstanceDatabaseOperator(
-        project_id=GCP_PROJECT_ID,
         body=db_patch_body,
         instance=INSTANCE_NAME,
         database=DB_NAME,
         task_id='sql_db_patch_task',
     )
-    sql_db_patch_task2 = CloudSQLPatchInstanceDatabaseOperator(
-        body=db_patch_body, instance=INSTANCE_NAME, database=DB_NAME, task_id='sql_db_patch_task2'
-    )
     # [END howto_operator_cloudsql_db_patch]
 
     # ############################################## #
-    # ### EXPORTING SQL FROM INSTANCE 1 ############ #
+    # ### EXPORTING & IMPORTING SQL ################ #
     # ############################################## #
-    export_url_split = urlsplit(EXPORT_URI)
+    file_url_split = urlsplit(FILE_URI)
 
-    # For export to work we need to add the Cloud SQL instance's Service Account
+    # For export & import to work we need to add the Cloud SQL instance's Service Account
     # write access to the destination GCS bucket.
     # [START howto_operator_cloudsql_export_gcs_permissions]
     sql_gcp_add_bucket_permission_task = GCSBucketCreateAclEntryOperator(
         entity=f"user-{sql_instance_create_task.output['service_account_email']}",
         role="WRITER",
-        bucket=export_url_split[1],  # netloc (bucket)
+        bucket=file_url_split[1],  # netloc (bucket)
         task_id='sql_gcp_add_bucket_permission_task',
     )
     # [END howto_operator_cloudsql_export_gcs_permissions]
 
     # [START howto_operator_cloudsql_export]
     sql_export_task = CloudSQLExportInstanceOperator(
-        project_id=GCP_PROJECT_ID, body=export_body, instance=INSTANCE_NAME, task_id='sql_export_task'
-    )
-    sql_export_task2 = CloudSQLExportInstanceOperator(
-        body=export_body, instance=INSTANCE_NAME, task_id='sql_export_task2'
+        body=export_body, instance=INSTANCE_NAME, task_id='sql_export_task'
     )
     # [END howto_operator_cloudsql_export]
-
-    # ############################################## #
-    # ### IMPORTING SQL TO INSTANCE 2 ############## #
-    # ############################################## #
-    import_url_split = urlsplit(IMPORT_URI)
 
     # For import to work we need to add the Cloud SQL instance's Service Account
     # read access to the target GCS object.
     # [START howto_operator_cloudsql_import_gcs_permissions]
     sql_gcp_add_object_permission_task = GCSObjectCreateAclEntryOperator(
-        entity=f"user-{sql_instance_create_2_task.output['service_account_email']}",
+        entity=f"user-{sql_instance_create_task.output['service_account_email']}",
         role="READER",
-        bucket=import_url_split[1],  # netloc (bucket)
-        object_name=import_url_split[2][1:],  # path (strip first '/')
+        bucket=file_url_split[1],  # netloc (bucket)
+        object_name=file_url_split[2][1:],  # path (strip first '/')
         task_id='sql_gcp_add_object_permission_task',
-    )
-
-    # For import to work we also need to add the Cloud SQL instance's Service Account
-    # write access to the whole bucket!.
-    sql_gcp_add_bucket_permission_2_task = GCSBucketCreateAclEntryOperator(
-        entity=f"user-{sql_instance_create_2_task.output['service_account_email']}",
-        role="WRITER",
-        bucket=import_url_split[1],  # netloc
-        task_id='sql_gcp_add_bucket_permission_2_task',
     )
     # [END howto_operator_cloudsql_import_gcs_permissions]
 
     # [START howto_operator_cloudsql_import]
     sql_import_task = CloudSQLImportInstanceOperator(
-        project_id=GCP_PROJECT_ID, body=import_body, instance=INSTANCE_NAME2, task_id='sql_import_task'
-    )
-    sql_import_task2 = CloudSQLImportInstanceOperator(
-        body=import_body, instance=INSTANCE_NAME2, task_id='sql_import_task2'
+        body=import_body, instance=INSTANCE_NAME, task_id='sql_import_task'
     )
     # [END howto_operator_cloudsql_import]
 
@@ -272,10 +237,7 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_db_delete]
     sql_db_delete_task = CloudSQLDeleteInstanceDatabaseOperator(
-        project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME, database=DB_NAME, task_id='sql_db_delete_task'
-    )
-    sql_db_delete_task2 = CloudSQLDeleteInstanceDatabaseOperator(
-        instance=INSTANCE_NAME, database=DB_NAME, task_id='sql_db_delete_task2'
+        instance=INSTANCE_NAME, database=DB_NAME, task_id='sql_db_delete_task'
     )
     # [END howto_operator_cloudsql_db_delete]
 
@@ -285,51 +247,60 @@ with models.DAG(
 
     # [START howto_operator_cloudsql_replicas_delete]
     sql_instance_failover_replica_delete_task = CloudSQLDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID,
         instance=FAILOVER_REPLICA_NAME,
         task_id='sql_instance_failover_replica_delete_task',
     )
 
     sql_instance_read_replica_delete_task = CloudSQLDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID, instance=READ_REPLICA_NAME, task_id='sql_instance_read_replica_delete_task'
+        instance=READ_REPLICA_NAME, task_id='sql_instance_read_replica_delete_task'
     )
     # [END howto_operator_cloudsql_replicas_delete]
 
     # [START howto_operator_cloudsql_delete]
     sql_instance_delete_task = CloudSQLDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME, task_id='sql_instance_delete_task'
-    )
-    sql_instance_delete_task2 = CloudSQLDeleteInstanceOperator(
-        project_id=GCP_PROJECT_ID, instance=INSTANCE_NAME2, task_id='sql_instance_delete_task2'
+        instance=INSTANCE_NAME, task_id='sql_instance_delete_task'
     )
     # [END howto_operator_cloudsql_delete]
 
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
     (
-        sql_instance_create_task
-        >> sql_instance_create_2_task
+        # TEST SETUP
+        create_bucket
+
+        # TEST BODY
+        >> sql_instance_create_task
         >> sql_instance_read_replica_create
         >> sql_instance_patch_task
-        >> sql_instance_patch_task2
         >> sql_db_create_task
-        >> sql_db_create_task2
         >> sql_db_patch_task
-        >> sql_db_patch_task2
         >> sql_gcp_add_bucket_permission_task
         >> sql_export_task
-        >> sql_export_task2
         >> sql_gcp_add_object_permission_task
-        >> sql_gcp_add_bucket_permission_2_task
         >> sql_import_task
-        >> sql_import_task2
         >> sql_db_delete_task
-        >> sql_db_delete_task2
         >> sql_instance_failover_replica_delete_task
         >> sql_instance_read_replica_delete_task
         >> sql_instance_delete_task
-        >> sql_instance_delete_task2
+
+        # TEST TEARDOWN
+        >> delete_bucket
     )
 
     # Task dependencies created via `XComArgs`:
     #   sql_instance_create_task >> sql_gcp_add_bucket_permission_task
-    #   sql_instance_create_2_task >> sql_gcp_add_object_permission_task
-    #   sql_instance_create_2_task >> sql_gcp_add_bucket_permission_2_task
+    #   sql_instance_create_task >> sql_gcp_add_object_permission_task
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
