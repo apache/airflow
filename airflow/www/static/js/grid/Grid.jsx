@@ -24,10 +24,6 @@ import {
   Table,
   Tbody,
   Box,
-  Switch,
-  FormControl,
-  FormLabel,
-  Spinner,
   Thead,
   Flex,
 } from '@chakra-ui/react';
@@ -36,21 +32,17 @@ import { useGridData } from './api';
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
-import { useAutoRefresh } from './context/autorefresh';
 import ToggleGroups from './ToggleGroups';
-import FilterBar from './FilterBar';
-import LegendRow from './LegendRow';
+import { getMetaValue } from '../utils';
+import AutoRefresh from './AutoRefresh';
 
 const dagId = getMetaValue('dag_id');
 
-const Grid = ({ isPanelOpen }) => {
+const Grid = ({ isPanelOpen = false }) => {
   const scrollRef = useRef();
   const tableRef = useRef();
 
   const { data: { groups, dagRuns } } = useGridData();
-  const dagRunIds = dagRuns.map((dr) => dr.runId);
-
-  const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
 
   const openGroupsKey = `${dagId}/open-groups`;
   const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
@@ -93,20 +85,7 @@ const Grid = ({ isPanelOpen }) => {
       minWidth={isPanelOpen && '300px'}
     >
       <Flex alignItems="center">
-        <FormControl display="flex" width="auto" mr={2}>
-          {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-          <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
-            Auto-refresh
-          </FormLabel>
-          <Switch
-            id="auto-refresh"
-            onChange={() => toggleRefresh(true)}
-            isDisabled={isPaused}
-            isChecked={isRefreshOn}
-            size="lg"
-            title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
-          />
-        </FormControl>
+        <AutoRefresh />
         <ToggleGroups
           groups={groups}
           openGroupIds={openGroupIds}
@@ -119,7 +98,14 @@ const Grid = ({ isPanelOpen }) => {
           <DagRuns />
         </Thead>
         {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
-        <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
+        <Tbody
+          display="block"
+          width="100%"
+          maxHeight="calc(100vh - 665px)"
+          minHeight="500px"
+          ref={tableRef}
+          pr="10px"
+        >
           {renderTaskRows({
             task: groups, dagRunIds, openGroupIds, onToggleGroups,
           })}

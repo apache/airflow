@@ -25,6 +25,7 @@ import {
   Flex,
   useDisclosure,
   Button,
+  Divider,
 } from '@chakra-ui/react';
 
 import Details from './details';

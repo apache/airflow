@@ -86,7 +86,7 @@ const Row = (props) => {
     level,
     isParentOpen = true,
     dagRunIds,
-    openGroupIds,
+    openGroupIds = [],
     onToggleGroups,
   } = props;
   const { colors } = useTheme();
