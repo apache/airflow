@@ -429,19 +429,38 @@ repos:
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
-        description: Please use "deny_list" or "allow_list"  instead.
-        entry: "(?i)(black|white)[_-]?list"
+        description: Please use more appropriate words for community documentation.
+        entry: >
+          (?i)
+          (black|white)[_-]?list|
+          \bshe\b|
+          \bhe\b|
+          \bher\b|
+          \bhis\b|
+          \bmaster\b|
+          \bslave\b|
+          \bsanity\b|
+          \bdummy\b
         pass_filenames: true
         exclude: >
           (?x)
-          ^airflow/www/fab_security/manager\.py$|
-          ^airflow/providers/apache/cassandra/hooks/cassandra\.py$|
-          ^airflow/providers/apache/hive/operators/hive_stats\.py$|
-          ^airflow/providers/apache/hive/.*PROVIDER_CHANGES_*|
-          ^airflow/providers/apache/hive/.*README\.md$|
-          ^tests/providers/apache/cassandra/hooks/test_cassandra\.py$|
-          ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra\.rst$|
-          ^docs/apache-airflow-providers-apache-hive/commits\.rst$|
+          ^airflow/www/fab_security/manager.py$|
+          ^airflow/www/static/|
+          ^airflow/providers/|
+          ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
+          ^docs/apache-airflow-providers-apache-hive/commits.rst$|
+          ^airflow/api_connexion/openapi/v1.yaml$|
+          ^tests/cli/commands/test_webserver_command.py$|
+          ^airflow/cli/commands/webserver_command.py$|
+          ^airflow/ui/yarn.lock$|
+          ^airflow/config_templates/default_airflow.cfg$|
+          ^airflow/config_templates/config.yml$|
+          ^docs/*.*$|
+          ^tests/providers/|
+          ^.pre-commit-config\.yaml$|
+          ^.*RELEASE_NOTES\.rst$|
+          ^.*CHANGELOG\.txt$|^.*CHANGELOG\.rst$|
           git
       - id: check-base-operator-usage
         language: pygrep
