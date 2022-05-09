@@ -1773,7 +1773,7 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
         )
     else:
         console.print(
-            f"[green]Appending the provider {package_id} changelog for" f"`{latest_version}` version.[/]"
+            f"[green]Appending the provider {package_id} changelog for `{latest_version}` version.[/]"
         )
     with open(changelog_path, "wt") as changelog:
         changelog.write("\n".join(new_changelog_lines))
@@ -1914,7 +1914,7 @@ def generate_issue_content(
             for i in range(len(pr_list)):
                 pr_number = pr_list[i]
                 progress.console.print(
-                    f"Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+                    f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
                 try:
                     pull_requests[pr_number] = repo.get_pull(pr_number)
