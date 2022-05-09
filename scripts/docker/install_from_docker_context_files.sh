@@ -74,40 +74,19 @@ function install_airflow_and_providers_from_docker_context_files(){
         return
     fi
 
-    if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
-        echo
-        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with eager upgrade${COLOR_RESET}"
-        echo
-        # force reinstall all airflow + provider package local files with eager upgrade
-        pip install "${pip_flags[@]}" --upgrade --upgrade-strategy eager \
-            ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-            ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
-    else
-        echo
-        echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with constraints and upgrade if needed${COLOR_RESET}"
-        echo
-        if [[ ${AIRFLOW_CONSTRAINTS_LOCATION} == "/"* ]]; then
-            grep -ve '^apache-airflow' <"${AIRFLOW_CONSTRAINTS_LOCATION}" > /tmp/constraints.txt
-        else
-            # Remove provider packages from constraint files because they are locally prepared
-            curl -L "${AIRFLOW_CONSTRAINTS_LOCATION}" | grep -ve '^apache-airflow' > /tmp/constraints.txt
-        fi
-        # force reinstall airflow + provider package local files with constraints + upgrade if needed
-        pip install "${pip_flags[@]}" --force-reinstall \
-            ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
-            --constraint /tmp/constraints.txt
-        rm /tmp/constraints.txt
-        # make sure correct PIP version is used \
-        pip install "pip==${AIRFLOW_PIP_VERSION}"
-        # then upgrade if needed without using constraints to account for new limits in setup.py
-        pip install --upgrade --upgrade-strategy only-if-needed \
-             ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages}
-    fi
+    echo
+    echo "${COLOR_BLUE}Force re-installing airflow and providers from local files with eager upgrade${COLOR_RESET}"
+    echo
+    # force reinstall all airflow + provider package local files with eager upgrade
+    set -x
+    pip install "${pip_flags[@]}" --upgrade --upgrade-strategy eager \
+        ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
+        ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
+    set +x
 
     # make sure correct PIP version is left installed
     pip install "pip==${AIRFLOW_PIP_VERSION}"
     pip check
-
 }
 
 # Simply install all other (non-apache-airflow) packages placed in docker-context files
@@ -123,10 +102,12 @@ function install_all_other_packages_from_docker_context_files() {
     # shellcheck disable=SC2010
     reinstalling_other_packages=$(ls /docker-context-files/*.{whl,tar.gz} 2>/dev/null | \
         grep -v apache_airflow | grep -v apache-airflow || true)
-    if [[ -n "${reinstalling_other_packages}" ]]; then \
+    if [[ -n "${reinstalling_other_packages}" ]]; then
+        set -x
         pip install --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
         # make sure correct PIP version is used
         pip install "pip==${AIRFLOW_PIP_VERSION}"
+        set -x
     fi
 }
 

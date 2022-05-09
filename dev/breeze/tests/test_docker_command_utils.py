@@ -152,7 +152,7 @@ def test_check_docker_compose_version_low(mock_get_console, mock_run_command):
     expected_print_calls = [
         call(
             """
-[warning]You have too old version of docker-compose: 1.28.5! At least 1.29 is needed! Please upgrade!
+[warning]You have too old version of docker-compose: 1.28.5! At least 1.29 needed! Please upgrade!
 """
         ),
         call(
