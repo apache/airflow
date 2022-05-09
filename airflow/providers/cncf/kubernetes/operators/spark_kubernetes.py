@@ -122,7 +122,7 @@ class SparkKubernetesOperator(BaseOperator):
         *,
         image: Optional[str] = None,
         code_path: Optional[str] = None,
-        namespace: Optional[str] = None,
+        namespace: Optional[str] = 'default',
         api_group: str = 'sparkoperator.k8s.io',
         api_version: str = 'v1beta2',
         api_kind: str = 'SparkApplication',
@@ -162,7 +162,7 @@ class SparkKubernetesOperator(BaseOperator):
         log_events_on_failure: bool = False,
         in_cluster: Optional[bool] = None,
         reattach_on_restart: bool = True,
-        delete_on_termination: bool = False,
+        delete_on_termination: bool = True,
         kubernetes_conn_id: str = 'kubernetes_default',
         **kwargs,
     ) -> None:
@@ -232,7 +232,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.hadoop_config = hadoop_config
         self.job_resources = SparkResources(**resources) if resources else SparkResources()
 
-    def get_kube_client(self):
+    def get_kube_clients(self):
         if self.in_cluster is not None:
             core_v1_api = kube_client.get_kube_client(
                 in_cluster=self.in_cluster,
@@ -252,18 +252,36 @@ class SparkKubernetesOperator(BaseOperator):
         return ','.join([label_id + '=' + label for label_id, label in sorted(filtered_labels.items())])
 
     @staticmethod
-    def create_labels_for_pod(context) -> dict:
+    def create_labels_for_pod(context: Optional[dict] = None, include_try_number: bool = True) -> dict:
         """
         Generate labels for the pod to track the pod in case of Operator crash
+        :param include_try_number: add try number to labels
         :param context: task context provided by airflow DAG
         :return: dict
         """
+        if not context:
+            return {}
+
+        ti = context['ti']
+        run_id = context['run_id']
+
         labels = {
-            'dag_id': context['dag'].dag_id,
-            'task_id': context['task'].task_id,
-            'execution_date': context['ts'],
-            'try_number': context['ti'].try_number,
+            'dag_id': ti.dag_id,
+            'task_id': ti.task_id,
+            'run_id': run_id,
+            'spark_kubernetes_operator': 'True',
+            # 'execution_date': context['ts'],
+            # 'try_number': context['ti'].try_number,
         }
+
+        # If running on Airflow 2.3+:
+        map_index = getattr(ti, 'map_index', -1)
+        if map_index >= 0:
+            labels['map_index'] = map_index
+
+        if include_try_number:
+            labels.update(try_number=ti.try_number)
+
         # In the case of sub dags this is just useful
         if context['dag'].is_subdag:
             labels['parent_dag_id'] = context['dag'].parent_dag.dag_id
@@ -295,6 +313,7 @@ class SparkKubernetesOperator(BaseOperator):
             application_file=self.application_file,
         )
         launcher.set_body(
+            application_file=self.application_file,
             name=self.name,
             namespace=self.namespace,
             image=self.image,
@@ -327,7 +346,7 @@ class SparkKubernetesOperator(BaseOperator):
         return launcher
 
     def find_spark_job(self, context):
-        labels = self.create_labels_for_pod(context)
+        labels = self.create_labels_for_pod(context, include_try_number=False)
         label_selector = self._get_pod_identifying_label_string(labels) + ',spark-role=driver'
         pod_list = self.client.list_namespaced_pod(self.namespace, label_selector=label_selector).items
 
@@ -349,13 +368,8 @@ class SparkKubernetesOperator(BaseOperator):
             if driver_pod:
                 return driver_pod
 
+        # self.log.debug("Starting spark job:\n%s", yaml.safe_dump(launcher.body.to_dict()))
         driver_pod, spark_obj_spec = launcher.start_spark_job(startup_timeout=self.startup_timeout_seconds)
-        # if self.reattach_on_restart:
-        #     pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
-        #     if pod:
-        #         return pod
-        # self.log.debug("Starting pod:\n%s", yaml.safe_dump(pod_request_obj.to_dict()))
-        # self.pod_manager.create_pod(pod=pod_request_obj)
         return driver_pod
 
     def extract_xcom(self, pod):
@@ -376,7 +390,6 @@ class SparkKubernetesOperator(BaseOperator):
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
             with _suppress(Exception):
                 self.process_spark_job_deletion(pod)
-            raise AirflowException(f'Pod {pod and pod.metadata.name} returned a failure\n{remote_pod}')
         else:
             with _suppress(Exception):
                 self.process_spark_job_deletion(pod)
@@ -394,34 +407,37 @@ class SparkKubernetesOperator(BaseOperator):
         remote_pod = None
         driver_pod = None
         try:
-            if self.application_file:
-                hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-                response = hook.create_custom_object(
-                    group=self.api_group,
-                    version=self.api_version,
-                    plural=self.api_plural,
-                    body=self.application_file,
-                    namespace=self.namespace,
-                )
-                return response
-            self.client, custom_obj_api = self.get_kube_client()
+            self.client, custom_obj_api = self.get_kube_clients()
+            # if self.application_file:
+            #     hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
+            #     response = hook.create_custom_object(
+            #         group=self.api_group,
+            #         version=self.api_version,
+            #         plural=self.api_plural,
+            #         body=self.application_file,
+            #         namespace=self.namespace,
+            #     )
+            #     driver_pod = self.get_or_create_spark_crd(self.launcher, context)
+            #     return response
             self.launcher = self.build_spark_request_obj(self.client, custom_obj_api)
             driver_pod = self.get_or_create_spark_crd(self.launcher, context)
 
             if self.get_logs:
-                self.launcher.fetch_container_logs(
+                self.pod_manager.fetch_container_logs(
                     pod=driver_pod,
                     container_name='spark-kubernetes-driver',
                     follow=True,
                 )
             else:
-                self.launcher.await_container_completion(
+                self.pod_manager.await_container_completion(
                     pod=driver_pod, container_name='spark-kubernetes-driver'
                 )
 
             if self.do_xcom_push:
                 result = self.extract_xcom(pod=driver_pod)
-            remote_pod = self.launcher.await_pod_completion(driver_pod)
+            remote_pod = self.pod_manager.await_pod_completion(driver_pod)
+        except Exception as e:
+            print(e)
         finally:
             self.cleanup(
                 pod=driver_pod or self.launcher.pod_spec,
@@ -448,6 +464,6 @@ class SparkKubernetesOperator(BaseOperator):
         """
         Prints out the spark job that would be created by this operator.
         """
-        client, custom_obj_api = self.get_kube_client()
+        client, custom_obj_api = self.get_kube_clients()
         launcher = self.build_spark_request_obj(client, custom_obj_api)
         print(yaml.dump(prune_dict(launcher.body(), mode='strict')))

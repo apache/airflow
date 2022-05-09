@@ -16,6 +16,7 @@
 # under the License.
 
 """Launches Custom object"""
+import sys
 import time
 from copy import deepcopy
 from datetime import datetime as dt
@@ -28,6 +29,11 @@ from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
+from airflow.utils.log.logging_mixin import LoggingMixin
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 
 def should_retry_start_spark_job(exception: Exception):
@@ -152,7 +158,7 @@ class CustomObjectStatus:
     }
 
 
-class CustomObjectLauncher(PodManager):
+class CustomObjectLauncher(LoggingMixin):
     """Launches PODS"""
 
     def __init__(
@@ -188,10 +194,17 @@ class CustomObjectLauncher(PodManager):
         self.body = {}
         self.application_file = application_file
 
+    @cached_property
+    def pod_manager(self) -> PodManager:
+        return PodManager(kube_client=self._client)
+
     @staticmethod
-    def _load_body(file_path):
+    def _load_body(file):
+        # try:
+        #     base_body = yaml.safe_load(file)
+        # except Exception:
         try:
-            with open(file_path) as data:
+            with open(file) as data:
                 base_body = yaml.safe_load(data)
         except yaml.YAMLError as e:
             raise AirflowException(f"Exception when loading resource definition: {e}\n")
@@ -231,7 +244,6 @@ class CustomObjectLauncher(PodManager):
         except Exception as e:
             self.log.exception('Exception when attempting to create spark job: %s', self.body)
             raise e
-
         self.pod_spec = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
                 labels=self.spark_obj_spec['spec']['driver']['labels'],
@@ -246,7 +258,7 @@ class CustomObjectLauncher(PodManager):
             )
             delta = dt.now() - curr_time
             if delta.total_seconds() >= startup_timeout:
-                pod_status = self.read_pod(self.pod_spec).status.container_statuses
+                pod_status = self.pod_manager.read_pod(self.pod_spec).status.container_statuses
                 raise AirflowException(f"Job took too long to start. pod status: {pod_status}")
             time.sleep(2)
 
