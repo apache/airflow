@@ -2831,3 +2831,21 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
 
     query = XCom.get_many(run_id=dagrun.run_id, task_ids=["add_one__1"], session=session)
     assert [x.value for x in query.order_by(None).order_by(XCom.map_index)] == [3, 4, 5]
+
+
+def test_ti_mapped_depends_on_mapped_xcom_arg_XXX(dag_maker, session):
+    with dag_maker(session=session) as dag:
+
+        @dag.task
+        def add_one(x):
+            x + 1
+
+        two_three_four = add_one.expand(x=[1, 2, 3])
+        add_one.expand(x=two_three_four)
+
+    dagrun = dag_maker.create_dagrun()
+    for map_index in range(3):
+        ti = dagrun.get_task_instance("add_one", map_index=map_index)
+        ti.refresh_from_task(dag.get_task("add_one"))
+        with pytest.raises(XComForMappingNotPushed):
+            ti.run()

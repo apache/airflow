@@ -14,15 +14,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import IO, Any, Dict, Optional
 
 import click
+from click import Context
 
 from airflow_breeze import NAME, VERSION
 from airflow_breeze.commands.main_command import main
@@ -71,6 +73,7 @@ CONFIGURATION_AND_MAINTENANCE_COMMANDS = {
         "resource-check",
         "free-space",
         "fix-ownership",
+        "command-hash-export",
         "version",
     ],
 }
@@ -405,6 +408,29 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
 def resource_check(verbose: bool, dry_run: bool):
     shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
+
+
+def dict_hash(dictionary: Dict[str, Any]) -> str:
+    """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
+    dhash = hashlib.md5()
+    encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()
+    dhash.update(encoded)
+    return dhash.hexdigest()
+
+
+@main.command(
+    name="command-hash-export",
+    help="Outputs hash of all click commands to file or stdout if `-` "
+    "is used (useful to see if images should be regenerated).",
+)
+@option_verbose
+@click.argument('output', type=click.File('wt'))
+def command_hash_export(verbose: bool, output: IO):
+    with Context(main) as ctx:
+        the_context_dict = ctx.to_info_dict()
+        if verbose:
+            get_console().print(the_context_dict)
+        output.write(dict_hash(the_context_dict) + "\n")
 
 
 @main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")

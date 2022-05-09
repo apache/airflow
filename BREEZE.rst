@@ -417,6 +417,15 @@ Those are all available flags of ``config`` command:
   :width: 100%
   :alt: Breeze config
 
+
+You can also dump hash of the configuration options used - this is mostly use to generate the dump
+of help of the commands only when they change.
+
+.. image:: ./images/breeze/output-command-hash-export.svg
+  :width: 100%
+  :alt: Breeze command-hash-export
+
+
 Starting complete Airflow installation
 ======================================
 
@@ -539,6 +548,8 @@ Configuration and maintenance
 * Freeing space needed to run CI tests with ``breeze free-space`` command
 * Fixing ownership of files in your repository with ``breeze fix-ownership`` command
 * Print Breeze version with ``breeze version`` command
+* Outputs hash of commands defined by ``breeze`` with ``command-hash-export`` (useful to avoid needless
+  regeneration of Breeze images)
 
 Release tasks
 -------------
@@ -582,7 +593,7 @@ Image cleanup
 Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
 disk usage by the images. If you need to clean-up the images periodically you can run
 ``breeze cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--include-current-images``).
+can also remove the images to clean-up everything by adding ``--all``).
 
 Those are all available flags of ``cleanup`` command:
 

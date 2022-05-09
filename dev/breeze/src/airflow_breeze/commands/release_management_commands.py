@@ -80,7 +80,7 @@ RELEASE_MANAGEMENT_PARAMETERS = {
             "name": "Provider verification flags",
             "options": [
                 "--use-airflow-version",
-                "--constraints-reference",
+                "--airflow-constraints-reference",
                 "--airflow-extras",
                 "--use-packages-from-dist",
                 "--package-format",
