@@ -790,7 +790,7 @@ class DagRun(Base, LoggingMixin):
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
         except Exception as e:
-            self.log.warning(f'Failed to record first_task_scheduling_delay metric:\n{e}')
+            self.log.warning('Failed to record first_task_scheduling_delay metric:\n%s', e)
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:

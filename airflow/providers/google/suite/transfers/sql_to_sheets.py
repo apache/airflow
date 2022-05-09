@@ -120,7 +120,7 @@ class SQLToGoogleSheetsOperator(BaseSQLOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info(f"Uploading data to https://docs.google.com/spreadsheets/d/{self.spreadsheet_id}")
+        self.log.info("Uploading data to https://docs.google.com/spreadsheets/d/%s", self.spreadsheet_id)
 
         sheet_hook.update_values(
             spreadsheet_id=self.spreadsheet_id,

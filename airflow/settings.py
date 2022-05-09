@@ -293,7 +293,7 @@ def configure_orm(disable_connection_pool=False):
             data = result.fetchone()[0]
             if data != 1:
                 log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("The database %s has it disabled.", engine.url.database)
                 log.critical("This will cause random deadlocks, Refusing to start.")
                 log.critical(
                     "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"

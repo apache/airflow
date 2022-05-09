@@ -693,4 +693,4 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
     def execute(self, context: 'Context') -> Any:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config['ModelName'])
-        self.log.info(f"Model {self.config['ModelName']} deleted Successfully.")
+        self.log.info("Model %s deleted successfully.", self.config['ModelName'])

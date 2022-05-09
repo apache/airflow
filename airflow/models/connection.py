@@ -208,8 +208,8 @@ class Connection(Base, LoggingMixin):
         """Return connection in URI format"""
         if '_' in self.conn_type:
             self.log.warning(
-                f"Connection schemes (type: {str(self.conn_type)}) "
-                f"shall not contain '_' according to RFC3986."
+                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
+                str(self.conn_type),
             )
 
         uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
