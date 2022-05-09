@@ -77,14 +77,14 @@ const Grid = ({ isPanelOpen = false }) => {
   return (
     <Box
       position="relative"
-      mt={2}
-      m="12px"
+      m={3}
+      mt={0}
       overflow="auto"
       ref={scrollRef}
       flexGrow={1}
       minWidth={isPanelOpen && '300px'}
     >
-      <Flex alignItems="center">
+      <Flex alignItems="center" position="sticky" top={0} left={0}>
         <AutoRefresh />
         <ToggleGroups
           groups={groups}
