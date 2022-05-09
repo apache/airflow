@@ -416,6 +416,15 @@ Those are all available flags of ``config`` command:
   :width: 100%
   :alt: Breeze config
 
+
+You can also dump hash of the configuration options used - this is mostly use to generate the dump
+of help of the commands only when they change.
+
+.. image:: ./images/breeze/output-command-hash-export.svg
+  :width: 100%
+  :alt: Breeze command-hash-export
+
+
 Starting complete Airflow installation
 ======================================
 
@@ -538,6 +547,8 @@ Configuration and maintenance
 * Freeing space needed to run CI tests with ``breeze free-space`` command
 * Fixing ownership of files in your repository with ``breeze fix-ownership`` command
 * Print Breeze version with ``breeze version`` command
+* Outputs hash of commands defined by ``breeze`` with ``command-hash-export`` (useful to avoid needless
+  regeneration of Breeze images)
 
 Release tasks
 -------------
