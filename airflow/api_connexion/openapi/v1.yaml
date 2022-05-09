@@ -2442,6 +2442,7 @@ components:
           enum:
             - success
             - failed
+            - queued
 
     DAGRunCollection:
       type: object
