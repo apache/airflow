@@ -30,8 +30,8 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteObjectsOperator,
     S3FileTransformOperator,
     S3GetBucketTaggingOperator,
-    S3ListPrefixesOperator,
     S3ListOperator,
+    S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
