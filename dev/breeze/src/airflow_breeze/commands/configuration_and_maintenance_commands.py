@@ -305,10 +305,10 @@ def version(verbose: bool, python: str):
             f"{get_installation_sources_config_metadata_hash()}[/]"
         )
         get_console().print(
-            f"[info]Used sources config hash         : " f"{get_used_sources_setup_metadata_hash()}[/]"
+            f"[info]Used sources config hash         : {get_used_sources_setup_metadata_hash()}[/]"
         )
         get_console().print(
-            f"[info]Package config hash              : " f"{(get_package_setup_metadata_hash())}[/]\n"
+            f"[info]Package config hash              : {(get_package_setup_metadata_hash())}[/]\n"
         )
 
 
@@ -497,7 +497,7 @@ def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, for
     else:
         get_console().print(f"[info]The autocomplete script would be added to {script_path}[/]")
     get_console().print(
-        f"\n[warning]Please exit and re-enter your shell or run:[/]" f"\n\n   source {script_path}\n"
+        f"\n[warning]Please exit and re-enter your shell or run:[/]\n\n   source {script_path}\n"
     )
     return True
 

@@ -294,7 +294,7 @@ def assign_prs(
             continue
         console.print('-' * 80)
         console.print(
-            f"\n >>>> Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+            f"\n >>>> Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
         )
         pr: PullRequest
         try:
