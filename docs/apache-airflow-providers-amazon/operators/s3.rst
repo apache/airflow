@@ -203,7 +203,7 @@ List Amazon S3 objects
 
 To list all Amazon S3 objects within an Amazon S3 bucket you can use
 :class:`~airflow.providers.amazon.aws.operators.s3.S3ListOperator`.
-You can specify ``prefix`` to filter the objects whose name begin with such prefix.
+You can specify a ``prefix`` to filter the objects whose name begins with such prefix.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_s3.py
     :language: python
