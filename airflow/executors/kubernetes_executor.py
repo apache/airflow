@@ -102,6 +102,15 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 self.resource_version = self._run(
                     kube_client, self.resource_version, self.scheduler_job_id, self.kube_config
                 )
+            except ApiException as e:
+                # watching api resource has expired.
+                # last resource version is too old.
+                # resume from '0'
+                if e.status == 410:
+                    self.resource_version = '0'
+                else:
+                    raise
+
             except ReadTimeoutError:
                 self.log.warning(
                     "There was a timeout error accessing the Kube API. Retrying request.", exc_info=True
