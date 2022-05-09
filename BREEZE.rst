@@ -593,7 +593,7 @@ Image cleanup
 Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
 disk usage by the images. If you need to clean-up the images periodically you can run
 ``breeze cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--include-current-images``).
+can also remove the images to clean-up everything by adding ``--all``).
 
 Those are all available flags of ``cleanup`` command:
 
