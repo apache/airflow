@@ -23,7 +23,8 @@ from pathlib import Path
 from unittest import mock
 
 import pytest
-from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, mkdirs, open_maybe_zipped
+
+from airflow.utils.file import correct_maybe_zipped, find_path_from_directory, open_maybe_zipped
 from tests.models import TEST_DAGS_FOLDER
 
 
@@ -80,7 +81,7 @@ class TestOpenMaybeZipped(unittest.TestCase):
         assert isinstance(content, str)
 
 
-class TestListPyFilesPath():
+class TestListPyFilesPath:
     @pytest.fixture()
     def test_dir(self, tmp_path):
         # create test tree with symlinks
@@ -158,5 +159,8 @@ class TestListPyFilesPath():
             list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
             assert False, "Walking a self-recursive tree should fail"
         except RuntimeError as err:
-            assert str(err) == f"Detected recursive loop when walking DAG directory {test_dir}: " + \
-                f"{Path(recursing_tgt).resolve()} has appeared more than once."
+            assert (
+                str(err)
+                == f"Detected recursive loop when walking DAG directory {test_dir}: "
+                + f"{Path(recursing_tgt).resolve()} has appeared more than once."
+            )
