@@ -208,10 +208,11 @@ def _find_path_from_directory(
 
     :return: a generator of file paths which should not be ignored.
     """
+    # A Dict of patterns, keyed using resolved, absolute paths
     patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
     for root, dirs, files in os.walk(base_dir_path, followlinks=True):
-        patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root), [])
+        patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
 
         ignore_file_path = Path(root) / ignore_file_name
         if ignore_file_path.is_file():
@@ -233,7 +234,13 @@ def _find_path_from_directory(
 
         dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
 
-        patterns_by_dir.update({Path(root) / sd: patterns.copy() for sd in dirs})
+        # explicit loop for infinite recursion detection since we are following symlinks in this walk
+        for sd in dirs:
+            dirpath = (Path(root) / sd).resolve()
+            if dirpath in patterns_by_dir:
+                log.error("Detected recursive loop when walking DAG directory %s: %s has appeared more than once.", base_dir_path, dirpath)
+                raise RuntimeError(f"Detected recursive loop when walking DAG directory {base_dir_path}: {dirpath} has appeared more than once.")
+            patterns_by_dir.update({dirpath: patterns.copy()})
 
         for file in files:
             if file == ignore_file_name:
