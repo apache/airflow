@@ -99,6 +99,6 @@ class TestSubprocessHook(unittest.TestCase):
 
     def test_task_decode(self):
         hook = SubprocessHook()
-        command=['bash', '-c', "source "+__file__[:-2]+'sh']
+        command = ['bash', '-c', 'printf "This will cause a coding error \\xb1\\xa6\\x01\n"']
         result = hook.run_command(command=command)
-        assert result.exit_code==0
+        assert result.exit_code == 0
