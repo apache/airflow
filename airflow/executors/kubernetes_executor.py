@@ -188,12 +188,7 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
         """Process error response"""
         self.log.error('Encountered Error response from k8s list namespaced pod stream => %s', event)
         raw_object = event['raw_object']
-        if raw_object['code'] == 410:
-            self.log.info(
-                'Kubernetes resource version is too old, must reset to 0 => %s', (raw_object['message'],)
-            )
-            # Return resource version 0
-            return '0'
+
         raise AirflowException(
             f"Kubernetes failure for {raw_object['reason']} with code {raw_object['code']} and message: "
             f"{raw_object['message']}"
