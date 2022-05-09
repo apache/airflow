@@ -27,18 +27,17 @@ import click
 
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
-    ALLOWED_GENERATE_CONSTRAINTS_MODES,
     ALLOWED_PLATFORMS,
     CURRENT_PYTHON_MAJOR_MINOR_VERSIONS,
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
     MOUNT_ALL,
-    MOUNT_NONE,
     MOUNT_SELECTED,
     MULTI_PLATFORM,
 )
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.common_options import (
     argument_packages,
+    option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference,
     option_airflow_extras,
     option_answer,
@@ -113,7 +112,7 @@ RELEASE_MANAGEMENT_PARAMETERS = {
             "options": [
                 "--image-tag",
                 "--python",
-                "--generate-constraints-mode",
+                "--airflow-constraints-mode",
                 "--debug",
             ],
         },
@@ -348,7 +347,7 @@ def prepare_provider_packages(
 
 
 def run_generate_constraints(
-    shell_params: ShellParams, dry_run: bool, verbose: bool, generate_constraints_mode: str, debug: bool
+    shell_params: ShellParams, dry_run: bool, verbose: bool, debug: bool
 ) -> Tuple[int, str]:
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
@@ -362,14 +361,13 @@ def run_generate_constraints(
     )
     return (
         generate_constraints_result.returncode,
-        f"Generate constraints Python {shell_params.python}:{generate_constraints_mode}",
+        f"Generate constraints Python {shell_params.python}:{shell_params.airflow_constraints_mode}",
     )
 
 
 def run_generate_constraints_in_parallel(
     shell_params_list: List[ShellParams],
     python_version_list: List[str],
-    generate_constraints_mode: str,
     parallelism: int,
     dry_run: bool,
     verbose: bool,
@@ -383,7 +381,7 @@ def run_generate_constraints_in_parallel(
     results = [
         pool.apply_async(
             run_generate_constraints,
-            args=(shell_param, dry_run, verbose, generate_constraints_mode, False),
+            args=(shell_param, dry_run, verbose, False),
         )
         for shell_param in shell_params_list
     ]
@@ -395,13 +393,6 @@ def run_generate_constraints_in_parallel(
     name='generate-constraints',
     help="Generates pinned constraint files with all extras from setup.py in parallel.",
 )
-@click.option(
-    '--generate-constraints-mode',
-    type=BetterChoice(ALLOWED_GENERATE_CONSTRAINTS_MODES),
-    default=ALLOWED_GENERATE_CONSTRAINTS_MODES[0],
-    show_default=True,
-    help='Mode of generating constraints',
-)
 @option_verbose
 @option_dry_run
 @option_python
@@ -412,6 +403,7 @@ def run_generate_constraints_in_parallel(
 @option_image_tag
 @option_answer
 @option_debug_release_management
+@option_airflow_constraints_mode_ci
 def generate_constraints(
     verbose: bool,
     dry_run: bool,
@@ -423,7 +415,7 @@ def generate_constraints(
     image_tag: str,
     answer: Optional[str],
     debug: bool,
-    generate_constraints_mode: str,
+    airflow_constraints_mode: str,
 ):
     if debug and run_in_parallel:
         get_console().print("\n[error]Cannot run --debug and --run-in-parallel at the same time[/]\n")
@@ -457,7 +449,11 @@ def generate_constraints(
         python_version_list = get_python_version_list(python_versions)
         shell_params_list = [
             ShellParams(
-                image_tag=image_tag, python=python, github_repository=github_repository, answer=answer
+                image_tag=image_tag,
+                python=python,
+                github_repository=github_repository,
+                airflow_constraints_mode=airflow_constraints_mode,
+                answer=answer,
             )
             for python in python_version_list
         ]
@@ -467,7 +463,6 @@ def generate_constraints(
             dry_run=dry_run,
             verbose=verbose,
             python_version_list=python_version_list,
-            generate_constraints_mode=generate_constraints_mode,
         )
     else:
         shell_params = ShellParams(
@@ -476,12 +471,12 @@ def generate_constraints(
             github_repository=github_repository,
             answer=answer,
             skip_environment_initialization=True,
+            airflow_constraints_mode=airflow_constraints_mode,
         )
         return_code, info = run_generate_constraints(
             shell_params=shell_params,
             dry_run=dry_run,
             verbose=verbose,
-            generate_constraints_mode=generate_constraints_mode,
             debug=debug,
         )
         if return_code != 0:
@@ -515,7 +510,7 @@ def verify_provider_packages(
 ):
     shell_params = ShellParams(
         verbose=verbose,
-        mount_sources=MOUNT_NONE if use_airflow_version is not None else MOUNT_SELECTED,
+        mount_sources=MOUNT_SELECTED,
         github_repository=github_repository,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
         use_airflow_version=use_airflow_version,

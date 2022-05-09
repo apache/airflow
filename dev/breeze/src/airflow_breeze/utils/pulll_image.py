@@ -19,12 +19,13 @@ import multiprocessing as mp
 import time
 from typing import List, Tuple, Union
 
+from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.parallel import check_async_run_results
-from airflow_breeze.utils.registry import login_to_docker_registry
+from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import run_command
 
@@ -74,7 +75,7 @@ def run_pull_in_parallel(
 
 
 def run_pull_image(
-    image_params: Union[BuildCiParams, BuildProdParams],
+    image_params: _CommonBuildParams,
     dry_run: bool,
     verbose: bool,
     wait_for_image: bool,
@@ -92,12 +93,12 @@ def run_pull_image(
     :return: Tuple of return code and description of the image pulled
     """
     get_console().print(
-        f"\n[info]Pulling {image_params.the_image_type} image of airflow python version: "
+        f"\n[info]Pulling {image_params.image_type} image of airflow python version: "
         f"{image_params.python} image: {image_params.airflow_image_name_with_tag} "
         f"with wait for image: {wait_for_image}[/]\n"
     )
     while True:
-        login_to_docker_registry(image_params, dry_run=dry_run)
+        login_to_github_docker_registry(image_params=image_params, dry_run=dry_run, verbose=verbose)
         command_to_run = ["docker", "pull", image_params.airflow_image_name_with_tag]
         command_result = run_command(
             command_to_run,
@@ -160,7 +161,7 @@ def run_pull_image(
 
 
 def run_pull_and_verify_image(
-    image_params: Union[BuildCiParams, BuildProdParams],
+    image_params: _CommonBuildParams,
     dry_run: bool,
     verbose: bool,
     wait_for_image: bool,
@@ -177,7 +178,7 @@ def run_pull_and_verify_image(
         )
     return verify_an_image(
         image_name=image_params.airflow_image_name_with_tag,
-        image_type=image_params.the_image_type,
+        image_type=image_params.image_type,
         dry_run=dry_run,
         verbose=verbose,
         extra_pytest_args=extra_pytest_args,
