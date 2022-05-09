@@ -20,12 +20,14 @@
 /* global describe, expect, jest, test, moment */
 import { act, renderHook } from '@testing-library/react-hooks';
 
-import useFilters from './useFilters';
 import { RouterWrapper } from './testUtils';
 
 const date = new Date();
 date.setMilliseconds(0);
 jest.useFakeTimers().setSystemTime(date);
+
+// eslint-disable-next-line import/first
+import useFilters from './useFilters';
 
 describe('Test useFilters hook', () => {
   test('Initial values when url does not have query params', async () => {
