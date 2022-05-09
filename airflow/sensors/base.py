@@ -157,10 +157,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 f".{self.task_id}'; received '{self.mode}'."
             )
 
-        # Sanity check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
+        # Quick check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
         # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
         # set the value to milliseconds instead of seconds. There's another check when
-        # we actually try to reschedule to ensure database sanity.
+        # we actually try to reschedule to ensure database coherence.
         if self.reschedule and _is_metadatabase_mysql():
             if timezone.utcnow() + datetime.timedelta(seconds=self.poke_interval) > _MYSQL_TIMESTAMP_MAX:
                 raise AirflowException(

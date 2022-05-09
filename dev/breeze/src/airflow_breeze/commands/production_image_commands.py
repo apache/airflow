@@ -417,7 +417,7 @@ def clean_docker_context_files(verbose: bool, dry_run: bool):
 
 def check_docker_context_files(install_packages_from_context: bool):
     """
-    Sanity check - if we want to install from docker-context-files we expect some packages there but if
+    Quick check - if we want to install from docker-context-files we expect some packages there but if
     we don't - we don't expect them, and they might invalidate Docker cache.
 
     This method exits with an error if what we see is unexpected for given operation.
@@ -459,7 +459,7 @@ def build_production_image(
       * converts all the parameters received via kwargs into BuildProdParams (including cache)
       * prints info about the image to build
       * removes docker-context-files if requested
-      * performs sanity check if the files are present in docker-context-files if expected
+      * performs quick check if the files are present in docker-context-files if expected
       * logs int to docker registry on CI if build cache is being executed
       * removes "tag" for previously build image so that inline cache uses only remote image
       * constructs docker-compose command to run based on parameters passed
