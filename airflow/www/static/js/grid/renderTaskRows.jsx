@@ -45,7 +45,7 @@ const dagId = getMetaValue('dag_id');
 
 const renderTaskRows = ({
   task, level = 0, ...rest
-}) => task.children.map((t) => (
+}) => task.children && task.children.map((t) => (
   <Row
     {...rest}
     key={t.id}

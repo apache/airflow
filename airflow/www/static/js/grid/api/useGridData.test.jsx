@@ -17,11 +17,11 @@
  * under the License.
  */
 
+/* global describe, test, expect, beforeAll */
+
 import { renderHook } from '@testing-library/react-hooks';
 import useGridData from './useGridData';
 import { Wrapper } from '../utils/testUtils';
-
-/* global describe, test, expect, beforeAll */
 
 const pendingGridData = {
   groups: {},
