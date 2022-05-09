@@ -95,7 +95,7 @@ STATE_COLORS = {
     "up_for_retry": "gold",
     "up_for_reschedule": "turquoise",
     "upstream_failed": "orange",
-    "skipped": "pink",
+    "skipped": "hotpink",
     "scheduled": "tan",
     "deferred": "mediumpurple",
 }

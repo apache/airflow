@@ -65,3 +65,9 @@ export const TableWrapper = ({ children }) => (
     </Table>
   </Wrapper>
 );
+
+export const RouterWrapper = ({ children }) => (
+  <MemoryRouter>
+    {children}
+  </MemoryRouter>
+);
