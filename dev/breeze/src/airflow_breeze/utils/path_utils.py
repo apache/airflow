@@ -211,6 +211,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     :return: Path for the found sources.
 
     """
+    sources_root_from_env = os.getenv('AIRFLOW_SOURCES_ROOT', None)
+    if sources_root_from_env:
+        return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_upgrade_check():
         get_console().print(

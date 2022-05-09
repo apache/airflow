@@ -22,21 +22,21 @@ try:
     # We handle ImportError so that click autocomplete works
     import rich_click as click
 
-    from airflow_breeze.commands.ci_image_tools import CI_IMAGE_TOOLS_COMMANDS, CI_IMAGE_TOOLS_PARAMETERS
-    from airflow_breeze.commands.configuration_and_maintenance import (
+    from airflow_breeze.commands.ci_image_commands import CI_IMAGE_TOOLS_COMMANDS, CI_IMAGE_TOOLS_PARAMETERS
+    from airflow_breeze.commands.configuration_and_maintenance_commands import (
         CONFIGURATION_AND_MAINTENANCE_COMMANDS,
         CONFIGURATION_AND_MAINTENANCE_PARAMETERS,
     )
     from airflow_breeze.commands.developer_commands import DEVELOPER_COMMANDS, DEVELOPER_PARAMETERS
-    from airflow_breeze.commands.production_image_tools import (
+    from airflow_breeze.commands.production_image_commands import (
         PRODUCTION_IMAGE_TOOLS_COMMANDS,
         PRODUCTION_IMAGE_TOOLS_PARAMETERS,
     )
-    from airflow_breeze.commands.release_management import (
+    from airflow_breeze.commands.release_management_commands import (
         RELEASE_MANAGEMENT_COMMANDS,
         RELEASE_MANAGEMENT_PARAMETERS,
     )
-    from airflow_breeze.commands.testing import TESTING_COMMANDS, TESTING_PARAMETERS
+    from airflow_breeze.commands.testing_commands import TESTING_COMMANDS, TESTING_PARAMETERS
 
     click.rich_click.SHOW_METAVARS_COLUMN = False
     click.rich_click.SHOW_ARGUMENTS = False
@@ -64,7 +64,5 @@ try:
             RELEASE_MANAGEMENT_COMMANDS,
         ]
     }
-
-
 except ImportError:
     import click  # type: ignore[no-redef]

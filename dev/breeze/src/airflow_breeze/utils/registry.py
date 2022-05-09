@@ -18,8 +18,8 @@
 import os
 from typing import Tuple, Union
 
-from airflow_breeze.build_image.ci.build_ci_params import BuildCiParams
-from airflow_breeze.build_image.prod.build_prod_params import BuildProdParams
+from airflow_breeze.params.build_ci_params import BuildCiParams
+from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
 

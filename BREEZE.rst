@@ -314,7 +314,7 @@ Customize your environment
 
 When you enter the Breeze environment, automatically an environment file is sourced from
 ``files/airflow-breeze-config/variables.env``.
-a
+
 You can also add ``files/airflow-breeze-config/init.sh`` and the script will be sourced always
 when you enter Breeze. For example you can add ``pip install`` commands if you want to install
 custom dependencies - but there are no limits to add your own customizations.
@@ -322,10 +322,14 @@ custom dependencies - but there are no limits to add your own customizations.
 The ``files`` folder from your local sources is automatically mounted to the container under
 ``/files`` path and you can put there any files you want to make available for the Breeze container.
 
+You can also copy any .whl or .sdist packages to dist and when you pass ``--use-packages-from-dist`` flag
+as ``wheel`` or ``sdist`` line parameter, breeze will automatically install the packages found there
+when you enter Breeze.
+
 You can also add your local tmux configuration in ``files/airflow-breeze-config/.tmux.conf`` and
 these configurations will be available for your tmux environment.
 
-there is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
+There is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
 so you can change it at any place, and run
 
 .. code-block:: bash
@@ -413,6 +417,15 @@ Those are all available flags of ``config`` command:
   :width: 100%
   :alt: Breeze config
 
+
+You can also dump hash of the configuration options used - this is mostly use to generate the dump
+of help of the commands only when they change.
+
+.. image:: ./images/breeze/output-command-hash-export.svg
+  :width: 100%
+  :alt: Breeze command-hash-export
+
+
 Starting complete Airflow installation
 ======================================
 
@@ -477,11 +490,9 @@ Those are commands mostly used by contributors:
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
-* Run test specified with ``./breeze-legacy tests`` command
+* Run test specified with ``breeze tests`` command
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
-* Run static checks with autocomplete support ``breeze static-checks`` command
-* Run test specified with ``./breeze-legacy tests`` command
 
 Additional management tasks:
 
@@ -493,6 +504,11 @@ Tests
 -----
 
 * Run docker-compose tests with ``breeze docker-compose-tests`` command.
+* Run test specified with ``breeze tests`` command.
+
+.. image:: ./images/breeze/output-tests.svg
+  :width: 100%
+  :alt: Breeze tests
 
 Kubernetes tests
 ----------------
@@ -532,6 +548,8 @@ Configuration and maintenance
 * Freeing space needed to run CI tests with ``breeze free-space`` command
 * Fixing ownership of files in your repository with ``breeze fix-ownership`` command
 * Print Breeze version with ``breeze version`` command
+* Outputs hash of commands defined by ``breeze`` with ``command-hash-export`` (useful to avoid needless
+  regeneration of Breeze images)
 
 Release tasks
 -------------
@@ -543,10 +561,13 @@ do not need or have no access to run). Those are usually connected with releasin
   ``breeze build-prod image --prepare-build-cache``(needs buildx plugin and write access to registry ghcr.io)
 * Generate constraints with ``breeze generate-constraints`` (needed when conflicting changes are merged)
 * Prepare airflow packages: ``breeze prepare-airflow-package`` (when releasing Airflow)
+* Verify providers: ``breeze verify-provider-packages`` (when releasing provider packages) - including importing
+  the providers in an earlier airflow version.
 * Prepare provider documentation ``breeze prepare-provider-documentation`` and prepare provider packages
   ``breeze prepare-provider-packages`` (when releasing provider packages)
 * Finding the updated dependencies since the last successful build when we have conflict with
   ``breeze find-newer-dependencies`` command
+* Release production images to DockerHub with ``breeze release-prod-images`` command
 
 
 Details of Breeze usage
@@ -572,7 +593,7 @@ Image cleanup
 Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
 disk usage by the images. If you need to clean-up the images periodically you can run
 ``breeze cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--include-current-images``).
+can also remove the images to clean-up everything by adding ``--all``).
 
 Those are all available flags of ``cleanup`` command:
 
@@ -747,6 +768,27 @@ Those are all available flags of ``verify-image`` command:
   :width: 100%
   :alt: Breeze verify-image
 
+Verifying providers
+-------------------
+
+Breeze can also be used to verify if provider classes are importable and if they are following the
+right naming conventions. This happens automatically on CI but you can also run it manually.
+
+.. code-block:: bash
+
+     breeze verify-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze verify-provider-packages --use-airflow-version 2.1.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output-verify-provider-packages.svg
+  :width: 100%
+  :alt: Breeze verify-provider-packages
 
 Preparing packages
 ------------------
@@ -917,6 +959,34 @@ Those are all available flags of ``verify-prod-image`` command:
   :width: 100%
   :alt: Breeze verify-prod-image
 
+Releasing Production images to DockerHub
+----------------------------------------
+
+The **Production image** can be released by release managers who have permissions to push the image. This
+happens only when there is an RC candidate or final version of Airflow released.
+
+You release "regular" and "slim" images as separate steps.
+
+Releasing "regular" images:
+
+.. code-block:: bash
+
+     breeze release-prod-images --airflow-version 2.4.0
+
+Or "slim" images:
+
+.. code-block:: bash
+
+     breeze release-prod-images --airflow-version 2.4.0 --slim-images
+
+By default when you are releasing the "final" image, we also tag image with "latest" tags but this
+step can be skipped if you pass the ``--skip-latest`` flag.
+
+These are all of the available flags for the ``release-prod-images`` command:
+
+.. image:: ./images/breeze/output-release-prod-images.svg
+  :width: 100%
+  :alt: Release prod images
 
 
 Running static checks

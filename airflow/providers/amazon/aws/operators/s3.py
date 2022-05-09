@@ -393,11 +393,13 @@ class S3CreateObjectOperator(BaseOperator):
     def execute(self, context: 'Context'):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
+        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, 'dest_bucket', 'dest_key')
+
         if isinstance(self.data, str):
             s3_hook.load_string(
                 self.data,
-                self.s3_key,
-                self.s3_bucket,
+                s3_key,
+                s3_bucket,
                 self.replace,
                 self.encrypt,
                 self.encoding,
@@ -405,9 +407,7 @@ class S3CreateObjectOperator(BaseOperator):
                 self.compression,
             )
         else:
-            s3_hook.load_bytes(
-                self.data, self.s3_key, self.s3_bucket, self.replace, self.encrypt, self.acl_policy
-            )
+            s3_hook.load_bytes(self.data, s3_key, s3_bucket, self.replace, self.encrypt, self.acl_policy)
 
 
 class S3DeleteObjectsOperator(BaseOperator):
@@ -617,6 +617,10 @@ class S3ListOperator(BaseOperator):
 
     This operator returns a python list with the name of objects which can be
     used by `xcom` in the downstream task.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ListOperator`
 
     :param bucket: The S3 bucket where to find the objects. (templated)
     :param prefix: Prefix string to filters the objects whose name begin with

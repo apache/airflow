@@ -85,8 +85,9 @@ def print_entry(section: str, description: str, pr_number: Optional[int]):
 
 
 in_first_release = False
+past_significant_changes = False
 section = ""
-with open("chart/CHANGELOG.txt") as f:
+with open("chart/RELEASE_NOTES.rst") as f:
     for line in f:
         line = line.strip()
         if not line:
@@ -97,8 +98,16 @@ with open("chart/CHANGELOG.txt") as f:
                 break
             in_first_release = True
             continue
-        if line.startswith('"""') or line.startswith('----'):
+        if line.startswith('"""') or line.startswith('----') or line.startswith('^^^^'):
             continue
+
+        # Make sure we get past "significant features" before we actually start keeping track
+        if not past_significant_changes:
+            if line == "New Features":
+                section = line
+                past_significant_changes = True
+            continue
+
         if not line.startswith('- '):
             section = line
             continue

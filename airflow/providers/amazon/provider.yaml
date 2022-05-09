@@ -71,6 +71,8 @@ integrations:
   - integration-name: Amazon EC2
     external-doc-url: https://aws.amazon.com/ec2/
     logo: /integration-logos/aws/Amazon-EC2_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/ec2.rst
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/

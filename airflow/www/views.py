@@ -201,9 +201,19 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
     num_runs = www_request.args.get('num_runs', default=default_dag_run, type=int)
 
+    # When base_date has been rounded up because of the DateTimeField widget, we want
+    # to use the execution_date as the starting point for our query just to ensure a
+    # link targeting a specific dag run actually loads that dag run.  If there are
+    # more than num_runs dag runs in the "rounded period" then those dagruns would get
+    # loaded and the actual requested run would be excluded by the limit().  Once
+    # the user has changed base date to be anything else we want to use that instead.
+    query_date = base_date
+    if date_time < base_date and date_time + timedelta(seconds=1) >= base_date:
+        query_date = date_time
+
     drs = (
         session.query(DagRun)
-        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= query_date)
         .order_by(desc(DagRun.execution_date))
         .limit(num_runs)
         .all()
