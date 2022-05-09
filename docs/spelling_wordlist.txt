@@ -910,6 +910,7 @@ https
 httpx
 hvac
 hyperparameter
+hyperparameters
 iPython
 iTerm
 iam

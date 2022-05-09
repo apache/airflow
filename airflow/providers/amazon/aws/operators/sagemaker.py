@@ -105,14 +105,18 @@ class SageMakerBaseOperator(BaseOperator):
 
 
 class SageMakerProcessingOperator(SageMakerBaseOperator):
-    """Initiate a SageMaker processing job.
+    """
+    Use Amazon SageMaker Processing to analyze data and evaluate machine learning
+    models on Amazon SageMake. With Processing, you can use a simplified, managed
+    experience on SageMaker to run your data processing workloads, such as feature
+    engineering, data validation, model evaluation, and model interpretation.
 
-    This operator returns The ARN of the processing job created in Amazon SageMaker.
+     .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerProcessingOperator`
 
     :param config: The configuration necessary to start a processing job (templated).
-
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_processing_job`
-    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,
         that the operation waits to check the status of the processing job.
     :param print_log: if the operator should print the cloudwatch log during processing
@@ -123,13 +127,13 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         the operation does not timeout.
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
         (default) and "fail".
+    :return Dict: Returns The ARN of the processing job created in Amazon SageMaker.
     """
 
     def __init__(
         self,
         *,
         config: dict,
-        aws_conn_id: str,
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = 30,
@@ -137,7 +141,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         action_if_job_exists: str = 'increment',
         **kwargs,
     ):
-        super().__init__(config=config, aws_conn_id=aws_conn_id, **kwargs)
+        super().__init__(config=config, **kwargs)
         if action_if_job_exists not in ('increment', 'fail'):
             raise AirflowException(
                 f"Argument action_if_job_exists accepts only 'increment' and 'fail'. \
@@ -185,14 +189,20 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
 
 class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     """
-    Create a SageMaker endpoint config.
+    Creates an endpoint configuration that Amazon SageMaker hosting
+    services uses to deploy models. In the configuration, you identify
+    one or more models, created using the CreateModel API, to deploy and
+    the resources that you want Amazon SageMaker to provision.
 
-    This operator returns The ARN of the endpoint config created in Amazon SageMaker
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerEndpointConfigOperator`
 
     :param config: The configuration necessary to create an endpoint config.
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_endpoint_config`
     :param aws_conn_id: The AWS connection ID to use.
+    :return Dict: Returns The ARN of the endpoint config created in Amazon SageMaker.
     """
 
     integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
@@ -213,9 +223,16 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
 
 class SageMakerEndpointOperator(SageMakerBaseOperator):
     """
-    Create a SageMaker endpoint.
+    When you create a serverless endpoint, SageMaker provisions and manages
+    the compute resources for you. Then, you can make inference requests to
+    the endpoint and receive model predictions in response. SageMaker scales
+    the compute resources up and down as needed to handle your request traffic.
 
-    This operator returns The ARN of the endpoint created in Amazon SageMaker
+    Requires an Endpoint Config.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerEndpointOperator`
 
     :param config:
         The configuration necessary to create an endpoint.
@@ -242,13 +259,13 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         For details of the configuration parameter of endpoint_configuration see
         :py:meth:`SageMaker.Client.create_endpoint`
 
-    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: Whether the operator should wait until the endpoint creation finishes.
     :param check_interval: If wait is set to True, this is the time interval, in seconds, that this operation
         waits before polling the status of the endpoint creation.
     :param max_ingestion_time: If wait is set to True, this operation fails if the endpoint creation doesn't
         finish within max_ingestion_time seconds. If you set this parameter to None it never times out.
     :param operation: Whether to create an endpoint or update an endpoint. Must be either 'create or 'update'.
+    :return Dict: Returns The ARN of the endpoint created in Amazon SageMaker.
     """
 
     def __init__(
@@ -331,9 +348,13 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
 
 
 class SageMakerTransformOperator(SageMakerBaseOperator):
-    """Initiate a SageMaker transform job.
+    """
+    Starts a transform job. A transform job uses a trained model to get inferences
+    on a dataset and saves these results to an Amazon S3 location that you specify.
 
-    This operator returns The ARN of the model created in Amazon SageMaker.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerTransformOperator`
 
     :param config: The configuration necessary to start a transform job (templated).
 
@@ -354,13 +375,13 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         For details of the configuration parameter of model_config, See:
         :py:meth:`SageMaker.Client.create_model`
 
-    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: Set to True to wait until the transform job finishes.
     :param check_interval: If wait is set to True, the time interval, in seconds,
         that this operation waits to check the status of the transform job.
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the transform job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
+    :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
     def __init__(
@@ -422,21 +443,28 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
 
 class SageMakerTuningOperator(SageMakerBaseOperator):
-    """Initiate a SageMaker hyperparameter tuning job.
+    """
+    Starts a hyperparameter tuning job. A hyperparameter tuning job finds the
+    best version of a model by running many training jobs on your dataset using
+    the algorithm you choose and values for hyperparameters within ranges that
+    you specify. It then chooses the hyperparameter values that result in a model
+    that performs the best, as measured by an objective metric that you choose.
 
-    This operator returns The ARN of the tuning job created in Amazon SageMaker.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerTuningOperator`
 
     :param config: The configuration necessary to start a tuning job (templated).
 
         For details of the configuration parameter see
         :py:meth:`SageMaker.Client.create_hyper_parameter_tuning_job`
-    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: Set to True to wait until the tuning job finishes.
     :param check_interval: If wait is set to True, the time interval, in seconds,
         that this operation waits to check the status of the tuning job.
     :param max_ingestion_time: If wait is set to True, the operation fails
         if the tuning job doesn't finish within max_ingestion_time seconds. If you
         set this parameter to None, the operation does not timeout.
+    :return Dict: Returns The ARN of the tuning job created in Amazon SageMaker.
     """
 
     integer_fields = [
@@ -487,14 +515,20 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
 
 
 class SageMakerModelOperator(SageMakerBaseOperator):
-    """Create a SageMaker model.
+    """
+    Creates a model in Amazon SageMaker. In the request, you name the model and
+    describe a primary container. For the primary container, you specify the Docker
+    image that contains inference code, artifacts (from prior training), and a custom
+    environment map that the inference code uses when you deploy the model for predictions.
 
-    This operator returns The ARN of the model created in Amazon SageMaker
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerModelOperator`
 
     :param config: The configuration necessary to create a model.
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_model`
-    :param aws_conn_id: The AWS connection ID to use.
+    :return Dict: Returns The ARN of the model created in Amazon SageMaker.
     """
 
     def __init__(self, *, config, **kwargs):
@@ -518,14 +552,16 @@ class SageMakerModelOperator(SageMakerBaseOperator):
 
 class SageMakerTrainingOperator(SageMakerBaseOperator):
     """
-    Initiate a SageMaker training job.
+    Starts a model training job. After training completes, Amazon SageMaker saves
+    the resulting model artifacts to an Amazon S3 location that you specify.
 
-    This operator returns The ARN of the training job created in Amazon SageMaker.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerTrainingOperator`
 
     :param config: The configuration necessary to start a training job (templated).
 
         For details of the configuration parameter see :py:meth:`SageMaker.Client.create_training_job`
-    :param aws_conn_id: The AWS connection ID to use.
     :param wait_for_completion: If wait is set to True, the time interval, in seconds,
         that the operation waits to check the status of the training job.
     :param print_log: if the operator should print the cloudwatch log during training
@@ -539,6 +575,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :param action_if_job_exists: Behaviour if the job name already exists. Possible options are "increment"
         (default) and "fail".
         This is only relevant if check_if
+    :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
 
     integer_fields = [
@@ -611,19 +648,19 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
 
 
 class SageMakerDeleteModelOperator(SageMakerBaseOperator):
-    """Deletes a SageMaker model.
+    """
+    Deletes a SageMaker model.
 
-    This operator deletes the Model entry created in SageMaker.
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SageMakerDeleteModelOperator`
 
     :param config: The configuration necessary to delete the model.
-
         For details of the configuration parameter see :py:meth:`SageMaker.Client.delete_model`
-    :param aws_conn_id: The AWS connection ID to use.
     """
 
-    def __init__(self, *, config, aws_conn_id: str, **kwargs):
+    def __init__(self, *, config, **kwargs):
         super().__init__(config=config, **kwargs)
-        self.aws_conn_id = aws_conn_id
         self.config = config
 
     def execute(self, context: 'Context') -> Any:

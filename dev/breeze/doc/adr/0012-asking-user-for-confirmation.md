@@ -53,7 +53,7 @@ In case 1) - we should present the user with information on what is going to cha
 not be surprised with the effect of it.
 
 In case 2) - we should not break the workflow of the user, unless this is really necessary or the user
-chooses to break his workflow. This is important in situation when the user needs to perform an action
+chooses to break the workflow. This is important in situation when the user needs to perform an action
 quickly and disrupting the workflow would be annoying and undesired. In this case the confirmation of
 the "long" action should not be "necessary" - when user does not expect the action to wait for confirmation.
 

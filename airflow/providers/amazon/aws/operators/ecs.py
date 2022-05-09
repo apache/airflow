@@ -25,7 +25,7 @@ from logging import Logger
 from threading import Event, Thread
 from typing import Dict, Generator, Optional, Sequence
 
-from botocore.exceptions import ClientError
+from botocore.exceptions import ClientError, ConnectionClosedError
 from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
@@ -138,6 +138,9 @@ class EcsTaskLogFetcher(Thread):
             if error.response['Error']['Code'] != 'ResourceNotFoundException':
                 self.logger.warning('Error on retrieving Cloudwatch log events', error)
 
+            yield from ()
+        except ConnectionClosedError as error:
+            self.logger.warning('ConnectionClosedError on retrieving Cloudwatch log events', error)
             yield from ()
 
     def _event_to_str(self, event: dict) -> str:

@@ -14,18 +14,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import hashlib
+import json
 import os
 import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
+from typing import IO, Any, Dict, Optional
 
 import click
+from click import Context
 
 from airflow_breeze import NAME, VERSION
-from airflow_breeze.commands.common_options import (
+from airflow_breeze.commands.main_command import main
+from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
+from airflow_breeze.params.shell_params import ShellParams
+from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
+from airflow_breeze.utils.common_options import (
     option_answer,
     option_backend,
     option_dry_run,
@@ -36,15 +42,11 @@ from airflow_breeze.commands.common_options import (
     option_python,
     option_verbose,
 )
-from airflow_breeze.commands.main import main
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
-from airflow_breeze.shell.shell_params import ShellParams
-from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
-    construct_env_variables_docker_compose_command,
+    get_env_variables_for_docker_commands,
     get_extra_docker_flags,
 )
 from airflow_breeze.utils.path_utils import (
@@ -71,6 +73,7 @@ CONFIGURATION_AND_MAINTENANCE_COMMANDS = {
         "resource-check",
         "free-space",
         "fix-ownership",
+        "command-hash-export",
         "version",
     ],
 }
@@ -407,6 +410,29 @@ def resource_check(verbose: bool, dry_run: bool):
     check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
 
 
+def dict_hash(dictionary: Dict[str, Any]) -> str:
+    """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
+    dhash = hashlib.md5()
+    encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()
+    dhash.update(encoded)
+    return dhash.hexdigest()
+
+
+@main.command(
+    name="command-hash-export",
+    help="Outputs hash of all click commands to file or stdout if `-` "
+    "is used (useful to see if images should be regenerated).",
+)
+@option_verbose
+@click.argument('output', type=click.File('wt'))
+def command_hash_export(verbose: bool, output: IO):
+    with Context(main) as ctx:
+        the_context_dict = ctx.to_info_dict()
+        if verbose:
+            get_console().print(the_context_dict)
+        output.write(dict_hash(the_context_dict) + "\n")
+
+
 @main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
 @option_verbose
 @option_dry_run
@@ -415,18 +441,15 @@ def fix_ownership(verbose: bool, dry_run: bool):
         verbose=verbose,
         mount_sources=MOUNT_ALL,
         python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+        skip_environment_initialization=True,
     )
     extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
-    env = construct_env_variables_docker_compose_command(shell_params)
+    env = get_env_variables_for_docker_commands(shell_params)
     cmd = [
         "docker",
         "run",
         "-t",
         *extra_docker_flags,
-        "-e",
-        "GITHUB_ACTIONS=",
-        "-e",
-        "SKIP_ENVIRONMENT_INITIALIZATION=true",
         "--pull",
         "never",
         shell_params.airflow_image_name_with_tag,

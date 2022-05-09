@@ -124,6 +124,8 @@ function build_provider_packages() {
     fi
     echo
     echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    ls -w 1 /dist
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
     if [[ ${#error_packages[@]} != "0" ]]; then
         echo
         echo "${COLOR_RED}There were errors when preparing packages. Exiting! ${COLOR_RESET}"

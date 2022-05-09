@@ -125,7 +125,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("10" "13" "14")
+    CURRENT_POSTGRES_VERSIONS+=("10" "14")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -409,9 +409,6 @@ function initialization::initialize_image_build_variables() {
 
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
-
-    SKIP_PACKAGE_VERIFICATION=${SKIP_PACKAGE_VERIFICATION:=""}
-    export SKIP_PACKAGE_VERIFICATION
 
     SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
     export SKIP_SSH_SETUP
