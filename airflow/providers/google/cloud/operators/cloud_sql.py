@@ -24,7 +24,7 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
-from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceLink, CloudSQLInstanceDatabaseLink
+from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 from airflow.providers.google.common.links.storage import FileDetailsLink
 from airflow.providers.mysql.hooks.mysql import MySqlHook

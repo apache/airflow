@@ -146,9 +146,7 @@ with models.DAG(
     catchup=False,
     tags=["example", "cloud_sql"],
 ) as dag:
-    create_bucket = GCSCreateBucketOperator(
-        task_id="create_bucket", bucket_name=BUCKET_NAME
-    )
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
 
     # ############################################## #
     # ### INSTANCES SET UP ######################### #
@@ -273,7 +271,6 @@ with models.DAG(
     (
         # TEST SETUP
         create_bucket
-
         # TEST BODY
         >> sql_instance_create_task
         >> sql_instance_read_replica_create
@@ -288,7 +285,6 @@ with models.DAG(
         >> sql_instance_failover_replica_delete_task
         >> sql_instance_read_replica_delete_task
         >> sql_instance_delete_task
-
         # TEST TEARDOWN
         >> delete_bucket
     )
