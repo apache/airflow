@@ -618,6 +618,10 @@ class S3ListOperator(BaseOperator):
     This operator returns a python list with the name of objects which can be
     used by `xcom` in the downstream task.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ListOperator`
+
     :param bucket: The S3 bucket where to find the objects. (templated)
     :param prefix: Prefix string to filters the objects whose name begin with
         such prefix. (templated)
