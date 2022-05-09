@@ -84,8 +84,8 @@ const Row = (props) => {
   const {
     task,
     level,
-    isParentOpen = true,
     dagRunIds,
+    openParentCount = 0,
     openGroupIds = [],
     onToggleGroups = () => {},
   } = props;
@@ -97,11 +97,6 @@ const Row = (props) => {
   const isSelected = selected.taskId === task.id;
 
   const isOpen = openGroupIds.some((g) => g === task.label);
-
-  const parentTasks = task.id.split('.');
-  parentTasks.splice(-1);
-
-  const isFullyOpen = isParentOpen && parentTasks.every((p) => openGroupIds.some((g) => g === p));
 
   // assure the function is the same across renders
   const memoizedToggle = useCallback(
@@ -118,6 +113,8 @@ const Row = (props) => {
     },
     [isGroup, isOpen, task.label, openGroupIds, onToggleGroups],
   );
+
+  const isFullyOpen = level === openParentCount;
 
   return (
     <>
@@ -171,7 +168,7 @@ const Row = (props) => {
       </Tr>
       {isGroup && (
         renderTaskRows({
-          ...props, level: level + 1, isParentOpen: isOpen,
+          ...props, level: level + 1, openParentCount: openParentCount + (isOpen ? 1 : 0),
         })
       )}
     </>
