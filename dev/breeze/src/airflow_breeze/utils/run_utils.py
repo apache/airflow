@@ -199,7 +199,7 @@ def get_filesystem_type(filepath):
 
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
-    get_console().print(f'[warning]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
+    get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
     get_console().print(
         f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n"
     )

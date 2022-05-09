@@ -49,7 +49,7 @@ def _check_cli_args(args):
         raise ValueError("Args should be set")
     if not isinstance(args[0], Namespace):
         raise ValueError(
-            "1st positional argument should be argparse.Namespace instance," f"but is {type(args[0])}"
+            f"1st positional argument should be argparse.Namespace instance, but is {type(args[0])}"
         )
 
 
@@ -148,7 +148,7 @@ def _build_metrics(func_name, namespace):
 
     if not isinstance(namespace, Namespace):
         raise ValueError(
-            "namespace argument should be argparse.Namespace instance," f"but is {type(namespace)}"
+            f"namespace argument should be argparse.Namespace instance, but is {type(namespace)}"
         )
     tmp_dic = vars(namespace)
     metrics['dag_id'] = tmp_dic.get('dag_id')

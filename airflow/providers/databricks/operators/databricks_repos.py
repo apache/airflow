@@ -90,7 +90,7 @@ class DatabricksReposCreateOperator(BaseOperator):
             self.git_provider = self.__detect_repo_provider__(git_url)
             if self.git_provider is None:
                 raise AirflowException(
-                    "git_provider isn't specified and couldn't be guessed" f" for URL {git_url}"
+                    "git_provider isn't specified and couldn't be guessed for URL {git_url}"
                 )
         else:
             self.git_provider = git_provider
