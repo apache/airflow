@@ -110,7 +110,6 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                     self.resource_version = '0'
                 else:
                     raise
-
             except ReadTimeoutError:
                 self.log.warning(
                     "There was a timeout error accessing the Kube API. Retrying request.", exc_info=True
@@ -283,7 +282,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         return resp
 
     def _make_kube_watcher(self) -> KubernetesJobWatcher:
+        ResourceVersion().resource_version = "0"
         resource_version = ResourceVersion().resource_version
+
         watcher = KubernetesJobWatcher(
             watcher_queue=self.watcher_queue,
             namespace=self.kube_config.kube_namespace,
