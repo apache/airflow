@@ -17,7 +17,7 @@
 # under the License.
 import json
 import sys
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Union
 
 import yaml
 from kubernetes import client
@@ -46,9 +46,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume,
     convert_volume_mount,
 )
-from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager, PodPhase
-from airflow.utils.state import State
 
 
 class SparkKubernetesOperator(BaseOperator):
@@ -461,9 +459,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.client.patch_namespaced_pod(pod.metadata.name, pod.metadata.namespace, body)
 
     def dry_run(self) -> None:
-        """
-        Prints out the spark job that would be created by this operator.
-        """
+        """Prints out the spark job that would be created by this operator."""
         client, custom_obj_api = self.get_kube_clients()
         launcher = self.build_spark_request_obj(client, custom_obj_api)
         print(yaml.dump(prune_dict(launcher.body(), mode='strict')))

@@ -20,6 +20,7 @@ import sys
 import time
 from copy import deepcopy
 from datetime import datetime as dt
+from typing import Optional
 
 import tenacity
 import yaml
@@ -30,13 +31,14 @@ from kubernetes.client.rest import ApiException
 from airflow.exceptions import AirflowException
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.utils.log.logging_mixin import LoggingMixin
+
 if sys.version_info >= (3, 8):
     from functools import cached_property
 else:
     from cached_property import cached_property
 
 
-def should_retry_start_spark_job(exception: Exception):
+def should_retry_start_spark_job(exception: BaseException) -> bool:
     """Check if an Exception indicates a transient error and warrants retrying"""
     if isinstance(exception, ApiException):
         return exception.status == 409
@@ -72,16 +74,12 @@ class SparkResources:
 
     @property
     def resources(self):
-        """
-        return resources
-        """
+        """Return job resources"""
         return {'driver': self.driver_resources, 'executor': self.executor_resources}
 
     @property
     def driver_resources(self):
-        """
-        return resources to use
-        """
+        """Return resources to use"""
         driver = {}
         if self.driver_request_cpu:
             driver['cores'] = self.driver_request_cpu
@@ -95,9 +93,7 @@ class SparkResources:
 
     @property
     def executor_resources(self):
-        """
-        return resources to use
-        """
+        """Return resources to use"""
         executor = {}
         if self.executor_request_cpu:
             executor['cores'] = self.executor_request_cpu
@@ -171,7 +167,7 @@ class CustomObjectLauncher(LoggingMixin):
         plural: str = 'sparkapplications',
         kind: str = 'SparkApplication',
         extract_xcom: bool = False,
-        application_file: str = None,
+        application_file: Optional[str] = None,
     ):
         """
         Creates the launcher.
@@ -189,9 +185,9 @@ class CustomObjectLauncher(LoggingMixin):
         self.custom_obj_api = custom_obj_api
         self._watch = watch.Watch()
         self.extract_xcom = extract_xcom
-        self.spark_obj_spec = None
-        self.pod_spec = None
-        self.body = {}
+        self.spark_obj_spec: dict = {}
+        self.pod_spec: dict = {}
+        self.body: dict = {}
         self.application_file = application_file
 
     @cached_property
@@ -241,26 +237,28 @@ class CustomObjectLauncher(LoggingMixin):
                 body=self.body,
             )
             self.log.debug('Spark Job Creation Response: %s', self.spark_obj_spec)
+
+            # Wait for the driver pod to come alive
+            self.pod_spec = k8s.V1Pod(
+                metadata=k8s.V1ObjectMeta(
+                    labels=self.spark_obj_spec['spec']['driver']['labels'],
+                    name=self.spark_obj_spec['metadata']['name'] + '-driver',
+                    namespace=self.namespace,
+                )
+            )
+            curr_time = dt.now()
+            while self.spark_job_not_running(self.spark_obj_spec):
+                self.log.warning(
+                    "Spark job submitted but not yet started: %s", self.spark_obj_spec['metadata']['name']
+                )
+                delta = dt.now() - curr_time
+                if delta.total_seconds() >= startup_timeout:
+                    pod_status = self.pod_manager.read_pod(self.pod_spec).status.container_statuses
+                    raise AirflowException(f"Job took too long to start. pod status: {pod_status}")
+                time.sleep(2)
         except Exception as e:
             self.log.exception('Exception when attempting to create spark job: %s', self.body)
             raise e
-        self.pod_spec = k8s.V1Pod(
-            metadata=k8s.V1ObjectMeta(
-                labels=self.spark_obj_spec['spec']['driver']['labels'],
-                name=self.spark_obj_spec['metadata']['name'] + '-driver',
-                namespace=self.namespace,
-            )
-        )
-        curr_time = dt.now()
-        while self.spark_job_not_running(self.spark_obj_spec):
-            self.log.warning(
-                "Spark job submitted but not yet started: %s", self.spark_obj_spec['metadata']['name']
-            )
-            delta = dt.now() - curr_time
-            if delta.total_seconds() >= startup_timeout:
-                pod_status = self.pod_manager.read_pod(self.pod_spec).status.container_statuses
-                raise AirflowException(f"Job took too long to start. pod status: {pod_status}")
-            time.sleep(2)
 
         return self.pod_spec, self.spark_obj_spec
 
