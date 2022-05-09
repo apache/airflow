@@ -39,7 +39,6 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  LOGIN_TO_GITHUB_REGISTRY: "true"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
 
 concurrency:
@@ -135,7 +134,7 @@ jobs:
           if [[ "${{ github.event_name }}" == 'schedule' ]]; then
               echo "::set-output name=cacheDirective::disabled"
           else
-              echo "::set-output name=cacheDirective::pulled"
+              echo "::set-output name=cacheDirective:registry"
           fi
 
           if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then

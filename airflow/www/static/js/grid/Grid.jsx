@@ -32,6 +32,7 @@ import {
   Flex,
   useDisclosure,
   Button,
+  Divider,
 } from '@chakra-ui/react';
 
 import { useGridData } from './api';
@@ -42,17 +43,21 @@ import Details from './details';
 import useSelection from './utils/useSelection';
 import { useAutoRefresh } from './context/autorefresh';
 import ToggleGroups from './ToggleGroups';
+import FilterBar from './FilterBar';
+import LegendRow from './LegendRow';
 
 const sidePanelKey = 'hideSidePanel';
 
 const Grid = () => {
   const scrollRef = useRef();
   const tableRef = useRef();
+
   const { data: { groups, dagRuns } } = useGridData();
+  const dagRunIds = dagRuns.map((dr) => dr.runId);
+
   const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
   const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
-  const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const { clearSelection } = useSelection();
   const toggleSidePanel = () => {
@@ -86,7 +91,10 @@ const Grid = () => {
   }, [tableRef, scrollOnResize]);
 
   return (
-    <Box>
+    <Box mt={3}>
+      <FilterBar />
+      <LegendRow />
+      <Divider mb={5} borderBottomWidth={2} />
       <Flex flexGrow={1} justifyContent="space-between" alignItems="center">
         <Flex alignItems="center">
           <FormControl display="flex" width="auto" mr={2}>
@@ -129,7 +137,7 @@ const Grid = () => {
             <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
               <DagRuns />
             </Thead>
-            {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
+            {/* TODO: remove hardcoded values. 665px is roughly the total header+footer height */}
             <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
               {renderTaskRows({
                 task: groups, dagRunIds,
