@@ -87,7 +87,7 @@ const Row = (props) => {
     isParentOpen = true,
     dagRunIds,
     openGroupIds = [],
-    onToggleGroups,
+    onToggleGroups = () => {},
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
