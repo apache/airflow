@@ -54,14 +54,16 @@ Launch Types
 * If you are using EC2 as the compute resources in your ECS Cluster, set the parameter to EC2.
 * If you have integrated external resources in your ECS Cluster, for example using ECS Anywhere, and want to run your containers on those external resources, set the parameter to EXTERNAL.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_ec2.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
 
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
 
@@ -71,8 +73,9 @@ CloudWatch Logging
 
 To stream logs to AWS CloudWatch, you need to define these parameters. Using the example Operators above, we would add these additional parameters to enable logging to CloudWatch. You will need to ensure that you have the appropriate level of permissions (see next section)
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_ec2.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_awslogs_ecs]
     :end-before: [END howto_awslogs_ecs]
 

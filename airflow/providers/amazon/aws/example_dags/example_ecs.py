@@ -21,7 +21,7 @@ from airflow import DAG
 from airflow.providers.amazon.aws.operators.ecs import EcsOperator
 
 with DAG(
-    dag_id='example_ecs_ec2',
+    dag_id='example_ecs',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],

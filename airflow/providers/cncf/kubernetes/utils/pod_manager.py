@@ -196,7 +196,7 @@ class PodManager(LoggingMixin):
 
     def log_iterable(self, logs: Iterable[bytes]) -> Optional[DateTime]:
         for line in logs:
-            timestamp, message = self.parse_log_line(line.decode('utf-8'))
+            timestamp, message = self.parse_log_line(line.decode('utf-8'), errors="backslashreplace")
             self.log.info(message)
         return timestamp
 
@@ -259,6 +259,7 @@ class PodManager(LoggingMixin):
                     timestamp = self.consume_container_logs_stream(pod, container_name, logs)
                 else:
                     timestamp = self.log_iterable(logs)
+
             except BaseHTTPError as e:
                 self.log.warning(
                     "Reading of logs interrupted with error %r; will retry. "
@@ -411,14 +412,20 @@ class PodManager(LoggingMixin):
         return result
 
     def _exec_pod_command(self, resp, command: str) -> Optional[str]:
+        res = None
         if resp.is_open():
             self.log.info('Running command... %s\n', command)
             resp.write_stdin(command + '\n')
             while resp.is_open():
                 resp.update(timeout=1)
-                if resp.peek_stdout():
-                    return resp.read_stdout()
-                if resp.peek_stderr():
-                    self.log.info("stderr from command: %s", resp.read_stderr())
+                while resp.peek_stdout():
+                    res = res + resp.read_stdout() if res else resp.read_stdout()
+                error_res = None
+                while resp.peek_stderr():
+                    error_res = error_res + resp.read_stderr() if error_res else resp.read_stderr()
+                if error_res:
+                    self.log.info("stderr from command: %s", error_res)
                     break
-        return None
+                if res:
+                    return res
+        return res

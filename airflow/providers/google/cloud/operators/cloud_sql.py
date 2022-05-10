@@ -154,6 +154,7 @@ CLOUD_SQL_EXPORT_VALIDATION = [
                 ],
             ),
             dict(name="csvExportOptions", type="dict", optional=True, fields=[dict(name="selectQuery")]),
+            dict(name="offload", optional=True),
         ],
     )
 ]
