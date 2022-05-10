@@ -29,7 +29,11 @@ DEFAULT_CONN_ID = "aws_default"
 class QuickSightCreateIngestionOperator(BaseOperator):
     """
     Creates and starts a new SPICE ingestion for a dataset.
-    Also, helps to Refresh existing SPICE datasets
+    Also, helps to Refresh existing SPICE datasets.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:QuickSightCreateIngestionOperator`
 
     :param data_set_id:  ID of the dataset used in the ingestion.
     :param ingestion_id: ID for the ingestion.

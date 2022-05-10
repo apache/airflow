@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
 import time
 
 from botocore.exceptions import ClientError
@@ -23,6 +24,11 @@ from botocore.exceptions import ClientError
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 
 class QuickSightHook(AwsBaseHook):
@@ -40,6 +46,10 @@ class QuickSightHook(AwsBaseHook):
 
     def __init__(self, *args, **kwargs):
         super().__init__(client_type="quicksight", *args, **kwargs)
+
+    @cached_property
+    def sts_hook(self):
+        return StsHook(aws_conn_id=self.aws_conn_id)
 
     def create_ingestion(
         self,
@@ -66,16 +76,14 @@ class QuickSightHook(AwsBaseHook):
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
         try:
-            sts_hook = StsHook()
-            aws_account_id = sts_hook.get_account_number()
+            aws_account_id = self.sts_hook.get_account_number()
             create_ingestion_response = quicksight_client.create_ingestion(
                 DataSetId=data_set_id,
                 IngestionId=ingestion_id,
                 IngestionType=ingestion_type,
                 AwsAccountId=aws_account_id,
             )
-            # aws_account_id = boto3.client('sts').get_caller_identity()['Account']
-            # print(aws_account_id)
+
             if wait_for_completion:
                 self.wait_for_state(
                     aws_account_id=aws_account_id,

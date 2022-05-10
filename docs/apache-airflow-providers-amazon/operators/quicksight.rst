@@ -32,38 +32,32 @@ Airflow to Amazon QuickSight integration allows users to create and start the SP
   - :class:`~airflow.providers.amazon.aws.operators.quicksight.QuickSightCreateIngestionOperator`
   - :class:`~airflow.providers.amazon.aws.sensor.quicksight.QuickSightSensor`
 
-Purpose
-"""""""
+.. _howto/operator:QuickSightCreateIngestionOperator:
 
-This example DAG ``example_quicksight.py`` uses ``QuickSightCreateIngestionOperator`` for
-creating and starting the SPICE ingestion for the dataset configured to use SPICE. In the example,
-we created two ingestions. One of the ingestions waits for the SPICE ingestion to complete while
-other ingestion does not wait for completion and uses ``QuickSightSensor`` to check for ingestion
-status until it completes
+Amazon QuickSight CreateIngestion Operator
+"""""""""""""""""""""""""""""""""""""""""""
 
-
-Defining tasks
-""""""""""""""
-
-In the following code we create and start a QuickSight SPICE ingestion for the dataset and wait
-for its completion.
+The QuickSightCreateIngestionOperator Creates and starts a new SPICE ingestion for a dataset.
+The operator also refreshes existing SPICE datasets
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_quicksight.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_quicksight]
-    :end-before: [END howto_operator_quicksight]
+    :start-after: [START howto_operator_quicksight_create_ingestion]
+    :end-before: [END howto_operator_quicksight_create_ingestion]
 
-In the below example, we create and start the SPICE ingestion but do not wait for completion. We use
-sensor to poll for Ingestion status until it Completes.
+.. _howto/sensor:QuickSightSensor:
 
+Amazon QuickSight Sensor
+""""""""""""""""""""""""
 
+The QuickSightSensor wait for Amazon QuickSight CreateIngestion until it reaches a terminal state
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_quicksight.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_quicksight_non_waiting]
-    :end-before: [END howto_operator_quicksight_non_waiting]
+    :start-after: [START howto_sensor_quicksight]
+    :end-before: [END howto_sensor_quicksight]
 
 Reference
 ---------
