@@ -85,32 +85,44 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         echo "${COLOR_BLUE}Skip installing airflow - only install wheel/tar.gz packages that are present locally.${COLOR_RESET}"
         echo
+        echo
+        echo "${COLOR_BLUE}Uninstalling airflow and providers"
+        echo
         uninstall_airflow_and_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "wheel"  ]]; then
         echo
-        echo "${COLOR_BLUE}Install airflow from wheel package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
+        echo "${COLOR_BLUE}Uninstalling airflow and providers"
         echo
         uninstall_airflow_and_providers
-        install_airflow_from_wheel "[${AIRFLOW_EXTRAS}]"
+        echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+        echo
+        install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
         uninstall_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
-        echo "${COLOR_BLUE}Install airflow from sdist package with [${AIRFLOW_EXTRAS}] extras but uninstalling providers.${COLOR_RESET}"
+        echo "${COLOR_BLUE}Uninstalling airflow and providers"
         echo
         uninstall_airflow_and_providers
-        install_airflow_from_sdist "[${AIRFLOW_EXTRAS}]"
+        echo
+        echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+        echo
+        install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
         uninstall_providers
     else
         echo
-        echo "${COLOR_BLUE}Install airflow from PyPI without extras"
+        echo "${COLOR_BLUE}Uninstalling airflow and providers"
         echo
-        install_released_airflow_version "${USE_AIRFLOW_VERSION}"
+        uninstall_airflow_and_providers
+        echo
+        echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+        echo
+        install_released_airflow_version "${USE_AIRFLOW_VERSION}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
     fi
     if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
         echo
-        echo "${COLOR_BLUE}Install all packages from dist folder"
+        echo "${COLOR_BLUE}Install all packages from dist folder${COLOR_RESET}"
         if [[ ${USE_AIRFLOW_VERSION} == "wheel" ]]; then
-            echo "(except apache-airflow)"
+            echo "${COLOR_BLUE}(except apache-airflow)${COLOR_RESET}"
         fi
         if [[ ${PACKAGE_FORMAT} == "both" ]]; then
             echo
@@ -122,7 +134,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         installable_files=()
         for file in /dist/*.{whl,tar.gz}
         do
-            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "apache?airflow-[0-9]"* ]]; then
+            if [[ ${USE_AIRFLOW_VERSION} == "wheel" && ${file} == "/dist/apache?airflow-[0-9]"* ]]; then
                 # Skip Apache Airflow package - it's just been installed above with extras
                 echo "Skipping ${file}"
                 continue
@@ -137,7 +149,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             fi
         done
         if (( ${#installable_files[@]} )); then
-            pip install "${installable_files[@]}" --no-deps
+            pip install "${installable_files[@]}"
         fi
     fi
 

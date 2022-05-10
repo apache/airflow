@@ -791,7 +791,7 @@ via UI and API. Paused DAG is not scheduled by the Scheduler, but you can trigge
 manual runs. In the UI, you can see Paused DAGs (in ``Paused`` tab). The DAGs that are un-paused
 can be found in the ``Active`` tab.
 
-Dag can be deactivated (do not confuse it with ``Active`` tag in the UI by removing them from the
+Dag can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the DAG that it had seen
 before and stored in the database it will set is as deactivated. The metadata and history of the
 DAG` is kept for deactivated DAGs and when the DAG is re-added to the ``DAGS_FOLDER`` it will be again

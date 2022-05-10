@@ -17,22 +17,25 @@
  * under the License.
  */
 
-/* global gridData, autoRefreshInterval */
+/* global autoRefreshInterval, gridData */
 
 import { useQuery } from 'react-query';
 import axios from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import { formatData, areActiveRuns } from '../utils/gridData';
+import { areActiveRuns, formatData } from '../utils/gridData';
 import useErrorToast from '../utils/useErrorToast';
+import useFilters, {
+  BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
+} from '../utils/useFilters';
+
+const DAG_ID_PARAM = 'dag_id';
 
 // dagId comes from dag.html
-const dagId = getMetaValue('dag_id');
+const dagId = getMetaValue(DAG_ID_PARAM);
 const gridDataUrl = getMetaValue('grid_data_url') || '';
-const numRuns = getMetaValue('num_runs');
 const urlRoot = getMetaValue('root');
-const baseDate = getMetaValue('base_date');
 
 const emptyData = {
   dagRuns: [],
@@ -43,15 +46,22 @@ const useGridData = () => {
   const initialData = formatData(gridData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   const errorToast = useErrorToast();
-  return useQuery('gridData', async () => {
-    try {
-      const params = new URLSearchParams({
-        dag_id: dagId,
-      });
-      if (numRuns && numRuns !== 25) params.append('num_runs', numRuns);
-      if (urlRoot) params.append('root', urlRoot);
-      if (baseDate) params.append('base_date', baseDate);
+  const {
+    filters: {
+      baseDate, numRuns, runType, runState,
+    },
+  } = useFilters();
 
+  return useQuery(['gridData', baseDate, numRuns, runType, runState], async () => {
+    try {
+      const params = {
+        root: urlRoot || undefined,
+        [DAG_ID_PARAM]: dagId,
+        [BASE_DATE_PARAM]: baseDate === now ? undefined : baseDate,
+        [NUM_RUNS_PARAM]: numRuns,
+        [RUN_TYPE_PARAM]: runType,
+        [RUN_STATE_PARAM]: runState,
+      };
       const newData = await axios.get(gridDataUrl, { params });
       // turn off auto refresh if there are no active runs
       if (!areActiveRuns(newData.dagRuns)) stopRefresh();
@@ -65,10 +75,11 @@ const useGridData = () => {
       throw (error);
     }
   }, {
-    // only refetch if the refresh switch is on
-    refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
     initialData,
     placeholderData: emptyData,
+    // only refetch if the refresh switch is on
+    refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
+    keepPreviousData: true,
   });
 };
 

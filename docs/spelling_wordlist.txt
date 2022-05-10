@@ -910,6 +910,7 @@ https
 httpx
 hvac
 hyperparameter
+hyperparameters
 iPython
 iTerm
 iam
@@ -1264,6 +1265,7 @@ reqs
 reserialize
 reserialized
 resetdb
+resizable
 resourceVersion
 resultset
 resumable

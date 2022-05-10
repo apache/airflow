@@ -383,7 +383,7 @@ class PodManager(LoggingMixin):
                 res = ""
                 while resp.peek_stdout():
                     res = res + resp.read_stdout()
-                error_res = None
+                error_res = ""
                 while resp.peek_stderr():
                     error_res = error_res + resp.read_stderr()
                 if error_res:
