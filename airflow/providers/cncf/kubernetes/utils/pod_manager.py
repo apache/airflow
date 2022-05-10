@@ -196,7 +196,7 @@ class PodManager(LoggingMixin):
 
     def log_iterable(self, logs: Iterable[bytes]) -> Optional[DateTime]:
         for line in logs:
-            timestamp, message = self.parse_log_line(line.decode('utf-8'), errors="backslashreplace")
+            timestamp, message = self.parse_log_line(line.decode('utf-8', errors="backslashreplace"))
             self.log.info(message)
         return timestamp
 
