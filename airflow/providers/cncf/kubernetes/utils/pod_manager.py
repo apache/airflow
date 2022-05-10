@@ -200,16 +200,20 @@ class PodManager(LoggingMixin):
             self.log.info(message)
         return timestamp
 
-    def consume_container_logs_stream(self, pod: V1Pod, container_name: str, stream: Iterable[bytes]) -> Optional[DateTime]:
+    def consume_container_logs_stream(
+        self, pod: V1Pod, container_name: str, stream: Iterable[bytes]
+    ) -> Optional[DateTime]:
         async def consume_log_stream() -> Optional[DateTime]:
             return self.log_iterable(stream)
 
         async def async_await_container_completion() -> None:
-            self.await_container_completion(pod=pod, container_name=container_name)
+            return self.await_container_completion(pod=pod, container_name=container_name)
 
-        await_container_completion = asyncio.create_task(async_await_container_completion())
-        log_stream = asyncio.create_task(consume_log_stream())
-        asyncio.run(asyncio.wait({log_stream, await_container_completion}, return_when=asyncio.FIRST_COMPLETED))
+        loop = asyncio.get_event_loop()
+        await_container_completion = loop.create_task(async_await_container_completion())
+        log_stream = loop.create_task(consume_log_stream())
+        tasks: Iterable[asyncio.Task] = {await_container_completion, log_stream}
+        loop.run_until_complete(asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED))
 
         if log_stream.done():
             return log_stream.result()
@@ -222,6 +226,7 @@ class PodManager(LoggingMixin):
             pod.metadata.name,
             container_name,
         )
+        return None
 
     def fetch_container_logs(
         self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
