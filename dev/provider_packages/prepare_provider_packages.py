@@ -42,6 +42,7 @@ from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, 
 
 import jsonschema
 import rich_click as click
+import semver as semver
 from github import Github, Issue, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich.console import Console
@@ -895,26 +896,23 @@ def print_changes_table(changes_table):
 
 
 def get_all_changes_for_package(
-    versions: List[str],
     provider_package_id: str,
-    source_provider_package_path: str,
     verbose: bool,
 ) -> Tuple[bool, Optional[Union[List[List[Change]], Change]], str]:
     """
     Retrieves all changes for the package.
-    :param versions: list of versions
     :param provider_package_id: provider package id
-    :param source_provider_package_path: path where package is located
     :param verbose: whether to print verbose messages
 
     """
-    current_version = versions[0]
+    provider_details = get_provider_details(provider_package_id)
+    current_version = provider_details.versions[0]
     current_tag_no_suffix = get_version_tag(current_version, provider_package_id)
     if verbose:
         console.print(f"Checking if tag '{current_tag_no_suffix}' exist.")
     if not subprocess.call(
         get_git_tag_check_command(current_tag_no_suffix),
-        cwd=source_provider_package_path,
+        cwd=provider_details.source_provider_package_path,
         stderr=subprocess.DEVNULL,
     ):
         if verbose:
@@ -922,7 +920,7 @@ def get_all_changes_for_package(
         # The tag already exists
         changes = subprocess.check_output(
             get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
-            cwd=source_provider_package_path,
+            cwd=provider_details.source_provider_package_path,
             text=True,
         )
         if changes:
@@ -936,7 +934,7 @@ def get_all_changes_for_package(
                 try:
                     changes_since_last_doc_only_check = subprocess.check_output(
                         get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
-                        cwd=source_provider_package_path,
+                        cwd=provider_details.source_provider_package_path,
                         text=True,
                     )
                     if not changes_since_last_doc_only_check:
@@ -956,14 +954,9 @@ def get_all_changes_for_package(
 
             console.print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             console.print()
-            console.print(
-                "[yellow]Please update version in "
-                f"'airflow/providers/{provider_package_id.replace('-','/')}/'"
-                "provider.yaml'[/]\n"
-            )
-            console.print("[yellow]Or mark the changes as doc-only[/]")
+            console.print(f"[bright_blue]Provider: {provider_package_id}[/]\n")
             changes_table, array_of_changes = convert_git_changes_to_table(
-                "UNKNOWN",
+                f"NEXT VERSION AFTER + {provider_details.versions[0]}",
                 changes,
                 base_url="https://github.com/apache/airflow/commit/",
                 markdown=False,
@@ -975,7 +968,7 @@ def get_all_changes_for_package(
             return False, None, ""
     if verbose:
         console.print("The tag does not exist. ")
-    if len(versions) == 1:
+    if len(provider_details.versions) == 1:
         console.print(
             f"The provider '{provider_package_id}' has never been released but it is ready to release!\n"
         )
@@ -983,13 +976,13 @@ def get_all_changes_for_package(
         console.print(f"New version of the '{provider_package_id}' package is ready to be released!\n")
     next_version_tag = HEAD_OF_HTTPS_REMOTE
     changes_table = ''
-    current_version = versions[0]
+    current_version = provider_details.versions[0]
     list_of_list_of_changes: List[List[Change]] = []
-    for version in versions[1:]:
+    for version in provider_details.versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         changes = subprocess.check_output(
             get_git_log_command(verbose, next_version_tag, version_tag),
-            cwd=source_provider_package_path,
+            cwd=provider_details.source_provider_package_path,
             text=True,
         )
         changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
@@ -1001,7 +994,7 @@ def get_all_changes_for_package(
         current_version = version
     changes = subprocess.check_output(
         get_git_log_command(verbose, next_version_tag),
-        cwd=source_provider_package_path,
+        cwd=provider_details.source_provider_package_path,
         text=True,
     )
     changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
@@ -1127,16 +1120,48 @@ def confirm(message: str, answer: Optional[str] = None) -> bool:
     given_answer = answer.lower() if answer is not None else ""
     while given_answer not in ["y", "n", "q", "yes", "no", "quit"]:
         console.print(f"[yellow]{message}[y/n/q]?[/] ", end='')
-        given_answer = input("").lower()
+        try:
+            given_answer = input("").lower()
+        except KeyboardInterrupt:
+            given_answer = "q"
     if given_answer.lower() in ["q", "quit"]:
         # Returns 65 in case user decided to quit
         sys.exit(65)
     return given_answer in ["y", "yes"]
 
 
-def mark_latest_changes_as_documentation_only(
-    provider_details: ProviderPackageDetails, latest_change: Change
-):
+class TypeOfChange(Enum):
+    DOCUMENTATION = "d"
+    BUGFIX = "b"
+    FEATURE = "f"
+    BREAKING_CHANGE = "x"
+    SKIP = "s"
+
+
+def get_type_of_changes() -> TypeOfChange:
+    """
+    Ask user to specify type of changes (case-insensitive).
+    :return: Type of change.
+    """
+    given_answer = ""
+    while given_answer not in [*[t.value for t in TypeOfChange], "q"]:
+        console.print(
+            "[yellow]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
+            "change, (s)kip, (q)uit [d/b/f/x/s/q]?[/] ",
+            end='',
+        )
+        try:
+            given_answer = input("").lower()
+        except KeyboardInterrupt:
+            given_answer = 'q'
+    if given_answer == "q":
+        # Returns 65 in case user decided to quit
+        sys.exit(65)
+    return TypeOfChange(given_answer)
+
+
+def mark_latest_changes_as_documentation_only(provider_package_id: str, latest_change: Change):
+    provider_details = get_provider_details(provider_package_id=provider_package_id)
     console.print(
         f"Marking last change: {latest_change.short_hash} and all above changes since the last release "
         "as doc-only changes!"
@@ -1147,6 +1172,24 @@ def mark_latest_changes_as_documentation_only(
         f.write(latest_change.full_hash + "\n")
         # exit code 66 marks doc-only change marked
         sys.exit(66)
+
+
+def add_new_version(type_of_change: TypeOfChange, provider_package_id: str):
+    provider_details = get_provider_details(provider_package_id)
+    version = provider_details.versions[0]
+    v = semver.VersionInfo.parse(version)
+    if type_of_change == TypeOfChange.BREAKING_CHANGE:
+        v = v.bump_major()
+    elif type_of_change == TypeOfChange.FEATURE:
+        v = v.bump_minor()
+    elif type_of_change == TypeOfChange.BUGFIX:
+        v = v.bump_patch()
+    provider_yaml_path = Path(get_source_package_path(provider_package_id)) / "provider.yaml"
+    original_text = provider_yaml_path.read_text()
+    new_text = re.sub(r'versions:', f'versions:\n  - {v}', original_text, 1)
+    provider_yaml_path.write_text(new_text)
+    console.print()
+    console.print(f"[bright_blue]Bumped version to {v}")
 
 
 def update_release_notes(
@@ -1167,21 +1210,7 @@ def update_release_notes(
     :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
-    provider_details = get_provider_details(provider_package_id)
-    provider_info = get_provider_info_from_provider_yaml(provider_package_id)
-    current_release_version = provider_details.versions[0]
-    jinja_context = get_provider_jinja_context(
-        provider_info=provider_info,
-        provider_details=provider_details,
-        current_release_version=current_release_version,
-        version_suffix=version_suffix,
-    )
-    proceed, latest_change, changes = get_all_changes_for_package(
-        provider_details.versions,
-        provider_package_id,
-        provider_details.source_provider_package_path,
-        verbose,
-    )
+    proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
     if not force:
         if proceed:
             if not confirm("Provider marked for release. Proceed", answer=answer):
@@ -1194,17 +1223,29 @@ def update_release_notes(
             console.print()
             return False
         else:
-            if confirm("Are those changes documentation-only?", answer=answer):
+            type_of_change = get_type_of_changes()
+            if type_of_change == TypeOfChange.DOCUMENTATION:
                 if isinstance(latest_change, Change):
-                    mark_latest_changes_as_documentation_only(provider_details, latest_change)
+                    mark_latest_changes_as_documentation_only(provider_package_id, latest_change)
                 else:
                     raise ValueError(
                         "Expected only one change to be present to mark changes "
                         f"in provider {provider_package_id} as docs-only. "
                         f"Received {len(latest_change)}."
                     )
-            return False
-
+            elif type_of_change == TypeOfChange.SKIP:
+                return False
+            elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+                add_new_version(type_of_change, provider_package_id)
+            proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
+    provider_details = get_provider_details(provider_package_id)
+    provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+    jinja_context = get_provider_jinja_context(
+        provider_info=provider_info,
+        provider_details=provider_details,
+        current_release_version=provider_details.versions[0],
+        version_suffix=version_suffix,
+    )
     jinja_context["DETAILED_CHANGES_RST"] = changes
     jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
     update_commits_rst(
@@ -1707,9 +1748,7 @@ def _update_changelog(package_id: str, verbose: bool) -> bool:
         )
         changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
         proceed, changes, _ = get_all_changes_for_package(
-            provider_details.versions,
             package_id,
-            provider_details.source_provider_package_path,
             verbose,
         )
         if not proceed:
