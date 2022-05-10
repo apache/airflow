@@ -211,8 +211,6 @@ class CeleryKubernetesExecutor(LoggingMixin):
     def send_callback(self, request: CallbackRequest) -> None:
         """Sends callback for execution.
 
-        Provides a default implementation which sends the callback to the `callback_sink` object.
-
         :param request: Callback request to be executed.
         """
         if not self.callback_sink:
