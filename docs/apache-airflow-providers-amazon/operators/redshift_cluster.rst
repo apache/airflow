@@ -94,7 +94,7 @@ To pause an 'available' Amazon Redshift Cluster you can use
 Delete an Amazon Redshift Cluster
 """""""""""""""""""""""""""""""""
 
-To delete an Amazon Redshift Cluster
+To delete an Amazon Redshift Cluster you can use
 :class:`RedshiftDeleteClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py

@@ -331,6 +331,8 @@ class RedshiftDeleteClusterOperator(BaseOperator):
     :param cluster_identifier: unique identifier of a cluster
     :param skip_final_cluster_snapshot: determines cluster snapshot creation
     :param final_cluster_snapshot_identifier: name of final cluster snapshot
+    :param wait_for_completion: Whether wait for cluster deletion or not
+        The default value is ``True``
     :param aws_conn_id: aws connection to use
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check cluster state
     """
@@ -345,6 +347,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         cluster_identifier: str,
         skip_final_cluster_snapshot: bool = True,
         final_cluster_snapshot_identifier: Optional[str] = None,
+        wait_for_completion: bool = True,
         aws_conn_id: str = "aws_default",
         poll_interval: float = 30.0,
         **kwargs,
@@ -353,6 +356,7 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.cluster_identifier = cluster_identifier
         self.skip_final_cluster_snapshot = skip_final_cluster_snapshot
         self.final_cluster_snapshot_identifier = final_cluster_snapshot_identifier
+        self.wait_for_completion = wait_for_completion
         self.aws_conn_id = aws_conn_id
         self.poll_interval = poll_interval
 
@@ -363,10 +367,12 @@ class RedshiftDeleteClusterOperator(BaseOperator):
             skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
             final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
         )
-        cluster_status: str = redshift_hook.cluster_status(self.cluster_identifier)
-        while cluster_status != "cluster_not_found":
-            self.log.info(
-                "cluster status is %s. Sleeping for %s seconds.", cluster_status, self.poll_interval
-            )
-            time.sleep(self.poll_interval)
-            cluster_status = redshift_hook.cluster_status(self.cluster_identifier)
+
+        if self.wait_for_completion:
+            cluster_status: str = redshift_hook.cluster_status(self.cluster_identifier)
+            while cluster_status != "cluster_not_found":
+                self.log.info(
+                    "cluster status is %s. Sleeping for %s seconds.", cluster_status, self.poll_interval
+                )
+                time.sleep(self.poll_interval)
+                cluster_status = redshift_hook.cluster_status(self.cluster_identifier)
