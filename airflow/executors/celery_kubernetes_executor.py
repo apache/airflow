@@ -17,6 +17,8 @@
 # under the License.
 from typing import Dict, List, Optional, Set, Union
 
+from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
 from airflow.executors.celery_executor import CeleryExecutor
@@ -35,6 +37,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
     """
 
     supports_ad_hoc_ti_run: bool = True
+    callback_sink: Optional[BaseCallbackSink] = None
 
     KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')
 
@@ -204,3 +207,12 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self.celery_executor.debug_dump()
         self.log.info("Dumping KubernetesExecutor state")
         self.kubernetes_executor.debug_dump()
+
+    def send_callback(self, request: CallbackRequest) -> None:
+        """Sends callback for execution.
+
+        :param request: Callback request to be executed.
+        """
+        if not self.callback_sink:
+            raise ValueError("Callback sink is not ready.")
+        self.callback_sink.send(request)
