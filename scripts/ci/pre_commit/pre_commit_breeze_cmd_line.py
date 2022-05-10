@@ -25,7 +25,8 @@ from rich.console import Console
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
-BREEZE_SOURCES_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src"
+BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
+BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 
 SCREENSHOT_WIDTH = "120"
 
@@ -66,11 +67,7 @@ def print_help_for_all_commands():
     if old_hash == new_hash:
         console.print(f"[bright_blue]Skip generation of SVG images as command hash is unchanged {old_hash}")
         return
-    if run(["breeze", "--help"], check=False).returncode != 0:
-        console.print("[red]ERROR! You need to install breeze with pipx to run this pre-commit[/]")
-        console.print("\n[bright_blue]Run this command:[/]\n")
-        console.print("        pip install -e ./dev/breeze --force\n")
-        sys.exit(1)
+    run([sys.executable, "-m", "pip", "install", "--upgrade", "-e", BREEZE_INSTALL_DIR])
     env = os.environ.copy()
     env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
     env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
