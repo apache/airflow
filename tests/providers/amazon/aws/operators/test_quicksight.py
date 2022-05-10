@@ -36,7 +36,7 @@ MOCK_RESPONSE = {
 }
 
 
-class TestQuicksightCreateIngestionOperator(unittest.TestCase):
+class TestQuickSightCreateIngestionOperator(unittest.TestCase):
     def setUp(self):
         self.quicksight = QuickSightCreateIngestionOperator(
             task_id="test_quicksight_operator",
