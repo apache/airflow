@@ -123,6 +123,7 @@ EXPORT_BODY = {
         "databases": [],
         "sqlExportOptions": {"tables": ["table1", "table2"], "schemaOnly": False},
         "csvExportOptions": {"selectQuery": "SELECT * FROM TABLE"},
+        "offload": True,
     }
 }
 IMPORT_BODY = {

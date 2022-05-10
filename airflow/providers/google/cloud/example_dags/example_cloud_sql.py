@@ -123,7 +123,12 @@ patch_body = {
 # [END howto_operator_cloudsql_patch_body]
 # [START howto_operator_cloudsql_export_body]
 export_body = {
-    "exportContext": {"fileType": "sql", "uri": EXPORT_URI, "sqlExportOptions": {"schemaOnly": False}}
+    "exportContext": {
+        "fileType": "sql",
+        "uri": EXPORT_URI,
+        "sqlExportOptions": {"schemaOnly": False},
+        "offload": True,
+    }
 }
 # [END howto_operator_cloudsql_export_body]
 # [START howto_operator_cloudsql_import_body]
