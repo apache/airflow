@@ -145,12 +145,32 @@ def ensure_mod_prefix(mod_name, idx, version):
 
 
 def ensure_filenames_are_sorted(revisions):
+    renames = []
+    is_branched = False
+    unmerged_heads = []
     for idx, rev in enumerate(revisions):
         mod_path = Path(rev.module.__file__)
         version = rev.module.airflow_version.split('.')[0:3]  # only first 3 tokens
         correct_mod_basename = ensure_mod_prefix(mod_path.name, idx, version)
         if mod_path.name != correct_mod_basename:
-            os.rename(mod_path, Path(mod_path.parent, correct_mod_basename))
+            renames.append((mod_path, Path(mod_path.parent, correct_mod_basename)))
+        if is_branched and rev.is_merge_point:
+            is_branched = False
+        if rev.is_branch_point:
+            is_branched = True
+        elif rev.is_head:
+            unmerged_heads.append(rev.revision)
+    if is_branched:
+        head_prefixes = [x[0:4] for x in unmerged_heads]
+        alembic_command = (
+            "alembic merge -m 'merge heads " + ', '.join(head_prefixes) + "' " + ' '.join(unmerged_heads)
+        )
+        raise SystemExit(
+            "You have multiple alembic heads; please merge them with the `alembic merge` command "
+            f"and re-run pre-commit. \nhint: `{alembic_command}`"
+        )
+    for old, new in renames:
+        os.rename(old, new)
 
 
 if __name__ == '__main__':
