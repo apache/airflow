@@ -414,16 +414,6 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         assert op.cluster_config['worker_config']['num_instances'] == 2
         assert "zones/zone" in op.cluster_config['master_config']["machine_type_uri"]
 
-        with pytest.warns(DeprecationWarning) as warnings:
-            op_default_region = DataprocCreateClusterOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                cluster_name="cluster_name",
-                cluster_config=op.cluster_config,
-            )
-        assert_warning("Default region value", warnings)
-        assert op_default_region.region == 'global'
-
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):

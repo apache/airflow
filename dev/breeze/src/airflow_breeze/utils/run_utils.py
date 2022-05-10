@@ -24,14 +24,18 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
-from typing import List, Mapping, Optional, Union
+from re import match
+from typing import Dict, List, Mapping, Optional, Union
 
-from airflow_breeze.utils.console import console
+from airflow_breeze.params._common_build_params import _CommonBuildParams
+from airflow_breeze.utils.ci_group import ci_group
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 
 def run_command(
     cmd: List[str],
+    title: Optional[str] = None,
     *,
     check: bool = True,
     verbose: bool = False,
@@ -54,6 +58,7 @@ def run_command(
     needed to run the command.
 
     :param cmd: command to run
+    :param title: optional title for the command (otherwise likely title is automatically determined)
     :param check: whether to check status value and run exception (same as POpem)
     :param verbose: print commands when running
     :param dry_run: do not execute "the" command - just print what would happen
@@ -66,13 +71,23 @@ def run_command(
     workdir: str = str(cwd) if cwd else os.getcwd()
     if verbose or dry_run:
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
-        # if we pass environment variables to execute, then
-        env_to_print = ' '.join(f'{key}="{val}"' for (key, val) in env.items()) if env else ''
-        if env_to_print:
-            env_to_print += ' '
-        console.print(f"\n[bright_blue]Working directory {workdir} [/]\n")
-        # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
-        console.print(f"\n[bright_blue]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
+        if not title:
+            # Heuristics to get a short but explanatory title showing what the command does
+            # If title is not provided explicitly
+            title = ' '.join(
+                shlex.quote(c)
+                for c in cmd
+                if not c.startswith('-')  # exclude options
+                and len(c) > 0
+                and (c[0] != "/" or c.endswith(".sh"))  # exclude volumes
+                and not c == "never"  # exclude --pull never
+                and not match(r"^[A-Z_]*=.*$", c)
+            )
+        env_to_print = get_environments_to_print(env)
+        with ci_group(title=f"Running {title}"):
+            get_console().print(f"\n[info]Working directory {workdir} [/]\n")
+            # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
+            get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
         if dry_run:
             return subprocess.CompletedProcess(cmd, returncode=0)
     try:
@@ -83,16 +98,41 @@ def run_command(
     except subprocess.CalledProcessError as ex:
         if not no_output_dump_on_exception:
             if ex.stdout:
-                console.print("[blue]========================= OUTPUT start ============================[/]")
-                console.print(ex.stdout)
-                console.print("[blue]========================= OUTPUT end ==============================[/]")
+                get_console().print(
+                    "[info]========================= OUTPUT start ============================[/]"
+                )
+                get_console().print(ex.stdout)
+                get_console().print(
+                    "[info]========================= OUTPUT end ==============================[/]"
+                )
             if ex.stderr:
-                console.print("[red]========================= STDERR start ============================[/]")
-                console.print(ex.stderr)
-                console.print("[red]========================= STDERR end ==============================[/]")
+                get_console().print(
+                    "[error]========================= STDERR start ============================[/]"
+                )
+                get_console().print(ex.stderr)
+                get_console().print(
+                    "[error]========================= STDERR end ==============================[/]"
+                )
         if check:
             raise
         return ex
+
+
+def get_environments_to_print(env: Optional[Mapping[str, str]]):
+    if not env:
+        return ""
+    system_env: Dict[str, str] = {}
+    my_env: Dict[str, str] = {}
+    for key, val in env.items():
+        if os.environ.get(key) == val:
+            system_env[key] = val
+        else:
+            my_env[key] = val
+    env_to_print = ''.join(f'{key}="{val}" \\\n' for (key, val) in sorted(system_env.items()))
+    env_to_print += r"""\
+"""
+    env_to_print += ''.join(f'{key}="{val}" \\\n' for (key, val) in sorted(my_env.items()))
+    return env_to_print
 
 
 def assert_pre_commit_installed(verbose: bool):
@@ -108,7 +148,7 @@ def assert_pre_commit_installed(verbose: bool):
     min_pre_commit_version = pre_commit_config["minimum_pre_commit_version"]
 
     python_executable = sys.executable
-    console.print(f"[bright_blue]Checking pre-commit installed for {python_executable}[/]")
+    get_console().print(f"[info]Checking pre-commit installed for {python_executable}[/]")
     command_result = run_command(
         [python_executable, "-m", "pre_commit", "--version"],
         verbose=verbose,
@@ -120,25 +160,24 @@ def assert_pre_commit_installed(verbose: bool):
         if command_result.stdout:
             pre_commit_version = command_result.stdout.split(" ")[-1].strip()
             if StrictVersion(pre_commit_version) >= StrictVersion(min_pre_commit_version):
-                console.print(
-                    f"\n[green]Package pre_commit is installed. "
+                get_console().print(
+                    f"\n[success]Package pre_commit is installed. "
                     f"Good version {pre_commit_version} (>= {min_pre_commit_version})[/]\n"
                 )
             else:
-                console.print(
-                    f"\n[red]Package name pre_commit version is wrong. It should be"
+                get_console().print(
+                    f"\n[error]Package name pre_commit version is wrong. It should be"
                     f"aat least {min_pre_commit_version} and is {pre_commit_version}.[/]\n\n"
                 )
                 sys.exit(1)
         else:
-            console.print(
-                "\n[bright_yellow]Could not determine version of pre-commit. "
-                "You might need to update it![/]\n"
+            get_console().print(
+                "\n[warning]Could not determine version of pre-commit. " "You might need to update it![/]\n"
             )
     else:
-        console.print("\n[red]Error checking for pre-commit-installation:[/]\n")
-        console.print(command_result.stderr)
-        console.print("\nMake sure to run:\n      breeze self-upgrade\n\n")
+        get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
+        get_console().print(command_result.stderr)
+        get_console().print("\nMake sure to run:\n      breeze self-upgrade\n\n")
         sys.exit(1)
 
 
@@ -164,8 +203,10 @@ def get_filesystem_type(filepath):
 
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
-    console.print(f'[bright_yellow]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
-    print(f"\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n")
+    get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
+    get_console().print(
+        f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n"
+    )
 
 
 @contextlib.contextmanager
@@ -204,9 +245,10 @@ def change_directory_permission(directory_to_fix: Path):
 
 
 @working_directory(AIRFLOW_SOURCES_ROOT)
-def fix_group_permissions():
+def fix_group_permissions(verbose: bool):
     """Fixes permissions of all the files and directories that have group-write access."""
-    console.print("[bright_blue]Fixing group permissions[/]")
+    if verbose:
+        get_console().print("[info]Fixing group permissions[/]")
     files_to_fix_result = run_command(['git', 'ls-files', './'], capture_output=True, text=True)
     if files_to_fix_result.returncode == 0:
         files_to_fix = files_to_fix_result.stdout.strip().split('\n')
@@ -261,7 +303,7 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
     return is_buildx_available
 
 
-def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str]:
+def prepare_base_build_command(image_params: _CommonBuildParams, verbose: bool) -> List[str]:
     """
     Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
     and whether we run cache preparation, there might be different results:
@@ -270,33 +312,53 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
       depending on whether we build regular image or cache
     * if no buildx plugin is installed, and we do not prepare cache, regular docker `build` command is used.
     * if no buildx plugin is installed, and we prepare cache - we fail. Cache can only be done with buildx
-    :param prepare_buildx_cache: whether we are preparing buildx cache.
+    :param image_params: parameters of the image
     :param verbose: print commands when running
     :return: command to use as docker build command
     """
     build_command_param = []
     is_buildx_available = check_if_buildx_plugin_installed(verbose=verbose)
     if is_buildx_available:
-        if prepare_buildx_cache:
-            build_command_param.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
-            cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-            buildx_command_result = run_command(cmd, verbose=True, text=True)
-            if buildx_command_result and buildx_command_result.returncode != 0:
-                next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-                run_command(next_cmd, verbose=True, text=True, check=False)
-        else:
-            build_command_param.extend(["buildx", "build", "--builder", "default", "--progress=tty"])
-    else:
-        if prepare_buildx_cache:
-            console.print(
-                '\n[red] Buildx cli plugin is not available and you need it to prepare buildx cache. \n'
+        if image_params.prepare_buildx_cache:
+            build_command_param.extend(
+                ["buildx", "build", "--builder", "airflow_cache", "--progress=tty", "--push"]
             )
-            console.print(
-                '[red] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
+        else:
+            build_command_param.extend(
+                [
+                    "buildx",
+                    "build",
+                    "--builder",
+                    "default",
+                    "--progress=tty",
+                    "--push" if image_params.push_image else "--load",
+                ]
+            )
+    else:
+        if image_params.prepare_buildx_cache or image_params.push_image:
+            get_console().print(
+                '\n[error] Buildx cli plugin is not available and you need it to prepare'
+                ' buildx cache or push image after build. \n'
+            )
+            get_console().print(
+                '[error] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
             )
             sys.exit(1)
         build_command_param.append("build")
     return build_command_param
+
+
+def prepare_build_cache_command() -> List[str]:
+    """
+    Prepare build cache command for docker build. We need to have buildx for that command.
+    This command is needed separately from the build image command because of the bug in multiplatform
+    support for buildx plugin https://github.com/docker/buildx/issues/1044 where when you run multiple
+    platform build, cache from one platform overrides cache for the other platform.
+
+    :param verbose: print commands when running
+    :return: command to use as docker build command
+    """
+    return ["buildx", "build", "--builder", "airflow_cache", "--progress=tty"]
 
 
 @lru_cache(maxsize=None)

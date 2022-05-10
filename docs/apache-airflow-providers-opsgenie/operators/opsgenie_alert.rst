@@ -48,3 +48,21 @@ Close alert in Opsgenie.
     :language: python
     :start-after: [START howto_opsgenie_close_alert_operator]
     :end-before: [END howto_opsgenie_close_alert_operator]
+
+.. _howto/operator:OpsgenieDeleteAlertOperator:
+
+OpsgenieDeleteAlertOperator
+===========================
+
+Use the :class:`~airflow.providers.opsgenie.operators.opsgenie.OpsgenieDeleteAlertOperator` to delete alert in opsgenie.
+
+
+Using the Operator
+^^^^^^^^^^^^^^^^^^
+Delete alert in Opsgenie.
+
+.. exampleinclude:: /../../airflow/providers/opsgenie/example_dags/example_opsgenie_alert.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_opsgenie_delete_alert_operator]
+    :end-before: [END howto_opsgenie_delete_alert_operator]

@@ -19,24 +19,49 @@ Console used by all processes. We are forcing colors and terminal output as Bree
 to be only run in CI or real development terminal - in both cases we want to have colors on.
 """
 import os
+from functools import lru_cache
 
-try:
-    from rich.console import Console
-    from rich.theme import Theme
+from rich.console import Console
+from rich.theme import Theme
 
-    recording_width = os.environ.get("RECORD_BREEZE_WIDTH")
-    recording_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
+recording_width = os.environ.get("RECORD_BREEZE_WIDTH")
+recording_file = os.environ.get("RECORD_BREEZE_OUTPUT_FILE")
 
-    custom_theme = Theme({"info": "blue", "warning": "magenta", "error": "red"})
-    console = Console(
+
+def get_theme() -> Theme:
+    try:
+        from airflow_breeze.utils.cache import read_from_cache_file
+
+        if read_from_cache_file('suppress_colour') is not None:
+            return Theme(
+                {
+                    "success": "bold italic",
+                    "info": "bold",
+                    "warning": "italic",
+                    "error": "italic underline",
+                }
+            )
+    except ImportError:
+        # sometimes we might want to use console before the cache folder is determined
+        # and in this case we will get an import error due to partial initialization.
+        # in this case we switch to default theme
+        pass
+    return Theme(
+        {
+            "success": "green",
+            "info": "bright_blue",
+            "warning": "bright_yellow",
+            "error": "red",
+        }
+    )
+
+
+@lru_cache(maxsize=None)
+def get_console() -> Console:
+    return Console(
         force_terminal=True,
         color_system="standard",
         width=180 if not recording_width else int(recording_width),
-        theme=custom_theme,
+        theme=get_theme(),
         record=True if recording_file else False,
     )
-
-except ImportError:
-    # We handle the ImportError so that autocomplete works with just click installed
-    custom_theme = None  # type: ignore[assignment]
-    console = None  # type: ignore[assignment]

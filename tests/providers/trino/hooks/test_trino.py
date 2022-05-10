@@ -34,6 +34,7 @@ HOOK_GET_CONNECTION = 'airflow.providers.trino.hooks.trino.TrinoHook.get_connect
 BASIC_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication'
 KERBEROS_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication'
 TRINO_DBAPI_CONNECT = 'airflow.providers.trino.hooks.trino.trino.dbapi.connect'
+JWT_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication'
 
 
 class TestTrinoHookConn:
@@ -93,6 +94,21 @@ class TestTrinoHookConn:
             AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
         ):
             TrinoHook().get_conn()
+
+    @patch(JWT_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_get_conn_jwt_auth(self, mock_get_connection, mock_connect, mock_jwt_auth):
+        extras = {
+            'auth': 'jwt',
+            'jwt__token': 'TEST_JWT_TOKEN',
+        }
+        self.set_get_connection_return_value(
+            mock_get_connection,
+            extra=json.dumps(extras),
+        )
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
     @patch(KERBEROS_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)

@@ -822,12 +822,15 @@ class BaseSecurityManager:
 
     def update_user_auth_stat(self, user, success=True):
         """
-        Update authentication successful to user.
-
+        Update user authentication stats upon successful/unsuccessful
+        authentication attempts.
         :param user:
-            The authenticated user model
+            The identified (but possibly not successfully authenticated) user
+            model
         :param success:
-            Default to true, if false increments fail_login_count on user model
+            Defaults to true, if true increments login_count, updates
+            last_login, and resets fail_login_count to 0, if false increments
+            fail_login_count on user model.
         """
         if not user.login_count:
             user.login_count = 0
@@ -835,10 +838,10 @@ class BaseSecurityManager:
             user.fail_login_count = 0
         if success:
             user.login_count += 1
+            user.last_login = datetime.datetime.now()
             user.fail_login_count = 0
         else:
             user.fail_login_count += 1
-        user.last_login = datetime.datetime.now()
         self.update_user(user)
 
     def auth_user_db(self, username, password):

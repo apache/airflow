@@ -91,12 +91,7 @@ class Neo4jHook(BaseHook):
         elif trusted_ca:
             encryption_scheme = '+s'
 
-        return '{scheme}{encryption_scheme}://{host}:{port}'.format(
-            scheme=scheme,
-            encryption_scheme=encryption_scheme,
-            host=conn.host,
-            port='7687' if conn.port is None else f'{conn.port}',
-        )
+        return f"{scheme}{encryption_scheme}://{conn.host}:{7687 if conn.port is None else conn.port}"
 
     def run(self, query) -> Result:
         """

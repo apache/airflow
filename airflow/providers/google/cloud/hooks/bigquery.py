@@ -69,7 +69,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :param delegate_to: This performs a task on one host with reference to other hosts.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
-    :param bigquery_conn_id: The Airflow connection used for BigQuery credentials.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
@@ -87,21 +86,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         delegate_to: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
-        bigquery_conn_id: Optional[str] = None,
         api_resource_configs: Optional[Dict] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         labels: Optional[Dict] = None,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = bigquery_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -420,7 +408,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         location: Optional[str] = None,
         dataset_reference: Optional[Dict[str, Any]] = None,
         exists_ok: bool = True,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Create a new empty dataset:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
@@ -464,8 +452,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         dataset: Dataset = Dataset.from_api_repr(dataset_reference)
         self.log.info('Creating dataset: %s in project: %s ', dataset.dataset_id, dataset.project)
-        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=exists_ok)
+        dataset_object = self.get_client(location=location).create_dataset(
+            dataset=dataset, exists_ok=exists_ok
+        )
         self.log.info('Dataset created successfully.')
+        return dataset_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(
@@ -545,7 +536,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         project_id: Optional[str] = None,
-    ) -> None:
+    ) -> Table:
         """
         Creates a new external table in the dataset with the data from Google
         Cloud Storage. See here:
@@ -671,10 +662,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
         self.log.info('Creating external table: %s', external_project_dataset_table)
-        self.create_empty_table(
+        table_object = self.create_empty_table(
             table_resource=table.to_api_repr(), project_id=project_id, location=location, exists_ok=True
         )
         self.log.info('External table created successfully: %s', external_project_dataset_table)
+        return table_object
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_table(
@@ -1299,7 +1291,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         table_id: str,
         project_id: Optional[str] = None,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Update fields within a schema for a given dataset and table. Note that
         some fields in schemas are immutable and trying to change them will cause
@@ -1373,13 +1365,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not include_policy_tags:
             _remove_policy_tags(new_schema)
 
-        self.update_table(
+        table = self.update_table(
             table_resource={"schema": {"fields": new_schema}},
             fields=["schema"],
             project_id=project_id,
             dataset_id=dataset_id,
             table_id=table_id,
         )
+        return table
 
     @GoogleBaseHook.fallback_to_default_project_id
     def poll_job_complete(
@@ -2256,7 +2249,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.create_empty_table(*args, **kwargs)
 
-    def create_empty_dataset(self, *args, **kwargs) -> None:
+    def create_empty_dataset(self, *args, **kwargs) -> Dict[str, Any]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`

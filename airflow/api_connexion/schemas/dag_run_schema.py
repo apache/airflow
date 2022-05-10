@@ -67,6 +67,10 @@ class DAGRunSchema(SQLAlchemySchema):
     state = DagStateField(dump_only=True)
     external_trigger = auto_field(dump_default=True, dump_only=True)
     conf = ConfObject()
+    data_interval_start = auto_field(dump_only=True)
+    data_interval_end = auto_field(dump_only=True)
+    last_scheduling_decision = auto_field(dump_only=True)
+    run_type = auto_field(dump_only=True)
 
     @pre_load
     def autogenerate(self, data, **kwargs):
@@ -108,7 +112,11 @@ class DAGRunSchema(SQLAlchemySchema):
 class SetDagRunStateFormSchema(Schema):
     """Schema for handling the request of setting state of DAG run"""
 
-    state = DagStateField(validate=validate.OneOf([DagRunState.SUCCESS.value, DagRunState.FAILED.value]))
+    state = DagStateField(
+        validate=validate.OneOf(
+            [DagRunState.SUCCESS.value, DagRunState.FAILED.value, DagRunState.QUEUED.value]
+        )
+    )
 
 
 class DAGRunCollection(NamedTuple):

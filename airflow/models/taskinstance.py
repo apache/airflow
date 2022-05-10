@@ -803,13 +803,12 @@ class TaskInstance(Base, LoggingMixin):
     @property
     def mark_success_url(self):
         """URL to mark TI success"""
-        iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
         return base_url + (
             "/confirm"
             f"?task_id={self.task_id}"
             f"&dag_id={self.dag_id}"
-            f"&execution_date={iso}"
+            f"&dag_run_id={quote(self.run_id)}"
             "&upstream=false"
             "&downstream=false"
             "&state=success"
@@ -2330,10 +2329,12 @@ class TaskInstance(Base, LoggingMixin):
         # currently possible for a downstream to depend on one individual mapped
         # task instance, only a task as a whole. This will change in AIP-42
         # Phase 2, and we'll need to further analyze the mapped task case.
-        if task.is_mapped or next(task.iter_mapped_dependants(), None) is None:
+        if next(task.iter_mapped_dependants(), None) is None:
             return
         if value is None:
             raise XComForMappingNotPushed()
+        if task.is_mapped:
+            return
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             raise UnmappableXComTypePushed(value)
         task_map = TaskMap.from_task_instance_xcom(self, value)

@@ -258,8 +258,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
         cluster_status = response['Cluster']['Status']
         state_change_reason = cluster_status.get('StateChangeReason')
         if state_change_reason:
-            return 'for code: {} with message {}'.format(
-                state_change_reason.get('Code', 'No code'), state_change_reason.get('Message', 'Unknown')
+            return (
+                f"for code: {state_change_reason.get('Code', 'No code')} "
+                f"with message {state_change_reason.get('Message', 'Unknown')}"
             )
         return None
 
@@ -338,7 +339,8 @@ class EmrStepSensor(EmrBaseSensor):
         """
         fail_details = response['Step']['Status'].get('FailureDetails')
         if fail_details:
-            return 'for reason {} with message {} and log file {}'.format(
-                fail_details.get('Reason'), fail_details.get('Message'), fail_details.get('LogFile')
+            return (
+                f"for reason {fail_details.get('Reason')} "
+                f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
             )
         return None
