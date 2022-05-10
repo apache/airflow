@@ -206,7 +206,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
                 'new_cluster': NEW_CLUSTER,
                 'notebook_task': NOTEBOOK_TASK,
                 'run_name': RUN_NAME,
-                'git_source': git_source
+                'git_source': git_source,
             }
         )
         assert expected == op.json
