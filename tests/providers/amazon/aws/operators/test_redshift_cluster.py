@@ -137,7 +137,6 @@ class TestDeleteClusterOperator:
         )
         assert redshift_operator.task_id == "task_test"
         assert redshift_operator.cluster_identifier == "test_cluster"
-        assert redshift_operator.aws_conn_id == "aws_conn_test"
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")

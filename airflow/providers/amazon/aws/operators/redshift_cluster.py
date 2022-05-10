@@ -357,22 +357,27 @@ class RedshiftDeleteClusterOperator(BaseOperator):
         self.skip_final_cluster_snapshot = skip_final_cluster_snapshot
         self.final_cluster_snapshot_identifier = final_cluster_snapshot_identifier
         self.wait_for_completion = wait_for_completion
-        self.aws_conn_id = aws_conn_id
+        self.redshift_hook = RedshiftHook(aws_conn_id=aws_conn_id)
         self.poll_interval = poll_interval
 
     def execute(self, context: 'Context'):
-        redshift_hook = RedshiftHook(aws_conn_id=self.aws_conn_id)
-        redshift_hook.delete_cluster(
-            cluster_identifier=self.cluster_identifier,
-            skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
-            final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
-        )
+        self.delete_cluster()
 
         if self.wait_for_completion:
-            cluster_status: str = redshift_hook.cluster_status(self.cluster_identifier)
+            cluster_status: str = self.check_status()
             while cluster_status != "cluster_not_found":
                 self.log.info(
                     "cluster status is %s. Sleeping for %s seconds.", cluster_status, self.poll_interval
                 )
                 time.sleep(self.poll_interval)
-                cluster_status = redshift_hook.cluster_status(self.cluster_identifier)
+                cluster_status = self.check_status()
+
+    def delete_cluster(self) -> None:
+        self.redshift_hook.delete_cluster(
+            cluster_identifier=self.cluster_identifier,
+            skip_final_cluster_snapshot=self.skip_final_cluster_snapshot,
+            final_cluster_snapshot_identifier=self.final_cluster_snapshot_identifier,
+        )
+
+    def check_status(self) -> str:
+        return self.redshift_hook.cluster_status(self.cluster_identifier)
