@@ -29,7 +29,7 @@ from alembic.script import ScriptDirectory
 from tabulate import tabulate
 
 from airflow.utils.db import _get_alembic_config
-from airflow.version import version as _airflow_version
+from setup import version as _airflow_version
 
 if TYPE_CHECKING:
     from alembic.script import Script
