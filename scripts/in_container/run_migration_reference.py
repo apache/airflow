@@ -167,7 +167,7 @@ def ensure_filenames_are_sorted(revisions):
         )
         raise SystemExit(
             "You have multiple alembic heads; please merge them with the `alembic merge` command "
-            f"and re-run pre-commit. \nhint: `{alembic_command}`"
+            f"and re-run pre-commit. It should fail once more before succeeding. \nhint: `{alembic_command}`"
         )
     for old, new in renames:
         os.rename(old, new)
