@@ -1265,6 +1265,7 @@ reqs
 reserialize
 reserialized
 resetdb
+resizable
 resourceVersion
 resultset
 resumable

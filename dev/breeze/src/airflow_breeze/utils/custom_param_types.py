@@ -89,9 +89,7 @@ class CacheableChoice(click.Choice):
         if isinstance(value, CacheableDefault):
             is_cached, new_value = read_and_validate_value_from_cache(param_name, value.value)
             if not is_cached:
-                get_console().print(
-                    f"\n[info]Default value of {param.name} " f"parameter {new_value} used.[/]\n"
-                )
+                get_console().print(f"\n[info]Default value of {param.name} parameter {new_value} used.[/]\n")
         else:
             allowed, allowed_values = check_if_values_allowed(param_name, value)
             if allowed:

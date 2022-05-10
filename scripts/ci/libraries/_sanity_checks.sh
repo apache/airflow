@@ -143,7 +143,7 @@ function sanity_checks::go_to_airflow_sources {
 }
 
 #
-# Performs basic sanity checks common for most of the scripts in this directory
+# Performs basic quick checks common for most of the scripts in this directory
 #
 function sanity_checks::basic_sanity_checks() {
     sanity_checks::assert_not_in_container

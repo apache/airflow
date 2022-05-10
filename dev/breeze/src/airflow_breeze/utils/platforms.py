@@ -15,20 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 
-from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator
-
-config = {'key1': '1', 'key2': {'key3': '3', 'key4': '4'}, 'key5': [{'key6': '6'}, {'key6': '7'}]}
-
-parsed_config = {'key1': 1, 'key2': {'key3': 3, 'key4': 4}, 'key5': [{'key6': 6}, {'key6': 7}]}
-
-
-class TestSageMakerBaseOperator(unittest.TestCase):
-    def setUp(self):
-        self.sagemaker = SageMakerBaseOperator(task_id='test_sagemaker_operator', config=config)
-
-    def test_parse_integer(self):
-        self.sagemaker.integer_fields = [['key1'], ['key2', 'key3'], ['key2', 'key4'], ['key5', 'key6']]
-        self.sagemaker.parse_config_integers()
-        assert self.sagemaker.config == parsed_config
+def get_real_platform(single_platform: str) -> str:
+    """
+    Replace different platform variants of the platform provided platforms with the two canonical ones we
+    are using: amd64 and arm64.
+    """
+    return single_platform.replace("x86_64", "amd64").replace("aarch64", "arm64").replace("/", "-")
