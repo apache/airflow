@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-10T07:24:29Z
+# This constraints file was automatically generated on 2022-05-10T18:03:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -252,7 +252,7 @@ google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.1
 google-auth==2.6.6
-google-cloud-aiplatform==1.12.1
+google-cloud-aiplatform==1.13.0
 google-cloud-appengine-logging==1.1.1
 google-cloud-audit-log==0.2.0
 google-cloud-automl==2.7.2
@@ -489,7 +489,7 @@ scrapbook==0.5.0
 semver==2.13.0
 sendgrid==6.9.7
 sentinels==1.0.0
-sentry-sdk==1.5.11
+sentry-sdk==1.5.12
 setproctitle==1.2.3
 simple-salesforce==1.11.6
 six==1.16.0
@@ -543,7 +543,7 @@ toolz==0.11.2
 tornado==6.1
 towncrier==21.9.0
 tqdm==4.64.0
-traitlets==5.1.1
+traitlets==5.2.0
 trino==0.313.0
 twine==4.0.0
 types-Deprecated==1.2.8
@@ -557,7 +557,7 @@ types-cryptography==3.3.21
 types-docutils==0.18.3
 types-freezegun==1.1.9
 types-paramiko==2.10.0
-types-protobuf==3.19.19
+types-protobuf==3.19.20
 types-python-dateutil==2.8.15
 types-python-slugify==5.0.4
 types-pytz==2021.3.8
