@@ -34,7 +34,7 @@ if not IS_WINDOWS:
     import pty
 
 from contextlib import contextmanager
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile
@@ -155,7 +155,16 @@ def reap_process_group(
     return returncodes
 
 
-def execute_in_subprocess(cmd: List[str], **kwargs) -> None:
+def execute_in_subprocess(cmd: List[str], cwd: Optional[str] = None) -> None:
+    """
+    Execute a process and stream output to logger
+    :param cmd: command and arguments to run
+    :param cwd: Current working directory passed to the Popen constructor
+    """
+    execute_in_subprocess_with_kwargs(cmd, cwd=cwd)
+
+
+def execute_in_subprocess_with_kwargs(cmd: List[str], **kwargs) -> None:
     """
     Execute a process and stream output to logger
 
