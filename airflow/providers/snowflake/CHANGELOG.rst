@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+2.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow multiline text in private key field for Snowflake (#23066)``
+
 2.6.0
 .....
 

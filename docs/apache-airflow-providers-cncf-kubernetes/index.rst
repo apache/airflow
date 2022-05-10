@@ -59,7 +59,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 4.0.1
+Release: 4.0.2
 
 Provider package
 ----------------
