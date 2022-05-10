@@ -380,15 +380,15 @@ class PodManager(LoggingMixin):
             resp.write_stdin(command + '\n')
             while resp.is_open():
                 resp.update(timeout=1)
-                res = None
+                res = ""
                 while resp.peek_stdout():
                     res = res + resp.read_stdout()
-                if res:
-                    return res
                 error_res = None
                 while resp.peek_stderr():
                     error_res = error_res + resp.read_stderr()
                 if error_res:
                     self.log.info("stderr from command: %s", error_res)
                     break
+                if res:
+                    return res
         return None
