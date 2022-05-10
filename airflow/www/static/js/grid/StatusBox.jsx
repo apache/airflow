@@ -29,6 +29,7 @@ import {
 
 import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from './context/containerRef';
+import useFilters from './utils/useFilters';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
@@ -51,6 +52,7 @@ const StatusBox = ({
   const { runId, taskId } = instance;
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
+  const { filters } = useFilters();
 
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
@@ -87,6 +89,7 @@ const StatusBox = ({
           zIndex={1}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
+          opacity={(filters.taskState && filters.taskState !== instance.state) ? 0.30 : 1}
         />
       </Box>
     </Tooltip>

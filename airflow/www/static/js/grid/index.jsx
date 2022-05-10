@@ -48,7 +48,6 @@ const queryClient = new QueryClient({
       refetchOnWindowFocus: false,
       retry: 1,
       retryDelay: 500,
-      staleTime: 60 * 1000, // one minute
       refetchOnMount: true, // Refetches stale queries, not "always"
     },
     mutations: {

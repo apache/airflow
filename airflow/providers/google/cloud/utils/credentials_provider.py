@@ -369,5 +369,5 @@ def _get_project_id_from_service_account_email(service_account_email: str) -> st
         return service_account_email.split('@')[1].split('.')[0]
     except IndexError:
         raise AirflowException(
-            f"Could not extract project_id from service account's email: " f"{service_account_email}."
+            f"Could not extract project_id from service account's email: {service_account_email}."
         )

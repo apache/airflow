@@ -133,7 +133,7 @@ for the PRs that are already correctly assigned to the milestone. You can also a
 question with `--assume-yes` flag.
 
 You cn review the list of PRs cherry-picked and produce a nice summary with `--print-summary` (this flag
-assumes `--skip-assigned` so that the summary can be produced without questions:
+assumes the `--skip-assigned` flag, so that the summary can be produced without questions:
 
 ```shell
 ,/dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
@@ -493,9 +493,12 @@ to have an environment prepared to build multi-platform images. You can achieve 
 
 ## Prerequisites
 
-You need to have buildx plugin installed to run the build. Also you need to have regctl
+You need to have buildx plugin installed to run the build. Also, you need to have regctl
 installed from https://github.com/regclient/regclient in order to tag the multi-platform images in
 DockerHub. The script to build images will refuse to work if you do not have those two installed.
+
+You also need to have the right permissions to push the images, so you should run
+`docker login` before and authenticate with your DockerHub token.
 
 ## Setting environment with emulation
 
@@ -540,9 +543,16 @@ docker buildx ls
        airflow_cache1    tcp://127.0.0.1:2375
 ```
 
+Preparing regular images:
 
 ```shell script
-./dev/prepare_prod_docker_images.sh ${VERSION}
+breeze release-prod-images --airflow-version "${VERSION}"
+```
+
+Preparing slim images:
+
+```shell script
+breeze release-prod-images --airflow-version "${VERSION}" --slim-images
 ```
 
 This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
@@ -998,19 +1008,34 @@ At this point we release an official package:
 
 ## Manually prepare production Docker Image
 
-
 Note that this scripts prepares multi-platform image, so you need to fulfill prerequisites as
 described above in the preparation of RC images.
 
+Note that by default the `latest` images tagged are aliased to the just released image which is the usual
+way we release. For example when you are releasing 2.3.N image and 2.3 is our latest branch the new image is
+marked as "latest".
+
+In case we are releasing (which almost never happens so far) a critical bugfix release in one of
+the older branches, you should add the `--skip-latest` flag.
+
+Preparing regular images:
+
 ```shell script
-./dev/prepare_prod_docker_images.sh ${VERSION}
+breeze release-prod-images --airflow-version "${VERSION}"
 ```
 
-Note! When you release the 'final' (non-rc) version you will be asked if you want to
-tag the images as latest - if you are releasing the latest stable branch, you
-should answer y and tags will be created and pushed. If you are releasing a
-patch release from an older branch, you should answer n and creating tags will
-be skipped.
+Preparing slim images:
+
+```shell script
+breeze release-prod-images --airflow-version "${VERSION}" --slim-images
+```
+
+Preparing a release that is not in the latest branch:
+
+```shell script
+breeze release-prod-images --airflow-version "${VERSION}" --slim-images --skip-latest
+```
+
 
 ## Publish documentation
 
