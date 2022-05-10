@@ -27,10 +27,10 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:EC2StartInstanceOperator:
-
 Operators
 ---------
+
+.. _howto/operator:EC2StartInstanceOperator:
 
 Start an Amazon EC2 instance
 ============================
