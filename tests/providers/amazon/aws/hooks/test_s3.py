@@ -477,21 +477,14 @@ class TestAwsS3Hook:
             fake_s3_hook.test_function_with_test_key('s3://foo/bar.csv')
         assert isinstance(ctx.value, ValueError)
 
-    @mock.patch('airflow.providers.amazon.aws.hooks.s3.NamedTemporaryFile')
-    def test_download_file(self, mock_temp_file):
-        mock_temp_file.return_value.__enter__ = Mock(return_value=mock_temp_file)
-        s3_hook = S3Hook(aws_conn_id='s3_test')
-        s3_hook.check_for_key = Mock(return_value=True)
-        s3_obj = Mock()
-        s3_obj.download_fileobj = Mock(return_value=None)
-        s3_hook.get_key = Mock(return_value=s3_obj)
-        key = 'test_key'
-        bucket = 'test_bucket'
-
-        s3_hook.download_file(key=key, bucket_name=bucket)
-
-        s3_hook.get_key.assert_called_once_with(key, bucket)
-        s3_obj.download_fileobj.assert_called_once_with(mock_temp_file)
+    def test_download_file(self, s3_bucket):
+        hook = S3Hook()
+        with tempfile.NamedTemporaryFile() as temp_file:
+            bucket = hook.get_bucket(s3_bucket)
+            bucket.put_object(Key='a', Body='Content')
+            hook.download_file('a', s3_bucket, temp_file.name)
+            with open(temp_file.name, 'r') as f:
+                assert f.read() == 'Content'
 
     def test_generate_presigned_url(self, s3_bucket):
         hook = S3Hook()
