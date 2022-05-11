@@ -1271,7 +1271,7 @@ class TestPostDagRun(TestDagRunEndpoint):
 
 
 class TestPatchDagRunState(TestDagRunEndpoint):
-    @pytest.mark.parametrize("state", ["failed", "success"])
+    @pytest.mark.parametrize("state", ["failed", "success", "queued"])
     @pytest.mark.parametrize("run_type", [state.value for state in DagRunType])
     def test_should_respond_200(self, state, run_type, dag_maker, session):
         dag_id = "TEST_DAG_ID"
@@ -1294,8 +1294,10 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             environ_overrides={"REMOTE_USER": "test"},
         )
 
-        ti.refresh_from_db()
-        assert ti.state == state
+        if state != "queued":
+            ti.refresh_from_db()
+            assert ti.state == state
+
         dr = session.query(DagRun).filter(DagRun.run_id == dr.run_id).first()
         assert response.status_code == 200
         assert response.json == {
@@ -1314,7 +1316,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
             'run_type': run_type,
         }
 
-    @pytest.mark.parametrize('invalid_state', ["running", "queued"])
+    @pytest.mark.parametrize('invalid_state', ["running"])
     @freeze_time(TestDagRunEndpoint.default_time)
     def test_should_response_400_for_non_existing_dag_run_state(self, invalid_state, dag_maker):
         dag_id = "TEST_DAG_ID"
@@ -1332,7 +1334,7 @@ class TestPatchDagRunState(TestDagRunEndpoint):
         )
         assert response.status_code == 400
         assert response.json == {
-            'detail': f"'{invalid_state}' is not one of ['success', 'failed'] - 'state'",
+            'detail': f"'{invalid_state}' is not one of ['success', 'failed', 'queued'] - 'state'",
             'status': 400,
             'title': 'Bad Request',
             'type': EXCEPTIONS_LINK_MAP[400],

@@ -274,7 +274,7 @@ def generate_issue_content(
         for i in range(count_prs):
             pr_number = prs[i]
             progress.console.print(
-                f"Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
             )
 
             pr: PullRequestOrIssue

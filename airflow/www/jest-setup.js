@@ -21,16 +21,18 @@
 
 import '@testing-library/jest-dom';
 
-// Mock a global object we use across the app
+// Mock global objects we use across the app
 global.stateColors = {
   deferred: 'mediumpurple',
   failed: 'red',
   queued: 'gray',
   running: 'lime',
   scheduled: 'tan',
-  skipped: 'pink',
+  skipped: 'hotpink',
   success: 'green',
   up_for_reschedule: 'turquoise',
   up_for_retry: 'gold',
   upstream_failed: 'orange',
 };
+
+global.defaultDagRunDisplayNumber = 245;

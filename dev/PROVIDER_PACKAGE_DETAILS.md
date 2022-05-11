@@ -23,6 +23,7 @@
 
 - [Overview](#overview)
 - [Deciding when to release](#deciding-when-to-release)
+- [Verifying providers](#verifying-providers)
 - [Generating provider documentation](#generating-provider-documentation)
 - [Content of the release notes](#content-of-the-release-notes)
 - [Preparing packages](#preparing-packages)
@@ -55,6 +56,21 @@ Each provider package has its own version maintained separately when contributor
 marking those as patches/features/backwards incompatible changes.
 
 Details to be hashed out in [the related issue](https://github.com/apache/airflow/issues/11425)
+
+
+# Verifying providers
+
+You can verify if all providers are properly named and importable.
+
+```bash
+breeze verify-provider-packages
+```
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+```bash
+breeze verify-provider-packages --use-airflow-version 2.1.0
+```
 
 
 # Generating provider documentation

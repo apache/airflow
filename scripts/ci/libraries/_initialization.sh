@@ -125,7 +125,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("10" "13")
+    CURRENT_POSTGRES_VERSIONS+=("10" "14")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -410,9 +410,6 @@ function initialization::initialize_image_build_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    SKIP_PACKAGE_VERIFICATION=${SKIP_PACKAGE_VERIFICATION:=""}
-    export SKIP_PACKAGE_VERIFICATION
-
     SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
     export SKIP_SSH_SETUP
 
@@ -456,7 +453,7 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
     # Determines which providers are used to generate constraints - source, pypi or no providers
-    export GENERATE_CONSTRAINTS_MODE=${GENERATE_CONSTRAINTS_MODE:="source-providers"}
+    export AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}
 
     # By default we install latest airflow from PyPI or sources. You can set this parameter to false
     # if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
@@ -477,7 +474,7 @@ function initialization::initialize_image_build_variables() {
     #   * 'constraints' = for constraints with PyPI released providers (default for installations)
     #   * 'constraints-source-providers' for constraints with source version of providers (defaults in Breeze and CI)
     #   * 'constraints-no-providers' for constraints without providers
-    export AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS:="constraints-source-providers"}"
+    export AIRFLOW_CONSTRAINTS_MODE="${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}"
 
     # Replace airflow at runtime in CI image with the one specified
     #   * none - just removes airflow
@@ -493,13 +490,13 @@ function initialization::initialize_image_build_variables() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.23.4" "v1.22.7" "v1.21.10" "v1.20.15")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.24.0" "v1.23.6" "v1.22.9" "v1.21.12" "v1.20.15")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES
     # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.12.0")
+    CURRENT_KIND_VERSIONS+=("v0.13.0")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.6.3")

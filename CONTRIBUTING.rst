@@ -882,8 +882,6 @@ There are several sets of constraints we keep:
   providers. If you want to manage airflow separately and then add providers individually, you can
   use those. Those constraints are named ``constraints-no-providers-<PYTHON_MAJOR_MINOR_VERSION>.txt``.
 
-We also have constraints with "source-providers" but they are used i
-
 The first two can be used as constraints file when installing Apache Airflow in a repeatable way.
 It can be done from the sources:
 
@@ -891,8 +889,11 @@ from the PyPI package:
 
 .. code-block:: bash
 
-  pip install apache-airflow==2.2.5 \
+  pip install apache-airflow[google,amazon,async]==2.2.5 \
     --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+
+The last one can be used to install Airflow in "minimal" mode - i.e when bare Airflow is installed without
+extras.
 
 When you install airflow from sources (in editable mode) you should use "constraints-source-providers"
 instead (this accounts for the case when some providers have not yet been released and have conflicting
@@ -909,14 +910,14 @@ This works also with extras - for example:
 .. code-block:: bash
 
   pip install ".[ssh]" \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints--source-providers-3.7.txt"
+    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-source-providers-3.7.txt"
 
 
 There are different set of fixed constraint files for different python major/minor versions and you should
 use the right file for the right python version.
 
 If you want to update just airflow dependencies, without paying attention to providers, you can do it using
--no-providers constraint files as well.
+``constraints-no-providers`` constraint files as well.
 
 .. code-block:: bash
 

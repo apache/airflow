@@ -23,7 +23,11 @@ from marshmallow import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session
 
-from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
+from airflow.api.common.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
+    set_dag_run_state_to_success,
+)
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
@@ -308,6 +312,8 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
     dag = current_app.dag_bag.get_dag(dag_id)
     if state == DagRunState.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
+    elif state == DagRunState.QUEUED:
+        set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
     dag_run = session.query(DagRun).get(dag_run.id)

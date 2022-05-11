@@ -72,8 +72,8 @@ where:
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
 
-There is also a no-providers constraint file, which contains just constraints required to install Airflow core. This allows
-to install and upgrade airflow separately and independently from providers.
+There is also a ``constraints-no-providers`` constraint file, which contains just constraints required to
+install Airflow core. This allows to install and upgrade airflow separately and independently from providers.
 
 You can create the URL to the file substituting the variables in the template below.
 
