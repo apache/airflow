@@ -116,6 +116,9 @@ operators:
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.operators.data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.azure_service_bus_queue
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -167,6 +170,9 @@ hooks:
     python-modules:
       - airflow.providers.microsoft.azure.hooks.data_factory
       - airflow.providers.microsoft.azure.hooks.azure_data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.service_bus
 
 transfers:
   - source-integration-name: Local
@@ -203,6 +209,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
   - airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
   - airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
+  - airflow.providers.microsoft.azure.hooks.service_bus.AzureServiceBusHook
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
@@ -229,6 +236,12 @@ connection-types:
   - hook-class-name: >-
       airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
     connection-type: azure_container_registry
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.service_bus.AzureServiceBusHook
+    connection-type: azure_service_bus
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.service_bus.AzureServiceBusAdminClientHook
+    connection-type: azure_service_bus
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.service_bus.ServiceBusMessageHook
+    connection-type: azure_service_bus
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
