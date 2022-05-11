@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-11T09:07:23Z
+# This constraints file was automatically generated on 2022-05-11T18:01:07Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -82,6 +82,7 @@ apache-airflow-providers-databricks==2.6.0
 apache-airflow-providers-datadog==2.0.4
 apache-airflow-providers-dbt-cloud==1.0.2
 apache-airflow-providers-dingding==2.0.4
+apache-airflow-providers-discord==2.1.4
 apache-airflow-providers-docker==2.6.0
 apache-airflow-providers-elasticsearch==3.0.3
 apache-airflow-providers-exasol==2.1.3
