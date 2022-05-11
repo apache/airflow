@@ -34,6 +34,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 import pytest
 from freezegun import freeze_time
+from sqlalchemy import func
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -476,6 +477,7 @@ class TestDagFileProcessorManager:
             dag = dagbag.get_dag('test_example_bash_operator')
             dag.last_parsed_time = timezone.utcnow()
             dag.sync_to_db()
+            SerializedDagModel.write_dag(dag)
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -488,18 +490,36 @@ class TestDagFileProcessorManager:
             manager._file_paths = [test_dag_path]
             manager._file_stats[test_dag_path] = stat
 
-            active_dags = (
-                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
             )
-            assert len(active_dags) == 1
+            assert active_dag_count == 1
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 1
 
             manager._file_stats[test_dag_path] = stat
             manager._deactivate_stale_dags()
-            active_dags = (
-                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
-            )
 
-            assert len(active_dags) == 0
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert active_dag_count == 0
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 0
 
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
