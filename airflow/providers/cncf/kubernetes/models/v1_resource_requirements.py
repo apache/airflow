@@ -21,6 +21,20 @@ from kubernetes.client import models as k8s
 
 
 class V1ResourceRequirements(k8s.V1ResourceRequirements):
+    """
+
+    Creates V1ResourceRequirements for templating:
+
+    .. seealso::
+      Templates limits and requests to calibrate cpu and memory usage
+
+    :param limits: Key value pairs of config. Refer parent class.
+    :param requests: Key value pairs of config. Refer parent class.
+    :param local_vars_configuration: Configuration of type
+    Kubernetes.Client.Configuration class
+
+    """
+
     template_fields: Sequence[str] = (
         'limits',
         'requests',
