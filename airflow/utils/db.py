@@ -1504,16 +1504,6 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
 
-    errors_seen = False
-    for err in _check_migration_errors(session=session):
-        if not errors_seen:
-            log.error("Automatic migration failed.  You may need to apply downgrades manually.  ")
-            errors_seen = True
-        log.error("%s", err)
-
-    if errors_seen:
-        exit(1)
-
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
