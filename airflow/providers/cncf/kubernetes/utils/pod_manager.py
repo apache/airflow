@@ -16,6 +16,7 @@
 # under the License.
 """Launches PODs"""
 import asyncio
+import concurrent
 import json
 import math
 import time
@@ -204,29 +205,28 @@ class PodManager(LoggingMixin):
     def consume_container_logs_stream(
         self, pod: V1Pod, container_name: str, stream: Iterable[bytes]
     ) -> Optional[DateTime]:
-        async def consume_log_stream() -> Optional[DateTime]:
-            return self.log_iterable(stream)
-
         async def async_await_container_completion() -> None:
-            return self.await_container_completion(pod=pod, container_name=container_name)
+            await asyncio.sleep(1)
+            while self.container_is_running(pod=pod, container_name=container_name):
+                await asyncio.sleep(1)
 
         loop = asyncio.get_event_loop()
         await_container_completion = loop.create_task(async_await_container_completion())
-        log_stream = loop.create_task(consume_log_stream())
+        log_stream = asyncio.ensure_future(loop.run_in_executor(None, self.log_iterable, stream))
         tasks: Iterable[asyncio.Task] = {await_container_completion, log_stream}
         loop.run_until_complete(asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED))
-
         if log_stream.done():
             return log_stream.result()
 
         log_stream.cancel()
-        self.log.warning(
-            "Pod %s log read was interrupted at some point caused by log rotation "
-            "see https://github.com/kubernetes/kubernetes/issues/59902 ",
-            "and https://github.com/apache/airflow/issues/23497 for reference.",
-            pod.metadata.name,
-            container_name,
-        )
+        try:
+            loop.run_until_complete(log_stream)
+        except concurrent.futures.CancelledError:
+            self.log.warning(
+                "Container %s log read was interrupted at some point caused by log rotation "
+                "see https://github.com/apache/airflow/issues/23497 for reference.",
+                container_name,
+            )
         return None
 
     def fetch_container_logs(
