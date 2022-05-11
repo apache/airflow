@@ -2145,6 +2145,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         job_id = self._job_id(context)
 
         try:
+            self.log.info(f"Executing: {self.configuration}")
             job = self._submit_job(hook, job_id)
             self._handle_job_error(job)
         except Conflict:
