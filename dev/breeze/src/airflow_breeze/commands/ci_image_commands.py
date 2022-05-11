@@ -34,6 +34,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_command,
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
+    option_airflow_constraints_mode_ci,
     option_answer,
     option_build_multiple_images,
     option_debian_version,
@@ -49,7 +50,6 @@ from airflow_breeze.utils.common_options import (
     option_image_name,
     option_image_tag,
     option_install_providers_from_sources,
-    option_login_to_github_registry,
     option_parallelism,
     option_platform,
     option_prepare_buildx_cache,
@@ -68,12 +68,12 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
+    build_cache,
     check_docker_compose_version,
     check_docker_resources,
     check_docker_version,
-    construct_docker_build_command,
-    construct_empty_docker_build_command,
-    tag_and_push_image,
+    prepare_docker_build_command,
+    prepare_empty_docker_build_command,
 )
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
@@ -81,7 +81,7 @@ from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
 from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.registry import login_to_docker_registry
+from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
 from airflow_breeze.utils.run_utils import (
     filter_out_none,
@@ -124,6 +124,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
             "name": "Advanced options (for power users)",
             "options": [
                 "--install-providers-from-sources",
+                "--airflow-constraints-mode",
                 "--additional-python-deps",
                 "--runtime-apt-deps",
                 "--runtime-apt-command",
@@ -198,7 +199,6 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_debian_version
 @option_github_token
 @option_github_username
-@option_login_to_github_registry
 @option_docker_cache
 @option_image_tag
 @option_prepare_buildx_cache
@@ -219,6 +219,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_force_build
+@option_airflow_constraints_mode_ci
 def build_image(
     verbose: bool,
     dry_run: bool,
@@ -433,7 +434,11 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
     :param dry_run: do not execute "write" commands - just print what would happen
     :param ci_image_params: CI image parameters
     """
-
+    if not ci_image_params.push_image and ci_image_params.is_multi_platform():
+        get_console().print(
+            "\n[red]You cannot use multi-platform build without using --push-image flag![/]\n"
+        )
+        return 1, "Error: building multi-platform image without --push-image."
     fix_group_permissions(verbose=verbose)
     if verbose or dry_run:
         get_console().print(
@@ -443,27 +448,18 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params, verbose=verbose):
             return 0, f"Image build: {ci_image_params.python}"
-    run_command(
-        ["docker", "rmi", "--no-prune", "--force", ci_image_params.airflow_image_name],
-        verbose=verbose,
-        dry_run=dry_run,
-        cwd=AIRFLOW_SOURCES_ROOT,
-        text=True,
-        check=False,
-    )
-    if ci_image_params.prepare_buildx_cache:
-        login_to_docker_registry(ci_image_params, dry_run=dry_run)
-    cmd = construct_docker_build_command(
+    if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
+        login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
+    cmd = prepare_docker_build_command(
         image_params=ci_image_params,
         verbose=verbose,
-        production_image=False,
     )
     if ci_image_params.empty_image:
         env = os.environ.copy()
         env['DOCKER_BUILDKIT'] = "1"
         get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
-        cmd = construct_empty_docker_build_command(image_params=ci_image_params)
-        build_result = run_command(
+        cmd = prepare_empty_docker_build_command(image_params=ci_image_params)
+        build_command_result = run_command(
             cmd,
             input="FROM scratch\n",
             verbose=verbose,
@@ -474,23 +470,28 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
         )
     else:
         get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
-        build_result = run_command(
+        build_command_result = run_command(
             cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
         )
-    if not dry_run:
-        if build_result.returncode == 0:
-            mark_image_as_refreshed(ci_image_params)
+        if build_command_result.returncode == 0:
+            if ci_image_params.prepare_buildx_cache:
+                build_command_result = build_cache(
+                    image_params=ci_image_params, dry_run=dry_run, verbose=verbose
+                )
+
+    if not ci_image_params.prepare_buildx_cache:
+        if not dry_run:
+            if build_command_result.returncode == 0:
+                mark_image_as_refreshed(ci_image_params)
+            else:
+                get_console().print("[error]Error when building image![/]")
+                return (
+                    build_command_result.returncode,
+                    f"Image build: {ci_image_params.python}",
+                )
         else:
-            get_console().print("[error]Error when building image![/]")
-            return (
-                build_result.returncode,
-                f"Image build: {ci_image_params.python}",
-            )
-    else:
-        get_console().print("[info]Not updating build cache because we are in `dry_run` mode.[/]")
-    if ci_image_params.push_image:
-        return tag_and_push_image(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
-    return build_result.returncode, f"Image build: {ci_image_params.python}"
+            get_console().print("[info]Not updating build cache because we are in `dry_run` mode.[/]")
+    return build_command_result.returncode, f"Image build: {ci_image_params.python}"
 
 
 def build_ci_image_in_parallel(
@@ -525,10 +526,8 @@ def rebuild_ci_image_if_needed(
     ci_image_params = BuildCiParams(python=build_params.python, upgrade_to_newer_dependencies=False)
     if build_ci_image_check_cache.exists():
         if verbose:
-            get_console().print(f'[info]{build_params.the_image_type} image already built locally.[/]')
+            get_console().print(f'[info]{build_params.image_type} image already built locally.[/]')
     else:
-        get_console().print(
-            f'[warning]{build_params.the_image_type} image not built locally. Forcing build.[/]'
-        )
+        get_console().print(f'[warning]{build_params.image_type} image not built locally. Forcing build.[/]')
         ci_image_params.force_build = True
     build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params)

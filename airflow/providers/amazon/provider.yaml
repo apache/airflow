@@ -201,6 +201,16 @@ integrations:
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/dms.rst
     tags: [aws]
+  - integration-name: Amazon QuickSight
+    external-doc-url: https://aws.amazon.com/quicksight/
+    logo: /integration-logos/aws/Amazon-Quicksight_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/quicksight.rst
+    tags: [aws]
+  - integration-name: AWS Security Token Service (STS)
+    external-doc-url: https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html
+    logo: /integration-logos/aws/AWS-STS_light-bg@4x.png
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -296,6 +306,9 @@ operators:
       - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
       - airflow.providers.amazon.aws.operators.redshift_data
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.operators.quicksight
 
 sensors:
   - integration-name: Amazon Athena
@@ -364,6 +377,9 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function_execution
       - airflow.providers.amazon.aws.sensors.step_function
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.quicksight
 
 hooks:
   - integration-name: Amazon Athena
@@ -451,6 +467,12 @@ hooks:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.hooks.step_function
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.quicksight
+  - integration-name: AWS Security Token Service (STS)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.sts
 
 transfers:
   - source-integration-name: Amazon DynamoDB

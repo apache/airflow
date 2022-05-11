@@ -56,7 +56,7 @@ pip install .[google,amazon] \
   --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 
-You can upgrade just airflow, without paying attention to provider's dependencies by using 'no-providers'
+You can upgrade just airflow, without paying attention to provider's dependencies by using 'constraints-no-providers'
 constraint files. This allows you to keep installed provider packages.
 
 pip install . --upgrade \

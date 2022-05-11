@@ -25,19 +25,18 @@ set -euo pipefail
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
 
-
-set -x
-
 # Installs additional dependencies passed as Argument to the Docker build command
 function install_additional_dependencies() {
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
         echo
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
+        set -x
         pip install --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
@@ -46,10 +45,12 @@ function install_additional_dependencies() {
         echo
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
+        set -x
         pip install --upgrade --upgrade-strategy only-if-needed \
             ${ADDITIONAL_PYTHON_DEPS}
         # make sure correct PIP version is used
         pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo

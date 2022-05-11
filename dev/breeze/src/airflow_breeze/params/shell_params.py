@@ -23,8 +23,8 @@ from typing import Optional, Tuple
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
+    ALLOWED_CONSTRAINTS_MODES_CI,
     ALLOWED_DEBIAN_VERSIONS,
-    ALLOWED_GENERATE_CONSTRAINTS_MODES,
     ALLOWED_INSTALLATION_PACKAGE_FORMATS,
     ALLOWED_MSSQL_VERSIONS,
     ALLOWED_MYSQL_VERSIONS,
@@ -32,6 +32,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     AVAILABLE_INTEGRATIONS,
     MOUNT_ALL,
+    MOUNT_NONE,
     MOUNT_SELECTED,
     get_airflow_version,
 )
@@ -46,42 +47,42 @@ class ShellParams:
     Shell parameters. Those parameters are used to determine command issued to run shell command.
     """
 
-    verbose: bool = False
-    extra_args: Tuple = ()
-    force_build: bool = False
-    integration: Tuple[str, ...] = ()
-    postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
-    mssql_version: str = ALLOWED_MSSQL_VERSIONS[0]
-    mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
+    airflow_branch: str = AIRFLOW_BRANCH
+    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_extras: str = ""
+    answer: Optional[str] = None
     backend: str = ALLOWED_BACKENDS[0]
-    python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+    ci: bool = False
+    db_reset: bool = False
     debian_version: str = ALLOWED_DEBIAN_VERSIONS[0]
     dry_run: bool = False
-    load_example_dags: bool = False
-    load_default_connections: bool = False
-    use_airflow_version: Optional[str] = None
-    airflow_extras: str = ""
-    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
-    use_packages_from_dist: bool = False
-    package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
-    generate_constraints_mode: str = ALLOWED_GENERATE_CONSTRAINTS_MODES[0]
-    install_providers_from_sources: bool = True
-    skip_environment_initialization: bool = False
-    version_suffix_for_pypi: str = ""
-    install_airflow_version: str = ""
-    image_tag: str = "latest"
-    github_repository: str = "apache/airflow"
-    mount_sources: str = MOUNT_SELECTED
+    extra_args: Tuple = ()
+    force_build: bool = False
     forward_credentials: str = "false"
-    airflow_branch: str = AIRFLOW_BRANCH
-    start_airflow: str = "false"
-    github_token: str = os.environ.get('GITHUB_TOKEN', "")
+    airflow_constraints_mode: str = ALLOWED_CONSTRAINTS_MODES_CI[0]
     github_actions: str = os.environ.get('GITHUB_ACTIONS', "false")
+    github_repository: str = "apache/airflow"
+    github_token: str = os.environ.get('GITHUB_TOKEN', "")
+    image_tag: str = "latest"
+    install_airflow_version: str = ""
+    install_providers_from_sources: bool = True
+    integration: Tuple[str, ...] = ()
     issue_id: str = ""
+    load_default_connections: bool = False
+    load_example_dags: bool = False
+    mount_sources: str = MOUNT_SELECTED
+    mssql_version: str = ALLOWED_MSSQL_VERSIONS[0]
+    mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     num_runs: str = ""
-    answer: Optional[str] = None
-    db_reset: bool = False
-    ci: bool = False
+    package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
+    postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
+    python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
+    skip_environment_initialization: bool = False
+    start_airflow: str = "false"
+    use_airflow_version: Optional[str] = None
+    use_packages_from_dist: bool = False
+    verbose: bool = False
+    version_suffix_for_pypi: str = ""
 
     @property
     def airflow_version(self):
@@ -224,3 +225,11 @@ class ShellParams:
         if len(self.extra_args) > 0:
             cmd = str(self.extra_args[0])
         return cmd
+
+    def __post_init__(self):
+        if self.use_airflow_version is not None:
+            get_console().print(
+                "[info]Forcing --mount-sources to `none` since we are not installing airflow "
+                f"from sources but from {self.use_airflow_version}[/]"
+            )
+            self.mount_sources = MOUNT_NONE
