@@ -955,7 +955,7 @@ class TestDagBag:
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
-    @patch("airflow.settings.task_policy", cluster_policies.task_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_violation(self):
         """
         test that file processing results in import error when task does not
@@ -974,7 +974,7 @@ class TestDagBag:
         }
         assert expected_import_errors == dagbag.import_errors
 
-    @patch("airflow.settings.task_policy", cluster_policies.task_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_nonstring_owner(self):
         """
         test that file processing results in import error when task does not
@@ -994,7 +994,7 @@ class TestDagBag:
         }
         assert expected_import_errors == dagbag.import_errors
 
-    @patch("airflow.settings.task_policy", cluster_policies.task_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_obeyed(self):
         """
         test that dag successfully imported without import errors when tasks
