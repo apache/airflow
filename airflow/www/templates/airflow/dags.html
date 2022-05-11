@@ -80,15 +80,27 @@
   {% for m in dashboard_alerts %}
     {{ show_message(m.message, m.category) }}
   {% endfor %}
-  {% for original_table_name, moved_table_name in migration_moved_data_alerts %}
-    {% call show_message(category='error', dismissible=false) %}
-      Airflow found incompatible data in the <code>{{ original_table_name }}</code> table in the
-      metadatabase, and has moved them to <code>{{ moved_table_name }}</code> during the database migration
-      to upgrade. Please inspect the moved data to decide whether you need to keep them, and manually drop
-      the <code>{{ moved_table_name }}</code> table to dismiss this warning. Read more about it
+  {% if migration_moved_data_alerts %}
+    {% call show_message(category='warning', dismissible=false) %}
+      While upgrading the metadatabase, Airflow had to move some bad data in order to apply new constraints.
+      The moved data can be found in the following tables:<br>
+        <table>
+          <tr>
+            <th style="padding-right:10px">Source table</th>
+            <th>Table with moved rows</th>
+          </tr>
+          {% for original_table_name, moved_table_name in migration_moved_data_alerts %}
+            <tr>
+              <td style="padding-right:10px"><code>{{ original_table_name }}</code></td>
+              <td><code>{{ moved_table_name }}</code></td>
+            </tr>
+          {% endfor %}
+        </table>
+      Please inspect the moved data to decide whether you need to keep them, and manually drop
+      the moved tables to dismiss this warning. Read more about it
       in <a href={{ get_docs_url("installation/upgrading.html") }}><b>Upgrading</b></a>.
     {% endcall %}
-  {% endfor %}
+  {% endif %}
   {{ super() }}
   {% if sqlite_warning | default(true) %}
     {% call show_message(category='warning', dismissible=false)  %}

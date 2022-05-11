@@ -829,13 +829,13 @@ class Airflow(AirflowBaseView):
 
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
-                segments = table_name.split("__", 2)
+                segments = table_name.split("__", 3)
                 if len(segments) < 3:
                     continue
                 if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
                     continue
                 # Second segment is a version marker that we don't need to show.
-                yield segments[2], table_name
+                yield segments[3], table_name
 
         if (
             permissions.ACTION_CAN_ACCESS_MENU,
