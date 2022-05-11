@@ -23,6 +23,7 @@ from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
+    RedshiftDeleteClusterOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
@@ -80,10 +81,18 @@ with DAG(
     )
     # [END howto_operator_redshift_resume_cluster]
 
+    # [START howto_operator_redshift_delete_cluster]
+    task_delete_cluster = RedshiftDeleteClusterOperator(
+        task_id="delete_cluster",
+        cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
+    )
+    # [END howto_operator_redshift_delete_cluster]
+
     chain(
         task_create_cluster,
         task_wait_cluster_available,
         task_pause_cluster,
         task_wait_cluster_paused,
         task_resume_cluster,
+        task_delete_cluster,
     )
