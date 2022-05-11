@@ -99,26 +99,6 @@ breeze and I'll run unit tests for my Hook.
 
       root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
 
-Update Airflow validation tests
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-There are some tests that Airflow performs to ensure consistency that is related to the providers.
-
-  .. code-block:: bash
-
-      airflow/scripts/in_container/
-      └── run_install_and_test_provider_packages.sh
-      tests/core/
-      └── test_providers_manager.py
-
-Change expected number of providers, hooks and connections if needed in ``run_install_and_test_provider_packages.sh`` file.
-
-Add your provider information in the following variables in ``test_providers_manager.py``:
-
-- add your provider to ``ALL_PROVIDERS`` list;
-- add your provider into ``CONNECTIONS_LIST`` if your provider create a new connection type.
-
-
 Integration tests
 ^^^^^^^^^^^^^^^^^
 

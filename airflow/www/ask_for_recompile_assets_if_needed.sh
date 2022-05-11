@@ -15,8 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 set -e
+
+if [[ ${GITHUB_ACTIONS:="false"} == "true" ]]; then
+    echo
+    echo -e "${BLUE}Skipping asset compilation check in CI.${NO_COLOR}"
+    echo
+    exit 0
+fi
 
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 

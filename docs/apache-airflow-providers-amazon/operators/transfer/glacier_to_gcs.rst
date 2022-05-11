@@ -16,30 +16,30 @@
     under the License.
 
 
-Amazon Glacier Transfer Operator
-================================
+Amazon S3 Glacier to GCS Transfer Operator
+==========================================
 
-Amazon Glacier is a secure, durable, and extremely low-cost Amazon S3 cloud storage classes for data archiving and long-term backup.
-For more information about the service visit `Amazon Glacier API documentation <https://docs.aws.amazon.com/code-samples/latest/catalog/code-catalog-python-example_code-glacier.html>`_
+`Amazon Glacier <https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html>`_ is a secure, durable, and extremely low-cost Amazon S3 cloud storage class for data archiving and long-term backup.
+
+Prerequisite Tasks
+------------------
+
+.. include:: ../_partials/prerequisite_tasks.rst
 
 .. _howto/operator:GlacierToGCSOperator:
 
-GlacierToGCSOperator
-^^^^^^^^^^^^^^^^^^^^
+Glacier To GCS
+""""""""""""""
 
-Operator task is transfer data from Glacier vault to Google Cloud Storage.
-
-.. note::
-    Please be aware that GlacierToGCSOperator may depend on memory usage.
-    Transferring big files may not work well.
-
-To get more information about operator visit:
-:class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierToGCSOperator`
-
-Example usage:
+To transfer data from an Amazon Glacier vault to Google Cloud Storage.
+use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierToGCSOperator`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
     :start-after: [START howto_glacier_transfer_data_to_gcs]
     :end-before: [END howto_glacier_transfer_data_to_gcs]
+
+.. note::
+    Please be aware that GlacierToGCSOperator depends on available memory.
+    Transferring large files may exhaust memory on the worker host.

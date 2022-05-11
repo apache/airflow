@@ -24,14 +24,18 @@ import sys
 from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
+from re import match
 from typing import Dict, List, Mapping, Optional, Union
 
+from airflow_breeze.params._common_build_params import _CommonBuildParams
+from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 
 def run_command(
     cmd: List[str],
+    title: Optional[str] = None,
     *,
     check: bool = True,
     verbose: bool = False,
@@ -54,6 +58,7 @@ def run_command(
     needed to run the command.
 
     :param cmd: command to run
+    :param title: optional title for the command (otherwise likely title is automatically determined)
     :param check: whether to check status value and run exception (same as POpem)
     :param verbose: print commands when running
     :param dry_run: do not execute "the" command - just print what would happen
@@ -66,10 +71,23 @@ def run_command(
     workdir: str = str(cwd) if cwd else os.getcwd()
     if verbose or dry_run:
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
+        if not title:
+            # Heuristics to get a short but explanatory title showing what the command does
+            # If title is not provided explicitly
+            title = ' '.join(
+                shlex.quote(c)
+                for c in cmd
+                if not c.startswith('-')  # exclude options
+                and len(c) > 0
+                and (c[0] != "/" or c.endswith(".sh"))  # exclude volumes
+                and not c == "never"  # exclude --pull never
+                and not match(r"^[A-Z_]*=.*$", c)
+            )
         env_to_print = get_environments_to_print(env)
-        get_console().print(f"\n[info]Working directory {workdir} [/]\n")
-        # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
-        get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
+        with ci_group(title=f"Running {title}"):
+            get_console().print(f"\n[info]Working directory {workdir} [/]\n")
+            # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
+            get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
         if dry_run:
             return subprocess.CompletedProcess(cmd, returncode=0)
     try:
@@ -102,7 +120,7 @@ def run_command(
 
 def get_environments_to_print(env: Optional[Mapping[str, str]]):
     if not env:
-        return "# No environment variables \\\n"
+        return ""
     system_env: Dict[str, str] = {}
     my_env: Dict[str, str] = {}
     for key, val in env.items():
@@ -185,7 +203,7 @@ def get_filesystem_type(filepath):
 
 def instruct_build_image(python: str):
     """Print instructions to the user that they should build the image"""
-    get_console().print(f'[warning]\nThe CI image for ' f'python version {python} may be outdated[/]\n')
+    get_console().print(f'[warning]\nThe CI image for Python version {python} may be outdated[/]\n')
     get_console().print(
         f"\n[info]Please run at the earliest convenience:[/]\n\nbreeze build-image --python {python}\n\n"
     )
@@ -285,7 +303,7 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
     return is_buildx_available
 
 
-def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str]:
+def prepare_base_build_command(image_params: _CommonBuildParams, verbose: bool) -> List[str]:
     """
     Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
     and whether we run cache preparation, there might be different results:
@@ -294,26 +312,33 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
       depending on whether we build regular image or cache
     * if no buildx plugin is installed, and we do not prepare cache, regular docker `build` command is used.
     * if no buildx plugin is installed, and we prepare cache - we fail. Cache can only be done with buildx
-    :param prepare_buildx_cache: whether we are preparing buildx cache.
+    :param image_params: parameters of the image
     :param verbose: print commands when running
     :return: command to use as docker build command
     """
     build_command_param = []
     is_buildx_available = check_if_buildx_plugin_installed(verbose=verbose)
     if is_buildx_available:
-        if prepare_buildx_cache:
-            build_command_param.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
-            cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-            buildx_command_result = run_command(cmd, verbose=True, text=True)
-            if buildx_command_result and buildx_command_result.returncode != 0:
-                next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-                run_command(next_cmd, verbose=True, text=True, check=False)
+        if image_params.prepare_buildx_cache:
+            build_command_param.extend(
+                ["buildx", "build", "--builder", "airflow_cache", "--progress=tty", "--push"]
+            )
         else:
-            build_command_param.extend(["buildx", "build", "--builder", "default", "--progress=tty"])
+            build_command_param.extend(
+                [
+                    "buildx",
+                    "build",
+                    "--builder",
+                    "default",
+                    "--progress=tty",
+                    "--push" if image_params.push_image else "--load",
+                ]
+            )
     else:
-        if prepare_buildx_cache:
+        if image_params.prepare_buildx_cache or image_params.push_image:
             get_console().print(
-                '\n[error] Buildx cli plugin is not available and you need it to prepare buildx cache. \n'
+                '\n[error] Buildx cli plugin is not available and you need it to prepare'
+                ' buildx cache or push image after build. \n'
             )
             get_console().print(
                 '[error] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
@@ -321,6 +346,19 @@ def prepare_build_command(prepare_buildx_cache: bool, verbose: bool) -> List[str
             sys.exit(1)
         build_command_param.append("build")
     return build_command_param
+
+
+def prepare_build_cache_command() -> List[str]:
+    """
+    Prepare build cache command for docker build. We need to have buildx for that command.
+    This command is needed separately from the build image command because of the bug in multiplatform
+    support for buildx plugin https://github.com/docker/buildx/issues/1044 where when you run multiple
+    platform build, cache from one platform overrides cache for the other platform.
+
+    :param verbose: print commands when running
+    :return: command to use as docker build command
+    """
+    return ["buildx", "build", "--builder", "airflow_cache", "--progress=tty"]
 
 
 @lru_cache(maxsize=None)

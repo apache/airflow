@@ -120,7 +120,7 @@ class State:
         TaskInstanceState.UP_FOR_RETRY: 'gold',
         TaskInstanceState.UP_FOR_RESCHEDULE: 'turquoise',
         TaskInstanceState.UPSTREAM_FAILED: 'orange',
-        TaskInstanceState.SKIPPED: 'pink',
+        TaskInstanceState.SKIPPED: 'hotpink',
         TaskInstanceState.REMOVED: 'lightgrey',
         TaskInstanceState.SCHEDULED: 'tan',
         TaskInstanceState.DEFERRED: 'mediumpurple',

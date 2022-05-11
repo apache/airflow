@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global describe, test, expect */
+/* global describe, test, expect, jest */
 
 import React from 'react';
 import { render } from '@testing-library/react';
@@ -25,6 +25,7 @@ import moment from 'moment-timezone';
 
 import DagRuns from './index';
 import { TableWrapper } from '../utils/testUtils';
+import * as useGridDataModule from '../api/useGridData';
 
 const dagRuns = [
   {
@@ -52,23 +53,29 @@ const dagRuns = [
 
 describe('Test DagRuns', () => {
   test('Durations and manual run arrow render correctly, but without any date ticks', () => {
-    global.gridData = JSON.stringify({
+    const data = {
       groups: {},
       dagRuns,
-    });
+    };
+
+    const spy = jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
+      data,
+    }));
     const { queryAllByTestId, getByText, queryByText } = render(
       <DagRuns />, { wrapper: TableWrapper },
     );
+
     expect(queryAllByTestId('run')).toHaveLength(2);
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
-
     expect(getByText('00:02:53')).toBeInTheDocument();
     expect(getByText('00:01:26')).toBeInTheDocument();
     expect(queryByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeNull();
+
+    spy.mockRestore();
   });
 
   test('Top date ticks appear when there are 4 or more runs', () => {
-    global.gridData = JSON.stringify({
+    const data = {
       groups: {},
       dagRuns: [
         ...dagRuns,
@@ -93,15 +100,27 @@ describe('Test DagRuns', () => {
           endDate: '2021-11-09T00:22:18.607167+00:00',
         },
       ],
-    });
+    };
+    const spy = jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
+      data,
+    }));
     const { getByText } = render(
       <DagRuns />, { wrapper: TableWrapper },
     );
     expect(getByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeInTheDocument();
+    spy.mockRestore();
   });
 
   test('Handles empty data correctly', () => {
     global.gridData = null;
+    const { queryByTestId } = render(
+      <DagRuns />, { wrapper: TableWrapper },
+    );
+    expect(queryByTestId('run')).toBeNull();
+  });
+
+  test('Handles no data correctly', () => {
+    global.gridData = {};
     const { queryByTestId } = render(
       <DagRuns />, { wrapper: TableWrapper },
     );

@@ -55,8 +55,17 @@ You can find the following images there (Assuming Airflow version :subst-code:`|
 * :subst-code:`apache/airflow:|airflow-version|`           - the versioned Airflow image with default Python version (3.7 currently)
 * :subst-code:`apache/airflow:|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
-Those are "reference" images. They contain the most common set of extras, dependencies and providers that are
+Those are "reference" regular images. They contain the most common set of extras, dependencies and providers that are
 often used by the users and they are good to "try-things-out" when you want to just take Airflow for a spin,
+
+You can also use "slim" images that contain only core airflow and are about half the size of the "regular" images
+but you need to add all the :doc:`extra-packages-ref` and providers that you need separately
+via :ref:`Building the image <build:build_image>`.
+
+* :subst-code:`apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:slim-latest-pythonX.Y`    - the latest released Airflow image with specific Python version
+* :subst-code:`apache/airflow:slim-|airflow-version|`           - the versioned Airflow image with default Python version (3.7 currently)
+* :subst-code:`apache/airflow:slim-|airflow-version|-pythonX.Y` - the versioned Airflow image with specific Python version
 
 The Apache Airflow image provided as convenience package is optimized for size, and
 it provides just a bare minimal set of the extras and dependencies installed and in most cases

@@ -38,10 +38,8 @@ class LocalFilesystemToS3Operator(BaseOperator):
 
         It can be either full s3:// style url or relative path from root level.
 
-        When it's specified as a full s3:// url, including dest_bucket results in a TypeError.
+        When it's specified as a full s3:// url, please omit `dest_bucket`.
     :param dest_bucket: Name of the S3 bucket to where the object is copied. (templated)
-
-        Inclusion when `dest_key` is provided as a full s3:// url results in a TypeError.
     :param aws_conn_id: Connection id of the S3 connection to use
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
@@ -92,17 +90,15 @@ class LocalFilesystemToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def _check_inputs(self):
-        if 's3://' in self.dest_key and self.dest_bucket is not None:
-            raise TypeError('dest_bucket should be None when dest_key is provided as a full s3:// file path.')
-
     def execute(self, context: 'Context'):
-        self._check_inputs()
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(
+            self.dest_bucket, self.dest_key, 'dest_bucket', 'dest_key'
+        )
         s3_hook.load_file(
             self.filename,
-            self.dest_key,
-            self.dest_bucket,
+            s3_key,
+            s3_bucket,
             self.replace,
             self.encrypt,
             self.gzip,
