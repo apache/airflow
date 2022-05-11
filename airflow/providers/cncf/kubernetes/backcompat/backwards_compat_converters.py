@@ -21,6 +21,7 @@ from typing import List
 from kubernetes.client import ApiClient, models as k8s
 
 from airflow.exceptions import AirflowException
+from airflow.providers.cncf.kubernetes.models.v1_resource_requirements import V1ResourceRequirements
 
 
 def _convert_kube_model_object(obj, new_class):
@@ -63,7 +64,7 @@ def convert_volume_mount(volume_mount) -> k8s.V1VolumeMount:
     return _convert_kube_model_object(volume_mount, k8s.V1VolumeMount)
 
 
-def convert_resources(resources) -> k8s.V1ResourceRequirements:
+def convert_resources(resources) -> V1ResourceRequirements:
     """
     Converts an airflow Resources object into a k8s.V1ResourceRequirements
 
@@ -74,7 +75,13 @@ def convert_resources(resources) -> k8s.V1ResourceRequirements:
         from airflow.providers.cncf.kubernetes.backcompat.pod import Resources
 
         resources = Resources(**resources)
-    return _convert_kube_model_object(resources, k8s.V1ResourceRequirements)
+    if isinstance(resources, k8s.V1ResourceRequirements):
+        resources = V1ResourceRequirements(
+            limits=resources.limits,
+            requests=resources.requests,
+            local_vars_configuration=resources.local_vars_configuration,
+        )
+    return _convert_kube_model_object(resources, V1ResourceRequirements)
 
 
 def convert_port(port) -> k8s.V1ContainerPort:

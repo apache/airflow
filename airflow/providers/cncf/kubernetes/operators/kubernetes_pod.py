@@ -153,7 +153,7 @@ class KubernetesPodOperator(BaseOperator):
         'config_file',
         'pod_template_file',
         'namespace',
-        'resources',
+        'k8s_resources',
     )
 
     def __init__(

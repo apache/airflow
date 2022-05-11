@@ -99,7 +99,87 @@ class TestKubernetesPodOperator:
         KubernetesPodOperator.template_fields.__contains__('config_file')
         KubernetesPodOperator.template_fields.__contains__('pod_template_file')
         KubernetesPodOperator.template_fields.__contains__('namespace')
-        KubernetesPodOperator.template_fields.__contains__('resources')
+        KubernetesPodOperator.template_fields.__contains__('k8s_resources')
+
+    def test_templates(self, create_task_instance_of_operator):
+        dag_id = 'TestKubernetesPodOperator'
+        ti = create_task_instance_of_operator(
+            KubernetesPodOperator,
+            dag_id=dag_id,
+            task_id='task-id',
+            namespace='{{ dag.dag_id }}',
+            resources=k8s.V1ResourceRequirements(
+                requests={'memory': '{{ dag.dag_id }}', 'cpu': '{{ dag.dag_id }}'},
+                limits={'memory': '{{ dag.dag_id }}', 'cpu': '{{ dag.dag_id }}'},
+            ),
+            pod_template_file='{{ dag.dag_id }}',
+            config_file='{{ dag.dag_id }}',
+            labels='{{ dag.dag_id }}',
+            env_vars=['{{ dag.dag_id }}'],
+            arguments='{{ dag.dag_id }}',
+            cmds='{{ dag.dag_id }}',
+            image='{{ dag.dag_id }}',
+        )
+        print('operator printing')
+        print(ti.task)
+        print(ti.task.k8s_resources)
+        rendered = ti.render_templates()
+        print('operator printing')
+        print(ti.task)
+        print(rendered.k8s_resources)
+        assert dag_id == rendered.k8s_resources.limits['memory']
+        assert dag_id == rendered.k8s_resources.limits['cpu']
+        assert dag_id == rendered.k8s_resources.requests['memory']
+        assert dag_id == rendered.k8s_resources.requests['cpu']
+        assert dag_id == ti.task.image
+        assert dag_id == ti.task.cmds
+        assert dag_id == ti.task.namespace
+        assert dag_id == ti.task.config_file
+        assert dag_id == ti.task.labels
+        assert dag_id == ti.task.pod_template_file
+        assert dag_id == ti.task.arguments
+        assert dag_id == ti.task.env_vars[0]
+
+    def test_templates_backward_compatibility(self, create_task_instance_of_operator):
+        dag_id = 'TestKubernetesPodOperator'
+        ti = create_task_instance_of_operator(
+            KubernetesPodOperator,
+            dag_id=dag_id,
+            task_id='task-id',
+            namespace='{{ dag.dag_id }}',
+            resources={
+                'request_memory': '{{ dag.dag_id }}',
+                'request_cpu': '{{ dag.dag_id }}',
+                'limit_cpu': '{{ dag.dag_id }}',
+                'limit_memory': '{{ dag.dag_id }}',
+            },
+            pod_template_file='{{ dag.dag_id }}',
+            config_file='{{ dag.dag_id }}',
+            labels='{{ dag.dag_id }}',
+            env_vars=['{{ dag.dag_id }}'],
+            arguments='{{ dag.dag_id }}',
+            cmds='{{ dag.dag_id }}',
+            image='{{ dag.dag_id }}',
+        )
+        print('operator printing')
+        print(ti.task)
+        print(ti.task.k8s_resources)
+        rendered = ti.render_templates()
+        print('operator printing')
+        print(ti.task)
+        print(rendered.k8s_resources)
+        assert dag_id == rendered.k8s_resources.limits['memory']
+        assert dag_id == rendered.k8s_resources.limits['cpu']
+        assert dag_id == rendered.k8s_resources.requests['memory']
+        assert dag_id == rendered.k8s_resources.requests['cpu']
+        assert dag_id == ti.task.image
+        assert dag_id == ti.task.cmds
+        assert dag_id == ti.task.namespace
+        assert dag_id == ti.task.config_file
+        assert dag_id == ti.task.labels
+        assert dag_id == ti.task.pod_template_file
+        assert dag_id == ti.task.arguments
+        assert dag_id == ti.task.env_vars[0]
 
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id='dag') as dag:
