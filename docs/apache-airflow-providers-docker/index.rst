@@ -53,7 +53,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 2.6.0
+Release: 2.7.0
 
 Provider package
 ----------------

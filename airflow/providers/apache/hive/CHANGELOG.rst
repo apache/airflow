@@ -19,6 +19,18 @@
 Changelog
 ---------
 
+2.3.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix HiveToMySqlOperator's wrong docstring (#23316)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pre-commit hook versions (#22887)``
+
 2.3.2
 .....
 

@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+4.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Exception when parsing log #20966 (#23301)``
+* ``Fixed Kubernetes Operator large xcom content Defect  (#23490)``
+* ``Clarify 'reattach_on_restart' behavior (#23377)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add YANKED to yanked releases of the cncf.kubernetes (#23378)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)``
+   * ``Revert "Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)" (#23656)``
+
 4.0.1
 .....
 
@@ -37,8 +55,6 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
-
-.. Review and move the new changes to one of the sections above:
    * ``Prepare documentation for cncf.kubernetes 4.0.1 release (#23374)``
 
 4.0.0
