@@ -314,7 +314,7 @@ class TestPodManager:
         args, kwargs = self.mock_kube_client.read_namespaced_pod_log.call_args_list[0]
         assert kwargs['since_seconds'] == 5
 
-    @pytest.mark.parametrize('follow, is_running_calls, exp_running', [(True, 4, False), (False, 1, True)])
+    @pytest.mark.parametrize('follow, is_running_calls, exp_running', [(True, 3, False), (False, 1, True)])
     @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running')
     def test_fetch_container_running_follow(
         self, container_running_mock, follow, is_running_calls, exp_running
@@ -324,7 +324,7 @@ class TestPodManager:
         When called with follow=False, should return immediately even though still running.
         """
         mock_pod = MagicMock()
-        container_running_mock.side_effect = [True, False, False, False]  # called once when follow=False
+        container_running_mock.side_effect = [True, False, False]  # called once when follow=False
         self.mock_kube_client.read_namespaced_pod_log.return_value = [b'2021-01-01 hi']
         ret = self.pod_manager.fetch_container_logs(pod=mock_pod, container_name='base', follow=follow)
         assert len(container_running_mock.call_args_list) == is_running_calls
