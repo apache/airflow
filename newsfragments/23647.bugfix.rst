@@ -1,0 +1,1 @@
+``ExternalTaskSensor`` now supports the ``soft_fail`` flag to skip if external task or dag enters a failed state
