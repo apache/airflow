@@ -15,8 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs"""
-import asyncio
-import concurrent
 import json
 import math
 import time
@@ -195,40 +193,6 @@ class PodManager(LoggingMixin):
         )
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
-    def log_iterable(self, logs: Iterable[bytes]) -> Optional[DateTime]:
-        timestamp = None
-        for line in logs:
-            timestamp, message = self.parse_log_line(line.decode('utf-8', errors="backslashreplace"))
-            self.log.info(message)
-        return timestamp
-
-    def consume_container_logs_stream(
-        self, pod: V1Pod, container_name: str, stream: Iterable[bytes]
-    ) -> Optional[DateTime]:
-        async def async_await_container_completion() -> None:
-            await asyncio.sleep(1)
-            while self.container_is_running(pod=pod, container_name=container_name):
-                await asyncio.sleep(1)
-
-        loop = asyncio.get_event_loop()
-        await_container_completion = loop.create_task(async_await_container_completion())
-        log_stream = asyncio.ensure_future(loop.run_in_executor(None, self.log_iterable, stream))
-        tasks: Iterable[asyncio.Task] = {await_container_completion, log_stream}
-        loop.run_until_complete(asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED))
-        if log_stream.done():
-            return log_stream.result()
-
-        log_stream.cancel()
-        try:
-            loop.run_until_complete(log_stream)
-        except concurrent.futures.CancelledError:
-            self.log.warning(
-                "Container %s log read was interrupted at some point caused by log rotation "
-                "see https://github.com/apache/airflow/issues/23497 for reference.",
-                container_name,
-            )
-        return None
-
     def fetch_container_logs(
         self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
     ) -> PodLoggingStatus:
@@ -256,11 +220,10 @@ class PodManager(LoggingMixin):
                     ),
                     follow=follow,
                 )
-                if follow:
-                    timestamp = self.consume_container_logs_stream(pod, container_name, logs)
-                else:
-                    timestamp = self.log_iterable(logs)
-
+                for raw_line in logs:
+                    line = raw_line.decode('utf-8', errors="backslashreplace")
+                    timestamp, message = self.parse_log_line(line)
+                    self.log.info(message)
             except BaseHTTPError as e:
                 self.log.warning(
                     "Reading of logs interrupted with error %r; will retry. "
@@ -293,7 +256,7 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
-        while self.container_is_running(pod=pod, container_name=container_name):
+        while not self.container_is_running(pod=pod, container_name=container_name):
             time.sleep(1)
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:
