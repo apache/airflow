@@ -131,13 +131,6 @@ class TestPauseClusterOperator:
 
 
 class TestDeleteClusterOperator:
-    def test_init(self):
-        redshift_operator = RedshiftDeleteClusterOperator(
-            task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
-        )
-        assert redshift_operator.task_id == "task_test"
-        assert redshift_operator.cluster_identifier == "test_cluster"
-
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
     def test_delete_cluster_with_wait_for_completion(self, mock_get_conn, mock_cluster_status):
