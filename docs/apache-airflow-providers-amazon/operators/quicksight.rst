@@ -15,30 +15,31 @@
     specific language governing permissions and limitations
     under the License.
 
+=================
+Amazon QuickSight
+=================
 
-Amazon QuickSight Operators
-========================================
+`Amazon QuickSight <https://aws.amazon.com/quicksight/>`__ is a fast business analytics service to build visualizations,
+perform ad hoc analysis, and quickly get business insights from your data.
+Amazon QuickSight seamlessly discovers AWS data sources, enables organizations to scale to hundreds of thousands of
+users, and delivers fast and responsive query performance by using the Amazon QuickSight Super-fast,
+Parallel, In-Memory, Calculation Engine (SPICE).
 
 Prerequisite Tasks
 ------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
-Overview
---------
-
-Airflow to Amazon QuickSight integration allows users to create and start the SPICE ingestion for dataset.
-
-  - :class:`~airflow.providers.amazon.aws.operators.quicksight.QuickSightCreateIngestionOperator`
-  - :class:`~airflow.providers.amazon.aws.sensor.quicksight.QuickSightSensor`
+Operators
+---------
 
 .. _howto/operator:QuickSightCreateIngestionOperator:
 
-Amazon QuickSight CreateIngestion Operator
-"""""""""""""""""""""""""""""""""""""""""""
+Amazon QuickSight create ingestion
+==================================
 
-The QuickSightCreateIngestionOperator Creates and starts a new SPICE ingestion for a dataset.
-The operator also refreshes existing SPICE datasets
+The ``QuickSightCreateIngestionOperator`` creates and starts a new SPICE ingestion for a dataset.
+The operator also refreshes existing SPICE datasets.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_quicksight.py
     :language: python
@@ -46,12 +47,15 @@ The operator also refreshes existing SPICE datasets
     :start-after: [START howto_operator_quicksight_create_ingestion]
     :end-before: [END howto_operator_quicksight_create_ingestion]
 
+Sensors
+-------
+
 .. _howto/sensor:QuickSightSensor:
 
-Amazon QuickSight Sensor
-""""""""""""""""""""""""
+Amazon QuickSight ingestion sensor
+==================================
 
-The QuickSightSensor wait for Amazon QuickSight CreateIngestion until it reaches a terminal state
+The ``QuickSightSensor`` waits for an Amazon QuickSight create ingestion until it reaches a terminal state.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_quicksight.py
     :language: python

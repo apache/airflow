@@ -892,6 +892,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+hoc
 homebrew
 honoured
 hookable

@@ -19,11 +19,12 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.quicksight import QuickSightCreateIngestionOperator
 from airflow.providers.amazon.aws.sensors.quicksight import QuickSightSensor
 
-DATA_SET_ID = os.getenv("DATA_SET_ID", "DemoDataSet_Test")
-INGESTION_NO_WAITING_ID = os.getenv("INGESTION_NO_WAITING_ID", "DemoDataSet_Ingestion_No_Waiting_Test")
+DATA_SET_ID = os.getenv("DATA_SET_ID", "data-set-id")
+INGESTION_ID = os.getenv("INGESTION_ID", "ingestion-id")
 
 with DAG(
     dag_id="example_quicksight",
@@ -36,10 +37,10 @@ with DAG(
     # and does not wait for its completion
     # [START howto_operator_quicksight_create_ingestion]
     quicksight_create_ingestion_no_waiting = QuickSightCreateIngestionOperator(
+        task_id="quicksight_create_ingestion_no_waiting",
         data_set_id=DATA_SET_ID,
-        ingestion_id=INGESTION_NO_WAITING_ID,
+        ingestion_id=INGESTION_ID,
         wait_for_completion=False,
-        task_id="sample_quicksight_no_waiting_dag",
     )
     # [END howto_operator_quicksight_create_ingestion]
 
@@ -47,9 +48,10 @@ with DAG(
     # job until it succeeds.
     # [START howto_sensor_quicksight]
     quicksight_job_status = QuickSightSensor(
+        task_id="quicksight_job_status",
         data_set_id=DATA_SET_ID,
-        ingestion_id=INGESTION_NO_WAITING_ID,
-        task_id="check_quicksight_job_status",
+        ingestion_id=INGESTION_ID,
     )
     # [END howto_sensor_quicksight]
-    quicksight_create_ingestion_no_waiting >> quicksight_job_status
+
+    chain(quicksight_create_ingestion_no_waiting, quicksight_job_status)
