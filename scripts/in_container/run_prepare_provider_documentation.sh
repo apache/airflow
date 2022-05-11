@@ -45,22 +45,18 @@ function run_prepare_documentation() {
             skipped_documentation+=("${provider_package}")
             continue
             echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
-        fi
-        if [[ ${res} == "65" ]]; then
+        elif [[ ${res} == "65" ]]; then
             echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
             exit 1
-        fi
-        if [[ ${res} == "128" ]]; then
+        elif [[ ${res} == "128" ]]; then
             echo "${COLOR_RED}Exiting as there wes a serious error during processing '${provider_package}'${COLOR_RESET}"
             error_documentation+=("${provider_package}")
             exit 1
-        fi
-        if [[ ${res} == "66" ]]; then
+        elif [[ ${res} == "66" ]]; then
             echo "${COLOR_YELLOW}Provider package '${provider_package}' marked as documentation-only!${COLOR_RESET}"
             doc_only_documentation+=("${provider_package}")
             continue
-        fi
-        if [[ ${res} != "0" ]]; then
+        elif [[ ${res} != "0" ]]; then
             echo "${COLOR_RED}Error when generating provider package '${provider_package}'${COLOR_RESET}"
             error_documentation+=("${provider_package}")
             continue
@@ -75,8 +71,7 @@ function run_prepare_documentation() {
             skipped_documentation+=("${provider_package}")
             continue
             echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
-        fi
-        if [[ ${res} == "65" ]]; then
+        elif [[ ${res} == "65" ]]; then
             echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
             exit 1
         fi

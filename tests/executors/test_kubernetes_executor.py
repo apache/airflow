@@ -39,6 +39,7 @@ try:
         AirflowKubernetesScheduler,
         KubernetesExecutor,
         KubernetesJobWatcher,
+        ResourceVersion,
         create_pod_id,
         get_base_pod_from_template,
     )
@@ -957,3 +958,36 @@ class TestKubernetesJobWatcher(unittest.TestCase):
             f"Kubernetes failure for {raw_object['reason']} "
             f"with code {raw_object['code']} and message: {raw_object['message']}"
         )
+
+    def test_recover_from_resource_too_old(self):
+        # too old resource
+        mock_underscore_run = mock.MagicMock()
+
+        def effect():
+            yield '500'
+            while True:
+                yield Exception('sentinel')
+
+        mock_underscore_run.side_effect = effect()
+
+        self.watcher._run = mock_underscore_run
+
+        with mock.patch('airflow.executors.kubernetes_executor.get_kube_client'):
+            try:
+                # self.watcher._run() is mocked and return "500" as last resource_version
+                self.watcher.run()
+            except Exception as e:
+                assert e.args == ('sentinel',)
+
+            # both  resource_version should be 0 after _run raises and exception
+            assert self.watcher.resource_version == '0'
+            assert ResourceVersion().resource_version == '0'
+
+            # check that in the next run, _run is invoked with resource_version = 0
+            mock_underscore_run.reset_mock()
+            try:
+                self.watcher.run()
+            except Exception as e:
+                assert e.args == ('sentinel',)
+
+            mock_underscore_run.assert_called_once_with(mock.ANY, '0', mock.ANY, mock.ANY)
