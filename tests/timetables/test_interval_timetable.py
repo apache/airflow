@@ -26,7 +26,11 @@ import pytest
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.timetables.interval import (
+    CronDataIntervalTimetable,
+    DeltaDataIntervalTimetable,
+    PlainCronDataIntervalTimetable,
+)
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
 
@@ -38,10 +42,12 @@ CURRENT_TIME = pendulum.DateTime(2021, 9, 7, tzinfo=TIMEZONE)
 YESTERDAY = CURRENT_TIME - datetime.timedelta(days=1)
 
 HOURLY_CRON_TIMETABLE = CronDataIntervalTimetable("@hourly", TIMEZONE)
+HOURLY_PLAIN_CRON_TIMETABLE = PlainCronDataIntervalTimetable("@hourly", TIMEZONE)
 HOURLY_TIMEDELTA_TIMETABLE = DeltaDataIntervalTimetable(datetime.timedelta(hours=1))
 HOURLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedelta.relativedelta(hours=1))
 
 CRON_TIMETABLE = CronDataIntervalTimetable("30 16 * * *", TIMEZONE)
+PLAIN_CRON_TIMETABLE = PlainCronDataIntervalTimetable("30 16 * * *", TIMEZONE)
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
 
@@ -60,6 +66,23 @@ def test_no_catchup_first_starts_at_current_time(
     )
     expected_start = YESTERDAY + DELTA_FROM_MIDNIGHT
     assert next_info == DagRunInfo.interval(start=expected_start, end=CURRENT_TIME + DELTA_FROM_MIDNIGHT)
+
+
+@pytest.mark.parametrize(
+    "last_automated_data_interval",
+    [pytest.param(None, id="first-run"), pytest.param(PREV_DATA_INTERVAL, id="subsequent")],
+)
+@freezegun.freeze_time(CURRENT_TIME)
+def test_plain_cron_no_catchup_first_starts_at_next_schedule(
+    last_automated_data_interval: Optional[DataInterval],
+) -> None:
+    """If ``catchup=False`` and start_date is a day before"""
+    next_info = PLAIN_CRON_TIMETABLE.next_dagrun_info(
+        last_automated_data_interval=last_automated_data_interval,
+        restriction=TimeRestriction(earliest=YESTERDAY, latest=None, catchup=False),
+    )
+    expected_end = CURRENT_TIME + DELTA_FROM_MIDNIGHT + datetime.timedelta(days=1)
+    assert next_info == DagRunInfo.interval(start=CURRENT_TIME + DELTA_FROM_MIDNIGHT, end=expected_end)
 
 
 @pytest.mark.parametrize(
@@ -89,9 +112,27 @@ def test_no_catchup_next_info_starts_at_current_time(
 
 
 @pytest.mark.parametrize(
+    "last_automated_data_interval",
+    [pytest.param(None, id="first-run"), pytest.param(PREV_DATA_INTERVAL, id="subsequent")],
+)
+@freezegun.freeze_time(CURRENT_TIME)
+def test_plain_cron_with_no_catchup_next_info_starts_at_next_schedule(
+    last_automated_data_interval: Optional[DataInterval],
+) -> None:
+    """If ``catchup=False``, the next data interval ends at the current time."""
+    next_info = HOURLY_PLAIN_CRON_TIMETABLE.next_dagrun_info(
+        last_automated_data_interval=last_automated_data_interval,
+        restriction=TimeRestriction(earliest=START_DATE, latest=None, catchup=False),
+    )
+    expected_end = CURRENT_TIME + datetime.timedelta(hours=1)
+    assert next_info == DagRunInfo.interval(start=CURRENT_TIME, end=expected_end)
+
+
+@pytest.mark.parametrize(
     "timetable",
     [
         pytest.param(HOURLY_CRON_TIMETABLE, id="cron"),
+        pytest.param(HOURLY_PLAIN_CRON_TIMETABLE, id="plain_cron"),
         pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="timedelta"),
         pytest.param(HOURLY_RELATIVEDELTA_TIMETABLE, id="relativedelta"),
     ],
@@ -110,6 +151,7 @@ def test_catchup_next_info_starts_at_previous_interval_end(timetable: Timetable)
     "timetable",
     [
         pytest.param(HOURLY_CRON_TIMETABLE, id="cron"),
+        pytest.param(HOURLY_PLAIN_CRON_TIMETABLE, id="plain_cron"),
         pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="timedelta"),
         pytest.param(HOURLY_RELATIVEDELTA_TIMETABLE, id="relativedelta"),
     ],
@@ -125,6 +167,11 @@ def test_validate_success(timetable: Timetable) -> None:
             CronDataIntervalTimetable("0 0 1 13 0", TIMEZONE),
             "[0 0 1 13 0] is not acceptable, out of range",
             id="invalid-cron",
+        ),
+        pytest.param(
+            PlainCronDataIntervalTimetable("0 0 1 13 0", TIMEZONE),
+            "[0 0 1 13 0] is not acceptable, out of range",
+            id="invalid-cron-plain",
         ),
         pytest.param(
             DeltaDataIntervalTimetable(datetime.timedelta()),
