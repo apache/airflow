@@ -67,6 +67,7 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
+    perform_environment_checks,
     prepare_docker_build_command,
     prepare_empty_docker_build_command,
 )
@@ -278,6 +279,7 @@ def build_prod_image(
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
+    perform_environment_checks(verbose=verbose)
     parameters_passed = filter_out_none(**kwargs)
     if build_multiple_images:
         python_version_list = get_python_version_list(python_versions)
@@ -321,6 +323,7 @@ def pull_prod_image(
     extra_pytest_args: Tuple,
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
+    perform_environment_checks(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         prod_image_params_list = [
@@ -384,6 +387,7 @@ def verify_prod_image(
     extra_pytest_args: Tuple,
 ):
     """Verify Production image."""
+    perform_environment_checks(verbose=verbose)
     if image_name is None:
         build_params = BuildProdParams(
             python=python, image_tag=image_tag, github_repository=github_repository
