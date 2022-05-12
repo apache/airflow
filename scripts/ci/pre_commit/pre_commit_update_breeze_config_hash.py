@@ -24,7 +24,7 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To execute this script, run ./{__file__} [FILE] ..."
     )
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
 

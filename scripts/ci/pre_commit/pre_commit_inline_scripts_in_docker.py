@@ -19,7 +19,7 @@ from os import listdir
 from pathlib import Path
 from typing import List
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 
 
 def insert_content(file_path: Path, content: List[str], header: str, footer: str, file_name: str):
