@@ -239,7 +239,8 @@ def _find_path_from_directory(
             dirpath = (Path(root) / sd).resolve()
             if dirpath in patterns_by_dir:
                 raise RuntimeError(
-                    f"Detected recursive loop when walking DAG directory {base_dir_path}: {dirpath} has appeared more than once."
+                    f"Detected recursive loop when walking DAG directory " + \
+                        "{base_dir_path}: {dirpath} has appeared more than once."
                 )
             patterns_by_dir.update({dirpath: patterns.copy()})
 
