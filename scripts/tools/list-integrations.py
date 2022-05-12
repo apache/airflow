@@ -63,7 +63,12 @@ def _find_clazzes(directory, base_class):
         ]
 
         for found_clazz in integration_clazzes:
-            found_classes.add(f"{found_clazz.__module__}.{found_clazz.__name__}")
+            class_name = f"{found_clazz.__module__}.{found_clazz.__name__}"
+            template_fields = ",".join(getattr(found_clazz, 'template_fields', []))
+            init_params = ",".join(
+                getattr(found_clazz.__init__, f"_{found_clazz.__class__.__name__}__param_names", [])
+            )
+            found_classes.add(";".join([class_name, template_fields, init_params]))
 
     return found_classes
 
