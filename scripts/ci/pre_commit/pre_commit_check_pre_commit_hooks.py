@@ -59,12 +59,14 @@ def get_errors_and_hooks(content: Any, max_length: int) -> Tuple[List[str], Dict
             if hook_id == 'mypy':
                 needs_image = True
             if 'name' not in hook:
-                errors.append(f"Name is missing in hook {hook_id} in {PRE_COMMIT_YAML_FILE}. Please add it!")
+                errors.append(
+                    f"Name is missing in hook `{hook_id}` in {PRE_COMMIT_YAML_FILE}. Please add it!"
+                )
                 continue
             name = hook['name']
             if len(name) > max_length:
                 errors.append(
-                    f"Name is too long for hook {hook_id} in {PRE_COMMIT_YAML_FILE}. Please shorten it!"
+                    f"Name is too long for hook `{hook_id}` in {PRE_COMMIT_YAML_FILE}. Please shorten it!"
                 )
                 continue
             hooks[hook_id].append(name)
