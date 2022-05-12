@@ -24,7 +24,7 @@ Airflow is tested with:
 
 * Databases:
 
-  * PostgreSQL: 10, 11, 12, 13
+  * PostgreSQL: 10, 11, 12, 13, 14
   * MySQL: 5.7, 8
   * SQLite: 3.15.0+
   * MSSQL(Experimental): 2017, 2019
