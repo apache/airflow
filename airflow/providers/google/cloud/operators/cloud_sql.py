@@ -370,7 +370,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
         )
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
@@ -465,7 +465,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
                 context=context,
                 task_instance=self,
                 cloud_sql_instance=self.instance,
-                project_id=hook.project_id,
+                project_id=self.project_id or hook.project_id,
             )
 
             return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
@@ -608,7 +608,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
         )
         if self._check_if_db_exists(database, hook):
             self.log.info(
@@ -717,7 +717,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                 context=context,
                 task_instance=self,
                 cloud_sql_instance=self.instance,
-                project_id=hook.project_id,
+                project_id=self.project_id or hook.project_id,
             )
             return hook.patch_database(
                 project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
@@ -890,13 +890,13 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
             task_instance=self,
             uri=self.body["exportContext"]["uri"][5:],
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
         )
         return hook.export_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
@@ -1000,13 +1000,13 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
             task_instance=self,
             uri=self.body["importContext"]["uri"][5:],
-            project_id=hook.project_id,
+            project_id=self.project_id or hook.project_id,
         )
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 

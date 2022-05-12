@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL links."""
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -44,7 +44,7 @@ class CloudSQLInstanceLink(BaseGoogleLink):
         context: "Context",
         task_instance: BaseOperator,
         cloud_sql_instance: str,
-        project_id: str,
+        project_id: Optional[str],
     ):
         task_instance.xcom_push(
             context,
@@ -65,7 +65,7 @@ class CloudSQLInstanceDatabaseLink(BaseGoogleLink):
         context: "Context",
         task_instance: BaseOperator,
         cloud_sql_instance: str,
-        project_id: str,
+        project_id: Optional[str],
     ):
         task_instance.xcom_push(
             context,
