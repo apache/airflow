@@ -35,7 +35,11 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.utils import process_utils
-from airflow.utils.process_utils import check_if_pidfile_process_is_running, execute_in_subprocess, execute_in_subprocess_with_kwargs
+from airflow.utils.process_utils import (
+    check_if_pidfile_process_is_running,
+    execute_in_subprocess,
+    execute_in_subprocess_with_kwargs,
+)
 
 
 class TestReapProcessGroup(unittest.TestCase):
