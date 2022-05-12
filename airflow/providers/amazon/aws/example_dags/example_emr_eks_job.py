@@ -20,6 +20,7 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
+from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
 VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")
 JOB_ROLE_ARN = os.getenv("JOB_ROLE_ARN", "arn:aws:iam::012345678912:role/emr_eks_default_role")
@@ -73,3 +74,9 @@ with DAG(
         name="pi.py",
     )
     # [END howto_operator_emr_eks_job]
+
+    # [START howto_operator_emr_eks_job_wait]
+    job_waiter = EmrContainerSensor(
+        task_id="job_waiter", virtual_cluster_id=VIRTUAL_CLUSTER_ID, job_id=str(job_starter.output)
+    )
+    # [END howto_operator_emr_eks_job_wait]

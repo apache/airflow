@@ -133,6 +133,7 @@ class EmrContainerOperator(BaseOperator):
         Use this if you want to specify a unique ID to prevent two jobs from getting started.
         If no token is provided, a UUIDv4 token will be generated for you.
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param wait_for_job: Whether or not to wait in the operator for the job to complete.
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
     :param max_tries: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
@@ -158,6 +159,7 @@ class EmrContainerOperator(BaseOperator):
         configuration_overrides: Optional[dict] = None,
         client_request_token: Optional[str] = None,
         aws_conn_id: str = "aws_default",
+        wait_for_job: bool = True,
         poll_interval: int = 30,
         max_tries: Optional[int] = None,
         **kwargs: Any,
@@ -171,6 +173,7 @@ class EmrContainerOperator(BaseOperator):
         self.configuration_overrides = configuration_overrides or {}
         self.aws_conn_id = aws_conn_id
         self.client_request_token = client_request_token or str(uuid4())
+        self.wait_for_job = True
         self.poll_interval = poll_interval
         self.max_tries = max_tries
         self.job_id: Optional[str] = None
@@ -193,19 +196,20 @@ class EmrContainerOperator(BaseOperator):
             self.configuration_overrides,
             self.client_request_token,
         )
-        query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
+        if self.wait_for_job:
+            query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
 
-        if query_status in EmrContainerHook.FAILURE_STATES:
-            error_message = self.hook.get_job_failure_reason(self.job_id)
-            raise AirflowException(
-                f"EMR Containers job failed. Final state is {query_status}. "
-                f"query_execution_id is {self.job_id}. Error: {error_message}"
-            )
-        elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
-            raise AirflowException(
-                f"Final state of EMR Containers job is {query_status}. "
-                f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
-            )
+            if query_status in EmrContainerHook.FAILURE_STATES:
+                error_message = self.hook.get_job_failure_reason(self.job_id)
+                raise AirflowException(
+                    f"EMR Containers job failed. Final state is {query_status}. "
+                    f"query_execution_id is {self.job_id}. Error: {error_message}"
+                )
+            elif not query_status or query_status in EmrContainerHook.INTERMEDIATE_STATES:
+                raise AirflowException(
+                    f"Final state of EMR Containers job is {query_status}. "
+                    f"Max tries of poll status exceeded, query_execution_id is {self.job_id}."
+                )
 
         return self.job_id
 

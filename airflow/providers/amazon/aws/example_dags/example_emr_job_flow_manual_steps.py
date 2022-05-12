@@ -23,6 +23,7 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.emr import (
     EmrAddStepsOperator,
     EmrCreateJobFlowOperator,
+    EmrModifyClusterOperator,
     EmrTerminateJobFlowOperator,
 )
 from airflow.providers.amazon.aws.sensors.emr import EmrStepSensor
@@ -74,6 +75,10 @@ with DAG(
     cluster_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
         job_flow_overrides=JOB_FLOW_OVERRIDES,
+    )
+
+    cluster_modifier = EmrModifyClusterOperator(
+        task_id='create_job_flow', cluster_id=cluster_creator.output, step_concurrency_level=1
     )
 
     # [START howto_operator_emr_add_steps]
