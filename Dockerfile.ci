@@ -276,11 +276,11 @@ function install_airflow_dependencies_from_branch_tip() {
     # Install latest set of dependencies using constraints. In case constraints were upgraded and there
     # are conflicts, this might fail, but it should be fixed in the following installation steps
     set -x
-    pip install \
+    pip install --root-user-action ignore \
       "https://github.com/${AIRFLOW_REPO}/archive/${AIRFLOW_BRANCH}.tar.gz#egg=apache-airflow[${AIRFLOW_EXTRAS}]" \
       --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}" || true
     # make sure correct PIP version is used
-    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
     pip freeze | grep apache-airflow-providers | xargs pip uninstall --yes 2>/dev/null || true
     set +x
     echo
@@ -327,7 +327,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="20.2.4"
+            export AIRFLOW_PIP_VERSION="22.1.0"
         fi
     fi
 }
@@ -366,7 +366,7 @@ function install_pipx_tools() {
     echo "${COLOR_BLUE}Installing pipx tools${COLOR_RESET}"
     echo
     # Make sure PIPX is installed in latest version
-    pip install --upgrade pipx
+    pip install --root-user-action ignore  --upgrade pipx
     if [[ $(uname -m) != "aarch64" ]]; then
         # Do not install mssql-cli for ARM
         # Install all the tools we need available in command line but without impacting the current environment
@@ -510,7 +510,7 @@ function install_airflow() {
         echo "${COLOR_BLUE}Installing all packages with eager upgrade${COLOR_RESET}"
         echo
         # eager upgrade
-        pip install --upgrade --upgrade-strategy eager \
+        pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
@@ -518,13 +518,13 @@ function install_airflow() {
             # We can only do it when we install airflow from sources
             set -x
             pip uninstall apache-airflow --yes
-            pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+            pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
             set +x
         fi
 
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
@@ -534,17 +534,17 @@ function install_airflow() {
         echo "${COLOR_BLUE}Installing all packages with constraints and upgrade if needed${COLOR_RESET}"
         echo
         set -x
-        pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+        pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         # then upgrade if needed without using constraints to account for new limits in setup.py
-        pip install --upgrade --upgrade-strategy only-if-needed \
+        pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
@@ -580,10 +580,10 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
         set -x
-        pip install --upgrade --upgrade-strategy eager \
+        pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
@@ -594,10 +594,10 @@ function install_additional_dependencies() {
         echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
         set -x
-        pip install --upgrade --upgrade-strategy only-if-needed \
+        pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
             ${ADDITIONAL_PYTHON_DEPS}
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
@@ -741,7 +741,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             fi
         done
         if (( ${#installable_files[@]} )); then
-            pip install "${installable_files[@]}"
+            pip install --root-user-action ignore "${installable_files[@]}"
         fi
     fi
 
@@ -1195,7 +1195,7 @@ ARG AIRFLOW_CI_BUILD_EPOCH="3"
 ARG AIRFLOW_PRE_CACHED_PIP_PACKAGES="true"
 # By default in the image, we are installing all providers when installing from sources
 ARG INSTALL_PROVIDERS_FROM_SOURCES="true"
-ARG AIRFLOW_PIP_VERSION=22.0.4
+ARG AIRFLOW_PIP_VERSION=22.1.0
 # Setup PIP
 # By default PIP install run without cache to make image smaller
 ARG PIP_NO_CACHE_DIR="true"
@@ -1265,9 +1265,7 @@ COPY --from=scripts install_pip_version.sh install_airflow_dependencies_from_bra
 # are uninstalled, only dependencies remain.
 # the cache is only used when "upgrade to newer dependencies" is not set to automatically
 # account for removed dependencies (we do not install them in the first place)
-RUN echo -e "\n\e[32mThe 'Running pip as the root user' warnings below are not valid but we can't disable them :(\e[0m\n"; \
-    echo -e "\n\e[34mSee https://github.com/pypa/pip/issues/10556 for details.\e[0m\n" ; \
-    bash /scripts/docker/install_pip_version.sh; \
+RUN bash /scripts/docker/install_pip_version.sh; \
     if [[ ${AIRFLOW_PRE_CACHED_PIP_PACKAGES} == "true" && \
           ${UPGRADE_TO_NEWER_DEPENDENCIES} == "false" ]]; then \
         bash /scripts/docker/install_airflow_dependencies_from_branch_tip.sh; \
