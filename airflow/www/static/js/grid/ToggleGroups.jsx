@@ -17,15 +17,9 @@
  * under the License.
  */
 
-/* global localStorage, CustomEvent, document */
-
-import React, { useState } from 'react';
+import React from 'react';
 import { Flex, IconButton } from '@chakra-ui/react';
 import { MdExpand, MdCompress } from 'react-icons/md';
-
-import { getMetaValue } from '../utils';
-
-const dagId = getMetaValue('dag_id');
 
 const getGroupIds = (groups) => {
   const groupIds = [];
@@ -39,11 +33,8 @@ const getGroupIds = (groups) => {
   return groupIds;
 };
 
-const ToggleGroups = ({ groups }) => {
-  const openGroupsKey = `${dagId}/open-groups`;
+const ToggleGroups = ({ groups, openGroupIds, onToggleGroups }) => {
   const allGroupIds = getGroupIds(groups.children);
-  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
-  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
   const isExpandDisabled = allGroupIds.length === openGroupIds.length;
   const isCollapseDisabled = !openGroupIds.length;
@@ -53,17 +44,11 @@ const ToggleGroups = ({ groups }) => {
   if (!hasGroups) return null;
 
   const onExpand = () => {
-    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, openGroups: true } });
-    document.dispatchEvent(closeEvent);
-    localStorage.setItem(openGroupsKey, JSON.stringify(allGroupIds));
-    setOpenGroupIds(allGroupIds);
+    onToggleGroups(allGroupIds);
   };
 
   const onCollapse = () => {
-    const closeEvent = new CustomEvent('toggleGroups', { detail: { dagId, closeGroups: true } });
-    document.dispatchEvent(closeEvent);
-    localStorage.removeItem(openGroupsKey);
-    setOpenGroupIds([]);
+    onToggleGroups([]);
   };
 
   return (

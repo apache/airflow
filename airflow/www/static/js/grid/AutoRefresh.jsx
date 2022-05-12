@@ -19,37 +19,33 @@
 
 import React from 'react';
 import {
-  Flex,
-  Box,
-  Divider,
+  Switch,
+  FormControl,
+  FormLabel,
+  Spinner,
 } from '@chakra-ui/react';
 
-import Header from './Header';
-import TaskInstanceContent from './content/taskInstance';
-import DagRunContent from './content/dagRun';
-import DagContent from './content/Dag';
-import useSelection from '../utils/useSelection';
+import { useAutoRefresh } from './context/autorefresh';
 
-const Details = () => {
-  const { selected } = useSelection();
+const AutoRefresh = () => {
+  const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
+
   return (
-    <Flex flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">
-      <Header />
-      <Divider my={2} />
-      <Box minWidth="750px">
-        {!selected.runId && !selected.taskId && <DagContent />}
-        {selected.runId && !selected.taskId && (
-          <DagRunContent runId={selected.runId} />
-        )}
-        {selected.taskId && (
-        <TaskInstanceContent
-          runId={selected.runId}
-          taskId={selected.taskId}
-        />
-        )}
-      </Box>
-    </Flex>
+    <FormControl display="flex" width="auto" mr={2}>
+      <Spinner color="blue.500" speed="1s" mr="4px" visibility={isRefreshOn ? 'visible' : 'hidden'} />
+      <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
+        Auto-refresh
+      </FormLabel>
+      <Switch
+        id="auto-refresh"
+        onChange={() => toggleRefresh(true)}
+        isDisabled={isPaused}
+        isChecked={isRefreshOn}
+        size="lg"
+        title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
+      />
+    </FormControl>
   );
 };
 
-export default Details;
+export default AutoRefresh;
