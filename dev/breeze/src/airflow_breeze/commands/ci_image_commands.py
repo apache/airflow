@@ -526,8 +526,10 @@ def rebuild_ci_image_if_needed(
     ci_image_params = BuildCiParams(python=build_params.python, upgrade_to_newer_dependencies=False)
     if build_ci_image_check_cache.exists():
         if verbose:
-            get_console().print(f'[info]{build_params.image_type} image already built locally.[/]')
+            get_console().print(f'[info]{build_params.the_image_type} image already built locally.[/]')
     else:
-        get_console().print(f'[warning]{build_params.image_type} image not built locally. Forcing build.[/]')
+        get_console().print(
+            f'[warning]{build_params.the_image_type} image not built locally. Forcing build.[/]'
+        )
         ci_image_params.force_build = True
     build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params)
