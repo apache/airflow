@@ -59,7 +59,7 @@ from airflow_breeze.utils.common_options import (
     option_verbose,
 )
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.custom_param_types import BetterChoice
+from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_compose_version,
     check_docker_is_running,
@@ -380,7 +380,7 @@ def start_airflow(
     '-p',
     '--package-filter',
     help="List of packages to consider.",
-    type=BetterChoice(get_available_packages()),
+    type=NotVerifiedBetterChoice(get_available_packages()),
     multiple=True,
 )
 def build_docs(
