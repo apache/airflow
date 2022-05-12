@@ -85,15 +85,15 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)      | Stable version (2.3.0) |
-|---------------------|-------------------------|------------------------|
-| Python              | 3.7, 3.8, 3.9, 3.10     | 3.7, 3.8, 3.9, 3.10    |
-| Platform            | AMD64/ARM64(\*)         | AMD64/ARM64(\*)        |
-| Kubernetes          | 1.20, 1.21, 1.22, 1.23  | 1.20, 1.21, 1.22, 1.23 |
-| PostgreSQL          | 10, 11, 12, 13, 14      | 10, 11, 12, 13, 14     |
-| MySQL               | 5.7, 8                  | 5.7, 8                 |
-| SQLite              | 3.15.0+                 | 3.15.0+                |
-| MSSQL               | 2017(\*), 2019 (\*)     | 2017(\*), 2019 (\*)    |
+|                     | Main version (dev)           | Stable version (2.3.0)       |
+|---------------------|------------------------------|------------------------------|
+| Python              | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10          |
+| Platform            | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
+| Kubernetes          | 1.20, 1.21, 1.22, 1.23, 1.24 | 1.20, 1.21, 1.22, 1.23, 1.24 |
+| PostgreSQL          | 10, 11, 12, 13, 14           | 10, 11, 12, 13, 14           |
+| MySQL               | 5.7, 8                       | 5.7, 8                       |
+| SQLite              | 3.15.0+                      | 3.15.0+                      |
+| MSSQL               | 2017(\*), 2019 (\*)          | 2017(\*), 2019 (\*)          |
 
 \* Experimental
 
@@ -296,7 +296,7 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. Except for kubernetes, a
    version stay supported by Airflow if two major cloud provider still provide support for it. We drop
    support for those EOL versions in main right after EOL date, and it is effectively removed when we release
-   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow For example, for Python 3.7 it
+   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.7 it
    means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
    Airflow released after will not have it.
 
