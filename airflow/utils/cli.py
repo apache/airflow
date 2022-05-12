@@ -206,6 +206,16 @@ def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
     return dagbag.dags[dag_id]
 
 
+def get_dag_by_deserialization(dag_id: str) -> "DAG":
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    dag_model = SerializedDagModel.get(dag_id)
+    if dag_model is None:
+        raise AirflowException(f"Serialized DAG: {dag_id} could not be found")
+
+    return dag_model.dag
+
+
 def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
     from airflow.models import DagBag

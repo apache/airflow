@@ -252,6 +252,14 @@ class SerializedDagModel(Base):
 
     @classmethod
     @provide_session
+    def get_dag(cls, dag_id: str, session: Session = None) -> Optional['SerializedDAG']:
+        row = cls.get(dag_id, session=session)
+        if row:
+            return row.dag
+        return None
+
+    @classmethod
+    @provide_session
     def get(cls, dag_id: str, session: Session = None) -> Optional['SerializedDagModel']:
         """
         Get the SerializedDAG for the given dag ID.

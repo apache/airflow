@@ -36,6 +36,7 @@ from airflow.cli.commands import task_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
@@ -118,6 +119,38 @@ class TestCliTasks(unittest.TestCase):
                     for log in cm.output
                 ]
             )
+
+    @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_run_get_serialized_dag(self, mock_local_job, mock_get_dag_by_deserialization):
+        """
+        Test using serialized dag for local task_run
+        """
+        task_id = self.dag.task_ids[0]
+        args = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            self.dag_id,
+            task_id,
+            self.run_id,
+        ]
+        mock_get_dag_by_deserialization.return_value = SerializedDagModel.get(self.dag_id).dag
+
+        task_command.task_run(self.parser.parse_args(args))
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            ignore_all_deps=True,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pickle_id=None,
+            pool=None,
+            external_executor_id=None,
+        )
+        mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
