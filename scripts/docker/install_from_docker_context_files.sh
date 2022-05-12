@@ -79,13 +79,13 @@ function install_airflow_and_providers_from_docker_context_files(){
     echo
     # force reinstall all airflow + provider package local files with eager upgrade
     set -x
-    pip install "${pip_flags[@]}" --upgrade --upgrade-strategy eager \
+    pip install "${pip_flags[@]}" --root-user-action ignore --upgrade --upgrade-strategy eager \
         ${reinstalling_apache_airflow_package} ${reinstalling_apache_airflow_providers_packages} \
         ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
     set +x
 
     # make sure correct PIP version is left installed
-    pip install "pip==${AIRFLOW_PIP_VERSION}"
+    pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
     pip check
 }
 
@@ -104,9 +104,9 @@ function install_all_other_packages_from_docker_context_files() {
         grep -v apache_airflow | grep -v apache-airflow || true)
     if [[ -n "${reinstalling_other_packages}" ]]; then
         set -x
-        pip install --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
+        pip install --root-user-action ignore --force-reinstall --no-deps --no-index ${reinstalling_other_packages}
         # make sure correct PIP version is used
-        pip install "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         set -x
     fi
 }
