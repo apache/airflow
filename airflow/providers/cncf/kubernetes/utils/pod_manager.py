@@ -216,19 +216,22 @@ class PodManager(LoggingMixin):
         tasks: Iterable[asyncio.Task] = {await_container_completion, log_stream}
         loop.run_until_complete(asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED))
         log_stream.cancel()
+        result = None
         try:
             loop.run_until_complete(asyncio.gather(*tasks))
         except concurrent.futures.CancelledError:
-            loop.close()
             self.log.warning(
                 "Container %s log read was interrupted at some point caused by log rotation "
                 "see https://github.com/apache/airflow/issues/23497 for reference.",
                 container_name,
             )
-            return None
         else:
+            result = log_stream.result()
+        finally:
+            loop.run_until_complete(loop.shutdown_default_executor())
             loop.close()
-            return log_stream.result()
+            return result
+
 
     def fetch_container_logs(
         self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
