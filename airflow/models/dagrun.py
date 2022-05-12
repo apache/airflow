@@ -642,15 +642,9 @@ class DagRun(Base, LoggingMixin):
         tis = list(self.get_task_instances(session=session, state=State.task_states))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         dag = self.get_dag()
-        for ti in tis:
-            try:
-                ti.task = dag.get_task(ti.task_id)
-            except TaskNotFound:
-                self.log.warning(
-                    "Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, ti.dag_id
-                )
-                ti.state = State.REMOVED
-                session.flush()
+
+        if self.should_verify_integrity(dag, tis, session=session):
+            self.verify_integrity(session=session)
 
         unfinished_tis = [t for t in tis if t.state in State.unfinished]
         finished_tis = [t for t in tis if t.state in State.finished]
@@ -862,6 +856,8 @@ class DagRun(Base, LoggingMixin):
 
         # check for removed or restored tasks
         task_ids = set()
+        existing_indexes: Dict["MappedOperator", list] = defaultdict(list)
+        expected_indexes: Dict["MappedOperator", list] = defaultdict(list)
         for ti in tis:
             ti_mutation_hook(ti)
             task_ids.add(ti.task_id)
@@ -902,7 +898,8 @@ class DagRun(Base, LoggingMixin):
                 else:
                     self.log.info("Restoring mapped task '%s'", ti)
                     Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
-                    ti.state = State.NONE
+                    existing_indexes[task].append(ti.map_index)
+                    expected_indexes.update({task: list(range(num_mapped_tis))})
             else:
                 #  What if it is _now_ dynamically mapped, but wasn't before?
                 total_length = task.run_time_mapped_ti_count(self.run_id, session=session)
@@ -981,6 +978,8 @@ class DagRun(Base, LoggingMixin):
             )
             if not count:
                 return (task, (-1,))
+            if sequence:
+                return (task, sequence)
             return (task, range(count))
 
         tasks_and_map_idxs = map(expand_mapped_literals, filter(task_filter, dag.task_dict.values()))
@@ -1026,6 +1025,37 @@ class DagRun(Base, LoggingMixin):
             self.log.info('Doing session rollback.')
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
+
+    def should_verify_integrity(self, dag, tis, *, session) -> bool:
+        """
+        Here we check if the length of the mapped task instances changed
+        at runtime. If so, we need to verify the integrity of the mapped
+        tasks.
+        """
+        existing_indexes: Dict["MappedOperator", list] = defaultdict(list)
+        new_indexes: Dict["MappedOperator", list] = defaultdict(list)
+        for ti in tis:
+            try:
+                ti.task = dag.get_task(ti.task_id)
+                task = ti.task
+            except TaskNotFound:
+                self.log.error("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, ti.dag_id)
+
+                ti.state = State.REMOVED
+                session.flush()
+                continue
+            if not task.is_mapped:
+                continue
+            # skip unexpanded tasks and also tasks that expands with literal arguments
+            if ti.map_index < 0 or task.parse_time_mapped_ti_count:
+                continue
+            existing_indexes[task].append(ti.map_index)
+            task.run_time_mapped_ti_count.cache_clear()
+            new_length = task.run_time_mapped_ti_count(self.run_id, session=session) or 0
+            new_indexes.update({task: list(range(new_length))})
+        missing_indexes: Dict["MappedOperator", list] = defaultdict(list)
+        [missing_indexes.update({k: list(set(new_indexes[k]) - set(v))}) for k, v in existing_indexes.items()]
+        return len(missing_indexes.values()) > 0
 
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> Optional['DagRun']:
