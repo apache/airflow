@@ -25,7 +25,7 @@ import argparse
 import sys
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).parent.absolute()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 
 from collections import defaultdict  # noqa: E402
 from functools import lru_cache  # noqa: E402
@@ -38,7 +38,7 @@ from tabulate import tabulate  # noqa: E402
 
 console = Console(width=400, color_system="standard")
 
-AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_PATH = Path(__file__).parents[3].resolve()
 AIRFLOW_BREEZE_SOURCES_PATH = AIRFLOW_SOURCES_PATH / "dev" / "breeze"
 PRE_COMMIT_IDS_PATH = AIRFLOW_BREEZE_SOURCES_PATH / "src" / "airflow_breeze" / "pre_commit_ids.py"
 PRE_COMMIT_YAML_FILE = AIRFLOW_SOURCES_PATH / ".pre-commit-config.yaml"

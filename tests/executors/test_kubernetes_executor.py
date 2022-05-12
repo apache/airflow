@@ -312,9 +312,9 @@ class TestKubernetesExecutor:
     @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.run_pod_async')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
-        current_folder = pathlib.Path(__file__).parent.absolute()
+        current_folder = pathlib.Path(__file__).parent.resolve()
         template_file = str(
-            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").absolute()
+            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").resolve()
         )
 
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)

@@ -29,11 +29,11 @@ if __name__ not in ("__main__", "__mp_main__"):
     )
 
 
-AIRFLOW_SOURCES = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
 
 if __name__ == '__main__':
-    sys.path.insert(0, str(Path(__file__).parents[3].absolute() / "dev" / "breeze" / "src"))
+    sys.path.insert(0, str(Path(__file__).parents[3].resolve() / "dev" / "breeze" / "src"))
     from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 
     AIRFLOW_CI_IMAGE = f"ghcr.io/{GITHUB_REPOSITORY}/{AIRFLOW_BRANCH}/ci/python3.7"
