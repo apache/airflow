@@ -211,8 +211,9 @@ class PodManager(LoggingMixin):
                 await asyncio.sleep(1)
 
         loop = asyncio.new_event_loop()
+        executor = concurrent.futures.ThreadPoolExecutor()
+        log_stream = asyncio.ensure_future(loop.run_in_executor(executor, self.log_iterable, stream))
         await_container_completion = loop.create_task(async_await_container_completion())
-        log_stream = asyncio.ensure_future(loop.run_in_executor(None, self.log_iterable, stream))
         tasks: Iterable[asyncio.Task] = {await_container_completion, log_stream}
         loop.run_until_complete(asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED))
         log_stream.cancel()
@@ -228,7 +229,7 @@ class PodManager(LoggingMixin):
         else:
             result = log_stream.result()
         finally:
-            loop.run_until_complete(loop.shutdown_default_executor())
+            executor.shutdown(wait=True)
             loop.close()
             return result
 
