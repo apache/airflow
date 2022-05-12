@@ -412,7 +412,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
         if not self.is_delete_operator_pod:
             with _suppress(Exception):
-                self.patch_already_checked(pod)
+                self.patch_already_checked(remote_pod)
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
