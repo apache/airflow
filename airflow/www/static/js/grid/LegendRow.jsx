@@ -22,21 +22,47 @@
 import {
   Flex,
   Text,
+  HStack,
 } from '@chakra-ui/react';
 import React from 'react';
-import { SimpleStatus } from './components/StatusBox';
 
-const LegendRow = () => (
-  <Flex mt={0} mb={2} p={4} flexWrap="wrap">
-    {
-      Object.entries(stateColors).map(([state, stateColor]) => (
-        <Flex alignItems="center" mr={3} key={stateColor}>
-          <SimpleStatus mr={1} state={state} />
-          <Text fontSize="md">{state}</Text>
-        </Flex>
-      ))
-    }
-  </Flex>
+import useFilters from './utils/useFilters';
+
+const StatusBadge = ({
+  state, stateColor, onMouseEnter, onMouseLeave,
+}) => (
+  <Text
+    borderRadius={4}
+    border={`solid 2px ${stateColor}`}
+    px={1}
+    cursor="pointer"
+    fontSize="11px"
+    onMouseEnter={onMouseEnter}
+    onMouseLeave={onMouseLeave}
+  >
+    {state}
+  </Text>
 );
+
+const LegendRow = () => {
+  const { onTaskStateChange } = useFilters();
+  return (
+    <Flex p={4} flexWrap="wrap" justifyContent="end">
+      <HStack spacing={2}>
+        {
+      Object.entries(stateColors).map(([state, stateColor]) => (
+        <StatusBadge
+          key={stateColor}
+          state={state}
+          stateColor={stateColor}
+          onMouseEnter={() => onTaskStateChange(state)}
+          onMouseLeave={() => onTaskStateChange()}
+        />
+      ))
+      }
+      </HStack>
+    </Flex>
+  );
+};
 
 export default LegendRow;

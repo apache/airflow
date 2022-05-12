@@ -44,14 +44,11 @@ const useFilters = () => {
   // it is not send to the api for filtering.
   const taskState = searchParams.get(TASK_STATE_PARAM);
 
-  const makeOnChangeFn = (paramName, formatFn) => (e) => {
-    let { value } = e.target;
-    if (formatFn) {
-      value = formatFn(value);
-    }
+  const makeOnChangeFn = (paramName, formatFn) => (value) => {
+    const formattedValue = formatFn ? formatFn(value) : value;
     const params = new URLSearchParams(searchParams);
 
-    if (value) params.set(paramName, value);
+    if (formattedValue) params.set(paramName, formattedValue);
     else params.delete(paramName);
 
     setSearchParams(params);

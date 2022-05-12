@@ -59,7 +59,7 @@ describe('Test useFilters hook', () => {
     const { result } = renderHook(() => useFilters(), { wrapper: RouterWrapper });
 
     await act(async () => {
-      result.current[fnName]({ target: { value: paramValue } });
+      result.current[fnName](paramValue);
     });
 
     expect(result.current.filters[paramName]).toBe(paramValue);
