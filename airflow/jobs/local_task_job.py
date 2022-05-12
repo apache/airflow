@@ -73,6 +73,8 @@ class LocalTaskJob(BaseJob):
         # terminate multiple times
         self.terminating = False
 
+        self._state_change_checks = 0
+
         super().__init__(*args, **kwargs)
 
     def _execute(self):
@@ -84,7 +86,6 @@ class LocalTaskJob(BaseJob):
             self.log.error("Received SIGTERM. Terminating subprocesses")
             self.task_runner.terminate()
             self.handle_task_exit(128 + signum)
-            return
 
         signal.signal(signal.SIGTERM, signal_handler)
 
@@ -106,13 +107,15 @@ class LocalTaskJob(BaseJob):
 
             heartbeat_time_limit = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
-            # task callback invocation happens either here or in
-            # self.heartbeat() instead of taskinstance._run_raw_task to
-            # avoid race conditions
-            #
-            # When self.terminating is set to True by heartbeat_callback, this
-            # loop should not be restarted. Otherwise self.handle_task_exit
-            # will be invoked and we will end up with duplicated callbacks
+            # LocalTaskJob should not run callbacks, which are handled by TaskInstance._run_raw_task
+            # 1, LocalTaskJob does not parse DAG, thus cannot run callbacks
+            # 2, The run_as_user of LocalTaskJob is likely not same as the TaskInstance._run_raw_task.
+            # When run_as_user is specified, the process owner of the LocalTaskJob must be sudoable.
+            # It is not secure to run callbacks with sudoable users.
+
+            # If _run_raw_task receives SIGKILL, scheduler will mark it as zombie and invoke callbacks
+            # If LocalTaskJob receives SIGTERM, LocalTaskJob passes SIGTERM to _run_raw_task
+            # If the state of task_instance is changed, LocalTaskJob sends SIGTERM to _run_raw_task
             while not self.terminating:
                 # Monitor the task to see if it's done. Wait in a syscall
                 # (`os.wait`) for as long as possible so we notice the
@@ -150,26 +153,18 @@ class LocalTaskJob(BaseJob):
             self.on_kill()
 
     def handle_task_exit(self, return_code: int) -> None:
-        """Handle case where self.task_runner exits by itself or is externally killed"""
+        """
+        Handle case where self.task_runner exits by itself or is externally killed
+
+        Dont run any callbacks
+        """
         # Without setting this, heartbeat may get us
         self.terminating = True
         self.log.info("Task exited with return code %s", return_code)
-        self.task_instance.refresh_from_db()
 
-        if self.task_instance.state == State.RUNNING:
-            # This is for a case where the task received a SIGKILL
-            # while running or the task runner received a sigterm
-            self.task_instance.handle_failure(error=None)
-        # We need to check for error file
-        # in case it failed due to runtime exception/error
-        error = None
-        if self.task_instance.state != State.SUCCESS:
-            error = self.task_runner.deserialize_run_error()
-        self.task_instance._run_finished_callback(error=error)
         if not self.task_instance.test_mode:
             if conf.getboolean('scheduler', 'schedule_after_task_execution', fallback=True):
                 self._run_mini_scheduler_on_child_tasks()
-            self._update_dagrun_state_for_paused_dag()
 
     def on_kill(self):
         self.task_runner.terminate()
@@ -217,19 +212,16 @@ class LocalTaskJob(BaseJob):
                 dagrun_timeout = ti.task.dag.dagrun_timeout
                 if dagrun_timeout and execution_time > dagrun_timeout:
                     self.log.warning("DagRun timed out after %s.", str(execution_time))
-            self.log.warning(
-                "State of this instance has been externally set to %s. Terminating instance.", ti.state
-            )
-            self.task_runner.terminate()
-            if ti.state == State.SUCCESS:
-                error = None
-            else:
-                # if ti.state is not set by taskinstance.handle_failure, then
-                # error file will not be populated and it must be updated by
-                # external source such as web UI
-                error = self.task_runner.deserialize_run_error() or "task marked as failed externally"
-            ti._run_finished_callback(error=error)
-            self.terminating = True
+
+            # potential race condition, the _run_raw_task commits `success` or other state
+            # but task_runner does not exit right away due to slow process shutdown or any other reasons
+            # let's do a throttle here, if the above case is true, the handle_task_exit will handle it
+            if self._state_change_checks >= 1:  # defer to next round of heartbeat
+                self.log.warning(
+                    "State of this instance has been externally set to %s. Terminating instance.", ti.state
+                )
+                self.terminating = True
+            self._state_change_checks += 1
 
     @provide_session
     @Sentry.enrich_errors
@@ -281,19 +273,6 @@ class LocalTaskJob(BaseJob):
                 exc_info=True,
             )
             session.rollback()
-
-    @provide_session
-    def _update_dagrun_state_for_paused_dag(self, session=None):
-        """
-        Checks for paused dags with DagRuns in the running state and
-        update the DagRun state if possible
-        """
-        dag = self.task_instance.task.dag
-        if dag.get_is_paused():
-            dag_run = self.task_instance.get_dagrun(session=session)
-            if dag_run:
-                dag_run.dag = dag
-                dag_run.update_state(session=session, execute_callbacks=True)
 
     @staticmethod
     def _enable_task_listeners():

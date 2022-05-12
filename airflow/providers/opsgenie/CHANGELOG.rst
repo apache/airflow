@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'OpsgenieDeleteAlertOperator' (#23405)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Opsgenie: Fix 'close_alert' to properly send 'kwargs' (#23442)``
+
 3.0.3
 .....
 
