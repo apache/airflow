@@ -512,7 +512,7 @@ repos:
         pass_filenames: true
       - id: check-start-date-not-used-in-defaults
         language: pygrep
-        name: "'start_date' should not be defined in default_args in example_dags"
+        name: "'start_date' not to be defined in default_args in example_dags"
         entry: "default_args\\s*=\\s*{\\s*(\"|')start_date(\"|')|(\"|')start_date(\"|'):"
         files: \.*example_dags.*\.py$
         exclude: ^airflow/_vendor/
@@ -603,10 +603,10 @@ repos:
           - 'jsonpath-ng==1.5.3'
           - 'rich>=12.4.1'
       - id: check-pre-commit-information-consistent
-        name: Update information about pre-commit hooks and verify ids and names
+        name: Update information re pre-commit hooks and verify ids and names
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
         args:
-          - --max-length=70
+          - --max-length=64
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
         additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.1']
