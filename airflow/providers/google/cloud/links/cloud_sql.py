@@ -43,12 +43,13 @@ class CloudSQLInstanceLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance: BaseOperator,
+        cloud_sql_instance: str,
         project_id: str,
     ):
         task_instance.xcom_push(
             context,
             key=CloudSQLInstanceLink.key,
-            value={"instance": task_instance.instance, "project_id": project_id},
+            value={"instance": cloud_sql_instance, "project_id": project_id},
         )
 
 
@@ -63,10 +64,11 @@ class CloudSQLInstanceDatabaseLink(BaseGoogleLink):
     def persist(
         context: "Context",
         task_instance: BaseOperator,
+        cloud_sql_instance: str,
         project_id: str,
     ):
         task_instance.xcom_push(
             context,
             key=CloudSQLInstanceDatabaseLink.key,
-            value={"instance": task_instance.instance, "project_id": project_id},
+            value={"instance": cloud_sql_instance, "project_id": project_id},
         )
