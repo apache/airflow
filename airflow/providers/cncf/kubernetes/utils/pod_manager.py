@@ -232,7 +232,6 @@ class PodManager(LoggingMixin):
             loop.close()
             return result
 
-
     def fetch_container_logs(
         self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None
     ) -> PodLoggingStatus:
