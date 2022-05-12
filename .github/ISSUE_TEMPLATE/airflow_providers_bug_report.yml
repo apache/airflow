@@ -92,6 +92,7 @@ body:
         - sqlite
         - ssh
         - tableau
+        - tabular
         - telegram
         - trino
         - vertica

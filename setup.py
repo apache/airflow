@@ -740,6 +740,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'sqlite': [],
     'ssh': ssh,
     'tableau': tableau,
+    'tabular': [],
     'telegram': telegram,
     'trino': trino,
     'vertica': vertica,
