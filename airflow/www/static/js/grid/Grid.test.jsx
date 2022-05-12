@@ -1,3 +1,4 @@
+/* eslint-disable class-methods-use-this */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,15 +18,14 @@
  * under the License.
  */
 
-/* global describe, test, expect */
+/* global describe, test, expect, beforeEach, beforeAll, jest, window */
 
 import React from 'react';
-import { Flex, Table, Tbody } from '@chakra-ui/react';
 import { render, fireEvent, waitFor } from '@testing-library/react';
 
-import renderTaskRows from './renderTaskRows';
-import ToggleGroups from './ToggleGroups';
+import Grid from './Grid';
 import { Wrapper } from './utils/testUtils';
+import * as useGridDataModule from './api/useGridData';
 
 const mockGridData = {
   groups: {
@@ -115,9 +115,40 @@ const EXPAND = 'Expand all task groups';
 const COLLAPSE = 'Collapse all task groups';
 
 describe('Test ToggleGroups', () => {
+  beforeAll(() => {
+    class ResizeObserver {
+      observe() {}
+
+      unobserve() {}
+
+      disconnect() {}
+    }
+
+    window.ResizeObserver = ResizeObserver;
+  });
+
+  beforeEach(() => {
+    jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
+      data: mockGridData,
+    }));
+  });
+
+  test('Group defaults to closed', () => {
+    const { getByTestId, getByText, getAllByTestId } = render(
+      <Grid />,
+      { wrapper: Wrapper },
+    );
+
+    const groupName = getByText('group_1');
+
+    expect(getAllByTestId('task-instance')).toHaveLength(1);
+    expect(groupName).toBeInTheDocument();
+    expect(getByTestId('closed-group')).toBeInTheDocument();
+  });
+
   test('Buttons are disabled if all groups are expanded or collapsed', () => {
     const { getByTitle } = render(
-      <ToggleGroups groups={mockGridData.groups} />,
+      <Grid />,
       { wrapper: Wrapper },
     );
 
@@ -134,19 +165,8 @@ describe('Test ToggleGroups', () => {
   });
 
   test('Expand/collapse buttons toggle nested groups', async () => {
-    global.gridData = mockGridData;
-    const dagRunIds = mockGridData.dagRuns.map((dr) => dr.runId);
-    const task = mockGridData.groups;
-
     const { getByText, queryAllByTestId, getByTitle } = render(
-      <Flex>
-        <ToggleGroups groups={task} />
-        <Table>
-          <Tbody>
-            {renderTaskRows({ task, dagRunIds })}
-          </Tbody>
-        </Table>
-      </Flex>,
+      <Grid />,
       { wrapper: Wrapper },
     );
 
