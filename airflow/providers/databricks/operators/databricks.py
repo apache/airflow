@@ -242,6 +242,11 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_retry_delay: Number of seconds to wait between retries (it
             might be a floating point number).
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
+    :param git_source: Optional specification of a remote git repository from which
+        supported task types are retrieved.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     """
 
     # Used in airflow.models.BaseOperator
