@@ -149,7 +149,7 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
             fi
         done
         if (( ${#installable_files[@]} )); then
-            pip install "${installable_files[@]}"
+            pip install --root-user-action ignore "${installable_files[@]}"
         fi
     fi
 
