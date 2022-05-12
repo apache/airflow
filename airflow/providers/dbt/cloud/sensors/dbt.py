@@ -46,7 +46,7 @@ class DbtCloudJobRunSensor(BaseSensorOperator):
         dbt_cloud_conn_id: str = DbtCloudHook.default_conn_name,
         run_id: int,
         account_id: Optional[int] = None,
-        tenant: Optional[str] = 'cloud',
+        tenant: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
