@@ -366,12 +366,11 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         else:
             self.log.info("Cloud SQL instance with ID %s already exists. Aborting create.", self.instance)
 
-        project_id: str = self.project_id or hook.project_id
         CloudSQLInstanceLink.persist(
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=project_id,
+            project_id=hook.project_id,
         )
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
@@ -462,12 +461,11 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
                 'Please specify another instance to patch.'
             )
         else:
-            project_id: str = self.project_id or hook.project_id
             CloudSQLInstanceLink.persist(
                 context=context,
                 task_instance=self,
                 cloud_sql_instance=self.instance,
-                project_id=project_id,
+                project_id=hook.project_id,
             )
 
             return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
@@ -606,12 +604,11 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        project_id: str = self.project_id or hook.project_id
         CloudSQLInstanceDatabaseLink.persist(
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=project_id,
+            project_id=hook.project_id,
         )
         if self._check_if_db_exists(database, hook):
             self.log.info(
@@ -716,12 +713,11 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                 "Please specify another database to patch."
             )
         else:
-            project_id: str = self.project_id or hook.project_id
             CloudSQLInstanceDatabaseLink.persist(
                 context=context,
                 task_instance=self,
                 cloud_sql_instance=self.instance,
-                project_id=project_id,
+                project_id=hook.project_id,
             )
             return hook.patch_database(
                 project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
@@ -890,18 +886,17 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        project_id: str = self.project_id or hook.project_id
         CloudSQLInstanceLink.persist(
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=project_id,
+            project_id=hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
             task_instance=self,
             uri=self.body["exportContext"]["uri"][5:],
-            project_id=project_id,
+            project_id=hook.project_id,
         )
         return hook.export_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
@@ -1001,18 +996,17 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        project_id: str = self.project_id or hook.project_id
         CloudSQLInstanceLink.persist(
             context=context,
             task_instance=self,
             cloud_sql_instance=self.instance,
-            project_id=project_id,
+            project_id=hook.project_id,
         )
         FileDetailsLink.persist(
             context=context,
             task_instance=self,
             uri=self.body["importContext"]["uri"][5:],
-            project_id=project_id,
+            project_id=hook.project_id,
         )
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
