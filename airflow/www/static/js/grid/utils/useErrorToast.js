@@ -19,8 +19,8 @@
 
 import { useToast } from '@chakra-ui/react';
 
-const getErrorDescription = (error, fallbackMessage) => {
-  if (error.response && error.response.data) {
+export const getErrorDescription = (error, fallbackMessage) => {
+  if (error && error.response && error.response.data) {
     return error.response.data;
   }
   if (error instanceof Error) return error.message;

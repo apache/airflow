@@ -27,10 +27,10 @@ import {
 } from '@chakra-ui/react';
 import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
-import { SimpleStatus } from '../../../StatusBox';
-import { ClipboardText } from '../../../Clipboard';
+import { SimpleStatus } from '../../../components/StatusBox';
+import { ClipboardText } from '../../../components/Clipboard';
 import { formatDuration, getDuration } from '../../../../datetime_utils';
-import Time from '../../../Time';
+import Time from '../../../components/Time';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';

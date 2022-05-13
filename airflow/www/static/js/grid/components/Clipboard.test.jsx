@@ -17,34 +17,23 @@
  * under the License.
  */
 
+/* global describe, test, expect, jest, window */
+
 import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+import '@testing-library/jest-dom';
+import { render, fireEvent } from '@testing-library/react';
 
-import { formatDuration } from '../../datetime_utils';
-import Time from '../components/Time';
+import { ClipboardButton } from './Clipboard';
 
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalStart, executionDate,
-  },
-}) => (
-  <Box py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      <Time dateTime={dataIntervalStart || executionDate} />
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-  </Box>
-);
+describe('ClipboardButton', () => {
+  test('Loads button', async () => {
+    const windowPrompt = window.prompt;
+    window.prompt = jest.fn();
+    const { getByText } = render(<ClipboardButton value="lorem ipsum" />);
 
-export default DagRunTooltip;
+    const button = getByText(/copy/i);
+    fireEvent.click(button);
+    expect(window.prompt).toHaveBeenCalledWith('Copy to clipboard: Ctrl+C, Enter', 'lorem ipsum');
+    window.prompt = windowPrompt;
+  });
+});
