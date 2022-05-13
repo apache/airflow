@@ -61,12 +61,10 @@ from airflow_breeze.utils.common_options import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice, NotVerifiedBetterChoice
 from airflow_breeze.utils.docker_command_utils import (
-    check_docker_compose_version,
-    check_docker_is_running,
     check_docker_resources,
-    check_docker_version,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
+    perform_environment_checks,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import assert_pre_commit_installed, filter_out_none, run_command
@@ -393,6 +391,7 @@ def build_docs(
     package_filter: Tuple[str],
 ):
     """Build documentation in the container."""
+    perform_environment_checks(verbose=verbose)
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     rebuild_ci_image_if_needed(build_params=params, dry_run=dry_run, verbose=verbose)
     ci_image_name = params.airflow_image_name
@@ -470,6 +469,7 @@ def static_checks(
     precommit_args: Tuple,
 ):
     assert_pre_commit_installed(verbose=verbose)
+    perform_environment_checks(verbose=verbose)
     command_to_execute = [sys.executable, "-m", "pre_commit", 'run']
     if last_commit and commit_ref:
         get_console().print("\n[error]You cannot specify both --last-commit and --commit-ref[/]\n")
@@ -529,6 +529,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
 @option_dry_run
 @click.argument('exec_args', nargs=-1, type=click.UNPROCESSED)
 def exec(verbose: bool, dry_run: bool, exec_args: Tuple):
+    perform_environment_checks(verbose=verbose)
     container_running = find_airflow_container(verbose, dry_run)
     if container_running:
         cmd_to_run = [
@@ -567,26 +568,21 @@ def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.Calle
     """
     verbose = kwargs['verbose']
     dry_run = kwargs['dry_run']
-    check_docker_is_running(verbose)
-    check_docker_version(verbose)
-    check_docker_compose_version(verbose)
+    perform_environment_checks(verbose=verbose)
     if read_from_cache_file('suppress_asciiart') is None:
         get_console().print(ASCIIART, style=ASCIIART_STYLE)
     if read_from_cache_file('suppress_cheatsheet') is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
-    return run_shell_with_build_image_checks(verbose, dry_run, enter_shell_params)
+    rebuild_ci_image_if_needed(build_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
+    return run_shell(verbose, dry_run, enter_shell_params)
 
 
-def run_shell_with_build_image_checks(
+def run_shell(
     verbose: bool, dry_run: bool, shell_params: ShellParams
 ) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
     """
-    Executes a shell command built from params passed, checking if build is not needed.
-    * checks if there are enough resources to run shell
-    * checks if image was built at least once (if not - forces the build)
-    * if not forces, checks if build is needed and asks the user if so
-    * builds the image if needed
+    Executes a shell command built from params passed.
     * prints information about the build
     * constructs docker compose command to enter shell
     * executes it
@@ -595,7 +591,6 @@ def run_shell_with_build_image_checks(
     :param dry_run: do not execute "write" commands - just print what would happen
     :param shell_params: parameters of the execution
     """
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
     shell_params.print_badge_info()
     cmd = ['docker-compose', 'run', '--service-ports', "-e", "BREEZE", '--rm', 'airflow']
     cmd_added = shell_params.command_passed
