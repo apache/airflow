@@ -42,7 +42,7 @@ image build jobs in CI.
 An example of such issue is described [here](https://github.com/pypa/pip/issues/10924).
 
 Unfortunately the problem is that in such cases, it is not possible to figure out what caused the
-problem from `pip` output (state as of `pip` 22.0.4).
+problem from `pip` output (state as of `pip` 22.1.0).
 
 There are a number of issues in `pip` that describe the issue, and some backtracking reasons have been already
 tracked down and fixed by `pip` maintainers, but this is a difficult problem to solve and it is likely it

@@ -234,9 +234,7 @@ webserver_config.py itself if you wish.
             team_data = remote_app.get("user/teams")
             teams = team_parser(team_data.json())
             roles = map_roles(teams)
-            log.debug(
-                f"User info from Github: {user_data}\n" f"Team info from Github: {teams}"
-            )
+            log.debug(f"User info from Github: {user_data}\nTeam info from Github: {teams}")
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
 
 

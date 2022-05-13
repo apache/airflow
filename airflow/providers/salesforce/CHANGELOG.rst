@@ -19,6 +19,14 @@
 Changelog
 ---------
 
+3.4.4
+.....
+
+Misc
+~~~~
+
+* ``Organize Tableau classes (#23353)``
+
 3.4.3
 .....
 

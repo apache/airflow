@@ -35,14 +35,15 @@ from airflow.cli import cli_parser
 from airflow.cli.commands import task_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, DagRunNotFound
-from airflow.models import DagBag, DagRun, TaskInstance
+from airflow.models import DagBag, DagRun, Pool, TaskInstance
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
 from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_pools, clear_db_runs
 
 DEFAULT_DATE = days_ago(1)
 ROOT_FOLDER = os.path.realpath(
@@ -118,6 +119,38 @@ class TestCliTasks(unittest.TestCase):
                     for log in cm.output
                 ]
             )
+
+    @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_run_get_serialized_dag(self, mock_local_job, mock_get_dag_by_deserialization):
+        """
+        Test using serialized dag for local task_run
+        """
+        task_id = self.dag.task_ids[0]
+        args = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            self.dag_id,
+            task_id,
+            self.run_id,
+        ]
+        mock_get_dag_by_deserialization.return_value = SerializedDagModel.get(self.dag_id).dag
+
+        task_command.task_run(self.parser.parse_args(args))
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            ignore_all_deps=True,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pickle_id=None,
+            pool=None,
+            external_executor_id=None,
+        )
+        mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
@@ -511,6 +544,23 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
             f"INFO - Marking task as SUCCESS. dag_id={self.dag_id}, "
             f"task_id={self.task_id}, execution_date=20170101T000000" in logs
         )
+
+    @unittest.skipIf(not hasattr(os, 'fork'), "Forking not available")
+    def test_run_task_with_pool(self):
+        pool_name = 'test_pool_run'
+
+        clear_db_pools()
+        with create_session() as session:
+            pool = Pool(pool=pool_name, slots=1)
+            session.add(pool)
+            session.commit()
+
+            assert session.query(TaskInstance).filter_by(pool=pool_name).first() is None
+            task_command.task_run(self.parser.parse_args(self.task_args + ['--pool', pool_name]))
+            assert session.query(TaskInstance).filter_by(pool=pool_name).first() is not None
+
+            session.delete(pool)
+            session.commit()
 
     # For this test memory spins out of control on Python 3.6. TODO(potiuk): FIXME")
     @pytest.mark.quarantined

@@ -50,7 +50,7 @@ def dag_processor(args):
     if not conf.getboolean("scheduler", "standalone_dag_processor"):
         raise SystemExit('The option [scheduler/standalone_dag_processor] must be True.')
 
-    sql_conn: str = conf.get('core', 'sql_alchemy_conn').lower()
+    sql_conn: str = conf.get('database', 'sql_alchemy_conn').lower()
     if sql_conn.startswith('sqlite'):
         raise SystemExit('Standalone DagProcessor is not supported when using sqlite.')
 

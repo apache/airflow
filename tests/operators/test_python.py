@@ -868,6 +868,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         return task
 
+    def test_template_fields(self):
+        assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)
+
     def test_add_dill(self):
         def f():
             """Ensure dill is correctly installed."""

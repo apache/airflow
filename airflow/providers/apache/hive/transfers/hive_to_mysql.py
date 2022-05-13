@@ -43,8 +43,8 @@ class HiveToMySqlOperator(BaseOperator):
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
     :param mysql_conn_id: source mysql connection
-    :param metastore_conn_id: Reference to the
-        :ref:`metastore thrift service connection id <howto/connection:hive_metastore>`.
+    :param hiveserver2_conn_id: Reference to the
+        :ref:`Hive Server2 thrift service connection id <howto/connection:hiveserver2>`.
     :param mysql_preoperator: sql statement to run against mysql prior to
         import, typically use to truncate of delete in place
         of the data coming in, allowing the task to be idempotent (running

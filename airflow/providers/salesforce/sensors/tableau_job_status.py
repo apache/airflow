@@ -17,7 +17,7 @@
 
 import warnings
 
-from airflow.providers.tableau.sensors.tableau_job_status import (  # noqa
+from airflow.providers.tableau.sensors.tableau import (  # noqa
     TableauJobFailedException,
     TableauJobStatusSensor,
 )

@@ -101,7 +101,7 @@ with models.DAG(
         dataset_id=DATASET_NAME,
         table_id="test_materialized_view",
         materialized_view={
-            "query": f"SELECT SUM(salary) AS sum_salary " f"FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
+            "query": f"SELECT SUM(salary) AS sum_salary FROM `{PROJECT_ID}.{DATASET_NAME}.test_table`",
             "enableRefresh": True,
             "refreshIntervalMs": 2000000,
         },

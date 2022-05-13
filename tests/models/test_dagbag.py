@@ -17,6 +17,7 @@
 import inspect
 import logging
 import os
+import pathlib
 import shutil
 import sys
 import textwrap
@@ -436,19 +437,13 @@ class TestDagBag:
 
         for dag_id in expected_dag_ids:
             actual_dagbag.log.info(f'validating {dag_id}')
-            assert (
-                dag_id in actual_found_dag_ids
-            ) == should_be_found, 'dag "{}" should {}have been found after processing dag "{}"'.format(
-                dag_id,
-                '' if should_be_found else 'not ',
-                expected_parent_dag.dag_id,
+            assert (dag_id in actual_found_dag_ids) == should_be_found, (
+                f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+                f"have been found after processing dag \"{expected_parent_dag.dag_id}\""
             )
-            assert (
-                dag_id in actual_dagbag.dags
-            ) == should_be_found, 'dag "{}" should {}be in dagbag.dags after processing dag "{}"'.format(
-                dag_id,
-                '' if should_be_found else 'not ',
-                expected_parent_dag.dag_id,
+            assert (dag_id in actual_dagbag.dags) == should_be_found, (
+                f"dag \"{dag_id}\" should {'' if should_be_found else 'not '}"
+                f"be in dagbag.dags after processing dag \"{expected_parent_dag.dag_id}\""
             )
 
     def test_load_subdags(self):
@@ -960,7 +955,7 @@ class TestDagBag:
             assert serialized_dag.dag_id == dag.dag_id
             assert set(serialized_dag.task_dict) == set(dag.task_dict)
 
-    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_violation(self):
         """
         test that file processing results in import error when task does not
@@ -979,7 +974,27 @@ class TestDagBag:
         }
         assert expected_import_errors == dagbag.import_errors
 
-    @patch("airflow.settings.task_policy", cluster_policies.cluster_policy)
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
+    def test_task_cluster_policy_nonstring_owner(self):
+        """
+        test that file processing results in import error when task does not
+        obey cluster policy and has owner whose type is not string.
+        """
+        TEST_DAGS_CORRUPTED_FOLDER = pathlib.Path(__file__).parent.with_name('dags_corrupted')
+        dag_file = os.path.join(TEST_DAGS_CORRUPTED_FOLDER, "test_nonstring_owner.py")
+
+        dagbag = DagBag(dag_folder=dag_file, include_smart_sensor=False, include_examples=False)
+        assert set() == set(dagbag.dag_ids)
+        expected_import_errors = {
+            dag_file: (
+                f"""DAG policy violation (DAG ID: test_nonstring_owner, Path: {dag_file}):\n"""
+                """Notices:\n"""
+                """ * owner should be a string. Current value: ['a']"""
+            )
+        }
+        assert expected_import_errors == dagbag.import_errors
+
+    @patch("airflow.settings.task_policy", cluster_policies.example_task_policy)
     def test_task_cluster_policy_obeyed(self):
         """
         test that dag successfully imported without import errors when tasks

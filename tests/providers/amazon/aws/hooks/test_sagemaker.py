@@ -528,11 +528,8 @@ class TestSageMakerHook(unittest.TestCase):
     def test_secondary_training_status_message_status_changed(self):
         now = datetime.now(tzlocal())
         SECONDARY_STATUS_DESCRIPTION_1['LastModifiedTime'] = now
-        expected = '{} {} - {}'.format(
-            datetime.utcfromtimestamp(time.mktime(now.timetuple())).strftime('%Y-%m-%d %H:%M:%S'),
-            status,
-            message,
-        )
+        expected_time = datetime.utcfromtimestamp(time.mktime(now.timetuple())).strftime('%Y-%m-%d %H:%M:%S')
+        expected = f"{expected_time} {status} - {message}"
         assert (
             secondary_training_status_message(SECONDARY_STATUS_DESCRIPTION_1, SECONDARY_STATUS_DESCRIPTION_2)
             == expected

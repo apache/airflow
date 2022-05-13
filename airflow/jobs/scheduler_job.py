@@ -149,6 +149,7 @@ class SchedulerJob(BaseJob):
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
+        self._paused_dag_without_running_dagruns: Set = set()
 
         if conf.getboolean('smart_sensor', 'use_smart_sensor'):
             compatible_sensors = set(
@@ -273,7 +274,7 @@ class SchedulerJob(BaseJob):
 
         # If the pools are full, there is no point doing anything!
         # If _somehow_ the pool is overfull, don't let the limit go negative - it breaks SQL
-        pool_slots_free = max(0, sum(pool['open'] for pool in pools.values()))
+        pool_slots_free = sum(max(0, pool['open']) for pool in pools.values())
 
         if pool_slots_free == 0:
             self.log.debug("All pools are full!")
@@ -764,6 +765,26 @@ class SchedulerJob(BaseJob):
                     self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
 
+    def _update_dag_run_state_for_paused_dags(self):
+        try:
+            paused_dag_ids = DagModel.get_all_paused_dag_ids()
+            for dag_id in paused_dag_ids:
+                if dag_id in self._paused_dag_without_running_dagruns:
+                    continue
+
+                dag = SerializedDagModel.get_dag(dag_id)
+                if dag is None:
+                    continue
+                dag_runs = DagRun.find(dag_id=dag_id, state=State.RUNNING)
+                for dag_run in dag_runs:
+                    dag_run.dag = dag
+                    _, callback_to_run = dag_run.update_state(execute_callbacks=False)
+                    if callback_to_run:
+                        self._send_dag_callbacks_to_processor(dag, callback_to_run)
+                self._paused_dag_without_running_dagruns.add(dag_id)
+        except Exception as e:  # should not fail the scheduler
+            self.log.exception('Failed to update dag run state for paused dags due to %s', str(e))
+
     def _run_scheduler_loop(self) -> None:
         """
         The actual scheduler loop. The main steps in the loop are:
@@ -809,6 +830,7 @@ class SchedulerJob(BaseJob):
             conf.getfloat('scheduler', 'zombie_detection_interval', fallback=10.0),
             self._find_zombies,
         )
+        timers.call_regular_interval(60.0, self._update_dag_run_state_for_paused_dags)
 
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:

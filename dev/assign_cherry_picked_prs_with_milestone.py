@@ -222,7 +222,7 @@ def get_changes(verbose: bool, previous_release: str, current_release: str) -> L
     change_strings = subprocess.check_output(
         get_git_log_command(verbose, from_commit=previous_release, to_commit=current_release),
         cwd=SOURCE_DIR_PATH,
-        universal_newlines=True,
+        text=True,
     )
     return [get_change_from_line(line) for line in change_strings.split("\n")]
 
@@ -294,7 +294,7 @@ def assign_prs(
             continue
         console.print('-' * 80)
         console.print(
-            f"\n >>>> Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+            f"\n >>>> Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
         )
         pr: PullRequest
         try:

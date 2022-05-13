@@ -62,7 +62,7 @@ We approached the problem by:
    * Backed version (currently MySQL 5.7, MySQL 8, Postgres 13
 
    We've decided that instead of running all the combinations of parameters for all matrix component we will
-   only run default values (Python 3.6, Mysql 5.7, Postgres 13) for all PRs which are not approved yet by
+   only run default values (Python 3.7, Mysql 5.7, Postgres 13) for all PRs which are not approved yet by
    the committers. This has a nice effect, that full set of tests (though with limited combinations of
    the matrix) are still run in the CI for every Pull Request that needs tests at all - allowing the
    contributors to make sure that their PR is "good enough" to be reviewed.

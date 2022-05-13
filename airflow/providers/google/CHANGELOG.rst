@@ -24,70 +24,159 @@ Changelog
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
-* ``apache-airflow-providers-google uses deprecated Google Ads API V8 (#22111)``
+* ``Remove deprecated parameters from PubSub operators: (#23261)``
 
-.. warning:: The underlying google-ads library has been updated
+* ``Upgrade to support Google Ads v10 (#22965)``
 
-   This drops support for versions v6 and v7 of the Google Ads API, and updates
-   the default version of the Google Ads API from the deprecated v8 to v10.
+* ``'DataprocJobBaseOperator' changes (#23350)``
 
-   For more information, see `Deprecation and sunset <https://developers.google.com/google-ads/api/docs/sunset-dates>`_
-   and `Upgrading to the newest version <https://developers.google.com/google-ads/api/docs/version-migration>`_
+  * ``'DataprocJobBaseOperator': order of parameters has changed.``
+  * ``'region' parameter has no default value affected functions/classes: 'DataprocHook.cancel_job' 'DataprocCreateClusterOperator' 'DataprocJobBaseOperator'``
 
-* ``BigtableCreateInstanceOperator`` Remove ``replica_cluster_id``, ``replica_cluster_zone``. Please use ``replica_clusters``.
+* ``'DatastoreHook': Remove 'datastore_conn_id'. Please use 'gcp_conn_id' (#23323)``
+* ``'CloudBuildCreateBuildOperator': Remove 'body'. Please use 'build' (#23263)``
 
-* ``BigtableHook.create_instance``: Remove ``replica_cluster_id``, ``replica_cluster_zone``. Please use ``replica_clusters``.
+* ``Replica cluster id removal (#23251)``
 
-* ``GoogleDisplayVideo360CreateReportOperator``: remove ``params``. Please use ``parameters``
+  * ``'BigtableCreateInstanceOperator' Remove 'replica_cluster_id', 'replica_cluster_zone'. Please use 'replica_clusters'``
+  * ``'BigtableHook.create_instance': Remove 'replica_cluster_id', 'replica_cluster_zone'. Please use 'replica_clusters'``
 
-* ``FacebookAdsReportToGcsOperator``: remove ``params``. Please use ``parameters``
+* ``Remove params (#23230)``
 
-* ``GoogleDriveToGCSOperator``: Remove ``destination_bucket`` and ``destination_object``. Please use ``bucket_name`` and ``object_name``.
+  * ``'GoogleDisplayVideo360CreateReportOperator': Remove 'params'. Please use 'parameters'``
+  * ``'FacebookAdsReportToGcsOperator': Remove 'params'. Please use 'parameters'``
 
-* ``GCSObjectsWtihPrefixExistenceSensor`` removed. Please use ``GCSObjectsWithPrefixExistenceSensor``.
+* ``'GoogleDriveToGCSOperator': Remove 'destination_bucket' and 'destination_object'. Please use 'bucket_name' and 'object_name' (#23072)``
 
-* ``PubSubCreateTopicOperator``: Remove ``project``. Please use ``project_id``
+* ``'GCSObjectsWtihPrefixExistenceSensor' removed. Please use 'GCSObjectsWithPrefixExistenceSensor' (#23050)``
 
-* ``PubSubCreateSubscriptionOperator``: Remove ``topic_project``. Please use ``project_id``
+* ``Remove 'project': (#23231)``
 
-* ``PubSubCreateSubscriptionOperator``: Remove ``subscription_project``. Please use ``subscription_project_id``
+  * ``'PubSubCreateTopicOperator': Remove 'project'. Please use 'project_id'``
+  * ``'PubSubCreateSubscriptionOperator': Remove 'topic_project'. Please use 'project_id'``
+  * ``'PubSubCreateSubscriptionOperator': Remove 'subscription_project'. Please use 'subscription_project_id'``
+  * ``'PubSubDeleteTopicOperator': Remove 'project'. Please use 'project_id'``
+  * ``'PubSubDeleteSubscriptionOperator': Remove 'project'. Please use 'project_id'``
+  * ``'PubSubPublishMessageOperator': Remove 'project'. Please use 'project_id'``
+  * ``'PubSubPullSensor': Remove 'project'. Please use 'project_id'``
+  * ``'PubSubPullSensor': Remove 'return_immediately'``
 
-* ``PubSubDeleteTopicOperator``: Remove ``project``. Please use ``project_id``
+* ``Remove 'location' - replaced with 'region' (#23250)``
 
-* ``PubSubDeleteSubscriptionOperator``: Remove ``project``. Please use ``project_id``
+  * ``'DataprocJobSensor': Remove 'location'. Please use 'region'``
+  * ``'DataprocCreateWorkflowTemplateOperator': Remove 'location'. Please use 'region'``
+  * ``'DataprocCreateClusterOperator': Remove 'location'. Please use 'region'``
+  * ``'DataprocSubmitJobOperator': Remove 'location'. Please use 'region'``
+  * ``'DataprocHook': Remove 'location' parameter. Please use 'region'``
+  * ``Affected functions are:``
 
-* ``PubSubPublishMessageOperator``: Remove ``project``. Please use ``project_id``
+    * ``'cancel_job'``
+    * ``'create_workflow_template'``
+    * ``'get_batch_client'``
+    * ``'get_cluster_client'``
+    * ``'get_job'``
+    * ``'get_job_client'``
+    * ``'get_template_client'``
+    * ``'instantiate_inline_workflow_template'``
+    * ``'instantiate_workflow_template'``
+    * ``'submit_job'``
+    * ``'update_cluster'``
+    * ``'wait_for_job'``
 
-* ``PubSubPullSensor``: Remove ``project``. Please use ``project_id``
+  * ``'DataprocHook': Order of parameters in 'wait_for_job' function has changed``
+  * ``'DataprocSubmitJobOperator': order of parameters has changed.``
 
-* ``PubSubPullSensor``: Remove ``return_immediately``
+* ``Removal of xcom_push (#23252)``
 
-* ``DataprocJobSensor``: Remove ``location``. Please use ``region``.
+  * ``'CloudDatastoreImportEntitiesOperator': Remove 'xcom_push'. Please use 'BaseOperator.do_xcom_push'``
+  * ``'CloudDatastoreExportEntitiesOperator': Remove 'xcom_push'. Please use 'BaseOperator.do_xcom_push'``
 
-* ``DataprocCreateWorkflowTemplateOperator``: Remove ``location``. Please use ``region``.
+* ``'bigquery_conn_id' and 'google_cloud_storage_conn_id' is removed. Please use 'gcp_conn_id' (#23326)``.
 
-* ``DataprocCreateClusterOperator``: Remove ``location``. Please use ``region``.
+  * ``Affected classes:``
 
-* ``DataprocSubmitJobOperator``: Remove ``location``. Please use ``region``.
+    * ``'BigQueryCheckOperator'``
+    * ``'BigQueryCreateEmptyDatasetOperator'``
+    * ``'BigQueryDeleteDatasetOperator'``
+    * ``'BigQueryDeleteTableOperator'``
+    * ``'BigQueryExecuteQueryOperator'``
+    * ``'BigQueryGetDataOperator'``
+    * ``'BigQueryHook'``
+    * ``'BigQueryIntervalCheckOperator'``
+    * ``'BigQueryTableExistenceSensor'``
+    * ``'BigQueryTablePartitionExistenceSensor'``
+    * ``'BigQueryToBigQueryOperator'``
+    * ``'BigQueryToGCSOperator'``
+    * ``'BigQueryUpdateTableSchemaOperator'``
+    * ``'BigQueryUpsertTableOperator'``
+    * ``'BigQueryValueCheckOperator'``
+    * ``'GCSToBigQueryOperator'``
+    * ``'ADLSToGCSOperator'``
+    * ``'BaseSQLToGCSOperator'``
+    * ``'CassandraToGCSOperator'``
+    * ``'GCSBucketCreateAclEntryOperator'``
+    * ``'GCSCreateBucketOperator'``
+    * ``'GCSDeleteObjectsOperator'``
+    * ``'GCSHook'``
+    * ``'GCSListObjectsOperator'``
+    * ``'GCSObjectCreateAclEntryOperator'``
+    * ``'GCSToBigQueryOperator'``
+    * ``'GCSToGCSOperator'``
+    * ``'GCSToLocalFilesystemOperator'``
+    * ``'LocalFilesystemToGCSOperator'``
 
-* ``DataprocHook``: Remove ``location`` parameter. Please use ``region``.
-  affected functions are:
-  ``cancel_job``, ``create_workflow_template``, ``get_batch_client``,
-  ``get_cluster_client``, ``get_job``, ``get_job_client``, ``get_template_client``,
-  ``instantiate_inline_workflow_template``, ``instantiate_workflow_template``,
-  ``submit_job``, ``update_cluster``,``wait_for_job``
+* ``'S3ToGCSOperator': Remove 'dest_gcs_conn_id'. Please use 'gcp_conn_id' (#23348)``
 
-* ``DataprocHook``: order of parameters in ``wait_for_job`` function has changed.
+* ``'BigQueryHook' changes (#23269)``
 
-* ``DataprocSubmitJobOperator``: order of parameters has changed.
+  * ``'BigQueryHook.create_empty_table' Remove 'num_retries'. Please use 'retry'``
+  * ``'BigQueryHook.run_grant_dataset_view_access' Remove 'source_project'. Please use 'project_id'``
 
-* ``CloudDatastoreImportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
+* ``'DataprocHook': Remove deprecated function 'submit' (#23389)``
 
-* ``CloudDatastoreExportEntitiesOperator`` : Remove ``xcom_push``. Please use ``BaseOperator.do_xcom_push``
 
-* ``BigQueryHook.create_empty_table`` Remove ``num_retries``. Please use ``retry``.
+Features
+~~~~~~~~
 
-* ``BigQueryHook.run_grant_dataset_view_access`` Remove ``source_project``. Please use ``project_id``.
+* ``[FEATURE] google provider - BigQueryInsertJobOperator log query (#23648)``
+* ``[FEATURE] google provider - split GkeStartPodOperator execute (#23518)``
+* ``Add exportContext.offload flag to CLOUD_SQL_EXPORT_VALIDATION. (#23614)``
+* ``Create links for BiqTable operators (#23164)``
+* ``implements #22859 - Add .sql as templatable extension (#22920)``
+* ``'GCSFileTransformOperator': New templated fields 'source_object', 'destination_object' (#23328)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix 'PostgresToGCSOperator' does not allow nested JSON (#23063)``
+* ``Fix GCSToGCSOperator ignores replace parameter when there is no wildcard (#23340)``
+* ``update processor to fix broken download URLs (#23299)``
+* ``'LookerStartPdtBuildOperator', 'LookerCheckPdtBuildSensor' : fix empty materialization id handling (#23025)``
+* ``Change ComputeSSH to throw provider import error instead paramiko (#23035)``
+* ``Fix cancel_on_kill after execution timeout for DataprocSubmitJobOperator (#22955)``
+* ``Fix select * query xcom push for BigQueryGetDataOperator (#22936)``
+* ``MSSQLToGCSOperator fails: datetime is not JSON Serializable (#22882)``
+
+Misc
+~~~~
+
+* ``Add Stackdriver assets and migrate system tests to AIP-47 (#23320)``
+* ``CloudTasks assets & system tests migration (AIP-47) (#23282)``
+* ``TextToSpeech assets & system tests migration (AIP-47) (#23247)``
+* ``Fix code-snippets in google provider (#23438)``
+* ``Bigquery assets (#23165)``
+* ``Remove redundant docstring in 'BigQueryUpdateTableSchemaOperator' (#23349)``
+* ``Migrate gcs to new system tests design (#22778)``
+* ``add missing docstring in 'BigQueryHook.create_empty_table' (#23270)``
+* ``Cleanup Google provider CHANGELOG.rst (#23390)``
+* ``migrate system test gcs_to_bigquery into new design (#22753)``
+* ``Add example DAG for demonstrating usage of GCS sensors (#22808)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Clean up in-line f-string concatenation (#23591)``
+   * ``Bump pre-commit hook versions (#22887)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+   * ``Fix new MyPy errors in main (#22884)``
 
 6.8.0
 .....

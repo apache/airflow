@@ -166,7 +166,7 @@ def get_changes(
             verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
         ),
         cwd=SOURCE_DIR_PATH,
-        universal_newlines=True,
+        text=True,
     )
     return [get_change_from_line(line) for line in change_strings.split("\n")]
 
@@ -274,7 +274,7 @@ def generate_issue_content(
         for i in range(count_prs):
             pr_number = prs[i]
             progress.console.print(
-                f"Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
             )
 
             pr: PullRequestOrIssue
