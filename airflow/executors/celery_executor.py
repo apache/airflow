@@ -363,19 +363,26 @@ class CeleryExecutor(BaseExecutor):
             "\n\t".join(repr(x) for x in timedout_keys),
         )
 
-        filter_for_tis = TaskInstance.filter_for_tis(timedout_keys)
-        session.query(TaskInstance).filter(
-            filter_for_tis, TaskInstance.state == State.QUEUED, TaskInstance.queued_by_job_id == self.job_id
-        ).update(
-            {
-                TaskInstance.state: State.SCHEDULED,
-                TaskInstance.queued_dttm: None,
-                TaskInstance.queued_by_job_id: None,
-                TaskInstance.external_executor_id: None,
-            },
-            synchronize_session=False,
-        )
-        session.commit()
+        try:
+            filter_for_tis = TaskInstance.filter_for_tis(timedout_keys)
+            session.query(TaskInstance).filter(
+                filter_for_tis,
+                TaskInstance.state == State.QUEUED,
+                TaskInstance.queued_by_job_id == self.job_id,
+            ).update(
+                {
+                    TaskInstance.state: State.SCHEDULED,
+                    TaskInstance.queued_dttm: None,
+                    TaskInstance.queued_by_job_id: None,
+                    TaskInstance.external_executor_id: None,
+                },
+                synchronize_session=False,
+            )
+            session.commit()
+        except Exception:
+            self.log.exception("Error clearing stalled tasks")
+            session.rollback()
+            return
 
         for key in timedout_keys:
             self.stalled_task_timeouts.pop(key, None)
@@ -384,8 +391,8 @@ class CeleryExecutor(BaseExecutor):
             if celery_async_result:
                 try:
                     app.control.revoke(celery_async_result.task_id)
-                except Exception as ex:
-                    self.log.error("Error revoking task instance %s from celery: %s", key, ex)
+                except Exception:
+                    self.log.exception("Error revoking task instance %s from celery", key)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
