@@ -24,7 +24,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 import React from 'react';
-import { SimpleStatus } from './StatusBox';
+import { SimpleStatus } from './components/StatusBox';
 
 const LegendRow = () => (
   <Flex mt={0} mb={2} p={4} flexWrap="wrap">

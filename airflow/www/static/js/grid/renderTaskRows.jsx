@@ -27,8 +27,8 @@ import {
   useTheme,
 } from '@chakra-ui/react';
 
-import StatusBox, { boxSize, boxSizePx } from './StatusBox';
-import TaskName from './TaskName';
+import StatusBox, { boxSize, boxSizePx } from './components/StatusBox';
+import TaskName from './components/TaskName';
 
 import useSelection from './utils/useSelection';
 
