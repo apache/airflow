@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-12T20:48:36Z
+# This constraints file was automatically generated on 2022-05-13T11:17:50Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -37,7 +37,7 @@ WTForms==2.3.3
 Werkzeug==1.0.1
 alembic==1.7.7
 amqp==5.1.1
-anyio==3.5.0
+anyio==3.6.0
 apispec==3.3.2
 argcomplete==2.0.0
 attrs==20.3.0
@@ -75,8 +75,8 @@ distributed==2022.2.0
 dnspython==2.2.1
 docutils==0.18.1
 email-validator==1.2.1
-eventlet==0.33.0
-filelock==3.6.0
+eventlet==0.33.1
+filelock==3.7.0
 flower==1.0.0
 fsspec==2022.3.0
 gevent==21.12.0
