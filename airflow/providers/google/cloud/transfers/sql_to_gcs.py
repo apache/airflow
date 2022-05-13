@@ -169,7 +169,12 @@ class BaseSQLToGCSOperator(BaseOperator):
             contain the data for the GCS objects.
         """
         org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
-        schema = [column for column in org_schema if column not in self.exclude_columns]
+
+        if self.exclude_columns is None:
+            schema = org_schema
+        else:
+            schema = [column for column in org_schema if column not in self.exclude_columns]
+
         col_type_dict = self._get_col_type_dict()
         file_no = 0
 
@@ -318,8 +323,11 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema = self.schema
         else:
             self.log.info("Starts generating schema")
-            schema = [self.field_to_bigquery(field) for field in cursor.description if
-                      field[0] not in self.exclude_columns]
+            if self.exclude_columns is None:
+                schema = [self.field_to_bigquery(field) for field in cursor.description]
+            else:
+                schema = [self.field_to_bigquery(field) for field in cursor.description if
+                          field[0] not in self.exclude_columns]
 
         if isinstance(schema, list):
             schema = json.dumps(schema, sort_keys=True)
