@@ -21,8 +21,8 @@
 import fnmatch
 import gzip as gz
 import io
-import re
 import os
+import re
 import shutil
 from datetime import datetime
 from functools import wraps
