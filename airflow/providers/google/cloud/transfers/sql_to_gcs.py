@@ -19,7 +19,7 @@
 import abc
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union, List
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -87,23 +87,24 @@ class BaseSQLToGCSOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     def __init__(
-        self,
-        *,
-        sql: str,
-        bucket: str,
-        filename: str,
-        schema_filename: Optional[str] = None,
-        approx_max_file_size_bytes: int = 1900000000,
-        export_format: str = 'json',
-        field_delimiter: str = ',',
-        null_marker: Optional[str] = None,
-        gzip: bool = False,
-        schema: Optional[Union[str, list]] = None,
-        parameters: Optional[dict] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        **kwargs,
+            self,
+            *,
+            sql: str,
+            bucket: str,
+            filename: str,
+            schema_filename: Optional[str] = None,
+            approx_max_file_size_bytes: int = 1900000000,
+            export_format: str = 'json',
+            field_delimiter: str = ',',
+            null_marker: Optional[str] = None,
+            gzip: bool = False,
+            schema: Optional[Union[str, list]] = None,
+            parameters: Optional[dict] = None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+            exclude_columns: List[str] = None,
+            **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
@@ -120,6 +121,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.exclude_columns = exclude_columns
 
     def execute(self, context: 'Context'):
         self.log.info("Executing query")
@@ -165,7 +167,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        schema = [column for column in org_schema if column not in self.exclude_columns]
         col_type_dict = self._get_col_type_dict()
         file_no = 0
 
@@ -314,7 +317,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema = self.schema
         else:
             self.log.info("Starts generating schema")
-            schema = [self.field_to_bigquery(field) for field in cursor.description]
+            schema = [self.field_to_bigquery(field) for field in cursor.description if
+                      field[0] not in self.exclude_columns]
 
         if isinstance(schema, list):
             schema = json.dumps(schema, sort_keys=True)
