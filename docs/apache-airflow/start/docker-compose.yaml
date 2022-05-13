@@ -252,22 +252,22 @@ services:
       - bash
       - -c
       - airflow
-
-  flower:
-    <<: *airflow-common
-    command: celery flower
-    ports:
-      - 5555:5555
-    healthcheck:
-      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
-      interval: 10s
-      timeout: 10s
-      retries: 5
-    restart: always
-    depends_on:
-      <<: *airflow-common-depends-on
-      airflow-init:
-        condition: service_completed_successfully
+# you can enable flower by uncommenting those lines
+#  flower:
+#    <<: *airflow-common
+#    command: celery flower
+#    ports:
+#      - 5555:5555
+#    healthcheck:
+#      test: ["CMD", "curl", "--fail", "http://localhost:5555/"]
+#      interval: 10s
+#      timeout: 10s
+#      retries: 5
+#    restart: always
+#    depends_on:
+#      <<: *airflow-common-depends-on
+#      airflow-init:
+#        condition: service_completed_successfully
 
 volumes:
   postgres-db-volume:
