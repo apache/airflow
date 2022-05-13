@@ -61,7 +61,7 @@ function push_pull_remove_images::pull_image_if_not_present_or_forced() {
         echo
         echo "Pulling the image ${IMAGE_TO_PULL}"
         echo
-        docker pull "${IMAGE_TO_PULL}"
+        #docker pull "${IMAGE_TO_PULL}"
         EXIT_VALUE="$?"
         if [[ ${EXIT_VALUE} != "0" && ${FAIL_ON_GITHUB_DOCKER_PULL_ERROR} == "true" ]]; then
             echo
@@ -128,8 +128,8 @@ Docker pulling ${PYTHON_BASE_IMAGE}.
                 fi
                 push_pull_remove_images::pull_image_github_dockerhub "${PYTHON_BASE_IMAGE}" "${GITHUB_REGISTRY_PYTHON_BASE_IMAGE}${PYTHON_TAG_SUFFIX}"
             else
-                docker pull "${AIRFLOW_CI_PYTHON_IMAGE}"
-                docker tag "${AIRFLOW_CI_PYTHON_IMAGE}" "${PYTHON_BASE_IMAGE}"
+                echo docker pull "${AIRFLOW_CI_PYTHON_IMAGE}"
+                echo docker tag "${AIRFLOW_CI_PYTHON_IMAGE}" "${PYTHON_BASE_IMAGE}"
             fi
             echo
         fi
