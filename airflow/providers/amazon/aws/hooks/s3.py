@@ -22,6 +22,7 @@ import fnmatch
 import gzip as gz
 import io
 import re
+import os
 import shutil
 from datetime import datetime
 from functools import wraps
@@ -846,14 +847,14 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     @unify_bucket_name_and_key
     def download_file(
-        self, key: str, bucket_name: Optional[str] = None, filename: Optional[str] = None
+        self, key: str, bucket_name: Optional[str] = None, local_path: Optional[str] = None
     ) -> str:
         """
         Downloads a file from the S3 location to the local file system.
-
         :param key: The key path in S3.
         :param bucket_name: The specific bucket to use.
-        :param filename: Path to the file to download.
+        :param local_path: The local path to the downloaded file. If no path is provided it will use the
+            system's temporary directory.
         :return: the file name.
         :rtype: str
         """
@@ -868,9 +869,20 @@ class S3Hook(AwsBaseHook):
                 )
             else:
                 raise e
-        
-        client = self.get_conn()
-        client.download_file(bucket_name, key, filename)
+
+        filename = ""
+
+        # use download_file from boto3 if local_path is a file
+        if type(local_path) == str and os.path.isfile(local_path):
+            client = self.get_conn()
+            client.download_file(bucket_name, key, local_path)
+            filename = local_path.split("/")[-1]
+
+        # use download_fileobj from boto3 if local_path is a directory
+        else:
+            with NamedTemporaryFile(dir=local_path, prefix='airflow_tmp_', delete=False) as local_tmp_file:
+                s3_obj.download_fileobj(local_tmp_file)
+                filename = local_tmp_file.name
 
         return filename
 
