@@ -21,7 +21,6 @@ from typing import Tuple
 
 import click
 
-from airflow_breeze.commands.developer_commands import check_docker_is_running, check_docker_resources
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import ALLOWED_TEST_TYPES
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -38,7 +37,10 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
-from airflow_breeze.utils.docker_command_utils import get_env_variables_for_docker_commands
+from airflow_breeze.utils.docker_command_utils import (
+    get_env_variables_for_docker_commands,
+    perform_environment_checks,
+)
 from airflow_breeze.utils.run_tests import run_docker_compose_tests
 from airflow_breeze.utils.run_utils import run_command
 
@@ -150,9 +152,7 @@ def tests(
 
     exec_shell_params = ShellParams(verbose=verbose, dry_run=dry_run)
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
-    check_docker_is_running(verbose)
-    check_docker_resources(exec_shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
-
+    perform_environment_checks(verbose=verbose)
     cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
     run_command(
