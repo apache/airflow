@@ -19,10 +19,11 @@
 import logging
 import sys
 from collections import defaultdict
+from collections.abc import Hashable
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import Hashable, List, Optional, Tuple, Union
+from typing import List, Optional, Tuple, Union
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
