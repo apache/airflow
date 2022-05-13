@@ -555,7 +555,7 @@ class SchedulerJob(BaseJob):
 
     def _critical_section_schedule_task_instances(self, session: Session) -> int:
         """
-        Schedules TaskInstances for execution executed.
+        Schedules TaskInstances for execution.
 
         There are three steps:
         1. Pick TIs by priority with the constraint that they are in the expected states
