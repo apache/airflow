@@ -28,8 +28,8 @@ import {
 } from '@chakra-ui/react';
 
 import InstanceTooltip from './InstanceTooltip';
-import { useContainerRef } from './context/containerRef';
-import useFilters from './utils/useFilters';
+import { useContainerRef } from '../context/containerRef';
+import useFilters from '../utils/useFilters';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;

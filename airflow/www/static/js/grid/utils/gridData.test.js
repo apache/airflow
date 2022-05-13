@@ -17,34 +17,31 @@
  * under the License.
  */
 
-import React from 'react';
-import { Box, Text } from '@chakra-ui/react';
+/* global describe, test, expect */
 
-import { formatDuration } from '../../datetime_utils';
-import Time from '../components/Time';
+import { areActiveRuns } from './gridData';
 
-const DagRunTooltip = ({
-  dagRun: {
-    state, duration, dataIntervalStart, executionDate,
-  },
-}) => (
-  <Box py="2px">
-    <Text>
-      Status:
-      {' '}
-      {state || 'no status'}
-    </Text>
-    <Text whiteSpace="nowrap">
-      Run:
-      {' '}
-      <Time dateTime={dataIntervalStart || executionDate} />
-    </Text>
-    <Text>
-      Duration:
-      {' '}
-      {formatDuration(duration)}
-    </Text>
-  </Box>
-);
+describe('Test areActiveRuns()', () => {
+  test('Correctly detects active runs', () => {
+    const runs = [
+      { state: 'success' },
+      { state: 'queued' },
+    ];
+    expect(areActiveRuns(runs)).toBe(true);
+  });
 
-export default DagRunTooltip;
+  test('Returns false when all runs are resolved', () => {
+    const runs = [
+      { state: 'success' },
+      { state: 'failed' },
+      { state: 'not_queued' },
+    ];
+    const result = areActiveRuns(runs);
+    expect(result).toBe(false);
+  });
+
+  test('Returns false when there are no runs', () => {
+    const result = areActiveRuns();
+    expect(result).toBe(false);
+  });
+});

@@ -20,8 +20,8 @@
 /* global moment */
 
 import React from 'react';
-import { useTimezone } from './context/timezone';
-import { defaultFormatWithTZ } from '../datetime_utils';
+import { useTimezone } from '../context/timezone';
+import { defaultFormatWithTZ } from '../../datetime_utils';
 
 const Time = ({ dateTime, format = defaultFormatWithTZ }) => {
   const { timezone } = useTimezone();
@@ -32,6 +32,7 @@ const Time = ({ dateTime, format = defaultFormatWithTZ }) => {
 
   const formattedTime = time.tz(timezone).format(format);
   const utcTime = time.tz('UTC').format(defaultFormatWithTZ);
+
   return (
     <time
       dateTime={dateTime}
