@@ -493,6 +493,7 @@ presto = [
     # The limit to Presto 0.8 for unknown reason
     # TODO: Remove the limit
     'presto-python-client>=0.7.0,<0.8',
+    'sqlparse>=0.4.1',
     pandas_requirement,
 ]
 psrp = [

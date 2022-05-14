@@ -20,7 +20,7 @@ import json
 import re
 import unittest
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import call, patch
 
 import pytest
 from parameterized import parameterized
@@ -252,6 +252,16 @@ class TestPrestoHook(unittest.TestCase):
         self.conn.close.assert_called_once_with()
         self.cur.close.assert_called_once_with()
         self.cur.execute.assert_called_once_with(statement)
+
+    def test_execute_multiple(self):
+        statement = "select 123; select 456"
+        result_sets = [[('row1',), ('row2',)], [('row3',), ('row4',)]]
+        self.cur.fetchall.side_effect = result_sets
+
+        # only return the last query
+        assert result_sets[-1] == self.db_hook.execute_multiple(statement)
+
+        self.cur.execute.assert_has_calls([call('select 123'), call('select 456')])
 
     def test_get_records(self):
         statement = 'SQL'

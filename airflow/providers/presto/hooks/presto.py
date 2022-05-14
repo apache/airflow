@@ -173,6 +173,24 @@ class PrestoHook(DbApiHook):
         except DatabaseError as e:
             raise PrestoException(e)
 
+    def execute_multiple(self, sql: str, parameters: Optional[dict] = None):
+        """
+        Execute multiple queries
+        Result of the last query will be returned
+        """
+        import sqlparse
+
+        try:
+            hook = super()
+            result = None
+            for one_sql in sqlparse.split(sql):
+                if one_sql:
+                    result = hook.get_records(self._strip_sql(one_sql), parameters)  # type: ignore
+
+            return result
+        except DatabaseError as e:
+            raise PrestoException(e)
+
     @overload
     def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
         """Returns only the first row, regardless of how many rows the query returns.
