@@ -309,6 +309,19 @@ class TestServiceAccountAnnotations:
                 "example": "cleanup",
             },
         ),
+        (
+            {
+                "redis": {
+                    "podAnnotations": {
+                        "example": "redis",
+                    },
+                },
+            },
+            "templates/redis/redis-statefulset.yaml",
+            {
+                "example": "redis",
+            },
+        ),
     ],
 )
 class TestPerComponentPodAnnotations:
