@@ -192,7 +192,7 @@ class DockerOperator(BaseOperator):
         elif str(auto_remove) == "True":
             self.auto_remove = "success"
         elif str(auto_remove) in ("never", "success", "force"):
-            self.auto_remove = str(auto_remove)
+            self.auto_remove = auto_remove
         else:
             raise AirflowException("unsupport auto_remove option, use 'never', 'success', 'force' instead")
         self.command = command
