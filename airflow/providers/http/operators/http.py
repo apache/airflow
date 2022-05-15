@@ -41,7 +41,7 @@ class SimpleHttpOperator(BaseOperator):
     :param method: The HTTP method to use, default = "POST"
     :param data: The data to pass. POST-data in POST/PUT and params
         in the URL for a GET request. (templated)
-    :param headers: The HTTP headers to be added to the GET request
+    :param headers: The HTTP headers to be added to the GET request. (templated)
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
@@ -61,7 +61,7 @@ class SimpleHttpOperator(BaseOperator):
         'data',
         'headers',
     )
-    template_fields_renderers = {'headers': 'json', 'data': 'json'}
+    template_fields_renderers: Dict[str, str] = {'headers': 'json', 'data': 'py'}
     template_ext: Sequence[str] = ()
     ui_color = '#f4a460'
 

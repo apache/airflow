@@ -106,9 +106,9 @@ class PythonOperator(BaseOperator):
 
     :param python_callable: A reference to an object that is callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
-        in your function
+        in your function. (templated)
     :param op_args: a list of positional arguments that will get unpacked when
-        calling your callable
+        calling your callable. (templated)
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
@@ -122,7 +122,7 @@ class PythonOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
-    template_fields_renderers = {"templates_dict": "json", "op_args": "json", "op_kwargs": "json"}
+    template_fields_renderers: Dict[str, str] = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
     BLUE = '#ffefeb'
     ui_color = BLUE
 
