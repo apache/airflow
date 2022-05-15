@@ -26,10 +26,8 @@ import {
 } from '@chakra-ui/react';
 import React from 'react';
 
-import useFilters from './utils/useFilters';
-
 const StatusBadge = ({
-  state, stateColor, onMouseEnter, onMouseLeave,
+  state, stateColor, setHoveredTaskState,
 }) => (
   <Text
     borderRadius={4}
@@ -37,32 +35,28 @@ const StatusBadge = ({
     px={1}
     cursor="pointer"
     fontSize="11px"
-    onMouseEnter={onMouseEnter}
-    onMouseLeave={onMouseLeave}
+    onMouseEnter={() => setHoveredTaskState(state)}
+    onMouseLeave={() => setHoveredTaskState()}
   >
     {state}
   </Text>
 );
 
-const LegendRow = () => {
-  const { onTaskStateChange } = useFilters();
-  return (
-    <Flex p={4} flexWrap="wrap" justifyContent="end">
-      <HStack spacing={2}>
-        {
+const LegendRow = ({ setHoveredTaskState }) => (
+  <Flex p={4} flexWrap="wrap" justifyContent="end">
+    <HStack spacing={2}>
+      {
       Object.entries(stateColors).map(([state, stateColor]) => (
         <StatusBadge
           key={stateColor}
           state={state}
           stateColor={stateColor}
-          onMouseEnter={() => onTaskStateChange(state)}
-          onMouseLeave={() => onTaskStateChange()}
+          setHoveredTaskState={setHoveredTaskState}
         />
       ))
       }
-      </HStack>
-    </Flex>
-  );
-};
+    </HStack>
+  </Flex>
+);
 
 export default LegendRow;

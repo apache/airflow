@@ -49,7 +49,7 @@ const FilterBar = () => {
   const inputStyles = { backgroundColor: 'white', size: 'lg' };
 
   return (
-    <Flex backgroundColor="#f0f0f0" mt={0} mb={2} p={4}>
+    <Flex backgroundColor="#f0f0f0" mt={4} p={4}>
       <Box px={2}>
         <Input
           {...inputStyles}

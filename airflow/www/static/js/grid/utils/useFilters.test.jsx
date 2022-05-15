@@ -38,7 +38,6 @@ describe('Test useFilters hook', () => {
         numRuns,
         runType,
         runState,
-        taskState,
       },
     } = result.current;
 
@@ -46,7 +45,6 @@ describe('Test useFilters hook', () => {
     expect(numRuns).toBe(global.defaultDagRunDisplayNumber);
     expect(runType).toBeNull();
     expect(runState).toBeNull();
-    expect(taskState).toBeNull();
   });
 
   test.each([
@@ -54,7 +52,6 @@ describe('Test useFilters hook', () => {
     { fnName: 'onNumRunsChange', paramName: 'numRuns', paramValue: '10' },
     { fnName: 'onRunTypeChange', paramName: 'runType', paramValue: 'manual' },
     { fnName: 'onRunStateChange', paramName: 'runState', paramValue: 'success' },
-    { fnName: 'onTaskStateChange', paramName: 'taskState', paramValue: 'deferred' },
   ])('Test $fnName functions', async ({ fnName, paramName, paramValue }) => {
     const { result } = renderHook(() => useFilters(), { wrapper: RouterWrapper });
 

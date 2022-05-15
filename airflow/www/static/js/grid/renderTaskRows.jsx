@@ -31,7 +31,6 @@ import StatusBox, { boxSize, boxSizePx } from './components/StatusBox';
 import TaskName from './components/TaskName';
 
 import useSelection from './utils/useSelection';
-import useFilters from './utils/useFilters';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
@@ -49,42 +48,38 @@ const renderTaskRows = ({
 ));
 
 const TaskInstances = ({
-  task, dagRunIds, selectedRunId, onSelect,
-}) => {
-  const { filters: { taskState } } = useFilters();
-
-  return (
-    <Flex justifyContent="flex-end">
-      {dagRunIds.map((runId) => {
-        // Check if an instance exists for the run, or return an empty box
-        const instance = task.instances.find((gi) => gi.runId === runId);
-        const isSelected = selectedRunId === runId;
-        return (
-          <Box
-            py="4px"
-            px={boxPaddingPx}
-            className={`js-${runId}`}
-            data-selected={isSelected}
-            transition="background-color 0.2s"
-            key={`${runId}-${task.id}`}
-            bg={isSelected && 'blue.100'}
-          >
-            {instance
-              ? (
-                <StatusBox
-                  instance={instance}
-                  group={task}
-                  onSelect={onSelect}
-                  isActive={!taskState || taskState === instance.state}
-                />
-              )
-              : <Box width={boxSizePx} data-testid="blank-task" />}
-          </Box>
-        );
-      })}
-    </Flex>
-  );
-};
+  task, dagRunIds, selectedRunId, onSelect, activeTaskState,
+}) => (
+  <Flex justifyContent="flex-end">
+    {dagRunIds.map((runId) => {
+      // Check if an instance exists for the run, or return an empty box
+      const instance = task.instances.find((gi) => gi.runId === runId);
+      const isSelected = selectedRunId === runId;
+      return (
+        <Box
+          py="4px"
+          px={boxPaddingPx}
+          className={`js-${runId}`}
+          data-selected={isSelected}
+          transition="background-color 0.2s"
+          key={`${runId}-${task.id}`}
+          bg={isSelected && 'blue.100'}
+        >
+          {instance
+            ? (
+              <StatusBox
+                instance={instance}
+                group={task}
+                onSelect={onSelect}
+                isActive={!activeTaskState || activeTaskState === instance.state}
+              />
+            )
+            : <Box width={boxSizePx} data-testid="blank-task" />}
+        </Box>
+      );
+    })}
+  </Flex>
+);
 
 const Row = (props) => {
   const {
@@ -94,6 +89,7 @@ const Row = (props) => {
     openParentCount = 0,
     openGroupIds = [],
     onToggleGroups = () => {},
+    hoveredTaskState,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -168,6 +164,7 @@ const Row = (props) => {
               task={task}
               selectedRunId={selected.runId}
               onSelect={onSelect}
+              activeTaskState={hoveredTaskState}
             />
           </Collapse>
         </Td>
