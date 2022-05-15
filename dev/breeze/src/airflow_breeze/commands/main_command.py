@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 from airflow_breeze.configure_rich_click import click
 from airflow_breeze.utils.common_options import (
     option_airflow_extras,
