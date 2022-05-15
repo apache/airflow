@@ -632,7 +632,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     # we still attempt to kill the yarn application
                     renew_from_kt(self._principal, self._keytab, exit_on_fail=False)
                     env = os.environ.copy()
-                    env["KRB5CCNAME"] = airflow_conf.get('kerberos', 'ccache')
+                    env["KRB5CCNAME"] = airflow_conf.get_mandatory_value('kerberos', 'ccache')
 
                 with subprocess.Popen(
                     kill_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE

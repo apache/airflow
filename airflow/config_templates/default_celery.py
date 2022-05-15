@@ -59,14 +59,14 @@ except AirflowConfigException:
 
 try:
     if celery_ssl_active:
-        if 'amqp://' in broker_url:
+        if broker_url and 'amqp://' in broker_url:
             broker_use_ssl = {
                 'keyfile': conf.get('celery', 'SSL_KEY'),
                 'certfile': conf.get('celery', 'SSL_CERT'),
                 'ca_certs': conf.get('celery', 'SSL_CACERT'),
                 'cert_reqs': ssl.CERT_REQUIRED,
             }
-        elif 'redis://' in broker_url:
+        elif broker_url and 'redis://' in broker_url:
             broker_use_ssl = {
                 'ssl_keyfile': conf.get('celery', 'SSL_KEY'),
                 'ssl_certfile': conf.get('celery', 'SSL_CERT'),
@@ -92,7 +92,7 @@ except Exception as e:
         f'all necessary certs and key ({e}).'
     )
 
-result_backend = DEFAULT_CELERY_CONFIG['result_backend']
+result_backend = str(DEFAULT_CELERY_CONFIG['result_backend'])
 if 'amqp://' in result_backend or 'redis://' in result_backend or 'rpc://' in result_backend:
     log.warning(
         "You have configured a result_backend of %s, it is highly recommended "

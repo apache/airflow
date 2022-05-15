@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 TIMEZONE = pendulum.tz.timezone('UTC')
 try:
-    tz = conf.get("core", "default_timezone")
+    tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
         TIMEZONE = pendulum.tz.local_timezone()
     else:
@@ -77,7 +77,7 @@ SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
 DONOT_MODIFY_HANDLERS: Optional[bool] = None
-DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
 
 engine: Engine
 Session: Callable[..., SASession]

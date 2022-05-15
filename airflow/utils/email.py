@@ -94,9 +94,13 @@ def send_email_smtp(
     """
     smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
 
-    if smtp_mail_from:
+    if smtp_mail_from is not None:
         mail_from = smtp_mail_from
     else:
+        if from_email is None:
+            raise Exception(
+                "You should set from email - either by smtp/smtp_mail_from config or " "`from_email parameter"
+            )
         mail_from = from_email
 
     msg, recipients = build_mime_message(
@@ -188,7 +192,7 @@ def send_mime_email(
     dryrun: bool = False,
 ) -> None:
     """Send MIME email."""
-    smtp_host = conf.get('smtp', 'SMTP_HOST')
+    smtp_host = conf.get_mandatory_value('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')
     smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
     smtp_ssl = conf.getboolean('smtp', 'SMTP_SSL')
