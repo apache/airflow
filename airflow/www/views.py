@@ -1300,6 +1300,7 @@ class Airflow(AirflowBaseView):
         for template_field in task.template_fields:
             content = getattr(task, template_field)
             renderer = task.template_fields_renderers.get(template_field, template_field)
+
             if renderer in renderers:
                 html_dict[template_field] = renderers[renderer](content)
             else:
