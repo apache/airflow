@@ -75,21 +75,21 @@ const Header = () => {
   const isTaskDetails = runId && taskId;
 
   return (
-    <Breadcrumb mt={4} separator={<Text color="gray.300">/</Text>}>
-      <BreadcrumbItem isCurrentPage={isDagDetails}>
+    <Breadcrumb separator={<Text color="gray.300">/</Text>}>
+      <BreadcrumbItem isCurrentPage={isDagDetails} mt={4}>
         <BreadcrumbLink onClick={clearSelection} _hover={isDagDetails ? { cursor: 'default' } : undefined}>
           <LabelValue label="DAG" value={dagId} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
-        <BreadcrumbItem isCurrentPage={isRunDetails}>
+        <BreadcrumbItem isCurrentPage={isRunDetails} mt={4}>
           <BreadcrumbLink onClick={() => onSelect({ runId })} _hover={isRunDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Run" value={runLabel} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
       {taskId && (
-        <BreadcrumbItem isCurrentPage>
+        <BreadcrumbItem isCurrentPage mt={4}>
           <BreadcrumbLink _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Task" value={`${taskName}${isMapped ? ' []' : ''}`} />
           </BreadcrumbLink>
