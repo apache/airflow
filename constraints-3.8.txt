@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-16T13:24:57Z
+# This constraints file was automatically generated on 2022-05-16T22:08:08Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -60,13 +60,13 @@ ansiwrap==0.8.4
 anyio==3.6.1
 apache-airflow-providers-airbyte==2.1.4
 apache-airflow-providers-alibaba==1.1.1
-apache-airflow-providers-amazon==3.3.0
-apache-airflow-providers-apache-beam==3.3.0
+apache-airflow-providers-amazon==3.4.0
+apache-airflow-providers-apache-beam==3.4.0
 apache-airflow-providers-apache-cassandra==2.1.3
 apache-airflow-providers-apache-drill==1.0.4
 apache-airflow-providers-apache-druid==2.3.3
 apache-airflow-providers-apache-hdfs==2.2.3
-apache-airflow-providers-apache-hive==2.3.2
+apache-airflow-providers-apache-hive==2.3.3
 apache-airflow-providers-apache-kylin==2.0.4
 apache-airflow-providers-apache-livy==2.2.3
 apache-airflow-providers-apache-pig==2.0.4
@@ -78,18 +78,18 @@ apache-airflow-providers-asana==1.1.3
 apache-airflow-providers-celery==2.1.4
 apache-airflow-providers-cloudant==2.0.4
 apache-airflow-providers-cncf-kubernetes==3.1.2
-apache-airflow-providers-databricks==2.6.0
+apache-airflow-providers-databricks==2.7.0
 apache-airflow-providers-datadog==2.0.4
 apache-airflow-providers-dbt-cloud==1.0.2
 apache-airflow-providers-dingding==2.0.4
 apache-airflow-providers-discord==2.1.4
-apache-airflow-providers-docker==2.6.0
+apache-airflow-providers-docker==2.7.0
 apache-airflow-providers-elasticsearch==3.0.3
 apache-airflow-providers-exasol==2.1.3
 apache-airflow-providers-facebook==2.2.3
 apache-airflow-providers-ftp==2.1.2
 apache-airflow-providers-github==1.0.3
-apache-airflow-providers-google==6.8.0
+apache-airflow-providers-google==7.0.0
 apache-airflow-providers-grpc==2.0.4
 apache-airflow-providers-hashicorp==2.2.0
 apache-airflow-providers-http==2.1.2
@@ -97,8 +97,8 @@ apache-airflow-providers-imap==2.2.3
 apache-airflow-providers-influxdb==1.1.3
 apache-airflow-providers-jdbc==2.1.3
 apache-airflow-providers-jenkins==2.1.0
-apache-airflow-providers-jira==2.0.4
-apache-airflow-providers-microsoft-azure==3.8.0
+apache-airflow-providers-jira==2.0.5
+apache-airflow-providers-microsoft-azure==3.9.0
 apache-airflow-providers-microsoft-mssql==2.1.3
 apache-airflow-providers-microsoft-psrp==1.1.4
 apache-airflow-providers-microsoft-winrm==2.0.5
@@ -107,35 +107,35 @@ apache-airflow-providers-mysql==2.2.3
 apache-airflow-providers-neo4j==2.1.3
 apache-airflow-providers-odbc==2.0.4
 apache-airflow-providers-openfaas==2.0.3
-apache-airflow-providers-opsgenie==3.0.3
+apache-airflow-providers-opsgenie==3.1.0
 apache-airflow-providers-oracle==2.2.3
 apache-airflow-providers-pagerduty==2.1.3
 apache-airflow-providers-papermill==2.2.3
 apache-airflow-providers-plexus==2.0.4
 apache-airflow-providers-postgres==4.1.0
-apache-airflow-providers-presto==2.2.0
+apache-airflow-providers-presto==2.2.1
 apache-airflow-providers-qubole==2.1.3
 apache-airflow-providers-redis==2.0.4
-apache-airflow-providers-salesforce==3.4.3
+apache-airflow-providers-salesforce==3.4.4
 apache-airflow-providers-samba==3.0.4
 apache-airflow-providers-segment==2.0.4
 apache-airflow-providers-sendgrid==2.0.4
 apache-airflow-providers-sftp==2.6.0
 apache-airflow-providers-singularity==2.0.4
 apache-airflow-providers-slack==4.2.3
-apache-airflow-providers-snowflake==2.6.0
+apache-airflow-providers-snowflake==2.7.0
 apache-airflow-providers-sqlite==2.1.3
-apache-airflow-providers-ssh==2.4.3
-apache-airflow-providers-tableau==2.1.7
+apache-airflow-providers-ssh==2.4.4
+apache-airflow-providers-tableau==2.1.8
 apache-airflow-providers-telegram==2.0.4
-apache-airflow-providers-trino==2.2.0
+apache-airflow-providers-trino==2.3.0
 apache-airflow-providers-vertica==2.1.3
 apache-airflow-providers-yandex==2.2.3
 apache-airflow-providers-zendesk==3.0.3
 apache-beam==2.38.0
 apispec==3.3.2
 appdirs==1.4.4
-argcomplete==1.12.3
+argcomplete==2.0.0
 arrow==1.2.2
 asana==0.10.13
 asn1crypto==1.5.1
@@ -173,9 +173,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.23.0
+boto3==1.23.1
 boto==2.49.0
-botocore==1.26.0
+botocore==1.26.1
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
@@ -208,7 +208,7 @@ cryptography==36.0.2
 curlify==2.2.1
 cx-Oracle==8.3.0
 dask==2022.5.0
-databricks-sql-connector==1.0.2
+databricks-sql-connector==2.0.2
 datadog==0.44.0
 db-dtypes==1.0.1
 decorator==5.1.1
@@ -247,7 +247,7 @@ geomet==0.2.1.post1
 gevent==21.12.0
 gitdb==4.0.9
 github3.py==3.0.0
-google-ads==14.0.0
+google-ads==16.0.0
 google-api-core==2.7.3
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
@@ -262,7 +262,7 @@ google-cloud-bigquery-storage==2.13.1
 google-cloud-bigquery==2.34.3
 google-cloud-bigtable==1.7.1
 google-cloud-build==3.8.2
-google-cloud-container==1.0.2
+google-cloud-container==2.10.7
 google-cloud-core==2.3.0
 google-cloud-datacatalog==3.7.1
 google-cloud-dataplex==1.0.0
@@ -372,7 +372,6 @@ nbformat==5.4.0
 neo4j==4.4.3
 nest-asyncio==1.5.5
 nodeenv==1.6.0
-nox==2020.12.31
 ntlm-auth==1.5.0
 numpy==1.22.3
 oauth2client==4.1.3
@@ -409,8 +408,8 @@ presto-python-client==0.7.0
 prison==0.2.1
 prometheus-client==0.14.1
 prompt-toolkit==3.0.29
-proto-plus==1.18.1
-protobuf==3.20.1
+proto-plus==1.19.6
+protobuf==3.20.0
 psutil==5.9.0
 psycopg2-binary==2.9.3
 ptyprocess==0.7.0
@@ -549,7 +548,7 @@ traitlets==5.2.1.post0
 trino==0.313.0
 twine==4.0.0
 types-Deprecated==1.2.8
-types-Markdown==3.3.16
+types-Markdown==3.3.17
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.7
 types-boto==2.49.15
@@ -564,7 +563,7 @@ types-python-dateutil==2.8.15
 types-python-slugify==5.0.4
 types-pytz==2021.3.8
 types-redis==4.2.3
-types-requests==2.27.25
+types-requests==2.27.26
 types-setuptools==57.4.14
 types-six==1.16.15
 types-tabulate==0.8.9
@@ -587,7 +586,7 @@ wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==1.3.2
 wrapt==1.14.1
-xmltodict==0.13.0
+xmltodict==0.12.0
 yamllint==1.26.3
 yandexcloud==0.161.0
 yarl==1.7.2
