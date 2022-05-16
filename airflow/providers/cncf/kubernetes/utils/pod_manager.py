@@ -15,15 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Launches PODs"""
-import asyncio
-import concurrent
 import json
 import math
+import multiprocessing
 import time
 import warnings
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
+from multiprocessing.sharedctypes import RawValue  # type: ignore[attr-defined,valid-type]
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
 
 import pendulum
@@ -205,33 +205,29 @@ class PodManager(LoggingMixin):
     def consume_container_logs_stream(
         self, pod: V1Pod, container_name: str, stream: Iterable[bytes]
     ) -> Optional[DateTime]:
-        async def async_await_container_completion() -> None:
-            await asyncio.sleep(1)
-            while self.container_is_running(pod=pod, container_name=container_name):
-                await asyncio.sleep(1)
+        def log_iterable_and_set_value(timestamp):  # ignore[valid-type]
+            dt = self.log_iterable(stream)
+            if dt is not None:
+                timestamp.value = dt.timestamp()  # type: ignore[attr-defined]
 
-        loop = asyncio.new_event_loop()
-        executor = concurrent.futures.ThreadPoolExecutor()
-        log_stream = asyncio.ensure_future(loop.run_in_executor(executor, self.log_iterable, stream))
-        await_container_completion = loop.create_task(async_await_container_completion())
-        tasks: Iterable[asyncio.Task] = {await_container_completion, log_stream}
-        loop.run_until_complete(asyncio.wait(tasks, return_when=asyncio.FIRST_COMPLETED))
-        log_stream.cancel()
-        result = None
-        try:
-            loop.run_until_complete(asyncio.gather(*tasks))
-        except concurrent.futures.CancelledError:
+        timestamp = RawValue('f')
+        p = multiprocessing.Process(target=log_iterable_and_set_value, args=(timestamp,))
+        p.start()
+        self.await_container_completion(pod, container_name)
+        if p.is_alive():
+            # await_container_completion ticks every 1 second, so if the stream processing
+            # is slower, could be that we are unluckily processing some few final logs
+            time.sleep(0.2)
+        if p.is_alive():
+            p.terminate()
             self.log.warning(
                 "Container %s log read was interrupted at some point caused by log rotation "
                 "see https://github.com/apache/airflow/issues/23497 for reference.",
                 container_name,
             )
-        else:
-            result = log_stream.result()
-        finally:
-            executor.shutdown(wait=True)
-            loop.close()
-            return result
+        if not timestamp.value:
+            return None
+        return pendulum.from_timestamp(timestamp.value)
 
     def fetch_container_logs(
         self, pod: V1Pod, container_name: str, *, follow=False, since_time: Optional[DateTime] = None

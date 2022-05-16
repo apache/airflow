@@ -331,10 +331,13 @@ class TestPodManager:
         assert ret.last_log_time == DateTime(2021, 1, 1, tzinfo=Timezone('UTC'))
         assert ret.running is exp_running
 
-    @pytest.mark.parametrize('follow, is_running_calls, exp_running', [(True, 3, False)])
+    @pytest.mark.parametrize(
+        'follow, is_running_calls, exp_running, producing_logs',
+        [(True, 3, False, False), (True, 3, False, True)],
+    )
     @mock.patch('airflow.providers.cncf.kubernetes.utils.pod_manager.container_is_running')
     def test_fetch_container_running_follow_when_kube_api_hangs(
-        self, container_running_mock, follow, is_running_calls, exp_running
+        self, container_running_mock, follow, is_running_calls, exp_running, producing_logs
     ):
         """
         When called with follow, should keep looping even after disconnections, if pod still running.
@@ -345,7 +348,8 @@ class TestPodManager:
         def stream_logs() -> Generator:
             while True:
                 time.sleep(1)  # this is intentional: urllib3.response.stream() is not async
-                yield b'2021-01-01 hi'
+                if producing_logs:
+                    yield b'2021-01-01 hi'
 
         self.mock_kube_client.read_namespaced_pod_log.return_value = stream_logs()
         ret = self.pod_manager.fetch_container_logs(pod=mock_pod, container_name='base', follow=follow)
