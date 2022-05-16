@@ -137,7 +137,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         mock_kube_client.return_value.delete_namespaced_pod = mock_delete_namespace
 
         kube_executor = KubernetesExecutor()
-        kube_executor.job_id = "test-job-id"
+        kube_executor.job_id = 1
         kube_executor.start()
         kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
 
@@ -157,7 +157,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         # ApiException is raised because status is not 404
         mock_kube_client.return_value.delete_namespaced_pod.side_effect = ApiException(status=400)
         kube_executor = KubernetesExecutor()
-        kube_executor.job_id = "test-job-id"
+        kube_executor.job_id = 1
         kube_executor.start()
 
         with pytest.raises(ApiException):
@@ -178,7 +178,7 @@ class TestAirflowKubernetesScheduler(unittest.TestCase):
         # ApiException not raised because the status is 404
         mock_kube_client.return_value.delete_namespaced_pod.side_effect = ApiException(status=404)
         kube_executor = KubernetesExecutor()
-        kube_executor.job_id = "test-job-id"
+        kube_executor.job_id = 1
         kube_executor.start()
 
         kube_executor.kube_scheduler.delete_pod(pod_id, namespace)
@@ -636,7 +636,7 @@ class TestKubernetesExecutor:
         }
         with conf_vars(config):
             executor = KubernetesExecutor()
-            executor.job_id = "123"
+            executor.job_id = 123
             executor.start()
             assert 2 == len(executor.event_scheduler.queue)
             executor._check_worker_pods_pending_timeout()
@@ -678,7 +678,7 @@ class TestKubernetesExecutor:
         }
         with conf_vars(config):
             executor = KubernetesExecutor()
-            executor.job_id = "123"
+            executor.job_id = 123
             executor.start()
             executor._check_worker_pods_pending_timeout()
 
