@@ -19,7 +19,7 @@
 import abc
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union, List
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
