@@ -88,24 +88,24 @@ class BaseSQLToGCSOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     def __init__(
-            self,
-            *,
-            sql: str,
-            bucket: str,
-            filename: str,
-            schema_filename: Optional[str] = None,
-            approx_max_file_size_bytes: int = 1900000000,
-            export_format: str = 'json',
-            field_delimiter: str = ',',
-            null_marker: Optional[str] = None,
-            gzip: bool = False,
-            schema: Optional[Union[str, list]] = None,
-            parameters: Optional[dict] = None,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-            exclude_columns: List[str] = [],
-            **kwargs,
+        self,
+        *,
+        sql: str,
+        bucket: str,
+        filename: str,
+        schema_filename: Optional[str] = None,
+        approx_max_file_size_bytes: int = 1900000000,
+        export_format: str = 'json',
+        field_delimiter: str = ',',
+        null_marker: Optional[str] = None,
+        gzip: bool = False,
+        schema: Optional[Union[str, list]] = None,
+        parameters: Optional[dict] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        exclude_columns: List[str] = [],
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.sql = sql
@@ -319,8 +319,11 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema = self.schema
         else:
             self.log.info("Starts generating schema")
-            schema = [self.field_to_bigquery(field) for field in cursor.description if
-                      field[0] not in self.exclude_columns]
+            schema = [
+                self.field_to_bigquery(field)
+                for field in cursor.description
+                if field[0] not in self.exclude_columns
+            ]
 
         if isinstance(schema, list):
             schema = json.dumps(schema, sort_keys=True)

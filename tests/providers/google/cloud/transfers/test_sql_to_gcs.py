@@ -63,8 +63,9 @@ OUTPUT_DF = pd.DataFrame([['convert_type_return_value'] * 3] * 3, columns=COLUMN
 
 EXCLUDE_COLUMNS = ['column_c']
 NEW_COLUMNS = [c for c in COLUMNS if c not in EXCLUDE_COLUMNS]
-OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame([['convert_type_return_value'] * len(NEW_COLUMNS)] * 3,
-                                              columns=NEW_COLUMNS)
+OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame(
+    [['convert_type_return_value'] * len(NEW_COLUMNS)] * 3, columns=NEW_COLUMNS
+)
 
 
 class DummySQLToGCSOperator(BaseSQLToGCSOperator):
