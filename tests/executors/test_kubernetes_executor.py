@@ -704,6 +704,7 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
 
@@ -747,6 +748,7 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kubernetes_queue = kubernetes_queue
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
@@ -784,6 +786,7 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
 
@@ -829,6 +832,7 @@ class TestKubernetesExecutor:
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.job_id = 1
         executor.kubernetes_queue = 'kubernetes'
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)

@@ -461,7 +461,9 @@ class KubernetesExecutor(BaseExecutor):
         if not self.kube_client:
             raise AirflowException(NOT_STARTED_MESSAGE)
 
-        query = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED)
+        query = session.query(TaskInstance).filter(
+            TaskInstance.state == State.QUEUED, TaskInstance.queued_by_job_id == self.job_id
+        )
         if self.kubernetes_queue:
             query = query.filter(TaskInstance.queue == self.kubernetes_queue)
         queued_tis: List[TaskInstance] = query.all()
