@@ -23,7 +23,7 @@ import warnings
 from contextlib import closing
 from dataclasses import dataclass
 from datetime import datetime
-from multiprocessing.sharedctypes import RawValue  # type: ignore[attr-defined,valid-type]
+from multiprocessing.sharedctypes import RawValue
 from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
 
 import pendulum
@@ -210,7 +210,7 @@ class PodManager(LoggingMixin):
             if dt is not None:
                 timestamp.value = dt.timestamp()  # type: ignore[attr-defined]
 
-        timestamp = RawValue('f')
+        timestamp = RawValue('f')  # read and write are synchronous so rawvalue is enough
         p = multiprocessing.Process(target=log_iterable_and_set_value, args=(timestamp,))
         p.start()
         self.await_container_completion(pod, container_name)
