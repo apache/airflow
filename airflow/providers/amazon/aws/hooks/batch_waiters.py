@@ -120,7 +120,7 @@ class BatchWaitersHook(BatchClientHook):
         :rtype: Dict
         """
         if self._default_config is None:
-            config_path = Path(__file__).with_name("batch_waiters.json").absolute()
+            config_path = Path(__file__).with_name("batch_waiters.json").resolve()
             with open(config_path) as config_file:
                 self._default_config = json.load(config_file)
         return deepcopy(self._default_config)  # avoid accidental mutation

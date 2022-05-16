@@ -54,7 +54,7 @@ function install_airflow() {
         echo "${COLOR_BLUE}Installing all packages with eager upgrade${COLOR_RESET}"
         echo
         # eager upgrade
-        pip install --upgrade --upgrade-strategy eager \
+        pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         if [[ -n "${AIRFLOW_INSTALL_EDITABLE_FLAG}" ]]; then
@@ -62,13 +62,13 @@ function install_airflow() {
             # We can only do it when we install airflow from sources
             set -x
             pip uninstall apache-airflow --yes
-            pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+            pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
                 "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
             set +x
         fi
 
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
         echo
@@ -78,17 +78,17 @@ function install_airflow() {
         echo "${COLOR_BLUE}Installing all packages with constraints and upgrade if needed${COLOR_RESET}"
         echo
         set -x
-        pip install ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
+        pip install --root-user-action ignore ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}" \
             --constraint "${AIRFLOW_CONSTRAINTS_LOCATION}"
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         # then upgrade if needed without using constraints to account for new limits in setup.py
-        pip install --upgrade --upgrade-strategy only-if-needed \
+        pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
             ${AIRFLOW_INSTALL_EDITABLE_FLAG} \
             "${AIRFLOW_INSTALLATION_METHOD}[${AIRFLOW_EXTRAS}]${AIRFLOW_VERSION_SPECIFICATION}"
         # make sure correct PIP version is used
-        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
         set +x
         echo
         echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"

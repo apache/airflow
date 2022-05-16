@@ -19,9 +19,9 @@ import sys
 from pathlib import Path
 from textwrap import wrap
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 
-sys.path.insert(0, str(Path(__file__).parent.absolute()))  # make sure common_precommit_utils is imported
+sys.path.insert(0, str(Path(__file__).parent.resolve()))  # make sure common_precommit_utils is imported
 sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from Airflow
 # flake8: noqa: F401
 

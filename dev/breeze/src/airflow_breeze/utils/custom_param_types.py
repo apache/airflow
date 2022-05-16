@@ -17,9 +17,10 @@
 
 from dataclasses import dataclass
 from re import match
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 import click
+from click import Context, Parameter
 
 from airflow_breeze.utils.cache import (
     check_if_values_allowed,
@@ -57,6 +58,39 @@ class BetterChoice(click.Choice):
 
         # Use square braces to indicate an option or optional argument.
         return f"[{choices_str}]"
+
+
+class NotVerifiedBetterChoice(BetterChoice):
+    """
+    This parameter allows to pass parameters that do not pass verification by choice. This is
+    useful to keep autocomplete working but also to allow some extra parameters that are dynamic,
+    for example allowing glob in package names for docs building.
+    """
+
+    name = "NotVerifiedBetterChoice"
+
+    def convert(self, value: Any, param: Optional[Parameter], ctx: Optional[Context]) -> Any:
+        # Match through normalization and case sensitivity
+        # first do token_normalize_func, then lowercase
+        normed_value = value
+        normed_choices = {choice: choice for choice in self.choices}
+
+        if ctx is not None and ctx.token_normalize_func is not None:
+            normed_value = ctx.token_normalize_func(value)
+            normed_choices = {
+                ctx.token_normalize_func(normed_choice): original
+                for normed_choice, original in normed_choices.items()
+            }
+
+        if not self.case_sensitive:
+            normed_value = normed_value.casefold()
+            normed_choices = {
+                normed_choice.casefold(): original for normed_choice, original in normed_choices.items()
+            }
+
+        if normed_value in normed_choices:
+            return normed_choices[normed_value]
+        return normed_value
 
 
 class AnswerChoice(BetterChoice):

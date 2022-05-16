@@ -331,7 +331,6 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         'GetBatchPredictionJobOperator',
     }
 
-    # These operators should not have assets
     ASSETS_NOT_REQUIRED = {
         'airflow.providers.google.cloud.operators.automl.AutoMLDeleteDatasetOperator',
         'airflow.providers.google.cloud.operators.automl.AutoMLDeleteModelOperator',

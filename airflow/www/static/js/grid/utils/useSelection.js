@@ -32,13 +32,13 @@ const useSelection = () => {
     setSearchParams(searchParams);
   };
 
-  const onSelect = (payload) => {
+  const onSelect = ({ runId, taskId }) => {
     const params = new URLSearchParams(searchParams);
 
-    if (payload.runId) params.set(RUN_ID, payload.runId);
+    if (runId) params.set(RUN_ID, runId);
     else params.delete(RUN_ID);
 
-    if (payload.taskId) params.set(TASK_ID, payload.taskId);
+    if (taskId) params.set(TASK_ID, taskId);
     else params.delete(TASK_ID);
 
     setSearchParams(params);
@@ -46,9 +46,15 @@ const useSelection = () => {
 
   const runId = searchParams.get(RUN_ID);
   const taskId = searchParams.get(TASK_ID);
-  const selected = { runId, taskId };
 
-  return { selected, clearSelection, onSelect };
+  return {
+    selected: {
+      runId,
+      taskId,
+    },
+    clearSelection,
+    onSelect,
+  };
 };
 
 export default useSelection;

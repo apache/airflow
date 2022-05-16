@@ -481,7 +481,11 @@ class DagFileProcessorManager(LoggingMixin):
 
     @provide_session
     def _deactivate_stale_dags(self, session=None):
-        """Detects DAGs which are no longer present in files and deactivate them."""
+        """
+        Detects DAGs which are no longer present in files
+
+        Deactivate them and remove them in the serialized_dag table
+        """
         now = timezone.utcnow()
         elapsed_time_since_refresh = (now - self.last_deactivate_stale_dags_time).total_seconds()
         if elapsed_time_since_refresh > self.deactivate_stale_dags_interval:
@@ -513,6 +517,10 @@ class DagFileProcessorManager(LoggingMixin):
                 )
                 if deactivated:
                     self.log.info("Deactivated %i DAGs which are no longer present in file.", deactivated)
+
+                for dag_id in to_deactivate:
+                    SerializedDagModel.remove_dag(dag_id)
+                    self.log.info("Deleted DAG %s in serialized_dag table", dag_id)
 
             self.last_deactivate_stale_dags_time = timezone.utcnow()
 

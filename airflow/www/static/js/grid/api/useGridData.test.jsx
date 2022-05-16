@@ -40,7 +40,7 @@ const pendingGridData = {
   ],
 };
 
-describe('Test useTreeData hook', () => {
+describe('Test useGridData hook', () => {
   beforeAll(() => {
     global.autoRefreshInterval = 5;
   });
