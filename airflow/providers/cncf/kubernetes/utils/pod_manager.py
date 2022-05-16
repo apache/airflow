@@ -205,7 +205,7 @@ class PodManager(LoggingMixin):
     def consume_container_logs_stream(
         self, pod: V1Pod, container_name: str, stream: Iterable[bytes]
     ) -> Optional[DateTime]:
-        def log_iterable_and_set_value(timestamp):  # ignore[valid-type]
+        def log_iterable_and_set_value(timestamp):
             dt = self.log_iterable(stream)
             if dt is not None:
                 timestamp.value = dt.timestamp()  # type: ignore[attr-defined]
