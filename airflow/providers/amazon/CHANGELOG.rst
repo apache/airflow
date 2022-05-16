@@ -19,6 +19,55 @@
 Changelog
 ---------
 
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Quicksight create ingestion Hook and Operator (#21863)``
+* ``Add default 'aws_conn_id' to SageMaker Operators #21808 (#23515)``
+* ``Add RedshiftCreateClusterOperator``
+* ``Add 'S3CreateObjectOperator' (#22758)``
+* ``Add 'RedshiftDeleteClusterOperator' support (#23563)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix conn close error on retrieving log events (#23470)``
+* ``Fix LocalFilesystemToS3Operator and S3CreateObjectOperator to support full s3:// style keys (#23180)``
+* ``Fix attempting to reattach in 'ECSOperator' (#23370)``
+* ``Fix doc build failure on main (#23240)``
+* ``Fix "Chain not supported for different length Iterable"``
+* ``'S3Hook': fix 'load_bytes' docstring (#23182)``
+* ``Deprecate 'S3PrefixSensor' and 'S3KeySizeSensor' in favor of 'S3KeySensor' (#22737)``
+* ``Allow back script_location in Glue to be None (#23357)``
+
+Misc
+~~~~
+
+* ``Add doc and example dag for Amazon SQS Operators (#23312)``
+* ``Add doc and sample dag for S3CopyObjectOperator and S3DeleteObjectsOperator (#22959)``
+* ``Add sample dag and doc for S3KeysUnchangedSensor``
+* ``Add doc and sample dag for S3FileTransformOperator``
+* ``Add doc and example dag for AWS Step Functions Operators``
+* ``Add sample dag and doc for S3ListOperator (#23449)``
+* ``Add doc and sample dag for EC2 (#23547)``
+* ``Add sample dag and doc for S3ListPrefixesOperator (#23448)``
+* ``Amazon Sagemaker Sample DAG and docs update (#23256)``
+* ``Update the Athena Sample DAG and Docs (#23428)``
+* ``Update sample dag and doc for Datasync (#23511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Clean up in-line f-string concatenation (#23591)``
+   * ``Update docs Amazon Glacier Docs (#23372)``
+   * ``Bump pre-commit hook versions (#22887)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+.. Review and move the new changes to one of the sections above:
+
 3.3.0
 .....
 

@@ -168,7 +168,7 @@ class Trigger(Base):
         """
         from airflow.jobs.base_job import BaseJob  # To avoid circular import
 
-        count = session.query(cls.id).filter(cls.triggerer_id == triggerer_id).count()
+        count = session.query(func.count(cls.id)).filter(cls.triggerer_id == triggerer_id).scalar()
         capacity -= count
 
         if capacity <= 0:

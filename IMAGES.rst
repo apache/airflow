@@ -188,8 +188,8 @@ Dockerfile image= and scripts further rebuilds with local build cache will be co
 You can also disable build cache altogether. This is the strategy used by the scheduled builds in CI - they
 will always rebuild all the images from scratch.
 
-You can change the strategy by providing one of the ``--build-cache-local``, ``--build-cache-pulled`` or
-even ``--build-cache-disabled`` flags when you run Breeze commands. For example:
+You can change the strategy by providing one of the ``--build-cache`` flags: ``registry`` (default), ``local``,
+or ``disabled`` flags when you run Breeze commands. For example:
 
 .. code-block:: bash
 
@@ -200,9 +200,9 @@ time you run it).
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --docker-cache pulled
+  breeze build-prod-image --python 3.7 --docker-cache registry
 
-Will build the production image with pulled images as cache.
+Will build the production image with cache used from registry.
 
 
 .. code-block:: bash
@@ -211,8 +211,14 @@ Will build the production image with pulled images as cache.
 
 Will build the production image from the scratch.
 
-You can also turn local docker caching by setting ``DOCKER_CACHE`` variable to "local", "pulled",
-"disabled" and exporting it.
+You can also turn local docker caching by setting ``DOCKER_CACHE`` variable to ``local``, ``registry``,
+``disabled`` and exporting it.
+
+.. code-block:: bash
+
+  export DOCKER_CACHE="registry"
+
+or
 
 .. code-block:: bash
 
@@ -469,7 +475,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.0.4``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.1.0``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+

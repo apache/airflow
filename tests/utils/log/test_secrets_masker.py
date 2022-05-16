@@ -114,7 +114,6 @@ class TestSecretsMasker:
             """
         )
 
-    @pytest.mark.xfail(reason="Cannot filter secrets in traceback source")
     def test_exc_tb(self, logger, caplog):
         """
         Show it is not possible to filter secrets in the source.
@@ -142,7 +141,7 @@ class TestSecretsMasker:
             ERROR Err
             Traceback (most recent call last):
               File ".../test_secrets_masker.py", line {line}, in test_exc_tb
-                raise RuntimeError("Cannot connect to user:***)
+                raise RuntimeError("Cannot connect to user:password")
             RuntimeError: Cannot connect to user:***
             """
         )

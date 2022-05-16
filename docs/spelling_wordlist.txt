@@ -892,6 +892,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+hoc
 homebrew
 honoured
 hookable
@@ -910,6 +911,7 @@ https
 httpx
 hvac
 hyperparameter
+hyperparameters
 iPython
 iTerm
 iam
@@ -933,6 +935,7 @@ infile
 influxdb
 infoType
 infoTypes
+ingestions
 ini
 init
 initcontainer
@@ -1264,6 +1267,7 @@ reqs
 reserialize
 reserialized
 resetdb
+resizable
 resourceVersion
 resultset
 resumable

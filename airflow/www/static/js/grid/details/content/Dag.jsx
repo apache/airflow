@@ -34,8 +34,8 @@ import { mean } from 'lodash';
 import { getDuration, formatDuration } from '../../../datetime_utils';
 import { finalStatesMap, getMetaValue } from '../../../utils';
 import { useTasks, useGridData } from '../../api';
-import Time from '../../Time';
-import { SimpleStatus } from '../../StatusBox';
+import Time from '../../components/Time';
+import { SimpleStatus } from '../../components/StatusBox';
 
 const dagId = getMetaValue('dag_id');
 const dagDetailsUrl = getMetaValue('dag_details_url');

@@ -113,6 +113,7 @@ function in_container_cleanup_pycache() {
 function in_container_fix_ownership() {
     if [[ ${HOST_OS:=} == "Linux" ]]; then
         DIRECTORIES_TO_FIX=(
+            "/dist"
             "/files"
             "/root/.aws"
             "/root/.azure"
@@ -192,10 +193,18 @@ function dump_airflow_logs() {
 function install_airflow_from_wheel() {
     local extras
     extras="${1:-}"
+    if [[ ${extras} != "" ]]; then
+        extras="[${extras}]"
+    fi
+    local constraints_reference
+    constraints_reference="${2:-}"
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    ls -w 1 /dist
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
     local airflow_package
     airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache_airflow-[0-9]*.whl')
     echo
-    echo "Found package: ${airflow_package}. Installing."
+    echo "Found package: ${airflow_package}. Installing with extras: ${extras}, constraints reference: ${constraints_reference}."
     echo
     if [[ -z "${airflow_package}" ]]; then
         >&2 echo
@@ -203,16 +212,25 @@ function install_airflow_from_wheel() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${extras}"
+    pip install "${airflow_package}${extras}" --constraint \
+        "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 }
 
 function install_airflow_from_sdist() {
     local extras
-    extras="${1}"
+    extras="${1:-}"
+    if [[ ${extras} != "" ]]; then
+        extras="[${extras}]"
+    fi
+    local constraints_reference
+    constraints_reference="${2:-}"
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    ls -w 1 /dist
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
     local airflow_package
     airflow_package=$(find /dist/ -maxdepth 1 -type f -name 'apache-airflow-[0-9]*.tar.gz')
     echo
-    echo "Found package: ${airflow_package}. Installing."
+    echo "Found package: ${airflow_package}. Installing with extras: ${extras}, constraints reference: ${constraints_reference}."
     echo
     if [[ -z "${airflow_package}" ]]; then
         >&2 echo
@@ -220,7 +238,8 @@ function install_airflow_from_sdist() {
         >&2 echo
         exit 4
     fi
-    pip install "${airflow_package}${extras}"
+    pip install "${airflow_package}${extras}" --constraint \
+        "https://raw.githubusercontent.com/apache/airflow/${constraints_reference}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 }
 
 function uninstall_airflow() {
@@ -248,11 +267,16 @@ function uninstall_airflow_and_providers() {
 function install_released_airflow_version() {
     local version="${1}"
     echo
-    echo "Installing released ${version} version of airflow without extras"
+    echo "Installing released ${version} version of airflow with extras: ${AIRFLOW_EXTRAS} and constraints constraints-${version}"
     echo
-
     rm -rf "${AIRFLOW_SOURCES}"/*.egg-info
-    pip install "apache-airflow==${version}"
+    if [[ ${AIRFLOW_EXTRAS} != "" ]]; then
+        BRACKETED_AIRFLOW_EXTRAS="[${AIRFLOW_EXTRAS}]"
+    else
+        BRACKETED_AIRFLOW_EXTRAS=""
+    fi
+    pip install "apache-airflow${BRACKETED_AIRFLOW_EXTRAS}==${version}" \
+        --constraint "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/constraints-${version}/constraints-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 }
 
 function install_local_airflow_with_eager_upgrade() {
@@ -302,7 +326,10 @@ function install_all_provider_packages_from_wheels() {
     echo "Installing all provider packages from wheels"
     echo
     uninstall_providers
-    pip install /dist/apache_airflow*providers_*.whl
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    ls -w 1 /dist
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    pip install /dist/apache_airflow_providers_*.whl
 }
 
 function install_all_provider_packages_from_sdist() {
@@ -310,21 +337,27 @@ function install_all_provider_packages_from_sdist() {
     echo "Installing all provider packages from .tar.gz"
     echo
     uninstall_providers
-    pip install /dist/apache-airflow-*providers-*.tar.gz
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    ls -w 1 /dist
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    pip install /dist/apache-airflow-providers-*.tar.gz
 }
 
 function twine_check_provider_packages_from_wheels() {
     echo
     echo "Twine check of all provider packages from wheels"
     echo
-    twine check /dist/apache_airflow*providers_*.whl
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    ls -w 1 /dist
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    twine check /dist/apache_airflow_providers_*.whl
 }
 
 function twine_check_provider_packages_from_sdist() {
     echo
     echo "Twine check all provider packages from sdist"
     echo
-    twine check /dist/apache-airflow-*providers-*.tar.gz
+    twine check /dist/apache-airflow-providers-*.tar.gz
 }
 
 function setup_provider_packages() {
@@ -346,9 +379,7 @@ function setup_provider_packages() {
 
 
 function install_supported_pip_version() {
-    group_start "Install supported PIP version ${AIRFLOW_PIP_VERSION}"
     pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}"
-    group_end
 }
 
 function filename_to_python_module() {

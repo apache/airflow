@@ -19,6 +19,7 @@ from unittest import mock
 
 from airflow.providers.amazon.aws.operators.redshift_cluster import (
     RedshiftCreateClusterOperator,
+    RedshiftDeleteClusterOperator,
     RedshiftPauseClusterOperator,
     RedshiftResumeClusterOperator,
 )
@@ -127,3 +128,36 @@ class TestPauseClusterOperator:
         )
         redshift_operator.execute(None)
         mock_get_conn.return_value.pause_cluster.assert_not_called()
+
+
+class TestDeleteClusterOperator:
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.cluster_status")
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    def test_delete_cluster_with_wait_for_completion(self, mock_get_conn, mock_cluster_status):
+        mock_cluster_status.return_value = 'cluster_not_found'
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test", cluster_identifier="test_cluster", aws_conn_id="aws_conn_test"
+        )
+        redshift_operator.execute(None)
+        mock_get_conn.return_value.delete_cluster.assert_called_once_with(
+            ClusterIdentifier='test_cluster',
+            SkipFinalClusterSnapshot=True,
+            FinalClusterSnapshotIdentifier='',
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    def test_delete_cluster_without_wait_for_completion(self, mock_get_conn):
+        redshift_operator = RedshiftDeleteClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test_cluster",
+            aws_conn_id="aws_conn_test",
+            wait_for_completion=False,
+        )
+        redshift_operator.execute(None)
+        mock_get_conn.return_value.delete_cluster.assert_called_once_with(
+            ClusterIdentifier='test_cluster',
+            SkipFinalClusterSnapshot=True,
+            FinalClusterSnapshotIdentifier='',
+        )
+
+        mock_get_conn.return_value.cluster_status.assert_not_called()

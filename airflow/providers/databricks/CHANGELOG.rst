@@ -19,6 +19,23 @@
 Changelog
 ---------
 
+2.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update to the released version of DBSQL connector``
+* ``DatabricksSqlOperator - switch to databricks-sql-connector 2.x``
+* ``Further improvement of Databricks Jobs operators (#23199)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Address review comments``
+   * ``Clean up in-line f-string concatenation (#23591)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
 2.6.0
 .....
 

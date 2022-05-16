@@ -26,6 +26,7 @@ import socket
 import sys
 import traceback
 import warnings
+from bisect import insort_left
 from collections import defaultdict
 from datetime import timedelta
 from functools import wraps
@@ -201,9 +202,19 @@ def get_date_time_num_runs_dag_runs_form_data(www_request, session, dag):
     default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
     num_runs = www_request.args.get('num_runs', default=default_dag_run, type=int)
 
+    # When base_date has been rounded up because of the DateTimeField widget, we want
+    # to use the execution_date as the starting point for our query just to ensure a
+    # link targeting a specific dag run actually loads that dag run.  If there are
+    # more than num_runs dag runs in the "rounded period" then those dagruns would get
+    # loaded and the actual requested run would be excluded by the limit().  Once
+    # the user has changed base date to be anything else we want to use that instead.
+    query_date = base_date
+    if date_time < base_date and date_time + timedelta(seconds=1) >= base_date:
+        query_date = date_time
+
     drs = (
         session.query(DagRun)
-        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
+        .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= query_date)
         .order_by(desc(DagRun.execution_date))
         .limit(num_runs)
         .all()
@@ -820,13 +831,13 @@ class Airflow(AirflowBaseView):
 
         def _iter_parsed_moved_data_table_names():
             for table_name in inspect(session.get_bind()).get_table_names():
-                segments = table_name.split("__", 2)
+                segments = table_name.split("__", 3)
                 if len(segments) < 3:
                     continue
                 if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
                     continue
                 # Second segment is a version marker that we don't need to show.
-                yield segments[2], table_name
+                yield segments[3], table_name
 
         if (
             permissions.ACTION_CAN_ACCESS_MENU,
@@ -2628,6 +2639,13 @@ class Airflow(AirflowBaseView):
         # avoid spaces to reduce payload size
         data = htmlsafe_json_dumps(data, separators=(',', ':'))
 
+        default_dag_run_display_number = conf.getint('webserver', 'default_dag_run_display_number')
+
+        num_runs_options = [5, 25, 50, 100, 365]
+
+        if default_dag_run_display_number not in num_runs_options:
+            insort_left(num_runs_options, default_dag_run_display_number)
+
         return self.render_template(
             'airflow/grid.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
@@ -2641,6 +2659,16 @@ class Airflow(AirflowBaseView):
             external_log_name=external_log_name,
             dag_model=dag_model,
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
+            default_dag_run_display_number=default_dag_run_display_number,
+            task_instances=tis,
+            filters_drop_down_values=htmlsafe_json_dumps(
+                {
+                    "taskStates": [state.value for state in TaskInstanceState],
+                    "dagStates": [state.value for state in State.dag_states],
+                    "runTypes": [run_type.value for run_type in DagRunType],
+                    "numRuns": num_runs_options,
+                }
+            ),
         )
 
     @expose('/calendar')
@@ -3483,13 +3511,19 @@ class Airflow(AirflowBaseView):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         with create_session() as session:
-            dag_runs = (
-                session.query(DagRun)
-                .filter(DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date)
-                .order_by(DagRun.execution_date.desc())
-                .limit(num_runs)
-                .all()
+            query = session.query(DagRun).filter(
+                DagRun.dag_id == dag.dag_id, DagRun.execution_date <= base_date
             )
+
+            run_type = request.args.get("run_type")
+            if run_type:
+                query = query.filter(DagRun.run_type == run_type)
+
+            run_state = request.args.get("run_state")
+            if run_state:
+                query = query.filter(DagRun.state == run_state)
+
+            dag_runs = query.order_by(DagRun.execution_date.desc()).limit(num_runs).all()
             dag_runs.reverse()
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}

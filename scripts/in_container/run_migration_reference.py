@@ -35,7 +35,7 @@ if TYPE_CHECKING:
     from alembic.script import Script
 
 airflow_version = re.match(r'(\d+\.\d+\.\d+).*', _airflow_version).group(1)  # type: ignore
-project_root = Path(__file__).parents[2].absolute()
+project_root = Path(__file__).parents[2].resolve()
 
 
 def replace_text_between(file: Path, start: str, end: str, replacement_text: str):

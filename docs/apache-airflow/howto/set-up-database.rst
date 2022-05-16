@@ -45,7 +45,7 @@ Database URI
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
 You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
-this option with ``AIRFLOW__DATABE__SQL_ALCHEMY_CONN`` environment variable.
+this option with ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.

@@ -45,25 +45,25 @@ or just to run spell-check
 
 .. code-block:: bash
 
-     ./breeze build-docs -- --spellcheck-only
+     ./breeze build-docs --spellcheck-only
 
 or just to run documentation building
 
 .. code-block:: bash
 
-     ./breeze build-docs -- --docs-only
+     ./breeze build-docs --docs-only
 
 Also, you can only build one documentation via ``--package-filter``.
 
 .. code-block:: bash
 
-    ./breeze build-docs -- --package-filter <PACKAGE-NAME>
+    ./breeze build-docs --package-filter <PACKAGE-NAME>
 
 You can also see all the available arguments via ``--help``.
 
 .. code-block:: bash
 
-    ./breeze build-docs -- --help
+    ./breeze build-docs --help
 
 Running the Docs Locally
 ------------------------

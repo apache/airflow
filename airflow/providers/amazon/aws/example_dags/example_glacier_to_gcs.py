@@ -17,7 +17,7 @@
 import os
 from datetime import datetime
 
-from airflow import models
+from airflow import DAG
 from airflow.providers.amazon.aws.operators.glacier import GlacierCreateJobOperator
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
@@ -26,7 +26,7 @@ VAULT_NAME = "airflow"
 BUCKET_NAME = os.environ.get("GLACIER_GCS_BUCKET_NAME", "gs://INVALID BUCKET NAME")
 OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
 
-with models.DAG(
+with DAG(
     "example_glacier_to_gcs",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
@@ -56,8 +56,6 @@ with models.DAG(
         # If chunk size is bigger than actual file size
         # then whole file will be downloaded
         chunk_size=1024,
-        delegate_to=None,
-        google_impersonation_chain=None,
     )
     # [END howto_glacier_transfer_data_to_gcs]
 

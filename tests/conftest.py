@@ -82,7 +82,7 @@ def trace_sql(request):
 
     terminal_reporter = request.config.pluginmanager.getplugin("terminalreporter")
     # if no terminal reporter plugin is present, nothing we can do here;
-    # this can happen when this function executes in a slave node
+    # this can happen when this function executes in a worker node
     # when using pytest-xdist, for example
     if terminal_reporter is None:
         yield
@@ -751,3 +751,21 @@ def session():
     with create_session() as session:
         yield session
         session.rollback()
+
+
+@pytest.fixture()
+def get_test_dag():
+    def _get(dag_id):
+        from airflow.models.dagbag import DagBag
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dags', f'{dag_id}.py')
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+
+        dag = dagbag.get_dag(dag_id)
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag)
+
+        return dag
+
+    return _get

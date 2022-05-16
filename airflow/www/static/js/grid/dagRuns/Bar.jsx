@@ -33,7 +33,7 @@ import { MdPlayArrow } from 'react-icons/md';
 
 import DagRunTooltip from './Tooltip';
 import { useContainerRef } from '../context/containerRef';
-import Time from '../Time';
+import Time from '../components/Time';
 
 const BAR_HEIGHT = 100;
 
