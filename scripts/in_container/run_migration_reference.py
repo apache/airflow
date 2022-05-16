@@ -29,7 +29,7 @@ from alembic.script import ScriptDirectory
 from tabulate import tabulate
 
 from airflow.utils.db import _get_alembic_config
-from airflow.version import version as _airflow_version
+from setup import version as _airflow_version
 
 if TYPE_CHECKING:
     from alembic.script import Script
@@ -130,27 +130,54 @@ def num_to_prefix(idx: int) -> str:
     return f"000{idx+1}"[-4:] + '_'
 
 
-def ensure_mod_prefix(mod, idx):
-    prefix = num_to_prefix(idx)
-    match = re.match(r'([0-9_]+_)([a-z0-9]+_.+)', mod)
+def ensure_mod_prefix(mod_name, idx, version):
+    prefix = num_to_prefix(idx) + '_'.join(version) + '_'
+    match = re.match(r'([0-9]+)_([0-9]+)_([0-9]+)_([0-9]+)_(.+)', mod_name)
     if match:
-        mod = match.group(2)
-    return prefix + mod
+        # previously standardized file, rebuild the name
+        mod_name = match.group(5)
+    else:
+        # new migration file, standard format
+        match = re.match(r'([a-z0-9]+)_(.+)', mod_name)
+        if match:
+            mod_name = match.group(2)
+    return prefix + mod_name
 
 
 def ensure_filenames_are_sorted(revisions):
+    renames = []
+    is_branched = False
+    unmerged_heads = []
     for idx, rev in enumerate(revisions):
         mod_path = Path(rev.module.__file__)
-        correct_mod_basename = ensure_mod_prefix(mod_path.name, idx)
+        version = rev.module.airflow_version.split('.')[0:3]  # only first 3 tokens
+        correct_mod_basename = ensure_mod_prefix(mod_path.name, idx, version)
         if mod_path.name != correct_mod_basename:
-            os.rename(mod_path, Path(mod_path.parent, correct_mod_basename))
+            renames.append((mod_path, Path(mod_path.parent, correct_mod_basename)))
+        if is_branched and rev.is_merge_point:
+            is_branched = False
+        if rev.is_branch_point:
+            is_branched = True
+        elif rev.is_head:
+            unmerged_heads.append(rev.revision)
+    if is_branched:
+        head_prefixes = [x[0:4] for x in unmerged_heads]
+        alembic_command = (
+            "alembic merge -m 'merge heads " + ', '.join(head_prefixes) + "' " + ' '.join(unmerged_heads)
+        )
+        raise SystemExit(
+            "You have multiple alembic heads; please merge them with the `alembic merge` command "
+            f"and re-run pre-commit. It should fail once more before succeeding. "
+            f"\nhint: `{alembic_command}`"
+        )
+    for old, new in renames:
+        os.rename(old, new)
 
 
 if __name__ == '__main__':
     revisions = list(reversed(list(get_revisions())))
     ensure_airflow_version(revisions=revisions)
+    revisions = list(reversed(list(get_revisions())))
     ensure_filenames_are_sorted(revisions)
-    # if `ensure_airflow_version` modified any migrations, we'll need to reload
     revisions = list(get_revisions())
-
     update_docs(revisions)
