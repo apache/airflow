@@ -767,7 +767,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
+        if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
+            raise ValueError(
+                f'execution_timeout must be timedelta object but passed as type: {type(execution_timeout)}'
+            )
         self.execution_timeout = execution_timeout
+
         self.on_execute_callback = on_execute_callback
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
