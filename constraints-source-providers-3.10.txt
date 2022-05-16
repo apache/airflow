@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-13T11:13:31Z
+# This constraints file was automatically generated on 2022-05-16T13:18:56Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -57,7 +57,7 @@ aliyun-python-sdk-kms==2.15.0
 amqp==5.1.1
 analytics-python==1.4.0
 ansiwrap==0.8.4
-anyio==3.6.0
+anyio==3.6.1
 apache-beam==2.38.0
 apispec==3.3.2
 appdirs==1.4.4
@@ -98,12 +98,12 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.22.13
+boto3==1.23.0
 boto==2.49.0
-botocore==1.25.13
+botocore==1.26.0
 bowler==0.9.0
 cached-property==1.5.2
-cachelib==0.6.0
+cachelib==0.7.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==1.10.0
@@ -128,7 +128,7 @@ connexion==2.13.1
 coverage==6.3.3
 crcmod==1.7
 cron-descriptor==1.2.24
-croniter==1.3.4
+croniter==1.3.5
 cryptography==36.0.2
 curlify==2.2.1
 cx-Oracle==8.3.0
@@ -277,7 +277,7 @@ mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
 moreorless==0.4.0
-moto==3.1.8
+moto==3.1.9
 msal-extensions==1.0.0
 msal==1.17.0
 msgpack==1.0.3
@@ -285,8 +285,8 @@ msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-rds==1.22.9
-mypy-boto3-redshift-data==1.22.8
+mypy-boto3-rds==1.23.0.post1
+mypy-boto3-redshift-data==1.23.0.post1
 mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.29
@@ -404,7 +404,7 @@ requests-toolbelt==0.9.1
 requests==2.27.1
 responses==0.20.0
 rfc3986==1.5.0
-rich-click==1.3.0
+rich-click==1.3.2
 rich==12.4.1
 rsa==4.8
 s3transfer==0.5.2
@@ -485,7 +485,7 @@ types-protobuf==3.19.20
 types-python-dateutil==2.8.15
 types-python-slugify==5.0.4
 types-pytz==2021.3.8
-types-redis==4.2.2
+types-redis==4.2.3
 types-requests==2.27.25
 types-setuptools==57.4.14
 types-six==1.16.15
