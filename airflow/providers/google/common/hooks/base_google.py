@@ -211,6 +211,7 @@ class GoogleBaseHook(BaseHook):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: Optional[str] = None,
     ) -> None:
         super().__init__()
         self.gcp_conn_id = gcp_conn_id
@@ -219,6 +220,7 @@ class GoogleBaseHook(BaseHook):
         self.extras = self.get_connection(self.gcp_conn_id).extra_dejson  # type: Dict
         self._cached_credentials: Optional[google.auth.credentials.Credentials] = None
         self._cached_project_id: Optional[str] = None
+        self.init_project_id = project_id
 
     def _get_credentials_and_project_id(self) -> Tuple[google.auth.credentials.Credentials, Optional[str]]:
         """Returns the Credentials object for Google API and the associated project_id"""
@@ -314,6 +316,9 @@ class GoogleBaseHook(BaseHook):
         :return: id of the project
         :rtype: str
         """
+        if self.init_project_id:
+            return self.init_project_id
+
         _, project_id = self._get_credentials_and_project_id()
         return project_id
 
