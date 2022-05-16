@@ -143,7 +143,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self._validate_input_values()
         self.sensor_service_enabled = conf.getboolean('smart_sensor', 'use_smart_sensor')
         self.sensors_support_sensor_service = set(
-            map(lambda l: l.strip(), conf.get('smart_sensor', 'sensors_enabled').split(','))
+            map(lambda l: l.strip(), conf.get_mandatory_value('smart_sensor', 'sensors_enabled').split(','))
         )
 
     def _validate_input_values(self) -> None:
