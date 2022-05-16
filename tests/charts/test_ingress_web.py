@@ -18,6 +18,7 @@
 import unittest
 
 import jmespath
+from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
@@ -25,27 +26,27 @@ from tests.charts.helm_template_generator import render_chart
 class IngressWebTest(unittest.TestCase):
     def test_should_pass_validation_with_just_ingress_enabled_v1(self):
         render_chart(
-            values={"ingress": {"enabled": True}},
+            values={"ingress": {"web": {"enabled": True}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )  # checks that no validation exception is raised
 
     def test_should_pass_validation_with_just_ingress_enabled_v1beta1(self):
         render_chart(
-            values={"ingress": {"enabled": True}},
+            values={"ingress": {"web": {"enabled": True}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
             kubernetes_version='1.16.0',
         )  # checks that no validation exception is raised
 
     def test_should_allow_more_than_one_annotation(self):
         docs = render_chart(
-            values={"ingress": {"enabled": True, "web": {"annotations": {"aa": "bb", "cc": "dd"}}}},
+            values={"ingress": {"web": {"enabled": True, "annotations": {"aa": "bb", "cc": "dd"}}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert {"aa": "bb", "cc": "dd"} == jmespath.search("metadata.annotations", docs[0])
 
     def test_should_set_ingress_class_name(self):
         docs = render_chart(
-            values={"ingress": {"enabled": True, "web": {"ingressClassName": "foo"}}},
+            values={"ingress": {"web": {"enabled": True, "ingressClassName": "foo"}}},
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert "foo" == jmespath.search("spec.ingressClassName", docs[0])
@@ -54,8 +55,8 @@ class IngressWebTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "ingress": {
-                    "enabled": True,
                     "web": {
+                        "enabled": True,
                         "tls": {"enabled": True, "secretName": "oldsecret"},
                         "hosts": [
                             {"name": "*.a-host", "tls": {"enabled": True, "secretName": "newsecret1"}},
@@ -83,8 +84,8 @@ class IngressWebTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "ingress": {
-                    "enabled": True,
                     "web": {
+                        "enabled": True,
                         "tls": {"enabled": True, "secretName": "secret"},
                         "hosts": ["*.a-host", "b-host", "c-host", "d-host"],
                         "host": "old-host",
@@ -102,8 +103,8 @@ class IngressWebTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "ingress": {
-                    "enabled": True,
                     "web": {
+                        "enabled": True,
                         "tls": {"enabled": True, "secretName": "supersecret"},
                         "host": "old-host",
                     },
@@ -121,9 +122,33 @@ class IngressWebTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "ingress": {
-                    "enabled": True,
+                    "web": {
+                        "enabled": True,
+                    }
                 }
             },
             show_only=["templates/webserver/webserver-ingress.yaml"],
         )
         assert not jmespath.search("spec.rules[*].host", docs[0])
+
+    @parameterized.expand(
+        [
+            (None, None, False),
+            (None, False, False),
+            (None, True, True),
+            (False, None, False),
+            (True, None, True),
+            (False, True, True),  # We will deploy it if _either_ are true
+            (True, False, True),
+        ]
+    )
+    def test_ingress_created(self, global_value, web_value, expected):
+        values = {"ingress": {}}
+        if global_value is not None:
+            values["ingress"]["enabled"] = global_value
+        if web_value is not None:
+            values["ingress"]["web"] = {"enabled": web_value}
+        if values["ingress"] == {}:
+            del values["ingress"]
+        docs = render_chart(values=values, show_only=["templates/webserver/webserver-ingress.yaml"])
+        assert expected == (1 == len(docs))

@@ -80,7 +80,7 @@ class TestFlowerDeployment:
     )
     def test_command_and_args_overrides(self, command, args):
         docs = render_chart(
-            values={"flower": {"command": command, "args": args}},
+            values={"flower": {"enabled": True, "command": command, "args": args}},
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
@@ -89,7 +89,13 @@ class TestFlowerDeployment:
 
     def test_command_and_args_overrides_are_templated(self):
         docs = render_chart(
-            values={"flower": {"command": ["{{ .Release.Name }}"], "args": ["{{ .Release.Service }}"]}},
+            values={
+                "flower": {
+                    "enabled": True,
+                    "command": ["{{ .Release.Name }}"],
+                    "args": ["{{ .Release.Service }}"],
+                }
+            },
             show_only=["templates/flower/flower-deployment.yaml"],
         )
 
@@ -99,8 +105,7 @@ class TestFlowerDeployment:
     def test_should_create_flower_deployment_with_authorization(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
-                "flower": {"username": "flower", "password": "fl0w3r"},
+                "flower": {"enabled": True, "username": "flower", "password": "fl0w3r"},
                 "ports": {"flowerUI": 7777},
             },
             show_only=["templates/flower/flower-deployment.yaml"],
@@ -119,7 +124,7 @@ class TestFlowerDeployment:
     def test_should_create_flower_deployment_without_authorization(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
                 "ports": {"flowerUI": 7777},
             },
             show_only=["templates/flower/flower-deployment.yaml"],
@@ -138,8 +143,8 @@ class TestFlowerDeployment:
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
-                "executor": "CeleryExecutor",
                 "flower": {
+                    "enabled": True,
                     "affinity": {
                         "nodeAffinity": {
                             "requiredDuringSchedulingIgnoredDuringExecution": {
@@ -184,10 +189,11 @@ class TestFlowerDeployment:
         docs = render_chart(
             values={
                 "flower": {
+                    "enabled": True,
                     "resources": {
                         "limits": {"cpu": "200m", 'memory': "128Mi"},
                         "requests": {"cpu": "300m", 'memory': "169Mi"},
-                    }
+                    },
                 },
             },
             show_only=["templates/flower/flower-deployment.yaml"],
@@ -200,6 +206,7 @@ class TestFlowerDeployment:
 
     def test_flower_resources_are_not_added_by_default(self):
         docs = render_chart(
+            values={"flower": {"enabled": True}},
             show_only=["templates/flower/flower-deployment.yaml"],
         )
         assert jmespath.search("spec.template.spec.containers[0].resources", docs[0]) == {}
@@ -208,6 +215,7 @@ class TestFlowerDeployment:
         docs = render_chart(
             values={
                 "flower": {
+                    "enabled": True,
                     "extraContainers": [
                         {"name": "test-container", "image": "test-registry/test-repo:test-tag"}
                     ],
@@ -225,6 +233,7 @@ class TestFlowerDeployment:
         docs = render_chart(
             values={
                 "flower": {
+                    "enabled": True,
                     "extraVolumes": [{"name": "myvolume", "emptyDir": {}}],
                     "extraVolumeMounts": [{"name": "myvolume", "mountPath": "/opt/test"}],
                 },
@@ -262,6 +271,7 @@ class TestFlowerService:
 
     def test_default_service(self):
         docs = render_chart(
+            values={"flower": {"enabled": True}},
             show_only=["templates/flower/flower-service.yaml"],
         )
 
@@ -278,12 +288,13 @@ class TestFlowerService:
             values={
                 "ports": {"flowerUI": 9000},
                 "flower": {
+                    "enabled": True,
                     "service": {
                         "type": "LoadBalancer",
                         "loadBalancerIP": "127.0.0.1",
                         "annotations": {"foo": "bar"},
                         "loadBalancerSourceRanges": ["10.123.0.0/16"],
-                    }
+                    },
                 },
             },
             show_only=["templates/flower/flower-service.yaml"],
@@ -319,7 +330,7 @@ class TestFlowerService:
     def test_ports_overrides(self, ports, expected_ports):
         docs = render_chart(
             values={
-                "flower": {"service": {"ports": ports}},
+                "flower": {"enabled": True, "service": {"ports": ports}},
             },
             show_only=["templates/flower/flower-service.yaml"],
         )
@@ -339,11 +350,12 @@ class TestFlowerNetworkPolicy:
             values={
                 "networkPolicies": {"enabled": True},
                 "flower": {
+                    "enabled": True,
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
                         }
-                    }
+                    },
                 },
             },
             show_only=["templates/flower/flower-networkpolicy.yaml"],
@@ -377,12 +389,13 @@ class TestFlowerNetworkPolicy:
             values={
                 "networkPolicies": {"enabled": True},
                 "flower": {
+                    "enabled": True,
                     "networkPolicy": {
                         "ingress": {
                             "from": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}],
                             "ports": ports,
                         }
-                    }
+                    },
                 },
             },
             show_only=["templates/flower/flower-networkpolicy.yaml"],
@@ -395,7 +408,10 @@ class TestFlowerNetworkPolicy:
             values={
                 "networkPolicies": {"enabled": True},
                 "flower": {
-                    "extraNetworkPolicies": [{"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}]
+                    "enabled": True,
+                    "extraNetworkPolicies": [
+                        {"namespaceSelector": {"matchLabels": {"release": "myrelease"}}}
+                    ],
                 },
             },
             show_only=["templates/flower/flower-networkpolicy.yaml"],
