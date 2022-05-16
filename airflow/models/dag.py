@@ -326,8 +326,8 @@ class DAG(LoggingMixin):
         sla_miss_callback: Optional[
             Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
         ] = None,
-        default_view: str = conf.get('webserver', 'dag_default_view').lower(),
-        orientation: str = conf.get('webserver', 'dag_orientation'),
+        default_view: str = conf.get_mandatory_value('webserver', 'dag_default_view').lower(),
+        orientation: str = conf.get_mandatory_value('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
         on_success_callback: Optional[DagStateChangeCallback] = None,
         on_failure_callback: Optional[DagStateChangeCallback] = None,
@@ -2806,7 +2806,7 @@ class DagModel(Base):
         have a value
         """
         # This is for backwards-compatibility with old dags that don't have None as default_view
-        return self.default_view or conf.get('webserver', 'dag_default_view').lower()
+        return self.default_view or conf.get_mandatory_value('webserver', 'dag_default_view').lower()
 
     @property
     def safe_dag_id(self):
