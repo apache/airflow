@@ -142,7 +142,7 @@ class SchedulerJob(BaseJob):
             self._log = log
 
         # Check what SQL backend we use
-        sql_conn: str = conf.get('database', 'sql_alchemy_conn').lower()
+        sql_conn: str = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower()
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
         # Dag Processor agent - not used in Dag Processor standalone mode.
@@ -152,7 +152,10 @@ class SchedulerJob(BaseJob):
 
         if conf.getboolean('smart_sensor', 'use_smart_sensor'):
             compatible_sensors = set(
-                map(lambda l: l.strip(), conf.get('smart_sensor', 'sensors_enabled').split(','))
+                map(
+                    lambda l: l.strip(),
+                    conf.get_mandatory_value('smart_sensor', 'sensors_enabled').split(','),
+                )
             )
             docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
             warnings.warn(

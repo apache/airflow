@@ -2296,7 +2296,7 @@ class TaskInstance(Base, LoggingMixin):
 
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
-                    path = conf.get('email', key)
+                    path = conf.get_mandatory_value('email', key)
                     with open(path) as f:
                         content = f.read()
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)
