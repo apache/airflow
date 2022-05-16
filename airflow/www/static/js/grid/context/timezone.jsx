@@ -27,8 +27,11 @@ const TimezoneContext = React.createContext(null);
 export const TimezoneProvider = ({ children }) => {
   const [timezone, setTimezone] = useState((moment.defaultZone && moment.defaultZone.name) || 'UTC');
 
+  const handleChange = (e) => {
+    if (e.value && e.value !== timezone) setTimezone(e.value);
+  };
+
   useEffect(() => {
-    const handleChange = (e) => setTimezone(e.value);
     document.addEventListener(TimezoneEvent, handleChange);
     return () => {
       document.removeEventListener(TimezoneEvent, handleChange);
