@@ -666,7 +666,7 @@ class AirflowConfigParser(ConfigParser):
         except (NoSectionError, NoOptionError):
             return default
 
-        if data is None or len(data) == 0:
+        if not data:
             return default if default is not _UNSET else None
 
         try:
