@@ -8,7 +8,6 @@ from azure.servicebus import ServiceBusClient, ServiceBusMessage
 
 
 class AzureServiceBusHook(BaseHook):
-
     conn_name_attr = 'azure_service_bus_conn_id'
     default_conn_name = 'azure_service_bus_default'
     conn_type = 'azure_service_bus'
@@ -56,7 +55,7 @@ class AzureServiceBusHook(BaseHook):
 class AzureServiceBusAdminClientHook(AzureServiceBusHook):
 
     def get_conn(self) -> ServiceBusAdministrationClient:
-        """Return a ServiceBusAdministration client."""
+        """Create and returns ServiceBusAdministration by using the connection string in connection details"""
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
 
@@ -73,6 +72,7 @@ class AzureServiceBusAdminClientHook(AzureServiceBusHook):
         """
         if queue_name is None:
             raise AirflowBadRequest("Queue name cannot be None.")
+
         with self.get_conn() as service_mgmt_conn:
             queue = service_mgmt_conn.create_queue(queue_name,
                                                    max_delivery_count=10,
@@ -87,6 +87,7 @@ class AzureServiceBusAdminClientHook(AzureServiceBusHook):
         """
         if queue_name is None:
             raise AirflowBadRequest("Queue name cannot be None.")
+
         with self.get_conn() as service_mgmt_conn:
             service_mgmt_conn.delete_queue(queue_name)
 
@@ -95,10 +96,7 @@ class ServiceBusMessageHook(AzureServiceBusHook):
     """ Sending message(s) to a Service Bus Queue. By using ServiceBusClient"""
 
     def get_conn(self) -> ServiceBusClient:
-        """
-        Create and returns ServiceBusClient by using the connection string in connection
-        details
-        """
+        """Create and returns ServiceBusClient by using the connection string in connection details"""
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
 
@@ -113,12 +111,12 @@ class ServiceBusMessageHook(AzureServiceBusHook):
         Sends single message to  a Service Bus Queue
 
         :param queue_name: The name of the queue or a QueueProperties with name.
-        :param message: Message which needs to be sent to the queue
-        :param batch_message_flag: Boolean flag, can be set to True if message needs to be sent as batch
-         message.
+        :param message: Message which needs to be sent to the queue.
+        :param batch_message_flag: bool flag, can be set to True if message needs to be sent as batch message.
         """
         if queue_name is None:
             raise AirflowBadRequest("Queue name cannot be None.")
+
         msg = ServiceBusMessage(message)
         service_bus_client = self.get_conn()
         with service_bus_client:
@@ -144,6 +142,7 @@ class ServiceBusMessageHook(AzureServiceBusHook):
         """
         if queue_name is None:
             raise AirflowBadRequest("Queue name cannot be None.")
+
         service_bus_client = self.get_conn()
         with service_bus_client:
             receiver = service_bus_client.get_queue_receiver(queue_name=queue_name)
@@ -151,4 +150,3 @@ class ServiceBusMessageHook(AzureServiceBusHook):
                 received_msgs = receiver.receive_messages(max_message_count=10, max_wait_time=5)
                 for msg in received_msgs:
                     receiver.complete_message(msg)
-

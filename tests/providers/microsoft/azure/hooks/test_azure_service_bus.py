@@ -1,12 +1,10 @@
 import json
 import unittest
-from typing import List
 from unittest import mock
 
 import pytest
 
 from airflow import AirflowException
-from airflow.utils import db
 from airflow.models import Connection
 from azure.servicebus.management import ServiceBusAdministrationClient
 from airflow.providers.microsoft.azure.hooks.service_bus import AzureServiceBusAdminClientHook, \

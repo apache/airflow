@@ -1,17 +1,17 @@
-from typing import Sequence
+from typing import Sequence, TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.service_bus import AzureServiceBusAdminClientHook, \
     ServiceBusMessageHook
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class AzureServiceBusCreateQueueOperator(BaseOperator):
     """
-    Creates a Azure ServiceBus queue under a ServiceBus Namespace by using
-    ServiceBusAdministrationClient
+    Creates a Azure ServiceBus queue under a ServiceBus Namespace by using ServiceBusAdministrationClient
 
-    :param queue_name: The name of the queue. should be unique
-    :param azure_service_bus_conn_id: connection Id
+    :param queue_name: The name of the queue. should be unique.
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
@@ -43,10 +43,9 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
     """
     Send Message or batch message to the service bus queue
 
-    :param queue_name: The name of the queue in Service Bus namespace
-    :param message: message which need to be sent to the queue
-    :param batch: Its boolean flag by default it is set to `False`, if the message needs to be sent
-    as batch message it can be set to `True`
+    :param queue_name: The name of the queue in Service Bus namespace.
+    :param message: message which need to be sent to the queue.
+    :param batch: Its boolean flag by default it is set to False, if the message needs to be sent as batch message it can be set to True.
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
@@ -71,9 +70,8 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
 
     def execute(self, context: "Context") -> None:
         """
-        Sends Message to the specific queue in Service Bus namespace,
-        by connecting to Service Bus  client
-
+        Sends Message to the specific queue in Service Bus namespace, by
+        connecting to Service Bus  client
         """
         # Create the hook
         hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
@@ -86,9 +84,9 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
     """
     Receive a batch of messages at once in a specified Queue name
 
-    :param queue_name: The name of the queue in Service Bus namespace
+    :param queue_name: The name of the queue in Service Bus namespace.
     :param azure_service_bus_conn_id: Reference to the
-        :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
+        :ref:`Azure Service Bus connection <howto/connection:azure_service_bus>`.
     """
 
     template_fields: Sequence[str] = ("queue_name",)
@@ -121,9 +119,9 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
     """
     Deletes the Queue in the Azure ServiceBus namespace
 
-    :param queue_name: The name of the queue in Service Bus namespace
+    :param queue_name: The name of the queue in Service Bus namespace.
     :param azure_service_bus_conn_id: Reference to the
-        :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
+        :ref:`Azure Service Bus connection <howto/connection:azure_service_bus>`.
     """
 
     template_fields: Sequence[str] = ("queue_name",)
