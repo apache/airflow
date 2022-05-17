@@ -15,8 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from nis import cat
 from time import sleep
 from typing import Any, Dict, List, Optional
+from urllib import response
+from warnings import catch_warnings
+from airflow.lineage import apply_lineage
 
 from botocore.exceptions import ClientError
 
@@ -88,6 +92,85 @@ class EmrHook(AwsBaseHook):
         response = self.get_conn().run_job_flow(**config)
 
         return response
+
+
+
+class EmrServerlessHook(AwsBaseHook):
+    '''
+    Interact with EMR Serverless API.
+    '''
+
+    def __init__(self, emr_conn_id:str , *args: Any, **kwargs: Any) -> str:
+        self.emr_conn_id = emr_conn_id
+        super().__init__(client_type="emr-serverless", *args, **kwargs)
+    
+    def create_application(self, client_request_token: str, releaseLabel: str, type: str):
+        """
+        Create an EMR serverless application.
+
+        :param client_request_token: The client idempotency token of the application to create. Its value must be unique for each request.
+        :param releaseLabel: The EMR release version associated with the application.
+        :param type: Type of application
+        :raises Exception: Exception from boto3 API call
+        :returns: Response object from boto3 API call
+        """
+        
+        try:
+            response = self.conn.create_application(clientToken=client_request_token, releaseLabel=releaseLabel, type=type)
+        except Exception as ex:
+            self.log.error("Exception while creating application: %s", ex)
+            raise Exception("Error creating application")
+
+        return response
+
+    
+
+    def delete_application(self, applicationId: str) -> None:
+        """
+        Delete an EMR Serverless application.
+
+        :param applicationId: Id of the application to be deleted.
+        :raises AirflowException: Exception from boto3 API call.
+        """
+
+        try:
+            response = self.conn.delete_application(applicationId=applicationId)
+        except Exception as ex:
+            self.log.error("Exception while deleting application: %s", ex)
+            raise Exception("Error deleting application")
+
+
+    
+    def start_job(self, client_request_token: str, application_id: str, execution_role_arn: str, job_driver: dict, configuration_overrides: Optional[dict]) -> str:
+        """
+        Starts an EMR Serverless job on a created application.
+
+        :param application_id: Id of the EMR Serverless application to start.
+        :param execution_role_arn: ARN of role to perform action.
+        :param job_driver: Driver that the job runs on.
+        :param configuration_overrides: Configuration specifications to override existing configurations.
+        :param client_request_token: The client idempotency token of the application to create. Its value must be unique for each request.
+        :raises AirflowException: Exception from boto3 API call.
+        :returns: Response object from boto3 API call.
+        """
+        
+        self.conn.start_application(applicationId=application_id)
+
+        try:
+            runResponse = self.conn.start_job_run(
+                clientToken=client_request_token,
+                applicationId=application_id,
+                executionRoleArn=execution_role_arn,
+                jobDriver=job_driver,
+                configurationOverrides=configuration_overrides
+            )
+        except Exception as ex:
+                self.log.error("Exception while starting job: %s", ex)
+                raise Exception("Error while starting job")
+
+        return runResponse
+
+
 
 
 class EmrContainerHook(AwsBaseHook):

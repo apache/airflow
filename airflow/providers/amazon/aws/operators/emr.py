@@ -16,13 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+from distutils.command.config import config
+from lib2to3.pgen2.token import OP
+from optparse import Option
+from select import KQ_NOTE_LOWAT
+import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from urllib import response
 from uuid import uuid4
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
+from airflow.providers.amazon.aws.hooks.emr import EmrHook, EmrContainerHook, EmrServerlessHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
 
 if TYPE_CHECKING:
@@ -412,3 +418,155 @@ class EmrTerminateJobFlowOperator(BaseOperator):
             raise AirflowException(f'JobFlow termination failed: {response}')
         else:
             self.log.info('JobFlow with id %s terminated', self.job_flow_id)
+
+
+class EmrServerlessCreateApplicationOperator(BaseOperator):
+    """
+    Operator to create Serverless EMR Application
+
+    .. seealso::
+    For more information on how to use this operator, take a look at the guide:
+    :ref:``
+
+    :param: release_label: The EMR release version associated with the application.
+    :param: job_type: The type of application you want to start, such as Spark or Hive.
+    :param: client_request_token: The client idempotency token of the application to create. Its value must be unique for each request.
+    :param aws_conn_id: AWS connection to use
+    :param emr_conn_id: EMR connection to use
+    """
+    def __init__(
+        self, 
+        release_label: str, 
+        job_type: str, 
+        client_request_token: str = "", 
+        aws_conn_id: str = 'aws_default', 
+        emr_conn_id: str = 'emr_default', 
+        **kwargs
+    ):
+        self.aws_conn_id = aws_conn_id
+        self.emr_conn_id = emr_conn_id
+        self.release_label = release_label
+        self.job_type = job_type
+        self.kwargs = kwargs
+        super().__init__(**kwargs)
+
+        self.client_request_token = client_request_token or str(uuid4())
+
+
+
+    def execute(self, context: 'Context') -> None:
+        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id).get_conn()
+
+        response = emr_serverless_hook.create_application(clientToken=self.client_request_token, releaseLabel=self.release_label, type=self.job_type, **self.kwargs)
+
+        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            raise AirflowException(f'Application Creation failed: {response}')
+        else:
+            self.log.info('EMR serverless application created: %s', response['applicationId'])
+
+
+class EmrServerlessStartJobOperator(BaseOperator):
+    """
+    Operator to start EMR Serverless job.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:``
+
+    :param application_id: Id of the EMR Serverless application to start.
+    :param execution_role_arn: ARN of role to perform action.
+    :param job_driver: Driver that the job runs on.
+    :param configuration_overrides: Configuration specifications to override existing configurations.
+    :param client_request_token: The client idempotency token of the application to create. Its value must be unique for each request.
+    :param aws_conn_id: AWS connection to use
+    :param emr_conn_id: EMR connection to use
+    """
+
+    def __init__(
+        self, 
+        application_id: str, 
+        execution_role_arn: str, 
+        job_driver: dict, 
+        configuration_overrides: Optional[dict], 
+        client_request_token: str = "", 
+        aws_conn_id: str = 'aws_default', 
+        emr_conn_id: str = 'emr_default', 
+        **kwargs
+    ):
+        self.aws_conn_id = aws_conn_id
+        self.emr_conn_id = emr_conn_id
+        self.application_id = application_id
+        self.execution_role_arn = execution_role_arn
+        self.job_driver = job_driver
+        self.configuration_overrides = configuration_overrides
+        super().__init(**kwargs)
+
+        self.client_request_token = client_request_token or str(uuid4())
+
+        for key in job_driver.keys():
+            if key == "sparkSubmit":
+                if "entryPoint" not in job_driver['sparkSubmit'].keys():
+                    raise AirflowException(f"sparkSubmit Job Driver needs an 'entryPoint' entry: {job_driver}")
+            elif key == "hive":
+                if "query" not in job_driver['hive'].keys():
+                    raise AirflowException(f"hive Job Driver needs a 'query entry': {job_driver}")
+            else:
+                raise AirflowException(f"Job Driver is not valid: {key}")
+
+        if configuration_overrides and "monitoringConfiguration" not in configuration_overrides.keys():
+            raise AirflowException("configurationOverrides needs a 'monitoringConfiguration' entry")
+        
+
+    def execute(self, context: 'Context') -> None:
+        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id).get_conn()
+        
+        self.log.info('Starting job: %s', self.application_id)
+        response = emr_serverless_hook.start_job(
+            client_request_token=self.client_request_token,
+            application_id=self.application_id, 
+            execution_role_arn=self.execution_role_arn, 
+            job_driver=self.job_driver, 
+            configuration_overrides=self.configuration_overrides
+        )
+
+        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            raise AirflowException(f'Application Creation failed: {response}')
+        else:
+            self.log.info('EMR serverless job started: %s', response['applicationId'])
+
+
+class EmrServerlessDeleteApplicationOperator(BaseOperator):
+    """
+    Operator to delete EMR Serverless application
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:``
+
+    :param application_id: Id of the EMR Serverless application to delete.
+    :param aws_conn_id: AWS connection to use
+    :param emr_conn_id: EMR connection to use
+    """
+
+    def __init__(self, application_id: str, aws_conn_id: str = 'aws_default', emr_conn_id: str = 'emr_default', **kwargs):
+        self.aws_conn_id = aws_conn_id
+        self.emr_conn_id = emr_conn_id
+        self.application_id = application_id
+        super().__init__(**kwargs)
+
+    
+
+    def execute(self, context: 'Context') -> None:
+        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id).get_conn()
+
+        self.log.info('Deleting application: %s', self.application_id)
+
+        response = emr_serverless_hook.delete_application(application_id=self.application_id)
+
+        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+            raise AirflowException(f'Application deletion failed: {response}')
+        else:
+            self.log.info('EMR serverless application deleted')
+
+
+
