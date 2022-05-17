@@ -217,7 +217,7 @@ class PodManager(LoggingMixin):
         if p.is_alive():
             # await_container_completion ticks every 1 second, so if the stream processing
             # is slower, could be that we are unluckily processing some few final logs
-            time.sleep(0.2)
+            time.sleep(1)
         if p.is_alive():
             p.terminate()
             p.join()
