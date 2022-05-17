@@ -264,6 +264,12 @@ class TestTaskInstance:
         assert op2 in op1.downstream_list
         assert op2 in op3.downstream_list
 
+    def test_init_on_load(self, create_task_instance):
+        ti = create_task_instance()
+        # ensure log is correctly created for ORM ti
+        assert ti.log.name == 'airflow.task'
+        assert not ti.test_mode
+
     @patch.object(DAG, 'get_concurrency_reached')
     def test_requeue_over_dag_concurrency(self, mock_concurrency_reached, create_task_instance):
         mock_concurrency_reached.return_value = True

@@ -110,7 +110,7 @@ class TestCliTasks(unittest.TestCase):
 
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
 
-        with self.assertLogs('airflow.models', level='INFO') as cm:
+        with self.assertLogs('airflow.task', level='INFO') as cm:
             task_command.task_test(args)
             assert any(
                 [
