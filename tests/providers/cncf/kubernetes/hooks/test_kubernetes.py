@@ -363,7 +363,7 @@ class TestKubernetesHook:
     def test_core_settings_warnings(self, key, key_val, attr, attr_val):
         hook = KubernetesHook(conn_id=None)
         setattr(hook, attr, attr_val)
-        with pytest.warns(DeprecationWarning, match=rf'.*Airflow settings.*\n.*{key}={key_val!r}.*') as w:
+        with pytest.warns(DeprecationWarning, match=rf'.*Airflow settings.*\n.*{key}={key_val!r}.*'):
             hook.get_conn()
 
 
