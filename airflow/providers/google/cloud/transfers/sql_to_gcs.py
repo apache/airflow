@@ -19,7 +19,7 @@
 import abc
 import json
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
 import pyarrow as pa
 import pyarrow.parquet as pq
@@ -88,24 +88,24 @@ class BaseSQLToGCSOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     def __init__(
-            self,
-            *,
-            sql: str,
-            bucket: str,
-            filename: str,
-            schema_filename: Optional[str] = None,
-            approx_max_file_size_bytes: int = 1900000000,
-            export_format: str = 'json',
-            field_delimiter: str = ',',
-            null_marker: Optional[str] = None,
-            gzip: bool = False,
-            schema: Optional[Union[str, list]] = None,
-            parameters: Optional[dict] = None,
-            gcp_conn_id: str = 'google_cloud_default',
-            delegate_to: Optional[str] = None,
-            impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-            exclude_columns=None,
-            **kwargs,
+        self,
+        *,
+        sql: str,
+        bucket: str,
+        filename: str,
+        schema_filename: Optional[str] = None,
+        approx_max_file_size_bytes: int = 1900000000,
+        export_format: str = 'json',
+        field_delimiter: str = ',',
+        null_marker: Optional[str] = None,
+        gzip: bool = False,
+        schema: Optional[Union[str, list]] = None,
+        parameters: Optional[dict] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        delegate_to: Optional[str] = None,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        exclude_columns=None,
+        **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         if exclude_columns is None:
