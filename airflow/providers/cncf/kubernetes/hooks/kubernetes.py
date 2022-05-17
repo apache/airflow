@@ -66,6 +66,14 @@ class KubernetesHook(BaseHook):
 
     :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
         to Kubernetes cluster.
+    :param client_configuration: Optional dictionary of client configuration params.
+        Passed on to kubernetes client.
+    :param cluster_context: Optionally specify a context to use (e.g. if you have multiple
+        in your kubeconfig.
+    :param config_file: Path to kubeconfig file.
+    :param in_cluster: Set to ``True`` if running from within a kubernetes cluster.
+    :param disable_verify_ssl: Set to ``True`` if SSL verification should be disabled.
+    :param disable_tcp_keepalive: Set to ``True`` if you want to disable keepalive logic.
     """
 
     conn_name_attr = 'kubernetes_conn_id'
