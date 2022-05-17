@@ -523,6 +523,22 @@ class SchedulerTest(unittest.TestCase):
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
+    def test_no_dags_mount_or_volume_or_gitsync_sidecar_expected(self):
+        docs = render_chart(
+            values={
+                "dagProcessor": {"enabled": True},
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+                "scheduler": {"logGroomerSidecar": {"enabled": False}},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert "dags" not in [
+            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        ]
+        assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+
     def test_log_groomer_resources(self):
         docs = render_chart(
             values={

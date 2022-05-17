@@ -141,7 +141,7 @@ spec:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
         {{- end }}
-        {{- if .Values.dags.gitSync.enabled }}
+        {{- if and (not .Values.dagProcessor.enabled) .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
         {{- end }}
         {{- if .Values.scheduler.extraInitContainers }}
@@ -202,13 +202,13 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
             {{- end }}
-            {{- if or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled }}
-            {{- include "airflow_dags_mount" . | nindent 12 }}
-            {{- end }}
+{{- if and (not .Values.dagProcessor.enabled) (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
+{{- include "airflow_dags_mount" . | nindent 12 }}
+{{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
 {{ toYaml .Values.scheduler.extraVolumeMounts | indent 12 }}
 {{- end }}
-{{- if .Values.dags.gitSync.enabled }}
+{{- if and (not .Values.dagProcessor.enabled) .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" . | indent 8 }}
 {{- end }}
         {{- if .Values.scheduler.logGroomerSidecar.enabled }}
@@ -239,6 +239,7 @@ spec:
         - name: config
           configMap:
             name: {{ template "airflow_config" . }}
+        {{- if not .Values.dagProcessor.enabled }}
         {{- if .Values.dags.persistence.enabled }}
         - name: dags
           persistentVolumeClaim:
@@ -249,6 +250,7 @@ spec:
         {{- end }}
         {{- if and  .Values.dags.gitSync.enabled  .Values.dags.gitSync.sshKeySecret }}
         {{- include "git_sync_ssh_key_volume" . | indent 8 }}
+        {{- end }}
         {{- end }}
 {{- if .Values.scheduler.extraVolumes }}
 {{ toYaml .Values.scheduler.extraVolumes | indent 8 }}

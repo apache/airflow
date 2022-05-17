@@ -410,6 +410,17 @@ class DagProcessorTest(unittest.TestCase):
         assert ["RELEASE-NAME"] == jmespath.search("spec.template.spec.containers[0].command", docs[0])
         assert ["Helm"] == jmespath.search("spec.template.spec.containers[0].args", docs[0])
 
+    def test_dags_volume_mount_with_persistence_true(self):
+        docs = render_chart(
+            values={"dagProcessor": {"enabled": True}, "dags": {"gitSync": {"enabled": True}}},
+            show_only=["templates/dag-processor/dag-processor-deployment.yaml"],
+        )
+
+        assert "dags" in [
+            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+        ]
+        assert "dags" in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+
     def test_dags_gitsync_sidecar_and_init_container(self):
         docs = render_chart(
             values={"dagProcessor": {"enabled": True}, "dags": {"gitSync": {"enabled": True}}},
