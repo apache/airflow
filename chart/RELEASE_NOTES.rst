@@ -23,7 +23,7 @@ Run ``helm repo update`` before upgrading the chart to the latest version.
 
 .. towncrier release notes start
 
-Airflow Helm Chart 1.6.0 (2022-05-12)
+Airflow Helm Chart 1.6.0 (2022-05-20)
 -------------------------------------
 
 Significant Changes
@@ -77,6 +77,7 @@ Misc
 
 - Update default Airflow version to ``2.3.0`` (#23386)
 - Move the database configuration to a new section (#22284)
+- Disable flower in chart by default (#23737)
 
 
 Airflow Helm Chart 1.5.0, (2022-03-07)
