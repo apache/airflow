@@ -35,7 +35,11 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.utils import process_utils
-from airflow.utils.process_utils import check_if_pidfile_process_is_running, execute_in_subprocess
+from airflow.utils.process_utils import (
+    check_if_pidfile_process_is_running,
+    execute_in_subprocess,
+    execute_in_subprocess_with_kwargs,
+)
 
 
 class TestReapProcessGroup(unittest.TestCase):
@@ -116,6 +120,10 @@ class TestExecuteInSubProcess:
     def test_should_raise_exception(self):
         with pytest.raises(CalledProcessError):
             process_utils.execute_in_subprocess(["bash", "-c", "exit 1"])
+
+    def test_using_env_as_kwarg_works(self, caplog):
+        execute_in_subprocess_with_kwargs(["bash", "-c", 'echo "My value is ${VALUE}"'], env=dict(VALUE="1"))
+        assert "My value is 1" in caplog.text
 
 
 def my_sleep_subprocess():
