@@ -34,6 +34,7 @@ from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
 
 KUBE_CONFIG_PATH = os.getenv('KUBECONFIG', '~/.kube/config')
+HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"
 
 
 class TestKubernetesHook:
@@ -80,7 +81,7 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
     @patch("kubernetes.config.kube_config.KubeConfigMerger")
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
-    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook._get_default_client")
+    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client")
     def test_in_cluster_connection(
         self,
         mock_get_default_client,
@@ -150,7 +151,7 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes._disable_verify_ssl")
+    @patch(f"{HOOK_MODULE}._disable_verify_ssl")
     def test_disable_verify_ssl(
         self,
         mock_disable,
@@ -185,7 +186,7 @@ class TestKubernetesHook:
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
-    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes._enable_tcp_keepalive")
+    @patch(f"{HOOK_MODULE}._enable_tcp_keepalive")
     def test_disable_tcp_keepalive(
         self,
         mock_enable,
@@ -313,7 +314,8 @@ class TestKubernetesHook:
         assert isinstance(hook.api_client, kubernetes.client.ApiClient)
         assert isinstance(hook.get_conn(), kubernetes.client.ApiClient)
 
-    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes._disable_verify_ssl")
+    @patch(f"{HOOK_MODULE}._disable_verify_ssl")
+    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client", new=MagicMock)
     def test_patch_core_settings_verify_ssl(self, mock_disable_verify_ssl):
         hook = KubernetesHook()
         hook.get_conn()
@@ -323,7 +325,8 @@ class TestKubernetesHook:
         hook.get_conn()
         mock_disable_verify_ssl.assert_called()
 
-    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes._enable_tcp_keepalive")
+    @patch(f"{HOOK_MODULE}._enable_tcp_keepalive")
+    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client", new=MagicMock)
     def test_patch_core_settings_tcp_keepalive(self, mock_enable_tcp_keepalive):
         hook = KubernetesHook()
         hook.get_conn()
@@ -336,7 +339,7 @@ class TestKubernetesHook:
     @patch("kubernetes.config.kube_config.KubeConfigLoader", new=MagicMock())
     @patch("kubernetes.config.kube_config.KubeConfigMerger", new=MagicMock())
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader")
-    @patch("airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook._get_default_client")
+    @patch(f"{HOOK_MODULE}.KubernetesHook._get_default_client")
     def test_patch_core_settings_in_cluster(self, mock_get_default_client, mock_in_cluster_loader):
         hook = KubernetesHook(conn_id=None)
         hook.get_conn()
