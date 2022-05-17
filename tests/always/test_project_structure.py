@@ -419,6 +419,64 @@ class TestGoogleProviderProjectStructure(ExampleCoverageTest, AssetsCoverageTest
         super().test_missing_assets()
 
 
+class TestAmazonProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "amazon"
+    CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
+
+    BASE_CLASSES = {
+        'airflow.providers.amazon.aws.operators.rds.RdsBaseOperator',
+        'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
+        'airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor',
+        'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
+        'airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor',
+        'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
+    }
+
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        # DMS examples DAGs are currently in development
+        'airflow.providers.amazon.aws.operators.dms.DmsDescribeTasksOperator',
+        'airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator',
+        # EMR legitimately missing, needs development
+        'airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator',
+        'airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor',
+        # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
+        'airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator',
+        # S3 legitimately missing, needs development
+        'airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator',
+        # Glue Catalog sensor difficult to test
+        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor',
+    }
+
+    DEPRECATED_CLASSES = {
+        'airflow.providers.amazon.aws.operators.athena.AWSAthenaOperator',
+        'airflow.providers.amazon.aws.operators.batch.AwsBatchOperator',
+        'airflow.providers.amazon.aws.operators.datasync.AWSDataSyncOperator',
+        'airflow.providers.amazon.aws.operators.ecs.ECSOperator',
+        'airflow.providers.amazon.aws.operators.eks.EKSCreateClusterOperator',
+        'airflow.providers.amazon.aws.operators.eks.EKSCreateFargateProfileOperator',
+        'airflow.providers.amazon.aws.operators.eks.EKSCreateNodegroupOperator',
+        'airflow.providers.amazon.aws.operators.eks.EKSDeleteClusterOperator',
+        'airflow.providers.amazon.aws.operators.eks.EKSDeleteFargateProfileOperator',
+        'airflow.providers.amazon.aws.operators.eks.EKSDeleteNodegroupOperator',
+        'airflow.providers.amazon.aws.operators.eks.EKSPodOperator',
+        'airflow.providers.amazon.aws.operators.emr_containers.EMRContainerOperator',
+        'airflow.providers.amazon.aws.operators.glue.AwsGlueJobOperator',
+        'airflow.providers.amazon.aws.operators.glue_crawler.AwsGlueCrawlerOperator',
+        'airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator',
+        'airflow.providers.amazon.aws.sensors.eks.EKSClusterStateSensor',
+        'airflow.providers.amazon.aws.sensors.eks.EKSFargateProfileStateSensor',
+        'airflow.providers.amazon.aws.sensors.eks.EKSNodegroupStateSensor',
+        'airflow.providers.amazon.aws.sensors.emr_containers.EMRContainerSensor',
+        'airflow.providers.amazon.aws.sensors.glue.AwsGlueJobSensor',
+        'airflow.providers.amazon.aws.sensors.glue_catalog_partition.AwsGlueCatalogPartitionSensor',
+        'airflow.providers.amazon.aws.sensors.glue_crawler.AwsGlueCrawlerSensor',
+        'airflow.providers.amazon.aws.sensors.s3.S3KeySizeSensor',
+        'airflow.providers.amazon.aws.sensors.s3.S3PrefixSensor',
+        'airflow.providers.amazon.aws.sensors.sqs.SQSSensor',
+        'airflow.providers.amazon.aws.transfers.mysql_to_s3.MySQLToS3Operator',
+    }
+
+
 class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
     CLASS_DIRS = {"hooks"}
