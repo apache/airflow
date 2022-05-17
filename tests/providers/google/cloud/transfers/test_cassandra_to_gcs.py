@@ -28,6 +28,7 @@ SCHEMA = "schema.json"
 FILENAME = "data.json"
 CQL = "select * from keyspace1.table1"
 
+
 class TestCassandraToGCS(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload")
