@@ -23,23 +23,26 @@ from unittest.mock import call
 from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
 
 TMP_FILE_NAME = "temp-file"
-
+TEST_BUCKET = "test-bucket"
+SCHEMA = "schema.json"
+FILENAME = "data.json"
+CQL = "select * from keyspace1.table1"
 
 class TestCassandraToGCS(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.NamedTemporaryFile")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraHook")
     def test_execute(self, mock_hook, mock_upload, mock_tempfile):
-        test_bucket = "test-bucket"
-        schema = "schema.json"
-        filename = "data.json"
+        test_bucket = TEST_BUCKET
+        schema = SCHEMA
+        filename = FILENAME
         gzip = True
         query_timeout = 20
         mock_tempfile.return_value.name = TMP_FILE_NAME
 
         operator = CassandraToGCSOperator(
             task_id="test-cas-to-gcs",
-            cql="select * from keyspace1.table1",
+            cql=CQL,
             bucket=test_bucket,
             filename=filename,
             schema_filename=schema,
@@ -70,8 +73,9 @@ class TestCassandraToGCS(unittest.TestCase):
         mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
-        op = CassandraToGCSOperator
-        unencoded_uuid_op = CassandraToGCSOperator(encoded_uuid=False)
+        op = CassandraToGCSOperator(bucket=TEST_BUCKET, cql=CQL, filename = FILENAME)
+        unencoded_uuid_op = CassandraToGCSOperator(bucket=TEST_BUCKET, cql=CQL,
+                                                   filename = FILENAME, encode_uuid=False)
         assert op.convert_value(None) is None
         assert op.convert_value(1) == 1
         assert op.convert_value(1.0) == 1.0
