@@ -1491,7 +1491,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   tests-helm-executor-upgrade:
-    timeout-minutes: 100
+    timeout-minutes: 150
     name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, wait-for-prod-images]
