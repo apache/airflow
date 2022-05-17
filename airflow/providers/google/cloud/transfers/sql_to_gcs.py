@@ -88,24 +88,24 @@ class BaseSQLToGCSOperator(BaseOperator):
     ui_color = '#a0e08c'
 
     def __init__(
-        self,
-        *,
-        sql: str,
-        bucket: str,
-        filename: str,
-        schema_filename: Optional[str] = None,
-        approx_max_file_size_bytes: int = 1900000000,
-        export_format: str = 'json',
-        field_delimiter: str = ',',
-        null_marker: Optional[str] = None,
-        gzip: bool = False,
-        schema: Optional[Union[str, list]] = None,
-        parameters: Optional[dict] = None,
-        gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        exclude_columns=None,
-        **kwargs,
+            self,
+            *,
+            sql: str,
+            bucket: str,
+            filename: str,
+            schema_filename: Optional[str] = None,
+            approx_max_file_size_bytes: int = 1900000000,
+            export_format: str = 'json',
+            field_delimiter: str = ',',
+            null_marker: Optional[str] = None,
+            gzip: bool = False,
+            schema: Optional[Union[str, list]] = None,
+            parameters: Optional[dict] = None,
+            gcp_conn_id: str = 'google_cloud_default',
+            delegate_to: Optional[str] = None,
+            impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+            exclude_columns=None,
+            **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         if exclude_columns is None:
@@ -171,8 +171,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        org_schema = set(schema_tuple[0] for schema_tuple in cursor.description)
-        schema = org_schema - self.exclude_columns
+        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        schema = [column for column in org_schema if column not in self.exclude_columns]
 
         col_type_dict = self._get_col_type_dict()
         file_no = 0
