@@ -441,8 +441,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         'airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor',
         # S3 Exasol transfer difficult to test, see: https://github.com/apache/airflow/issues/22632
         'airflow.providers.amazon.aws.transfers.exasol_to_s3.ExasolToS3Operator',
-        # S3 legitimately missing, needs development
-        'airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Operator',
         # Glue Catalog sensor difficult to test
         'airflow.providers.amazon.aws.sensors.glue_catalog_partition.GlueCatalogPartitionSensor',
     }
