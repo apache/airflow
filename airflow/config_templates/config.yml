@@ -1769,7 +1769,7 @@
     - name: task_adoption_timeout
       description: |
         Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
-        and are automatically cleared. This setting does the same thing as ``stalled_task_timeout`` but
+        and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
         applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
         also applies to adopted tasks.
       version_added: 2.0.0
@@ -1779,7 +1779,7 @@
     - name: stalled_task_timeout
       description: |
         Time in seconds after which tasks queued in celery are assumed to be stalled, and are automatically
-        cleared. Adopted tasks will instead use the ``task_adoption_timeout`` setting if specified.
+        rescheduled. Adopted tasks will instead use the ``task_adoption_timeout`` setting if specified.
         When set to 0, automatic clearing of stalled tasks is disabled.
       version_added: 2.3.1
       type: integer
