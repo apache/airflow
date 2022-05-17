@@ -71,6 +71,7 @@ class TestCassandraToGCS(unittest.TestCase):
 
     def test_convert_value(self):
         op = CassandraToGCSOperator
+        unencoded_uuid_op = CassandraToGCSOperator(encoded_uuid=False)
         assert op.convert_value(None) is None
         assert op.convert_value(1) == 1
         assert op.convert_value(1.0) == 1.0
@@ -95,6 +96,8 @@ class TestCassandraToGCS(unittest.TestCase):
         test_uuid = uuid.uuid4()
         encoded_uuid = b64encode(test_uuid.bytes).decode("ascii")
         assert op.convert_value(test_uuid) == encoded_uuid
+        unencoded_uuid = str(test_uuid)
+        assert unencoded_uuid_op.convert_value(test_uuid) == unencoded_uuid
 
         byte_str = b"abc"
         encoded_b = b64encode(byte_str).decode("ascii")
