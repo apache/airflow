@@ -61,7 +61,7 @@ APP_JSON = "application/json"
 
 OUTPUT_DF = pd.DataFrame([['convert_type_return_value'] * 3] * 3, columns=COLUMNS)
 
-EXCLUDE_COLUMNS = ['column_c']
+EXCLUDE_COLUMNS = set('column_c')
 NEW_COLUMNS = [c for c in COLUMNS if c not in EXCLUDE_COLUMNS]
 OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame(
     [['convert_type_return_value'] * len(NEW_COLUMNS)] * 3, columns=NEW_COLUMNS
