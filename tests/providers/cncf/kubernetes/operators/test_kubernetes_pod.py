@@ -84,10 +84,7 @@ class TestKubernetesPodOperator:
 
         yield
 
-        self.create_pod_patch.stop()
-        self.await_pod_patch.stop()
-        self.await_pod_completion_patch.stop()
-        self.hook_patch.stop()
+        mock.patch.stopall()
 
     def run_pod(self, operator: KubernetesPodOperator, map_index: int = -1) -> k8s.V1Pod:
         with self.dag_maker(dag_id='dag') as dag:
