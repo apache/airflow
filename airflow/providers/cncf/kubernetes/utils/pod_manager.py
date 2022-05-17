@@ -214,10 +214,7 @@ class PodManager(LoggingMixin):
         p = multiprocessing.Process(target=log_iterable_and_set_value, args=(timestamp,))
         p.start()
         self.await_container_completion(pod, container_name)
-        if p.is_alive():
-            # await_container_completion ticks every 1 second, so if the stream processing
-            # is slower, could be that we are unluckily processing some few final logs
-            time.sleep(1)
+        p.join(timeout=5)
         if p.is_alive():
             p.terminate()
             p.join()
@@ -226,6 +223,7 @@ class PodManager(LoggingMixin):
                 "see https://github.com/apache/airflow/issues/23497 for reference.",
                 container_name,
             )
+            return None
         p.close()
         if not timestamp.value:
             return None
