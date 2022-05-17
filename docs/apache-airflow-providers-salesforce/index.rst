@@ -89,27 +89,7 @@ PIP package              Version required
 ``apache-airflow``       ``>=2.2.0``
 ``pandas``               ``>=0.17.1``
 ``simple-salesforce``    ``>=1.0.0``
-``tableauserverclient``
 =======================  ==================
-
-Cross provider package dependencies
------------------------------------
-
-Those are dependencies that might be needed in order to use all the features of the package.
-You need to install the specified provider packages in order to use them.
-
-You can install such cross-provider dependencies when installing from PyPI. For example:
-
-.. code-block:: bash
-
-    pip install apache-airflow-providers-salesforce[tableau]
-
-
-======================================================================================================  ===========
-Dependent package                                                                                       Extra
-======================================================================================================  ===========
-`apache-airflow-providers-tableau <https://airflow.apache.org/docs/apache-airflow-providers-tableau>`_  ``tableau``
-======================================================================================================  ===========
 
 Downloading official packages
 -----------------------------
