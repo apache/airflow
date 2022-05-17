@@ -71,7 +71,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :param exclude_columns: list of columns to exclude from transmission
+    :param exclude_columns: set of columns to exclude from transmission
     """
 
     template_fields: Sequence[str] = (
@@ -104,10 +104,13 @@ class BaseSQLToGCSOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        exclude_columns: List[str] = [],
+        exclude_columns=None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if exclude_columns is None:
+            exclude_columns = set()
+
         self.sql = sql
         self.bucket = bucket
         self.filename = filename
@@ -168,8 +171,8 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
-        schema = [column for column in org_schema if column not in self.exclude_columns]
+        org_schema = set(schema_tuple[0] for schema_tuple in cursor.description)
+        schema = org_schema - self.exclude_columns
 
         col_type_dict = self._get_col_type_dict()
         file_no = 0
