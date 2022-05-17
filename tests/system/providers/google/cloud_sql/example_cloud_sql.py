@@ -293,6 +293,8 @@ with models.DAG(
     #   sql_instance_create_task >> sql_gcp_add_bucket_permission_task
     #   sql_instance_create_task >> sql_gcp_add_object_permission_task
 
+    ### Everything below this line is not part of example ###
+    ### Just for system tests purpose ###
     from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
