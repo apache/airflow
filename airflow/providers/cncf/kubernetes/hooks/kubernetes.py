@@ -127,11 +127,11 @@ class KubernetesHook(BaseHook):
 
         # these params used for transition in KPO to K8s hook
         # for a deprecation period we will continue to consider k8s settings from airflow.cfg
-        self._deprecated_core_disable_tcp_keepalive = None
-        self._deprecated_core_disable_verify_ssl = None
-        self._deprecated_core_in_cluster = None
-        self._deprecated_core_cluster_context = None
-        self._deprecated_core_config_file = None
+        self._deprecated_core_disable_tcp_keepalive: Optional[bool] = None
+        self._deprecated_core_disable_verify_ssl: Optional[bool] = None
+        self._deprecated_core_in_cluster: Optional[bool] = None
+        self._deprecated_core_cluster_context: Optional[str] = None
+        self._deprecated_core_config_file: Optional[str] = None
 
     @staticmethod
     def _coalesce_param(*params):
