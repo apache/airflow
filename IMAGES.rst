@@ -233,7 +233,7 @@ or
 Naming conventions
 ==================
 
-By default images we are using cache for images in Github Container registry. We are using GitHub
+By default images we are using cache for images in GitHub Container registry. We are using GitHub
 Container Registry as development image cache and CI registry for build images.
 The images are all in organization wide "apache/" namespace. We are adding "airflow-" as prefix for
 the image names of all Airflow images. The images are linked to the repository

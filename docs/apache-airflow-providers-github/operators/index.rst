@@ -21,7 +21,7 @@ Operators
 =========
 
 Use the :class:`~airflow.providers.github.operators.GithubOperator` to execute
-Operations in a `Github <https://www.github.com/>`__.
+Operations in a `GitHub <https://www.github.com/>`__.
 
 You can build your own operator using :class:`~airflow.providers.github.operators.GithubOperator`
 and passing **github_method** and **github_method_args** from top level `PyGithub <https://www.pygithub.readthedocs.io/>`__ methods.
@@ -54,7 +54,7 @@ an example of this is :class:`~airflow.providers.github.sensors.GithubTagSensor`
 
 
 Use the :class:`~airflow.providers.github.sensors.GithubTagSensor` to wait for creation of
-a Tag in `Github <https://www.github.com/>`__.
+a Tag in `GitHub <https://www.github.com/>`__.
 
 An example for tag **v1.0**:
 
