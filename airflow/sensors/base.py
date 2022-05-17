@@ -339,6 +339,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         """Define mode rescheduled sensors."""
         return self.mode == 'reschedule'
 
+    @classmethod
+    def get_serialized_fields(cls):
+        return super().get_serialized_fields() | {"reschedule"}
+
 
 def poke_mode_only(cls):
     """
