@@ -119,6 +119,17 @@ class TestBaseOperator:
         with pytest.raises(AirflowException, match="missing keyword argument 'test_sub_param'"):
             DummySubClass(default_args=default_args)
 
+    def test_execution_timeout_type(self):
+        with pytest.raises(
+            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'str'>"
+        ):
+            BaseOperator(task_id='test', execution_timeout="1")
+
+        with pytest.raises(
+            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'int'>"
+        ):
+            BaseOperator(task_id='test', execution_timeout=1)
+
     def test_incorrect_default_args(self):
         default_args = {'test_param': True, 'extra_param': True}
         dummy_class = DummyClass(default_args=default_args)
