@@ -16,13 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-from distutils.command.config import config
-from lib2to3.pgen2.token import OP
-from optparse import Option
-from select import KQ_NOTE_LOWAT
 import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
-from urllib import response
 from uuid import uuid4
 
 from airflow.compat.functools import cached_property

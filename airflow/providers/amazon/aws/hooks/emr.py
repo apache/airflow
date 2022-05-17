@@ -15,12 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from nis import cat
 from time import sleep
 from typing import Any, Dict, List, Optional
-from urllib import response
-from warnings import catch_warnings
-from airflow.lineage import apply_lineage
 
 from botocore.exceptions import ClientError
 
