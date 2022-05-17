@@ -357,7 +357,7 @@ class CeleryExecutor(BaseExecutor):
 
         self.log.error(
             "Tasks were still pending after configured timeout (adopted: %s, all: %s), "
-            "assuming they never made it to celery and clearing:\n\t%s",
+            "assuming they never made it to celery and sending back to the scheduler:\n\t%s",
             self.task_adoption_timeout,
             self.stalled_task_timeout,
             "\n\t".join(repr(x) for x in timedout_keys),
