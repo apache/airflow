@@ -220,11 +220,13 @@ class PodManager(LoggingMixin):
             time.sleep(0.2)
         if p.is_alive():
             p.terminate()
+            p.join()
             self.log.warning(
                 "Container %s log read was interrupted at some point caused by log rotation "
                 "see https://github.com/apache/airflow/issues/23497 for reference.",
                 container_name,
             )
+        p.close()
         if not timestamp.value:
             return None
         return pendulum.from_timestamp(timestamp.value)
