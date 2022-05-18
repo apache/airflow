@@ -553,9 +553,9 @@ class SchedulerJob(BaseJob):
                 queue=queue,
             )
 
-    def _critical_section_execute_task_instances(self, session: Session) -> int:
+    def _critical_section_enqueue_task_instances(self, session: Session) -> int:
         """
-        Attempts to execute TaskInstances that should be executed by the scheduler.
+        Enqueues TaskInstances for execution.
 
         There are three steps:
         1. Pick TIs by priority with the constraint that they are in the expected states
@@ -901,7 +901,7 @@ class SchedulerJob(BaseJob):
         - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
           to the executor.
 
-          See docs of _critical_section_execute_task_instances for more.
+          See docs of _critical_section_enqueue_task_instances for more.
 
         :return: Number of TIs enqueued in this iteration
         :rtype: int
@@ -949,7 +949,7 @@ class SchedulerJob(BaseJob):
                     timer.start()
 
                     # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
-                    num_queued_tis = self._critical_section_execute_task_instances(session=session)
+                    num_queued_tis = self._critical_section_enqueue_task_instances(session=session)
 
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down
