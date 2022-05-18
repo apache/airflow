@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-17T18:20:12Z
+# This constraints file was automatically generated on 2022-05-18T15:04:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -99,9 +99,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.23.1
+boto3==1.23.2
 boto==2.49.0
-botocore==1.26.1
+botocore==1.26.2
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
@@ -420,7 +420,7 @@ sentry-sdk==1.5.12
 setproctitle==1.2.3
 simple-salesforce==1.11.6
 six==1.16.0
-slack-sdk==3.16.1
+slack-sdk==3.16.2
 smbprotocol==1.9.0
 smmap==5.0.0
 sniffio==1.2.0
@@ -473,7 +473,7 @@ traitlets==5.2.1.post0
 trino==0.313.0
 twine==4.0.0
 types-Deprecated==1.2.8
-types-Markdown==3.3.19
+types-Markdown==3.3.20
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.7
 types-boto==2.49.15
