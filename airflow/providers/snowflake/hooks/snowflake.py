@@ -308,14 +308,18 @@ class SnowflakeHook(DbApiHook):
         """
         self.query_ids = []
 
+        if isinstance(sql, str):
+            split_statements_tuple = split_statements(StringIO(sql))
+            sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+
+        if sql:
+            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
+        else:
+            raise ValueError("List of SQL statements is empty")
+
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
 
-            if isinstance(sql, str):
-                split_statements_tuple = split_statements(StringIO(sql))
-                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
-
-            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
             # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
             with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
 
