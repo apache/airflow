@@ -26,7 +26,6 @@ import {
 } from '@chakra-ui/react';
 
 import { getMetaValue, appendSearchParams } from '../../../../utils';
-import useSelection from '../../../utils/useSelection';
 
 const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
