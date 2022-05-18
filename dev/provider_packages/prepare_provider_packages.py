@@ -1862,7 +1862,7 @@ def is_package_in_dist(dist_files: List[str], package: str) -> bool:
     envvar='GITHUB_TOKEN',
     help=textwrap.dedent(
         """
-      Github token used to authenticate.
+      GitHub token used to authenticate.
       You can set omit it if you have GITHUB_TOKEN env variable set.
       Can be generated with:
       https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
