@@ -127,7 +127,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def tearDown(self) -> None:
         hook = KubernetesHook(conn_id=None, in_cluster=False)
-        client = hook.get_conn()
+        client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
         import time
 
@@ -1017,7 +1017,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion", new=MagicMock)
     def test_on_kill(self):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
-        client = hook.get_conn()
+        client = hook.core_v1_client
         name = "test"
         namespace = "default"
         k = KubernetesPodOperator(
@@ -1045,7 +1045,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     def test_reattach_failing_pod_once(self):
         hook = KubernetesHook(conn_id=None, in_cluster=False)
-        client = hook.get_conn()
+        client = hook.core_v1_client
         name = "test"
         namespace = "default"
 
