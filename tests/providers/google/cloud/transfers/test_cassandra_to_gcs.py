@@ -27,6 +27,7 @@ TEST_BUCKET = "test-bucket"
 SCHEMA = "schema.json"
 FILENAME = "data.json"
 CQL = "select * from keyspace1.table1"
+TASK_ID = "test-cas-to-gcs"
 
 
 class TestCassandraToGCS(unittest.TestCase):
@@ -42,7 +43,7 @@ class TestCassandraToGCS(unittest.TestCase):
         mock_tempfile.return_value.name = TMP_FILE_NAME
 
         operator = CassandraToGCSOperator(
-            task_id="test-cas-to-gcs",
+            task_id=TASK_ID,
             cql=CQL,
             bucket=test_bucket,
             filename=filename,
@@ -74,8 +75,8 @@ class TestCassandraToGCS(unittest.TestCase):
         mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
-        op = CassandraToGCSOperator(bucket=TEST_BUCKET, cql=CQL, filename = FILENAME)
-        unencoded_uuid_op = CassandraToGCSOperator(bucket=TEST_BUCKET, cql=CQL,
+        op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename = FILENAME)
+        unencoded_uuid_op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL,
                                                    filename = FILENAME, encode_uuid=False)
         assert op.convert_value(None) is None
         assert op.convert_value(1) == 1
