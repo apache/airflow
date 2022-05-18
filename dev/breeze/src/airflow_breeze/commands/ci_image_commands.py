@@ -73,11 +73,11 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     prepare_empty_docker_build_command,
 )
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
-from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image

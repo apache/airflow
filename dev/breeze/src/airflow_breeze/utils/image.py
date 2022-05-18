@@ -16,12 +16,19 @@
 # under the License.
 
 import multiprocessing as mp
+import subprocess
 import time
 from typing import List, Tuple, Union
 
+from airflow_breeze.global_constants import (
+    ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
+    DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    MOUNT_ALL,
+)
 from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.parallel import check_async_run_results
@@ -183,3 +190,56 @@ def run_pull_and_verify_image(
         verbose=verbose,
         extra_pytest_args=extra_pytest_args,
     )
+
+
+def just_pull_ci_image(
+    python_version: str, dry_run: bool, verbose: bool
+) -> Tuple[ShellParams, Union[subprocess.CompletedProcess, subprocess.CalledProcessError]]:
+    shell_params = ShellParams(
+        verbose=verbose,
+        mount_sources=MOUNT_ALL,
+        python=python_version,
+        skip_environment_initialization=True,
+    )
+    get_console().print(f"[info]Pulling {shell_params.airflow_image_name_with_tag}.[/]")
+    pull_command_result = run_command(
+        ["docker", "pull", shell_params.airflow_image_name_with_tag],
+        verbose=verbose,
+        dry_run=dry_run,
+        check=True,
+    )
+    return shell_params, pull_command_result
+
+
+def check_if_ci_image_available(
+    python_version: str, dry_run: bool, verbose: bool
+) -> Tuple[ShellParams, Union[subprocess.CompletedProcess, subprocess.CalledProcessError]]:
+    shell_params = ShellParams(
+        verbose=verbose,
+        mount_sources=MOUNT_ALL,
+        python=python_version,
+        skip_environment_initialization=True,
+    )
+    inspect_command_result = run_command(
+        ["docker", "inspect", shell_params.airflow_image_name_with_tag],
+        stdout=subprocess.DEVNULL,
+        verbose=verbose,
+        dry_run=dry_run,
+        check=False,
+    )
+    return (
+        shell_params,
+        inspect_command_result,
+    )
+
+
+def find_available_ci_image(dry_run: bool, verbose: bool) -> ShellParams:
+    for python_version in ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS:
+        shell_params, inspect_command_result = check_if_ci_image_available(python_version, dry_run, verbose)
+        if inspect_command_result.returncode == 0:
+            get_console().print(
+                "[info]Running fix_ownership " f"with {shell_params.airflow_image_name_with_tag}.[/]"
+            )
+            return shell_params
+    shell_params, _ = just_pull_ci_image(DEFAULT_PYTHON_MAJOR_MINOR_VERSION, dry_run, verbose)
+    return shell_params

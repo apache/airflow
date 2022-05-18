@@ -27,7 +27,6 @@ import click
 from click import Context
 
 from airflow_breeze import NAME, VERSION
-from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
 from airflow_breeze.params.shell_params import ShellParams
@@ -51,6 +50,7 @@ from airflow_breeze.utils.docker_command_utils import (
     get_extra_docker_flags,
     perform_environment_checks,
 )
+from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     BUILD_CACHE_DIR,
@@ -441,13 +441,7 @@ def command_hash_export(verbose: bool, output: IO):
 @option_dry_run
 def fix_ownership(verbose: bool, dry_run: bool):
     perform_environment_checks(verbose=verbose)
-    shell_params = ShellParams(
-        verbose=verbose,
-        mount_sources=MOUNT_ALL,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        skip_environment_initialization=True,
-    )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    shell_params = find_available_ci_image(dry_run, verbose)
     extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
     env = get_env_variables_for_docker_commands(shell_params)
     cmd = [
