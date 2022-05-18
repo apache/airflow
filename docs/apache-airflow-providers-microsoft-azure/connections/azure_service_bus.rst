@@ -62,5 +62,3 @@ Connection ID
     `Get connection string
     <https://docs.microsoft.com/en-gb/azure/service-bus-messaging/service-bus-create-namespace-portal#get-the-connection-string.>`_
     Use the key ``extra__azure_service_bus__connection_string`` to pass in the Connection ID .
-
-

@@ -20,14 +20,19 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.operators.speech_to_text import CloudSpeechToTextRecognizeSpeechOperator
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
+from airflow.utils.trigger_rule import TriggerRule
 
-GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
-BUCKET_NAME = os.environ.get("GCP_SPEECH_TO_TEXT_TEST_BUCKET", "INVALID BUCKET NAME")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+DAG_ID = "speech_to_text"
+
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 
 # [START howto_operator_speech_to_text_gcp_filename]
-FILENAME = "gcp-speech-test-file"
+FILE_NAME = f"test-audio-file-{DAG_ID}-{ENV_ID}"
 # [END howto_operator_speech_to_text_gcp_filename]
 
 # [START howto_operator_text_to_speech_api_arguments]
@@ -38,29 +43,55 @@ AUDIO_CONFIG = {"audio_encoding": "LINEAR16"}
 
 # [START howto_operator_speech_to_text_api_arguments]
 CONFIG = {"encoding": "LINEAR16", "language_code": "en_US"}
-AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILENAME}"}
+AUDIO = {"uri": f"gs://{BUCKET_NAME}/{FILE_NAME}"}
 # [END howto_operator_speech_to_text_api_arguments]
 
 with models.DAG(
-    "example_gcp_speech_to_text",
-    schedule_interval='@once',  # Override to match your needs
+    DAG_ID,
+    schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=["example", "speech_to_text"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(task_id="create_bucket", bucket_name=BUCKET_NAME)
+
     text_to_speech_synthesize_task = CloudTextToSpeechSynthesizeOperator(
-        project_id=GCP_PROJECT_ID,
+        project_id=PROJECT_ID,
         input_data=INPUT,
         voice=VOICE,
         audio_config=AUDIO_CONFIG,
         target_bucket_name=BUCKET_NAME,
-        target_filename=FILENAME,
+        target_filename=FILE_NAME,
         task_id="text_to_speech_synthesize_task",
     )
     # [START howto_operator_speech_to_text_recognize]
-    speech_to_text_recognize_task2 = CloudSpeechToTextRecognizeSpeechOperator(
+    speech_to_text_recognize_task = CloudSpeechToTextRecognizeSpeechOperator(
         config=CONFIG, audio=AUDIO, task_id="speech_to_text_recognize_task"
     )
     # [END howto_operator_speech_to_text_recognize]
 
-    text_to_speech_synthesize_task >> speech_to_text_recognize_task2
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (
+        # TEST SETUP
+        create_bucket
+        # TEST BODY
+        >> text_to_speech_synthesize_task
+        >> speech_to_text_recognize_task
+        # TEST TEARDOWN
+        >> delete_bucket
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

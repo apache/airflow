@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,23 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import multiprocessing
+import os
+from datetime import datetime
 
-from airflow.configuration import conf
+from airflow import DAG
+from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
 
+BUCKET = os.getenv("BUCKET", "bucket")
+S3_KEY = os.getenv("S3_KEY", "s3://<bucket>/<prefix>")
 
-class MultiprocessingStartMethodMixin:
-    """Convenience class to add support for different types of multiprocessing."""
-
-    def _get_multiprocessing_start_method(self) -> str:
-        """
-        Determine method of creating new processes by checking if the
-        mp_start_method is set in configs, else, it uses the OS default.
-        """
-        if conf.has_option('core', 'mp_start_method'):
-            return conf.get_mandatory_value('core', 'mp_start_method')
-
-        method = multiprocessing.get_start_method()
-        if not method:
-            raise ValueError("Failed to determine start method")
-        return method
+with DAG(
+    dag_id="example_gcs_to_s3",
+    schedule_interval=None,
+    start_date=datetime(2021, 1, 1),
+    tags=["example"],
+    catchup=False,
+) as dag:
+    # [START howto_transfer_gcs_to_s3]
+    gcs_to_s3 = GCSToS3Operator(
+        task_id="gcs_to_s3",
+        bucket=BUCKET,
+        dest_s3_key=S3_KEY,
+        replace=True,
+    )
+    # [END howto_transfer_gcs_to_s3]
