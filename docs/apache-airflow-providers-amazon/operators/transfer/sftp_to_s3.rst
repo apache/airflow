@@ -15,21 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-SFTP to Amazon S3 Transfer Operator
-===================================
+=================
+SFTP to Amazon S3
+=================
 
-Use the SFTPToS3Operator transfer to copy the data from a SFTP server to an Amazon Simple Storage Service (S3) file.
+Use the ``SFTPToS3Operator`` transfer to copy the data from a SFTP server to an Amazon Simple Storage Service (S3) file.
 For more information about the service visits `Amazon Transfer for SFTP API documentation <https://docs.aws.amazon.com/whitepapers/latest/architecting-hipaa-security-and-compliance-on-aws/aws-transfer-for-sftp.html>`_.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:SFTPToS3Operator:
 
-SFTP to Amazon S3
-^^^^^^^^^^^^^^^^^
+SFTP to Amazon S3 transfer operator
+===================================
 
 This operator loads data from a SFTP server to an Amazon S3 file.
 
@@ -45,6 +49,6 @@ Example usage:
     :end-before: [END howto_transfer_sftp_to_s3]
 
 Reference
-^^^^^^^^^
+---------
 
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

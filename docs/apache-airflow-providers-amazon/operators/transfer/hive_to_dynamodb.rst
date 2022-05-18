@@ -15,24 +15,27 @@
     specific language governing permissions and limitations
     under the License.
 
+==============================
+Apache Hive to Amazon DynamoDB
+==============================
 
-Apache Hive to Amazon DynamoDB Transfer Operator
-================================================
-
-Use the HiveToDynamoDBOperator transfer to copy the contents of an
+Use the ``HiveToDynamoDBOperator`` transfer to copy the contents of an
 existing Apache Hive table to an existing Amazon DynamoDB table.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/transfer:HiveToDynamoDBOperator:
 
-Hive to DynamoDB Operator
-^^^^^^^^^^^^^^^^^^^^^^^^^
+Apache Hive to Amazon DynamoDB transfer operator
+================================================
 
-This operator replicates records from a Hive table to a DynamoDB table.  The user must
+This operator replicates records from an Apache Hive table to an Amazon DynamoDB table. The user must
 specify an `HQL query <https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Commands>`__
 to use as filtering criteria.
 
@@ -48,9 +51,7 @@ Example usage:
     :end-before: [END howto_transfer_hive_to_dynamodb]
 
 Reference
-^^^^^^^^^
+---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for DynamoDB <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html>`__
-* `Hive Language Manual <https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Commands>`__
+* `Apache Hive language manual <https://cwiki.apache.org/confluence/display/Hive/LanguageManual+Commands>`__
+* `AWS boto3 library documentation for Amazon DynamoDB <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dynamodb.html>`__
