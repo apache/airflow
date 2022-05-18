@@ -26,6 +26,7 @@ import {
 } from '@chakra-ui/react';
 
 import { getMetaValue, appendSearchParams } from '../../../../utils';
+import useSelection from '../../../utils/useSelection';
 
 const dagId = getMetaValue('dag_id');
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
@@ -47,7 +48,7 @@ const LinkButton = ({ children, ...rest }) => (
 );
 
 const Nav = ({
-  taskId, executionDate, operator, isMapped,
+  runId, taskId, executionDate, operator, isMapped,
 }) => {
   const params = new URLSearchParams({
     task_id: taskId,
@@ -68,6 +69,8 @@ const Nav = ({
   }).toString();
 
   const filterParams = new URLSearchParams({
+    task_id: taskId,
+    dag_run_id: runId,
     base_date: baseDate,
     num_runs: numRuns,
     root: taskId,
