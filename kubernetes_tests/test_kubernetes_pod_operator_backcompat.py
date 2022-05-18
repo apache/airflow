@@ -42,6 +42,7 @@ from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
+from kubernetes_tests.kubernetes_test_utils import SharedLogger
 
 # noinspection DuplicatedCode
 
@@ -273,7 +274,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_volume_mount(self):
-        with patch.object(PodManager, 'log') as mock_logger:
+        with patch.object(PodManager, 'log', new=SharedLogger("retrieved from mount", "info")) as mock_logger:
             volume_mount = VolumeMount(
                 'test-volume', mount_path='/tmp/test_volume', sub_path=None, read_only=False
             )
@@ -300,7 +301,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             )
             context = create_context(k)
             k.execute(context=context)
-            mock_logger.info.assert_any_call('retrieved from mount')
+            assert mock_logger.counter.value == 1
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
             expected_pod = copy(self.expected_pod)
             expected_pod['spec']['containers'][0]['args'] = args
