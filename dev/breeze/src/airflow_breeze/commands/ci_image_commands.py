@@ -73,7 +73,7 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     prepare_empty_docker_build_command,
 )
-from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import check_async_run_results
@@ -107,6 +107,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
                 "--upgrade-to-newer-dependencies",
                 "--debian-version",
                 "--image-tag",
+                "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
             ],
@@ -218,6 +219,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_runtime_apt_deps
 @option_force_build
 @option_airflow_constraints_mode_ci
+@option_tag_as_latest
 def build_image(
     verbose: bool,
     dry_run: bool,
@@ -259,8 +261,8 @@ def build_image(
 @option_github_token
 @option_verify_image
 @option_wait_for_image
-@option_tag_as_latest
 @option_image_tag
+@option_tag_as_latest
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def pull_image(
     verbose: bool,
@@ -483,7 +485,14 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
     if not ci_image_params.prepare_buildx_cache:
         if not dry_run:
             if build_command_result.returncode == 0:
-                mark_image_as_refreshed(ci_image_params)
+                if ci_image_params.tag_as_latest:
+                    build_command_result = tag_image_as_latest(ci_image_params, dry_run, verbose)
+                if (
+                    ci_image_params.airflow_image_name == ci_image_params.airflow_image_name_with_tag
+                    or ci_image_params.tag_as_latest
+                    and build_command_result.returncode == 0
+                ):
+                    mark_image_as_refreshed(ci_image_params)
             else:
                 get_console().print("[error]Error when building image![/]")
                 return (

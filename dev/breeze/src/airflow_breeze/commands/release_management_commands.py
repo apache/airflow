@@ -20,8 +20,7 @@ import sys
 import time
 from copy import deepcopy
 from re import match
-from subprocess import CalledProcessError, CompletedProcess
-from typing import IO, Dict, List, Optional, Tuple, Union
+from typing import IO, Dict, List, Optional, Tuple
 
 import click
 
@@ -70,7 +69,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 
 RELEASE_MANAGEMENT_PARAMETERS = {
     "breeze prepare-airflow-package": [
@@ -182,7 +181,7 @@ def run_with_debug(
     dry_run: bool,
     debug: bool,
     enable_input: bool = False,
-) -> Union[CompletedProcess, CalledProcessError]:
+) -> RunCommandResult:
     env_variables = get_env_variables_for_docker_commands(params)
     extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
     if enable_input or debug:
