@@ -62,9 +62,10 @@
       default: "SequentialExecutor"
     - name: parallelism
       description: |
-        This defines the maximum number of task instances that can run concurrently in Airflow
-        regardless of scheduler count and worker count. Generally, this value is reflective of
-        the number of task instances with the running state in the metadata database.
+        This defines the maximum number of task instances that can run concurrently per scheduler in
+        Airflow, regardless of the worker count. Generally this value, multiplied by the number of
+        schedulers in your cluster, is the maximum number of task instances with the running
+        state in the metadata database.
       version_added: ~
       type: string
       example: ~
