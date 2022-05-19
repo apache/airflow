@@ -294,7 +294,7 @@ def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Option
 
 @option_verbose
 @main.command()
-def version(verbose: bool, python: str):
+def version(verbose: bool):
     """Print information about version of apache-airflow-breeze."""
 
     get_console().print(ASCIIART, style=ASCIIART_STYLE)
