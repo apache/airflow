@@ -193,7 +193,7 @@ class State:
     """
 
     success_states: FrozenSet[TaskInstanceState] = frozenset(
-        [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED, TaskInstanceState.REMOVED]
+        [TaskInstanceState.SUCCESS, TaskInstanceState.SKIPPED]
     )
     """
     A list of states indicating that a task or dag is a success state.
