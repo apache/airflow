@@ -29,20 +29,28 @@ describe('Test LegendRow', () => {
     const { getByText } = render(
       <LegendRow />,
     );
+
     Object.keys(stateColors).forEach((taskState) => {
       expect(getByText(taskState)).toBeInTheDocument();
     });
+
+    expect(getByText('no_status')).toBeInTheDocument();
   });
 
-  test('Hovering elements trigger setHoverdTaskState function', () => {
-    const setHoveredTaskState = jest.fn();
-    const { getByText } = render(
-      <LegendRow setHoveredTaskState={setHoveredTaskState} />,
-    );
-    const successElement = getByText('success');
-    fireEvent.mouseEnter(successElement);
-    expect(setHoveredTaskState).toHaveBeenCalledWith('success');
-    fireEvent.mouseLeave(successElement);
-    expect(setHoveredTaskState).toHaveBeenLastCalledWith();
-  });
+  test.each([
+    { state: 'success', expectedSetValue: 'success' },
+    { state: 'failed', expectedSetValue: 'failed' },
+    { state: 'no_status', expectedSetValue: null },
+  ])('Hovering $state badge should trigger setHoverdTaskState function with $expectedSetValue',
+    async ({ state, expectedSetValue }) => {
+      const setHoveredTaskState = jest.fn();
+      const { getByText } = render(
+        <LegendRow setHoveredTaskState={setHoveredTaskState} />,
+      );
+      const successElement = getByText(state);
+      fireEvent.mouseEnter(successElement);
+      expect(setHoveredTaskState).toHaveBeenCalledWith(expectedSetValue);
+      fireEvent.mouseLeave(successElement);
+      expect(setHoveredTaskState).toHaveBeenLastCalledWith();
+    });
 });

@@ -27,7 +27,7 @@ import {
 import React from 'react';
 
 const StatusBadge = ({
-  state, stateColor, setHoveredTaskState,
+  state, stateColor, setHoveredTaskState, displayValue,
 }) => (
   <Text
     borderRadius={4}
@@ -38,7 +38,7 @@ const StatusBadge = ({
     onMouseEnter={() => setHoveredTaskState(state)}
     onMouseLeave={() => setHoveredTaskState()}
   >
-    {state}
+    {displayValue || state }
   </Text>
 );
 
@@ -48,13 +48,20 @@ const LegendRow = ({ setHoveredTaskState }) => (
       {
       Object.entries(stateColors).map(([state, stateColor]) => (
         <StatusBadge
-          key={stateColor}
+          key={state}
           state={state}
           stateColor={stateColor}
           setHoveredTaskState={setHoveredTaskState}
         />
       ))
       }
+      <StatusBadge
+        key="no_status"
+        displayValue="no_status"
+        state={null}
+        stateColor="white"
+        setHoveredTaskState={setHoveredTaskState}
+      />
     </HStack>
   </Flex>
 );

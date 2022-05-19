@@ -71,7 +71,7 @@ const TaskInstances = ({
                 instance={instance}
                 group={task}
                 onSelect={onSelect}
-                isActive={!activeTaskState || activeTaskState === instance.state}
+                isActive={activeTaskState === undefined || activeTaskState === instance.state}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
