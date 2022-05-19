@@ -224,7 +224,7 @@ Those are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | exasol              | ``pip install 'apache-airflow[exasol]'``            | Exasol hooks and operators                |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
-| github              | ``pip install 'apache-airflow[github]'``            | Github operators and hook                 |
+| github              | ``pip install 'apache-airflow[github]'``            | GitHub operators and hook                 |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | influxdb            | ``pip install 'apache-airflow[influxdb]'``          | Influxdb operators and hook               |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
@@ -294,7 +294,12 @@ Those are extras that provide support for integration with external systems via 
 Bundle extras
 -------------
 
-Those are extras that install one ore more extras as a bundle.
+Those are extras that install one ore more extras as a bundle. Note that those extras should only be used for "development" version
+of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
+work when airflow is installed from 'PyPI`.
+
+If you want to install Airflow from PyPI with "all" extras (which should basically be never needed - you almost never need all extras from Airflow),
+you need to list explicitly all the non-bundle extras that you want to install.
 
 +---------------------+-----------------------------------------------------+------------------------------------------------------------------------+
 | extra               | install command                                     | enables                                                                |

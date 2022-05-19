@@ -26,9 +26,9 @@ import {
 
 import { finalStatesMap } from '../../../../utils';
 import { getDuration, formatDuration } from '../../../../datetime_utils';
-import { SimpleStatus } from '../../../StatusBox';
-import Time from '../../../Time';
-import { ClipboardText } from '../../../Clipboard';
+import { SimpleStatus } from '../../../components/StatusBox';
+import Time from '../../../components/Time';
+import { ClipboardText } from '../../../components/Clipboard';
 
 const Details = ({ instance, group, operator }) => {
   const isGroup = !!group.children;

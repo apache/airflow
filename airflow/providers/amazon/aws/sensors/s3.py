@@ -155,7 +155,7 @@ class S3KeySizeSensor(S3KeySensor):
     ):
         warnings.warn(
             """
-            S3PrefixSensor is deprecated.
+            S3KeySizeSensor is deprecated.
             Please use `airflow.providers.amazon.aws.sensors.s3.S3KeySensor`.
             """,
             DeprecationWarning,

@@ -121,8 +121,20 @@ EXPORT_BODY = {
         "fileType": "CSV",
         "uri": "gs://bucketName/fileName",
         "databases": [],
-        "sqlExportOptions": {"tables": ["table1", "table2"], "schemaOnly": False},
-        "csvExportOptions": {"selectQuery": "SELECT * FROM TABLE"},
+        "sqlExportOptions": {
+            "tables": ["table1", "table2"],
+            "schemaOnly": False,
+            "mysqlExportOptions": {
+                "masterData": 1,
+            },
+        },
+        "csvExportOptions": {
+            "selectQuery": "SELECT * FROM TABLE",
+            "escapeCharacter": "e",
+            "quoteCharacter": "q",
+            "fieldsTerminatedBy": "f",
+            "linesTerminatedBy": "l",
+        },
         "offload": True,
     }
 }

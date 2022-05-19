@@ -131,13 +131,12 @@ class ShellParams:
         return enabled_integration
 
     @property
-    def the_image_type(self) -> str:
-        the_image_type = 'CI'
-        return the_image_type
+    def image_type(self) -> str:
+        return 'CI'
 
     @property
     def md5sum_cache_dir(self) -> Path:
-        cache_dir = Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, self.the_image_type)
+        cache_dir = Path(BUILD_CACHE_DIR, self.airflow_branch, self.python, self.image_type)
         return cache_dir
 
     @property
@@ -158,7 +157,7 @@ class ShellParams:
 
     def print_badge_info(self):
         if self.verbose:
-            get_console().print(f'[info]Use {self.the_image_type} image[/]')
+            get_console().print(f'[info]Use {self.image_type} image[/]')
             get_console().print(f'[info]Branch Name: {self.airflow_branch}[/]')
             get_console().print(f'[info]Docker Image: {self.airflow_image_name_with_tag}[/]')
             get_console().print(f'[info]Airflow source version:{self.airflow_version}[/]')

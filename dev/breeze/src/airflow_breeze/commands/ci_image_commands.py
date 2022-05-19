@@ -69,17 +69,15 @@ from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
-    check_docker_compose_version,
-    check_docker_resources,
-    check_docker_version,
+    perform_environment_checks,
     prepare_docker_build_command,
     prepare_empty_docker_build_command,
 )
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
-from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -236,6 +234,7 @@ def build_image(
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
 
+    perform_environment_checks(verbose=verbose)
     parameters_passed = filter_out_none(**kwargs)
     if build_multiple_images:
         python_version_list = get_python_version_list(python_versions)
@@ -279,6 +278,7 @@ def pull_image(
     extra_pytest_args: Tuple,
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
+    perform_environment_checks(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
         ci_image_params_list = [
@@ -342,6 +342,7 @@ def verify_image(
     extra_pytest_args: Tuple,
 ):
     """Verify CI image."""
+    perform_environment_checks(verbose=verbose)
     if image_name is None:
         build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
         image_name = build_params.airflow_image_name_with_tag
@@ -517,9 +518,6 @@ def rebuild_ci_image_if_needed(
     :param dry_run: whether it's a dry_run
     :param verbose: should we print verbose messages
     """
-    check_docker_version(verbose=verbose)
-    check_docker_compose_version(verbose=verbose)
-    check_docker_resources(build_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
     build_ci_image_check_cache = Path(
         BUILD_CACHE_DIR, build_params.airflow_branch, f".built_{build_params.python}"
     )

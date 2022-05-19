@@ -1166,8 +1166,20 @@ development machine before continuing with migration.
     $ cd airflow
     $ alembic revision -m "add new field to db"
        Generating
-    ~/airflow/airflow/migrations/versions/12341123_add_new_field_to_db.py
+    ~/airflow/airflow/migrations/versions/a1e23c41f123_add_new_field_to_db.py
 
+Note that migration file names are standardized by pre-commit hook ``update-migration-references``, so that they sort alphabetically and indicate
+the Airflow version in which they first appear (the alembic revision ID is removed). As a result you should expect to see a pre-commit failure
+on the first attempt.  Just stage the modified file and commit again
+(or run the hook manually before committing).
+
+After your new migration file is run through pre-commit it will look like this:
+
+.. code-block::
+
+    1234_A_B_C_add_new_field_to_db.py
+
+This represents that your migration is the 1234th migration and expected for release in Airflow version A.B.C.
 
 Node.js Environment Setup
 =========================

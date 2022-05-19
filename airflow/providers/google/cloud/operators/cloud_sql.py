@@ -151,9 +151,26 @@ CLOUD_SQL_EXPORT_VALIDATION = [
                 fields=[
                     dict(name="tables", optional=True, type="list"),
                     dict(name="schemaOnly", optional=True),
+                    dict(
+                        name="mysqlExportOptions",
+                        type="dict",
+                        optional=True,
+                        fields=[dict(name="masterData")],
+                    ),
                 ],
             ),
-            dict(name="csvExportOptions", type="dict", optional=True, fields=[dict(name="selectQuery")]),
+            dict(
+                name="csvExportOptions",
+                type="dict",
+                optional=True,
+                fields=[
+                    dict(name="selectQuery"),
+                    dict(name="escapeCharacter", optional=True),
+                    dict(name="quoteCharacter", optional=True),
+                    dict(name="fieldsTerminatedBy", optional=True),
+                    dict(name="linesTerminatedBy", optional=True),
+                ],
+            ),
             dict(name="offload", optional=True),
         ],
     )

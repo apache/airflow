@@ -83,6 +83,7 @@ const TaskInstance = ({ taskId, runId }) => {
       {!isGroup && (
         <TaskNav
           taskId={taskId}
+          runId={runId}
           isMapped={isMapped}
           executionDate={executionDate}
           operator={operator}

@@ -187,13 +187,14 @@ const Table = ({
           })}
         </Tbody>
       </ChakraTable>
-      {totalEntries > data.length && (
+      {(canPreviousPage || canNextPage) && (
       <Flex alignItems="center" justifyContent="flex-start" my={4}>
         <IconButton
           variant="ghost"
           onClick={handlePrevious}
           disabled={!canPreviousPage}
           aria-label="Previous Page"
+          title="Previous Page"
           icon={<MdKeyboardArrowLeft />}
         />
         <IconButton
@@ -201,6 +202,7 @@ const Table = ({
           onClick={handleNext}
           disabled={!canNextPage}
           aria-label="Next Page"
+          title="Next Page"
           icon={<MdKeyboardArrowRight />}
         />
         <Text>
@@ -208,7 +210,7 @@ const Table = ({
           -
           {upperCount}
           {' of '}
-          {totalEntries}
+          {totalEntries || data.length}
         </Text>
       </Flex>
       )}

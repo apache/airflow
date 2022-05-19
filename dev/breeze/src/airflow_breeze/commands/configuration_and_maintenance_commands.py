@@ -48,7 +48,9 @@ from airflow_breeze.utils.docker_command_utils import (
     check_docker_resources,
     get_env_variables_for_docker_commands,
     get_extra_docker_flags,
+    perform_environment_checks,
 )
+from airflow_breeze.utils.image import find_available_ci_image
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     BUILD_CACHE_DIR,
@@ -406,6 +408,7 @@ def free_space(verbose: bool, dry_run: bool, answer: str):
 @option_verbose
 @option_dry_run
 def resource_check(verbose: bool, dry_run: bool):
+    perform_environment_checks(verbose=verbose)
     shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
 
@@ -437,12 +440,8 @@ def command_hash_export(verbose: bool, output: IO):
 @option_verbose
 @option_dry_run
 def fix_ownership(verbose: bool, dry_run: bool):
-    shell_params = ShellParams(
-        verbose=verbose,
-        mount_sources=MOUNT_ALL,
-        python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
-        skip_environment_initialization=True,
-    )
+    perform_environment_checks(verbose=verbose)
+    shell_params = find_available_ci_image(dry_run, verbose)
     extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
     env = get_env_variables_for_docker_commands(shell_params)
     cmd = [

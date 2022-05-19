@@ -520,7 +520,8 @@ class TaskInstance(Base, LoggingMixin):
         self.task_id = task.task_id
         self.map_index = map_index
         self.refresh_from_task(task)
-        self._log = logging.getLogger("airflow.task")
+        # init_on_load will config the log
+        self.init_on_load()
 
         if run_id is None and execution_date is not None:
             from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -563,7 +564,6 @@ class TaskInstance(Base, LoggingMixin):
         if state:
             self.state = state
         self.hostname = ''
-        self.init_on_load()
         # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
         self.raw = False
@@ -594,6 +594,8 @@ class TaskInstance(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self):
         """Initialize the attributes that aren't stored in the DB"""
+        # correctly config the ti log
+        self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
     @property
@@ -2228,7 +2230,7 @@ class TaskInstance(Base, LoggingMixin):
 
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
-                    path = conf.get('email', key)
+                    path = conf.get_mandatory_value('email', key)
                     with open(path) as f:
                         content = f.read()
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)

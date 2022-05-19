@@ -528,6 +528,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "PYTHON_MAJOR_MINOR_VERSION": "python",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
+    "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",
     "VERSION_SUFFIX_FOR_PYPI": "version_suffix_for_pypi",
@@ -573,3 +574,9 @@ def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiPara
             env_variables[variable] = str(constant_param_value)
     update_expected_environment_variables(env_variables)
     return env_variables
+
+
+def perform_environment_checks(verbose: bool):
+    check_docker_is_running(verbose=verbose)
+    check_docker_version(verbose=verbose)
+    check_docker_compose_version(verbose=verbose)

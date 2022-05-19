@@ -20,7 +20,7 @@
 Package apache-airflow-providers-github
 ------------------------------------------------------
 
-`Github <https://www.github.com/>`__
+`GitHub <https://www.github.com/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``github``.

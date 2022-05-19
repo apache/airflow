@@ -142,3 +142,8 @@ annotations:
       links:
       - name: '#22284'
         url: https://github.com/apache/airflow/pull/22284
+    - description: 'Misc: Disable flower in chart by default'
+      kind: changed
+      links:
+      - name: '#23737'
+        url: https://github.com/apache/airflow/pull/23737

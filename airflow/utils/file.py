@@ -247,7 +247,7 @@ def _find_path_from_directory(
 def find_path_from_directory(
     base_dir_path: str,
     ignore_file_name: str,
-    ignore_file_syntax: str = conf.get('core', 'DAG_IGNORE_FILE_SYNTAX', fallback="regexp"),
+    ignore_file_syntax: str = conf.get_mandatory_value('core', 'DAG_IGNORE_FILE_SYNTAX', fallback="regexp"),
 ) -> Generator[str, None, None]:
     """
     Recursively search the base path and return the list of file paths that should not be ignored.

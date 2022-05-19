@@ -27,7 +27,7 @@ import {
 } from '@chakra-ui/react';
 import { FiCopy } from 'react-icons/fi';
 
-import { useContainerRef } from './context/containerRef';
+import { useContainerRef } from '../context/containerRef';
 
 export const ClipboardButton = forwardRef(
   (
