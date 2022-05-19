@@ -437,11 +437,12 @@ def command_hash_export(verbose: bool, output: IO):
 
 
 @main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
+@option_github_repository
 @option_verbose
 @option_dry_run
-def fix_ownership(verbose: bool, dry_run: bool):
+def fix_ownership(github_repository: str, verbose: bool, dry_run: bool):
     perform_environment_checks(verbose=verbose)
-    shell_params = find_available_ci_image(dry_run, verbose)
+    shell_params = find_available_ci_image(github_repository, dry_run, verbose)
     extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
     env = get_env_variables_for_docker_commands(shell_params)
     cmd = [
