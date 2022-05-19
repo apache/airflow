@@ -227,7 +227,6 @@ def test_batch_waiters(aws_region):
 @mock_ecs
 @mock_iam
 @mock_logs
-@pytest.mark.xfail(condition=True, reason="Inexplicable timeout issue when running this test. See PR 11020")
 def test_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_definition_name):
     """
     Submit Batch jobs and wait for various job status indicators or errors.
@@ -274,19 +273,17 @@ def test_batch_job_waiting(aws_clients, aws_region, job_queue_name, job_definiti
     # moto transitions the Batch job status automatically.
 
     job_name = "test-job"
-    job_cmd = ['/bin/sh -c "for a in `seq 1 2`; do echo Hello World; sleep 0.25; done"']
 
     job_response = aws_clients.batch.submit_job(
         jobName=job_name,
         jobQueue=aws_resources.job_queue_arn,
         jobDefinition=aws_resources.job_definition_arn,
-        containerOverrides={"command": job_cmd},
     )
     job_id = job_response["jobId"]
 
     job_description = aws_clients.batch.describe_jobs(jobs=[job_id])
     job_status = [job for job in job_description["jobs"] if job["jobId"] == job_id][0]["status"]
-    assert job_status == "PENDING"
+    assert job_status == "RUNNABLE"
 
     # this should not raise a WaiterError and note there is no 'state' maintained in
     # the waiter that can be checked after calling wait() and it has no return value;
