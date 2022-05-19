@@ -178,6 +178,11 @@ class DbApiHook(BaseHook):
         if scalar:
             sql = [sql]
 
+        if sql:
+            self.log.debug("Executing %d statements", len(sql))
+        else:
+            raise ValueError("List of SQL statements is empty")
+
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, autocommit)
