@@ -47,7 +47,7 @@ const LinkButton = ({ children, ...rest }) => (
 );
 
 const Nav = ({
-  taskId, executionDate, operator, isMapped,
+  runId, taskId, executionDate, operator, isMapped,
 }) => {
   const params = new URLSearchParams({
     task_id: taskId,
@@ -68,6 +68,8 @@ const Nav = ({
   }).toString();
 
   const filterParams = new URLSearchParams({
+    task_id: taskId,
+    dag_run_id: runId,
     base_date: baseDate,
     num_runs: numRuns,
     root: taskId,
