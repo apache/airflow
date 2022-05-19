@@ -202,8 +202,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def _is_subdag(self, dag_id):
         if '.' in dag_id:
-            dm = self.get_session.query(DagModel.is_subdag).filter(DagModel.dag_id == dag_id).first()
-            return dm.is_subdag if dm else False
+            return self.get_session.query(DagModel.is_subdag).filter(DagModel.dag_id == dag_id).scalar()
         return False
 
     def init_role(self, role_name, perms):
