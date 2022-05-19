@@ -821,6 +821,40 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             session.query(DagModel).delete()
 
 
+def test_permissions_work_for_dags_with_dot_in_dagname(
+    app, security_manager, assert_user_has_dag_perms, assert_user_does_not_have_dag_perms, session
+):
+    username = 'dag_permission_user'
+    role_name = 'dag_permission_role'
+    dag_id = "dag_id_1"
+    dag_id_2 = "dag_id_1.with_dot"
+    with app.app_context():
+        mock_roles = [
+            {
+                'role': role_name,
+                'perms': [
+                    (permissions.ACTION_CAN_READ, f"DAG:{dag_id}"),
+                    (permissions.ACTION_CAN_EDIT, f"DAG:{dag_id}"),
+                ],
+            }
+        ]
+        with create_user_scope(
+            app,
+            username=username,
+            role_name=role_name,
+        ) as user:
+            dag1 = DagModel(dag_id=dag_id)
+            dag2 = DagModel(dag_id=dag_id_2)
+            session.add_all([dag1, dag2])
+            session.commit()
+            security_manager.bulk_sync_roles(mock_roles)
+            security_manager.sync_perm_for_dag(dag1.dag_id, access_control={role_name: READ_WRITE})
+            security_manager.sync_perm_for_dag(dag2.dag_id, access_control={role_name: READ_WRITE})
+            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=dag_id, user=user)
+            assert_user_does_not_have_dag_perms(perms=READ_WRITE, dag_id=dag_id_2, user=user)
+            session.query(DagModel).delete()
+
+
 def test_fab_models_use_airflow_base_meta():
     # TODO: move this test to appropriate place when we have more tests for FAB models
     user = User()
