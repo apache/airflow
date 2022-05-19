@@ -278,7 +278,7 @@ as shown in the example:
 
 .. _howto/operator:CloudSQLImportInstanceOperator:
 
-CloudSqlInstanceImportOperator
+CloudSQLImportInstanceOperator
 ------------------------------
 
 Imports data into a Cloud SQL instance from a SQL dump or CSV file in Cloud Storage.
