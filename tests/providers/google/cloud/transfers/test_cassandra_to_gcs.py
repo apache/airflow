@@ -75,9 +75,10 @@ class TestCassandraToGCS(unittest.TestCase):
         mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
-        op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename = FILENAME)
-        unencoded_uuid_op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL,
-                                                   filename = FILENAME, encode_uuid=False)
+        op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME)
+        unencoded_uuid_op = CassandraToGCSOperator(
+            task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME, encode_uuid=False
+        )
         assert op.convert_value(None) is None
         assert op.convert_value(1) == 1
         assert op.convert_value(1.0) == 1.0
