@@ -17,31 +17,30 @@
  * under the License.
  */
 
-/* global describe, test, expect */
+import camelcaseKeys from 'camelcase-keys';
 
-import { areActiveRuns } from './useGridData';
+export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled', null].includes(run.state)).length > 0;
 
-describe('Test areActiveRuns()', () => {
-  test('Correctly detects active runs', () => {
-    const runs = [
-      { state: 'success' },
-      { state: 'queued' },
-    ];
-    expect(areActiveRuns(runs)).toBe(true);
-  });
+export const areActiveTasks = (tasks = []) => tasks.filter((task) => [
+  'queued',
+  'running',
+  'scheduled',
+  'deferred',
+  'up_for_retry',
+  'up_for_reschedule',
+  'sensing',
+  'restarting',
+  null,
+].includes(task.state)).length > 0;
 
-  test('Returns false when all runs are resolved', () => {
-    const runs = [
-      { state: 'success' },
-      { state: 'failed' },
-      { state: 'not_queued' },
-    ];
-    const result = areActiveRuns(runs);
-    expect(result).toBe(false);
-  });
-
-  test('Returns false when there are no runs', () => {
-    const result = areActiveRuns();
-    expect(result).toBe(false);
-  });
-});
+export const formatData = (data, emptyData) => {
+  if (!data || !Object.keys(data).length) {
+    return emptyData;
+  }
+  let formattedData = data;
+  // Convert to json if needed
+  if (typeof data === 'string') formattedData = JSON.parse(data);
+  // change from pascal to camelcase
+  formattedData = camelcaseKeys(formattedData, { deep: true });
+  return formattedData;
+};

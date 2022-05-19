@@ -49,6 +49,7 @@ export default function useMarkFailedRun(dagId, runId) {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries('mappedInstances', dagId);
         startRefresh();
       },
       onError: (error) => errorToast({ error }),

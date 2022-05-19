@@ -50,6 +50,7 @@ export default function useClearRun(dagId, runId) {
       onSuccess: () => {
         // Invalidating the query will force a new API request
         queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries('mappedInstances', dagId);
         startRefresh();
       },
       onError: (error) => errorToast({ error }),

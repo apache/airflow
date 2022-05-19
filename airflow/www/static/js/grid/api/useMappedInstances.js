@@ -20,24 +20,41 @@
 /* global autoRefreshInterval */
 
 import axios from 'axios';
-import { useQuery } from 'react-query';
+import { useQuery, useQueryClient } from 'react-query';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-
-const mappedInstancesUrl = getMetaValue('mapped_instances_api');
+import { areActiveTasks } from '../utils/gridData';
 
 export default function useMappedInstances({
   dagId, runId, taskId, limit, offset, order,
 }) {
+  const mappedInstancesUrl = getMetaValue('mapped_instances_api');
+  const queryKey = ['mappedInstances', dagId, runId, taskId, offset, order];
+  const queryClient = useQueryClient();
   const url = mappedInstancesUrl.replace('_DAG_RUN_ID_', runId).replace('_TASK_ID_', taskId);
   const orderParam = order && order !== 'map_index' ? { order_by: order } : {};
   const { isRefreshOn } = useAutoRefresh();
   return useQuery(
-    ['mappedInstances', dagId, runId, taskId, offset, order],
-    () => axios.get(url, {
-      params: { offset, limit, ...orderParam },
-    }),
+    queryKey,
+    () => {
+      const previousData = queryClient.getQueryData(queryKey);
+      const queryState = queryClient.getQueryState(queryKey);
+      // Don't refetch if all the runs are final and this is an auto-refresh try
+      if (
+        isRefreshOn
+        && !queryState.isInvalidated
+        && previousData
+        && previousData.taskInstances
+        && previousData.taskInstances.length
+        && !areActiveTasks(previousData.taskInstances)
+      ) {
+        return previousData;
+      }
+      return axios.get(url, {
+        params: { offset, limit, ...orderParam },
+      });
+    },
     {
       keepPreviousData: true,
       initialData: { taskInstances: [], totalEntries: 0 },
