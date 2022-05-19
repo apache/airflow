@@ -4772,7 +4772,7 @@ class LogModelView(AirflowModelView):
     ]
 
     list_columns = ['id', 'dttm', 'dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
-    search_columns = ['dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
+    search_columns = ['dttm', 'dag_id', 'task_id', 'event', 'execution_date', 'owner', 'extra']
 
     label_columns = {
         'execution_date': 'Logical Date',
