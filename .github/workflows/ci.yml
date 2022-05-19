@@ -1684,7 +1684,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --prepare-buildx-cache
           --platform linux/amd64,linux/arm64
         env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: >
           Pull CI image for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
