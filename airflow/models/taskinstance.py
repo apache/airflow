@@ -2085,7 +2085,10 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
-        """Fetch rendered template fields from DB for presentation in UI"""
+        """
+        Update task with rendered template fields for presentation in UI.
+        If task has already run, will fetch from DB; otherwise will render.
+        """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
