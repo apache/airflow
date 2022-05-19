@@ -1982,7 +1982,7 @@ class DAG(LoggingMixin):
 
         # deep-copying self.task_dict and self._task_group takes a long time, and we don't want all
         # the tasks anyway, so we copy the tasks manually later
-        memo = {id(self.task_dict): None, id(self._task_group): None}
+        memo = {id(self.task_dict): {}, id(self._task_group): {}}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
         if isinstance(task_ids_or_regex, (str, RePatternType)):
@@ -2007,7 +2007,7 @@ class DAG(LoggingMixin):
         # Make sure to not recursively deepcopy the dag or task_group while copying the task.
         # task_group is reset later
         def _deepcopy_task(t) -> "Operator":
-            memo.setdefault(id(t.task_group), None)
+            memo.setdefault(id(t.task_group), {})
             return copy.deepcopy(t, memo)
 
         dag.task_dict = {
