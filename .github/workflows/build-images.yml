@@ -227,7 +227,7 @@ jobs:
       - name: "Free space"
         run: breeze free-space
       - name: Build & Push CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        run: breeze build-image --push-image
+        run: breeze build-image --push-image --tag-as-latest
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
@@ -341,6 +341,7 @@ jobs:
       - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: >
           breeze build-prod-image
+          --tag-as-latest
           --push-image
           --install-packages-from-context
           --disable-airflow-repo-cache

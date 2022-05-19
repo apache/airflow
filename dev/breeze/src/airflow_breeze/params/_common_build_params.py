@@ -64,6 +64,7 @@ class _CommonBuildParams:
     python: str = "3.7"
     runtime_apt_command: str = ""
     runtime_apt_deps: str = ""
+    tag_as_latest: bool = False
     upgrade_to_newer_dependencies: bool = False
 
     @property

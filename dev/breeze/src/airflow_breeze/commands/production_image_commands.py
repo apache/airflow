@@ -71,7 +71,7 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     prepare_empty_docker_build_command,
 )
-from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
@@ -96,6 +96,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--upgrade-to-newer-dependencies",
                 "--debian-version",
                 "--image-tag",
+                "--tag-as-latest",
                 "--docker-cache",
             ],
         },
@@ -259,6 +260,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
+@option_tag_as_latest
 def build_prod_image(
     verbose: bool,
     dry_run: bool,
@@ -520,5 +522,8 @@ def build_production_image(
                 build_command_result = build_cache(
                     image_params=prod_image_params, dry_run=dry_run, verbose=verbose
                 )
+            else:
+                if prod_image_params.tag_as_latest:
+                    build_command_result = tag_image_as_latest(prod_image_params, dry_run, verbose)
 
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"
