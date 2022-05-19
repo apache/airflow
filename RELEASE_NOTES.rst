@@ -21,6 +21,87 @@
 
 .. towncrier release notes start
 
+Airflow 2.3.1 (2022-05-23)
+--------------------------
+
+Significant Changes
+^^^^^^^^^^^^^^^^^^^
+No significant changes.
+
+Bug Fixes
+^^^^^^^^^
+
+- Automatically reschedule stalled queued tasks in ``CeleryExecutor`` (#23690)
+- Fix expand/collapse all buttons (#23590)
+- Grid view status filters (#23392)
+- Expand/collapse all groups (#23487)
+- Fix retrieval of deprecated non-config values (#23723)
+- Fix secrets rendered in UI when task is not executed. (#22754)
+- Fix provider import error matching (#23825)
+- Fix regression in ignoring symlinks (#23535)
+- Fix ``dag-processor`` fetch metadata database config (#23575)
+- Fix auto upstream dep when expanding non-templated field (#23771)
+- Fix task log is not captured (#23684)
+- Add ``reschedule`` to the serialized fields for the ``BaseSensorOperator`` (#23674)
+- Modify db clean to also catch the ProgrammingError exception (#23699)
+- Remove titles from link buttons (#23736)
+- Fix grid details header text overlap (#23728)
+- Ensure ``execution_timeout`` as timedelta (#23655)
+- Don't run pre-migration checks for downgrade (#23634)
+- Add index for event column in log table (#23625)
+- Implement ``send_callback`` method for ``CeleryKubernetesExecutor`` and ``LocalKubernetesExecutor`` (#23617)
+- Fix ``PythonVirtualenvOperator`` templated_fields (#23559)
+- Apply specific ID collation to ``root_dag_id`` too (#23536)
+- Prevent ``KubernetesJobWatcher`` getting stuck on resource too old (#23521)
+- Fix scheduler crash when expanding with mapped task that returned none (#23486)
+- Fix broken dagrun links when many runs start at the same time (#23462)
+- Fix: Exception when parsing log #20966 (#23301)
+- Handle invalid date parsing in webserver views. (#23161)
+- Pools with negative open slots should not block other pools (#23143)
+- Move around overflow, position and padding (#23044)
+- Change approach to finding bad rows to LEFT OUTER JOIN. (#23528)
+- Only count bad refs when ``moved`` table exists (#23491)
+- Visually distinguish task group summary (#23488)
+- Remove color change for highly nested groups (#23482)
+- Optimize 2.3.0 pre-upgrade check queries (#23458)
+- Add backward compatibility for ``core__sql_alchemy_conn__cmd`` (#23441)
+- Fix literal cross product expansion (#23434)
+- Fix broken task instance link in xcom list (#23367)
+- Fix connection test button (#23345)
+- fix cli ``airflow dags show`` for mapped operator (#23339)
+- Hide some task instance attributes (#23338)
+- Don't show grid actions if server would reject with permission denied (#23332)
+- Use run_id for ``ti.mark_success_url`` (#23330)
+- Fix update user auth stats (#23314)
+- Use ``<Time />`` in Mapped Instance table (#23313)
+- Fix duplicated Kubernetes DeprecationWarnings (#23302)
+- Store grid view selection in url params (#23290)
+- Remove custom signal handling in Triggerer (#23274)
+- Override pool for TaskInstance when pool is passed from cli. (#23258)
+- Show warning if '/' is used in a DAG run ID (#23106)
+- Use kubernetes queue in kubernetes hybrid executors (#23048)
+- Add tags inside try block. (#21784)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Move ``dag_processing.processor_timeouts`` to counters section (#23393)
+- Clarify that bundle extras should not be used for PyPi installs (#23697)
+- Synchronize support for Postgres and K8S in docs (#23673)
+- Replace DummyOperator references in docs (#23502)
+- Add doc notes for keyword-only args for ``expand()`` and ``partial()`` (#23373)
+- Document fix for broken elasticsearch logs with 2.3.0+ upgrade (#23821)
+
+Misc/Internal
+^^^^^^^^^^^^^
+
+- Add typing for airflow/configuration.py (#23716)
+- Disable Flower by default from docker-compose (#23685)
+- Added postgres 14 to support versions(including breeze) (#23506)
+- add K8S 1.24 support (#23637)
+- Refactor code references from tree to grid (#23254)
+
+
 Airflow 2.3.0 (2022-04-30)
 --------------------------
 
