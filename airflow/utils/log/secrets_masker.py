@@ -84,12 +84,9 @@ def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) 
     If ``secret`` is a dict or a iterable (excluding str) then it will be
     recursively walked and keys with sensitive names will be hidden.
     """
-    # Delay import
-    from airflow import settings
-
     # Filtering all log messages is not a free process, so we only do it when
     # running tasks
-    if not settings.MASK_SECRETS_IN_LOGS or not secret:
+    if not secret:
         return
 
     _secrets_masker().add_mask(secret, name)

@@ -2085,7 +2085,7 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
-        """Fetch rendered template fields from DB"""
+        """Fetch rendered template fields from DB for presentation in UI"""
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
@@ -2096,16 +2096,13 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         try:
-            # Task was never executed. Initialize RenderedTaskInstanceFields
-            # to render template and mask secrets. Set MASK_SECRETS_IN_LOGS
-            # to True to enable masking similar to task run.
-            original_value = settings.MASK_SECRETS_IN_LOGS
-            settings.MASK_SECRETS_IN_LOGS = True
-            rendered_task_instance = RenderedTaskInstanceFields(self)
-            rendered_fields = rendered_task_instance.rendered_fields
-            if rendered_fields:
-                for field_name, rendered_value in rendered_fields.items():
-                    setattr(self.task, field_name, rendered_value)
+            # If we get here, either the task hasn't run or the RTIF records were purged.
+            from airflow.utils.log.secrets_masker import redact
+
+            self.render_templates()
+            for field_name in self.task.template_fields:
+                rendered_value = getattr(self.task, field_name)
+                setattr(self.task, field_name, redact(rendered_value, field_name))
         except (TemplateAssertionError, UndefinedError) as e:
             raise AirflowException(
                 "Webserver does not have access to User-defined Macros or Filters "
