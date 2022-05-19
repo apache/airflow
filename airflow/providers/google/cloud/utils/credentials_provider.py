@@ -31,6 +31,7 @@ import google.auth.credentials
 import google.oauth2.service_account
 from google.auth import compute_engine, impersonated_credentials
 from google.auth.environment_vars import CREDENTIALS, LEGACY_PROJECT, PROJECT
+from google.auth.exceptions import RefreshError
 from google.auth.transport import _http_client
 
 from airflow.exceptions import AirflowException
@@ -253,7 +254,14 @@ class _CredentialProvider(LoggingMixin):
             project_id = _get_project_id_from_service_account_email(self.target_principal)
 
         if isinstance(credentials, compute_engine.Credentials):
-            credentials.refresh(_http_client.Request())
+            try:
+                credentials.refresh(_http_client.Request())
+            except RefreshError as msg:
+                """
+                If the Compute Engine metadata service can't be reached in this case the instance has not
+                credentials.
+                """
+                self._log_debug(msg)
 
         return credentials, project_id
 
