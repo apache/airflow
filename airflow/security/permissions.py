@@ -76,6 +76,6 @@ def resource_name_for_dag(dag_id, is_subdag=False):
 
     if is_subdag:
         # To account for SubDags
-        root_dag_id = dag_id.split(".")[0]
+        root_dag_id = dag_id.split(".", 1)[0]
         return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
     return f"{RESOURCE_DAG_PREFIX}{dag_id}"
