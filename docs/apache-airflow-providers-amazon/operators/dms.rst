@@ -16,9 +16,9 @@
     under the License.
 
 
-==============================================
-AWS Database Migration Service (DMS) Operators
-==============================================
+====================================
+AWS Database Migration Service (DMS)
+====================================
 
 `AWS Database Migration Service (AWS DMS) <https://docs.aws.amazon.com/dms/>`__
 is a web service you can use to migrate data from your database that is
@@ -36,10 +36,10 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:DmsCreateTaskOperator:
-
 Operators
 ---------
+
+.. _howto/operator:DmsCreateTaskOperator:
 
 Create a replication task
 =========================
@@ -123,13 +123,11 @@ To check the state of a replication task until it is completed, you can use
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_dms.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_operator_dms_task_completed_sensor]
-    :end-before: [END howto_operator_dms_task_completed_sensor]
+    :start-after: [START howto_sensor_dms_task_completed]
+    :end-before: [END howto_sensor_dms_task_completed]
 
 
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for DMS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dms.html>`__
+* `AWS boto3 library documentation for DMS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/dms.html>`__

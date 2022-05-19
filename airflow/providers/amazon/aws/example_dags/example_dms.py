@@ -319,12 +319,12 @@ with DAG(
     # [END howto_operator_dms_stop_task]
 
     # TaskCompletedSensor actually waits until task reaches the "Stopped" state, so it will work here.
-    # [START howto_operator_dms_task_completed_sensor]
+    # [START howto_sensor_dms_task_completed]
     await_task_stop = DmsTaskCompletedSensor(
         task_id='await_task_stop',
         replication_task_arn=create_task.output,
     )
-    # [END howto_operator_dms_task_completed_sensor]
+    # [END howto_sensor_dms_task_completed]
 
     # [START howto_operator_dms_delete_task]
     delete_task = DmsDeleteTaskOperator(
