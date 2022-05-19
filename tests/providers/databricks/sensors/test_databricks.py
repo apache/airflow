@@ -25,6 +25,8 @@ from databricks.sql.types import Row
 
 DEFAULT_CONN_ID = 'databricks_default'
 
+TIMESTAMP_TEST = '2022-05-07 21:24:58.680358'
+
 
 class TestDatabricksDeltaTableChangeSensor(unittest.TestCase):
 
@@ -37,8 +39,8 @@ class TestDatabricksDeltaTableChangeSensor(unittest.TestCase):
         sensor = DatabricksDeltaTableChangeSensor(
             task_id='run_now',
             databricks_conn_id='databricks_default',
-            table='table_test',
-            timestamp='2022-05-07 21:24:58.680358'
+            table_name='table_test',
+            timestamp=TIMESTAMP_TEST
         )
 
         db_mock = db_mock_class.return_value
@@ -73,8 +75,8 @@ class TestDatabricksDeltaTableChangeSensor(unittest.TestCase):
         sensor = DatabricksDeltaTableChangeSensor(
             task_id='run_now',
             databricks_conn_id='databricks_default',
-            table='table_test_2',
-            timestamp='2022-05-07 21:24:58.680358'
+            table_name='table_test_2',
+            timestamp=TIMESTAMP_TEST
         )
 
         db_mock = db_mock_class.return_value
@@ -112,8 +114,8 @@ class TestDatabricksPartitionTableSensor(unittest.TestCase):
         sensor = DatabricksPartitionTableSensor(
             task_id='run_now',
             databricks_conn_id='databricks_default',
-            table='table_test',
-            partition='partition_test'
+            table_name='table_test',
+            partition_name='partition_test'
         )
 
         db_mock = db_mock_class.return_value
@@ -146,8 +148,8 @@ class TestDatabricksPartitionTableSensor(unittest.TestCase):
         sensor = DatabricksPartitionTableSensor(
             task_id='run_now',
             databricks_conn_id='databricks_default',
-            table='table_test',
-            partition='partition_test'
+            table_name='table_test',
+            partition_name='partition_test'
         )
 
         db_mock = db_mock_class.return_value

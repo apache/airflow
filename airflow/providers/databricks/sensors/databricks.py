@@ -70,71 +70,68 @@ class DatabricksPartitionTableSensor(DatabricksBaseSensor):
     """
     Waits for a partition to show up in Databricks.
 
-    :param table: The name of the table to wait for, supports the dot
-        notation (my_database.my_table)
-    :param partition: The partition clause to wait for.
-    :param database: The name of the database in Databricks. It uses 'default' if nothing is provided
-    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
+    :param table_name (str): The name of the table to wait for.
+    :param partition_name (str): The partition clause to wait for.
+    :param database_name (str): The name of the database in Databricks. It uses 'default' if nothing is provided
+    :param databricks_conn_id (str): Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     """
     template_fields: Sequence[str] = (
-        'database',
-        'table',
-        'partition',
+        'database_name',
+        'table_name',
+        'partition_name',
     )
 
     def __init__(self, *,
                  databricks_conn_id: str,
-                 table: str,
-                 partition: str,
-                 database: Optional[str] = 'default',
+                 table_name: str,
+                 partition_name: str,
+                 database_name: Optional[str] = 'default',
                  **kwargs: Any):
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
-        self.table = table
-        self.partition = partition
-        self.database = database
+        self.table_name = table_name
+        self.partition_name = partition_name
+        self.database_name = database_name
 
     def poke(self, context: Context) -> bool:
         hook = self._get_hook()
-        _, result = hook.run(f'SHOW PARTITIONS {self.database}.{self.table}')
+        _, result = hook.run(f'SHOW PARTITIONS {self.database_name}.{self.table_name}')
         record = result[0] if result else {}
-        return self.partition in record
+        return self.partition_name in record
 
 
 class DatabricksDeltaTableChangeSensor(DatabricksBaseSensor):
     """
     Waits for Delta table event
 
-    :param table: The name of the table to wait for, supports the dot
-        notation (my_database.my_table)
-    :param timestamp: The timestamp that will be used to filter new events.
-    :param operation: The Delta table operation to look for.
-    :param database: The name of the database in Databrick. It uses 'default' if nothing is provided
-    :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
+    :param table_name (str): The name of the table to wait for, supports the dot
+    :param timestamp (datetime): The timestamp that will be used to filter new events.
+    :param database (Optional[str]): The name of the database in Databrick. It uses 'default' if nothing is provided
+    :param databricks_conn_id (str): Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
     """
     template_fields: Sequence[str] = (
-        'database',
-        'table',
+        'database_name',
+        'table_name',
     )
 
     def __init__(self, *,
                  databricks_conn_id: str,
-                 table: str,
+                 table_name: str,
                  timestamp: datetime,
-                 database: Optional[str] = 'default',
+                 database_name: Optional[str] = 'default',
                  **kwargs: Any):
         super().__init__(**kwargs)
         self.databricks_conn_id = databricks_conn_id
-        self.table = table
+        self.table_name = table_name
         self.timestamp = timestamp
-        self.database = 'default' if not database else database
+        self.database_name = 'default' if not database_name else database_name
 
     def poke(self, context: Context) -> bool:
         hook = self._get_hook()
 
         _, results = hook.run(
             f'SELECT COUNT(1) as new_events from (DESCRIBE '
-            f'HISTORY {self.database}.{self.table}) '
+            f'HISTORY {self.database_name}.{self.table_name}) '
             f'WHERE timestamp > "{self.timestamp}"')
 
         return results[0].new_events > 0
