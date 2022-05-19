@@ -15,31 +15,41 @@
     specific language governing permissions and limitations
     under the License.
 
+========================
+Amazon S3 Glacier to GCS
+========================
 
-Amazon S3 Glacier to GCS Transfer Operator
-==========================================
-
-`Amazon Glacier <https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html>`_ is a secure, durable, and extremely low-cost Amazon S3 cloud storage class for data archiving and long-term backup.
+`Amazon Glacier <https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html>`_ is a secure, durable,
+and extremely low-cost Amazon S3 cloud storage class for data archiving and long-term backup.
 
 Prerequisite Tasks
 ------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:GlacierToGCSOperator:
 
-Glacier To GCS
-""""""""""""""
+Amazon S3 Glacier To GCS transfer operator
+==========================================
 
-To transfer data from an Amazon Glacier vault to Google Cloud Storage.
-use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierToGCSOperator`
+To transfer data from an Amazon Glacier vault to Google Cloud Storage you can use
+:class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierToGCSOperator`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_glacier_transfer_data_to_gcs]
-    :end-before: [END howto_glacier_transfer_data_to_gcs]
+    :start-after: [START howto_transfer_glacier_to_gcs]
+    :end-before: [END howto_transfer_glacier_to_gcs]
 
 .. note::
     Please be aware that GlacierToGCSOperator depends on available memory.
     Transferring large files may exhaust memory on the worker host.
+
+Reference
+---------
+
+* `AWS boto3 library documentation for Amazon S3 Glacier <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html>`__
+* `Google Cloud Storage client library <https://googleapis.dev/python/storage/latest/client.html>`__

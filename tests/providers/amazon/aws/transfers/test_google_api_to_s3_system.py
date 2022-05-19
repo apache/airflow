@@ -52,7 +52,7 @@ def provide_s3_bucket_youtube():
 
 @pytest.mark.backend("mysql", "postgres")
 @pytest.mark.credential_file(GMP_KEY)
-class GoogleApiToS3TransferExampleDagsSystemTest(GoogleSystemTest, AmazonSystemTest):
+class GoogleApiToS3OperatorExampleDagsSystemTest(GoogleSystemTest, AmazonSystemTest):
     @pytest.mark.usefixtures("provide_s3_bucket_sheets")
     @provide_aws_context()
     @provide_gcp_context(GMP_KEY, scopes=['https://www.googleapis.com/auth/spreadsheets.readonly'])

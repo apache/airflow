@@ -15,8 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-AWS DataSync Operator
-=====================
+============
+AWS DataSync
+============
 
 `AWS DataSync <https://aws.amazon.com/datasync/>`__ is a data-transfer service that simplifies, automates,
 and accelerates moving and replicating data between on-premises storage systems and AWS storage services over
@@ -27,10 +28,13 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:DataSyncOperator:
 
 Interact with AWS DataSync Tasks
---------------------------------
+================================
 
 You can use :class:`~airflow.providers.amazon.aws.operators.datasync.DataSyncOperator` to
 find, create, update, execute and delete AWS DataSync tasks.
@@ -107,6 +111,4 @@ to randomly choose from candidate Locations.
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for DataSync <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/datasync.html>`__
+* `AWS boto3 library documentation for DataSync <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/datasync.html>`__
