@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-20T04:56:53Z
+# This constraints file was automatically generated on 2022-05-20T07:34:18Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -314,7 +314,7 @@ imagesize==1.3.0
 importlib-metadata==4.11.3
 incremental==21.3.0
 inflection==0.5.1
-influxdb-client==1.28.0
+influxdb-client==1.29.0
 iniconfig==1.1.1
 ipdb==0.13.9
 ipython==8.3.0
