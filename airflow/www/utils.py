@@ -135,6 +135,7 @@ def encode_ti(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any
             TaskInstance.dag_id == task.dag_id,
             TaskInstance.run_id == dag_run.run_id,
             TaskInstance.task_id == task.task_id,
+            # Only get normal task instances or the first mapped task
             TaskInstance.map_index <= 0,
         )
         .first()
