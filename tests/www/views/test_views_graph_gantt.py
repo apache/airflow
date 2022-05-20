@@ -24,9 +24,8 @@ from airflow.configuration import conf
 from airflow.models import DAG, DagRun
 from airflow.models.baseoperator import BaseOperator
 from airflow.utils import timezone
-from airflow.utils.session import provide_session, create_session
+from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
-from tests.test_utils.db import clear_db_runs
 
 DAG_ID = "dag_for_testing_dt_nr_dr_form"
 DEFAULT_DATE = timezone.datetime(2017, 9, 1)
@@ -332,7 +331,7 @@ def test_view_works_with_deleted_tasks(request, admin_client, app, endpoint):
 
     def cleanup_database():
         with create_session() as session:
-            session.query(DagRun).filter_by(id=dag_run_id).delete()
+            session.query(DagRun).filter_by(run_id=dag_run_id).delete()
 
     request.addfinalizer(cleanup_database)
 
