@@ -138,9 +138,9 @@ In this approach, Airflow will read the DAGs from a PVC which has ``ReadOnlyMany
       --set dags.persistence.existingClaim=my-volume-claim \
       --set dags.gitSync.enabled=false
 
-Mounting DAGs from a private Github repo using Git-Sync sidecar
+Mounting DAGs from a private GitHub repo using Git-Sync sidecar
 ---------------------------------------------------------------
-Create a private repo on Github if you have not created one already.
+Create a private repo on GitHub if you have not created one already.
 
 Then create your ssh keys:
 
@@ -184,7 +184,7 @@ Finally, from the context of your Airflow Helm chart directory, you can install 
     helm upgrade --install airflow apache-airflow/airflow -f override-values.yaml
 
 If you have done everything correctly, Git-Sync will pick up the changes you make to the DAGs
-in your private Github repo.
+in your private GitHub repo.
 
 You should take this a step further and set ``dags.gitSync.knownHosts`` so you are not susceptible to man-in-the-middle
 attacks. This process is documented in the :ref:`production guide <production-guide:knownhosts>`.

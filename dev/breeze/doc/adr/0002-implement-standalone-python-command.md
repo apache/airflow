@@ -69,7 +69,7 @@ In November 2021, Outreachy sponsored two internship for two interns: @Bowrna an
 the projects:
 
 * Convert Airflow Local Development environment `Breeze` - from Bash-based to Python-based
-* Rewrite Github Action workflows to Python
+* Rewrite GitHub Action workflows to Python
 
 With @potiuk, @eladkal and @xurror as mentors.
 

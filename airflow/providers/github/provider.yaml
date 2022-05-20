@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-github
 name: Github
 description: |
-    `Github <https://www.github.com/>`__
+    `GitHub <https://www.github.com/>`__
 versions:
   - 1.0.3
   - 1.0.2

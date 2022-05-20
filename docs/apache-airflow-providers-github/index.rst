@@ -73,7 +73,7 @@ Content
 Package apache-airflow-providers-github
 ------------------------------------------------------
 
-`Github <https://www.github.com/>`__
+`GitHub <https://www.github.com/>`__
 
 
 Release: 1.0.3
