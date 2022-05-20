@@ -2396,6 +2396,7 @@ class DAG(LoggingMixin):
         run_backwards=False,
         run_at_least_once=False,
         continue_on_failures=False,
+        disable_retry=False,
     ):
         """
         Runs the DAG.
@@ -2446,6 +2447,7 @@ class DAG(LoggingMixin):
             run_backwards=run_backwards,
             run_at_least_once=run_at_least_once,
             continue_on_failures=continue_on_failures,
+            disable_retry=disable_retry,
         )
         job.run()
 
