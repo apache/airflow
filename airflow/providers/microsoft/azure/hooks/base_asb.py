@@ -15,16 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Dict
+from typing import Any, Dict, Optional
 
 from airflow.hooks.base import BaseHook
 
 
 class BaseAzureServiceBusHook(BaseHook):
     """
-    BaseAzureServiceBusHook class to session creation and  connection creation.
+    BaseAzureServiceBusHook class to session creation and  connection creation. Client ID and
+    Secrete IDs are optional.
 
-    Client ID and Secrete ID's are optional
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
@@ -67,7 +67,7 @@ class BaseAzureServiceBusHook(BaseHook):
         super().__init__()
         self.conn_id = azure_service_bus_conn_id
         self._conn = None
-        self.connection_string = None
+        self.connection_string: Optional[str] = None
 
     def get_conn(self):
         return None
