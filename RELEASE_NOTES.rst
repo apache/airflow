@@ -131,6 +131,13 @@ If you are happy with the new config values you should *remove* the setting in `
 
 If you have customized the templates you should ensure that they contain ``{{ ti.map_index }}`` if you want to use dynamically mapped tasks.
 
+If after upgrading you find your task logs are no longer accessible, try adding a row in the ``log_template`` table with ``id=0``
+containing your previous ``log_id_template`` and ``log_filename_template``. For example, if you used the defaults in 2.2.5:
+
+.. code-block:: sql
+
+    INSERT INTO log_template (id, filename, elasticsearch_id, created_at) VALUES (0, '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', '{dag_id}_{task_id}_{run_id}_{try_number}', NOW());
+
 BaseOperatorLink's ``get_link`` method changed to take a ``ti_key`` keyword argument (#21798)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
