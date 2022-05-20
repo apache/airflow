@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
+from curses import REPORT_MOUSE_POSITION
 import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
@@ -449,15 +450,15 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
 
 
-    def execute(self, context: 'Context') -> None:
-        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id).get_conn()
-
-        response = emr_serverless_hook.create_application(clientToken=self.client_request_token, releaseLabel=self.release_label, type=self.job_type, **self.kwargs)
-
+    def execute(self, context: 'Context'):
+        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id)
+        print(f"releaseLabel: {self.release_label}, job_type: {self.job_type}")
+        response = emr_serverless_hook.create_serverless_application(client_request_token=self.client_request_token, release_label=self.release_label, job_type=self.job_type)
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException(f'Application Creation failed: {response}')
         else:
             self.log.info('EMR serverless application created: %s', response['applicationId'])
+            return response['applicationId']
 
 
 class EmrServerlessStartJobOperator(BaseOperator):

@@ -100,7 +100,7 @@ class EmrServerlessHook(AwsBaseHook):
         self.emr_conn_id = emr_conn_id
         super().__init__(client_type="emr-serverless", *args, **kwargs)
     
-    def create_application(self, client_request_token: str, releaseLabel: str, type: str):
+    def create_serverless_application(self, client_request_token: str, release_label: str, job_type: str):
         """
         Create an EMR serverless application.
 
@@ -112,7 +112,7 @@ class EmrServerlessHook(AwsBaseHook):
         """
         
         try:
-            response = self.conn.create_application(clientToken=client_request_token, releaseLabel=releaseLabel, type=type)
+            response = self.conn.create_application(clientToken=client_request_token, releaseLabel=release_label, type=job_type)
         except Exception as ex:
             self.log.error("Exception while creating application: %s", ex)
             raise Exception("Error creating application")
