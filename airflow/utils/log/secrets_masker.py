@@ -20,6 +20,7 @@ import logging
 import re
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
 
+from airflow import settings
 from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
@@ -158,6 +159,9 @@ class SecretsMasker(logging.Filter):
             self._redact_exception_with_context(exception.__cause__)
 
     def filter(self, record) -> bool:
+        if settings.MASK_SECRETS_IN_LOGS is not True:
+            return True
+
         if self.ALREADY_FILTERED_FLAG in record.__dict__:
             # Filters are attached to multiple handlers and logs, keep a
             # "private" flag that stops us needing to process it more than once
