@@ -1767,12 +1767,23 @@
       default: "True"
     - name: task_adoption_timeout
       description: |
-        Time in seconds after which Adopted tasks are cleared by CeleryExecutor. This is helpful to clear
-        stalled tasks.
+        Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
+        and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
+        applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
+        also applies to adopted tasks.
       version_added: 2.0.0
       type: integer
       example: ~
       default: "600"
+    - name: stalled_task_timeout
+      description: |
+        Time in seconds after which tasks queued in celery are assumed to be stalled, and are automatically
+        rescheduled. Adopted tasks will instead use the ``task_adoption_timeout`` setting if specified.
+        When set to 0, automatic clearing of stalled tasks is disabled.
+      version_added: 2.3.1
+      type: integer
+      example: ~
+      default: "0"
     - name: task_publish_max_retries
       description: |
         The Maximum number of retries for publishing task messages to the broker when failing
