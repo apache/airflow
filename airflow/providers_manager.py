@@ -232,9 +232,7 @@ def log_import_warning(class_name, e, provider_package):
 # where they have optional features. We are going to add tests in our CI to catch all such cases and will
 # fix them, but until now all "known unhandled optional feature errors" from community providers
 # should be added here
-KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [
-    ("apache-airflow-providers-google", "ModuleNotFoundError: No module named 'paramiko'")
-]
+KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
 
 
 def _sanity_check(
@@ -269,7 +267,7 @@ def _sanity_check(
             # (we always have all providers from sources until we split providers to separate repo)
             log_debug_import_from_sources(class_name, e, provider_package)
             return None
-        if "ModuleNotFoundError: No module named 'airflow.providers." in e.msg:
+        if "No module named 'airflow.providers." in e.msg:
             # handle cases where another provider is missing. This can only happen if
             # there is an optional feature, so we log debug and print information about it
             log_optional_feature_disabled(class_name, e, provider_package)
@@ -278,7 +276,7 @@ def _sanity_check(
             # Until we convert all providers to use AirflowOptionalProviderFeatureException
             # we assume any problem with importing another "provider" is because this is an
             # optional feature, so we log debug and print information about it
-            if known_error[0] == provider_package and known_error[1] == e.msg:
+            if known_error[0] == provider_package and known_error[1] in e.msg:
                 log_optional_feature_disabled(class_name, e, provider_package)
                 return None
         # But when we have no idea - we print warning to logs
