@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-20T13:06:44Z
+# This constraints file was automatically generated on 2022-05-20T15:36:12Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -239,9 +239,9 @@ flaky==3.7.0
 flower==1.0.0
 freezegun==1.2.1
 frozenlist==1.3.0
-fsspec==2022.3.0
+fsspec==2022.5.0
 future==0.18.2
-gcsfs==2022.3.0
+gcsfs==2022.5.0
 geomet==0.2.1.post1
 gevent==21.12.0
 gitdb==4.0.9
