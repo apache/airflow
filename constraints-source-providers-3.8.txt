@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-20T18:06:28Z
+# This constraints file was automatically generated on 2022-05-20T20:22:41Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -26,7 +26,7 @@ Flask-WTF==0.14.3
 Flask==1.1.2
 GitPython==3.1.27
 HeapDict==1.0.1
-JPype1==1.4.0
+JPype1==1.3.0
 JayDeBeApi==1.2.3
 Jinja2==3.0.3
 Mako==1.2.0
@@ -99,9 +99,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.23.4
+boto3==1.23.5
 boto==2.49.0
-botocore==1.26.4
+botocore==1.26.5
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
