@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb_admin_client import AzureServiceBusAdminClientHook
@@ -64,9 +64,9 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
             self.queue_name,
             self.max_delivery_count,
             self.dead_lettering_on_message_expiration,
-            self.azure_service_bus_conn_id,
+            self.enable_batched_operations,
         )
-        self.log.info("Created Queue %s", self.cluster_identifier)
+        self.log.info("Created Queue %s", queue.name)
         self.log.info(queue)
 
 
@@ -74,12 +74,11 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
     """
     Send Message or batch message to the service bus queue
 
-    :param queue_name: The name of the queue in Service Bus namespace.
-    :param message: message which need to be sent to the queue.
+    :param message: Message which needs to be sent to the queue. It can be string or list of string.
     :param batch: Its boolean flag by default it is set to False, if the message needs to be sent
-    as batch message it can be set to True.
+        as batch message it can be set to True.
     :param azure_service_bus_conn_id: Reference to the
-        :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
+        :ref: `Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
 
     template_fields: Sequence[str] = ("queue_name", "message")
@@ -89,7 +88,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        message: str,
+        message: Union[str, list],
         batch: bool = False,
         azure_service_bus_conn_id: str = 'azure_service_bus_default',
         **kwargs,
@@ -118,7 +117,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
 
     :param queue_name: The name of the queue in Service Bus namespace.
     :param azure_service_bus_conn_id: Reference to the
-        :ref:`Azure Service Bus connection <howto/connection:azure_service_bus>`.
+        :ref: `Azure Service Bus connection <howto/connection:azure_service_bus>`.
     """
 
     template_fields: Sequence[str] = ("queue_name",)
@@ -153,7 +152,7 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
 
     :param queue_name: The name of the queue in Service Bus namespace.
     :param azure_service_bus_conn_id: Reference to the
-        :ref:`Azure Service Bus connection <howto/connection:azure_service_bus>`.
+        :ref: `Azure Service Bus connection <howto/connection:azure_service_bus>`.
     """
 
     template_fields: Sequence[str] = ("queue_name",)
