@@ -169,17 +169,17 @@ class TestKubernetesHook:
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
-        'disable_tcp_keepalive, conn_id, should_disable',
+        'disable_tcp_keepalive, conn_id, expected',
         (
-            (True, None, True),
-            (None, None, False),
-            (False, None, False),
-            (None, 'disable_tcp_keepalive', True),
-            (True, 'disable_tcp_keepalive', True),
-            (False, 'disable_tcp_keepalive', False),
-            (None, 'disable_tcp_keepalive_empty', False),
-            (True, 'disable_tcp_keepalive_empty', True),
-            (False, 'disable_tcp_keepalive_empty', False),
+            (True, None, False),
+            (None, None, True),
+            (False, None, True),
+            (None, 'disable_tcp_keepalive', False),
+            (True, 'disable_tcp_keepalive', False),
+            (False, 'disable_tcp_keepalive', True),
+            (None, 'disable_tcp_keepalive_empty', True),
+            (True, 'disable_tcp_keepalive_empty', False),
+            (False, 'disable_tcp_keepalive_empty', True),
         ),
     )
     @patch("kubernetes.config.incluster_config.InClusterConfigLoader", new=MagicMock())
@@ -189,7 +189,7 @@ class TestKubernetesHook:
         mock_enable,
         disable_tcp_keepalive,
         conn_id,
-        should_disable,
+        expected,
     ):
         """
         Verifies whether enable tcp keepalive is called depending on combination of hook
@@ -197,10 +197,7 @@ class TestKubernetesHook:
         """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, disable_tcp_keepalive=disable_tcp_keepalive)
         api_conn = kubernetes_hook.get_conn()
-        if not should_disable:
-            assert mock_enable.called
-        else:
-            assert not mock_enable.called
+        assert mock_enable.called is expected
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
