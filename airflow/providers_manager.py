@@ -232,9 +232,7 @@ def log_import_warning(class_name, e, provider_package):
 # where they have optional features. We are going to add tests in our CI to catch all such cases and will
 # fix them, but until now all "known unhandled optional feature errors" from community providers
 # should be added here
-KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [
-    ("apache-airflow-providers-google", "No module named 'paramiko'")
-]
+KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
 
 
 def _sanity_check(
