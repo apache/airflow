@@ -24,7 +24,9 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator, Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
+from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
+from airflow.providers.google.common.links.storage import FileDetailsLink
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 
@@ -316,6 +318,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_create_template_fields]
+    operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
         self,
@@ -362,6 +365,13 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
             hook.create_instance(project_id=self.project_id, body=self.body)
         else:
             self.log.info("Cloud SQL instance with ID %s already exists. Aborting create.", self.instance)
+
+        CloudSQLInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
+        )
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
         service_account_email = instance_resource["serviceAccountEmailAddress"]
@@ -411,6 +421,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_patch_template_fields]
+    operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
         self,
@@ -450,6 +461,13 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
                 'Please specify another instance to patch.'
             )
         else:
+            CloudSQLInstanceLink.persist(
+                context=context,
+                task_instance=self,
+                cloud_sql_instance=self.instance,
+                project_id=self.project_id or hook.project_id,
+            )
+
             return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
 
 
@@ -535,6 +553,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_create_template_fields]
+    operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
         self,
@@ -584,6 +603,12 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        CloudSQLInstanceDatabaseLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
         )
         if self._check_if_db_exists(database, hook):
             self.log.info(
@@ -635,6 +660,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_patch_template_fields]
+    operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
         self,
@@ -687,6 +713,12 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                 "Please specify another database to patch."
             )
         else:
+            CloudSQLInstanceDatabaseLink.persist(
+                context=context,
+                task_instance=self,
+                cloud_sql_instance=self.instance,
+                project_id=self.project_id or hook.project_id,
+            )
             return hook.patch_database(
                 project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
             )
@@ -811,6 +843,7 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_export_template_fields]
+    operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
         self,
@@ -852,6 +885,18 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        CloudSQLInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
+        )
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.body["exportContext"]["uri"][5:],
+            project_id=self.project_id or hook.project_id,
         )
         return hook.export_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
@@ -908,6 +953,7 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_import_template_fields]
+    operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
         self,
@@ -949,6 +995,18 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        CloudSQLInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
+        )
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.body["importContext"]["uri"][5:],
+            project_id=self.project_id or hook.project_id,
         )
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 

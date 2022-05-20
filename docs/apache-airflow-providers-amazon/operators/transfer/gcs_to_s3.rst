@@ -48,5 +48,5 @@ Example usage:
 Reference
 ---------
 
-* `Google Cloud Storage Client library <https://googleapis.dev/python/storage/latest/client.html>`__
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `Google Cloud Storage client library <https://googleapis.dev/python/storage/latest/client.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

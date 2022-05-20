@@ -56,6 +56,7 @@ from airflow_breeze.global_constants import (
 )
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import (
+    RunCommandResult,
     commit_sha,
     prepare_base_build_command,
     prepare_build_cache_command,
@@ -118,9 +119,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
     return extra_docker_flags
 
 
-def check_docker_resources(
-    airflow_image_name: str, verbose: bool, dry_run: bool
-) -> Union[CompletedProcess, CalledProcessError]:
+def check_docker_resources(airflow_image_name: str, verbose: bool, dry_run: bool) -> RunCommandResult:
     """
     Check if we have enough resources to run docker. This is done via running script embedded in our image.
     :param verbose: print commands when running
@@ -418,9 +417,7 @@ def prepare_empty_docker_build_command(
     return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
 
 
-def build_cache(
-    image_params: _CommonBuildParams, dry_run: bool, verbose: bool
-) -> Union[CompletedProcess, CalledProcessError]:
+def build_cache(image_params: _CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
     )

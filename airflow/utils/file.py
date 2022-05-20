@@ -40,11 +40,14 @@ class _IgnoreRule(Protocol):
 
     @staticmethod
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> Optional['_IgnoreRule']:
-        pass
+        """
+        Build an ignore rule from the supplied pattern where base_dir
+        and definition_file should be absolute paths.
+        """
 
     @staticmethod
     def match(path: Path, rules: List['_IgnoreRule']) -> bool:
-        pass
+        """Match a candidate absolute path against a list of rules"""
 
 
 class _RegexpIgnoreRule(NamedTuple):
@@ -57,7 +60,7 @@ class _RegexpIgnoreRule(NamedTuple):
     def compile(pattern: str, base_dir: Path, definition_file: Path) -> Optional[_IgnoreRule]:
         """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid"""
         try:
-            return _RegexpIgnoreRule(re.compile(pattern), base_dir.resolve())
+            return _RegexpIgnoreRule(re.compile(pattern), base_dir)
         except re.error as e:
             log.warning("Ignoring invalid regex '%s' from %s: %s", pattern, definition_file, e)
             return None
@@ -65,11 +68,10 @@ class _RegexpIgnoreRule(NamedTuple):
     @staticmethod
     def match(path: Path, rules: List[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path"""
-        test_path: Path = path.resolve()
         for rule in rules:
             if not isinstance(rule, _RegexpIgnoreRule):
                 raise ValueError(f"_RegexpIgnoreRule cannot match rules of type: {type(rule)}")
-            if rule.pattern.search(str(test_path.relative_to(rule.base_dir))) is not None:
+            if rule.pattern.search(str(path.relative_to(rule.base_dir))) is not None:
                 return True
         return False
 
@@ -95,21 +97,20 @@ class _GlobIgnoreRule(NamedTuple):
             # > If there is a separator at the beginning or middle (or both) of the pattern, then the
             # > pattern is relative to the directory level of the particular .gitignore file itself.
             # > Otherwise the pattern may also match at any level below the .gitignore level.
-            relative_to = definition_file.resolve().parent
+            relative_to = definition_file.parent
         ignore_pattern = GitWildMatchPattern(pattern)
         return _GlobIgnoreRule(ignore_pattern.regex, pattern, ignore_pattern.include, relative_to)
 
     @staticmethod
     def match(path: Path, rules: List[_IgnoreRule]) -> bool:
         """Match a list of ignore rules against the supplied path"""
-        test_path: Path = path.resolve()
         matched = False
         for r in rules:
             if not isinstance(r, _GlobIgnoreRule):
                 raise ValueError(f"_GlobIgnoreRule cannot match rules of type: {type(r)}")
             rule: _GlobIgnoreRule = r  # explicit typing to make mypy play nicely
-            rel_path = str(test_path.relative_to(rule.relative_to) if rule.relative_to else test_path.name)
-            if rule.raw_pattern.endswith("/") and test_path.is_dir():
+            rel_path = str(path.relative_to(rule.relative_to) if rule.relative_to else path.name)
+            if rule.raw_pattern.endswith("/") and path.is_dir():
                 # ensure the test path will potentially match a directory pattern if it is a directory
                 rel_path += "/"
             if rule.include is not None and rule.pattern.match(rel_path) is not None:
@@ -208,10 +209,11 @@ def _find_path_from_directory(
 
     :return: a generator of file paths which should not be ignored.
     """
+    # A Dict of patterns, keyed using resolved, absolute paths
     patterns_by_dir: Dict[Path, List[_IgnoreRule]] = {}
 
     for root, dirs, files in os.walk(base_dir_path, followlinks=True):
-        patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root), [])
+        patterns: List[_IgnoreRule] = patterns_by_dir.get(Path(root).resolve(), [])
 
         ignore_file_path = Path(root) / ignore_file_name
         if ignore_file_path.is_file():
@@ -233,7 +235,15 @@ def _find_path_from_directory(
 
         dirs[:] = [subdir for subdir in dirs if not ignore_rule_type.match(Path(root) / subdir, patterns)]
 
-        patterns_by_dir.update({Path(root) / sd: patterns.copy() for sd in dirs})
+        # explicit loop for infinite recursion detection since we are following symlinks in this walk
+        for sd in dirs:
+            dirpath = (Path(root) / sd).resolve()
+            if dirpath in patterns_by_dir:
+                raise RuntimeError(
+                    "Detected recursive loop when walking DAG directory "
+                    + f"{base_dir_path}: {dirpath} has appeared more than once."
+                )
+            patterns_by_dir.update({dirpath: patterns.copy()})
 
         for file in files:
             if file == ignore_file_name:
