@@ -174,7 +174,7 @@ class KubernetesHook(BaseHook):
             f"\nApplying core Airflow settings from section [kubernetes] with the following keys:"
             f"{settings_list_str}\n"
             "In a future release, KubernetesPodOperator will no longer consider core\n"
-            "airflow settings; define an Airflow connection instead.",
+            "Airflow settings; define an Airflow connection instead.",
             DeprecationWarning,
         )
 
