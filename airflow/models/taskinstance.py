@@ -2113,8 +2113,6 @@ class TaskInstance(Base, LoggingMixin):
                 "started running, please use 'airflow tasks render' for debugging the "
                 "rendering of template_fields."
             ) from e
-        finally:
-            settings.MASK_SECRETS_IN_LOGS = original_value
 
     @provide_session
     def get_rendered_k8s_spec(self, session=NEW_SESSION):
