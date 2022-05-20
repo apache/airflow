@@ -89,9 +89,9 @@ integrations:
     logo: /integration-logos/azure/Microsoft-Azure.png
     tags: [azure]
   - integration-name: Microsoft Azure Service Bus
-      external-doc-url: https://azure.microsoft.com/en-us/services/service-bus/
-      logo: /integration-logos/azure/Service-Bus.svg
-      tags: [azure]
+    external-doc-url: https://azure.microsoft.com/en-us/services/service-bus/
+    logo: /integration-logos/azure/Service-Bus.svg
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
