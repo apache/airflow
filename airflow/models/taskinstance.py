@@ -2099,7 +2099,7 @@ class TaskInstance(Base, LoggingMixin):
             return
 
         try:
-            # If we get here, either the task hasn't run or the RTIF records were purged.
+            # If we get here, either the task hasn't run or the RTIF record was purged.
             from airflow.utils.log.secrets_masker import redact
 
             self.render_templates()
