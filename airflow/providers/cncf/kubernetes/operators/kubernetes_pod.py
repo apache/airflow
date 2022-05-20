@@ -587,15 +587,15 @@ class KubernetesPodOperator(BaseOperator):
         """
 
         # default for enable_tcp_keepalive is True; patch if False
-        if conf.getboolean('kubernetes', 'enable_tcp_keepalive', fallback=None) is False:
+        if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
             hook._deprecated_core_disable_tcp_keepalive = True
 
         # default verify_ssl is True; patch if False.
-        if conf.getboolean('kubernetes', 'verify_ssl', fallback=None) is False:
+        if conf.getboolean('kubernetes', 'verify_ssl') is False:
             hook._deprecated_core_disable_verify_ssl = True
 
         # default for in_cluster is True; patch if False and no KPO param.
-        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster', fallback=None)
+        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster')
         if self.in_cluster is None and conf_in_cluster is False:
             hook._deprecated_core_in_cluster = conf_in_cluster
 
