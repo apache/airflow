@@ -128,7 +128,7 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def encode_ti(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any]]:
+def get_task_summary(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any]]:
     task_instance = (
         session.query(TaskInstance)
         .filter(
@@ -140,6 +140,7 @@ def encode_ti(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any
         )
         .first()
     )
+
     if not task_instance:
         return None
 
