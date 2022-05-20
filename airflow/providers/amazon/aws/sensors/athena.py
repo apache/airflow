@@ -38,7 +38,7 @@ class AthenaSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AthenaSensor`
+        :ref:`howto/sensor:AthenaSensor`
 
 
     :param query_execution_id: query_execution_id to check the state of

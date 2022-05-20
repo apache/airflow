@@ -66,7 +66,7 @@ we are utilising ``pull_request_target`` feature of GitHub Actions.
 
 This feature allows to run a separate, independent workflow, when the main workflow is run -
 this separate workflow is different than the main one, because by default it runs using ``main`` version
-of the sources but also - and most of all - that it has WRITE access to the Github Container Image registry.
+of the sources but also - and most of all - that it has WRITE access to the GitHub Container Image registry.
 
 This is especially important in our case where Pull Requests to Airflow might come from any repository,
 and it would be a huge security issue if anyone from outside could
@@ -495,7 +495,7 @@ until the images are built by the ``Build Images`` workflow before running.
 Those "Build Image" steps are skipped in case Pull Requests do not come from "forks" (i.e. those
 are internal PRs for Apache Airflow repository. This is because in case of PRs coming from
 Apache Airflow (only committers can create those) the "pull_request" workflows have enough
-permission to push images to Github Registry.
+permission to push images to GitHub Registry.
 
 This workflow is not triggered on normal pushes to our "main" branches, i.e. after a
 pull request is merged and whenever ``scheduled`` run is triggered. Again in this case the "CI" workflow

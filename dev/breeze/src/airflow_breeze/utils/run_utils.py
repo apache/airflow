@@ -32,6 +32,8 @@ from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
+RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessError]
+
 
 def run_command(
     cmd: List[str],
@@ -45,7 +47,7 @@ def run_command(
     cwd: Optional[Path] = None,
     input: Optional[str] = None,
     **kwargs,
-) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
+) -> RunCommandResult:
     """
     Runs command passed as list of strings with some extra functionality over POpen (kwargs from PoPen can
     be used in this command even if not explicitly specified).

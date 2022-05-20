@@ -332,7 +332,7 @@ jobs:
         run: breeze free-space
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: Build & Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        run: breeze build-image --push-image
+        run: breeze build-image --push-image --tag-as-latest
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
@@ -427,6 +427,7 @@ jobs:
       - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: >
           breeze build-prod-image
+          --tag-as-latest
           --push-image
           --install-packages-from-context
           --disable-airflow-repo-cache
@@ -458,6 +459,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
       - run: python -m pytest ./dev/breeze/ -n auto --color=yes
+      - run: breeze version
 
   tests-ui:
     timeout-minutes: 10
@@ -579,7 +581,7 @@ jobs:
         run: breeze free-space
       - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         id: wait-for-images
-        run: breeze pull-image --run-in-parallel --verify-image --wait-for-image
+        run: breeze pull-image --run-in-parallel --verify-image --wait-for-image --tag-as-latest
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
@@ -1683,7 +1685,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --prepare-buildx-cache
           --platform linux/amd64,linux/arm64
         env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: >
           Pull CI image for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
