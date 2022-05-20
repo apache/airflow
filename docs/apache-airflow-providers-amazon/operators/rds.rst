@@ -143,8 +143,8 @@ Sensors
 
 .. _howto/sensor:RdsSnapshotExistenceSensor:
 
-Amazon RDS snapshot sensor
-==========================
+Wait on an Amazon RDS snapshot status
+=====================================
 
 To wait for an Amazon RDS snapshot with specific statuses you can use
 :class:`~airflow.providers.amazon.aws.sensors.rds.RdsSnapshotExistenceSensor`.
@@ -159,8 +159,8 @@ By default, the sensor waits for the existence of a snapshot with status ``avail
 
 .. _howto/sensor:RdsExportTaskExistenceSensor:
 
-Amazon RDS export task sensor
-=============================
+Wait on an Amazon RDS export task status
+========================================
 
 To wait a for an Amazon RDS snapshot export task with specific statuses you can use
 :class:`~airflow.providers.amazon.aws.sensors.rds.RdsExportTaskExistenceSensor`.
@@ -175,6 +175,4 @@ By default, the sensor waits for the existence of a snapshot with status ``avail
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for RDS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html>`__
+* `AWS boto3 library documentation for RDS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html>`__
