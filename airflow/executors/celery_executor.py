@@ -536,6 +536,11 @@ class CeleryExecutor(BaseExecutor):
         return not_adopted_tis
 
     def _set_celery_pending_task_timeout(
+        """
+        We use the fact that dicts maintain insertion order, and the the timeout for a
+        task is always "now + delta" to maintain the property that oldest item = first to
+        time out.
+        """
         self, key: TaskInstanceKey, timeout_type: Optional[_CeleryPendingTaskTimeoutType]
     ) -> None:
         self.adopted_task_timeouts.pop(key, None)
