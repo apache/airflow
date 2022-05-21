@@ -530,7 +530,7 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
 def run_task_instance(
     *, dag_id: str, dag_run_id: str, task_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
-    """Set a state of task instances."""
+    """Run a task instance."""
     body = request.get_json()
     try:
         data = run_task_instance_form.load(body)
@@ -568,6 +568,8 @@ def run_task_instance(
         error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {dag_run_id!r}"
         raise NotFound(detail=error_message)
 
+    # Validate dependencies based on payload to ensure the
+    # task instance can be run
     dep_context = DepContext(
         deps=RUNNING_DEPS,
         ignore_all_deps=ignore_all_deps,

@@ -3678,11 +3678,11 @@ components:
         ignore_all_deps:
           type: boolean
           description: |
-            Ignore task instance dependencies state during execution.
+            Ignore all dependencies state during execution.
         ignore_task_deps:
           type: boolean
           description: |
-            Ignore task instance dependencies state during execution.
+            Ignore task dependencies state during execution.
         ignore_ti_state:
           type: boolean
           description: |

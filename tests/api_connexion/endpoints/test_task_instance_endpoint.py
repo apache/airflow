@@ -1600,3 +1600,24 @@ class TestTaskInstanceRunEndpoint(TestTaskInstanceEndpoint):
 
         assert response.status_code == 404
         assert response.json["title"] == error
+
+    @parameterized.expand(["test_no_permissions", "test_dag_read_only", "test_task_read_only"])
+    def test_should_raise_403_forbidden(self, session, username):
+        self.ti_init["state"] = State.NONE
+        self.create_task_instances(session)
+        dag_id = "example_python_operator"
+        run_id = "TEST_DAG_RUN_ID"
+        task_id = "print_the_context"
+
+        response = self.client.post(
+            f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/run",
+            environ_overrides={"REMOTE_USER": username},
+            json={
+                "ignore_ti_state": True,
+                "ignore_task_deps": True,
+                "ignore_all_deps": True,
+                "map_index": -1,
+            },
+        )
+
+        assert response.status_code == 403
