@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-20T20:29:00Z
+# This constraints file was automatically generated on 2022-05-21T10:36:06Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -295,8 +295,8 @@ graphviz==0.20
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
-grpcio-status==1.46.1
-grpcio==1.46.1
+grpcio-status==1.46.3
+grpcio==1.46.3
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0

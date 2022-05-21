@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-20T20:22:41Z
+# This constraints file was automatically generated on 2022-05-21T10:29:31Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -26,7 +26,7 @@ Flask-WTF==0.14.3
 Flask==1.1.2
 GitPython==3.1.27
 HeapDict==1.0.1
-JPype1==1.3.0
+JPype1==1.4.0
 JayDeBeApi==1.2.3
 Jinja2==3.0.3
 Mako==1.2.0
@@ -221,8 +221,8 @@ graphviz==0.20
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
-grpcio-status==1.46.1
-grpcio==1.46.1
+grpcio-status==1.46.3
+grpcio==1.46.3
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
@@ -297,7 +297,7 @@ neo4j==4.4.3
 nest-asyncio==1.5.5
 nodeenv==1.6.0
 ntlm-auth==1.5.0
-numpy==1.22.3
+numpy==1.22.4
 oauth2client==4.1.3
 oauthlib==3.2.0
 opsgenie-sdk==2.1.5
@@ -334,7 +334,7 @@ prometheus-client==0.14.1
 prompt-toolkit==3.0.29
 proto-plus==1.19.6
 protobuf==3.20.0
-psutil==5.9.0
+psutil==5.9.1
 psycopg2-binary==2.9.3
 ptyprocess==0.7.0
 pure-eval==0.2.2
