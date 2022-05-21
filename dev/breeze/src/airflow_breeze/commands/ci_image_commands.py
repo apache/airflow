@@ -22,6 +22,7 @@ from typing import List, Optional, Tuple, Union
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.shell_params import ShellParams
@@ -124,6 +125,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
             "options": [
                 "--install-providers-from-sources",
                 "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
                 "--additional-python-deps",
                 "--runtime-apt-deps",
                 "--runtime-apt-command",
@@ -219,6 +221,12 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_runtime_apt_deps
 @option_force_build
 @option_airflow_constraints_mode_ci
+@click.option(
+    "--airflow-constraints-reference",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use when building the image.",
+    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+)
 @option_tag_as_latest
 def build_image(
     verbose: bool,
