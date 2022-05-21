@@ -275,23 +275,23 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.aws_conn_id = aws_conn_id
         self.region = region
-        nodegroup_subnets_list: List[str] = []
-        if isinstance(nodegroup_subnets, str):
-            if nodegroup_subnets != "":
+        self.nodegroup_subnets = nodegroup_subnets
+        super().__init__(**kwargs)
+
+    def execute(self, context: 'Context'):
+        if isinstance(self.nodegroup_subnets, str):
+            nodegroup_subnets_list: List[str] = []
+            if self.nodegroup_subnets != "":
                 try:
-                    nodegroup_subnets_list = cast(List, literal_eval(nodegroup_subnets))
+                    nodegroup_subnets_list = cast(List, literal_eval(self.nodegroup_subnets))
                 except ValueError:
                     self.log.warning(
                         "The nodegroup_subnets should be List or string representing "
                         "Python list and is %s. Defaulting to []",
-                        nodegroup_subnets,
-                    )
-        else:
-            nodegroup_subnets_list = nodegroup_subnets
-        self.nodegroup_subnets = nodegroup_subnets_list
-        super().__init__(**kwargs)
+                        self.nodegroup_subnets,
+                    )   
+            self.nodegroup_subnets = nodegroup_subnets_list
 
-    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
