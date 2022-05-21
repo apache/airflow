@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-20T20:24:25Z
+# This constraints file was automatically generated on 2022-05-21T17:14:23Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -295,8 +295,8 @@ graphviz==0.20
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.4
 grpcio-gcp==0.2.2
-grpcio-status==1.46.1
-grpcio==1.46.1
+grpcio-status==1.46.3
+grpcio==1.46.3
 gssapi==1.7.3
 gunicorn==20.1.0
 h11==0.12.0
@@ -311,7 +311,7 @@ identify==2.5.1
 idna==3.3
 ijson==3.1.4
 imagesize==1.3.0
-importlib-metadata==4.11.3
+importlib-metadata==4.11.4
 incremental==21.3.0
 inflection==0.5.1
 influxdb-client==1.29.0
@@ -330,7 +330,7 @@ jsonpath-ng==1.5.3
 jsonschema==4.5.1
 jupyter-client==7.3.1
 jupyter-core==4.10.0
-jwcrypto==1.3
+jwcrypto==1.3.1
 keyring==23.5.0
 kombu==5.2.4
 krb5==0.3.0
@@ -371,7 +371,7 @@ neo4j==4.4.3
 nest-asyncio==1.5.5
 nodeenv==1.6.0
 ntlm-auth==1.5.0
-numpy==1.22.3
+numpy==1.22.4
 oauth2client==4.1.3
 oauthlib==3.2.0
 opsgenie-sdk==2.1.5
@@ -556,11 +556,11 @@ types-cryptography==3.3.21
 types-docutils==0.18.3
 types-freezegun==1.1.9
 types-paramiko==2.10.0
-types-protobuf==3.19.20
+types-protobuf==3.19.21
 types-python-dateutil==2.8.16
 types-python-slugify==5.0.4
 types-pytz==2021.3.8
-types-redis==4.2.4
+types-redis==4.2.5
 types-requests==2.27.27
 types-setuptools==57.4.14
 types-six==1.16.15
