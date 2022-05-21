@@ -80,7 +80,7 @@ class DataprocJobSensor(BaseSensorOperator):
                 )
             except ServerError as err:
                 duration = self._duration()
-                self.log.info("DURATION RUN: %f")
+                self.log.info("DURATION RUN: %f", duration)
                 if duration > self.wait_timeout:
                     raise AirflowException(
                         f"Timeout: dataproc job {self.dataproc_job_id} "

@@ -40,7 +40,6 @@ PRE_COMMIT_LIST = [
     'check-extra-packages-references',
     'check-extras-order',
     'check-for-inclusive-language',
-    'check-fstrings-logging',
     'check-hooks-apply',
     'check-incorrect-use-of-LoggingMixin',
     'check-integrations-are-consistent',

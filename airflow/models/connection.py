@@ -209,7 +209,7 @@ class Connection(Base, LoggingMixin):
         if '_' in self.conn_type:
             self.log.warning(
                 "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
-                str(self.conn_type),
+                self.conn_type,
             )
 
         uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
