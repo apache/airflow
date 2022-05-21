@@ -19,6 +19,7 @@ import multiprocessing as mp
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
@@ -415,8 +416,16 @@ option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
     "constraints for the installed version and to find newer dependencies",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
 )
+option_airflow_constraints_reference_build = click.option(
+    "--airflow-constraints-reference",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use when building the image.",
+    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+)
+
 option_airflow_constraints_mode_ci = click.option(
     '--airflow-constraints-mode',
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),

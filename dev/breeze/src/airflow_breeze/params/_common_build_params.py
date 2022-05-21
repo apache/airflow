@@ -21,7 +21,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Optional
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
 
@@ -42,12 +42,10 @@ class _CommonBuildParams:
     additional_runtime_apt_env: str = ""
     airflow_branch: str = AIRFLOW_BRANCH
     airflow_constraints_location: str = ""
-    airflow_constraints_reference: str = "constraints-main"
     answer: Optional[str] = None
     build_id: int = 0
     constraints_github_repository: str = "apache/airflow"
     debian_version: str = "bullseye"
-    default_constraints_branch = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     dev_apt_command: str = ""
     dev_apt_deps: str = ""
     docker_cache: str = "registry"
