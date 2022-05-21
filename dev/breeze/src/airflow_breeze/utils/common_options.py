@@ -19,7 +19,6 @@ import multiprocessing as mp
 
 import click
 
-from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     ALLOWED_BACKENDS,
     ALLOWED_BUILD_CACHE,
@@ -414,7 +413,6 @@ option_max_age = click.option(
 )
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
-    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
     "constraints for the installed version and to find newer dependencies",
     envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
