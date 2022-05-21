@@ -36,6 +36,12 @@ class SqliteHook(DbApiHook):
         conn = sqlite3.connect(airflow_conn.host)
         return conn
 
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        conn_id = getattr(self, self.conn_name_attr)
+        airflow_conn = self.get_connection(conn_id)
+        return f"sqlite:///{airflow_conn.host}"
+
     @staticmethod
     def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
         """

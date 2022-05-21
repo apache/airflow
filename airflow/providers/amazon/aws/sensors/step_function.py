@@ -37,7 +37,7 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/operator:StepFunctionExecutionSensor`
+        :ref:`howto/sensor:StepFunctionExecutionSensor`
 
     :param execution_arn: execution_arn to check the state of
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'

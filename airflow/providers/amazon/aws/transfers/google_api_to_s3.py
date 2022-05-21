@@ -43,6 +43,10 @@ class GoogleApiToS3Operator(BaseOperator):
     Therefore it is recommended that you use the custom Google Cloud Service Operators for working
     with the Google Cloud Platform.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GoogleApiToS3Operator`
+
     :param google_api_service_name: The specific API service that is being requested.
     :param google_api_service_version: The version of the API that is being requested.
     :param google_api_endpoint_path: The client libraries path to the api call's executing method.

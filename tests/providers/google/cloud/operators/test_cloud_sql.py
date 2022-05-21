@@ -121,8 +121,20 @@ EXPORT_BODY = {
         "fileType": "CSV",
         "uri": "gs://bucketName/fileName",
         "databases": [],
-        "sqlExportOptions": {"tables": ["table1", "table2"], "schemaOnly": False},
-        "csvExportOptions": {"selectQuery": "SELECT * FROM TABLE"},
+        "sqlExportOptions": {
+            "tables": ["table1", "table2"],
+            "schemaOnly": False,
+            "mysqlExportOptions": {
+                "masterData": 1,
+            },
+        },
+        "csvExportOptions": {
+            "selectQuery": "SELECT * FROM TABLE",
+            "escapeCharacter": "e",
+            "quoteCharacter": "q",
+            "fieldsTerminatedBy": "f",
+            "linesTerminatedBy": "l",
+        },
         "offload": True,
     }
 }
@@ -149,7 +161,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLCreateInstanceOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=CREATE_BODY, task_id="id"
         )
-        op.execute(context={'task_instance': mock.Mock()})
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -168,7 +180,7 @@ class TestCloudSql(unittest.TestCase):
         _check_if_instance_exists.return_value = False
         mock_hook.return_value.create_instance.return_value = True
         op = CloudSQLCreateInstanceOperator(instance=INSTANCE_NAME, body=CREATE_BODY, task_id="id")
-        op.execute(context={'task_instance': mock.Mock()})
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -187,7 +199,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLCreateInstanceOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=CREATE_BODY, task_id="id"
         )
-        op.execute(context={'task_instance': mock.Mock()})
+        op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -284,7 +296,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLInstancePatchOperator(
             project_id=PROJECT_ID, body=PATCH_BODY, instance=INSTANCE_NAME, task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -299,7 +311,7 @@ class TestCloudSql(unittest.TestCase):
     def test_instance_patch_missing_project_id(self, mock_hook):
         mock_hook.return_value.patch_instance.return_value = True
         op = CloudSQLInstancePatchOperator(body=PATCH_BODY, instance=INSTANCE_NAME, task_id="id")
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -398,7 +410,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLCreateInstanceDatabaseOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=DATABASE_INSERT_BODY, task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -419,7 +431,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLCreateInstanceDatabaseOperator(
             instance=INSTANCE_NAME, body=DATABASE_INSERT_BODY, task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -440,7 +452,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLCreateInstanceDatabaseOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=DATABASE_INSERT_BODY, task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         assert result
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
@@ -463,7 +475,7 @@ class TestCloudSql(unittest.TestCase):
             body=DATABASE_PATCH_BODY,
             task_id="id",
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -484,7 +496,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLPatchInstanceDatabaseOperator(
             instance=INSTANCE_NAME, database=DB_NAME, body=DATABASE_PATCH_BODY, task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -602,7 +614,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLExportInstanceOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=EXPORT_BODY, task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -617,7 +629,7 @@ class TestCloudSql(unittest.TestCase):
     def test_instance_export_missing_project_id(self, mock_hook):
         mock_hook.return_value.export_instance.return_value = True
         op = CloudSQLExportInstanceOperator(instance=INSTANCE_NAME, body=EXPORT_BODY, task_id="id")
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -634,7 +646,7 @@ class TestCloudSql(unittest.TestCase):
         op = CloudSQLImportInstanceOperator(
             project_id=PROJECT_ID, instance=INSTANCE_NAME, body=IMPORT_BODY, task_id="id"
         )
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
@@ -649,7 +661,7 @@ class TestCloudSql(unittest.TestCase):
     def test_instance_import_missing_project_id(self, mock_hook):
         mock_hook.return_value.export_instance.return_value = True
         op = CloudSQLImportInstanceOperator(instance=INSTANCE_NAME, body=IMPORT_BODY, task_id="id")
-        result = op.execute(None)
+        result = op.execute(context=mock.MagicMock())
         mock_hook.assert_called_once_with(
             api_version="v1beta4",
             gcp_conn_id="google_cloud_default",
