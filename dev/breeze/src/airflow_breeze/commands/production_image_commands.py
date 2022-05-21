@@ -21,6 +21,7 @@ from typing import Optional, Tuple
 
 import click
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import ALLOWED_INSTALLATION_METHODS, DEFAULT_EXTRAS
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -113,6 +114,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--install-providers-from-sources",
                 "--airflow-extras",
                 "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
                 "--additional-python-deps",
                 "--additional-extras",
                 "--additional-runtime-apt-deps",
@@ -246,6 +248,12 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 @click.option(
     '--install-airflow-reference',
     help="Install Airflow using GitHub tag or branch.",
+)
+@click.option(
+    "--airflow-constraints-reference",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use when building the image.",
+    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
 )
 @click.option('-V', '--install-airflow-version', help="Install version of Airflow from PyPI.")
 @option_additional_extras
