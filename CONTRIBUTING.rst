@@ -72,7 +72,7 @@ This is intended to make it as easy as possible to contribute to the project.
 
 If you however feel the need to open an issue (usually a bug or feature request)
 consider starting with a `GitHub Discussion <https://github.com/apache/airflow/discussions>`_ instead.
-In vast majority of cases, discussions are better than issues - you should only open
+In the vast majority of cases discussions are better than issues - you should only open
 issues if you are sure you found a bug and have reproducible case to make the
 maintainers aware of it, or when you want to raise a feature request which you think
 does not require a lot of discussion. In case you have a very important topic
