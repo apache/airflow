@@ -408,6 +408,10 @@ influxdb = [
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
+    # JPype1 has been published without sdist in PyPI which caused failures when trying to build an
+    # ARM image (JPype1 does not publish binary ARM packages)
+    # The whole line below can be removed when https://github.com/jpype-project/jpype/issues/1069 is solved
+    'jpype1<1.4.0',
 ]
 jenkins = [
     'python-jenkins>=1.0.0',
