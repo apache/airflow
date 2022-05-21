@@ -71,7 +71,7 @@ fix an issue or make an enhancement, without needing to open an issue first.
 This is intended to make it as easy as possible to contribute to the project.
 
 If you however feel the need to open an issue (usually a bug or feature request)
-consider first to start `GitHub Discussion <https://github.com/apache/airflow/discussions>`_.
+consider starting with a `GitHub Discussion <https://github.com/apache/airflow/discussions>`_ instead.
 In vast majority of cases, discussions are better than issues - you should only open
 issues if you are sure you found a bug and have reproducible case to make the
 maintainers aware of it, or when you want to raise a feature request which you think
