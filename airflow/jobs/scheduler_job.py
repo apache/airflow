@@ -667,7 +667,7 @@ class SchedulerJob(BaseJob):
             # after executor is finished with it:
             # 1) the TI was killed externally and it had no time to mark itself failed
             # - in this case we should mark it as failed here.
-            # 2) the TI has been re-queued after getting deferred - in this case either our executor has it
+            # 2) the TI has been requeued after getting deferred - in this case either our executor has it
             # or the TI is queued by another job. Either ways we should not fail it.
 
             # All of this could also happen if the state is "running",
