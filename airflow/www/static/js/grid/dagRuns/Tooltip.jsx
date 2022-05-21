@@ -21,7 +21,7 @@ import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
 import { formatDuration } from '../../datetime_utils';
-import Time from '../Time';
+import Time from '../components/Time';
 
 const DagRunTooltip = ({
   dagRun: {

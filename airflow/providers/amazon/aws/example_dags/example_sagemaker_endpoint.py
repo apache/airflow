@@ -202,13 +202,13 @@ with DAG(
     )
     # [END howto_operator_sagemaker_endpoint]
 
-    # [START howto_operator_sagemaker_endpoint_sensor]
+    # [START howto_sensor_sagemaker_endpoint]
     await_endpoint = SageMakerEndpointSensor(
         task_id='await_endpoint',
         endpoint_name=ENDPOINT_NAME,
         do_xcom_push=False,
     )
-    # [END howto_operator_sagemaker_endpoint_sensor]
+    # [END howto_sensor_sagemaker_endpoint]
 
     # Trigger rule set to "all_done" so clean up will run regardless of success on other tasks.
     delete_model = SageMakerDeleteModelOperator(

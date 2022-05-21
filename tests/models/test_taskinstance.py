@@ -23,7 +23,6 @@ import pathlib
 import signal
 import sys
 import urllib
-from tempfile import NamedTemporaryFile
 from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
@@ -56,8 +55,9 @@ from airflow.models import (
     Variable,
     XCom,
 )
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import TaskInstance, load_error_file, set_error_file
+from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
@@ -80,7 +80,6 @@ from airflow.utils.types import DagRunType
 from airflow.version import version
 from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
-from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
 
@@ -111,15 +110,7 @@ class CallbackWrapper:
 
     def success_handler(self, context):
         self.callback_ran = True
-        session = settings.Session()
-        temp_instance = (
-            session.query(TI)
-            .filter(TI.task_id == self.task_id)
-            .filter(TI.dag_id == self.dag_id)
-            .filter(TI.execution_date == self.execution_date)
-            .one()
-        )
-        self.task_state_in_callback = temp_instance.state
+        self.task_state_in_callback = context['ti'].state
 
 
 class TestTaskInstance:
@@ -141,17 +132,6 @@ class TestTaskInstance:
 
     def teardown_method(self):
         self.clean_db()
-
-    def test_load_error_file_returns_None_for_closed_file(self):
-        error_fd = NamedTemporaryFile()
-        error_fd.close()
-        assert load_error_file(error_fd) is None
-
-    def test_load_error_file_loads_correctly(self):
-        error_message = "some random error message"
-        with NamedTemporaryFile() as error_fd:
-            set_error_file(error_fd.name, error=error_message)
-            assert load_error_file(error_fd) == error_message
 
     def test_set_task_dates(self, dag_maker):
         """
@@ -263,6 +243,12 @@ class TestTaskInstance:
         # op2 should be downstream of both
         assert op2 in op1.downstream_list
         assert op2 in op3.downstream_list
+
+    def test_init_on_load(self, create_task_instance):
+        ti = create_task_instance()
+        # ensure log is correctly created for ORM ti
+        assert ti.log.name == 'airflow.task'
+        assert not ti.test_mode
 
     @patch.object(DAG, 'get_concurrency_reached')
     def test_requeue_over_dag_concurrency(self, mock_concurrency_reached, create_task_instance):
@@ -1074,7 +1060,7 @@ class TestTaskInstance:
 
         ti_1_0 = dagrun.get_task_instance("task_1", session=session)
         ti_1_0.map_index = 0
-        ti_1_1 = session.merge(TaskInstance(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
+        ti_1_1 = session.merge(TI(task_1, run_id=dagrun.run_id, map_index=1, state=ti_1_0.state))
         session.flush()
 
         ti_1_0.xcom_push(key=XCOM_RETURN_KEY, value="a", session=session)
@@ -1223,18 +1209,56 @@ class TestTaskInstance:
 
     def test_check_and_change_state_before_execution(self, create_task_instance):
         ti = create_task_instance(dag_id='test_check_and_change_state_before_execution')
-        assert ti._try_number == 0
-        assert ti.check_and_change_state_before_execution()
+        SerializedDagModel.write_dag(ti.task.dag)
+
+        serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
+        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+
+        assert ti_from_deserialized_task._try_number == 0
+        assert ti_from_deserialized_task.check_and_change_state_before_execution()
         # State should be running, and try_number column should be incremented
-        assert ti.state == State.RUNNING
-        assert ti._try_number == 1
+        assert ti_from_deserialized_task.state == State.RUNNING
+        assert ti_from_deserialized_task._try_number == 1
 
     def test_check_and_change_state_before_execution_dep_not_met(self, create_task_instance):
         ti = create_task_instance(dag_id='test_check_and_change_state_before_execution')
         task2 = EmptyOperator(task_id='task2', dag=ti.task.dag, start_date=DEFAULT_DATE)
         ti.task >> task2
-        ti = TI(task=task2, run_id=ti.run_id)
-        assert not ti.check_and_change_state_before_execution()
+        SerializedDagModel.write_dag(ti.task.dag)
+
+        serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
+        ti2 = TI(task=serialized_dag.get_task(task2.task_id), run_id=ti.run_id)
+        assert not ti2.check_and_change_state_before_execution()
+
+    def test_check_and_change_state_before_execution_dep_not_met_already_running(self, create_task_instance):
+        """return False if the task instance state is running"""
+        ti = create_task_instance(dag_id='test_check_and_change_state_before_execution')
+        with create_session() as _:
+            ti.state = State.RUNNING
+
+        SerializedDagModel.write_dag(ti.task.dag)
+
+        serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
+        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+
+        assert not ti_from_deserialized_task.check_and_change_state_before_execution()
+        assert ti_from_deserialized_task.state == State.RUNNING
+
+    def test_check_and_change_state_before_execution_dep_not_met_not_runnable_state(
+        self, create_task_instance
+    ):
+        """return False if the task instance state is failed"""
+        ti = create_task_instance(dag_id='test_check_and_change_state_before_execution')
+        with create_session() as _:
+            ti.state = State.FAILED
+
+        SerializedDagModel.write_dag(ti.task.dag)
+
+        serialized_dag = SerializedDagModel.get(ti.task.dag.dag_id).dag
+        ti_from_deserialized_task = TI(task=serialized_dag.get_task(ti.task_id), run_id=ti.run_id)
+
+        assert not ti_from_deserialized_task.check_and_change_state_before_execution()
+        assert ti_from_deserialized_task.state == State.FAILED
 
     def test_try_number(self, create_task_instance):
         """
@@ -1453,7 +1477,6 @@ class TestTaskInstance:
 
         callback_wrapper.wrap_task_instance(ti)
         ti._run_raw_task()
-        ti._run_finished_callback()
         assert callback_wrapper.callback_ran
         assert callback_wrapper.task_state_in_callback == State.SUCCESS
         ti.refresh_from_db()
@@ -1796,15 +1819,15 @@ class TestTaskInstance:
         assert ti.state == State.SUCCESS
 
     @pytest.mark.parametrize(
-        "finished_state, expected_message",
+        "finished_state, callback_type",
         [
-            (State.SUCCESS, "Error when executing on_success_callback"),
-            (State.UP_FOR_RETRY, "Error when executing on_retry_callback"),
-            (State.FAILED, "Error when executing on_failure_callback"),
+            (State.SUCCESS, "on_success"),
+            (State.UP_FOR_RETRY, "on_retry"),
+            (State.FAILED, "on_failure"),
         ],
     )
     def test_finished_callbacks_handle_and_log_exception(
-        self, finished_state, expected_message, create_task_instance
+        self, finished_state, callback_type, create_task_instance
     ):
         called = completed = False
 
@@ -1822,10 +1845,11 @@ class TestTaskInstance:
             state=finished_state,
         )
         ti._log = mock.Mock()
-        ti._run_finished_callback()
+        ti._run_finished_callback(on_finish_callable, {}, callback_type)
 
         assert called
         assert not completed
+        expected_message = f"Error when executing {callback_type} callback"
         ti.log.exception.assert_called_once_with(expected_message)
 
     @provide_session
@@ -1857,7 +1881,6 @@ class TestTaskInstance:
         ti1.task = task1
         ti1.state = State.FAILED
         ti1.handle_failure("test failure handling")
-        ti1._run_finished_callback()
 
         context_arg_1 = mock_on_failure_1.call_args[0][0]
         assert context_arg_1 and "task_instance" in context_arg_1
@@ -1877,7 +1900,6 @@ class TestTaskInstance:
         session.add(ti2)
         session.flush()
         ti2.handle_failure("test retry handling")
-        ti2._run_finished_callback()
 
         mock_on_failure_2.assert_not_called()
 
@@ -1899,7 +1921,6 @@ class TestTaskInstance:
         session.flush()
         ti3.state = State.FAILED
         ti3.handle_failure("test force_fail handling", force_fail=True)
-        ti3._run_finished_callback()
 
         context_arg_3 = mock_on_failure_3.call_args[0][0]
         assert context_arg_3 and "task_instance" in context_arg_3
@@ -2311,41 +2332,6 @@ class TestRunRawTaskQueriesCount:
 
     def teardown_method(self) -> None:
         self._clean()
-
-    @pytest.mark.parametrize("expected_query_count, mark_success", [(12, False), (5, True)])
-    @provide_session
-    def test_execute_queries_count(
-        self, expected_query_count, mark_success, create_task_instance, session=None
-    ):
-        ti = create_task_instance(session=session, state=State.RUNNING)
-        assert ti.dag_run
-
-        # an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-        # for other DBs. delete_old_records is called only when mark_success is False
-        expected_query_count_based_on_db = (
-            expected_query_count + 1
-            if session.bind.dialect.name == "mssql" and expected_query_count > 0 and not mark_success
-            else expected_query_count
-        )
-
-        session.flush()
-
-        with assert_queries_count(expected_query_count_based_on_db):
-            ti._run_raw_task(mark_success=mark_success, session=session)
-
-    @provide_session
-    def test_execute_queries_count_store_serialized(self, create_task_instance, session=None):
-        ti = create_task_instance(session=session, state=State.RUNNING)
-        assert ti.dag_run
-
-        # an extra query is fired in RenderedTaskInstanceFields.delete_old_records
-        # for other DBs
-        expected_query_count_based_on_db = 5
-
-        session.flush()
-
-        with assert_queries_count(expected_query_count_based_on_db):
-            ti._run_raw_task(session)
 
 
 @pytest.mark.parametrize("mode", ["poke", "reschedule"])
@@ -2849,3 +2835,23 @@ def test_ti_mapped_depends_on_mapped_xcom_arg_XXX(dag_maker, session):
         ti.refresh_from_task(dag.get_task("add_one"))
         with pytest.raises(XComForMappingNotPushed):
             ti.run()
+
+
+def test_expand_non_templated_field(dag_maker, session):
+    """Test expand on non-templated fields sets upstream deps properly."""
+
+    class SimpleBashOperator(BashOperator):
+        template_fields = ()
+
+    with dag_maker(dag_id="product_same_types", session=session) as dag:
+
+        @dag.task
+        def get_extra_env():
+            return [{"foo": "bar"}, {"foo": "biz"}]
+
+        SimpleBashOperator.partial(task_id="echo", bash_command="echo $FOO").expand(env=get_extra_env())
+
+    dag_maker.create_dagrun()
+
+    echo_task = dag.get_task("echo")
+    assert "get_extra_env" in echo_task.upstream_task_ids

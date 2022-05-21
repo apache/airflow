@@ -15,44 +15,40 @@
     specific language governing permissions and limitations
     under the License.
 
+==========
+AWS Lambda
+==========
 
-AWS Lambda Operators
-==================================================
-
-`AWS Lambda <https://aws.amazon.com/lambda/>`__   is a
-serverless, event-driven compute service that lets you
-run code for virtually any type of application
-or backend service without provisioning or managing servers.
-You can trigger Lambda from over 200 AWS services and software as a service (SaaS) applications,
-and only pay for what you use.
-
-Airflow provides an operator to invoke an AWS Lambda function.
+With `AWS Lambda <https://aws.amazon.com/lambda/>`__, you can run code without provisioning or managing servers.
+You pay only for the compute time that you consume—there's no charge when your code isn't running.
+You can run code for virtually any type of application or backend service—all with zero administration.
+Just upload your code and Lambda takes care of everything required to run and scale your code with high availability.
+You can set up your code to automatically trigger from other AWS services or call it directly from any web or mobile app.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
-.. include::/operators/_partials/prerequisite_tasks.rst
+.. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
 
 .. _howto/operator:AwsLambdaInvokeFunctionOperator:
 
-Invoke an existing AWS Lambda function with a payload
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Invoke an AWS Lambda function
+=============================
 
-To publish a message to an Amazon SNS Topic you can use
+To invoke an AWS lambda function you can use
 :class:`~airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator`.
 
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_lambda.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_lambda_operator]
-    :end-before: [END howto_lambda_operator]
-
+    :start-after: [START howto_operator_lambda]
+    :end-before: [END howto_operator_lambda]
 
 Reference
-^^^^^^^^^
+---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for Lambda <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html>`__
+* `AWS boto3 library documentation for Lambda <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/lambda.html>`__

@@ -25,7 +25,7 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 38
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 35
 
 
 class TestBaseChartTest(unittest.TestCase):
@@ -45,7 +45,6 @@ class TestBaseChartTest(unittest.TestCase):
         }
         assert list_of_kind_names_tuples == {
             ('ServiceAccount', 'TEST-BASIC-create-user-job'),
-            ('ServiceAccount', 'TEST-BASIC-flower'),
             ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
             ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
@@ -65,14 +64,12 @@ class TestBaseChartTest(unittest.TestCase):
             ('Role', 'TEST-BASIC-pod-log-reader-role'),
             ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
             ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
-            ('Service', 'TEST-BASIC-flower'),
             ('Service', 'TEST-BASIC-postgresql-headless'),
             ('Service', 'TEST-BASIC-postgresql'),
             ('Service', 'TEST-BASIC-redis'),
             ('Service', 'TEST-BASIC-statsd'),
             ('Service', 'TEST-BASIC-webserver'),
             ('Service', 'TEST-BASIC-worker'),
-            ('Deployment', 'TEST-BASIC-flower'),
             ('Deployment', 'TEST-BASIC-scheduler'),
             ('Deployment', 'TEST-BASIC-statsd'),
             ('Deployment', 'TEST-BASIC-triggerer'),
@@ -114,6 +111,7 @@ class TestBaseChartTest(unittest.TestCase):
             {
                 "networkPolicies": {"enabled": True},
                 "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
             },
         )
@@ -146,6 +144,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "ingress": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "logs": {"persistence": {"enabled": True}},
                 "dags": {"persistence": {"enabled": True}},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
@@ -240,6 +239,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
         )
@@ -271,7 +271,10 @@ class TestBaseChartTest(unittest.TestCase):
         release_name = "TEST-BASIC"
         k8s_objects = render_chart(
             name=release_name,
-            values={"airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"}},
+            values={
+                "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+                "flower": {"enabled": True},
+            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",

@@ -19,55 +19,39 @@
 
 /* global localStorage, ResizeObserver */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Table,
   Tbody,
   Box,
-  Switch,
-  FormControl,
-  FormLabel,
-  Spinner,
   Thead,
   Flex,
-  useDisclosure,
-  Button,
-  Divider,
 } from '@chakra-ui/react';
 
 import { useGridData } from './api';
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
-import Details from './details';
-import useSelection from './utils/useSelection';
-import { useAutoRefresh } from './context/autorefresh';
 import ToggleGroups from './ToggleGroups';
-import FilterBar from './FilterBar';
-import LegendRow from './LegendRow';
+import { getMetaValue } from '../utils';
+import AutoRefresh from './AutoRefresh';
 
-const sidePanelKey = 'hideSidePanel';
+const dagId = getMetaValue('dag_id');
 
-const Grid = () => {
+const Grid = ({ isPanelOpen = false }) => {
   const scrollRef = useRef();
   const tableRef = useRef();
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
-  const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
-  const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
+  const openGroupsKey = `${dagId}/open-groups`;
+  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
+  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
-  const { clearSelection } = useSelection();
-  const toggleSidePanel = () => {
-    if (!isOpen) {
-      localStorage.setItem(sidePanelKey, false);
-    } else {
-      clearSelection();
-      localStorage.setItem(sidePanelKey, true);
-    }
-    onToggle();
+  const onToggleGroups = (groupIds) => {
+    localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
+    setOpenGroupIds(groupIds);
   };
 
   const scrollOnResize = new ResizeObserver(() => {
@@ -91,64 +75,42 @@ const Grid = () => {
   }, [tableRef, scrollOnResize]);
 
   return (
-    <Box mt={3}>
-      <FilterBar />
-      <LegendRow />
-      <Divider mb={5} borderBottomWidth={2} />
-      <Flex flexGrow={1} justifyContent="space-between" alignItems="center">
-        <Flex alignItems="center">
-          <FormControl display="flex" width="auto" mr={2}>
-            {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-            <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
-              Auto-refresh
-            </FormLabel>
-            <Switch
-              id="auto-refresh"
-              onChange={() => toggleRefresh(true)}
-              isDisabled={isPaused}
-              isChecked={isRefreshOn}
-              size="lg"
-              title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
-            />
-          </FormControl>
-          <ToggleGroups groups={groups} />
-          <ResetRoot />
-        </Flex>
-        <Button
-          onClick={toggleSidePanel}
-          aria-label={isOpen ? 'Show Details' : 'Hide Details'}
-          variant={isOpen ? 'solid' : 'outline'}
-        >
-          {isOpen ? 'Hide ' : 'Show '}
-          Details Panel
-        </Button>
+    <Box
+      position="relative"
+      m={3}
+      mt={0}
+      overflow="auto"
+      ref={scrollRef}
+      flexGrow={1}
+      minWidth={isPanelOpen && '300px'}
+    >
+      <Flex alignItems="center" position="sticky" top={0} left={0}>
+        <AutoRefresh />
+        <ToggleGroups
+          groups={groups}
+          openGroupIds={openGroupIds}
+          onToggleGroups={onToggleGroups}
+        />
+        <ResetRoot />
       </Flex>
-      <Flex flexDirection="row" justifyContent="space-between">
-        <Box
-          position="relative"
-          mt={2}
-          m="12px"
-          overflow="auto"
-          ref={scrollRef}
-          flexGrow={1}
-          minWidth={isOpen && '300px'}
+      <Table>
+        <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
+          <DagRuns />
+        </Thead>
+        {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
+        <Tbody
+          display="block"
+          width="100%"
+          maxHeight="calc(100vh - 665px)"
+          minHeight="500px"
+          ref={tableRef}
+          pr="10px"
         >
-          <Table>
-            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
-              <DagRuns />
-            </Thead>
-            {/* TODO: remove hardcoded values. 665px is roughly the total header+footer height */}
-            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
-              {renderTaskRows({
-                task: groups, dagRunIds,
-              })}
-            </Tbody>
-          </Table>
-        </Box>
-        {isOpen && (
-          <Details />
-        )}
-      </Flex>
+          {renderTaskRows({
+            task: groups, dagRunIds, openGroupIds, onToggleGroups,
+          })}
+        </Tbody>
+      </Table>
     </Box>
   );
 };

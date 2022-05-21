@@ -33,7 +33,7 @@ from rich.console import Console
 
 console = Console(width=400, color_system="standard")
 
-AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].absolute()
+AIRFLOW_SOURCES_ROOT = Path(__file__).parents[2].resolve()
 PROVIDERS_PATH = AIRFLOW_SOURCES_ROOT / "airflow" / "providers"
 
 
@@ -835,7 +835,7 @@ def add_all_namespaced_packages(
     :param provider_path:
     :param provider_prefix:
     """
-    main_path = Path(provider_path).absolute()
+    main_path = Path(provider_path).resolve()
     for candidate_path in main_path.rglob("*"):
         if candidate_path.name == "__pycache__":
             continue

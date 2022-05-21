@@ -395,7 +395,7 @@ class TestSchedulerJob:
         (ti1,) = dr1.task_instances
         ti1.state = State.SCHEDULED
 
-        self.scheduler_job._critical_section_execute_task_instances(session)
+        self.scheduler_job._critical_section_enqueue_task_instances(session)
         ti1.refresh_from_db(session=session)
         assert State.SCHEDULED == ti1.state
         session.rollback()
@@ -423,7 +423,7 @@ class TestSchedulerJob:
 
         assert dr1.is_backfill
 
-        self.scheduler_job._critical_section_execute_task_instances(session)
+        self.scheduler_job._critical_section_enqueue_task_instances(session)
         session.flush()
         ti1.refresh_from_db()
         assert State.SCHEDULED == ti1.state
@@ -1258,7 +1258,7 @@ class TestSchedulerJob:
         assert ti.state == State.NONE
         mock_queue_command.assert_not_called()
 
-    def test_critical_section_execute_task_instances(self, dag_maker):
+    def test_critical_section_enqueue_task_instances(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_execute_task_instances'
         task_id_1 = 'dummy_task'
         task_id_2 = 'dummy_task_nonexistent_queue'
@@ -1297,7 +1297,7 @@ class TestSchedulerJob:
 
         assert State.RUNNING == dr2.state
 
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
 
         # check that max_active_tasks is respected
         ti1.refresh_from_db()
@@ -1346,7 +1346,7 @@ class TestSchedulerJob:
             ti2.state = State.SCHEDULED
             session.flush()
         self.scheduler_job.max_tis_per_query = 2
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
         assert 2 == res
 
         self.scheduler_job.max_tis_per_query = 8
@@ -1356,9 +1356,9 @@ class TestSchedulerJob:
             mock_slots.return_value = 2
             # Check that we don't "overfill" the executor
             assert 2 == res
-            res = self.scheduler_job._critical_section_execute_task_instances(session)
+            res = self.scheduler_job._critical_section_enqueue_task_instances(session)
 
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
         assert 4 == res
         for ti in tis:
             ti.refresh_from_db()
@@ -1398,7 +1398,7 @@ class TestSchedulerJob:
         self.scheduler_job.max_tis_per_query = 0
         self.scheduler_job.executor = MagicMock(slots_available=36)
 
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
         # 20 dag runs * 2 tasks each = 40, but limited by number of slots available
         assert res == 36
         session.rollback()

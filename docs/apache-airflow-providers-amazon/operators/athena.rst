@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-Amazon Athena Operators
-=======================
+=============
+Amazon Athena
+=============
 
 `Amazon Athena <https://aws.amazon.com/athena/>`__ is an interactive query service
 that makes it easy to analyze data in Amazon Simple Storage Service (S3) using
@@ -26,19 +26,20 @@ manage, and you pay only for the queries you run.  To get started, simply point
 to your data in S3, define the schema, and start querying using standard SQL.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
 
 .. _howto/operator:AthenaOperator:
 
-Athena Operator
-^^^^^^^^^^^^^^^
+Run a query in Amazon Athena
+============================
 
 Use the :class:`~airflow.providers.amazon.aws.operators.athena.AthenaOperator`
 to run a query in Amazon Athena.
-
 
 In the following example, we query an existing Athena table and send the results to
 an existing Amazon S3 bucket.  For more examples of how to use this operator, please
@@ -46,28 +47,29 @@ see the `Sample DAG <https://github.com/apache/airflow/blob/main/airflow/provide
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_athena.py
     :language: python
-    :start-after: [START howto_athena_operator]
+    :start-after: [START howto_operator_athena]
     :dedent: 4
-    :end-before: [END howto_athena_operator]
+    :end-before: [END howto_operator_athena]
 
-.. _howto/operator:AthenaSensor:
+Sensors
+-------
 
-Athena Sensor
-^^^^^^^^^^^^^
+.. _howto/sensor:AthenaSensor:
+
+Wait on Amazon Athena query results
+===================================
 
 Use the :class:`~airflow.providers.amazon.aws.sensors.athena.AthenaSensor`
 to wait for the results of a query in Amazon Athena.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_athena.py
     :language: python
-    :start-after: [START howto_athena_sensor]
+    :start-after: [START howto_sensor_athena]
     :dedent: 4
-    :end-before: [END howto_athena_sensor]
+    :end-before: [END howto_sensor_athena]
 
 
 Reference
-^^^^^^^^^
+---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html>`__
+* `AWS boto3 library documentation for Athena <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/athena.html>`__

@@ -23,7 +23,7 @@ from subprocess import check_call, check_output, run
 
 from rich.console import Console
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
 BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
 BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"

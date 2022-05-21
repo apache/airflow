@@ -33,7 +33,7 @@ import useSelection from '../utils/useSelection';
 const Details = () => {
   const { selected } = useSelection();
   return (
-    <Flex borderLeftWidth="1px" flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">
+    <Flex flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">
       <Header />
       <Divider my={2} />
       <Box minWidth="750px">

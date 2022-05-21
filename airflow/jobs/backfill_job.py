@@ -261,7 +261,7 @@ class BackfillJob(BaseJob):
                     f"{ti.state}. Was the task killed externally? Info: {info}"
                 )
                 self.log.error(msg)
-                ti.handle_failure_with_callback(error=msg)
+                ti.handle_failure(error=msg)
                 continue
             if ti.state not in self.STATES_COUNT_AS_RUNNING:
                 # Don't use ti.task; if this task is mapped, that attribute

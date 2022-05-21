@@ -104,11 +104,14 @@ labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable ingress resource
-  enabled: false
+  # Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled)
+  enabled: ~
 
   # Configs for the Ingress of the web Service
   web:
+    # Enable web ingress resource
+    enabled: false
+
     # Annotations for the web Ingress
     annotations: {}
 
@@ -149,6 +152,9 @@ ingress:
 
   # Configs for the Ingress of the flower Service
   flower:
+    # Enable web ingress resource
+    enabled: false
+
     # Annotations for the flower Ingress
     annotations: {}
 
@@ -1041,7 +1047,7 @@ triggerer:
 flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
-  enabled: true
+  enabled: false
 
   # Command to use when running flower (templated).
   command: ~

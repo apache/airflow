@@ -15,21 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-Local Filesystem to Amazon S3 Transfer Operator
-===============================================
+=============================
+Local Filesystem to Amazon S3
+=============================
 
-Use the LocalFilesystemToS3Operator transfer to copy data from the Airflow local filesystem
+Use the ``LocalFilesystemToS3Operator`` transfer to copy data from the Airflow local filesystem
 to an Amazon Simple Storage Service (S3) file.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:LocalFilesystemToS3Operator:
 
-Local to Amazon S3
-^^^^^^^^^^^^^^^^^^
+Local to Amazon S3 transfer operator
+====================================
 
 This operator copies data from the local filesystem to an Amazon S3 file.
 
@@ -45,6 +49,6 @@ Example usage:
     :end-before: [END howto_transfer_local_to_s3]
 
 Reference
-^^^^^^^^^
+---------
 
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

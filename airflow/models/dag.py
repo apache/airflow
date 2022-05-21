@@ -326,8 +326,8 @@ class DAG(LoggingMixin):
         sla_miss_callback: Optional[
             Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
         ] = None,
-        default_view: str = conf.get('webserver', 'dag_default_view').lower(),
-        orientation: str = conf.get('webserver', 'dag_orientation'),
+        default_view: str = conf.get_mandatory_value('webserver', 'dag_default_view').lower(),
+        orientation: str = conf.get_mandatory_value('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
         on_success_callback: Optional[DagStateChangeCallback] = None,
         on_failure_callback: Optional[DagStateChangeCallback] = None,
@@ -2770,6 +2770,15 @@ class DagModel(Base):
     def get_current(cls, dag_id, session=NEW_SESSION):
         return session.query(cls).filter(cls.dag_id == dag_id).first()
 
+    @staticmethod
+    @provide_session
+    def get_all_paused_dag_ids(session: Session = NEW_SESSION) -> Set[str]:
+        """Get a set of paused DAG ids"""
+        paused_dag_ids = session.query(DagModel.dag_id).filter(DagModel.is_paused == expression.true()).all()
+
+        paused_dag_ids = {paused_dag_id for paused_dag_id, in paused_dag_ids}
+        return paused_dag_ids
+
     @provide_session
     def get_last_dagrun(self, session=NEW_SESSION, include_externally_triggered=False):
         return get_last_dagrun(
@@ -2806,7 +2815,7 @@ class DagModel(Base):
         have a value
         """
         # This is for backwards-compatibility with old dags that don't have None as default_view
-        return self.default_view or conf.get('webserver', 'dag_default_view').lower()
+        return self.default_view or conf.get_mandatory_value('webserver', 'dag_default_view').lower()
 
     @property
     def safe_dag_id(self):

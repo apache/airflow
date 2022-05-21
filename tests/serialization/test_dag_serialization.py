@@ -1462,6 +1462,7 @@ class TestStringifiedDAGs:
         assert "deps" in blob
 
         serialized_op = SerializedBaseOperator.deserialize_operator(blob)
+        assert serialized_op.reschedule == (mode == "reschedule")
         assert op.deps == serialized_op.deps
 
     @pytest.mark.parametrize(

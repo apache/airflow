@@ -37,6 +37,7 @@ from enum import Enum
 from functools import lru_cache
 from os.path import dirname, relpath
 from pathlib import Path
+from random import choice
 from shutil import copyfile
 from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
 
@@ -1138,12 +1139,23 @@ class TypeOfChange(Enum):
     SKIP = "s"
 
 
-def get_type_of_changes() -> TypeOfChange:
+def get_type_of_changes(answer: Optional[str]) -> TypeOfChange:
     """
     Ask user to specify type of changes (case-insensitive).
     :return: Type of change.
     """
     given_answer = ""
+    if answer and answer.lower() in ["yes", "y"]:
+        # Simulate all possible non-terminal answers
+        return choice(
+            [
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.BUGFIX,
+                TypeOfChange.FEATURE,
+                TypeOfChange.BREAKING_CHANGE,
+                TypeOfChange.SKIP,
+            ]
+        )
     while given_answer not in [*[t.value for t in TypeOfChange], "q"]:
         console.print(
             "[yellow]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
@@ -1223,7 +1235,7 @@ def update_release_notes(
             console.print()
             return False
         else:
-            type_of_change = get_type_of_changes()
+            type_of_change = get_type_of_changes(answer=answer)
             if type_of_change == TypeOfChange.DOCUMENTATION:
                 if isinstance(latest_change, Change):
                     mark_latest_changes_as_documentation_only(provider_package_id, latest_change)
@@ -1901,7 +1913,7 @@ def is_package_in_dist(dist_files: List[str], package: str) -> bool:
     envvar='GITHUB_TOKEN',
     help=textwrap.dedent(
         """
-      Github token used to authenticate.
+      GitHub token used to authenticate.
       You can set omit it if you have GITHUB_TOKEN env variable set.
       Can be generated with:
       https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
