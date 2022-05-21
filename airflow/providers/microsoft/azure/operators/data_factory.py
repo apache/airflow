@@ -187,7 +187,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 self.log.info("Pipeline run %s has completed successfully.", self.run_id)
             else:
                 raise AzureDataFactoryPipelineRunException(
-                    "Pipeline run %s has failed or has been cancelled.", self.run_id
+                    f"Pipeline run {self.run_id} has failed or has been cancelled."
                 )
 
     def on_kill(self) -> None:
