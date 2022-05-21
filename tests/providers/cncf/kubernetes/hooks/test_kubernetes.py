@@ -165,7 +165,7 @@ class TestKubernetesHook:
         """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, disable_verify_ssl=disable_verify_ssl)
         api_conn = kubernetes_hook.get_conn()
-        assert mock_disable.called is disabled_called
+        assert mock_disable.called is disable_called
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(
