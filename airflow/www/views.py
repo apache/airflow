@@ -835,7 +835,7 @@ class Airflow(AirflowBaseView):
                 if segments[0] != settings.AIRFLOW_MOVED_TABLE_PREFIX:
                     continue
                 # Second segment is a version marker that we don't need to show.
-                yield segments[3], table_name
+                yield segments[-1], table_name
 
         if (
             permissions.ACTION_CAN_ACCESS_MENU,
