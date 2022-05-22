@@ -176,8 +176,8 @@ class RedshiftCreateClusterOperator(BaseOperator):
             params["DBName"] = self.db_name
         if self.cluster_type:
             params["ClusterType"] = self.cluster_type
-        if self.number_of_nodes:
-            params["NumberOfNodes"] = self.number_of_nodes
+            if self.cluster_type == "multi-node":
+                params["NumberOfNodes"] = self.number_of_nodes
         if self.cluster_security_groups:
             params["ClusterSecurityGroups"] = self.cluster_security_groups
         if self.vpc_security_group_ids:
