@@ -289,7 +289,7 @@ class EksCreateNodegroupOperator(BaseOperator):
                         "The nodegroup_subnets should be List or string representing "
                         "Python list and is %s. Defaulting to []",
                         self.nodegroup_subnets,
-                    )   
+                    )
             self.nodegroup_subnets = nodegroup_subnets_list
 
         eks_hook = EksHook(
