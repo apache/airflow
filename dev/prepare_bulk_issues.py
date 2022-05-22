@@ -109,7 +109,7 @@ option_github_token = click.option(
     required=True,
     help=textwrap.dedent(
         """
-        Github token used to authenticate.
+        GitHub token used to authenticate.
         You can omit it if you have GITHUB_TOKEN env variable set
         Can be generated with:
         https://github.com/settings/tokens/new?description=Write%20issues&scopes=repo:status,public_repo"""
