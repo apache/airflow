@@ -61,6 +61,12 @@ APP_JSON = "application/json"
 
 OUTPUT_DF = pd.DataFrame([['convert_type_return_value'] * 3] * 3, columns=COLUMNS)
 
+EXCLUDE_COLUMNS = set('column_c')
+NEW_COLUMNS = [c for c in COLUMNS if c not in EXCLUDE_COLUMNS]
+OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame(
+    [['convert_type_return_value'] * len(NEW_COLUMNS)] * 3, columns=NEW_COLUMNS
+)
+
 
 class DummySQLToGCSOperator(BaseSQLToGCSOperator):
     def field_to_bigquery(self, field) -> Dict[str, str]:
@@ -287,3 +293,26 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         file.flush()
         df = pd.read_parquet(file.name)
         assert df.equals(OUTPUT_DF)
+
+    def test__write_local_data_files_json_with_exclude_columns(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="json",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id='google_cloud_default',
+            exclude_columns=EXCLUDE_COLUMNS,
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        files = op._write_local_data_files(cursor)
+        file = next(files)['file_handle']
+        file.flush()
+        df = pd.read_json(file.name, orient='records', lines=True)
+        assert df.equals(OUTPUT_DF_WITH_EXCLUDE_COLUMNS)

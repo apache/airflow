@@ -71,6 +71,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param exclude_columns: set of columns to exclude from transmission
     """
 
     template_fields: Sequence[str] = (
@@ -103,9 +104,13 @@ class BaseSQLToGCSOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        exclude_columns=None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if exclude_columns is None:
+            exclude_columns = set()
+
         self.sql = sql
         self.bucket = bucket
         self.filename = filename
@@ -120,6 +125,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.exclude_columns = exclude_columns
 
     def execute(self, context: 'Context'):
         self.log.info("Executing query")
@@ -165,7 +171,9 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        schema = [column for column in org_schema if column not in self.exclude_columns]
+
         col_type_dict = self._get_col_type_dict()
         file_no = 0
 
@@ -314,7 +322,11 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema = self.schema
         else:
             self.log.info("Starts generating schema")
-            schema = [self.field_to_bigquery(field) for field in cursor.description]
+            schema = [
+                self.field_to_bigquery(field)
+                for field in cursor.description
+                if field[0] not in self.exclude_columns
+            ]
 
         if isinstance(schema, list):
             schema = json.dumps(schema, sort_keys=True)
