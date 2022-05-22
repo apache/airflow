@@ -176,7 +176,7 @@ def update_issue_status(
     console.print(f"   Re-added file number: {total_re_added}")
     console.print(f"   Completed file number: {total_completed}")
     console.print(
-        f"   Done {total_count_done}/{total_count_all} = " f"{(total_count_done * 100/ total_count_all):.2f}%"
+        f"   Done {total_count_done}/{total_count_all} = {(total_count_done * 100/ total_count_all):.2f}%"
     )
     console.print()
 

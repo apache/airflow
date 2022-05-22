@@ -201,7 +201,7 @@ class _CredentialProvider(LoggingMixin):
         key_options = [key_path, key_secret_name, keyfile_dict]
         if len([x for x in key_options if x]) > 1:
             raise AirflowException(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields"
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields "
                 "are all mutually exclusive. Please provide only one value."
             )
         self.key_path = key_path
