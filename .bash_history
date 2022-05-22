@@ -1,3 +1,0 @@
-pipdeptree  | less
-exit
-exit
