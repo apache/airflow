@@ -51,6 +51,7 @@ class TestEmrContainerOperator(unittest.TestCase):
             configuration_overrides={},
             poll_interval=0,
             client_request_token=GENERATED_UUID,
+            tags={},
         )
 
     @mock.patch.object(EmrContainerHook, 'submit_job')
@@ -66,7 +67,7 @@ class TestEmrContainerOperator(unittest.TestCase):
         self.emr_container.execute(None)
 
         mock_submit_job.assert_called_once_with(
-            'test_emr_job', 'arn:aws:somerole', '6.3.0-latest', {}, {}, GENERATED_UUID
+            'test_emr_job', 'arn:aws:somerole', '6.3.0-latest', {}, {}, GENERATED_UUID, {}
         )
         mock_check_query_status.assert_called_once_with('jobid_123456')
         assert self.emr_container.release_label == '6.3.0-latest'
