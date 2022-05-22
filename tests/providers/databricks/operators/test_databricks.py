@@ -186,7 +186,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             'git_branch': 'main',
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, git_source=git_source, json=json)
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'new_cluster': NEW_CLUSTER,
                 'notebook_task': NOTEBOOK_TASK,
