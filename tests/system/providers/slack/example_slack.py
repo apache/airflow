@@ -17,7 +17,7 @@
 # under the License.
 
 """
-Example Airflow DAG for Google BigQuery service testing dataset operations.
+Example Airflow DAG for SlackAPIFileOperator.
 """
 import os
 from datetime import datetime
