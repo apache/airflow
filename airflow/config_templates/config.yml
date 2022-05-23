@@ -256,7 +256,7 @@
       version_added: 2.3.2
       type: integer
       example: ~
-      default: 300
+      default: "300"
     - name: default_task_weight_rule
       description: |
         The weighting method used for the effective total priority weight of the task
