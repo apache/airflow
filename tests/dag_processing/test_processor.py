@@ -16,7 +16,6 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
 import datetime
 import os
 from unittest import mock
@@ -34,7 +33,6 @@ from airflow.models import DagBag, DagModel, SlaMiss, TaskInstance, errors
 from airflow.models.taskinstance import SimpleTaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -113,7 +111,7 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 1 day ago, but an sla of 0
         # so we'll already have an sla_miss on the books.
-        test_start_date = days_ago(1)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -142,7 +140,7 @@ class TestDagFileProcessor:
         # Create dag with a start of 1 day ago, but an sla of 0
         # so we'll already have an sla_miss on the books.
         # Pass anything besides a timedelta object to the sla argument.
-        test_start_date = days_ago(1)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -170,7 +168,7 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 2 days ago, but an sla of 1 day
         # ago so we'll already have an sla_miss on the books
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=2)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -206,7 +204,7 @@ class TestDagFileProcessor:
 
         # Create dag with a start of 2 days ago, but an sla of 1 day
         # ago so we'll already have an sla_miss on the books
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=2)
         with dag_maker(
             dag_id='test_sla_miss',
             default_args={'start_date': test_start_date, 'sla': datetime.timedelta(days=1)},
@@ -247,7 +245,7 @@ class TestDagFileProcessor:
 
         sla_callback = MagicMock(side_effect=RuntimeError('Could not call function'))
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -277,7 +275,7 @@ class TestDagFileProcessor:
     ):
         session = settings.Session()
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         email1 = 'test1@test.com'
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
@@ -317,7 +315,7 @@ class TestDagFileProcessor:
         # Mock the callback function so we can verify that it was not called
         mock_send_email.side_effect = RuntimeError('Could not send an email')
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
@@ -347,7 +345,7 @@ class TestDagFileProcessor:
         """
         session = settings.Session()
 
-        test_start_date = days_ago(2)
+        test_start_date = timezone.utcnow() - datetime.timedelta(days=1)
         dag, task = create_dummy_dag(
             dag_id='test_sla_miss',
             task_id='dummy',
