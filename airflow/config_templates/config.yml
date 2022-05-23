@@ -249,6 +249,14 @@
       type: string
       example: ~
       default: "0"
+    - name: default_task_retry_delay
+      description: |
+          The number of seconds each task is going to wait by default between retries. Can be overridden at
+          dag or task level.
+      version_added: 2.3.2
+      type: integer
+      example: ~
+      default: 300
     - name: default_task_weight_rule
       description: |
         The weighting method used for the effective total priority weight of the task

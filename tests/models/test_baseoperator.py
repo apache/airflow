@@ -994,3 +994,25 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     assert op.value == "{{ ds }}", "Should not be templated!"
     assert op.arg1 == "{{ ds }}"
     assert op.arg2 == "a"
+
+
+def test_default_retry_delay(dag_maker):
+    with dag_maker(dag_id='test_default_retry_delay'):
+        task1 = BaseOperator(task_id='test_no_explicit_retry_delay')
+
+        assert task1.retry_delay == timedelta(seconds=300)
+
+
+def test_dag_level_retry_delay(dag_maker):
+    with dag_maker(dag_id='test_dag_level_retry_delay', default_args={'retry_delay': timedelta(seconds=100)}):
+        task1 = BaseOperator(task_id='test_no_explicit_retry_delay')
+
+        assert task1.retry_delay == timedelta(seconds=100)
+
+
+def test_task_level_retry_delay(dag_maker):
+    with dag_maker(dag_id='test_task_level_retry_delay',
+                   default_args={'retry_delay': timedelta(seconds=100)}):
+        task1 = BaseOperator(task_id='test_no_explicit_retry_delay', retry_delay=timedelta(seconds=200))
+
+        assert task1.retry_delay == timedelta(seconds=200)
