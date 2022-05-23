@@ -37,7 +37,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudFormationCreateStackSensor`
+        :ref:`howto/sensor:CloudFormationCreateStackSensor`
 
 
     :param stack_name: The name of the stack to wait for (templated)
@@ -75,8 +75,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:CloudFormationDeleteStackSensor`
-
+        :ref:`howto/sensor:CloudFormationDeleteStackSensor`
 
     :param stack_name: The name of the stack to wait for (templated)
     :param aws_conn_id: ID of the Airflow connection where credentials and extra configuration are

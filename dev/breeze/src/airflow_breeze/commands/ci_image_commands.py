@@ -35,6 +35,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
     option_airflow_constraints_mode_ci,
+    option_airflow_constraints_reference_build,
     option_answer,
     option_build_multiple_images,
     option_debian_version,
@@ -73,11 +74,11 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     prepare_empty_docker_build_command,
 )
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
 from airflow_breeze.utils.md5_build_check import md5sum_check_if_build_is_needed
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, BUILD_CACHE_DIR
-from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -107,6 +108,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
                 "--upgrade-to-newer-dependencies",
                 "--debian-version",
                 "--image-tag",
+                "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
             ],
@@ -123,6 +125,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
             "options": [
                 "--install-providers-from-sources",
                 "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
                 "--additional-python-deps",
                 "--runtime-apt-deps",
                 "--runtime-apt-command",
@@ -218,6 +221,8 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_runtime_apt_deps
 @option_force_build
 @option_airflow_constraints_mode_ci
+@option_airflow_constraints_reference_build
+@option_tag_as_latest
 def build_image(
     verbose: bool,
     dry_run: bool,
@@ -259,8 +264,8 @@ def build_image(
 @option_github_token
 @option_verify_image
 @option_wait_for_image
-@option_tag_as_latest
 @option_image_tag
+@option_tag_as_latest
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def pull_image(
     verbose: bool,
@@ -483,7 +488,14 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
     if not ci_image_params.prepare_buildx_cache:
         if not dry_run:
             if build_command_result.returncode == 0:
-                mark_image_as_refreshed(ci_image_params)
+                if ci_image_params.tag_as_latest:
+                    build_command_result = tag_image_as_latest(ci_image_params, dry_run, verbose)
+                if (
+                    ci_image_params.airflow_image_name == ci_image_params.airflow_image_name_with_tag
+                    or ci_image_params.tag_as_latest
+                    and build_command_result.returncode == 0
+                ):
+                    mark_image_as_refreshed(ci_image_params)
             else:
                 get_console().print("[error]Error when building image![/]")
                 return (

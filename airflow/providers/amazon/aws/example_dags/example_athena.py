@@ -84,21 +84,21 @@ with DAG(
         output_location=f's3://{S3_BUCKET}/{S3_KEY}',
     )
 
-    # [START howto_athena_operator]
+    # [START howto_operator_athena]
     read_table = AthenaOperator(
         task_id='read_table',
         query=QUERY_READ_TABLE,
         database=ATHENA_DATABASE,
         output_location=f's3://{S3_BUCKET}/{S3_KEY}',
     )
-    # [END howto_athena_operator]
+    # [END howto_operator_athena]
 
-    # [START howto_athena_sensor]
+    # [START howto_sensor_athena]
     await_query = AthenaSensor(
         task_id='await_query',
         query_execution_id=read_table.output,
     )
-    # [END howto_athena_sensor]
+    # [END howto_sensor_athena]
 
     drop_table = AthenaOperator(
         task_id='drop_table',

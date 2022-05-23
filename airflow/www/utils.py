@@ -40,6 +40,7 @@ from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.models import errors
+from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -127,13 +128,23 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def encode_ti(
-    task_instance: Optional[TaskInstance], is_mapped: Optional[bool], session: Optional[Session]
-) -> Optional[Dict[str, Any]]:
+def get_task_summary(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any]]:
+    task_instance = (
+        session.query(TaskInstance)
+        .filter(
+            TaskInstance.dag_id == task.dag_id,
+            TaskInstance.run_id == dag_run.run_id,
+            TaskInstance.task_id == task.task_id,
+            # Only get normal task instances or the first mapped task
+            TaskInstance.map_index <= 0,
+        )
+        .first()
+    )
+
     if not task_instance:
         return None
 
-    if is_mapped:
+    if task_instance.map_index > -1:
         return get_mapped_summary(task_instance, task_instances=get_mapped_instances(task_instance, session))
 
     try_count = (

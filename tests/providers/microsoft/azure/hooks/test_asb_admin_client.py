@@ -46,7 +46,8 @@ class TestAzureServiceBusAdminClientHook(unittest.TestCase):
         )
 
     @mock.patch(
-        "airflow.providers.microsoft.azure.hooks.asb_admin_client.AzureServiceBusAdminClientHook.get_connection"
+        "airflow.providers.microsoft.azure.hooks.asb_admin_client."
+        "AzureServiceBusAdminClientHook.get_connection"
     )
     def test_get_conn(self, mock_connection):
         mock_connection.return_value = self.mock_conn

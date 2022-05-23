@@ -34,6 +34,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
     option_airflow_constraints_mode_prod,
+    option_airflow_constraints_reference_build,
     option_answer,
     option_build_multiple_images,
     option_debian_version,
@@ -71,8 +72,8 @@ from airflow_breeze.utils.docker_command_utils import (
     prepare_docker_build_command,
     prepare_empty_docker_build_command,
 )
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
-from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -96,6 +97,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--upgrade-to-newer-dependencies",
                 "--debian-version",
                 "--image-tag",
+                "--tag-as-latest",
                 "--docker-cache",
             ],
         },
@@ -112,6 +114,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--install-providers-from-sources",
                 "--airflow-extras",
                 "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
                 "--additional-python-deps",
                 "--additional-extras",
                 "--additional-runtime-apt-deps",
@@ -246,6 +249,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
     '--install-airflow-reference',
     help="Install Airflow using GitHub tag or branch.",
 )
+@option_airflow_constraints_reference_build
 @click.option('-V', '--install-airflow-version', help="Install version of Airflow from PyPI.")
 @option_additional_extras
 @option_additional_dev_apt_deps
@@ -259,6 +263,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
+@option_tag_as_latest
 def build_prod_image(
     verbose: bool,
     dry_run: bool,
@@ -520,5 +525,8 @@ def build_production_image(
                 build_command_result = build_cache(
                     image_params=prod_image_params, dry_run=dry_run, verbose=verbose
                 )
+            else:
+                if prod_image_params.tag_as_latest:
+                    build_command_result = tag_image_as_latest(prod_image_params, dry_run, verbose)
 
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"

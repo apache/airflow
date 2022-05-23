@@ -358,7 +358,11 @@ def task_run(args, dag=None):
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
         if args.local:
-            dag = get_dag_by_deserialization(args.dag_id)
+            try:
+                dag = get_dag_by_deserialization(args.dag_id)
+            except AirflowException:
+                print(f'DAG {args.dag_id} does not exist in the database, trying to parse the dag_file')
+                dag = get_dag(args.subdir, args.dag_id)
         else:
             dag = get_dag(args.subdir, args.dag_id)
     else:

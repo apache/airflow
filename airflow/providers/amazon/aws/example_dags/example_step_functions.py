@@ -41,11 +41,11 @@ with DAG(
     )
     # [END howto_operator_step_function_start_execution]
 
-    # [START howto_operator_step_function_execution_sensor]
+    # [START howto_sensor_step_function_execution]
     wait_for_execution = StepFunctionExecutionSensor(
         task_id='wait_for_execution', execution_arn=start_execution.output
     )
-    # [END howto_operator_step_function_execution_sensor]
+    # [END howto_sensor_step_function_execution]
 
     # [START howto_operator_step_function_get_execution_output]
     get_execution_output = StepFunctionGetExecutionOutputOperator(

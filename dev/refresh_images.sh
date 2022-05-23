@@ -23,6 +23,8 @@ export ANSWER="yes"
 export CI="true"
 export GITHUB_TOKEN=""
 
+breeze self-upgrade --force
+
 breeze build-image \
      --build-multiple-images \
      --prepare-buildx-cache \
