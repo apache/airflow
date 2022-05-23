@@ -194,4 +194,36 @@ describe('Test ToggleGroups', () => {
     expect(queryAllByTestId('open-group')).toHaveLength(2);
     expect(queryAllByTestId('closed-group')).toHaveLength(0);
   });
+
+  test('Hovered effect on task state', async () => {
+    const { rerender, queryAllByTestId } = render(
+      <Grid />,
+      { wrapper: Wrapper },
+    );
+
+    const taskElements = queryAllByTestId('task-instance');
+    expect(taskElements).toHaveLength(3);
+
+    taskElements.forEach((taskElement) => {
+      expect(taskElement).toHaveStyle('opacity: 1');
+    });
+
+    rerender(
+      <Grid hoveredTaskState="success" />,
+      { wrapper: Wrapper },
+    );
+
+    taskElements.forEach((taskElement) => {
+      expect(taskElement).toHaveStyle('opacity: 1');
+    });
+
+    rerender(
+      <Grid hoveredTaskState="failed" />,
+      { wrapper: Wrapper },
+    );
+
+    taskElements.forEach((taskElement) => {
+      expect(taskElement).toHaveStyle('opacity: 0.3');
+    });
+  });
 });
