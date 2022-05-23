@@ -219,6 +219,7 @@ def _cleanup_table(
     clean_before_timestamp,
     dry_run=True,
     verbose=False,
+    skip_archive=False,
     session=None,
     **kwargs,
 ):
@@ -273,6 +274,9 @@ def _cleanup_table(
             )
         logger.debug("delete statement:\n%s", delete.compile())
         session.execute(delete)
+        session.commit()
+        if skip_archive:
+            target_table.drop()
 
     session.commit()
 
@@ -321,6 +325,7 @@ def run_cleanup(
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
+    skip_archive: bool = False,
     session: 'Session' = NEW_SESSION,
 ):
     """
@@ -339,6 +344,7 @@ def run_cleanup(
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
+    :param skip_archive: Set to True if you don't want the purged rows preservied in an archive table.
     :param session: Session representing connection to the metadata database.
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
@@ -360,6 +366,7 @@ def run_cleanup(
                 dry_run=dry_run,
                 verbose=verbose,
                 **table_config.__dict__,
+                skip_archive=skip_archive,
                 session=session,
             )
             session.commit()

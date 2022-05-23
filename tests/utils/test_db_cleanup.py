@@ -69,6 +69,27 @@ class TestDBCleanup:
             confirm_delete_mock.assert_not_called()
 
     @pytest.mark.parametrize(
+        'kwargs, should_skip',
+        [
+            param(dict(skip_archive=True), True, id='true'),
+            param(dict(), False, id='not supplied'),
+            param(dict(skip_archive=False), False, id='false'),
+        ],
+    )
+    @patch('airflow.utils.db_cleanup._cleanup_table')
+    def test_run_cleanup_skip_archive(self, cleanup_table_mock, kwargs, should_skip):
+        """test that delete confirmation input is called when appropriate"""
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=['log'],
+            dry_run=None,
+            verbose=None,
+            confirm=False,
+            **kwargs,
+        )
+        assert cleanup_table_mock.call_args[1]['skip_archive'] is should_skip
+
+    @pytest.mark.parametrize(
         'table_names',
         [
             ['xcom', 'log'],

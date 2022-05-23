@@ -318,7 +318,7 @@ class TestCLIDBClean:
     @patch('airflow.cli.commands.db_command.run_cleanup')
     def test_confirm(self, run_cleanup_mock, confirm_arg, expected):
         """
-        When tz included in the string then default timezone should not be used.
+        When ``-y`` provided, ``confirm`` should be false.
         """
         args = self.parser.parse_args(
             [
@@ -337,6 +337,32 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=False,
             confirm=expected,
+        )
+
+    @pytest.mark.parametrize('extra_arg, expected', [(['--skip-archive'], True), ([], False)])
+    @patch('airflow.cli.commands.db_command.run_cleanup')
+    def test_confirm(self, run_cleanup_mock, extra_arg, expected):
+        """
+        When ``--skip-archive`` provided, ``skip_archive`` should be True (False otherwise).
+        """
+        args = self.parser.parse_args(
+            [
+                'db',
+                'clean',
+                '--clean-before-timestamp',
+                '2021-01-01',
+                *extra_arg,
+            ]
+        )
+        db_command.cleanup_tables(args)
+
+        run_cleanup_mock.assert_called_once_with(
+            table_names=None,
+            dry_run=False,
+            clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
+            verbose=False,
+            confirm=True,
+            skip_archive=expected,
         )
 
     @pytest.mark.parametrize('dry_run_arg, expected', [(['--dry-run'], True), ([], False)])
