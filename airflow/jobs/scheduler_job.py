@@ -673,7 +673,7 @@ class SchedulerJob(BaseJob):
             # All of this could also happen if the state is "running",
             # but that is handled by the zombie detection.
 
-            ti_queued = ti.try_number == buffer_key.try_number and ti.state == State.QUEUED
+            ti_queued = ti.try_number == buffer_key.try_number and ti.state == TaskInstanceState.QUEUED
             ti_requeued = ti.queued_by_job_id != self.id or self.executor.has_task(ti)
 
             if ti_queued and not ti_requeued:
