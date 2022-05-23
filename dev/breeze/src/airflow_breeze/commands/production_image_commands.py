@@ -34,6 +34,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
     option_airflow_constraints_mode_prod,
+    option_airflow_constraints_reference_build,
     option_answer,
     option_build_multiple_images,
     option_debian_version,
@@ -113,6 +114,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--install-providers-from-sources",
                 "--airflow-extras",
                 "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
                 "--additional-python-deps",
                 "--additional-extras",
                 "--additional-runtime-apt-deps",
@@ -247,6 +249,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
     '--install-airflow-reference',
     help="Install Airflow using GitHub tag or branch.",
 )
+@option_airflow_constraints_reference_build
 @click.option('-V', '--install-airflow-version', help="Install version of Airflow from PyPI.")
 @option_additional_extras
 @option_additional_dev_apt_deps

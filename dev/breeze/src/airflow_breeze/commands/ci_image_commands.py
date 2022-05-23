@@ -35,6 +35,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
     option_airflow_constraints_mode_ci,
+    option_airflow_constraints_reference_build,
     option_answer,
     option_build_multiple_images,
     option_debian_version,
@@ -124,6 +125,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
             "options": [
                 "--install-providers-from-sources",
                 "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
                 "--additional-python-deps",
                 "--runtime-apt-deps",
                 "--runtime-apt-command",
@@ -219,6 +221,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_runtime_apt_deps
 @option_force_build
 @option_airflow_constraints_mode_ci
+@option_airflow_constraints_reference_build
 @option_tag_as_latest
 def build_image(
     verbose: bool,
