@@ -1011,8 +1011,9 @@ def test_dag_level_retry_delay(dag_maker):
 
 
 def test_task_level_retry_delay(dag_maker):
-    with dag_maker(dag_id='test_task_level_retry_delay',
-                   default_args={'retry_delay': timedelta(seconds=100)}):
+    with dag_maker(
+        dag_id='test_task_level_retry_delay', default_args={'retry_delay': timedelta(seconds=100)}
+    ):
         task1 = BaseOperator(task_id='test_no_explicit_retry_delay', retry_delay=timedelta(seconds=200))
 
         assert task1.retry_delay == timedelta(seconds=200)
