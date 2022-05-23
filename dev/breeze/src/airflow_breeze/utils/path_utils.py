@@ -62,7 +62,13 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
+    return (
+        in_self_upgrade()
+        or in_autocomplete()
+        or in_help()
+        or hasattr(sys, '_called_from_test')
+        or os.environ.get('SKIP_BREEZE_UPGRADE_CHECK')
+    )
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -235,7 +241,6 @@ AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
-MYPY_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.mypy_cache'
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
 DIST_DIR = AIRFLOW_SOURCES_ROOT / 'dist'
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci'
@@ -253,7 +258,6 @@ def create_directories() -> None:
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
-    MYPY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_LOG.mkdir(parents=True, exist_ok=True)

@@ -523,7 +523,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     command_to_execute = ['docker-compose', 'down', "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
-    shell_params = ShellParams(verbose=verbose)
+    shell_params = ShellParams(verbose=verbose, backend="all")
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 

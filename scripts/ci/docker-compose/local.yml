@@ -26,6 +26,7 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
+      - mypy-cache-volume:/opt/airflow/.mypy_cache/
       # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
       - ../../../.bash_aliases:/root/.bash_aliases:cached
       - ../../../.bash_history:/root/.bash_history:cached
@@ -58,3 +59,5 @@ services:
       - ../../../chart:/opt/airflow/chart:cached
       - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
       # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
+volumes:
+  mypy-cache-volume:
