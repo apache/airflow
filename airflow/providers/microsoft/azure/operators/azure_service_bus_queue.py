@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb_admin_client import AzureServiceBusAdminClientHook
@@ -128,11 +128,15 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         *,
         queue_name: str,
         azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        max_message_count: Optional[int] = 10,
+        max_wait_time: Optional[float] = 5,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.queue_name = queue_name
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
+        self.max_message_count = max_message_count
+        self.max_wait_time = max_wait_time
 
     def execute(self, context: "Context") -> None:
         """
@@ -143,7 +147,9 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         # Receive message
-        hook.receive_message(self.queue_name)
+        hook.receive_message(
+            self.queue_name, max_message_count=self.max_message_count, max_wait_time=self.max_wait_time
+        )
 
 
 class AzureServiceBusDeleteQueueOperator(BaseOperator):
