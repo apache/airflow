@@ -23,7 +23,6 @@ import logging
 import threading
 from unittest.mock import patch
 
-import pendulum
 import pytest
 
 from airflow import settings
@@ -1596,7 +1595,7 @@ class TestBackfillJob:
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / f'{dag_id}.py'))
         dag = self.dagbag.get_dag(dag_id)
 
-        when = pendulum.today('UTC')
+        when = datetime.datetime(2022, 1, 1)
 
         job = BackfillJob(
             dag=dag,

@@ -32,7 +32,7 @@ from airflow.models.dagcode import DagCode
 from airflow.operators.bash import BashOperator
 from airflow.security import permissions
 from airflow.ti_deps.dependencies_states import QUEUEABLE_STATES, RUNNABLE_STATES
-from airflow.utils import dates, timezone
+from airflow.utils import timezone
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -43,7 +43,7 @@ from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response, check_content_not_in_response, client_with_login
 
-DEFAULT_DATE = dates.days_ago(2)
+DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 
