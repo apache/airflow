@@ -56,7 +56,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
 
     def execute(self, context: "Context") -> None:
         """Creates Queue in Service Bus namespace, by connecting to Service Bus Admin client"""
-        # Create the hook
+        # Create the hook testing
         hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         # create queue with name
