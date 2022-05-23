@@ -22,7 +22,6 @@ from datetime import timedelta
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.utils import cli as cli_utils
@@ -36,7 +35,7 @@ def _create_dag_processor_manager(args) -> DagFileProcessorManager:
     processor_timeout_seconds: int = conf.getint('core', 'dag_file_processor_timeout')
     processor_timeout = timedelta(seconds=processor_timeout_seconds)
     return DagFileProcessorManager(
-        dag_directory=settings.DAGS_FOLDER,
+        dag_directory=args.subdir,
         max_runs=args.num_runs,
         processor_timeout=processor_timeout,
         dag_ids=[],
