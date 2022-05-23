@@ -90,11 +90,6 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
                 raise AirflowException(e)
         sender.send_messages(batch_message)
 
-    @staticmethod
-    def send_service_bus_messages(sender: ServiceBusSender,
-                                  message: Union[ServiceBusMessage, list(ServiceBusMessage)]):
-        sender.send_messages(message)
-
     def receive_message(self, queue_name):
         """
         Receive a batch of messages at once in a specified Queue name
