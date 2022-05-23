@@ -119,12 +119,12 @@ class TestCliDags(unittest.TestCase):
                         DEFAULT_DATE.isoformat(),
                     ]
                 ),
-                dag=dag,
+                dags=[dag],
             )
 
         output = stdout.getvalue()
         assert f"Dry run of DAG example_bash_operator on {DEFAULT_DATE.isoformat()}\n" in output
-        assert "Task runme_0\n" in output
+        assert "Task runme_0 located in DAG example_bash_operator\n" in output
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
 
@@ -139,7 +139,7 @@ class TestCliDags(unittest.TestCase):
                     DEFAULT_DATE.isoformat(),
                 ]
             ),
-            dag=dag,
+            dags=[dag],
         )
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
@@ -155,7 +155,7 @@ class TestCliDags(unittest.TestCase):
                     DEFAULT_DATE.isoformat(),
                 ]
             ),
-            dag=dag,
+            dags=[dag],
         )
 
         mock_run.assert_called_once_with(
@@ -175,6 +175,33 @@ class TestCliDags(unittest.TestCase):
             continue_on_failures=False,
         )
         mock_run.reset_mock()
+
+        with contextlib.redirect_stdout(io.StringIO()) as stdout:
+            dag_command.dag_backfill(
+                self.parser.parse_args(
+                    [
+                        'dags',
+                        'backfill',
+                        'example_branch_(python_){0,1}operator(_decorator){0,1}',
+                        '--task-regex',
+                        'run_this_first',
+                        '--dry-run',
+                        '--dag-regex',
+                        '--start-date',
+                        DEFAULT_DATE.isoformat(),
+                    ]
+                ),
+            )
+
+        output = stdout.getvalue()
+
+        assert (
+            f"Dry run of DAG example_branch_python_operator_decorator on "
+            f"{DEFAULT_DATE.isoformat()}\n" in output
+        )
+        assert "Task run_this_first located in DAG " "example_branch_python_operator_decorator\n" in output
+        assert f"Dry run of DAG example_branch_operator on " f"{DEFAULT_DATE.isoformat()}\n" in output
+        assert "Task run_this_first located in DAG " "example_branch_operator\n" in output
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_backfill_fails_without_loading_dags(self, mock_get_dag):
@@ -264,7 +291,7 @@ class TestCliDags(unittest.TestCase):
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
+        dag_command.dag_backfill(self.parser.parse_args(args), dags=[dag])
 
         mock_run.assert_called_once_with(
             start_date=run_date,
@@ -305,7 +332,7 @@ class TestCliDags(unittest.TestCase):
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
+        dag_command.dag_backfill(self.parser.parse_args(args), dags=[dag])
         mock_run.assert_called_once_with(
             start_date=start_date,
             end_date=end_date,

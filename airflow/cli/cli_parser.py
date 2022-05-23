@@ -1135,6 +1135,7 @@ DAGS_COMMANDS = (
             ARG_RESET_DAG_RUN,
             ARG_RERUN_FAILED_TASKS,
             ARG_RUN_BACKWARDS,
+            ARG_DAG_REGEX,
         ),
     ),
     ActionCommand(
