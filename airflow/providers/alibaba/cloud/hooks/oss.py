@@ -43,11 +43,10 @@ def provide_bucket_name(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
         self = args[0]
-        if 'bucket_name' not in bound_args.arguments or bound_args.arguments['bucket_name'] is None:
-            if self.oss_conn_id:
-                connection = self.get_connection(self.oss_conn_id)
-                if connection.schema:
-                    bound_args.arguments['bucket_name'] = connection.schema
+        if ('bucket_name' not in bound_args.arguments or bound_args.arguments['bucket_name'] is None) and self.oss_conn_id:
+            connection = self.get_connection(self.oss_conn_id)
+            if connection.schema:
+                bound_args.arguments['bucket_name'] = connection.schema
 
         return func(*bound_args.args, **bound_args.kwargs)
 
@@ -92,10 +91,7 @@ class OSSHook(BaseHook):
     def __init__(self, region: Optional[str] = None, oss_conn_id='oss_default', *args, **kwargs) -> None:
         self.oss_conn_id = oss_conn_id
         self.oss_conn = self.get_connection(oss_conn_id)
-        if region is None:
-            self.region = self.get_default_region()
-        else:
-            self.region = region
+        self.region = self.get_default_region() if region is None else region
         super().__init__(*args, **kwargs)
 
     def get_conn(self) -> "Connection":
@@ -369,11 +365,10 @@ class OSSHook(BaseHook):
         if not auth_type:
             raise Exception("No auth_type specified in extra_config. ")
 
-        if auth_type == 'AK':
-            default_region = extra_config.get('region', None)
-            if not default_region:
-                raise Exception("No region is specified for connection: " + self.oss_conn_id)
-        else:
-            raise Exception("Unsupported auth_type: " + auth_type)
+        if auth_type != 'AK':
+            raise Exception(f"Unsupported auth_type: {auth_type}")
 
+        default_region = extra_config.get('region', None)
+        if not default_region:
+            raise Exception(f"No region is specified for connection: {self.oss_conn_id}")
         return default_region
