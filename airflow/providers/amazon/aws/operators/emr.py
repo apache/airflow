@@ -531,6 +531,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
             raise AirflowException(f'Application Creation failed: {response}')
         else:
             self.log.info('EMR serverless job started: %s', response['applicationId'])
+            return response
 
 
 class EmrServerlessDeleteApplicationOperator(BaseOperator):
@@ -555,11 +556,11 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
     
 
     def execute(self, context: 'Context') -> None:
-        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id).get_conn()
+        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id)
 
         self.log.info('Deleting application: %s', self.application_id)
 
-        response = emr_serverless_hook.delete_application(application_id=self.application_id)
+        response = emr_serverless_hook.delete_serverless_application(application_id=self.application_id)
 
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException(f'Application deletion failed: {response}')

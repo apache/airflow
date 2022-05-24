@@ -121,7 +121,7 @@ class EmrServerlessHook(AwsBaseHook):
 
     
 
-    def delete_application(self, applicationId: str) -> None:
+    def delete_serverless_application(self, application_id: str) -> None:
         """
         Delete an EMR Serverless application.
 
@@ -130,7 +130,7 @@ class EmrServerlessHook(AwsBaseHook):
         """
 
         try:
-            self.conn.delete_application(applicationId=applicationId)
+            self.conn.delete_application(applicationId=application_id)
         except Exception as ex:
             self.log.error("Exception while deleting application: %s", ex)
             raise Exception("Error deleting application")

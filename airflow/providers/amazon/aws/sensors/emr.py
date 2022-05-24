@@ -113,7 +113,58 @@ class EmrBaseSensor(BaseSensorOperator):
 
 
 
-class EmrServerlessSensor(BaseSensorOperator):
+class EmrServerlessJobSensor(BaseSensorOperator):
+    INTERMEDIATE_STATES = (
+        "PENDING",
+        "RUNNING",
+        "CANCELLING",
+        "SCHEDULED",
+        "SUBMITTED"
+    )
+
+    ## Question: Do these states indicate failure?
+    FAILURE_STATES = (
+        "FAILED",
+        "CANCELLED"
+    )
+
+    SUCCESS_STATES = {
+        "SUCCESS"
+    }
+
+
+    def __init__(
+        self,
+        *,
+        application_id: str,
+        job_run_id: str,
+        aws_conn_id: str = "aws_default",
+        emr_conn_id: str = "emr_default",
+        **kwargs: Any
+    ) -> None:
+        self.aws_conn_id = aws_conn_id
+        self.emr_conn_id = emr_conn_id
+        self.application_id = application_id
+        self.job_run_id = job_run_id
+        super().__init__(**kwargs)
+
+    def poke(self, context: 'Context') -> bool:
+        response = self.hook.get_conn().get_job_run(applicationId=self.application_id,jobRunId=self.job_run_id)
+
+        try:
+            state = response['jobRun']['state']
+        except KeyError:
+            raise AirflowException(f"Unable to get application state: {response}")
+        
+        if state in self.SUCCESS_STATES:
+            return True
+    
+    @cached_property
+    def hook(self) -> EmrServerlessHook:
+        """Create and return an EmrServerlessHook"""
+        return EmrServerlessHook(emr_conn_id=self.emr_conn_id)
+
+class EmrServerlessApplicationSensor(BaseSensorOperator):
     INTERMEDIATE_STATES = (
         "CREATING",
         "STARTING",
@@ -145,7 +196,7 @@ class EmrServerlessSensor(BaseSensorOperator):
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
-        response = self.hook.get_application(application_id=self.application_id)
+        response = self.hook.get_conn().get_application(applicationId=self.application_id)
 
         try:
             state = response['application']['state']
@@ -388,9 +439,3 @@ class EmrStepSensor(EmrBaseSensor):
                 f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
             )
         return None
-
-
-class EmrServerlessApplicationSensor(EmrBaseSensor):
-    def __init__(self, *, application_id: str, **kwargs):
-        self.application_id = application_id
-        super().__init__(**kwargs)
