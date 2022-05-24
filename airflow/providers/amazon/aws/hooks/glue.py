@@ -74,7 +74,7 @@ class GlueJobHook(AwsBaseHook):
                 raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
         elif not worker_type_exists and num_workers_exists:
             raise ValueError("Need to specify custom WorkerType when specifying NumberOfWorkers")
-        elif worker_type_exists and not num_workers_exists:
+        elif worker_type_exists:
             raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
         elif num_of_dpus is None:
             self.num_of_dpus = 10
@@ -118,8 +118,8 @@ class GlueJobHook(AwsBaseHook):
 
         try:
             job_name = self.get_or_create_glue_job()
-            job_run = glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
-            return job_run
+            return glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
+
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -134,8 +134,7 @@ class GlueJobHook(AwsBaseHook):
         """
         glue_client = self.get_conn()
         job_run = glue_client.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
-        job_run_state = job_run['JobRun']['JobRunState']
-        return job_run_state
+        return job_run['JobRun']['JobRunState']
 
     def job_completion(self, job_name: str, run_id: str) -> Dict[str, str]:
         """
@@ -155,7 +154,7 @@ class GlueJobHook(AwsBaseHook):
                 self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
             if job_run_state in failed_states:
-                job_error_message = "Exiting Job " + run_id + " Run State: " + job_run_state
+                job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
                 self.log.info(job_error_message)
                 raise AirflowException(job_error_message)
             else:
