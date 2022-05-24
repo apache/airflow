@@ -126,10 +126,10 @@ $('.typeahead').typeahead({
   afterSelect(value) {
     const query = new URLSearchParams(window.location.search);
     query.set('search', value.name);
-    if ('owner' == value.type) {
+    if (value.type === 'owner') {
       window.location = `${DAGS_INDEX}?${query}`;
     }
-    if ('dag' == value.type) {
+    if (value.type === 'dag') {
       window.location = `${gridUrl.replace('__DAG_ID__', value.name)}?${query}`;
     }
   },
