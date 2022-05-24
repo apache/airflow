@@ -45,16 +45,16 @@ class TabularHook(BaseHook):
     def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
-            "hidden_fields": ["schema", "port", "host"],
+            "hidden_fields": ["schema", "port"],
             "relabeling": {
                 "host": "Base URL",
-                "login": "Tabular Client ID",
-                "password": "Tabular Client Secret",
+                "login": "Client ID",
+                "password": "Client Secret",
             },
             "placeholders": {
                 "host": DEFAULT_TABULAR_URL,
                 "login": "client_id (token credentials auth)",
-                "password": "secret (token credentials auth)"
+                "password": "secret (token credentials auth)",
             },
         }
 

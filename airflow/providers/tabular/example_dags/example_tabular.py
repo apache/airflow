@@ -38,7 +38,7 @@ with DAG(
     },
     start_date=datetime(2021, 1, 1),
     schedule_interval=timedelta(1),
-    catchup=False
+    catchup=False,
 ) as dag:
     # This also works for the SparkSubmit operator
     BashOperator(
