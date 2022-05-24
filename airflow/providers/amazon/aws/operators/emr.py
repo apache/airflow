@@ -435,6 +435,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         release_label: str, 
         job_type: str, 
         client_request_token: str = "", 
+        config: Optional[dict] = None,
         aws_conn_id: str = 'aws_default', 
         emr_conn_id: str = 'emr_default', 
         **kwargs
@@ -444,6 +445,8 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.release_label = release_label
         self.job_type = job_type
         self.kwargs = kwargs
+        if config:
+            self.config = config
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
@@ -452,8 +455,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id)
-        print(f"releaseLabel: {self.release_label}, job_type: {self.job_type}")
-        response = emr_serverless_hook.create_serverless_application(client_request_token=self.client_request_token, release_label=self.release_label, job_type=self.job_type)
+        response = emr_serverless_hook.create_serverless_application(client_request_token=self.client_request_token, release_label=self.release_label, job_type=self.job_type, **self.config)
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException(f'Application Creation failed: {response}')
         else:
@@ -466,7 +468,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
     Operator to start EMR Serverless job.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this operator, take a look at the guide
         :ref:``
 
     :param application_id: Id of the EMR Serverless application to start.
@@ -495,7 +497,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.execution_role_arn = execution_role_arn
         self.job_driver = job_driver
         self.configuration_overrides = configuration_overrides
-        super().__init(**kwargs)
+        super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
 
@@ -514,10 +516,10 @@ class EmrServerlessStartJobOperator(BaseOperator):
         
 
     def execute(self, context: 'Context') -> None:
-        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id).get_conn()
+        emr_serverless_hook = EmrServerlessHook(emr_conn_id=self.emr_conn_id)
         
         self.log.info('Starting job: %s', self.application_id)
-        response = emr_serverless_hook.start_job(
+        response = emr_serverless_hook.start_serverless_job(
             client_request_token=self.client_request_token,
             application_id=self.application_id, 
             execution_role_arn=self.execution_role_arn, 

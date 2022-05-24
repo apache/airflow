@@ -100,7 +100,7 @@ class EmrServerlessHook(AwsBaseHook):
         self.emr_conn_id = emr_conn_id
         super().__init__(client_type="emr-serverless", *args, **kwargs)
     
-    def create_serverless_application(self, client_request_token: str, release_label: str, job_type: str):
+    def create_serverless_application(self, client_request_token: str, release_label: str, job_type: str, **kwargs):
         """
         Create an EMR serverless application.
 
@@ -112,7 +112,7 @@ class EmrServerlessHook(AwsBaseHook):
         """
         
         try:
-            response = self.conn.create_application(clientToken=client_request_token, releaseLabel=release_label, type=job_type)
+            response = self.conn.create_application(clientToken=client_request_token, releaseLabel=release_label, type=job_type, **kwargs)
         except Exception as ex:
             self.log.error("Exception while creating application: %s", ex)
             raise Exception("Error creating application")
@@ -130,14 +130,14 @@ class EmrServerlessHook(AwsBaseHook):
         """
 
         try:
-            response = self.conn.delete_application(applicationId=applicationId)
+            self.conn.delete_application(applicationId=applicationId)
         except Exception as ex:
             self.log.error("Exception while deleting application: %s", ex)
             raise Exception("Error deleting application")
 
 
     
-    def start_job(self, client_request_token: str, application_id: str, execution_role_arn: str, job_driver: dict, configuration_overrides: Optional[dict]) -> str:
+    def start_serverless_job(self, client_request_token: str, application_id: str, execution_role_arn: str, job_driver: dict, configuration_overrides: Optional[dict]) -> str:
         """
         Starts an EMR Serverless job on a created application.
 
