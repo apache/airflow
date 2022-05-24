@@ -63,6 +63,7 @@ def fallback_to_default_account(func: Callable) -> Callable:
 
     return wrapper
 
+
 def _get_provider_info() -> Tuple[str, str]:
     from airflow.providers_manager import ProvidersManager
 
@@ -145,24 +146,15 @@ class DbtCloudHook(HttpHook):
         """Builds custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
             "hidden_fields": ["host", "port", "extra"],
-            "relabeling": {"login": "Account ID", "password": "API Token", "schema": "Tenant"},
+            "relabeling": {"login": "Account ID", "password": "API Token", "schema": "Tenant (Optional)"},
         }
 
-    def __init__(
-        self, dbt_cloud_conn_id: str = default_conn_name, tenant: Optional[str] = None, *args, **kwargs
-    ) -> None:
+    def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
+        tenant = self.connection.schema if self.connection.schema else 'cloud'
 
-        if tenant is None:
-            default_tenant_name = self.connection.schema
-
-            if not default_tenant_name:
-                default_tenant_name = 'cloud'
-        else:
-            default_tenant_name = tenant
-
-        self.base_url = f"https://{default_tenant_name}.getdbt.com/api/v2/accounts/"
+        self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
 
     @cached_property
     def connection(self) -> Connection:
