@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
+import pathlib
 import sys
 
 if sys.version_info >= (3, 8):
@@ -91,8 +92,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
         remote_loc = self.log_relative_path
         if os.path.exists(local_loc):
             # read log and remove old logs to get just the latest additions
-            with open(local_loc) as logfile:
-                log = logfile.read()
+            log = pathlib.Path(local_loc).read_text()
             self.oss_write(log, remote_loc)
 
         # Mark closed so we don't double write if close is called twice
