@@ -21,7 +21,7 @@ import datetime
 import json
 import logging
 import threading
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 import pytest
 
@@ -1710,3 +1710,32 @@ class TestBackfillJob:
                 dag_id=dr.dag_id, task_id='make_arg_lists', run_id='test', try_number=1, map_index=-1
             ),
         }
+
+    def test_backfill_callback(self, dag_maker):
+        dag = self._get_dummy_dag(dag_maker)
+        dag_maker.create_dagrun(state=None)
+
+        executor = MockExecutor()
+
+        backfill_callback = Mock()
+
+        job2 = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+        )
+        job2.run()
+        backfill_callback.assert_not_called()
+
+        job1 = BackfillJob(
+            dag=dag,
+            executor=executor,
+            start_date=DEFAULT_DATE,
+            end_date=DEFAULT_DATE + datetime.timedelta(days=1),
+            on_backfill_callback=backfill_callback,
+        )
+        job1.run()
+        backfill_callback.assert_called_once()
+
+        dag.clear()

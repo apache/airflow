@@ -117,6 +117,7 @@ class BackfillJob(BaseJob):
         run_backwards=False,
         run_at_least_once=False,
         continue_on_failures=False,
+        on_backfill_callback=None,
         *args,
         **kwargs,
     ):
@@ -156,6 +157,7 @@ class BackfillJob(BaseJob):
         self.run_backwards = run_backwards
         self.run_at_least_once = run_at_least_once
         self.continue_on_failures = continue_on_failures
+        self.on_backfill_callback = on_backfill_callback
         super().__init__(*args, **kwargs)
 
     def _update_counters(self, ti_status, session=None):
@@ -872,6 +874,14 @@ class BackfillJob(BaseJob):
             # TODO: we will need to terminate running task instances and set the
             # state to failed.
             self._set_unfinished_dag_runs_to_failed(ti_status.active_runs)
+        else:
+            if self.on_backfill_callback:
+                self.on_backfill_callback(
+                    dag_id=self.dag_id,
+                    start_date=self.bf_start_date,
+                    end_date=self.bf_end_date,
+                    ti_status=ti_status,
+                )
         finally:
             session.commit()
             executor.end()
