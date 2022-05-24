@@ -15,16 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence
-from urllib import response
+import sys
+from typing import TYPE_CHECKING, Any, Dict, FrozenSet, Iterable, Optional, Sequence, Set, Union
+
+from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
+from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-from airflow.compat.functools import cached_property
-from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
-from airflow.sensors.base import BaseSensorOperator
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 
 class EmrBaseSensor(BaseSensorOperator):
@@ -38,7 +42,7 @@ class EmrBaseSensor(BaseSensorOperator):
 
     Subclasses should set ``target_states`` and ``failed_states`` fields.
 
-    :param aws_conn_id: aws connection to uses
+    :param aws_conn_id: aws connection to use
     """
 
     ui_color = '#66c3ff'
@@ -112,105 +116,111 @@ class EmrBaseSensor(BaseSensorOperator):
         raise NotImplementedError('Please implement failure_message_from_response() in subclass')
 
 
-
 class EmrServerlessJobSensor(BaseSensorOperator):
-    INTERMEDIATE_STATES = (
-        "PENDING",
-        "RUNNING",
-        "CANCELLING",
-        "SCHEDULED",
-        "SUBMITTED"
-    )
+    """
+    Asks for the state of the job run until it reaches a failure state or success state.
+    If the job run fails, the task will fail.
 
-    ## Question: Do these states indicate failure?
-    FAILURE_STATES = (
-        "FAILED",
-        "CANCELLED"
-    )
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrServerlessJobSensor`
 
-    SUCCESS_STATES = {
-        "SUCCESS"
-    }
+    :param application_id: application_id to check the state of
+    :param job_run_id: job_run_id to check the state of
+    :param target_states: a set of states to wait for, defaults to SUCCESS_STATES
+    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+    :param emr_conn_id: emr connection to use, defaults to 'emr_default'
+    """
 
+    INTERMEDIATE_STATES = {'PENDING', 'RUNNING', 'SCHEDULED', 'SUBMITTED'}
+    FAILURE_STATES = {'FAILED', 'CANCELLING', 'CANCELLED'}
+    SUCCESS_STATES = {'SUCCESS'}
 
     def __init__(
         self,
         *,
         application_id: str,
         job_run_id: str,
-        aws_conn_id: str = "aws_default",
-        emr_conn_id: str = "emr_default",
-        **kwargs: Any
+        target_states: Union[Set, FrozenSet] = frozenset(SUCCESS_STATES),
+        aws_conn_id: str = 'aws_default',
+        emr_conn_id: str = 'emr_default',
+        **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
+        self.target_states = target_states
         self.application_id = application_id
         self.job_run_id = job_run_id
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
-        response = self.hook.get_conn().get_job_run(applicationId=self.application_id,jobRunId=self.job_run_id)
+        state = None
 
         try:
-            state = response['jobRun']['state']
-        except KeyError:
-            raise AirflowException(f"Unable to get application state: {response}")
-        
-        if state in self.SUCCESS_STATES:
-            return True
-    
+            state = self.hook.get_conn().get_job_run_status(
+                applicationId=self.application_id, jobRunId=self.job_run_id
+            )
+        except Exception:
+            raise AirflowException(f'Unable to get job state: {state}')
+
+        return state in self.target_states
+
     @cached_property
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
         return EmrServerlessHook(emr_conn_id=self.emr_conn_id)
 
+
 class EmrServerlessApplicationSensor(BaseSensorOperator):
-    INTERMEDIATE_STATES = (
-        "CREATING",
-        "STARTING",
-        "STOPPING",
-    )
+    """
+    Asks for the state of the application until it reaches a failure state or success state.
+    If the application fails, the task will fail.
 
-    ## Question: Do these states indicate failure?
-    FAILURE_STATES = (
-        "STOPPED",
-        "TERMINATED"
-    )
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EmrServerlessApplicationSensor`
 
-    SUCCESS_STATES = {
-        "CREATED",
-        "STARTED"
-    }
+    :param application_id: application_id to check the state of
+    :param target_states: a set of states to wait for, defaults to SUCCESS_STATES
+    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+    :param emr_conn_id: emr connection to use, defaults to 'emr_default'
+    """
+
+    INTERMEDIATE_STATES = {'CREATING', 'STARTING', 'STOPPING'}
+    # TODO:  Question: Do these states indicate failure?
+    FAILURE_STATES = {'STOPPED', 'TERMINATED'}
+    SUCCESS_STATES = {'CREATED', 'STARTED'}
 
     def __init__(
         self,
         *,
         application_id: str,
-        aws_conn_id: str = "aws_default",
-        emr_conn_id: str = "emr_default",
-        **kwargs: Any
+        target_states: Union[Set, FrozenSet] = frozenset(SUCCESS_STATES),
+        aws_conn_id: str = 'aws_default',
+        emr_conn_id: str = 'emr_default',
+        **kwargs: Any,
     ) -> None:
         self.aws_conn_id = aws_conn_id
         self.emr_conn_id = emr_conn_id
+        self.target_states = target_states
         self.application_id = application_id
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
-        response = self.hook.get_conn().get_application(applicationId=self.application_id)
+        state = None
 
         try:
-            state = response['application']['state']
-        except KeyError:
-            raise AirflowException(f"Unable to get application state: {response}")
+            state = self.hook.get_conn().get_application_status(applicationId=self.application_id)
+        except Exception:
+            raise AirflowException(f'Unable to get application state: {state}')
 
-        if state in self.INTERMEDIATE_STATES:
-            return False
-        return True
+        return state in self.target_states
 
     @cached_property
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
         return EmrServerlessHook(emr_conn_id=self.emr_conn_id)
+
 
 class EmrContainerSensor(BaseSensorOperator):
     """

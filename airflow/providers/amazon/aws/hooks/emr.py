@@ -90,83 +90,142 @@ class EmrHook(AwsBaseHook):
         return response
 
 
-
 class EmrServerlessHook(AwsBaseHook):
-    '''
+    """
     Interact with EMR Serverless API.
-    '''
 
-    def __init__(self, emr_conn_id:str , *args: Any, **kwargs: Any) -> str:
-        self.emr_conn_id = emr_conn_id
-        super().__init__(client_type="emr-serverless", *args, **kwargs)
-    
-    def create_serverless_application(self, client_request_token: str, release_label: str, job_type: str, **kwargs):
+    Additional arguments (such as ``aws_conn_id``) may be specified and
+    are passed down to the underlying AwsBaseHook.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+    """
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        kwargs["client_type"] = "emr-serverless"
+        super().__init__(*args, **kwargs)
+
+    def create_serverless_application(
+        self, client_request_token: str, release_label: str, job_type: str, **kwargs
+    ) -> Dict:
         """
         Create an EMR serverless application.
 
-        :param client_request_token: The client idempotency token of the application to create. Its value must be unique for each request.
-        :param releaseLabel: The EMR release version associated with the application.
-        :param type: Type of application
+        :param client_request_token: The client idempotency token of the application to create.
+          Its value must be unique for each request.
+        :param release_label: The EMR release version associated with the application.
+        :param job_type: Type of application
         :raises Exception: Exception from boto3 API call
         :returns: Response object from boto3 API call
         """
-        
+
         try:
-            response = self.conn.create_application(clientToken=client_request_token, releaseLabel=release_label, type=job_type, **kwargs)
+            return self.conn.create_application(
+                clientToken=client_request_token, releaseLabel=release_label, type=job_type, **kwargs
+            )
         except Exception as ex:
-            self.log.error("Exception while creating application: %s", ex)
-            raise Exception("Error creating application")
+            self.log.error(f'Exception while creating application: {ex}')
+            raise Exception('Error creating application')
 
-        return response
+    def get_application_status(self, application_id: str) -> str:
+        """
+        Returns the state of a given application.
 
-    
+        :param application_id: ID of the application to check
+        :returns: Current state of the application
+        """
 
-    def delete_serverless_application(self, application_id: str) -> None:
+        try:
+            response = self.conn.get_application(applicationId=application_id)
+            return response['application']['state']
+        except Exception as ex:
+            self.log.error(f'Exception while getting application state: {ex}')
+            raise Exception('Error getting application state')
+
+    def start_serverless_application(self, application_id: str) -> None:
+        """
+        Start an EMR Serverless application.
+
+        :param application_id: ID of the application to be deleted.
+        :raises AirflowException: Exception from boto3 API call.
+        """
+
+        try:
+            self.conn.start_application(applicationId=application_id)
+        except Exception as ex:
+            self.log.error(f'Exception while starting application: {ex}')
+            raise Exception('Error starting application')
+
+    def stop_serverless_application(self, application_id: str) -> None:
+        """
+        Stop an EMR Serverless application.
+
+        :param application_id: ID of the application to be deleted.
+        :raises AirflowException: Exception from boto3 API call.
+        """
+
+        try:
+            self.conn.stop_application(applicationId=application_id)
+        except Exception as ex:
+            self.log.error(f'Exception while stopping application: {ex}')
+            raise Exception('Error stopping application')
+
+    def delete_serverless_application(self, application_id: str) -> Dict:
         """
         Delete an EMR Serverless application.
 
-        :param applicationId: Id of the application to be deleted.
+        :param application_id: ID of the application to be deleted.
         :raises AirflowException: Exception from boto3 API call.
         """
 
         try:
-            self.conn.delete_application(applicationId=application_id)
+            return self.conn.delete_application(applicationId=application_id)
         except Exception as ex:
-            self.log.error("Exception while deleting application: %s", ex)
-            raise Exception("Error deleting application")
+            self.log.error(f'Exception while deleting application: {ex}')
+            raise Exception('Error deleting application')
 
-
-    
-    def start_serverless_job(self, client_request_token: str, application_id: str, execution_role_arn: str, job_driver: dict, configuration_overrides: Optional[dict]) -> str:
+    def start_serverless_job(
+        self,
+        client_request_token: str,
+        application_id: str,
+        execution_role_arn: str,
+        job_driver: dict,
+        configuration_overrides: Optional[dict],
+    ) -> Dict:
         """
         Starts an EMR Serverless job on a created application.
 
-        :param application_id: Id of the EMR Serverless application to start.
+        :param application_id: ID of the EMR Serverless application to start.
         :param execution_role_arn: ARN of role to perform action.
         :param job_driver: Driver that the job runs on.
         :param configuration_overrides: Configuration specifications to override existing configurations.
-        :param client_request_token: The client idempotency token of the application to create. Its value must be unique for each request.
+        :param client_request_token: The client idempotency token of the application to create.
+          Its value must be unique for each request.
         :raises AirflowException: Exception from boto3 API call.
         :returns: Response object from boto3 API call.
         """
-        
-        self.conn.start_application(applicationId=application_id)
+
+        if self.get_application_status(application_id=application_id) not in {'CREATED', 'STARTING'}:
+            self.conn.start_application(applicationId=application_id)
 
         try:
-            runResponse = self.conn.start_job_run(
+            return self.conn.start_job_run(
                 clientToken=client_request_token,
                 applicationId=application_id,
                 executionRoleArn=execution_role_arn,
                 jobDriver=job_driver,
-                configurationOverrides=configuration_overrides
+                configurationOverrides=configuration_overrides,
             )
         except Exception as ex:
-                self.log.error("Exception while starting job: %s", ex)
-                raise Exception("Error while starting job")
+            self.log.error(f'Exception while starting job: {ex}')
+            raise Exception('Error while starting job')
 
-        return runResponse
-
-
+    def get_serverless_job_status(self, application_id: str, job_run_id: str) -> str:
+        try:
+            return self.conn.get_job_run(applicationId=application_id, jobRunId=job_run_id)['jobRun']['state']
+        except Exception as ex:
+            self.log.error(f'Exception while getting job state: {ex}')
+            raise Exception('Error getting job state')
 
 
 class EmrContainerHook(AwsBaseHook):
