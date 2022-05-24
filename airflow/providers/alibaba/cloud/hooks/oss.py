@@ -144,7 +144,7 @@ class OSSHook(BaseHook):
         """
         auth = self.get_credential()
         assert self.region is not None
-        return oss2.Bucket(auth, 'http://oss-' + self.region + '.aliyuncs.com', bucket_name)
+        return oss2.Bucket(auth, f'https://oss-{self.region}.aliyuncs.com', bucket_name)
 
     @provide_bucket_name
     @unify_bucket_name_and_key
