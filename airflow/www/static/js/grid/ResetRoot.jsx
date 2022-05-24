@@ -33,7 +33,7 @@ const ResetRoot = () => (
         variant="outline"
         href={url}
         colorScheme="blue"
-        mr={2}
+        mx={2}
         title="Reset root to show the whole DAG"
       >
         Reset Root

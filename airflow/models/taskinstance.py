@@ -520,7 +520,8 @@ class TaskInstance(Base, LoggingMixin):
         self.task_id = task.task_id
         self.map_index = map_index
         self.refresh_from_task(task)
-        self._log = logging.getLogger("airflow.task")
+        # init_on_load will config the log
+        self.init_on_load()
 
         if run_id is None and execution_date is not None:
             from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -563,7 +564,6 @@ class TaskInstance(Base, LoggingMixin):
         if state:
             self.state = state
         self.hostname = ''
-        self.init_on_load()
         # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
         self.raw = False
@@ -594,6 +594,8 @@ class TaskInstance(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self):
         """Initialize the attributes that aren't stored in the DB"""
+        # correctly config the ti log
+        self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
     @property
@@ -2083,7 +2085,10 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
-        """Fetch rendered template fields from DB"""
+        """
+        Update task with rendered template fields for presentation in UI.
+        If task has already run, will fetch from DB; otherwise will render.
+        """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
@@ -2092,8 +2097,15 @@ class TaskInstance(Base, LoggingMixin):
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
             return
+
         try:
+            # If we get here, either the task hasn't run or the RTIF record was purged.
+            from airflow.utils.log.secrets_masker import redact
+
             self.render_templates()
+            for field_name in self.task.template_fields:
+                rendered_value = getattr(self.task, field_name)
+                setattr(self.task, field_name, redact(rendered_value, field_name))
         except (TemplateAssertionError, UndefinedError) as e:
             raise AirflowException(
                 "Webserver does not have access to User-defined Macros or Filters "

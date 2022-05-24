@@ -310,7 +310,7 @@ option_wait_for_image = click.option(
 option_tag_as_latest = click.option(
     '--tag-as-latest',
     help='Tags the image as latest and update checksum of all files after pulling. '
-    'Used in CI to pull the image built in another job.',
+    'Useful when you build or pull image with --image-tag.',
     is_flag=True,
     envvar='TAG_AS_LATEST',
 )
@@ -414,11 +414,18 @@ option_max_age = click.option(
 )
 option_airflow_constraints_reference = click.option(
     "--airflow-constraints-reference",
-    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     help="Constraint reference to use. Useful with --use-airflow-version parameter to specify "
     "constraints for the installed version and to find newer dependencies",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
     envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
 )
+option_airflow_constraints_reference_build = click.option(
+    "--airflow-constraints-reference",
+    default=DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH,
+    help="Constraint reference to use when building the image.",
+    envvar='AIRFLOW_CONSTRAINTS_REFERENCE',
+)
+
 option_airflow_constraints_mode_ci = click.option(
     '--airflow-constraints-mode',
     type=BetterChoice(ALLOWED_CONSTRAINTS_MODES_CI),

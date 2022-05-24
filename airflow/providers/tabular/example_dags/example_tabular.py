@@ -21,14 +21,6 @@ from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.tabular.hooks.tabular import TabularHook
 
-default_args = {
-    "owner": "airflow",
-    "depends_on_past": False,
-    "email": ["airflow@airflow.com"],
-    "email_on_failure": False,
-    "email_on_retry": False,
-}
-
 bash_command = f"""
 echo "Our token: {TabularHook().get_token_macro()}"
 echo "Also as an environment variable:"
@@ -36,7 +28,17 @@ env | grep TOKEN
 """
 
 with DAG(
-    "tabular", default_args=default_args, start_date=datetime(2021, 1, 1), schedule_interval=timedelta(1)
+    "tabular_example",
+    default_args={
+        "owner": "airflow",
+        "depends_on_past": False,
+        "email": ["airflow@airflow.com"],
+        "email_on_failure": False,
+        "email_on_retry": False,
+    },
+    start_date=datetime(2021, 1, 1),
+    schedule_interval=timedelta(1),
+    catchup=False
 ) as dag:
     # This also works for the SparkSubmit operator
     BashOperator(

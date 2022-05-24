@@ -58,7 +58,7 @@ class DataProcJobBuilder:
         job_type: str,
         properties: Optional[Dict[str, str]] = None,
     ) -> None:
-        name = task_id + "_" + str(uuid.uuid4())[:8]
+        name = f"{task_id.replace('.', '_')}_{uuid.uuid4()!s:.8}"
         self.job_type = job_type
         self.job = {
             "job": {
@@ -175,11 +175,12 @@ class DataProcJobBuilder:
 
     def set_job_name(self, name: str) -> None:
         """
-        Set Dataproc job name.
+        Set Dataproc job name. Job name is sanitized, replacing dots by underscores.
 
         :param name: Job name.
         """
-        self.job["job"]["reference"]["job_id"] = name + "_" + str(uuid.uuid4())[:8]
+        sanitized_name = f"{name.replace('.', '_')}_{uuid.uuid4()!s:.8}"
+        self.job["job"]["reference"]["job_id"] = sanitized_name
 
     def build(self) -> Dict:
         """

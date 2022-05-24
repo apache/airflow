@@ -41,6 +41,7 @@ class BuildProdParams(_CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints"
+    airflow_constraints_reference: str = ""
     airflow_is_in_context: bool = False
     cleanup_context: bool = False
     disable_airflow_repo_cache: bool = False
@@ -79,20 +80,16 @@ class BuildProdParams(_CommonBuildParams):
                 "AIRFLOW_SOURCES_TO=/empty",
             ]
         )
-        if len(self.airflow_constraints_reference) > 0:
+        if re.match('v?2.*', self.airflow_version):
+            build_args.extend(
+                ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
+            )
+        else:
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
             )
-        else:
-            if re.match('v?2.*', self.airflow_version):
-                build_args.extend(
-                    ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
-                )
-            else:
-                build_args.extend(
-                    ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}"]
-                )
-        if len(self.airflow_constraints_location) > 0:
+        if self.airflow_constraints_location:
+            # override location if specified
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )
@@ -165,7 +162,7 @@ class BuildProdParams(_CommonBuildParams):
                     "--build-arg",
                     f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
                     "--build-arg",
-                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}",
+                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
                 ]
             )
 

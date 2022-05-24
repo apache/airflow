@@ -18,6 +18,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import List
 
+from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import get_airflow_version
 from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.utils.console import get_console
@@ -31,6 +32,7 @@ class BuildCiParams(_CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints-source-providers"
+    airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = "devel_ci"
     airflow_pre_cached_pip_packages: bool = True
     force_build: bool = False
@@ -46,6 +48,9 @@ class BuildCiParams(_CommonBuildParams):
     @property
     def extra_docker_build_flags(self) -> List[str]:
         extra_ci_flags = []
+        extra_ci_flags.extend(
+            ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
+        )
         if self.airflow_constraints_location is not None and len(self.airflow_constraints_location) > 0:
             extra_ci_flags.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]

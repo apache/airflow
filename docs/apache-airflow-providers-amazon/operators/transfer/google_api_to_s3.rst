@@ -16,21 +16,25 @@
     specific language governing permissions and limitations
     under the License.
 
-Google API to Amazon S3 Transfer Operator
-=========================================
+=======================
+Google API to Amazon S3
+=======================
 
-Use the GoogleApiToS3Transfer transfer to call requests to any Google API which supports discovery and save its response
-on Amazon S3.
+Use the ``GoogleApiToS3Operator`` transfer to make requests to any Google API which supports discovery and save
+its response in an Amazon S3 file.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
-.. _howto/operator:GoogleApiToS3Transfer:
+Operators
+---------
 
-Google Sheets to Amazon S3
-^^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _howto/operator:GoogleApiToS3Operator:
+
+Google Sheets to Amazon S3 transfer operator
+============================================
 
 This example loads data from Google Sheets and save it to an Amazon S3 file.
 
@@ -44,13 +48,10 @@ You can find more information about the Google API endpoint used
 `here <https://developers.google.com/sheets/api/reference/rest/v4/spreadsheets.values/get>`__.
 
 Google Youtube to Amazon S3
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+===========================
 
-This is a more advanced example dag for using ``GoogleApiToS3Transfer`` which uses xcom to pass data between
+This is a more advanced example dag for using ``GoogleApiToS3Operator`` which uses xcom to pass data between
 tasks to retrieve specific information about YouTube videos.
-
-Get YouTube Videos
-""""""""""""""""""
 
 It searches for up to 50 videos (due to pagination) in a given time range
 (``YOUTUBE_VIDEO_PUBLISHED_AFTER``, ``YOUTUBE_VIDEO_PUBLISHED_BEFORE``) on a YouTube channel (``YOUTUBE_CHANNEL_ID``)
@@ -72,11 +73,9 @@ information (``YOUTUBE_VIDEO_FIELDS``) for the requested videos and saves them i
     :end-before: [END howto_transfer_google_api_youtube_list_to_s3]
 
 Reference
-^^^^^^^^^
+---------
 
-For further information, look at:
-
-* `Google API Client library <https://github.com/googleapis/google-api-python-client>`__
-* `Google Sheets API v4 Documentation <https://developers.google.com/sheets/api/guides/concepts>`__
-* `YouTube Data API v3 Documentation <https://developers.google.com/youtube/v3/docs>`__
-* `AWS boto3 Library Documentation for S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `Google API client library <https://github.com/googleapis/google-api-python-client>`__
+* `Google Sheets API v4 documentation <https://developers.google.com/sheets/api/guides/concepts>`__
+* `YouTube Data API v3 documentation <https://developers.google.com/youtube/v3/docs>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

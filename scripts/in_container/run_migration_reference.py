@@ -59,6 +59,12 @@ def update_doc(file, data):
         end=" .. End of auto-generated table\n",
         replacement_text="\n"
         + tabulate(
+            headers={
+                "revision": "Revision ID",
+                "down_revision": "Revises ID",
+                "version": "Airflow Version",
+                "description": "Description",
+            },
             tabular_data=data,
             tablefmt='grid',
             stralign="left",

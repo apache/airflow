@@ -64,7 +64,6 @@ function initialization::create_directories() {
     export CI="${CI="false"}"
 
     # Create useful directories if not yet created
-    mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
@@ -418,7 +417,7 @@ function initialization::initialize_image_build_variables() {
 
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.1.0"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.1.1"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -496,7 +495,7 @@ function initialization::initialize_kubernetes_variables() {
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES
     # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.13.0")
+    CURRENT_KIND_VERSIONS+=("v0.14.0")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.6.3")

@@ -16,9 +16,8 @@
 # under the License.
 
 import os
-import subprocess
 import sys
-from typing import Optional, Tuple, Union
+from typing import Optional, Tuple
 
 import rich_click as click
 
@@ -67,7 +66,12 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
 )
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
-from airflow_breeze.utils.run_utils import assert_pre_commit_installed, filter_out_none, run_command
+from airflow_breeze.utils.run_utils import (
+    RunCommandResult,
+    assert_pre_commit_installed,
+    filter_out_none,
+    run_command,
+)
 from airflow_breeze.utils.visuals import ASCIIART, ASCIIART_STYLE, CHEATSHEET, CHEATSHEET_STYLE
 
 DEVELOPER_COMMANDS = {
@@ -519,7 +523,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     command_to_execute = ['docker-compose', 'down', "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
-    shell_params = ShellParams(verbose=verbose)
+    shell_params = ShellParams(verbose=verbose, backend="all")
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
@@ -554,7 +558,7 @@ def exec(verbose: bool, dry_run: bool, exec_args: Tuple):
         sys.exit(process.returncode)
 
 
-def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
+def enter_shell(**kwargs) -> RunCommandResult:
     """
     Executes entering shell using the parameters passed as kwargs:
 
@@ -578,9 +582,7 @@ def enter_shell(**kwargs) -> Union[subprocess.CompletedProcess, subprocess.Calle
     return run_shell(verbose, dry_run, enter_shell_params)
 
 
-def run_shell(
-    verbose: bool, dry_run: bool, shell_params: ShellParams
-) -> Union[subprocess.CompletedProcess, subprocess.CalledProcessError]:
+def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCommandResult:
     """
     Executes a shell command built from params passed.
     * prints information about the build

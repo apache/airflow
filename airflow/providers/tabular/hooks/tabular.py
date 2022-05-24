@@ -42,31 +42,19 @@ class TabularHook(BaseHook):
     hook_name = "Tabular"
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
-        """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
-        from flask_babel import lazy_gettext
-        from wtforms import StringField
-
-        return {
-            "extra__tabular__baseUrl": StringField(
-                lazy_gettext("Tabular Base URL"), widget=BS3TextFieldWidget()
-            ),
-        }
-
-    @staticmethod
     def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ["schema", "port", "host"],
             "relabeling": {
+                "host": "Base URL",
                 "login": "Tabular Client ID",
                 "password": "Tabular Client Secret",
             },
             "placeholders": {
+                "host": DEFAULT_TABULAR_URL,
                 "login": "client_id (token credentials auth)",
-                "password": "secret (token credentials auth)",
-                "extra__tabular__baseUrl": DEFAULT_TABULAR_URL,
+                "password": "secret (token credentials auth)"
             },
         }
 
@@ -87,11 +75,10 @@ class TabularHook(BaseHook):
     def get_conn(self) -> str:
         """Obtain a short-lived access token via a client_id and client_secret."""
         conn = self.get_connection(self.conn_id)
-        extras = conn.extra_dejson
+        base_url = conn.host if conn.host else DEFAULT_TABULAR_URL
+        base_url = base_url.rstrip('/')
         client_id = conn.login
         client_secret = conn.password
-
-        base_url = extras.get("extra__tabular__baseUrl", DEFAULT_TABULAR_URL)
         headers = {"Content-Type": "application/x-www-form-urlencoded"}
         data = {"client_id": client_id, "client_secret": client_secret}
 

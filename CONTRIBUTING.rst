@@ -66,6 +66,18 @@ implement it.
 Issue reporting and resolution process
 --------------------------------------
 
+An unusual element of the Apache Airflow project is that you can open a PR to
+fix an issue or make an enhancement, without needing to open an issue first.
+This is intended to make it as easy as possible to contribute to the project.
+
+If you however feel the need to open an issue (usually a bug or feature request)
+consider starting with a `GitHub Discussion <https://github.com/apache/airflow/discussions>`_ instead.
+In the vast majority of cases discussions are better than issues - you should only open
+issues if you are sure you found a bug and have a reproducible case,
+or when you want to raise a feature request that will not require a lot of discussion.
+If you have a very important topic to discuss, start a discussion on the
+`Devlist <https://lists.apache.org/list.html?dev@airflow.apache.org>`_ instead.
+
 The Apache Airflow project uses a set of labels for tracking and triaging issues, as
 well as a set of priorities and milestones to track how and when the enhancements and bug
 fixes make it into an Airflow release. This is documented as part of

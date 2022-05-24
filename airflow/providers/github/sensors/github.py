@@ -32,7 +32,7 @@ class GithubSensor(BaseSensorOperator):
     """
     Base GithubSensor which can monitor for any change.
 
-    :param github_conn_id: reference to a pre-defined Github Connection
+    :param github_conn_id: reference to a pre-defined GitHub Connection
     :param method_name: method name from PyGithub to be executed
     :param method_params: parameters for the method method_name
     :param result_processor: function that return boolean and act as a sensor response
@@ -102,7 +102,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
     """
     Monitors a github tag for its creation.
 
-    :param github_conn_id: reference to a pre-defined Github Connection
+    :param github_conn_id: reference to a pre-defined GitHub Connection
     :param tag_name: name of the tag to be monitored
     :param repository_name: fully qualified name of the repository to be monitored, ex. "apache/airflow"
     """
@@ -141,7 +141,7 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         except GithubException as github_error:  # type: ignore[misc]
             raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
         except Exception as e:
-            raise AirflowException(f"Github operator error: {str(e)}")
+            raise AirflowException(f"GitHub operator error: {str(e)}")
 
         if result is True:
             self.log.info("Tag %s exists in %s repository, Success.", self.tag_name, self.repository_name)

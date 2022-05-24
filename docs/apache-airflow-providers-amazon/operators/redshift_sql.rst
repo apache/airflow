@@ -17,28 +17,30 @@
 
 .. _howto/operator:RedshiftSQLOperator:
 
-Amazon Redshift Operators
-=========================
+===============
+Amazon Redshift
+===============
 
 `Amazon Redshift <https://aws.amazon.com/redshift/>`__ manages all the work of setting up, operating, and scaling a data warehouse:
 provisioning capacity, monitoring and backing up the cluster, and applying patches and upgrades to
 the Amazon Redshift engine. You can focus on using your data to acquire new insights for your
 business and customers.
 
-Airflow provides an operator to execute queries against an Amazon Redshift cluster.
-
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
-Redshift SQL
-^^^^^^^^^^^^
-
-This operator executes a SQL query against an Amazon Redshift cluster.
+Operators
+---------
 
 Execute a SQL query
-"""""""""""""""""""
+===================
+
+``RedshiftSQLOperator`` executes a SQL query against an Amazon Redshift cluster using a Postgres connection.
+
+To execute a SQL query against an Amazon Redshift cluster without using a Postgres connection,
+please check ``RedshiftDataOperator``.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_sql.py
     :language: python
@@ -46,10 +48,7 @@ Execute a SQL query
     :start-after: [START howto_operator_redshift_sql]
     :end-before: [END howto_operator_redshift_sql]
 
-Execute a SQL query with parameters
-"""""""""""""""""""""""""""""""""""
-
-RedshiftSQLOperator supports the ``parameters`` attribute which allows us to dynamically pass
+``RedshiftSQLOperator`` supports the ``parameters`` attribute which allows us to dynamically pass
 parameters into SQL statements.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_sql.py
@@ -59,8 +58,7 @@ parameters into SQL statements.
     :end-before: [END howto_operator_redshift_sql_with_params]
 
 Reference
-^^^^^^^^^
+---------
 
-For further information, look at:
-
+* `AWS boto3 library documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__
 * `Amazon Redshift Python connector <https://docs.aws.amazon.com/redshift/latest/mgmt/python-connect-examples.html>`__

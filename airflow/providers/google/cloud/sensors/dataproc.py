@@ -79,8 +79,9 @@ class DataprocJobSensor(BaseSensorOperator):
                     job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id
                 )
             except ServerError as err:
-                self.log.info(f"DURATION RUN: {self._duration()}")
-                if self._duration() > self.wait_timeout:
+                duration = self._duration()
+                self.log.info("DURATION RUN: %f", duration)
+                if duration > self.wait_timeout:
                     raise AirflowException(
                         f"Timeout: dataproc job {self.dataproc_job_id} "
                         f"is not ready after {self.wait_timeout}s"
