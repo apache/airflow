@@ -17,6 +17,7 @@
 """Various utils to prepare docker and docker compose commands."""
 import os
 import re
+import subprocess
 import sys
 from copy import deepcopy
 from random import randint
@@ -97,6 +98,16 @@ NECESSARY_HOST_VOLUMES = [
 ]
 
 
+def create_volume_if_missing(volume_name: str):
+    res_inspect = run_command(cmd=["docker", "inspect", volume_name], stdout=subprocess.DEVNULL, check=False)
+    if res_inspect.returncode != 0:
+        run_command(cmd=["docker", "volume", "create", volume_name], check=True)
+
+
+def create_static_check_volumes():
+    create_volume_if_missing("docker-compose_mypy-cache-volume")
+
+
 def get_extra_docker_flags(mount_sources: str) -> List[str]:
     """
     Returns extra docker flags based on the type of mounting we want to do for sources.
@@ -110,6 +121,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
     elif mount_sources == MOUNT_SELECTED:
         for flag in NECESSARY_HOST_VOLUMES:
             extra_docker_flags.extend(["-v", str(AIRFLOW_SOURCES_ROOT) + flag])
+        extra_docker_flags.extend(['-v', "docker-compose_mypy-cache-volume:/opt/airflow/.mypy_cache/"])
     else:  # none
         extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT / 'empty'}:/opt/airflow/airflow"])
     extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/files:/files"])

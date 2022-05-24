@@ -33,8 +33,11 @@ AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
 
 if __name__ == '__main__':
+    os.environ['SKIP_BREEZE_UPGRADE_CHECK'] = "true"
     sys.path.insert(0, str(Path(__file__).parents[3].resolve() / "dev" / "breeze" / "src"))
     from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+    from airflow_breeze.global_constants import MOUNT_SELECTED
+    from airflow_breeze.utils.docker_command_utils import create_static_check_volumes, get_extra_docker_flags
 
     AIRFLOW_CI_IMAGE = f"ghcr.io/{GITHUB_REPOSITORY}/{AIRFLOW_BRANCH}/ci/python3.7"
 
@@ -42,13 +45,13 @@ if __name__ == '__main__':
         print(f'[red]The image {AIRFLOW_CI_IMAGE} is not available.[/]\n')
         print("\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python 3.7\n\n")
         sys.exit(1)
+    create_static_check_volumes()
     return_code = subprocess.call(
         args=[
             "docker",
             "run",
             "-t",
-            "-v",
-            f"{AIRFLOW_SOURCES}:/opt/airflow/",
+            *get_extra_docker_flags(MOUNT_SELECTED),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
             "-e",

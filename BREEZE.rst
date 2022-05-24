@@ -258,6 +258,8 @@ If you have several checked out Airflow sources, Breeze will warn you if you are
 source tree and will offer you to re-install from those sources - to make sure that you are using the right
 version.
 
+You can skip Breeze's upgrade check by setting ``SKIP_BREEZE_UPGRADE_CHECK`` variable to non empty value.
+
 By default Breeze works on the version of Airflow that you run it in - in case you are outside of the
 sources of Airflow and you installed Breeze from a directory - Breeze will be run on Airflow sources from
 where it was installed.
@@ -1050,6 +1052,12 @@ command but it is very similar to current ``breeze`` command):
              alt="Airflow Breeze - Static checks">
       </a>
     </div>
+
+.. note::
+
+    When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
+    so that it can speed up static checks execution significantly. However, sometimes, the cache might
+    get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
 
 Building the Documentation
