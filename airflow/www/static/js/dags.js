@@ -119,10 +119,13 @@ $('.typeahead').typeahead({
   },
   autoSelect: false,
   afterSelect(value) {
-    const dagId = value.trim();
-    if (dagId) {
-      const query = new URLSearchParams(window.location.search);
-      window.location = `${gridUrl.replace('__DAG_ID__', dagId)}?${query}`;
+    const query = new URLSearchParams(window.location.search);
+    query.set('search', value.name);
+    if (value.type === 'owner') {
+      window.location = `${DAGS_INDEX}?${query}`;
+    }
+    if (value.type === 'dag') {
+      window.location = `${gridUrl.replace('__DAG_ID__', value.name)}?${query}`;
     }
   },
 });

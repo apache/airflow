@@ -5112,12 +5112,18 @@ class AutocompleteView(AirflowBaseView):
             return wwwutils.json_response([])
 
         # Provide suggestions of dag_ids and owners
-        dag_ids_query = session.query(DagModel.dag_id.label('item')).filter(
-            ~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike('%' + query + '%')
-        )
+        dag_ids_query = session.query(
+            sqla.literal('dag').label('type'),
+            DagModel.dag_id.label('name'),
+        ).filter(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike('%' + query + '%'))
 
-        owners_query = session.query(func.distinct(DagModel.owners).label('item')).filter(
-            ~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike('%' + query + '%')
+        owners_query = (
+            session.query(
+                sqla.literal('owner').label('type'),
+                DagModel.owners.label('name'),
+            )
+            .distinct()
+            .filter(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike('%' + query + '%'))
         )
 
         # Hide DAGs if not showing status: "all"
@@ -5134,8 +5140,9 @@ class AutocompleteView(AirflowBaseView):
         dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
-        payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
-
+        payload = [
+            row._asdict() for row in dag_ids_query.union(owners_query).order_by('name').limit(10).all()
+        ]
         return wwwutils.json_response(payload)
 
 
