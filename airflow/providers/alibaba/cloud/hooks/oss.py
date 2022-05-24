@@ -159,7 +159,7 @@ class OSSHook(BaseHook):
         try:
             self.get_bucket(bucket_name).put_object(key, content)
         except Exception as e:
-            raise AirflowException(f"Errors: {e}")
+            raise AirflowException(f"Errors: {e}") from e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -179,7 +179,7 @@ class OSSHook(BaseHook):
         try:
             self.get_bucket(bucket_name).put_object_from_file(key, file)
         except Exception as e:
-            raise AirflowException(f"Errors when upload file: {e}")
+            raise AirflowException(f"Errors when upload file: {e}") from e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -222,7 +222,7 @@ class OSSHook(BaseHook):
             self.get_bucket(bucket_name).delete_object(key)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when deleting: {key}")
+            raise AirflowException(f"Errors when deleting: {key}") from e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -241,7 +241,7 @@ class OSSHook(BaseHook):
             self.get_bucket(bucket_name).batch_delete_objects(key)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when deleting: {key}")
+            raise AirflowException(f"Errors when deleting: {key}") from e
 
     @provide_bucket_name
     def delete_bucket(
@@ -257,7 +257,7 @@ class OSSHook(BaseHook):
             self.get_bucket(bucket_name).delete_bucket()
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when deleting: {bucket_name}")
+            raise AirflowException(f"Errors when deleting: {bucket_name}") from e
 
     @provide_bucket_name
     def create_bucket(
@@ -273,7 +273,7 @@ class OSSHook(BaseHook):
             self.get_bucket(bucket_name).create_bucket()
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when create bucket: {bucket_name}")
+            raise AirflowException(f"Errors when create bucket: {bucket_name}") from e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -291,7 +291,7 @@ class OSSHook(BaseHook):
             self.get_bucket(bucket_name).append_object(key, pos, content)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when append string for object: {key}")
+            raise AirflowException(f"Errors when append string for object: {key}") from e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -307,7 +307,7 @@ class OSSHook(BaseHook):
             return self.get_bucket(bucket_name).get_object(key).read().decode("utf-8")
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when read bucket object: {key}")
+            raise AirflowException(f"Errors when read bucket object: {key}") from e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -323,7 +323,7 @@ class OSSHook(BaseHook):
             return self.get_bucket(bucket_name).head_object(key)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when head bucket object: {key}")
+            raise AirflowException(f"Errors when head bucket object: {key}") from e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -340,7 +340,7 @@ class OSSHook(BaseHook):
             return self.get_bucket(bucket_name).object_exists(key)
         except Exception as e:
             self.log.error(e)
-            raise AirflowException(f"Errors when check bucket object existence: {key}")
+            raise AirflowException(f"Errors when check bucket object existence: {key}") from e
 
     def get_credential(self) -> oss2.auth.Auth:
         extra_config = self.oss_conn.extra_dejson
