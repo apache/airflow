@@ -43,7 +43,9 @@ def provide_bucket_name(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
         self = args[0]
-        if ('bucket_name' not in bound_args.arguments or bound_args.arguments['bucket_name'] is None) and self.oss_conn_id:
+        if (
+            'bucket_name' not in bound_args.arguments or bound_args.arguments['bucket_name'] is None
+        ) and self.oss_conn_id:
             connection = self.get_connection(self.oss_conn_id)
             if connection.schema:
                 bound_args.arguments['bucket_name'] = connection.schema
