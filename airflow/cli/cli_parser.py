@@ -352,7 +352,7 @@ ARG_CONTINUE_ON_FAILURES = Arg(
     action="store_true",
 )
 ARG_DISABLE_RETRY = Arg(
-    ("-dr", "--disable-retry"),
+    ("--disable-retry"),
     help=("if set, the backfill will set tasks as failed without retrying."),
     action="store_true",
 )
