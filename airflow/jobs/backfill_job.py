@@ -631,7 +631,7 @@ class BackfillJob(BaseJob):
                     new_ti.set_state(TaskInstanceState.SCHEDULED, session=session)
 
             # Set state to failed for running TIs that are set up for retry if disable-retry flag is set
-            for ti in list(ti_status.running.values()):
+            for ti in ti_status.running.values():
                 if self.disable_retry and ti.state == TaskInstanceState.UP_FOR_RETRY:
                     ti.set_state(TaskInstanceState.FAILED, session=session)
 
