@@ -64,7 +64,6 @@ function initialization::create_directories() {
     export CI="${CI="false"}"
 
     # Create useful directories if not yet created
-    mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 

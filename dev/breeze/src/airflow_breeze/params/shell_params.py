@@ -165,19 +165,26 @@ class ShellParams:
             get_console().print(f'[info]Backend: {self.backend} {self.backend_version}[/]')
             get_console().print(f'[info]Airflow used at runtime: {self.use_airflow_version}[/]')
 
+    def get_backend_compose_files(self, backend: str):
+        if backend == "mssql":
+            backend_docker_compose_file = (
+                f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{backend}-{self.debian_version}.yml"
+            )
+        else:
+            backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{backend}.yml"
+        backend_port_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{backend}-port.yml"
+        return backend_docker_compose_file, backend_port_docker_compose_file
+
     @property
     def compose_files(self):
         compose_ci_file = []
         main_ci_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/base.yml"
-        if self.backend == "mssql":
-            backend_docker_compose_file = (
-                f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}-{self.debian_version}.yml"
-            )
+        if self.backend != "all":
+            backend_files = self.get_backend_compose_files(self.backend)
         else:
-            backend_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}.yml"
-        backend_port_docker_compose_file = (
-            f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-{self.backend}-port.yml"
-        )
+            backend_files = []
+            for backend in ALLOWED_BACKENDS:
+                backend_files.extend(self.get_backend_compose_files(backend))
         local_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/local.yml"
         local_all_sources_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/local-all-sources.yml"
         files_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/files.yml"
@@ -194,9 +201,7 @@ class ShellParams:
                 compose_ci_file.append(
                     f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-mssql-docker-volume.yml"
                 )
-        compose_ci_file.extend(
-            [main_ci_docker_compose_file, backend_docker_compose_file, files_docker_compose_file]
-        )
+        compose_ci_file.extend([main_ci_docker_compose_file, *backend_files, files_docker_compose_file])
 
         if self.mount_sources == MOUNT_SELECTED:
             compose_ci_file.extend([local_docker_compose_file])
@@ -204,7 +209,6 @@ class ShellParams:
             compose_ci_file.extend([local_all_sources_docker_compose_file])
         else:  # none
             compose_ci_file.extend([remove_sources_docker_compose_file])
-        compose_ci_file.extend([backend_port_docker_compose_file])
         if self.forward_credentials:
             compose_ci_file.append(forward_credentials_docker_compose_file)
         if self.use_airflow_version is not None:
