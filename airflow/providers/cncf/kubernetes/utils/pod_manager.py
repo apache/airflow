@@ -268,7 +268,7 @@ class PodManager(LoggingMixin):
         """
         while True:
             remote_pod = self.read_pod(pod)
-            if not self.container_is_running(pod=pod, container_name=base_container):
+            if not self.container_is_running(pod=remote_pod, container_name=base_container):
                 break
             self.log.info('Pod %s has phase %s', pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
