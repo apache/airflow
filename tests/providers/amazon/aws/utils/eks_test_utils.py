@@ -164,14 +164,10 @@ def region_matches_partition(region: str, partition: str) -> bool:
         ("us-gov-iso-b-", "aws-iso-b"),
     ]
 
-    return next(
-        (
-            partition == expected_partition
-            for prefix, expected_partition in valid_matches
-            if region.startswith(prefix)
-        ),
-        partition == "aws",
-    )
+    for prefix, expected_partition in valid_matches:
+        if region.startswith(prefix):
+            return partition == expected_partition
+    return partition == "aws"
 
 
 def _input_builder(options: InputTypes, minimal: bool) -> Dict:
