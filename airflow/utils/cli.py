@@ -113,6 +113,7 @@ def _build_metrics(func_name, namespace):
     sub_commands_to_check = {'users', 'connections'}
     sensitive_fields = {'-p', '--password', '--conn-password'}
     full_command = list(sys.argv)
+    full_command.append("fake_value")
     if full_command[1] in sub_commands_to_check:  # pylint: disable=too-many-nested-blocks
         for idx, command in enumerate(full_command):
             if command in sensitive_fields:
