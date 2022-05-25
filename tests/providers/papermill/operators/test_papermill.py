@@ -75,8 +75,8 @@ class TestPapermillOperator(unittest.TestCase):
         ti.dag_run = DagRun(execution_date=DEFAULT_DATE)
         ti.render_templates()
 
-        assert "/tmp/test_render_template.ipynb" == getattr(operator, 'input_nb')
-        assert '/tmp/out-test_render_template.ipynb' == getattr(operator, 'output_nb')
-        assert {"msgs": "dag id is test_render_template!"} == getattr(operator, 'parameters')
-        assert "python3" == getattr(operator, 'kernel_name')
-        assert "python" == getattr(operator, 'language_name')
+        assert "/tmp/test_render_template.ipynb" == operator.input_nb
+        assert '/tmp/out-test_render_template.ipynb' == operator.output_nb
+        assert {"msgs": "dag id is test_render_template!"} == operator.parameters
+        assert "python3" == operator.kernel_name
+        assert "python" == operator.language_name
