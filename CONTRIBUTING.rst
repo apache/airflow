@@ -564,7 +564,7 @@ Limitations:
     real unit tests. Technically, to run integration tests, you can configure
     and install the dependencies on your own, but it is usually complex.
     Instead, you are recommended to use
-    `Breeze development environment <https://github.com/apache/airflow/blob/main/BREEZE.rst>`__ with all required packages
+    `Breeze development environment <BREEZE.rst>`__ with all required packages
     pre-installed.
 
 -   You need to make sure that your local environment is consistent with other
