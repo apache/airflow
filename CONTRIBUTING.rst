@@ -503,7 +503,7 @@ Development Environments
 There are two environments, available on Linux and macOS, that you can use to
 develop Apache Airflow:
 
--   `Local virtualenv development environment <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_
+-   `Local virtualenv development environment <LOCAL_VIRTUALENV.rst>`_
     that supports running unit tests and can be used in your IDE.
 
 -   `Breeze Docker-based development environment <https://github.com/apache/airflow/blob/main/BREEZE.rst>`_ that provides
