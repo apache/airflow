@@ -17,7 +17,7 @@
 
 import os
 import sys
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 import rich_click as click
 
@@ -199,7 +199,7 @@ DEVELOPER_PARAMETERS = {
             "name": "Pre-commit flags",
             "options": [
                 "--type",
-                "--files",
+                "--file",
                 "--all-files",
                 "--show-diff-on-failure",
                 "--last-commit",
@@ -438,8 +438,8 @@ def build_docs(
     type=BetterChoice(PRE_COMMIT_LIST),
     multiple=True,
 )
-@click.option('-a', '--all-files', help="Run checks on all files.", is_flag=True)
-@click.option('-f', '--files', help="List of files to run the checks on.", multiple=True)
+@click.option('-a', '--all-files', help="Run checks on all files.")
+@click.option('-f', '--file', help="List of files to run the checks on.", type=click.Path(), multiple=True)
 @click.option(
     '-s', '--show-diff-on-failure', help="Show diff for files modified by the checks.", is_flag=True
 )
@@ -469,7 +469,7 @@ def static_checks(
     last_commit: bool,
     commit_ref: str,
     type: Tuple[str],
-    files: bool,
+    file: Iterable[str],
     precommit_args: Tuple,
 ):
     assert_pre_commit_installed(verbose=verbose)
@@ -488,10 +488,11 @@ def static_checks(
         command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
     if commit_ref:
         command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
-    if files:
-        command_to_execute.append("--files")
     if verbose or dry_run:
         command_to_execute.append("--verbose")
+    if file:
+        command_to_execute.append("--files")
+        command_to_execute.extend(file)
     if precommit_args:
         command_to_execute.extend(precommit_args)
     env = os.environ.copy()
