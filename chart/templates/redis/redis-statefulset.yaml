@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.redis.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.redis.affinity .Values.affinity }}
 {{- $tolerations := or .Values.redis.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.redis.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "localSecurityContext" .Values.redis }}
 kind: StatefulSet
 apiVersion: apps/v1
@@ -63,6 +64,8 @@ spec:
 {{ toYaml $affinity | indent 8 }}
       tolerations:
 {{ toYaml $tolerations | indent 8 }}
+      topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 8 }}
       serviceAccountName: {{ include "redis.serviceAccountName" . }}
       {{- if or .Values.registry.secretName .Values.registry.connection }}
       imagePullSecrets:
@@ -97,6 +100,10 @@ spec:
   volumeClaimTemplates:
     - metadata:
         name: redis-db
+        {{- if .Values.redis.persistence.annotations }}
+        annotations:
+          {{- toYaml .Values.redis.persistence.annotations | nindent 10 }}
+        {{- end }}
       spec:
       {{- if .Values.redis.persistence.storageClassName }}
         storageClassName: {{ .Values.redis.persistence.storageClassName }}

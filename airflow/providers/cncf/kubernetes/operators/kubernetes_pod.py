@@ -584,6 +584,6 @@ class _suppress(AbstractContextManager):
         caught_error = exctype is not None and issubclass(exctype, self._exceptions)
         if caught_error:
             self.exception = excinst
-            logger = logging.getLogger()
+            logger = logging.getLogger(__name__)
             logger.error(str(excinst), exc_info=True)
         return caught_error

@@ -501,6 +501,7 @@ asciiart
 asctime
 asia
 assertEqualIgnoreMultipleSpaces
+assigment
 ast
 async
 athena
@@ -891,6 +892,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+hoc
 homebrew
 honoured
 hookable
@@ -909,6 +911,7 @@ https
 httpx
 hvac
 hyperparameter
+hyperparameters
 iPython
 iTerm
 iam
@@ -932,6 +935,7 @@ infile
 influxdb
 infoType
 infoTypes
+ingestions
 ini
 init
 initcontainer
@@ -1044,6 +1048,7 @@ metarouter
 metastore
 mget
 microservice
+microservices
 microsoft
 middleware
 midnights
@@ -1262,6 +1267,7 @@ reqs
 reserialize
 reserialized
 resetdb
+resizable
 resourceVersion
 resultset
 resumable

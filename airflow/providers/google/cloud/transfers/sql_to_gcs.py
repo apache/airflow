@@ -71,6 +71,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param exclude_columns: set of columns to exclude from transmission
     """
 
     template_fields: Sequence[str] = (
@@ -103,9 +104,13 @@ class BaseSQLToGCSOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        exclude_columns=None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        if exclude_columns is None:
+            exclude_columns = set()
+
         self.sql = sql
         self.bucket = bucket
         self.filename = filename
@@ -120,6 +125,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.exclude_columns = exclude_columns
 
     def execute(self, context: 'Context'):
         self.log.info("Executing query")
@@ -150,9 +156,12 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_to_upload['file_handle'].close()
             counter += 1
 
-    def convert_types(self, schema, col_type_dict, row) -> list:
+    def convert_types(self, schema, col_type_dict, row, stringify_dict=False) -> list:
         """Convert values from DBAPI to output-friendly formats."""
-        return [self.convert_type(value, col_type_dict.get(name)) for name, value in zip(schema, row)]
+        return [
+            self.convert_type(value, col_type_dict.get(name), stringify_dict=stringify_dict)
+            for name, value in zip(schema, row)
+        ]
 
     def _write_local_data_files(self, cursor):
         """
@@ -162,7 +171,9 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        schema = [column for column in org_schema if column not in self.exclude_columns]
+
         col_type_dict = self._get_col_type_dict()
         file_no = 0
 
@@ -186,21 +197,20 @@ class BaseSQLToGCSOperator(BaseOperator):
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
         for row in cursor:
-            # Convert datetime objects to utc seconds, and decimals to floats.
-            # Convert binary type object to string encoded with base64.
-            row = self.convert_types(schema, col_type_dict, row)
-
             if self.export_format == 'csv':
+                row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 csv_writer.writerow(row)
             elif self.export_format == 'parquet':
+                row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 row_pydic = {col: [value] for col, value in zip(schema, row)}
                 tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
+                row = self.convert_types(schema, col_type_dict, row, stringify_dict=False)
                 row_dict = dict(zip(schema, row))
 
                 tmp_file_handle.write(
@@ -273,7 +283,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, **kwargs):
         """Convert a value from DBAPI to output-friendly formats."""
 
     def _get_col_type_dict(self):
@@ -312,7 +322,11 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema = self.schema
         else:
             self.log.info("Starts generating schema")
-            schema = [self.field_to_bigquery(field) for field in cursor.description]
+            schema = [
+                self.field_to_bigquery(field)
+                for field in cursor.description
+                if field[0] not in self.exclude_columns
+            ]
 
         if isinstance(schema, list):
             schema = json.dumps(schema, sort_keys=True)

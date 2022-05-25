@@ -607,7 +607,7 @@ class DagFileProcessor(LoggingMixin):
                     ti = TI(task, run_id=simple_ti.run_id, map_index=simple_ti.map_index)
                     # TODO: Use simple_ti to improve performance here in the future
                     ti.refresh_from_db()
-                    ti.handle_failure_with_callback(error=request.msg, test_mode=self.UNIT_TEST_MODE)
+                    ti.handle_failure(error=request.msg, test_mode=self.UNIT_TEST_MODE)
                     self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
 
     @provide_session

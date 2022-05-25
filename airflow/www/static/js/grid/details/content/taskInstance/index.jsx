@@ -57,11 +57,14 @@ const getTask = ({ taskId, runId, task }) => {
 const TaskInstance = ({ taskId, runId }) => {
   const [selectedRows, setSelectedRows] = useState([]);
   const { data: { groups, dagRuns } } = useGridData();
+  const { data: { tasks } } = useTasks(dagId);
+
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
+
+  if (!group || !run) return null;
+
   const { executionDate } = run;
-  const { data: { tasks } } = useTasks(dagId);
-  if (!group) return null;
   const task = tasks.find((t) => t.taskId === taskId);
   const operator = task && task.classRef && task.classRef.className ? task.classRef.className : '';
 
@@ -80,6 +83,7 @@ const TaskInstance = ({ taskId, runId }) => {
       {!isGroup && (
         <TaskNav
           taskId={taskId}
+          runId={runId}
           isMapped={isMapped}
           executionDate={executionDate}
           operator={operator}

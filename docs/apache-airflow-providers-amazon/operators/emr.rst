@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-Amazon EMR Operators
-====================
+==========
+Amazon EMR
+==========
 
 `Amazon EMR <https://aws.amazon.com/emr/>`__ (previously called Amazon Elastic MapReduce)
 is a managed cluster platform that simplifies running big data frameworks, such as Apache
@@ -32,15 +32,18 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. note::
-    In order to run the two examples successfully, you need to create the IAM Service
+    In order to run the examples successfully, you need to create the IAM Service
     Roles(``EMR_EC2_DefaultRole`` and ``EMR_DefaultRole``) for Amazon EMR.  You can
     create these roles using the AWS CLI: ``aws emr create-default-roles``.
 
 .. _howto/operator:EmrCreateJobFlowOperator:
 
-Create EMR Job Flow
--------------------
+Create an EMR job flow
+======================
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrCreateJobFlowOperator` to
 create a new EMR job flow.  The cluster will be terminated automatically after finishing the steps.
@@ -81,10 +84,10 @@ In the following code we are creating a new job flow using the configuration as 
 
 .. _howto/operator:EmrAddStepsOperator:
 
-Add Steps to an EMR Job Flow
-----------------------------
+Add Steps to an EMR job flow
+============================
 
-To add Steps to an existing EMR Job Flow you can use
+To add steps to an existing EMR Job flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrAddStepsOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
@@ -95,8 +98,8 @@ To add Steps to an existing EMR Job Flow you can use
 
 .. _howto/operator:EmrTerminateJobFlowOperator:
 
-Terminate an EMR Job Flow
--------------------------
+Terminate an EMR job flow
+=========================
 
 To terminate an EMR Job Flow you can use
 :class:`~airflow.providers.amazon.aws.operators.emr.EmrTerminateJobFlowOperator`.
@@ -109,27 +112,29 @@ To terminate an EMR Job Flow you can use
 
 .. _howto/operator:EmrModifyClusterOperator:
 
-Modify Amazon EMR Container
----------------------------
+Modify Amazon EMR container
+===========================
 
-To modify an existing EMR Container you can use
+To modify an existing EMR container you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
+
+Sensors
+-------
 
 .. _howto/sensor:EmrContainerSensor:
 
-Amazon EMR Container Sensor
----------------------------
+Wait on an Amazon EMR container state
+=====================================
 
-To monitor the state of an EMR Container you can use
+To monitor the state of an EMR container you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor`.
-
 
 .. _howto/sensor:EmrJobFlowSensor:
 
-Amazon EMR Job Flow Sensor
----------------------------
+Wait on an Amazon EMR job flow state
+====================================
 
-To monitor the state of an EMR Job Flow you can use
+To monitor the state of an EMR job flow you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrJobFlowSensor`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_automatic_steps.py
@@ -140,10 +145,10 @@ To monitor the state of an EMR Job Flow you can use
 
 .. _howto/sensor:EmrStepSensor:
 
-Amazon EMR Step Sensor
-----------------------
+Wait on an Amazon EMR step state
+================================
 
-To monitor the state of a Step running an existing EMR Job Flow you can use
+To monitor the state of a step running an existing EMR Job flow you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrStepSensor`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_job_flow_manual_steps.py
@@ -155,8 +160,6 @@ To monitor the state of a Step running an existing EMR Job Flow you can use
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for EMR <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html>`__
+* `AWS boto3 library documentation for EMR <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/emr.html>`__
 * `AWS CLI - create-default-roles <https://docs.aws.amazon.com/cli/latest/reference/emr/create-default-roles.html>`__
 * `Configure IAM Service Roles for Amazon EMR Permissions <https://docs.aws.amazon.com/emr/latest/ManagementGuide/emr-iam-roles.html>`__

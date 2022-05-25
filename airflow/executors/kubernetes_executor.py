@@ -109,6 +109,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 time.sleep(1)
             except Exception:
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
+                self.resource_version = "0"
+                ResourceVersion().resource_version = "0"
                 raise
             else:
                 self.log.warning(
@@ -288,6 +290,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.log.error(
                 'Error while health checking kube watcher process. Process died for unknown reasons'
             )
+            ResourceVersion().resource_version = "0"
             self.kube_watcher = self._make_kube_watcher()
 
     def run_next(self, next_job: KubernetesJobType) -> None:
@@ -438,6 +441,7 @@ class KubernetesExecutor(BaseExecutor):
         self.scheduler_job_id: Optional[str] = None
         self.event_scheduler: Optional[EventScheduler] = None
         self.last_handled: Dict[TaskInstanceKey, float] = {}
+        self.kubernetes_queue: Optional[str] = None
         super().__init__(parallelism=self.kube_config.parallelism)
 
     @provide_session
@@ -456,9 +460,11 @@ class KubernetesExecutor(BaseExecutor):
         self.log.debug("Clearing tasks that have not been launched")
         if not self.kube_client:
             raise AirflowException(NOT_STARTED_MESSAGE)
-        queued_tis: List[TaskInstance] = (
-            session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED).all()
-        )
+
+        query = session.query(TaskInstance).filter(TaskInstance.state == State.QUEUED)
+        if self.kubernetes_queue:
+            query = query.filter(TaskInstance.queue == self.kubernetes_queue)
+        queued_tis: List[TaskInstance] = query.all()
         self.log.info('Found %s queued task instances', len(queued_tis))
 
         # Go through the "last seen" dictionary and clean out old entries

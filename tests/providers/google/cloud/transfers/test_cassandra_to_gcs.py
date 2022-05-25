@@ -23,6 +23,11 @@ from unittest.mock import call
 from airflow.providers.google.cloud.transfers.cassandra_to_gcs import CassandraToGCSOperator
 
 TMP_FILE_NAME = "temp-file"
+TEST_BUCKET = "test-bucket"
+SCHEMA = "schema.json"
+FILENAME = "data.json"
+CQL = "select * from keyspace1.table1"
+TASK_ID = "test-cas-to-gcs"
 
 
 class TestCassandraToGCS(unittest.TestCase):
@@ -30,16 +35,16 @@ class TestCassandraToGCS(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.GCSHook.upload")
     @mock.patch("airflow.providers.google.cloud.transfers.cassandra_to_gcs.CassandraHook")
     def test_execute(self, mock_hook, mock_upload, mock_tempfile):
-        test_bucket = "test-bucket"
-        schema = "schema.json"
-        filename = "data.json"
+        test_bucket = TEST_BUCKET
+        schema = SCHEMA
+        filename = FILENAME
         gzip = True
         query_timeout = 20
         mock_tempfile.return_value.name = TMP_FILE_NAME
 
         operator = CassandraToGCSOperator(
-            task_id="test-cas-to-gcs",
-            cql="select * from keyspace1.table1",
+            task_id=TASK_ID,
+            cql=CQL,
             bucket=test_bucket,
             filename=filename,
             schema_filename=schema,
@@ -70,7 +75,10 @@ class TestCassandraToGCS(unittest.TestCase):
         mock_upload.assert_has_calls([call_schema, call_data], any_order=True)
 
     def test_convert_value(self):
-        op = CassandraToGCSOperator
+        op = CassandraToGCSOperator(task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME)
+        unencoded_uuid_op = CassandraToGCSOperator(
+            task_id=TASK_ID, bucket=TEST_BUCKET, cql=CQL, filename=FILENAME, encode_uuid=False
+        )
         assert op.convert_value(None) is None
         assert op.convert_value(1) == 1
         assert op.convert_value(1.0) == 1.0
@@ -95,6 +103,8 @@ class TestCassandraToGCS(unittest.TestCase):
         test_uuid = uuid.uuid4()
         encoded_uuid = b64encode(test_uuid.bytes).decode("ascii")
         assert op.convert_value(test_uuid) == encoded_uuid
+        unencoded_uuid = str(test_uuid)
+        assert unencoded_uuid_op.convert_value(test_uuid) == unencoded_uuid
 
         byte_str = b"abc"
         encoded_b = b64encode(byte_str).decode("ascii")

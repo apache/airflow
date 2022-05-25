@@ -17,46 +17,38 @@
  * under the License.
  */
 
-/* global localStorage */
-
 import React, { useCallback } from 'react';
 import {
   Tr,
   Td,
   Box,
   Flex,
-  useDisclosure,
   Collapse,
   useTheme,
 } from '@chakra-ui/react';
 
-import StatusBox, { boxSize, boxSizePx } from './StatusBox';
-import TaskName from './TaskName';
+import StatusBox, { boxSize, boxSizePx } from './components/StatusBox';
+import TaskName from './components/TaskName';
 
-import { getMetaValue } from '../utils';
 import useSelection from './utils/useSelection';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
 const columnWidth = boxSize + 2 * boxPadding;
 
-// dagId comes from dag.html
-const dagId = getMetaValue('dag_id');
-
 const renderTaskRows = ({
   task, level = 0, ...rest
-}) => task.children.map((t) => (
+}) => task.children && task.children.map((t) => (
   <Row
     {...rest}
     key={t.id}
     task={t}
     level={level}
-    prevTaskId={task.id}
   />
 ));
 
 const TaskInstances = ({
-  task, dagRunIds, selectedRunId, onSelect,
+  task, dagRunIds, selectedRunId, onSelect, activeTaskState,
 }) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId) => {
@@ -79,6 +71,7 @@ const TaskInstances = ({
                 instance={instance}
                 group={task}
                 onSelect={onSelect}
+                isActive={activeTaskState === undefined || activeTaskState === instance.state}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
@@ -92,9 +85,11 @@ const Row = (props) => {
   const {
     task,
     level,
-    prevTaskId,
-    isParentOpen = true,
     dagRunIds,
+    openParentCount = 0,
+    openGroupIds = [],
+    onToggleGroups = () => {},
+    hoveredTaskState,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -103,36 +98,32 @@ const Row = (props) => {
   const isGroup = !!task.children;
   const isSelected = selected.taskId === task.id;
 
-  const taskName = prevTaskId ? task.id.replace(`${prevTaskId}.`, '') : task.id;
-
-  const storageKey = `${dagId}-open-groups`;
-  const openGroups = JSON.parse(localStorage.getItem(storageKey)) || [];
-  const isGroupId = openGroups.some((g) => g === taskName);
-  const onOpen = () => {
-    localStorage.setItem(storageKey, JSON.stringify([...openGroups, taskName]));
-  };
-  const onClose = () => {
-    localStorage.setItem(storageKey, JSON.stringify(openGroups.filter((g) => g !== taskName)));
-  };
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isGroupId, onClose, onOpen });
+  const isOpen = openGroupIds.some((g) => g === task.label);
 
   // assure the function is the same across renders
   const memoizedToggle = useCallback(
-    () => isGroup && onToggle(),
-    [onToggle, isGroup],
+    () => {
+      if (isGroup) {
+        let newGroupIds = [];
+        if (!isOpen) {
+          newGroupIds = [...openGroupIds, task.label];
+        } else {
+          newGroupIds = openGroupIds.filter((g) => g !== task.label);
+        }
+        onToggleGroups(newGroupIds);
+      }
+    },
+    [isGroup, isOpen, task.label, openGroupIds, onToggleGroups],
   );
 
-  const parentTasks = task.id.split('.');
-  parentTasks.splice(-1);
-
-  const isFullyOpen = isParentOpen && parentTasks.every((p) => openGroups.some((g) => g === p));
+  const isFullyOpen = level === openParentCount;
 
   return (
     <>
       <Tr
         bg={isSelected && 'blue.100'}
         borderBottomWidth={isFullyOpen ? 1 : 0}
-        borderBottomColor="gray.200"
+        borderBottomColor={isGroup && isOpen ? 'gray.400' : 'gray.200'}
         role="group"
         _hover={!isSelected && { bg: hoverBlue }}
         transition="background-color 0.2s"
@@ -154,7 +145,7 @@ const Row = (props) => {
               onToggle={memoizedToggle}
               isGroup={isGroup}
               isMapped={task.isMapped}
-              taskName={taskName}
+              label={task.label}
               isOpen={isOpen}
               level={level}
             />
@@ -173,13 +164,14 @@ const Row = (props) => {
               task={task}
               selectedRunId={selected.runId}
               onSelect={onSelect}
+              activeTaskState={hoveredTaskState}
             />
           </Collapse>
         </Td>
       </Tr>
       {isGroup && (
         renderTaskRows({
-          ...props, level: level + 1, isParentOpen: isOpen,
+          ...props, level: level + 1, openParentCount: openParentCount + (isOpen ? 1 : 0),
         })
       )}
     </>

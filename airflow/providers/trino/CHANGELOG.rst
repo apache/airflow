@@ -19,6 +19,24 @@
 Changelog
 ---------
 
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``TrinoHook add authentication via JWT token and Impersonation  (#23116)``
+* ``Make presto and trino compatible with airflow 2.1 (#23061)``
+
+Bug Fixes
+~~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+   * ``Fix new MyPy errors in main (#22884)``
+
 2.2.0
 .....
 

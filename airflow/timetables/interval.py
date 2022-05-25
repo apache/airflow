@@ -127,8 +127,11 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
 
-    def __init__(self, cron: str, timezone: Timezone) -> None:
+    def __init__(self, cron: str, timezone: Union[str, Timezone]) -> None:
         self._expression = cron_presets.get(cron, cron)
+
+        if isinstance(timezone, str):
+            timezone = Timezone(timezone)
         self._timezone = timezone
 
         descriptor = ExpressionDescriptor(

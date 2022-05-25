@@ -22,6 +22,7 @@ description: |
     Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 versions:
+  - 3.4.0
   - 3.3.0
   - 3.2.0
   - 3.1.1
@@ -71,6 +72,8 @@ integrations:
   - integration-name: Amazon EC2
     external-doc-url: https://aws.amazon.com/ec2/
     logo: /integration-logos/aws/Amazon-EC2_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/ec2.rst
     tags: [aws]
   - integration-name: Amazon ECS
     external-doc-url: https://aws.amazon.com/ecs/
@@ -153,7 +156,7 @@ integrations:
     external-doc-url: https://aws.amazon.com/sqs/
     logo: /integration-logos/aws/Amazon-Simple-Queue-Service-SQS_light-bg@4x.png
     how-to-guide:
-      - /docs/apache-airflow-providers-amazon/operators/sqs_publish.rst
+      - /docs/apache-airflow-providers-amazon/operators/sqs.rst
     tags: [aws]
   - integration-name: Amazon Simple Storage Service (S3)
     external-doc-url: https://aws.amazon.com/s3/
@@ -198,6 +201,16 @@ integrations:
     logo: /integration-logos/aws/AWS-Database-Migration-Service_64@5x.png
     how-to-guide:
       - /docs/apache-airflow-providers-amazon/operators/dms.rst
+    tags: [aws]
+  - integration-name: Amazon QuickSight
+    external-doc-url: https://aws.amazon.com/quicksight/
+    logo: /integration-logos/aws/Amazon-Quicksight_light-bg@4x.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/quicksight.rst
+    tags: [aws]
+  - integration-name: AWS Security Token Service (STS)
+    external-doc-url: https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html
+    logo: /integration-logos/aws/AWS-STS_light-bg@4x.png
     tags: [aws]
 
 operators:
@@ -294,6 +307,9 @@ operators:
       - airflow.providers.amazon.aws.operators.redshift_sql
       - airflow.providers.amazon.aws.operators.redshift_cluster
       - airflow.providers.amazon.aws.operators.redshift_data
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.operators.quicksight
 
 sensors:
   - integration-name: Amazon Athena
@@ -362,6 +378,9 @@ sensors:
     python-modules:
       - airflow.providers.amazon.aws.sensors.step_function_execution
       - airflow.providers.amazon.aws.sensors.step_function
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.sensors.quicksight
 
 hooks:
   - integration-name: Amazon Athena
@@ -449,6 +468,12 @@ hooks:
   - integration-name: AWS Step Functions
     python-modules:
       - airflow.providers.amazon.aws.hooks.step_function
+  - integration-name: Amazon QuickSight
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.quicksight
+  - integration-name: AWS Security Token Service (STS)
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.sts
 
 transfers:
   - source-integration-name: Amazon DynamoDB
@@ -457,6 +482,7 @@ transfers:
     python-module: airflow.providers.amazon.aws.transfers.dynamodb_to_s3
   - source-integration-name: Google Cloud Storage (GCS)
     target-integration-name: Amazon Simple Storage Service (S3)
+    how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/gcs_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.gcs_to_s3
   - source-integration-name: Amazon Glacier
     target-integration-name: Google Cloud Storage (GCS)

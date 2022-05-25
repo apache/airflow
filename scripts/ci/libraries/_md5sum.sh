@@ -35,7 +35,7 @@ function md5sum::calculate_file_md5sum {
     echo "${md5sum}" > "${md5sum_file_new}"
     local ret_code=0
     if [[ ! -f "${md5sum_file}" ]]; then
-        verbosity::print_info "Missing md5sum for ${file#${AIRFLOW_SOURCES}} (${md5sum_file#${AIRFLOW_SOURCES}})"
+        verbosity::print_info "Missing md5sum for ${file#"${AIRFLOW_SOURCES}"} (${md5sum_file#"${AIRFLOW_SOURCES}"})"
         ret_code=1
     else
         diff "${md5sum_file_new}" "${md5sum_file}" >/dev/null

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -30,7 +30,7 @@ import { MdPlayArrow } from 'react-icons/md';
 
 import { getMetaValue } from '../../utils';
 import useSelection from '../utils/useSelection';
-import Time from '../Time';
+import Time from '../components/Time';
 import { useTasks, useGridData } from '../api';
 
 const dagId = getMetaValue('dag_id');
@@ -48,6 +48,14 @@ const Header = () => {
   const { data: { tasks } } = useTasks();
   const dagRun = dagRuns.find((r) => r.runId === runId);
   const task = tasks.find((t) => t.taskId === taskId);
+
+  // clearSelection if the current selected dagRun is
+  // filtered out.
+  useEffect(() => {
+    if (runId && !dagRun) {
+      clearSelection();
+    }
+  }, [clearSelection, dagRun, runId]);
 
   let runLabel;
   if (dagRun) {
@@ -75,21 +83,21 @@ const Header = () => {
   const isTaskDetails = runId && taskId;
 
   return (
-    <Breadcrumb mt={4} separator={<Text color="gray.300">/</Text>}>
-      <BreadcrumbItem isCurrentPage={isDagDetails}>
+    <Breadcrumb separator={<Text color="gray.300">/</Text>}>
+      <BreadcrumbItem isCurrentPage={isDagDetails} mt={4}>
         <BreadcrumbLink onClick={clearSelection} _hover={isDagDetails ? { cursor: 'default' } : undefined}>
           <LabelValue label="DAG" value={dagId} />
         </BreadcrumbLink>
       </BreadcrumbItem>
       {runId && (
-        <BreadcrumbItem isCurrentPage={isRunDetails}>
+        <BreadcrumbItem isCurrentPage={isRunDetails} mt={4}>
           <BreadcrumbLink onClick={() => onSelect({ runId })} _hover={isRunDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Run" value={runLabel} />
           </BreadcrumbLink>
         </BreadcrumbItem>
       )}
       {taskId && (
-        <BreadcrumbItem isCurrentPage>
+        <BreadcrumbItem isCurrentPage mt={4}>
           <BreadcrumbLink _hover={isTaskDetails ? { cursor: 'default' } : undefined}>
             <LabelValue label="Task" value={`${taskName}${isMapped ? ' []' : ''}`} />
           </BreadcrumbLink>

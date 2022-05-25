@@ -200,6 +200,9 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
+    # XML to dict 0.13.0 breaks some EMR tests
+    # It should be removed once we solve https://github.com/apache/airflow/issues/23576
+    'xmltodict<0.13.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
@@ -265,6 +268,7 @@ dask = [
 databricks = [
     'requests>=2.26.0, <3',
     'databricks-sql-connector>=2.0.0, <3.0.0',
+    'aiohttp>=3.6.3, <4',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -408,6 +412,10 @@ influxdb = [
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
+    # JPype1 has been published without sdist in PyPI which caused failures when trying to build an
+    # ARM image (JPype1 does not publish binary ARM packages)
+    # The whole line below can be removed when https://github.com/jpype-project/jpype/issues/1069 is solved
+    'jpype1<1.4.0',
 ]
 jenkins = [
     'python-jenkins>=1.0.0',
@@ -602,6 +610,7 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
+    'asynctest~=0.13',
     'aws_xray_sdk',
     'beautifulsoup4>=4.7.1',
     'black',

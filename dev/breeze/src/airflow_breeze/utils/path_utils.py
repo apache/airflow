@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Optional
 
 from airflow_breeze import NAME
+from airflow_breeze.utils.confirm import set_forced_answer
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import (
     ask_to_reinstall_breeze,
@@ -61,7 +62,13 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
+    return (
+        in_self_upgrade()
+        or in_autocomplete()
+        or in_help()
+        or hasattr(sys, '_called_from_test')
+        or os.environ.get('SKIP_BREEZE_UPGRADE_CHECK')
+    )
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -120,6 +127,16 @@ def get_used_sources_setup_metadata_hash() -> str:
     return get_sources_setup_metadata_hash(get_used_airflow_sources())
 
 
+def set_forced_answer_for_upgrade_check():
+    """When we run upgrade check --answer is not parsed yet, so we need to guess it."""
+    if "--answer n" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("n"):
+        set_forced_answer("no")
+    if "--answer y" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("y"):
+        set_forced_answer("yes")
+    if "--answer q" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("q"):
+        set_forced_answer("quit")
+
+
 def print_warning_if_setup_changed() -> bool:
     """
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
@@ -132,7 +149,9 @@ def print_warning_if_setup_changed() -> bool:
         if installation_sources is not None:
             breeze_sources = installation_sources / "dev" / "breeze"
             warn_dependencies_changed()
+            set_forced_answer_for_upgrade_check()
             ask_to_reinstall_breeze(breeze_sources)
+            set_forced_answer(None)
         return True
     return False
 
@@ -198,6 +217,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     :return: Path for the found sources.
 
     """
+    sources_root_from_env = os.getenv('AIRFLOW_SOURCES_ROOT', None)
+    if sources_root_from_env:
+        return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_upgrade_check():
         get_console().print(
@@ -219,7 +241,6 @@ AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
-MYPY_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.mypy_cache'
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
 DIST_DIR = AIRFLOW_SOURCES_ROOT / 'dist'
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci'
@@ -237,7 +258,6 @@ def create_directories() -> None:
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
-    MYPY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_LOG.mkdir(parents=True, exist_ok=True)

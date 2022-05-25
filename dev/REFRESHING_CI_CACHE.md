@@ -51,10 +51,10 @@ manual refresh might be needed.
 # Manually generating constraint files
 
 ```bash
-breeze build-image --build-multiple-images --upgrade-to-newer-dependencies
-breeze generate-constraints --generate-constraints-mode pypi-providers --run-in-parallel
-breeze generate-constraints --generate-constraints-mode source-providers --run-in-parallel
-breeze generate-constraints --generate-constraints-mode no-providers --run-in-parallel
+breeze build-image --build-multiple-images --upgrade-to-newer-dependencies --answer yes
+breeze generate-constraints --airflow-constraints-mode constraints --run-in-parallel --answer yes
+breeze generate-constraints --airflow-constraints-mode constraints-source-providers --run-in-parallel --answer yes
+breeze generate-constraints --airflow-constraints-mode constraints-no-providers --run-in-parallel --answer yes
 
 AIRFLOW_SOURCES=$(pwd)
 ```
