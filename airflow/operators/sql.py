@@ -765,7 +765,3 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
             )
 
         self.skip_all_except(context["ti"], follow_branch)
-
-        self.skip_all_except(context["ti"], follow_branch)
-        self.skip_all_except(context["ti"], follow_branch)
-        self.skip_all_except(context["ti"], follow_branch)
