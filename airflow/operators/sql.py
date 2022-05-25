@@ -484,17 +484,17 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     :param table: the table to run checks on.
     :param column_mapping: the dictionary of columns and their associated checks, e.g.:
-        {
-            "col_name": {
-                "null_check": {
-                    "pass_value": 0,
-                },
-                "min": {
-                    "pass_value": 5,
-                    "tolerance": 0.2,
-                }
+    {
+        'col_name': {
+            'null_check': {
+                'pass_value': 0,
+            },
+            'min': {
+                'pass_value': 5,
+                'tolerance': 0.2,
             }
         }
+    }
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
     """
@@ -601,12 +601,12 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     :param table: the table to run checks on.
     :param checks: the dictionary of checks, e.g.:
-        {
-            "row_count_check": {
-                "pass_value": 100,
-                "tolerance": .05
-            }
+    {
+        'row_count_check': {
+            'pass_value': 100,
+            'tolerance': .05
         }
+    }
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
     """
