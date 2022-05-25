@@ -44,7 +44,6 @@ from airflow_breeze.utils.common_options import (
     option_docker_cache,
     option_dry_run,
     option_empty_image,
-    option_force_build,
     option_github_repository,
     option_github_token,
     option_github_username,
@@ -219,7 +218,6 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
-@option_force_build
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
 @option_tag_as_latest
@@ -241,6 +239,7 @@ def build_image(
 
     perform_environment_checks(verbose=verbose)
     parameters_passed = filter_out_none(**kwargs)
+    parameters_passed['force_build'] = True
     if build_multiple_images:
         python_version_list = get_python_version_list(python_versions)
         for python in python_version_list:
@@ -362,7 +361,7 @@ def verify_image(
     sys.exit(return_code)
 
 
-def should_we_run_the_build(build_ci_params: BuildCiParams, verbose: bool) -> bool:
+def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     """
     Check if we should run the build based on what files have been modified since last build and answer from
     the user.
@@ -377,9 +376,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams, verbose: bool) -> bo
     # We import those locally so that click autocomplete works
     from inputimeout import TimeoutOccurred
 
-    if not md5sum_check_if_build_is_needed(
-        md5sum_cache_dir=build_ci_params.md5sum_cache_dir, verbose=verbose
-    ):
+    if not md5sum_check_if_build_is_needed(md5sum_cache_dir=build_ci_params.md5sum_cache_dir):
         return False
     try:
         answer = user_confirm(
@@ -456,7 +453,7 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
             f"python version: {ci_image_params.python}[/]\n"
         )
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
-        if not should_we_run_the_build(build_ci_params=ci_image_params, verbose=verbose):
+        if not should_we_run_the_build(build_ci_params=ci_image_params):
             return 0, f"Image build: {ci_image_params.python}"
     if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
         login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)

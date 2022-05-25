@@ -19,7 +19,7 @@
 
 /* global localStorage */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Box,
   Flex,
@@ -40,6 +40,7 @@ const Main = () => {
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
+  const [hoveredTaskState, setHoveredTaskState] = useState();
 
   const toggleDetailsPanel = () => {
     if (!isOpen) {
@@ -54,10 +55,10 @@ const Main = () => {
   return (
     <Box>
       <FilterBar />
-      <LegendRow />
+      <LegendRow setHoveredTaskState={setHoveredTaskState} />
       <Divider mb={5} borderBottomWidth={2} />
       <Flex flexDirection="row" justifyContent="space-between">
-        <Grid isPanelOpen={isOpen} />
+        <Grid isPanelOpen={isOpen} hoveredTaskState={hoveredTaskState} />
         <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
           <Button
             position="absolute"

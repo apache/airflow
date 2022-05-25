@@ -155,9 +155,5 @@ def tests(
     perform_environment_checks(verbose=verbose)
     cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
-    run_command(
-        cmd,
-        verbose=verbose,
-        dry_run=dry_run,
-        env=env_variables,
-    )
+    result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
+    sys.exit(result.returncode)

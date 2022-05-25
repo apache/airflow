@@ -509,7 +509,7 @@ class DagFileProcessorManager(LoggingMixin):
                     dag.fileloc in last_parsed
                     and (dag.last_parsed_time + self._processor_timeout) < last_parsed[dag.fileloc]
                 ):
-                    self.log.info(f"DAG {dag.dag_id} is missing and will be deactivated.")
+                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
                     to_deactivate.add(dag.dag_id)
 
             if to_deactivate:
