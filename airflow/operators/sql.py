@@ -468,15 +468,13 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
 
 def _get_failed_tests(checks):
-    failed_tests = []
-    for check, check_values in checks.items():
-        if not check_values["success"]:
-            failed_tests.append(
-                f"\tCheck: {check}, "
-                f"Pass Value: {check_values['pass_value']}, "
-                f"Result: {check_values['result']}\n"
-            )
-    return failed_tests
+    return [
+        f"\tCheck: {check}, "
+        f"Pass Value: {check_values['pass_value']}, "
+        f"Result: {check_values['result']}\n"
+        for check, check_values in checks.items()
+        if not check_values["success"]
+    ]
 
 
 class SQLColumnCheckOperator(BaseSQLOperator):
