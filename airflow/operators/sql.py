@@ -467,6 +467,218 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         self.log.info("Log from %s:\n%s", self.dag_id, info)
 
 
+def _get_failed_tests(checks):
+    failed_tests = []
+    for check, check_values in checks.items():
+        if not check_values["success"]:
+            failed_tests.append(
+                f"\tCheck: {check}, "
+                f"Pass Value: {check_values['pass_value']}, "
+                f"Result: {check_values['result']}\n"
+            )
+    return failed_tests
+
+
+class SQLColumnCheckOperator(BaseSQLOperator):
+    """
+    Performs one or more of the templated checks in the column_checks dictionary.
+    Checks are performed on a per-column basis specified by the column_mapping.
+
+    :param table: the table to run checks on.
+    :param column_mapping: the dictionary of columns and their associated checks, e.g.:
+        {
+            "col_name": {
+                "null_check": {
+                    "pass_value": 0,
+                },
+                "min": {
+                    "pass_value": 5,
+                    "tolerance": 0.2,
+                }
+            }
+        }
+    :param conn_id: the connection ID used to connect to the database.
+    :param database: name of database which overwrite the defined one in connection
+    """
+
+    column_checks = {
+        # pass value should be number of acceptable nulls
+        "null_check": "SUM(CASE WHEN 'column' IS NULL THEN 1 ELSE 0 END) AS column_null_check",
+        # pass value should be number of acceptable distinct values
+        "distinct_check": "COUNT(DISTINCT(column)) AS column_distinct_check",
+        # pass value is implicit in the query, it does not need to be passed
+        "unique_check": "COUNT(DISTINCT(column)) = COUNT(column)",
+        # pass value should be the minimum acceptable numeric value
+        "min": "MIN(column) AS column_min",
+        # pass value should be the maximum acceptable numeric value
+        "max": "MAX(column) AS column_max",
+    }
+
+    def __init__(
+        self,
+        *,
+        table: str,
+        column_mapping: Dict[str, Dict[str, Any]],
+        conn_id: Optional[str] = None,
+        database: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
+        for checks in column_mapping.values():
+            for check in checks:
+                if check not in self.column_checks:
+                    raise AirflowException(f"Invalid column check: {check}.")
+
+        self.table = table
+        self.column_mapping = column_mapping
+        self.sql = f"SELECT * FROM {self.table};"
+
+    def execute(self, context=None):
+        hook = self.get_db_hook()
+        failed_tests = []
+        for column in self.column_mapping:
+            checks = [*self.column_mapping[column]]
+            checks_sql = ",".join([self.column_checks[check].replace("column", column) for check in checks])
+
+            self.sql = f"SELECT {checks_sql} FROM {self.table};"
+            records = hook.get_first(self.sql)
+            self.log.info(f"Record: {records}")
+
+            if not records:
+                raise AirflowException("The query returned None")
+
+            for idx, result in enumerate(records):
+                pass_value_conv = _convert_to_float_if_possible(
+                    self.column_mapping[column][checks[idx]]["pass_value"]
+                )
+                is_numeric_value_check = isinstance(pass_value_conv, float)
+                tolerance = (
+                    self.column_mapping[column][checks[idx]]["tolerance"]
+                    if "tolerance" in self.column_mapping[column][checks[idx]]
+                    else None
+                )
+
+                self.column_mapping[column][checks[idx]]["result"] = result
+                self.column_mapping[column][checks[idx]]["success"] = (
+                    self._get_numeric_match(
+                        checks[idx], result, self.column_mapping[column][checks[idx]]["pass_value"], tolerance
+                    )
+                    if is_numeric_value_check
+                    else (result == self.column_mapping[column][checks[idx]]["pass_value"])
+                )
+
+            failed_tests.extend(_get_failed_tests(self.column_mapping[column]))
+        if failed_tests:
+            raise AirflowException(
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+                "The following tests have failed:"
+                f"\n{''.join(failed_tests)}"
+            )
+
+        self.log.info("All tests have passed")
+
+    def _get_numeric_match(self, check, numeric_record, numeric_pass_value, tolerance=None) -> bool:
+        if check in "min":
+            if tolerance is not None:
+                return numeric_record >= numeric_pass_value * (1 - tolerance)
+            return numeric_record >= numeric_pass_value
+        if check in "max":
+            if tolerance is not None:
+                return numeric_record <= numeric_pass_value * (1 + tolerance)
+            return numeric_record <= numeric_pass_value
+        if check in ["null_check", "distinct_check", "unique_check"]:
+            if tolerance is not None:
+                return (
+                    numeric_pass_value * (1 - tolerance)
+                    <= numeric_record
+                    <= numeric_pass_value * (1 + tolerance)
+                )
+        return numeric_record == numeric_pass_value
+
+
+class SQLTableCheckOperator(BaseSQLOperator):
+    """
+    Performs one or more of the templated checks in the table_checks dictionary.
+    Checks are performed on the table as aggregates.
+
+    :param table: the table to run checks on.
+    :param checks: the dictionary of checks, e.g.:
+        {
+            "row_count_check": {
+                "pass_value": 100,
+                "tolerance": .05
+            }
+        }
+    :param conn_id: the connection ID used to connect to the database.
+    :param database: name of database which overwrite the defined one in connection
+    """
+
+    table_checks = {
+        "row_count_check": "COUNT(*) AS row_count_check",
+    }
+
+    def __init__(
+        self,
+        *,
+        table: str,
+        checks: Dict[str, Dict[str, Any]],
+        conn_id: Optional[str] = None,
+        database: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(conn_id=conn_id, database=database, **kwargs)
+        for check in checks.keys():
+            if check not in self.table_checks:
+                raise AirflowException(f"Invalid table check: {check}.")
+
+        self.table = table
+        self.checks = checks
+        self.sql = f"SELECT * FROM {self.table};"
+
+    def execute(self, context=None):
+        hook = self.get_db_hook()
+
+        checks_sql = ",".join([self.table_checks[check] for check in self.checks.keys()])
+
+        self.sql = f"SELECT {checks_sql} FROM {self.table};"
+        records = hook.get_first(self.sql)
+
+        self.log.info(f"Record: {records}")
+
+        if not records:
+            raise AirflowException("The query returned None")
+
+        for check in self.checks.keys():
+            for result in records:
+                pass_value_conv = _convert_to_float_if_possible(self.checks[check]["pass_value"])
+                is_numeric_value_check = isinstance(pass_value_conv, float)
+                tolerance = self.checks[check]["tolerance"] if "tolerance" in self.checks[check] else None
+
+                self.checks[check]["result"] = result
+                self.checks[check]["success"] = (
+                    self._get_numeric_match(result, self.checks[check]["pass_value"], tolerance)
+                    if is_numeric_value_check
+                    else (result == self.checks[check]["pass_value"])
+                )
+
+        failed_tests = _get_failed_tests(self.checks)
+        if failed_tests:
+            raise AirflowException(
+                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+                "The following tests have failed:"
+                f"\n{', '.join(failed_tests)}"
+            )
+
+        self.log.info("All tests have passed")
+
+    def _get_numeric_match(self, numeric_record, numeric_pass_value, tolerance=None):
+        if tolerance is not None:
+            return (
+                numeric_pass_value * (1 - tolerance) <= numeric_record <= numeric_pass_value * (1 + tolerance)
+            )
+        return numeric_record == numeric_pass_value
+
+
 class BranchSQLOperator(BaseSQLOperator, SkipMixin):
     """
     Allows a DAG to "branch" or follow a specified path based on the results of a SQL query.
@@ -554,4 +766,8 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
                 f"Unexpected query return result '{query_result}' type '{type(query_result)}'"
             )
 
+        self.skip_all_except(context["ti"], follow_branch)
+
+        self.skip_all_except(context["ti"], follow_branch)
+        self.skip_all_except(context["ti"], follow_branch)
         self.skip_all_except(context["ti"], follow_branch)

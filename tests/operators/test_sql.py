@@ -28,7 +28,9 @@ from airflow.operators.empty import EmptyOperator
 from airflow.operators.sql import (
     BranchSQLOperator,
     SQLCheckOperator,
+    SQLColumnCheckOperator,
     SQLIntervalCheckOperator,
+    SQLTableCheckOperator,
     SQLThresholdCheckOperator,
     SQLValueCheckOperator,
 )
@@ -382,6 +384,92 @@ class TestThresholdCheckOperator(unittest.TestCase):
         operator = self._construct_operator("Select 155", "Select 45", 100)
 
         with pytest.raises(AirflowException, match="155.*45.*100.0"):
+            operator.execute()
+
+
+class TestColumnCheckOperator(unittest.TestCase):
+
+    valid_column_mapping = {
+        "X": {
+            "null_check": {"pass_value": 0},
+            "distinct_check": {"pass_value": 10, "tolerance": 0.1},
+            "unique_check": {"pass_value": 10},
+            "min": {"pass_value": 1},
+            "max": {"pass_value": 20},
+        }
+    }
+
+    invalid_column_mapping = {"Y": {"invalid_check_name": {"expectation": 5}}}
+
+    def _construct_operator(self, column_mapping):
+        return SQLColumnCheckOperator(task_id="test_task", table="test_table", column_mapping=column_mapping)
+
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_check_not_in_column_checks(self, mock_get_db_hook):
+        with pytest.raises(AirflowException, match="Invalid column check: invalid_check_name."):
+            self._construct_operator(self.invalid_column_mapping)
+
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_pass_all_checks_check(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = (0, 10, 10, 1, 20)
+        mock_get_db_hook.return_value = mock_hook
+        operator = self._construct_operator(self.valid_column_mapping)
+        operator.execute()
+
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_fail_all_checks_check(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = (1, 12, 11, -1, 50)
+        mock_get_db_hook.return_value = mock_hook
+        operator = self._construct_operator(self.valid_column_mapping)
+        with pytest.raises(AirflowException):
+            operator.execute()
+
+
+class TestTableCheckOperator(unittest.TestCase):
+
+    valid_checks = {
+        "row_count_check": {"pass_value": 10},
+    }
+
+    valid_checks_tolerance = {
+        "row_count_check": {"pass_value": 10, "tolerance": 0.2},
+    }
+
+    invalid_checks = {"invalid_check_name": {"pass_value": 5}}
+
+    def _construct_operator(self, checks):
+        return SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
+
+    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
+    def test_check_not_in_checks(self, mock_get_db_hook):
+        with pytest.raises(AirflowException, match="Invalid table check: invalid_check_name."):
+            self._construct_operator(self.invalid_checks)
+
+    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
+    def test_pass_all_checks_check(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = (10,)
+        mock_get_db_hook.return_value = mock_hook
+        operator = self._construct_operator(self.valid_checks)
+        operator.execute()
+
+    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
+    def test_pass_all_checks_with_tolerance_check(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = (11,)
+        mock_get_db_hook.return_value = mock_hook
+        operator = self._construct_operator(self.valid_checks_tolerance)
+        operator.execute()
+
+    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
+    def test_fail_all_checks_check(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = (1,)
+        mock_get_db_hook.return_value = mock_hook
+        operator = self._construct_operator(self.valid_checks)
+        with pytest.raises(AirflowException):
             operator.execute()
 
 
