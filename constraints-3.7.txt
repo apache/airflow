@@ -329,7 +329,7 @@ openapi-spec-validator==0.3.0
 oscrypto==1.2.1
 packaging==20.9
 pandas-gbq==0.14.1
-pandas==1.2.4
+pandas==1.4.2
 papermill==2.3.3
 parameterized==0.8.1
 paramiko==2.7.2
