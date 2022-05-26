@@ -26,9 +26,10 @@ import {
   Box,
   Thead,
   Flex,
-  Button,
+  IconButton,
 } from '@chakra-ui/react';
 
+import { MdReadMore } from 'react-icons/md';
 import { useGridData } from './api';
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
@@ -83,7 +84,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
       overflow="auto"
       ref={scrollRef}
       flexGrow={1}
-      minWidth={isPanelOpen && '300px'}
+      minWidth={isPanelOpen && '350px'}
     >
       <Flex
         alignItems="center"
@@ -103,14 +104,13 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
           />
           <ResetRoot />
         </Flex>
-        <Button
+        <IconButton
+          fontSize="2xl"
           onClick={onPanelToggle}
+          title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
           aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
-          variant={isPanelOpen ? 'solid' : 'outline'}
-        >
-          {isPanelOpen ? 'Hide ' : 'Show '}
-          Details Panel
-        </Button>
+          icon={<MdReadMore />}
+        />
       </Flex>
       <Table>
         <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
