@@ -101,6 +101,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
 
     owner: str
     task_id: str
+    is_mapped: ClassVar[bool]
 
     HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = frozenset(
         (

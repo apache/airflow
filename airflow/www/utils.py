@@ -40,6 +40,7 @@ from sqlalchemy.orm import Session
 
 from airflow import models
 from airflow.models import errors
+from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dagrun import DagRun
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -128,7 +129,7 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def get_task_summary(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any]]:
+def get_task_summary(dag_run: DagRun, task: AbstractOperator, session: Session) -> Optional[Dict[str, Any]]:
     task_instance = (
         session.query(TaskInstance)
         .filter(
