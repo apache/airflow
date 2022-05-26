@@ -429,13 +429,15 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EmrServerlessCreateApplicationOperator`
 
-    :param: release_label: The EMR release version associated with the application.
-    :param: job_type: The type of application you want to start, such as Spark or Hive.
-    :param await_application: If true, waits for the Application to start before returning. Defaults to True.
-    :param: client_request_token: The client idempotency token of the application to create.
+    :param release_label: The EMR release version associated with the application.
+    :param job_type: The type of application you want to start, such as Spark or Hive.
+    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
+    :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
     :param aws_conn_id: AWS connection to use
     """
+
+    template_fields: Sequence[str] = ('application_id',)
 
     def __init__(
         self,
@@ -443,14 +445,14 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         job_type: str,
         client_request_token: str = '',
         config: Optional[dict] = None,
-        await_application: bool = True,
+        wait_for_completion: bool = True,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
         self.release_label = release_label
         self.job_type = job_type
-        self.await_application = await_application
+        self.wait_for_completion = wait_for_completion
         self.kwargs = kwargs
         self.config = config or {}
         super().__init__(**kwargs)
@@ -474,8 +476,10 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
         # This should be replaced with a boto waiter when available.
         waiter(
-            sensor=EmrServerlessApplicationSensor,
-            sensor_args={'application_id': application_id},
+            get_status_callable=EmrServerlessHook().get_application_status,
+            get_status_args={'application_id': application_id},
+            desired_status={'CREATED'},
+            failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
             object_type='application',
             action='created',
         )
@@ -483,10 +487,13 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.log.info(f'Starting application {application_id}.')
         emr_serverless_hook.start_serverless_application(application_id=application_id)
 
-        if self.await_application:
+        if self.wait_for_completion:
+            # This should be replaced with a boto waiter when available.
             waiter(
-                sensor=EmrServerlessApplicationSensor,
-                sensor_args={'application_id': application_id, 'target_states': {'STARTED'}},
+                get_status_callable=EmrServerlessHook().get_application_status,
+                get_status_args={'application_id': application_id},
+                desired_status={'STARTED'},
+                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
                 object_type='application',
                 action='started',
             )
@@ -508,9 +515,11 @@ class EmrServerlessStartJobOperator(BaseOperator):
     :param configuration_overrides: Configuration specifications to override existing configurations.
     :param client_request_token: The client idempotency token of the application to create.
       Its value must be unique for each request.
-    :param await_job: If true, waits for the job to start before returning. Defaults to True.
+    :param wait_for_completion: If true, waits for the job to start before returning. Defaults to True.
     :param aws_conn_id: AWS connection to use
     """
+
+    template_fields: Sequence[str] = ('application_id',)
 
     def __init__(
         self,
@@ -519,7 +528,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         job_driver: dict,
         configuration_overrides: Optional[dict],
         client_request_token: str = '',
-        await_job: bool = True,
+        wait_for_completion: bool = True,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
@@ -528,18 +537,15 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.execution_role_arn = execution_role_arn
         self.job_driver = job_driver
         self.configuration_overrides = configuration_overrides
-        self.await_job = await_job
+        self.wait_for_completion = wait_for_completion
         super().__init__(**kwargs)
 
         self.client_request_token = client_request_token or str(uuid4())
 
-        if configuration_overrides and 'monitoringConfiguration' not in configuration_overrides.keys():
-            raise AirflowException('configurationOverrides needs a "monitoringConfiguration" entry')
-
     def execute(self, context: 'Context') -> Dict:
         emr_serverless_hook = EmrServerlessHook()
 
-        self.log.info(f'Starting job: {self.application_id}')
+        self.log.info(f'Starting job on Application: {self.application_id}')
         response = emr_serverless_hook.start_serverless_job(
             client_request_token=self.client_request_token,
             application_id=self.application_id,
@@ -551,18 +557,20 @@ class EmrServerlessStartJobOperator(BaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'EMR serverless job failed to start: {response}')
 
-        if self.await_job:
+        self.log.info(f'EMR serverless job started: {response["jobRunId"]}')
+        if self.wait_for_completion:
+            # This should be replaced with a boto waiter when available.
             waiter(
-                sensor=EmrServerlessJobSensor,
-                sensor_args={
+                get_status_callable=EmrServerlessHook().get_serverless_job_status,
+                get_status_args={
                     'application_id': self.application_id,
                     'job_run_id': response['jobRunId'],
-                    'target_states': {'RUNNING'},
                 },
+                desired_status=EmrServerlessJobSensor.TERMINAL_STATES,
+                failure_states=EmrServerlessJobSensor.FAILURE_STATES,
                 object_type='job',
                 action='run',
             )
-        self.log.info(f'EMR serverless job started: {response["jobRunId"]}')
         return response
 
 
@@ -575,20 +583,22 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         :ref:`howto/operator:EmrServerlessDeleteApplicationOperator`
 
     :param application_id: ID of the EMR Serverless application to delete.
-    :param await_application: If true, waits for the Application to start before returning. Defaults to True.
+    :param wait_for_completion: If true, wait for the Application to start before returning. Default to True
     :param aws_conn_id: AWS connection to use
     """
+
+    template_fields: Sequence[str] = ('application_id',)
 
     def __init__(
         self,
         application_id: str,
-        await_application: bool = True,
+        wait_for_completion: bool = True,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
         self.aws_conn_id = aws_conn_id
         self.application_id = application_id
-        self.await_application = await_application
+        self.wait_for_completion = wait_for_completion
         super().__init__(**kwargs)
 
     def execute(self, context: 'Context') -> None:
@@ -599,11 +609,12 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
 
         # This should be replaced with a boto waiter when available.
         waiter(
-            sensor=EmrServerlessApplicationSensor,
-            sensor_args={
+            get_status_callable=EmrServerlessHook().get_application_status,
+            get_status_args={
                 'application_id': self.application_id,
-                'target_states': EmrServerlessApplicationSensor.FAILURE_STATES,
             },
+            desired_status=EmrServerlessApplicationSensor.FAILURE_STATES,
+            failure_states=set(),
             object_type='application',
             action='stopped',
         )
@@ -614,10 +625,13 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Application deletion failed: {response}')
 
-        if self.await_application:
+        if self.wait_for_completion:
+            # This should be replaced with a boto waiter when available.
             waiter(
-                sensor=EmrServerlessApplicationSensor,
-                sensor_args={'application_id': self.application_id, 'target_states': {'TERMINATED'}},
+                get_status_callable=EmrServerlessHook().get_application_status,
+                get_status_args={'application_id': self.application_id},
+                desired_status={'TERMINATED'},
+                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
                 object_type='application',
                 action='deleted',
             )

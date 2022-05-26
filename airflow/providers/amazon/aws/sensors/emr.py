@@ -135,6 +135,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     INTERMEDIATE_STATES = {'PENDING', 'RUNNING', 'SCHEDULED', 'SUBMITTED'}
     FAILURE_STATES = {'FAILED', 'CANCELLING', 'CANCELLED'}
     SUCCESS_STATES = {'SUCCESS'}
+    TERMINAL_STATES = SUCCESS_STATES.union(FAILURE_STATES)
 
     def __init__(
         self,
