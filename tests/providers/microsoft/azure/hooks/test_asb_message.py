@@ -16,7 +16,6 @@
 # under the License.
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb_message import ServiceBusMessageHook
 
 
-class TestServiceBusMessageHook(unittest.TestCase):
-    def setUp(self) -> None:
+class TestServiceBusMessageHook:
+    def setup_class(self) -> None:
         self.queue_name: str = "test_queue"
         self.conn_id: str = 'azure_service_bus_default'
         self.connection_string = (
@@ -137,3 +136,43 @@ class TestServiceBusMessageHook(unittest.TestCase):
         hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.conn_id)
         with pytest.raises(AirflowException):
             hook.receive_message(None)
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_conn')
+    def test_receive_subscription_message(self, mock_sb_client):
+        """
+        Test `receive_subscription_message` hook function and assert the function with mock value,
+        mock the azure service bus `receive_message` function of subscription
+        """
+        subscription_name = "subscription_1"
+        topic_name = "topic_name"
+        max_message_count = 10
+        max_wait_time = 5
+        hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.conn_id)
+        hook.receive_subscription_message(topic_name, subscription_name, max_message_count, max_wait_time)
+        expected_calls = [
+            mock.call()
+            .__enter__()
+            .get_subscription_receiver(subscription_name, topic_name)
+            .__enter__()
+            .receive_messages(max_message_count=max_message_count, max_wait_time=max_wait_time)
+            .__iter__()
+        ]
+        mock_sb_client.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        "mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time",
+        [("subscription_1", None, None, None), (None, "topic_1", None, None)],
+    )
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_conn')
+    def test_receive_subscription_message_exception(
+        self, mock_sb_client, mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time
+    ):
+        """
+        Test `receive_subscription_message` hook function to raise exception
+        by sending the subscription and topic name as none
+        """
+        hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.conn_id)
+        with pytest.raises(AirflowException):
+            hook.receive_subscription_message(
+                mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time
+            )

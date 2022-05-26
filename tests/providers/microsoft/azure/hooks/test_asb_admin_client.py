@@ -16,7 +16,6 @@
 # under the License.
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb_admin_client import AzureServiceBusAdminClientHook
 
 
-class TestAzureServiceBusAdminClientHook(unittest.TestCase):
-    def setUp(self) -> None:
+class TestAzureServiceBusAdminClientHook:
+    def setup_class(self) -> None:
         self.queue_name: str = "test_queue"
         self.conn_id: str = 'azure_service_bus_default'
         self.connection_string = (
@@ -103,3 +102,137 @@ class TestAzureServiceBusAdminClientHook(unittest.TestCase):
         hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
         with pytest.raises(AirflowException):
             hook.delete_queue(None)
+
+    @pytest.mark.parametrize(
+        (
+            "mock_subscription_name, mock_topic_name, mock_max_delivery ,mock_dead_letter, "
+            "mock_enable_batched_operations"
+        ),
+        [
+            ("subscription_1", "topic_1", 10, True, True),
+            ("subscription_1", "topic_1", None, None, None),
+            ("subscription_1", "topic_1", 10, None, None),
+            ("subscription_1", "topic_1", None, True, None),
+            ("subscription_1", "topic_1", None, None, True),
+        ],
+    )
+    @mock.patch('azure.servicebus.management.SubscriptionProperties')
+    @mock.patch(
+        'airflow.providers.microsoft.azure.hooks.asb_admin_client.AzureServiceBusAdminClientHook.get_conn'
+    )
+    def test_create_subscription(
+        self,
+        mock_sb_admin_client,
+        mock_subscription_properties,
+        mock_subscription_name,
+        mock_topic_name,
+        mock_max_delivery,
+        mock_dead_letter,
+        mock_enable_batched_operations,
+    ):
+        """Test create subscription by mocking the admin client, subscription_name , topic_name"""
+        mock_subscription_properties.name = "test_subscription"
+        mock_sb_admin_client.return_value.__enter__.return_value.create_subscription.return_value = (
+            mock_subscription_properties
+        )
+        hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        response = hook.create_subscription(
+            mock_subscription_name,
+            mock_topic_name,
+            mock_max_delivery,
+            mock_dead_letter,
+            mock_enable_batched_operations,
+        )
+        assert response == mock_subscription_properties
+
+    @pytest.mark.parametrize(
+        "mock_subscription_name, mock_topic_name",
+        [("subscription_1", None), (None, "topic_1")],
+    )
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb_admin_client.ServiceBusAdministrationClient')
+    def test_create_subscription_exception(
+        self, mock_sb_admin_client, mock_subscription_name, mock_topic_name
+    ):
+        """
+        Test `create_subscription` functionality to raise AirflowException,
+         by passing subscription name and topic name as None and pytest raise Airflow Exception
+        """
+        hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        with pytest.raises(AirflowException):
+            hook.create_subscription(mock_subscription_name, mock_topic_name)
+
+    @mock.patch(
+        'airflow.providers.microsoft.azure.hooks.asb_admin_client.AzureServiceBusAdminClientHook.get_conn'
+    )
+    def test_delete_subscription(self, mock_sb_admin_client):
+        """
+        Test Delete subscription functionality by passing subscription name and topic name,
+        assert the function with values, mock the azure service bus function  `delete_subscription`
+        """
+        subscription_name = "test_subscription_name"
+        topic_name = "test_topic_name"
+        hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        hook.delete_subscription(subscription_name, topic_name)
+        expected_calls = [mock.call().__enter__().delete_subscription(topic_name, subscription_name)]
+        mock_sb_admin_client.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        "mock_subscription_name, mock_topic_name",
+        [("subscription_1", None), (None, "topic_1")],
+    )
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb_admin_client.ServiceBusAdministrationClient')
+    def test_delete_subscription_exception(
+        self, mock_sb_admin_client, mock_subscription_name, mock_topic_name
+    ):
+        """
+        Test `delete_subscription` functionality to raise AirflowException,
+         by passing subscription name and topic name as None and pytest raise Airflow Exception
+        """
+        hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        with pytest.raises(AirflowException):
+            hook.delete_subscription(mock_subscription_name, mock_topic_name)
+
+    @pytest.mark.parametrize(
+        (
+            "mock_subscription_name, mock_topic_name, mock_max_delivery ,mock_dead_letter, "
+            "mock_enable_batched_operations"
+        ),
+        [
+            ("subscription_1", "topic_1", 10, True, True),
+            ("subscription_1", "topic_1", None, None, None),
+            ("subscription_1", "topic_1", 10, None, None),
+            ("subscription_1", "topic_1", None, True, None),
+            ("subscription_1", "topic_1", None, None, True),
+        ],
+    )
+    @mock.patch('azure.servicebus.management.SubscriptionProperties')
+    @mock.patch(
+        'airflow.providers.microsoft.azure.hooks.asb_admin_client.AzureServiceBusAdminClientHook.get_conn'
+    )
+    def test_update_subscription(
+        self,
+        mock_sb_admin_client,
+        mock_subscription_properties,
+        mock_subscription_name,
+        mock_topic_name,
+        mock_max_delivery,
+        mock_dead_letter,
+        mock_enable_batched_operations,
+    ):
+        """Test update subscription by mocking the admin client, and other details"""
+        mock_subscription_properties.name = mock_subscription_name
+        mock_sb_admin_client.return_value.__enter__.return_value.get_subscription.return_value = (
+            mock_subscription_properties
+        )
+        hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        hook.update_subscription(
+            mock_subscription_name,
+            mock_topic_name,
+            mock_max_delivery,
+            mock_dead_letter,
+            mock_enable_batched_operations,
+        )
+        expected_calls = [
+            mock.call().__enter__().update_subscription(mock_topic_name, mock_subscription_properties)
+        ]
+        mock_sb_admin_client.assert_has_calls(expected_calls)

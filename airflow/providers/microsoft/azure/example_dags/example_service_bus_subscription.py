@@ -21,9 +21,9 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.providers.microsoft.azure.operators.azure_service_bus_subscription import (
     ASBCreateSubscriptionOperator,
-    ASBUpdateSubscriptionOperator,
-    ASBReceiveSubscriptionMessageOperator,
     ASBDeleteSubscriptionOperator,
+    ASBReceiveSubscriptionMessageOperator,
+    ASBUpdateSubscriptionOperator,
 )
 
 EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
@@ -34,7 +34,7 @@ default_args = {
 }
 
 CLIENT_ID = os.getenv("CLIENT_ID", "")
-TOPIC_NAME = "sb_mgmt_topic_test",
+TOPIC_NAME = "sb_mgmt_topic_test"
 SUBSCRIPTION_NAME = "sb_mgmt_subscription"
 
 with DAG(
@@ -76,7 +76,7 @@ with DAG(
         task_id="delete_service_bus_subscription",
         topic_name=TOPIC_NAME,
         subscription_name=SUBSCRIPTION_NAME,
-        trigger_rule="all_done"
+        trigger_rule="all_done",
     )
     # [END howto_operator_delete_service_bus_subscription]
 

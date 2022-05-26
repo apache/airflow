@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import TYPE_CHECKING, Sequence
+import datetime
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb_admin_client import AzureServiceBusAdminClientHook
@@ -32,11 +32,36 @@ class ASBCreateSubscriptionOperator(BaseOperator):
 
     :param topic_name: The topic that will own the to-be-created subscription.
     :param subscription_name: Name of the subscription that need to be created
-    :param max_delivery_count: The maximum delivery count. A message is automatically dead lettered
-        after this number of deliveries. Default value is 10
+    :param lock_duration: ISO 8601 timespan duration of a peek-lock; that is, the amount of time
+         that the message is locked for other receivers. The maximum value for LockDuration is 5
+         minutes; the default value is 1 minute.
+         Input value of either type ~datetime.timedelta or string in ISO 8601 duration format like
+         "PT300S" is accepted.
+    :param requires_session: A value that indicates whether the queue supports the concept of
+     sessions.
+    :param default_message_time_to_live: ISO 8601 default message timespan to live value. This is
+     the duration after which the message expires, starting from when the message is sent to Service
+     Bus. This is the default value used when TimeToLive is not set on a message itself.
+     Input value of either type ~datetime.timedelta or string in ISO 8601 duration format like
+     "PT300S" is accepted.
     :param dead_lettering_on_message_expiration: A value that indicates whether this subscription
-        has dead letter support when a message expires.
-    :param enable_batched_operations: Value that indicates whether server-side batched operations are enabled.
+     has dead letter support when a message expires.
+    :param dead_lettering_on_filter_evaluation_exceptions: A value that indicates whether this
+     subscription has dead letter support when a message expires.
+    :param max_delivery_count: The maximum delivery count. A message is automatically deadlettered
+     after this number of deliveries. Default value is 10.
+    :param enable_batched_operations: Value that indicates whether server-side batched operations
+     are enabled.
+    :param forward_to: The name of the recipient entity to which all the messages sent to the
+     subscription are forwarded to.
+    :param user_metadata: Metadata associated with the subscription. Maximum number of characters
+     is 1024.
+    :param forward_dead_lettered_messages_to: The name of the recipient entity to which all the
+     messages sent to the subscription are forwarded to.
+    :param auto_delete_on_idle: ISO 8601 timeSpan idle interval after which the subscription is
+     automatically deleted. The minimum duration is 5 minutes.
+     Input value of either type ~datetime.timedelta or string in ISO 8601 duration format like
+      "PT300S" is accepted.
     :param azure_service_bus_conn_id: Reference to the
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
@@ -49,18 +74,34 @@ class ASBCreateSubscriptionOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        max_delivery_count: int = 10,
-        dead_lettering_on_message_expiration: bool = True,
-        enable_batched_operations: bool = True,
         azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        lock_duration: Optional[Union[datetime.timedelta, str]] = None,
+        requires_session: Optional[bool] = None,
+        default_message_time_to_live: Optional[Union[datetime.timedelta, str]] = None,
+        dead_lettering_on_message_expiration: Optional[bool] = True,
+        dead_lettering_on_filter_evaluation_exceptions: Optional[bool] = None,
+        max_delivery_count: Optional[int] = 10,
+        enable_batched_operations: Optional[bool] = True,
+        forward_to: Optional[str] = None,
+        user_metadata: Optional[str] = None,
+        forward_dead_lettered_messages_to: Optional[str] = None,
+        auto_delete_on_idle: Optional[Union[datetime.timedelta, str]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.topic_name = topic_name
         self.subscription_name = subscription_name
-        self.max_delivery_count = max_delivery_count
+        self.lock_duration = lock_duration
+        self.requires_session = requires_session
+        self.default_message_time_to_live = default_message_time_to_live
         self.dead_lettering_on_message_expiration = dead_lettering_on_message_expiration
+        self.dead_lettering_on_filter_evaluation_exceptions = dead_lettering_on_filter_evaluation_exceptions
+        self.max_delivery_count = max_delivery_count
         self.enable_batched_operations = enable_batched_operations
+        self.forward_to = forward_to
+        self.user_metadata = user_metadata
+        self.forward_dead_lettered_messages_to = forward_dead_lettered_messages_to
+        self.auto_delete_on_idle = auto_delete_on_idle
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: "Context") -> None:
@@ -72,11 +113,19 @@ class ASBCreateSubscriptionOperator(BaseOperator):
         subscription = hook.create_subscription(
             self.subscription_name,
             self.topic_name,
-            self.max_delivery_count,
+            self.lock_duration,
+            self.requires_session,
+            self.default_message_time_to_live,
             self.dead_lettering_on_message_expiration,
-            self.enable_batched_operations
+            self.dead_lettering_on_filter_evaluation_exceptions,
+            self.max_delivery_count,
+            self.enable_batched_operations,
+            self.forward_to,
+            self.user_metadata,
+            self.forward_dead_lettered_messages_to,
+            self.auto_delete_on_idle,
         )
-        self.log.info("Created Queue %s", self.cluster_identifier)
+        self.log.info("Created Queue %s", subscription.name)
         self.log.info(subscription)
 
 
@@ -96,7 +145,7 @@ class ASBUpdateSubscriptionOperator(BaseOperator):
         :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
 
-    template_fields: Sequence[str] = ("topic_name","subscription_name")
+    template_fields: Sequence[str] = ("topic_name", "subscription_name")
     ui_color = "#e4f0e8"
 
     def __init__(
@@ -104,9 +153,9 @@ class ASBUpdateSubscriptionOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        max_delivery_count: int = None,
-        dead_lettering_on_message_expiration: bool = None,
-        enable_batched_operations: bool = None,
+        max_delivery_count: Optional[int] = None,
+        dead_lettering_on_message_expiration: Optional[bool] = None,
+        enable_batched_operations: Optional[bool] = None,
         azure_service_bus_conn_id: str = 'azure_service_bus_default',
         **kwargs,
     ) -> None:
@@ -129,7 +178,7 @@ class ASBUpdateSubscriptionOperator(BaseOperator):
             self.topic_name,
             self.max_delivery_count,
             self.dead_lettering_on_message_expiration,
-            self.enable_batched_operations
+            self.enable_batched_operations,
         )
 
 
@@ -158,16 +207,16 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
         *,
         topic_name: str,
         subscription_name: str,
-        max_message_count: int = 1,
-        max_wait_time: float = 5,
+        max_message_count: Optional[int] = 1,
+        max_wait_time: Optional[float] = 5,
         azure_service_bus_conn_id: str = 'azure_service_bus_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.topic_name = topic_name,
-        self.subscription_name = subscription_name,
-        self.max_message_count = max_message_count,
-        self.max_wait_time = max_wait_time,
+        self.topic_name = topic_name
+        self.subscription_name = subscription_name
+        self.max_message_count = max_message_count
+        self.max_wait_time = max_wait_time
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: "Context") -> None:
@@ -180,10 +229,7 @@ class ASBReceiveSubscriptionMessageOperator(BaseOperator):
 
         # Receive message
         hook.receive_subscription_message(
-            self.topic_name,
-            self.subscription_name,
-            self.max_message_count,
-            self.max_wait_time
+            self.topic_name, self.subscription_name, self.max_message_count, self.max_wait_time
         )
 
 

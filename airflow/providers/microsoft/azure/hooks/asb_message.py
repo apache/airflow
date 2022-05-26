@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Union
+from typing import List, Optional, Union
 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSender
 from azure.servicebus.exceptions import MessageSizeExceededError
@@ -37,13 +37,15 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
 
-        self.connection_string: str = extras.get('connection_string') or extras.get(
-            'extra__azure_service_bus__connection_string'
+        self.connection_string = str(
+            extras.get('connection_string') or extras.get('extra__azure_service_bus__connection_string')
         )
 
         return ServiceBusClient.from_connection_string(conn_str=self.connection_string, logging_enable=True)
 
-    def send_message(self, queue_name: str, messages: Union[str, list], batch_message_flag: bool = False):
+    def send_message(
+        self, queue_name: str, messages: Union[str, List[str]], batch_message_flag: bool = False
+    ):
         """
         By using ServiceBusClient Send message(s) to a Service Bus Queue. By using
         batch_message_flag it enables and send message as batch message
@@ -73,17 +75,16 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
             raise AirflowException(e)
 
     @staticmethod
-    def send_list_messages(sender: ServiceBusSender, messages: list[str]):
+    def send_list_messages(sender: ServiceBusSender, messages: List[str]):
         list_messages = [ServiceBusMessage(message) for message in messages]
         sender.send_messages(list_messages)
 
     @staticmethod
-    def send_batch_message(sender: ServiceBusSender, messages: list[str]):
+    def send_batch_message(sender: ServiceBusSender, messages: List[str]):
         batch_message = sender.create_message_batch()
         for message in messages:
             try:
-                batch_message.add_message(
-                    ServiceBusMessage(message))
+                batch_message.add_message(ServiceBusMessage(message))
             except MessageSizeExceededError as e:
                 # ServiceBusMessageBatch object reaches max_size.
                 # New ServiceBusMessageBatch object can be created here to send more data.
@@ -111,11 +112,13 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
         except Exception as e:
             raise AirflowException(e)
 
-    def receive_subscription_message(self,
-                                     topic_name: str,
-                                     subscription_name: str,
-                                     max_message_count: int,
-                                     max_wait_time: float):
+    def receive_subscription_message(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        max_message_count: Optional[int],
+        max_wait_time: Optional[float],
+    ):
         """
         Receive a batch of subscription message at once. This approach is optimal if you wish
         to process multiple messages simultaneously, or perform an ad-hoc receive as a single call.
@@ -136,12 +139,13 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
             raise AirflowBadRequest("Topic name cannot be None.")
         try:
             with self.get_conn() as service_bus_client:
-                subscription_receiver = service_bus_client.get_subscription_receiver(topic_name,
-                                                                                     subscription_name)
+                subscription_receiver = service_bus_client.get_subscription_receiver(
+                    topic_name, subscription_name
+                )
                 with subscription_receiver:
                     received_msgs = subscription_receiver.receive_messages(
-                        max_message_count=max_message_count,
-                        max_wait_time=max_wait_time)
+                        max_message_count=max_message_count, max_wait_time=max_wait_time
+                    )
                     for msg in received_msgs:
                         self.log.info(msg)
                         subscription_receiver.complete_message(msg)
