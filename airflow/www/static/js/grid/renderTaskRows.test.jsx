@@ -73,32 +73,43 @@ const mockGroup = {
   instances: [],
 };
 
+const nullMockGroup = {
+  id: null,
+  label: null,
+  children: [
+    {
+      extraLinks: [],
+      id: 'group_1',
+      label: 'group_1',
+      instances: [null],
+      children: [
+        {
+          id: 'group_1.task_1',
+          label: 'group_1.task_1',
+          extraLinks: [],
+          instances: [null],
+        },
+      ],
+    },
+  ],
+  instances: [null],
+};
+
 describe('Test renderTaskRows', () => {
+  test('Renders name and task instance', () => {
+    const task = mockGroup;
+
+    const { queryByTestId, getByText } = render(
+      <>{renderTaskRows({ task, dagRunIds: ['run1'] })}</>,
+      { wrapper: TableWrapper },
+    );
+
+    expect(getByText('group_1')).toBeInTheDocument();
+    expect(queryByTestId('task-instance')).toBeDefined();
+    expect(queryByTestId('blank-task')).toBeNull();
+  });
+
   test('Still renders names if there are no instances', () => {
-    global.gridData = {
-      groups: {
-        id: null,
-        label: null,
-        children: [
-          {
-            extraLinks: [],
-            id: 'group_1',
-            label: 'group_1',
-            instances: [],
-            children: [
-              {
-                id: 'group_1.task_1',
-                label: 'group_1.task_1',
-                extraLinks: [],
-                instances: [],
-              },
-            ],
-          },
-        ],
-        instances: [],
-      },
-      dagRuns: [],
-    };
     const task = mockGroup;
 
     const { queryByTestId, getByText } = render(
@@ -111,31 +122,10 @@ describe('Test renderTaskRows', () => {
   });
 
   test('Still renders correctly if task instance is null', () => {
-    global.gridData = {
-      groups: {
-        id: null,
-        label: null,
-        children: [
-          {
-            extraLinks: [],
-            id: 'group_1',
-            label: 'group_1',
-            instances: [null],
-          },
-        ],
-        instances: [null],
-      },
-      dagRuns: [
-        {
-          state: 'success',
-          runId: 'run_id',
-        },
-      ],
-    };
-    const task = mockGroup;
+    const task = nullMockGroup;
 
     const { queryByTestId, getByText } = render(
-      <>{renderTaskRows({ task, dagRunIds: ['run_id'] })}</>,
+      <>{renderTaskRows({ task, dagRunIds: ['run1'] })}</>,
       { wrapper: TableWrapper },
     );
 
