@@ -80,14 +80,20 @@ function in_container_script_end() {
 #
 function in_container_cleanup_pyc() {
     set +o pipefail
+    if [[ ${CLEANED_PYC=} == "true" ]]; then
+        return
+    fi
     sudo find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/ui/node_modules" -prune -o \
+        -path "./provider_packages/airflow/www/node_modules" -prune -o \
+        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
         -name "*.pyc" | grep ".pyc$" | sudo xargs rm -f
     set -o pipefail
+    export CLEANED_PYC="true"
 }
 
 #
@@ -95,14 +101,20 @@ function in_container_cleanup_pyc() {
 #
 function in_container_cleanup_pycache() {
     set +o pipefail
+    if [[ ${CLEANED_PYCACHE=} == "true" ]]; then
+        return
+    fi
     find . \
         -path "./airflow/www/node_modules" -prune -o \
         -path "./airflow/ui/node_modules" -prune -o \
+        -path "./provider_packages/airflow/www/node_modules" -prune -o \
+        -path "./provider_packages/airflow/ui/node_modules" -prune -o \
         -path "./.eggs" -prune -o \
         -path "./docs/_build" -prune -o \
         -path "./build" -prune -o \
         -name "__pycache__" | grep "__pycache__" | sudo xargs rm -rf
     set -o pipefail
+    export CLEANED_PYCACHE="true"
 }
 
 #
