@@ -169,9 +169,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         k.execute(context)
         expected_pod = copy(self.expected_pod)
-        expected_pod['metadata']['labels']['already_checked'] = 'True'
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        assert expected_pod == actual_pod
+        assert actual_pod == expected_pod
 
     def test_working_pod(self):
         k = KubernetesPodOperator(
@@ -209,6 +208,57 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert self.expected_pod['spec'] == actual_pod['spec']
         assert self.expected_pod['metadata']['labels'] == actual_pod['metadata']['labels']
+
+    def test_already_checked_on_success(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
+
+    def test_already_checked_on_failure(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["lalala"],
+            labels={"foo": "bar"},
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        with pytest.raises(AirflowException):
+            k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        status = next(iter(filter(lambda x: x['name'] == 'base', actual_pod['status']['containerStatuses'])))
+        assert status['state']['terminated']['reason'] == 'Error'
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
 
     def test_pod_hostnetwork(self):
         k = KubernetesPodOperator(
@@ -763,7 +813,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'kubernetes_pod_operator': 'True',
             'task_id': mock.ANY,
             'try_number': '1',
-            'already_checked': 'True',
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
