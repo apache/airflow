@@ -109,4 +109,38 @@ describe('Test renderTaskRows', () => {
     expect(getByText('group_1')).toBeInTheDocument();
     expect(queryByTestId('task-instance')).toBeNull();
   });
+
+  test('Still renders correctly if task instance is null', () => {
+    global.gridData = {
+      groups: {
+        id: null,
+        label: null,
+        children: [
+          {
+            extraLinks: [],
+            id: 'group_1',
+            label: 'group_1',
+            instances: [null],
+          },
+        ],
+        instances: [null],
+      },
+      dagRuns: [
+        {
+          state: 'success',
+          runId: 'run_id',
+        },
+      ],
+    };
+    const task = mockGroup;
+
+    const { queryByTestId, getByText } = render(
+      <>{renderTaskRows({ task, dagRunIds: ['run_id'] })}</>,
+      { wrapper: TableWrapper },
+    );
+
+    expect(getByText('group_1')).toBeInTheDocument();
+    expect(queryByTestId('task-instance')).toBeNull();
+    expect(queryByTestId('blank-task')).toBeInTheDocument();
+  });
 });
