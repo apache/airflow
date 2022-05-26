@@ -266,7 +266,7 @@ dask = [
     'distributed>=2.11.1',
 ]
 databricks = [
-    'requests>=2.26.0, <3',
+    'requests>=2.27,<3',
     'databricks-sql-connector>=2.0.0, <3.0.0',
     'aiohttp>=3.6.3, <4',
 ]
