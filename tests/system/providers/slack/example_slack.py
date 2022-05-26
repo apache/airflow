@@ -39,6 +39,7 @@ with models.DAG(
 ) as dag:
 
     # Send file with filename and filetype
+    # [START slack_operator_howto_guide]
     slack_operator_file = SlackAPIFileOperator(
         task_id="slack_file_upload_1",
         filename="/resources/file.txt",
