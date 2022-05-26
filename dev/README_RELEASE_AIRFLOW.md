@@ -224,16 +224,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
-- PR from the 'test' branch to the 'stable' branch, and manually merge it once approved. Here's how to manually merge the PR:
-
-    ```shell script
-    git merge --ff-only v${VERSION_BRANCH}-test
-    ```
-
 - Check out the 'stable' branch
 
     ```shell script
     git checkout v${VERSION_BRANCH}-stable
+    ```
+
+- PR from the 'test' branch to the 'stable' branch, and manually merge it once approved. Here's how to manually merge the PR:
+
+    ```shell script
+    git merge --ff-only v${VERSION_BRANCH}-test
     ```
 
 - Tag your release
