@@ -22,10 +22,10 @@
 ## Tests structure
 
 All Slack-related system tests are located inside this subdirectory of system tests which is
-`tests/system/providers/slack/`. At this point, the file structre is flat but it can change once
+`tests/system/providers/slack/`. At this point, the file structure is flat but it can change once
 more and more tests are added.
 
-Each test file is as self-contained DAG (one DAG per file) and potentally each test may require some additional
+Each test file is as self-contained DAG (one DAG per file) and potentially each test may require some additional
 resources which should be placed in `resources` directory found on the same level as tests.
 
 Each test file should start with prefix `example_*`. If there
