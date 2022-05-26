@@ -133,7 +133,6 @@ class DbtCloudHook(HttpHook):
     Interact with dbt Cloud using the V2 API.
 
     :param dbt_cloud_conn_id: The ID of the :ref:`dbt Cloud connection <howto/connection:dbt-cloud>`.
-    :param tenant: The subdomain / tenancy of a dbt Cloud account.
     """
 
     conn_name_attr = "dbt_cloud_conn_id"
