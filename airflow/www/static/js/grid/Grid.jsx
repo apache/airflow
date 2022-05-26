@@ -110,6 +110,8 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
           title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
           aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
           icon={<MdReadMore />}
+          transform={!isPanelOpen && 'rotateZ(180deg)'}
+          transitionProperty="none"
         />
       </Flex>
       <Table>
