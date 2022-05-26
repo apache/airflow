@@ -33,6 +33,7 @@ import useSelection from './utils/useSelection';
 import Grid from './Grid';
 import FilterBar from './FilterBar';
 import LegendRow from './LegendRow';
+import AutoRefresh from './AutoRefresh';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
@@ -57,20 +58,20 @@ const Main = () => {
       <FilterBar />
       <LegendRow setHoveredTaskState={setHoveredTaskState} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex flexDirection="row" justifyContent="space-between">
+      <Flex justifyContent="space-between" mb={2}>
+        <AutoRefresh />
+        <Button
+          onClick={toggleDetailsPanel}
+          aria-label={isOpen ? 'Show Details' : 'Hide Details'}
+          variant={isOpen ? 'solid' : 'outline'}
+        >
+          {isOpen ? 'Hide ' : 'Show '}
+          Details Panel
+        </Button>
+      </Flex>
+      <Flex justifyContent="space-between">
         <Grid isPanelOpen={isOpen} hoveredTaskState={hoveredTaskState} />
         <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
-          <Button
-            position="absolute"
-            top={0}
-            right={0}
-            onClick={toggleDetailsPanel}
-            aria-label={isOpen ? 'Show Details' : 'Hide Details'}
-            variant={isOpen ? 'solid' : 'outline'}
-          >
-            {isOpen ? 'Hide ' : 'Show '}
-            Details Panel
-          </Button>
           {isOpen && (<Details />)}
         </Box>
       </Flex>

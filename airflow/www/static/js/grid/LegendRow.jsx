@@ -44,7 +44,7 @@ const StatusBadge = ({
 
 const LegendRow = ({ setHoveredTaskState }) => (
   <Flex p={4} flexWrap="wrap" justifyContent="end">
-    <HStack spacing={2}>
+    <HStack spacing={2} wrap="wrap">
       {
       Object.entries(stateColors).map(([state, stateColor]) => (
         <StatusBadge

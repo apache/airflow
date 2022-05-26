@@ -34,7 +34,6 @@ import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
 import ToggleGroups from './ToggleGroups';
 import { getMetaValue } from '../utils';
-import AutoRefresh from './AutoRefresh';
 
 const dagId = getMetaValue('dag_id');
 
@@ -85,7 +84,6 @@ const Grid = ({ isPanelOpen = false, hoveredTaskState }) => {
       minWidth={isPanelOpen && '300px'}
     >
       <Flex alignItems="center" position="sticky" top={0} left={0}>
-        <AutoRefresh />
         <ToggleGroups
           groups={groups}
           openGroupIds={openGroupIds}
