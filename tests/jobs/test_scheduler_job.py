@@ -3955,7 +3955,6 @@ class TestSchedulerJob:
         """End-to-end test of a simple mapped dag"""
         # Use SequentialExecutor for more predictable test behaviour
         from airflow.executors.sequential_executor import SequentialExecutor
-        from airflow.utils.dates import days_ago
 
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / f'{dag_id}.py'))
         dag = self.dagbag.get_dag(dag_id)
@@ -3964,7 +3963,7 @@ class TestSchedulerJob:
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            execution_date=days_ago(2),
+            execution_date=timezone.utcnow() - datetime.timedelta(days=2),
             session=session,
         )
 

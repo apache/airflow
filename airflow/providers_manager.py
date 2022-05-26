@@ -377,9 +377,12 @@ class ProvidersManager(LoggingMixin):
             if min_version:
                 if packaging_version.parse(min_version) > packaging_version.parse(info.version):
                     log.warning(
-                        f"The package {provider_id} is not compatible with this version of Airflow. "
-                        f"The package has version {info.version} but the minimum supported version "
-                        f"of the package is {min_version}"
+                        "The package %s is not compatible with this version of Airflow. "
+                        "The package has version %s but the minimum supported version "
+                        "of the package is %s",
+                        provider_id,
+                        info.version,
+                        min_version,
                     )
 
     @provider_info_cache("hooks")
