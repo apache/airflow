@@ -175,7 +175,7 @@ class TestVaultSecrets(TestCase):
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_conn_uri_non_existent_key(self, mock_hvac):
         """
-        Test that if the key with connection ID is not present in Vault, _VaultClient.get_connections
+        Test that if the key with connection ID is not present in Vault, _VaultClient.get_connection
         should return None
         """
         mock_client = mock.MagicMock()
@@ -196,7 +196,7 @@ class TestVaultSecrets(TestCase):
         mock_client.secrets.kv.v2.read_secret_version.assert_called_once_with(
             mount_point='airflow', path='connections/test_mysql', version=None
         )
-        assert [] == test_client.get_connections(conn_id="test_mysql")
+        assert test_client.get_connection(conn_id="test_mysql") is None
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value(self, mock_hvac):
@@ -273,7 +273,7 @@ class TestVaultSecrets(TestCase):
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_variable_value_non_existent_key(self, mock_hvac):
         """
-        Test that if the key with connection ID is not present in Vault, _VaultClient.get_connections
+        Test that if the key with connection ID is not present in Vault, _VaultClient.get_connection
         should return None
         """
         mock_client = mock.MagicMock()
@@ -311,7 +311,7 @@ class TestVaultSecrets(TestCase):
         }
 
         with pytest.raises(VaultError, match="Vault Authentication Error!"):
-            VaultBackend(**kwargs).get_connections(conn_id='test')
+            VaultBackend(**kwargs).get_connection(conn_id='test')
 
     def test_auth_type_kubernetes_with_unreadable_jwt_raises_error(self):
         path = "/var/tmp/this_does_not_exist/334e918ef11987d3ef2f9553458ea09f"
@@ -323,7 +323,7 @@ class TestVaultSecrets(TestCase):
         }
 
         with pytest.raises(FileNotFoundError, match=path):
-            VaultBackend(**kwargs).get_connections(conn_id='test')
+            VaultBackend(**kwargs).get_connection(conn_id='test')
 
     @mock.patch("airflow.providers.hashicorp._internal_client.vault_client.hvac")
     def test_get_config_value(self, mock_hvac):

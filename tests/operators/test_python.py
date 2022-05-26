@@ -42,7 +42,6 @@ from airflow.operators.python import (
 )
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
-from airflow.utils.dates import days_ago
 from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -1161,7 +1160,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 DEFAULT_ARGS = {
     "owner": "test",
     "depends_on_past": True,
-    "start_date": days_ago(1),
+    "start_date": timezone.datetime(2022, 1, 1),
     "end_date": datetime.today(),
     "schedule_interval": "@once",
     "retries": 1,

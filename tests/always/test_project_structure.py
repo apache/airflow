@@ -433,9 +433,6 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
-        # DMS examples DAGs are currently in development
-        'airflow.providers.amazon.aws.operators.dms.DmsDescribeTasksOperator',
-        'airflow.providers.amazon.aws.operators.dms.DmsStopTaskOperator',
         # EMR legitimately missing, needs development
         'airflow.providers.amazon.aws.operators.emr.EmrModifyClusterOperator',
         'airflow.providers.amazon.aws.sensors.emr.EmrContainerSensor',

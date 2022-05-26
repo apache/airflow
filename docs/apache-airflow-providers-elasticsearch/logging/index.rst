@@ -30,37 +30,22 @@ First, to use the handler, ``airflow.cfg`` must be configured as follows:
 .. code-block:: ini
 
     [logging]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
-    # Users must supply an Airflow connection id that provides access to the storage
-    # location. If remote_logging is set to true, see UPDATING.md for additional
-    # configuration requirements.
     remote_logging = True
 
     [elasticsearch]
     host = <host>:<port>
-    log_id_template = {dag_id}-{task_id}-{run_id}-{try_number}
-    end_of_log_mark = end_of_log
-    write_stdout =
-    json_fields =
 
 To output task logs to stdout in JSON format, the following config could be used:
 
 .. code-block:: ini
 
     [logging]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
-    # Users must supply an Airflow connection id that provides access to the storage
-    # location. If remote_logging is set to true, see UPDATING.md for additional
-    # configuration requirements.
     remote_logging = True
 
     [elasticsearch]
     host = <host>:<port>
-    log_id_template = {dag_id}-{task_id}-{run_id}-{try_number}
-    end_of_log_mark = end_of_log
     write_stdout = True
     json_format = True
-    json_fields = asctime, filename, lineno, levelname, message
 
 .. _write-logs-elasticsearch-tls:
 
@@ -73,10 +58,6 @@ cert, etc.) use the ``elasticsearch_configs`` setting in your ``airflow.cfg``
 .. code-block:: ini
 
     [logging]
-    # Airflow can store logs remotely in AWS S3, Google Cloud Storage or Elastic Search.
-    # Users must supply an Airflow connection id that provides access to the storage
-    # location. If remote_logging is set to true, see UPDATING.md for additional
-    # configuration requirements.
     remote_logging = True
 
     [elasticsearch_configs]
@@ -100,3 +81,18 @@ To enable it, ``airflow.cfg`` must be configured as in the example below. Note t
     # Code will construct log_id using the log_id template from the argument above.
     # NOTE: scheme will default to https if one is not provided
     frontend = <host_port>/{log_id}
+
+Changes to ``[elasticsearch] log_id_template``
+''''''''''''''''''''''''''''''''''''''''''''''
+
+If you ever need to make changes to ``[elasticsearch] log_id_template``, Airflow 2.3.0+ is able to keep track of
+old values so your existing task runs logs can still be fetched. Once you are on Airflow 2.3.0+, in general, you
+can just change ``log_id_template`` at will and Airflow will keep track of the changes.
+
+However, when you are upgrading to 2.3.0+, Airflow may not be able to properly save your previous ``log_id_template``.
+If after upgrading you find your task logs are no longer accessible, try adding a row in the ``log_template`` table with ``id=0``
+containing your previous ``log_id_template``. For example, if you used the defaults in 2.2.5:
+
+.. code-block:: sql
+
+    INSERT INTO log_template (id, filename, elasticsearch_id, created_at) VALUES (0, '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', '{dag_id}_{task_id}_{run_id}_{try_number}', NOW());

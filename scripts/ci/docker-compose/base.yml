@@ -90,8 +90,3 @@ services:
       - "${FLOWER_HOST_PORT}:5555"
     cap_add:
       - SYS_PTRACE
-volumes:
-  sqlite-db-volume:
-  postgres-db-volume:
-  mysql-db-volume:
-  mssql-db-volume:

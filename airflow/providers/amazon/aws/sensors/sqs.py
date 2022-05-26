@@ -39,7 +39,7 @@ class SqsSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/operator:SqsSensor`
+        :ref:`howto/sensor:SqsSensor`
 
     :param aws_conn_id: AWS connection id
     :param sqs_queue: The SQS queue url (templated)

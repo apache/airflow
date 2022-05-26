@@ -22,8 +22,11 @@ import textwrap
 
 import pytest
 
+from airflow import settings
 from airflow.utils.log.secrets_masker import SecretsMasker, should_hide_value_for_key
 from tests.test_utils.config import conf_vars
+
+settings.MASK_SECRETS_IN_LOGS = True
 
 p = "password"
 

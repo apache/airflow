@@ -233,7 +233,7 @@ or
 Naming conventions
 ==================
 
-By default images we are using cache for images in Github Container registry. We are using GitHub
+By default images we are using cache for images in GitHub Container registry. We are using GitHub
 Container Registry as development image cache and CI registry for build images.
 The images are all in organization wide "apache/" namespace. We are adding "airflow-" as prefix for
 the image names of all Airflow images. The images are linked to the repository
@@ -475,7 +475,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.1.0``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.1.1``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+

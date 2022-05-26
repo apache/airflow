@@ -42,7 +42,6 @@ from airflow.providers.google.cloud.operators.mlengine import (
 )
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 
 DEFAULT_DATE = timezone.datetime(2017, 6, 6)
 
@@ -410,7 +409,7 @@ class TestMLEngineStartTrainingJobOperator:
                 'imageUri': 'eu.gcr.io/test-project/test-image:test-version',
             },
             'task_id': 'test-training',
-            'start_date': days_ago(1),
+            'start_date': DEFAULT_DATE,
         }
         request = {
             'jobId': 'test_training',

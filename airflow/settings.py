@@ -88,16 +88,16 @@ json = json
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
 STATE_COLORS = {
+    "deferred": "mediumpurple",
+    "failed": "red",
     "queued": "gray",
     "running": "lime",
-    "success": "green",
-    "failed": "red",
-    "up_for_retry": "gold",
-    "up_for_reschedule": "turquoise",
-    "upstream_failed": "orange",
-    "skipped": "hotpink",
     "scheduled": "tan",
-    "deferred": "mediumpurple",
+    "skipped": "hotpink",
+    "success": "green",
+    "up_for_reschedule": "turquoise",
+    "up_for_retry": "gold",
+    "upstream_failed": "orange",
 }
 
 
@@ -293,7 +293,7 @@ def configure_orm(disable_connection_pool=False):
             data = result.fetchone()[0]
             if data != 1:
                 log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("The database %s has it disabled.", engine.url.database)
                 log.critical("This will cause random deadlocks, Refusing to start.")
                 log.critical(
                     "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
