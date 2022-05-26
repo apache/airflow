@@ -97,15 +97,6 @@ for details.
       # by setting the  dags.persistence.* and dags.gitSync.* values
       # Please refer to values.yaml for details
 
-.. code-block:: bash
-
-    helm upgrade --install airflow apache-airflow/airflow \
-      --set dags.persistence.enabled=true \
-      --set dags.gitSync.enabled=true
-      # you can also override the other persistence or gitSync values
-      # by setting the  dags.persistence.* and dags.gitSync.* values
-      # Please refer to values.yaml for details
-
 Mounting DAGs using Git-Sync sidecar without Persistence
 --------------------------------------------------------
 
