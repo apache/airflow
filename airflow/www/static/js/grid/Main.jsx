@@ -24,7 +24,6 @@ import {
   Box,
   Flex,
   useDisclosure,
-  Button,
   Divider,
 } from '@chakra-ui/react';
 
@@ -33,7 +32,6 @@ import useSelection from './utils/useSelection';
 import Grid from './Grid';
 import FilterBar from './FilterBar';
 import LegendRow from './LegendRow';
-import AutoRefresh from './AutoRefresh';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
@@ -43,7 +41,7 @@ const Main = () => {
   const { clearSelection } = useSelection();
   const [hoveredTaskState, setHoveredTaskState] = useState();
 
-  const toggleDetailsPanel = () => {
+  const onPanelToggle = () => {
     if (!isOpen) {
       localStorage.setItem(detailsPanelKey, false);
     } else {
@@ -58,19 +56,12 @@ const Main = () => {
       <FilterBar />
       <LegendRow setHoveredTaskState={setHoveredTaskState} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex justifyContent="space-between" mb={2}>
-        <AutoRefresh />
-        <Button
-          onClick={toggleDetailsPanel}
-          aria-label={isOpen ? 'Show Details' : 'Hide Details'}
-          variant={isOpen ? 'solid' : 'outline'}
-        >
-          {isOpen ? 'Hide ' : 'Show '}
-          Details Panel
-        </Button>
-      </Flex>
       <Flex justifyContent="space-between">
-        <Grid isPanelOpen={isOpen} hoveredTaskState={hoveredTaskState} />
+        <Grid
+          isPanelOpen={isOpen}
+          onPanelToggle={onPanelToggle}
+          hoveredTaskState={hoveredTaskState}
+        />
         <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
           {isOpen && (<Details />)}
         </Box>

@@ -26,6 +26,7 @@ import {
   Box,
   Thead,
   Flex,
+  Button,
 } from '@chakra-ui/react';
 
 import { useGridData } from './api';
@@ -34,10 +35,11 @@ import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
 import ToggleGroups from './ToggleGroups';
 import { getMetaValue } from '../utils';
+import AutoRefresh from './AutoRefresh';
 
 const dagId = getMetaValue('dag_id');
 
-const Grid = ({ isPanelOpen = false, hoveredTaskState }) => {
+const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
   const scrollRef = useRef();
   const tableRef = useRef();
 
@@ -83,13 +85,32 @@ const Grid = ({ isPanelOpen = false, hoveredTaskState }) => {
       flexGrow={1}
       minWidth={isPanelOpen && '300px'}
     >
-      <Flex alignItems="center" position="sticky" top={0} left={0}>
-        <ToggleGroups
-          groups={groups}
-          openGroupIds={openGroupIds}
-          onToggleGroups={onToggleGroups}
-        />
-        <ResetRoot />
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        position="sticky"
+        top={0}
+        left={0}
+        mb={2}
+        p={1}
+      >
+        <Flex alignItems="center">
+          <AutoRefresh />
+          <ToggleGroups
+            groups={groups}
+            openGroupIds={openGroupIds}
+            onToggleGroups={onToggleGroups}
+          />
+          <ResetRoot />
+        </Flex>
+        <Button
+          onClick={onPanelToggle}
+          aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
+          variant={isPanelOpen ? 'solid' : 'outline'}
+        >
+          {isPanelOpen ? 'Hide ' : 'Show '}
+          Details Panel
+        </Button>
       </Flex>
       <Table>
         <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
