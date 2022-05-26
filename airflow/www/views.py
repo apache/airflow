@@ -260,7 +260,7 @@ def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
             'id': task_item_or_group.task_id,
             'instances': [
                 ts
-                for ts in [wwwutils.get_task_summary(dr, task_item_or_group, session) for dr in dag_runs]
+                for ts in (wwwutils.get_task_summary(dr, task_item_or_group, session) for dr in dag_runs)
                 if ts is not None
             ],
             'label': task_item_or_group.label,
