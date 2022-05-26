@@ -309,8 +309,6 @@ jobs:
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
         # any code that comes from the sources coming from the PR. Therefore we extract the
@@ -327,6 +325,8 @@ jobs:
           DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Free space"
         run: breeze free-space
@@ -392,7 +392,7 @@ jobs:
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
           DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            cut -d "=" -f 3 | sed s'/["}]//g')
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - run: ./scripts/ci/install_breeze.sh
