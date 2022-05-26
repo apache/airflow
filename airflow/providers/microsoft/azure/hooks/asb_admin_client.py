@@ -42,7 +42,6 @@ class AzureServiceBusAdminClientHook(BaseAzureServiceBusHook):
         """Create and returns ServiceBusAdministration by using the connection string in connection details"""
         conn = self.get_connection(self.conn_id)
         extras = conn.extra_dejson
-
         self.connection_string = str(
             extras.get('connection_string') or extras.get('extra__azure_service_bus__connection_string')
         )

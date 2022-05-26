@@ -62,7 +62,9 @@ DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
 DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
-DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
+DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
+    seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
+)
 DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )

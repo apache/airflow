@@ -60,12 +60,14 @@ with DAG(
     )
     # [END howto_operator_send_message_to_service_bus_queue]
 
-    # [START howto_operator_send_message_to_service_bus_queue]
+    # [START howto_operator_receive_message_service_bus_queue]
     receive_message_service_bus_queue = AzureServiceBusReceiveMessageOperator(
         task_id="receive_message_service_bus_queue",
         queue_name=QUEUE_NAME,
+        max_message_count=10,
+        max_wait_time=5,
     )
-    # [END howto_operator_send_message_to_service_bus_queue]
+    # [END howto_operator_receive_message_service_bus_queue]
 
     # [START howto_operator_delete_service_bus_queue]
     delete_service_bus_queue = AzureServiceBusDeleteQueueOperator(

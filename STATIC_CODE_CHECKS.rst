@@ -399,13 +399,13 @@ Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     breeze static-check --type run-flake8 --files tests/core.py --verbose
+     breeze static-check --type run-flake8 --file tests/core.py --verbose
 
 Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     breeze static-check --type run-flake8 --files tests/core/* --verbose
+     breeze static-check --type run-flake8 --file tests/core/* --verbose
 
 Run all tests for the currently staged files:
 

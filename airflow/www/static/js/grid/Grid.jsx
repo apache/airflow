@@ -38,7 +38,7 @@ import AutoRefresh from './AutoRefresh';
 
 const dagId = getMetaValue('dag_id');
 
-const Grid = ({ isPanelOpen = false }) => {
+const Grid = ({ isPanelOpen = false, hoveredTaskState }) => {
   const scrollRef = useRef();
   const tableRef = useRef();
 
@@ -107,7 +107,7 @@ const Grid = ({ isPanelOpen = false }) => {
           pr="10px"
         >
           {renderTaskRows({
-            task: groups, dagRunIds, openGroupIds, onToggleGroups,
+            task: groups, dagRunIds, openGroupIds, onToggleGroups, hoveredTaskState,
           })}
         </Tbody>
       </Table>

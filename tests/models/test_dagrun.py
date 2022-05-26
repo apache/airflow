@@ -37,7 +37,6 @@ from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -785,7 +784,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
         """
-        dag = DAG(dag_id='test_dagrun_stats', start_date=days_ago(1))
+        dag = DAG(dag_id='test_dagrun_stats', start_date=DEFAULT_DATE)
         dag_task = EmptyOperator(task_id='dummy', dag=dag)
 
         initial_task_states = {
@@ -809,7 +808,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1), schedule_interval=schedule_interval)
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule_interval=schedule_interval)
         dag_task = EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         try:
@@ -860,7 +859,7 @@ class TestDagRun:
         """
         Tests that adding State.failed_states and State.success_states work as expected.
         """
-        dag = DAG(dag_id='test_dagrun_states', start_date=days_ago(1))
+        dag = DAG(dag_id='test_dagrun_states', start_date=DEFAULT_DATE)
         dag_task_success = EmptyOperator(task_id='dummy', dag=dag)
         dag_task_failed = EmptyOperator(task_id='dummy2', dag=dag)
 

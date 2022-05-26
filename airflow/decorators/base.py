@@ -267,6 +267,10 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             op.doc_md = self.function.__doc__
         return XComArg(op)
 
+    @property
+    def __wrapped__(self) -> Function:
+        return self.function
+
     @cached_property
     def function_signature(self):
         return inspect.signature(self.function)
@@ -495,6 +499,10 @@ class Task(Generic[Function]):
 
     function: Function
 
+    @property
+    def __wrapped__(self) -> Function:
+        ...
+
     def expand(self, **kwargs: "Mappable") -> XComArg:
         ...
 
@@ -527,7 +535,7 @@ def task_decorator_factory(
     **kwargs,
 ) -> TaskDecorator:
     """
-    A factory that generates a wrapper that raps a function into an Airflow operator.
+    A factory that generates a wrapper that wraps a function into an Airflow operator.
     Accepts kwargs for operator kwarg. Can be reused in a single DAG.
 
     :param python_callable: Function to decorate

@@ -76,7 +76,7 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
 
     @staticmethod
     def send_list_messages(sender: ServiceBusSender, messages: List[str]):
-        list_messages = [ServiceBusMessage(message) for message in messages]
+        list_messages: List[ServiceBusMessage] = [ServiceBusMessage(message) for message in messages]
         sender.send_messages(list_messages)
 
     @staticmethod
@@ -91,11 +91,15 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
                 raise AirflowException(e)
         sender.send_messages(batch_message)
 
-    def receive_message(self, queue_name):
+    def receive_message(
+        self, queue_name, max_message_count: Optional[int] = 1, max_wait_time: Optional[float] = None
+    ):
         """
         Receive a batch of messages at once in a specified Queue name
 
         :param queue_name: The name of the queue name or a QueueProperties with name.
+        :param max_message_count: Maximum number of messages in the batch.
+        :param max_wait_time: Maximum time to wait in seconds for the first message to arrive.
         """
         if queue_name is None:
             raise AirflowBadRequest("Queue name cannot be None.")
@@ -105,7 +109,9 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
             with service_bus_client:
                 receiver = service_bus_client.get_queue_receiver(queue_name=queue_name)
                 with receiver:
-                    received_msgs = receiver.receive_messages(max_message_count=10, max_wait_time=5)
+                    received_msgs = receiver.receive_messages(
+                        max_message_count=max_message_count, max_wait_time=max_wait_time
+                    )
                     for msg in received_msgs:
                         self.log.info(msg)
                         receiver.complete_message(msg)
