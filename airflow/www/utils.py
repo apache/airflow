@@ -128,39 +128,38 @@ def get_mapped_summary(parent_instance, task_instances):
     }
 
 
-def get_task_summary(dag_run: DagRun, task, session: Session) -> Optional[Dict[str, Any]]:
-    task_instance = (
-        session.query(TaskInstance)
-        .filter(
-            TaskInstance.dag_id == task.dag_id,
-            TaskInstance.run_id == dag_run.run_id,
-            TaskInstance.task_id == task.task_id,
-            # Only get normal task instances or the first mapped task
-            TaskInstance.map_index <= 0,
+def get_task_summaries(task, dag_runs: List[DagRun], session: Session) -> List[Dict[str, Any]]:
+    tis = session.query(TaskInstance).filter(
+        TaskInstance.dag_id == task.dag_id,
+        TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
+        TaskInstance.task_id == task.task_id,
+        # Only get normal task instances or the first mapped task
+        TaskInstance.map_index <= 0,
+    )
+
+    def _get_summary(task_instance):
+        if task_instance.map_index > -1:
+            return get_mapped_summary(
+                task_instance, task_instances=get_mapped_instances(task_instance, session)
+            )
+
+        try_count = (
+            task_instance.prev_attempted_tries
+            if task_instance.prev_attempted_tries != 0
+            else task_instance.try_number
         )
-        .first()
-    )
 
-    if not task_instance:
-        return None
+        return {
+            'task_id': task_instance.task_id,
+            'run_id': task_instance.run_id,
+            'map_index': task_instance.map_index,
+            'state': task_instance.state,
+            'start_date': datetime_to_string(task_instance.start_date),
+            'end_date': datetime_to_string(task_instance.end_date),
+            'try_number': try_count,
+        }
 
-    if task_instance.map_index > -1:
-        return get_mapped_summary(task_instance, task_instances=get_mapped_instances(task_instance, session))
-
-    try_count = (
-        task_instance.prev_attempted_tries
-        if task_instance.prev_attempted_tries != 0
-        else task_instance.try_number
-    )
-    return {
-        'task_id': task_instance.task_id,
-        'run_id': task_instance.run_id,
-        'map_index': task_instance.map_index,
-        'state': task_instance.state,
-        'start_date': datetime_to_string(task_instance.start_date),
-        'end_date': datetime_to_string(task_instance.end_date),
-        'try_number': try_count,
-    }
+    return [_get_summary(ti) for ti in tis]
 
 
 def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:

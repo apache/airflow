@@ -267,7 +267,7 @@ dask = [
     'distributed>=2.11.1',
 ]
 databricks = [
-    'requests>=2.26.0, <3',
+    'requests>=2.27,<3',
     'databricks-sql-connector>=2.0.0, <3.0.0',
     'aiohttp>=3.6.3, <4',
 ]
@@ -413,10 +413,6 @@ influxdb = [
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
-    # JPype1 has been published without sdist in PyPI which caused failures when trying to build an
-    # ARM image (JPype1 does not publish binary ARM packages)
-    # The whole line below can be removed when https://github.com/jpype-project/jpype/issues/1069 is solved
-    'jpype1<1.4.0',
 ]
 jenkins = [
     'python-jenkins>=1.0.0',
@@ -639,7 +635,9 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto[glue]>=3.1.6',
+    # Version 3.1.10 is breaking main bump to 3.1.11 when released.
+    # Fix already merged but was not released https://github.com/spulec/moto/pull/5165
+    'moto[glue]>=3.1.6, <3.1.10',
     'parameterized',
     'paramiko',
     'pipdeptree',
