@@ -74,7 +74,7 @@ class GlueJobHook(AwsBaseHook):
                 raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
         elif not worker_type_exists and num_workers_exists:
             raise ValueError("Need to specify custom WorkerType when specifying NumberOfWorkers")
-        elif worker_type_exists and not num_workers_exists::
+        elif worker_type_exists and not num_workers_exists:
             raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
         elif num_of_dpus is None:
             self.num_of_dpus = 10
