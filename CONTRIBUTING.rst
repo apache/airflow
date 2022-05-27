@@ -503,10 +503,10 @@ Development Environments
 There are two environments, available on Linux and macOS, that you can use to
 develop Apache Airflow:
 
--   `Local virtualenv development environment <#local-virtualenv-development-environment>`_
+-   `Local virtualenv development environment <LOCAL_VIRTUALENV.rst>`_
     that supports running unit tests and can be used in your IDE.
 
--   `Breeze Docker-based development environment <#breeze-development-environment>`_ that provides
+-   `Breeze Docker-based development environment <BREEZE.rst>`_ that provides
     an end-to-end CI solution with all software dependencies covered.
 
 The table below summarizes differences between the environments:
@@ -564,7 +564,7 @@ Limitations:
     real unit tests. Technically, to run integration tests, you can configure
     and install the dependencies on your own, but it is usually complex.
     Instead, you are recommended to use
-    `Breeze development environment <#breeze-development-environment>`__ with all required packages
+    `Breeze development environment <BREEZE.rst>`__ with all required packages
     pre-installed.
 
 -   You need to make sure that your local environment is consistent with other
@@ -685,7 +685,7 @@ and not packaged together with the core, unless you set ``INSTALL_PROVIDERS_FROM
 variable to ``true``.
 
 In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--install-providers-from-sources=true`` flag to Breeze to skip installing providers when
+but you can add ``--install-providers-from-sources=false`` flag to Breeze to install providers from PyPI instead of source files when
 building the images.
 
 One watch-out - providers are still always installed (or rather available) if you install airflow from

@@ -310,7 +310,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             expected_pod['spec']['volumes'] = [
                 {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
             ]
-            expected_pod['metadata']['labels']['already_checked'] = 'True'
             assert expected_pod == actual_pod
 
     def test_run_as_user_root(self):

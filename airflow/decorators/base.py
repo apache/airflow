@@ -312,6 +312,9 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
     def expand(self, **map_kwargs: "Mappable") -> XComArg:
+        if not map_kwargs:
+            raise TypeError("no arguments to expand against")
+
         self._validate_arg_names("expand", map_kwargs)
         prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
         ensure_xcomarg_return_value(map_kwargs)

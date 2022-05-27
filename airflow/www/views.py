@@ -258,7 +258,7 @@ def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
     if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
-            'instances': [wwwutils.get_task_summary(dr, task_item_or_group, session) for dr in dag_runs],
+            'instances': wwwutils.get_task_summaries(task_item_or_group, dag_runs, session),
             'label': task_item_or_group.label,
             'extra_links': task_item_or_group.extra_links,
             'is_mapped': task_item_or_group.is_mapped,
@@ -5113,12 +5113,18 @@ class AutocompleteView(AirflowBaseView):
             return wwwutils.json_response([])
 
         # Provide suggestions of dag_ids and owners
-        dag_ids_query = session.query(DagModel.dag_id.label('item')).filter(
-            ~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike('%' + query + '%')
-        )
+        dag_ids_query = session.query(
+            sqla.literal('dag').label('type'),
+            DagModel.dag_id.label('name'),
+        ).filter(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike('%' + query + '%'))
 
-        owners_query = session.query(func.distinct(DagModel.owners).label('item')).filter(
-            ~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike('%' + query + '%')
+        owners_query = (
+            session.query(
+                sqla.literal('owner').label('type'),
+                DagModel.owners.label('name'),
+            )
+            .distinct()
+            .filter(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike('%' + query + '%'))
         )
 
         # Hide DAGs if not showing status: "all"
@@ -5135,8 +5141,9 @@ class AutocompleteView(AirflowBaseView):
         dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
-        payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
-
+        payload = [
+            row._asdict() for row in dag_ids_query.union(owners_query).order_by('name').limit(10).all()
+        ]
         return wwwutils.json_response(payload)
 
 

@@ -330,9 +330,9 @@ class KubernetesPodOperator(BaseOperator):
             kwargs.update(in_cluster=self.in_cluster)
         return kube_client.get_kube_client(**kwargs)
 
-    def find_pod(self, namespace, context) -> Optional[k8s.V1Pod]:
+    def find_pod(self, namespace, context, *, exclude_checked=True) -> Optional[k8s.V1Pod]:
         """Returns an already-running pod for this task instance if one exists."""
-        label_selector = self._build_find_pod_label_selector(context)
+        label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list = self.client.list_namespaced_pod(
             namespace=namespace,
             label_selector=label_selector,
@@ -412,7 +412,7 @@ class KubernetesPodOperator(BaseOperator):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
         if not self.is_delete_operator_pod:
             with _suppress(Exception):
-                self.patch_already_checked(pod)
+                self.patch_already_checked(remote_pod)
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
@@ -436,10 +436,14 @@ class KubernetesPodOperator(BaseOperator):
         else:
             self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
-    def _build_find_pod_label_selector(self, context: Optional[dict] = None) -> str:
+    def _build_find_pod_label_selector(self, context: Optional[dict] = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
         label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
-        return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True,!airflow-worker'
+        labels_value = ','.join(label_strings)
+        if exclude_checked:
+            labels_value += f',{self.POD_CHECKED_KEY}!=True'
+        labels_value += ',!airflow-worker'
+        return labels_value
 
     def _set_name(self, name):
         if name is None:
