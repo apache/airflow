@@ -206,7 +206,6 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
-        kubernetes_conn_id: Optional[str] = None,
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:
