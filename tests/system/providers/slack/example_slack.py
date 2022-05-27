@@ -28,6 +28,7 @@ from airflow.providers.slack.operators.slack import SlackAPIFileOperator
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "slack_example_dag"
 
+# [START slack_operator_howto_guide]
 with models.DAG(
     DAG_ID,
     schedule_interval="@once",
@@ -39,7 +40,6 @@ with models.DAG(
 ) as dag:
 
     # Send file with filename and filetype
-    # [START slack_operator_howto_guide]
     slack_operator_file = SlackAPIFileOperator(
         task_id="slack_file_upload_1",
         filename="/resources/file.txt",
@@ -51,7 +51,7 @@ with models.DAG(
         task_id="slack_file_upload_2",
         content="file content in txt",
     )
-    # [END slack_operator_howto_guide]
+# [END slack_operator_howto_guide]
 
     (
         # TEST BODY
