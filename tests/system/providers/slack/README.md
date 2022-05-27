@@ -41,6 +41,7 @@ Example how these variables could be confiured are provided below:
 export AIRFLOW_CONN_SLACK_DEFAULT='slack://:xoxb-ABCDABCDABCDABCD@'
 export SYSTEM_TESTS_ENV_ID="abcd"
 ```
+
 Once you confiure these variables you can run a slack system test in the following way
 
 ```commandline

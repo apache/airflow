@@ -21,8 +21,8 @@ Example Airflow DAG for SlackAPIFileOperator.
 """
 import os
 from datetime import datetime
+
 from airflow import models
-from airflow.models.dag import DAG
 from airflow.providers.slack.operators.slack import SlackAPIFileOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -51,7 +51,7 @@ with models.DAG(
         task_id="slack_file_upload_2",
         content="file content in txt",
     )
-# [END slack_operator_howto_guide]
+    # [END slack_operator_howto_guide]
 
     (
         # TEST BODY
