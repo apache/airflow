@@ -164,29 +164,5 @@ def tests(
     perform_environment_checks(verbose=verbose)
     cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
-<<<<<<< HEAD
     result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
     sys.exit(result.returncode)
-=======
-    run_command(
-        cmd,
-        verbose=verbose,
-        dry_run=dry_run,
-        env=env_variables,
-    )
-
-
-@main.group("kind-cluster")
-def kind_cluster():
-    """Run kind-cluster with Airflow, use: start, stop, restart ..."""
-
-
-@kind_cluster.command()
-def start():
-    """kind-cluster start"""
-
-
-@kind_cluster.command()
-def stop():
-    """kind-cluster stop"""
->>>>>>> 5849ae86a (kind cluster main options for testing)
