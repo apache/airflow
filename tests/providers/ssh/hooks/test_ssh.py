@@ -742,7 +742,7 @@ class TestSSHHook(unittest.TestCase):
 
     def test_oneline_key(self):
         with pytest.raises(Exception):
-            TEST_ONELINE_KEY = "-----BEGIN OPENSSH" + "PRIVATE KEY-----asdfg-----END OPENSSH PRIVATE KEY-----"
+            TEST_ONELINE_KEY = "-----BEGIN OPENSSHPRIVATE KEY-----asdfg-----END OPENSSHPRIVATE KEY-----"
             session = settings.Session()
             try:
                 conn = Connection(

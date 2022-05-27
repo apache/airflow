@@ -159,7 +159,7 @@ def run_pull_image(
 def tag_image_as_latest(image_params: _CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
     if image_params.airflow_image_name_with_tag == image_params.airflow_image_name:
         get_console().print(
-            f"[info]Skip tagging {image_params.airflow_image_name} " "as latest as it is already 'latest'[/]"
+            f"[info]Skip tagging {image_params.airflow_image_name} as latest as it is already 'latest'[/]"
         )
         return subprocess.CompletedProcess(returncode=0, args=[])
     return run_command(
@@ -251,7 +251,7 @@ def find_available_ci_image(github_repository: str, dry_run: bool, verbose: bool
         )
         if inspect_command_result.returncode == 0:
             get_console().print(
-                "[info]Running fix_ownership " f"with {shell_params.airflow_image_name_with_tag}.[/]"
+                f"[info]Running fix_ownership with {shell_params.airflow_image_name_with_tag}.[/]"
             )
             return shell_params
     shell_params, _ = just_pull_ci_image(
