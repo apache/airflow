@@ -166,3 +166,20 @@ def tests(
     cmd.extend(list(extra_pytest_args))
     result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
     sys.exit(result.returncode)
+
+
+@main.group("kind-cluster")
+def kind_cluster():
+    """Run kind-cluster with Airflow, use: start, stop, restart"""
+
+@kind_cluster.command()
+def start():
+    """Run kind-cluster with Airflow, use: start, stop, restart"""
+
+@kind_cluster.command()
+def stop():
+    """Run kind-cluster start"""
+
+@kind_cluster.command()
+def restart():
+    """Run kind-cluster stopAirflow, use: start, stop, restart"""
