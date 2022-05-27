@@ -191,6 +191,11 @@ class OperatorPartial:
             warnings.warn(f"Task {task_id} was never mapped!")
 
     def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+        if not mapped_kwargs:
+            raise TypeError("no arguments to expand against")
+        return self._expand(**mapped_kwargs)
+
+    def _expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         self._expand_called = True
 
         from airflow.operators.empty import EmptyOperator

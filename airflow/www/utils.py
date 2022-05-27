@@ -129,7 +129,15 @@ def get_mapped_summary(parent_instance, task_instances):
 
 
 def get_task_summaries(task, dag_runs: List[DagRun], session: Session) -> List[Dict[str, Any]]:
-    tis = session.query(TaskInstance).filter(
+    tis = session.query(
+        TaskInstance.task_id,
+        TaskInstance.run_id,
+        TaskInstance.map_index,
+        TaskInstance.state,
+        TaskInstance.start_date,
+        TaskInstance.end_date,
+        TaskInstance._try_number,
+    ).filter(
         TaskInstance.dag_id == task.dag_id,
         TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
         TaskInstance.task_id == task.task_id,
@@ -144,9 +152,9 @@ def get_task_summaries(task, dag_runs: List[DagRun], session: Session) -> List[D
             )
 
         try_count = (
-            task_instance.prev_attempted_tries
-            if task_instance.prev_attempted_tries != 0
-            else task_instance.try_number
+            task_instance._try_number
+            if task_instance._try_number != 0 or task_instance.state in State.running
+            else task_instance._try_number + 1
         )
 
         return {
