@@ -49,7 +49,11 @@ from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
+from airflow.utils.process_utils import (
+    kill_child_processes_by_pids,
+    reap_process_group,
+    set_new_process_group,
+)
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
@@ -471,8 +475,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         self.register_exit_signals()
 
-        # Start a new process group
-        os.setpgid(0, 0)
+        set_new_process_group()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
