@@ -1073,7 +1073,9 @@ class TestTaskInstance:
 
     def test_xcom_pull_mapped(self, dag_maker, session):
         with dag_maker(dag_id="test_xcom", session=session):
-            task_1 = EmptyOperator.partial(task_id="task_1").expand()
+            # Use the private _expand() method to avoid the empty kwargs check.
+            # We don't care about how the operator runs here, only its presence.
+            task_1 = EmptyOperator.partial(task_id="task_1")._expand()
             EmptyOperator(task_id="task_2")
 
         dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
@@ -2783,7 +2785,9 @@ class TestMappedTaskInstanceReceiveValue:
 def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_value, dag_maker, session):
     """Ensure we access XCom lazily when pulling from a mapped operator."""
     with dag_maker(dag_id="test_xcom", session=session):
-        task_1 = EmptyOperator.partial(task_id="task_1").expand()
+        # Use the private _expand() method to avoid the empty kwargs check.
+        # We don't care about how the operator runs here, only its presence.
+        task_1 = EmptyOperator.partial(task_id="task_1")._expand()
         EmptyOperator(task_id="task_2")
 
     dagrun = dag_maker.create_dagrun()
