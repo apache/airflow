@@ -35,7 +35,7 @@ from airflow.operators.sql import (
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.hooks.base import BaseHook
 from airflow.utils import timezone
-from airflow.utils.session import create_session
+from airflow.utils.session import create_session 
 from airflow.utils.state import State
 from tests.providers.apache.hive import TestHiveEnvironment
 from airflow import settings
@@ -518,6 +518,9 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             dag=self.dag,
         )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+        conn = Connection().get_connection_from_secrets("postgres_default")
+        session = settings.Session()
+        session.delete(conn)
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
@@ -575,6 +578,10 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
                 assert ti.state == State.SKIPPED
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
+        
+        conn = Connection().get_connection_from_secrets("mysql_default")
+        session = settings.Session()
+        session.delete(conn)
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_true_with_dag_run(self, mock_get_db_hook):
