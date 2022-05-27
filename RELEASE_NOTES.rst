@@ -21,7 +21,7 @@
 
 .. towncrier release notes start
 
-Airflow 2.3.2 (2021-06-02)
+Airflow 2.3.2 (2021-06-04)
 --------------------------
 
 No significant changes
@@ -29,6 +29,8 @@ No significant changes
 Bug Fixes
 ^^^^^^^^^
 
+- Run the ``check_migration`` loop at least once
+- Fix grid view for mapped tasks (#24059)
 - Icons in grid view for different DAG run types (#23970)
 - Faster grid view (#23951)
 - Disallow calling expand with no arguments (#23463)
