@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Spanner links."""
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -43,7 +43,7 @@ class SpannerInstanceLink(BaseGoogleLink):
         context: "Context",
         task_instance: BaseOperator,
         instance_id: str,
-        project_id: str,
+        project_id: Optional[str],
     ):
         task_instance.xcom_push(
             context,
@@ -65,7 +65,7 @@ class SpannerDatabaseLink(BaseGoogleLink):
         task_instance: BaseOperator,
         instance_id: str,
         database_id: str,
-        project_id: str,
+        project_id: Optional[str],
     ):
         task_instance.xcom_push(
             context,
