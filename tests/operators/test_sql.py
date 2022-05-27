@@ -35,7 +35,7 @@ from airflow.operators.sql import (
 from airflow.providers.postgres.hooks.postgres import PostgresHook
 from airflow.hooks.base import BaseHook
 from airflow.utils import timezone
-from airflow.utils.session import create_session 
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.providers.apache.hive import TestHiveEnvironment
 from airflow import settings
