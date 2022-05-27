@@ -16,7 +16,6 @@
 # under the License.
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb_message import ServiceBusMessageHook
 
 
-class TestServiceBusMessageHook(unittest.TestCase):
-    def setUp(self) -> None:
+class TestServiceBusMessageHook:
+    def setup_class(self) -> None:
         self.queue_name: str = "test_queue"
         self.conn_id: str = 'azure_service_bus_default'
         self.connection_string = (
@@ -64,38 +63,50 @@ class TestServiceBusMessageHook(unittest.TestCase):
         with pytest.raises(ValueError):
             hook.get_conn()
 
+    @pytest.mark.parametrize(
+        "mock_message, mock_batch_flag",
+        [
+            ("Test message", True),
+            ("Test message", False),
+            (["Test message 1", "Test message 2"], True),
+            (["Test message 1", "Test message 2"], False),
+        ],
+    )
+    @mock.patch(
+        'airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.send_list_messages'
+    )
+    @mock.patch(
+        'airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.send_batch_message'
+    )
     @mock.patch('airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_conn')
-    def test_send_message_without_batch(self, mock_sb_client):
+    def test_send_message(
+        self, mock_sb_client, mock_batch_message, mock_list_message, mock_message, mock_batch_flag
+    ):
         """
-        Test `send_message` hook function with batch flag as `False`, which will be a normal message,
-        mock the azure service bus `send_messages` function
+        Test `send_message` hook function with batch flag and message passed as mocked params,
+        which can be string or list of string, mock the azure service bus `send_messages` function
         """
         hook = ServiceBusMessageHook(azure_service_bus_conn_id="azure_service_bus_default")
-        hook.send_message(queue_name=self.queue_name, message="test message", batch_message_flag=False)
-        expected_calls = [
-            mock.call()
-            .__enter__()
-            .get_queue_sender(self.queue_name)
-            .__enter__()
-            .send_messages(ServiceBusMessage("test message"))
-            .__exit__()
-        ]
-        mock_sb_client.assert_has_calls(expected_calls, any_order=False)
+        hook.send_message(
+            queue_name=self.queue_name, messages=mock_message, batch_message_flag=mock_batch_flag
+        )
+        if isinstance(mock_message, list):
+            if mock_batch_flag:
+                message = ServiceBusMessageBatch(mock_message)
+            else:
+                message = [ServiceBusMessage(msg) for msg in mock_message]
+        elif isinstance(mock_message, str):
+            if mock_batch_flag:
+                message = ServiceBusMessageBatch(mock_message)
+            else:
+                message = ServiceBusMessage(mock_message)
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_conn')
-    def test_send_message_with_batch(self, mock_sb_client):
-        """
-        Test `send_message` hook function with batch flag as `True`, which will be considered as
-        batch message, mock the azure service bus `send_messages` function
-        """
-        hook = ServiceBusMessageHook(azure_service_bus_conn_id="azure_service_bus_default")
-        hook.send_message(queue_name=self.queue_name, message="test message", batch_message_flag=True)
         expected_calls = [
             mock.call()
             .__enter__()
             .get_queue_sender(self.queue_name)
             .__enter__()
-            .send_messages(ServiceBusMessageBatch("test message"))
+            .send_messages(message)
             .__exit__()
         ]
         mock_sb_client.assert_has_calls(expected_calls, any_order=False)
@@ -108,7 +119,7 @@ class TestServiceBusMessageHook(unittest.TestCase):
         """
         hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.conn_id)
         with pytest.raises(AirflowException):
-            hook.send_message(queue_name=None, message="", batch_message_flag=False)
+            hook.send_message(queue_name=None, messages="", batch_message_flag=False)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_conn')
     def test_receive_message(self, mock_sb_client):

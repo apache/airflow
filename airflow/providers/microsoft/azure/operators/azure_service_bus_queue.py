@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb_admin_client import AzureServiceBusAdminClientHook
@@ -88,7 +88,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        message: Union[str, list],
+        message: Union[str, List[str]],
         batch: bool = False,
         azure_service_bus_conn_id: str = 'azure_service_bus_default',
         **kwargs,

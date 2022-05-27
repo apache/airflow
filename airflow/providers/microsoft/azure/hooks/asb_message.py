@@ -64,8 +64,11 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
                 sender = service_bus_client.get_queue_sender(queue_name=queue_name)
                 with sender:
                     if isinstance(messages, str):
-                        msg = ServiceBusMessage(messages)
-                        sender.send_messages(msg)
+                        if not batch_message_flag:
+                            msg = ServiceBusMessage(messages)
+                            sender.send_messages(msg)
+                        else:
+                            self.send_batch_message(sender, [messages])
                     else:
                         if not batch_message_flag:
                             self.send_list_messages(sender, messages)
@@ -76,7 +79,7 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
 
     @staticmethod
     def send_list_messages(sender: ServiceBusSender, messages: List[str]):
-        list_messages: List[ServiceBusMessage] = [ServiceBusMessage(message) for message in messages]
+        list_messages = [ServiceBusMessage(message) for message in messages]
         sender.send_messages(list_messages)
 
     @staticmethod

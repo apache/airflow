@@ -59,14 +59,14 @@ class TestAzureServiceBusCreateQueueOperator(unittest.TestCase):
         assert asb_create_queue_operator.enable_batched_operations is True
 
         asb_create_queue_operator = AzureServiceBusCreateQueueOperator(
-            task_id="asb_create_queue",
+            task_id="asb_create_queue_test",
             queue_name=QUEUE_NAME,
             dag=self.dag,
             max_delivery_count=10,
             dead_lettering_on_message_expiration=False,
             enable_batched_operations=False,
         )
-        assert asb_create_queue_operator.task_id == "asb_create_queue"
+        assert asb_create_queue_operator.task_id == "asb_create_queue_test"
         assert asb_create_queue_operator.queue_name == QUEUE_NAME
         assert asb_create_queue_operator.max_delivery_count == 10
         assert asb_create_queue_operator.dead_lettering_on_message_expiration is False
@@ -81,7 +81,7 @@ class TestAzureServiceBusCreateQueueOperator(unittest.TestCase):
         mocking the connection details, hook create_queue function
         """
         asb_create_queue_operator = AzureServiceBusCreateQueueOperator(
-            task_id="asb_create_queue",
+            task_id="asb_create_queue_operator",
             queue_name=QUEUE_NAME,
             max_delivery_count=10,
             dead_lettering_on_message_expiration=True,
@@ -90,7 +90,10 @@ class TestAzureServiceBusCreateQueueOperator(unittest.TestCase):
         )
         asb_create_queue_operator.execute(None)
         mock_get_conn.return_value.__enter__.return_value.create_queue.assert_called_once_with(
-            QUEUE_NAME, max_delivery_count=10, dead_lettering_on_message_expiration=True
+            QUEUE_NAME,
+            max_delivery_count=10,
+            dead_lettering_on_message_expiration=True,
+            enable_batched_operations=True,
         )
 
 
