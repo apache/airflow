@@ -47,12 +47,14 @@ NDJSON_LINES = [
     b'{"some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
 CSV_LINES = [
-    b'some_str,some_num\r\n' b'mock_row_content_1,42\r\n',
+    b'some_str,some_num\r\n',
+    b'mock_row_content_1,42\r\n',
     b'mock_row_content_2,43\r\n',
     b'mock_row_content_3,44\r\n',
 ]
 CSV_LINES_PIPE_DELIMITED = [
-    b'some_str|some_num\r\n' b'mock_row_content_1|42\r\n',
+    b'some_str|some_num\r\n',
+    b'mock_row_content_1|42\r\n',
     b'mock_row_content_2|43\r\n',
     b'mock_row_content_3|44\r\n',
 ]

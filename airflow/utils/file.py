@@ -241,7 +241,7 @@ def _find_path_from_directory(
             if dirpath in patterns_by_dir:
                 raise RuntimeError(
                     "Detected recursive loop when walking DAG directory "
-                    + f"{base_dir_path}: {dirpath} has appeared more than once."
+                    f"{base_dir_path}: {dirpath} has appeared more than once."
                 )
             patterns_by_dir.update({dirpath: patterns.copy()})
 

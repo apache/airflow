@@ -621,6 +621,7 @@ devel_only = [
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
+    'flake8-implicit-str-concat',
     'flaky',
     'freezegun',
     # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0

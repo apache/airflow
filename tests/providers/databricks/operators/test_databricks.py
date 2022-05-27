@@ -183,7 +183,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
             r'Type \<(type|class) \'datetime.datetime\'\> used '
-            + r'for parameter json\[test\] is not a number or a string'
+            r'for parameter json\[test\] is not a number or a string'
         )
         with pytest.raises(AirflowException, match=exception_message):
             DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
@@ -498,7 +498,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
             r'Type \<(type|class) \'datetime.datetime\'\> used '
-            + r'for parameter json\[test\] is not a number or a string'
+            r'for parameter json\[test\] is not a number or a string'
         )
         with pytest.raises(AirflowException, match=exception_message):
             DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)

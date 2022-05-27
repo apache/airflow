@@ -221,9 +221,7 @@ class BaseSecurityManager:
         # LDAP Config
         if self.auth_type == AUTH_LDAP:
             if "AUTH_LDAP_SERVER" not in app.config:
-                raise Exception(
-                    "No AUTH_LDAP_SERVER defined on config" " with AUTH_LDAP authentication type."
-                )
+                raise Exception("No AUTH_LDAP_SERVER defined on config with AUTH_LDAP authentication type.")
             app.config.setdefault("AUTH_LDAP_SEARCH", "")
             app.config.setdefault("AUTH_LDAP_SEARCH_FILTER", "")
             app.config.setdefault("AUTH_LDAP_APPEND_DOMAIN", "")
@@ -970,9 +968,7 @@ class BaseSecurityManager:
             con.simple_bind_s(self.auth_ldap_bind_user, self.auth_ldap_bind_password)
             log.debug(f"LDAP bind indirect SUCCESS with username: '{self.auth_ldap_bind_user}'")
         except ldap.INVALID_CREDENTIALS as ex:
-            log.error(
-                "AUTH_LDAP_BIND_USER and AUTH_LDAP_BIND_PASSWORD are" " not valid LDAP bind credentials"
-            )
+            log.error("AUTH_LDAP_BIND_USER and AUTH_LDAP_BIND_PASSWORD are not valid LDAP bind credentials")
             raise ex
 
     @staticmethod

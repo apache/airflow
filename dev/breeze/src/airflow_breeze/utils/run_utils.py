@@ -174,7 +174,7 @@ def assert_pre_commit_installed(verbose: bool):
                 sys.exit(1)
         else:
             get_console().print(
-                "\n[warning]Could not determine version of pre-commit. " "You might need to update it![/]\n"
+                "\n[warning]Could not determine version of pre-commit. You might need to update it![/]\n"
             )
     else:
         get_console().print("\n[error]Error checking for pre-commit-installation:[/]\n")
