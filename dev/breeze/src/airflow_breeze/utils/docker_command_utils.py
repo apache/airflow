@@ -370,7 +370,7 @@ def prepare_docker_build_cache_command(
     )
     final_command.extend(["--platform", image_params.platform])
     final_command.extend(
-        [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)}," f"mode=max"]
+        [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"]
     )
     cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
     buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True)

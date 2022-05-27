@@ -258,7 +258,7 @@ def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
     if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
-            'instances': [wwwutils.get_task_summary(dr, task_item_or_group, session) for dr in dag_runs],
+            'instances': wwwutils.get_task_summaries(task_item_or_group, dag_runs, session),
             'label': task_item_or_group.label,
             'extra_links': task_item_or_group.extra_links,
             'is_mapped': task_item_or_group.is_mapped,
@@ -1144,7 +1144,7 @@ class Airflow(AirflowBaseView):
         except Exception as e:
             all_errors += (
                 "Exception encountered during "
-                + f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
+                f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
             )
             html_code = Markup('<p>Failed to load DAG file Code.</p><p>Details: {}</p>').format(
                 escape(all_errors)
