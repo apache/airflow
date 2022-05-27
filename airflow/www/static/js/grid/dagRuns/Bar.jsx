@@ -29,7 +29,7 @@ import {
   VStack,
   useTheme,
 } from '@chakra-ui/react';
-import { MdPlayArrow, MdOutlineSchedule } from 'react-icons/md';
+import { MdPlayArrow } from 'react-icons/md';
 import { RiArrowGoBackFill } from 'react-icons/ri';
 
 import DagRunTooltip from './Tooltip';
