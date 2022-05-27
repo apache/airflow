@@ -556,7 +556,11 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
 
 extra-links:
+  - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink
+  - airflow.providers.amazon.aws.links.batch.BatchJobDetailsLink
+  - airflow.providers.amazon.aws.links.batch.BatchJobQueueLink
   - airflow.providers.amazon.aws.links.emr.EmrClusterLink
+  - airflow.providers.amazon.aws.links.logs.CloudWatchEventsLink
   - airflow.providers.amazon.aws.operators.emr_create_job_flow.EmrClusterLink
 
 connection-types:
