@@ -890,12 +890,14 @@ def reflect_tables(tables: List[Union[Base, str]], session):
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
 
-    for tbl in tables:
+    for tbl in tables or []:
         try:
             table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
             metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
         except exc.InvalidRequestError:
             continue
+    if not tables:
+        metadata.reflect(resolve_fks=False)
     return metadata
 
 

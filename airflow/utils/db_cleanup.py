@@ -128,10 +128,44 @@ def _check_for_rows(*, query: "Query", print_rows=False):
     return num_entities
 
 
-def _do_delete(*, query, session):
+def _do_delete(*, query, orm_model, skip_archive, session):
+    import re
+    from datetime import datetime
+
     print("Performing Delete...")
     # using bulk delete
-    query.delete(synchronize_session=False)
+    # create a new table and copy the rows there
+    timestamp_str = re.sub(r'[^\d]', '', datetime.utcnow().isoformat())[:14]
+    target_table_name = f'_airflow_deleted__{orm_model.name}__{timestamp_str}'
+    print(f"Moving data to table {target_table_name}")
+    stmt = CreateTableAs(target_table_name, query.selectable)
+    logger.debug("ctas query:\n%s", stmt.compile())
+    session.execute(stmt)
+    session.commit()
+
+    # delete the rows from the old table
+    metadata = reflect_tables([orm_model.name, target_table_name], session)
+    source_table = metadata.tables[orm_model.name]
+    target_table = metadata.tables[target_table_name]
+    logger.debug("rows moved; purging from %s", source_table.name)
+    bind = session.get_bind()
+    dialect_name = bind.dialect.name
+    if dialect_name == 'sqlite':
+        pk_cols = source_table.primary_key.columns
+        delete = source_table.delete().where(
+            tuple_(*pk_cols).in_(
+                session.query(*[target_table.c[x.name] for x in source_table.primary_key.columns]).subquery()
+            )
+        )
+    else:
+        delete = source_table.delete().where(
+            and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
+        )
+    logger.debug("delete statement:\n%s", delete.compile())
+    session.execute(delete)
+    session.commit()
+    if skip_archive:
+        target_table.drop()
     session.commit()
     print("Finished Performing Delete")
 
@@ -162,12 +196,12 @@ class CreateTableAs(Executable, ClauseElement):
 
 
 @compiles(CreateTableAs)
-def _create_table_as(element, compiler, **kw):
+def _compile_create_table_as(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
 
 
 @compiles(CreateTableAs, 'mssql')
-def _create_table_as(element, compiler, **kw):
+def _compile_create_table_as(element, compiler, **kw):
     return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
 
@@ -240,43 +274,7 @@ def _cleanup_table(
     num_rows = _check_for_rows(query=query, print_rows=False)
 
     if num_rows and not dry_run:
-        import re
-        from datetime import datetime
-
-        # create a new table and copy the rows there
-        timestamp_str = re.sub(r'[^\d]', '', datetime.utcnow().isoformat())[:14]
-        target_table_name = f'_airflow_deleted__{orm_model.name}__{timestamp_str}'
-        print(f"Moving data to table {target_table_name}")
-        stmt = CreateTableAs(target_table_name, query.selectable)
-        logger.debug("ctas query:\n%s", stmt.compile())
-        session.execute(stmt)
-        session.commit()
-
-        # delete the rows from the old table
-        metadata = reflect_tables([orm_model.name, target_table_name], session)
-        source_table = metadata.tables[orm_model.name]
-        target_table = metadata.tables[target_table_name]
-        logger.debug("rows moved; purging from %s", source_table.name)
-        bind = session.get_bind()
-        dialect_name = bind.dialect.name
-        if dialect_name == 'sqlite':
-            pk_cols = source_table.primary_key.columns
-            delete = source_table.delete().where(
-                tuple_(*pk_cols).in_(
-                    session.query(
-                        *[target_table.c[x.name] for x in source_table.primary_key.columns]
-                    ).subquery()
-                )
-            )
-        else:
-            delete = source_table.delete().where(
-                and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
-            )
-        logger.debug("delete statement:\n%s", delete.compile())
-        session.execute(delete)
-        session.commit()
-        if skip_archive:
-            target_table.drop()
+        _do_delete(query=query, orm_model=orm_model, skip_archive=skip_archive, session=session)
 
     session.commit()
 
@@ -311,8 +309,8 @@ class _warn_if_missing(AbstractContextManager):
 
     def __exit__(self, exctype, excinst, exctb):
         caught_error = exctype is not None and issubclass(exctype, (OperationalError, ProgrammingError))
-        if caught_error:
-            logger.warning("Table %s not found.  Skipping.", self.table)
+        if caught_error and self.table in getattr(excinst, 'message', ''):
+            logger.warning("Table %s not found.  Skipping. %s", self.table, excinst)
             self.excinst = excinst
         return caught_error
 

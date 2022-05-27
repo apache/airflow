@@ -293,6 +293,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse(timestamp, tz=timezone),
             verbose=False,
             confirm=False,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize('timezone', ['UTC', 'Europe/Berlin', 'America/Los_Angeles'])
@@ -312,6 +313,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse(timestamp),
             verbose=False,
             confirm=False,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize('confirm_arg, expected', [(['-y'], False), ([], True)])
@@ -337,6 +339,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=False,
             confirm=expected,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize('extra_arg, expected', [(['--skip-archive'], True), ([], False)])
@@ -388,6 +391,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=False,
             confirm=True,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize(
@@ -415,6 +419,7 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=False,
             confirm=True,
+            skip_archive=False,
         )
 
     @pytest.mark.parametrize('extra_args, expected', [(['--verbose'], True), ([], False)])
@@ -440,4 +445,5 @@ class TestCLIDBClean:
             clean_before_timestamp=pendulum.parse('2021-01-01 00:00:00Z'),
             verbose=expected,
             confirm=True,
+            skip_archive=False,
         )
