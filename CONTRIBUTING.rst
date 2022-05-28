@@ -220,10 +220,7 @@ The local env instructions can be found in full in the `LOCAL_VIRTUALENV.rst <ht
 The Breeze Docker Compose env is to maintain a consistent and common development environment so that you
 can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
-The Breeze instructions can be found in full in the `BREEZE.rst`_ file.
-
-.. _BREEZE.rst:
-https://github.com/apache/airflow/blob/main/BREEZE.rst
+The Breeze instructions can be found in full in the `BREEZE.rst <https://github.com/apache/airflow/blob/main/BREEZE.rst>`_ file.
 
 You can configure the Docker-based Breeze development environment as follows:
 
