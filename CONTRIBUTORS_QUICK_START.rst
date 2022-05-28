@@ -190,7 +190,7 @@ Forking and cloning Project
              alt="Cloning github fork of Apache airflow">
       </div>
 
-3. Follow `Cloning a repository<https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
+3. Follow `Cloning a repository <https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository>`_
    to clone the repo locally (you can also do it in your IDE - see the `Using your IDE <using-your-ide>`_
    chapter below.
 
