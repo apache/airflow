@@ -2595,8 +2595,6 @@ breeze::check_and_save_all_params
 
 initialization::make_constants_read_only
 
-sanity_checks::sanitize_mounted_files
-
 breeze::prepare_command_files
 
 breeze::run_build_command
