@@ -485,6 +485,8 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/ui/ run test
+        env:
+          FORCE_COLOR: 2
 
   tests-www:
     timeout-minutes: 10
@@ -510,6 +512,8 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/www/ run test
+        env:
+          FORCE_COLOR: 2
 
 
   test-openapi-client-generation:
