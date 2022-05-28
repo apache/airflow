@@ -287,7 +287,6 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
     :param verbose: print commands when running
     :return True if the buildx plugin is installed.
     """
-    is_buildx_available = False
     check_buildx = ['docker', 'buildx', 'version']
     docker_buildx_version_result = run_command(
         check_buildx,
@@ -295,14 +294,11 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
         no_output_dump_on_exception=True,
         capture_output=True,
         text=True,
+        check=False,
     )
-    if (
-        docker_buildx_version_result
-        and docker_buildx_version_result.returncode == 0
-        and docker_buildx_version_result.stdout != ''
-    ):
-        is_buildx_available = True
-    return is_buildx_available
+    if docker_buildx_version_result.returncode == 0:
+        return True
+    return False
 
 
 def prepare_base_build_command(image_params: _CommonBuildParams, verbose: bool) -> List[str]:
