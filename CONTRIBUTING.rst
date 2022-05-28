@@ -217,6 +217,7 @@ You can see the differences between the various environments
 
 The local env instructions can be found in full in the `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`__ file.
 
+
 The Breeze Docker Compose env is to maintain a consistent and common development environment so that you
 can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
@@ -224,7 +225,7 @@ The Breeze instructions can be found in full in the `BREEZE.rst <https://github.
 
 You can configure the Docker-based Breeze development environment as follows:
 
-1. Install the latest versions of the `Docker Community Edition <https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition>`__ and `Docker Compose <https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose>`__ and add them to the PATH.
+1. Install the latest versions of the `Docker <https://docs.docker.com/get-docker/>`__ and `Docker Compose <https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose>`__ and add them to the PATH.
 
 2. Install `jq`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
 

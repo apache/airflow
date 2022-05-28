@@ -92,7 +92,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 Docker Compose
 --------------
 
-- **Version**: Install the latest stable `Docker Compose<https://docs.docker.com/compose/install/>`_
+- **Version**: Install the latest stable `Docker Compose <https://docs.docker.com/compose/install/#install-compose/>`_
   and add it to the PATH. ``Breeze`` detects if you are using version that is too old and warns you to upgrade.
 - **Permissions**: Configure permission to be able to run the ``docker-compose`` command by your user.
 
