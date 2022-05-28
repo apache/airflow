@@ -350,10 +350,11 @@ repos:
         additional_dependencies: ['rich>=12.4.1', 'rich-click']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
-        entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.sh
-        language: system
-        files: ^scripts/ci/libraries/_local_mounts\.sh$|^scripts/ci/docker_compose/local\.yml$
+        entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
+        language: python
+        files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
+        additional_dependencies: ['rich>=12.4.1']
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
         entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh

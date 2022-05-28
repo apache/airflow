@@ -32,7 +32,6 @@ AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
 
 if __name__ == '__main__':
-    os.environ['SKIP_BREEZE_UPGRADE_CHECK'] = "true"
     sys.path.insert(0, str(Path(__file__).parents[3].resolve() / "dev" / "breeze" / "src"))
     from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
     from airflow_breeze.global_constants import MOUNT_SELECTED
