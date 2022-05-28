@@ -154,6 +154,7 @@ class State:
             TaskInstanceState.FAILED,
             TaskInstanceState.SKIPPED,
             TaskInstanceState.UPSTREAM_FAILED,
+            TaskInstanceState.REMOVED,
         ]
     )
     """
