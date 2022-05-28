@@ -237,10 +237,11 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     return airflow_sources
 
 
-AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on()
+AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
+KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
 DIST_DIR = AIRFLOW_SOURCES_ROOT / 'dist'
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci'
@@ -258,6 +259,7 @@ def create_directories() -> None:
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
+    KUBE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_LOG.mkdir(parents=True, exist_ok=True)

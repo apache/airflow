@@ -65,36 +65,36 @@ from airflow_breeze.utils.run_utils import (
 )
 
 NECESSARY_HOST_VOLUMES = [
-    "/.bash_aliases:/root/.bash_aliases:cached",
-    "/.bash_history:/root/.bash_history:cached",
-    "/.coveragerc:/opt/airflow/.coveragerc:cached",
-    "/.dockerignore:/opt/airflow/.dockerignore:cached",
-    "/.flake8:/opt/airflow/.flake8:cached",
-    "/.github:/opt/airflow/.github:cached",
-    "/.inputrc:/root/.inputrc:cached",
-    "/.rat-excludes:/opt/airflow/.rat-excludes:cached",
-    "/RELEASE_NOTES.rst:/opt/airflow/RELEASE_NOTES.rst:cached",
-    "/LICENSE:/opt/airflow/LICENSE:cached",
-    "/MANIFEST.in:/opt/airflow/MANIFEST.in:cached",
-    "/NOTICE:/opt/airflow/NOTICE:cached",
-    "/airflow:/opt/airflow/airflow:cached",
-    "/provider_packages:/opt/airflow/provider_packages:cached",
-    "/dags:/opt/airflow/dags:cached",
-    "/dev:/opt/airflow/dev:cached",
-    "/docs:/opt/airflow/docs:cached",
-    "/hooks:/opt/airflow/hooks:cached",
-    "/logs:/root/airflow/logs:cached",
-    "/pyproject.toml:/opt/airflow/pyproject.toml:cached",
-    "/pytest.ini:/opt/airflow/pytest.ini:cached",
-    "/scripts:/opt/airflow/scripts:cached",
-    "/scripts/docker/entrypoint_ci.sh:/entrypoint:cached",
-    "/setup.cfg:/opt/airflow/setup.cfg:cached",
-    "/setup.py:/opt/airflow/setup.py:cached",
-    "/tests:/opt/airflow/tests:cached",
-    "/kubernetes_tests:/opt/airflow/kubernetes_tests:cached",
-    "/docker_tests:/opt/airflow/docker_tests:cached",
-    "/chart:/opt/airflow/chart:cached",
-    "/metastore_browser:/opt/airflow/metastore_browser:cached",
+    (".bash_aliases", "/root/.bash_aliases"),
+    (".bash_history", "/root/.bash_history"),
+    (".coveragerc", "/opt/airflow/.coveragerc"),
+    (".dockerignore", "/opt/airflow/.dockerignore"),
+    (".flake8", "/opt/airflow/.flake8"),
+    (".github", "/opt/airflow/.github"),
+    (".inputrc", "/root/.inputrc"),
+    (".rat-excludes", "/opt/airflow/.rat-excludes"),
+    ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
+    ("LICENSE", "/opt/airflow/LICENSE"),
+    ("MANIFEST.in", "/opt/airflow/MANIFEST.in"),
+    ("NOTICE", "/opt/airflow/NOTICE"),
+    ("airflow", "/opt/airflow/airflow"),
+    ("provider_packages", "/opt/airflow/provider_packages"),
+    ("dags", "/opt/airflow/dags"),
+    ("dev", "/opt/airflow/dev"),
+    ("docs", "/opt/airflow/docs"),
+    ("hooks", "/opt/airflow/hooks"),
+    ("logs", "/root/airflow/logs"),
+    ("pyproject.toml", "/opt/airflow/pyproject.toml"),
+    ("pytest.ini", "/opt/airflow/pytest.ini"),
+    ("scripts", "/opt/airflow/scripts"),
+    ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
+    ("setup.cfg", "/opt/airflow/setup.cfg"),
+    ("setup.py", "/opt/airflow/setup.py"),
+    ("tests", "/opt/airflow/tests"),
+    ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
+    ("docker_tests", "/opt/airflow/docker_tests"),
+    ("chart", "/opt/airflow/chart"),
+    ("metastore_browser", "/opt/airflow/metastore_browser"),
 ]
 
 
@@ -117,17 +117,26 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
     """
     extra_docker_flags = []
     if mount_sources == MOUNT_ALL:
-        extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow/:cached"])
+        extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT},dst=/opt/airflow/"])
     elif mount_sources == MOUNT_SELECTED:
-        for flag in NECESSARY_HOST_VOLUMES:
-            extra_docker_flags.extend(["-v", str(AIRFLOW_SOURCES_ROOT) + flag])
-        extra_docker_flags.extend(['-v', "docker-compose_mypy-cache-volume:/opt/airflow/.mypy_cache/"])
+        for (src, dst) in NECESSARY_HOST_VOLUMES:
+            if (AIRFLOW_SOURCES_ROOT / src).exists():
+                extra_docker_flags.extend(
+                    ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
+                )
+        extra_docker_flags.extend(
+            ['--mount', "type=volume,src=docker-compose_mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
+        )
     else:  # none
-        extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT / 'empty'}:/opt/airflow/airflow"])
-    extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/files:/files"])
-    extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/dist:/dist"])
+        extra_docker_flags.extend(
+            ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'empty'},dst=/opt/airflow/airflow"]
+        )
+    extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'files'},dst=/files"])
+    extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'dist'},dst=/dist"])
     extra_docker_flags.extend(["--rm"])
-    extra_docker_flags.extend(["--env-file", f"{AIRFLOW_SOURCES_ROOT}/scripts/ci/docker-compose/_docker.env"])
+    extra_docker_flags.extend(
+        ["--env-file", f"{AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci' / 'docker-compose' / '_docker.env' }"]
+    )
     return extra_docker_flags
 
 
