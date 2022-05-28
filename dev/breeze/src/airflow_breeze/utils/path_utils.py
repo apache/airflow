@@ -62,13 +62,7 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return (
-        in_self_upgrade()
-        or in_autocomplete()
-        or in_help()
-        or hasattr(sys, '_called_from_test')
-        or os.environ.get('SKIP_BREEZE_UPGRADE_CHECK')
-    )
+    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
 
 
 def get_package_setup_metadata_hash() -> str:

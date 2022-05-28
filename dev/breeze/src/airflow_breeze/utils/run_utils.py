@@ -27,6 +27,7 @@ from pathlib import Path
 from re import match
 from typing import Dict, List, Mapping, Optional, Union
 
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import get_console
@@ -375,3 +376,32 @@ def filter_out_none(**kwargs) -> dict:
         if kwargs[key] is None:
             kwargs.pop(key)
     return kwargs
+
+
+def fail_if_image_missing(image: str, verbose: bool, dry_run: bool, instruction: str) -> None:
+    skip_image_pre_commits = os.environ.get('SKIP_IMAGE_PRE_COMMITS', "false")
+    if skip_image_pre_commits[0].lower() == "t":
+        get_console().print(
+            f"[info]Skipping image check as SKIP_IMAGE_PRE_COMMITS is set to {skip_image_pre_commits}[/]"
+        )
+        sys.exit(0)
+    cmd_result = run_command(
+        ["docker", "inspect", image], stdout=subprocess.DEVNULL, check=False, verbose=verbose, dry_run=dry_run
+    )
+    if cmd_result.returncode != 0:
+        print(f'[red]The image {image} is not available.[/]\n')
+        print(f"\n[yellow]Please run at the earliest convenience:[/]\n\n{instruction}\n\n")
+        sys.exit(1)
+
+
+def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
+    github_repository = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
+    python_version = "3.7"
+    airflow_image = f"ghcr.io/{github_repository}/{AIRFLOW_BRANCH}/ci/python{python_version}"
+    fail_if_image_missing(
+        image=airflow_image,
+        verbose=verbose,
+        dry_run=dry_run,
+        instruction=f"breeze build-image --python {python_version}",
+    )
+    return airflow_image
