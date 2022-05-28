@@ -200,9 +200,6 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
-    # XML to dict 0.13.0 breaks some EMR tests
-    # It should be removed once we solve https://github.com/apache/airflow/issues/23576
-    'xmltodict<0.13.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
