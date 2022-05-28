@@ -66,6 +66,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
             warnings.warn(
                 "Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``.",
                 DeprecationWarning,
+                stacklevel=2,
             )
         self._week_day_num = WeekDay.validate_week_day(week_day)
 

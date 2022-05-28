@@ -72,10 +72,11 @@ class BranchDateTimeOperator(BaseBranchOperator):
             warnings.warn(
                 "Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``.",
                 DeprecationWarning,
+                stacklevel=2,
             )
 
     def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
-        if self.use_task_logical_date is True:
+        if self.use_task_logical_date:
             now = timezone.make_naive(context["logical_date"], self.dag.timezone)
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)
