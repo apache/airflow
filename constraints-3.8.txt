@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-27T15:24:11Z
+# This constraints file was automatically generated on 2022-05-28T09:00:07Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -176,7 +176,7 @@ bleach==5.0.0
 blinker==1.4
 boto3==1.23.9
 boto==2.49.0
-botocore==1.26.9
+botocore==1.26.10
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
@@ -237,6 +237,7 @@ filelock==3.7.0
 fissix==21.11.13
 flake8-colors==0.1.9
 flake8==4.0.1
+flake8_implicit_str_concat==0.3.0
 flaky==3.7.0
 flower==1.0.0
 freezegun==1.2.1
@@ -353,6 +354,7 @@ matplotlib-inline==0.1.3
 mccabe==0.6.1
 mongomock==4.0.0
 monotonic==1.6
+more-itertools==8.13.0
 moreorless==0.4.0
 moto==3.1.9
 msal-extensions==1.0.0
@@ -396,7 +398,7 @@ pexpect==4.8.0
 pickleshare==0.7.5
 pinotdb==0.3.11
 pipdeptree==2.2.1
-pipx==1.0.0
+pipx==1.1.0
 pkginfo==1.8.2
 platformdirs==2.5.2
 pluggy==1.0.0
@@ -548,7 +550,7 @@ traitlets==5.2.1.post0
 trino==0.313.0
 twine==4.0.0
 types-Deprecated==1.2.8
-types-Markdown==3.3.23
+types-Markdown==3.3.24
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.7
 types-boto==2.49.15
