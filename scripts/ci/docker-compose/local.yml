@@ -26,38 +26,100 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
-      - mypy-cache-volume:/opt/airflow/.mypy_cache/
-      # START automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
-      - ../../../.bash_aliases:/root/.bash_aliases:cached
-      - ../../../.bash_history:/root/.bash_history:cached
-      - ../../../.coveragerc:/opt/airflow/.coveragerc:cached
-      - ../../../.dockerignore:/opt/airflow/.dockerignore:cached
-      - ../../../.flake8:/opt/airflow/.flake8:cached
-      - ../../../.github:/opt/airflow/.github:cached
-      - ../../../.inputrc:/root/.inputrc:cached
-      - ../../../.rat-excludes:/opt/airflow/.rat-excludes:cached
-      - ../../../RELEASE_NOTES.rst:/opt/airflow/RELEASE_NOTES.rst:cached
-      - ../../../LICENSE:/opt/airflow/LICENSE:cached
-      - ../../../MANIFEST.in:/opt/airflow/MANIFEST.in:cached
-      - ../../../NOTICE:/opt/airflow/NOTICE:cached
-      - ../../../airflow:/opt/airflow/airflow:cached
-      - ../../../provider_packages:/opt/airflow/provider_packages:cached
-      - ../../../dags:/opt/airflow/dags:cached
-      - ../../../dev:/opt/airflow/dev:cached
-      - ../../../docs:/opt/airflow/docs:cached
-      - ../../../hooks:/opt/airflow/hooks:cached
-      - ../../../logs:/root/airflow/logs:cached
-      - ../../../pyproject.toml:/opt/airflow/pyproject.toml:cached
-      - ../../../pytest.ini:/opt/airflow/pytest.ini:cached
-      - ../../../scripts:/opt/airflow/scripts:cached
-      - ../../../scripts/docker/entrypoint_ci.sh:/entrypoint:cached
-      - ../../../setup.cfg:/opt/airflow/setup.cfg:cached
-      - ../../../setup.py:/opt/airflow/setup.py:cached
-      - ../../../tests:/opt/airflow/tests:cached
-      - ../../../kubernetes_tests:/opt/airflow/kubernetes_tests:cached
-      - ../../../docker_tests:/opt/airflow/docker_tests:cached
-      - ../../../chart:/opt/airflow/chart:cached
-      - ../../../metastore_browser:/opt/airflow/metastore_browser:cached
-      # END automatically generated volumes from LOCAL_MOUNTS in _local_mounts.sh
+      - type: volume
+        source: mypy-cache-volume
+        target: /opt/airflow/.mypy_cache/
+        # START automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
+      - type: bind
+        source: ../../../.bash_aliases
+        target: /root/.bash_aliases
+      - type: bind
+        source: ../../../.bash_history
+        target: /root/.bash_history
+      - type: bind
+        source: ../../../.coveragerc
+        target: /opt/airflow/.coveragerc
+      - type: bind
+        source: ../../../.dockerignore
+        target: /opt/airflow/.dockerignore
+      - type: bind
+        source: ../../../.flake8
+        target: /opt/airflow/.flake8
+      - type: bind
+        source: ../../../.github
+        target: /opt/airflow/.github
+      - type: bind
+        source: ../../../.inputrc
+        target: /root/.inputrc
+      - type: bind
+        source: ../../../.rat-excludes
+        target: /opt/airflow/.rat-excludes
+      - type: bind
+        source: ../../../RELEASE_NOTES.rst
+        target: /opt/airflow/RELEASE_NOTES.rst
+      - type: bind
+        source: ../../../LICENSE
+        target: /opt/airflow/LICENSE
+      - type: bind
+        source: ../../../MANIFEST.in
+        target: /opt/airflow/MANIFEST.in
+      - type: bind
+        source: ../../../NOTICE
+        target: /opt/airflow/NOTICE
+      - type: bind
+        source: ../../../airflow
+        target: /opt/airflow/airflow
+      - type: bind
+        source: ../../../provider_packages
+        target: /opt/airflow/provider_packages
+      - type: bind
+        source: ../../../dags
+        target: /opt/airflow/dags
+      - type: bind
+        source: ../../../dev
+        target: /opt/airflow/dev
+      - type: bind
+        source: ../../../docs
+        target: /opt/airflow/docs
+      - type: bind
+        source: ../../../hooks
+        target: /opt/airflow/hooks
+      - type: bind
+        source: ../../../logs
+        target: /root/airflow/logs
+      - type: bind
+        source: ../../../pyproject.toml
+        target: /opt/airflow/pyproject.toml
+      - type: bind
+        source: ../../../pytest.ini
+        target: /opt/airflow/pytest.ini
+      - type: bind
+        source: ../../../scripts
+        target: /opt/airflow/scripts
+      - type: bind
+        source: ../../../scripts/docker/entrypoint_ci.sh
+        target: /entrypoint
+      - type: bind
+        source: ../../../setup.cfg
+        target: /opt/airflow/setup.cfg
+      - type: bind
+        source: ../../../setup.py
+        target: /opt/airflow/setup.py
+      - type: bind
+        source: ../../../tests
+        target: /opt/airflow/tests
+      - type: bind
+        source: ../../../kubernetes_tests
+        target: /opt/airflow/kubernetes_tests
+      - type: bind
+        source: ../../../docker_tests
+        target: /opt/airflow/docker_tests
+      - type: bind
+        source: ../../../chart
+        target: /opt/airflow/chart
+      - type: bind
+        source: ../../../metastore_browser
+        target: /opt/airflow/metastore_browser
+        # END automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
 volumes:
   mypy-cache-volume:
