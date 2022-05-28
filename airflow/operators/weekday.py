@@ -41,7 +41,7 @@ class BranchDayOfWeekOperator(BaseBranchOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-    :param use_task_logical_date: If ``True``, uses task's execution day to compare
+    :param use_task_logical_date: If ``True``, uses task's logical date to compare
         with is_today. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week.
     """
