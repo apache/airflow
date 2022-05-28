@@ -172,13 +172,16 @@ def tests(
 def kind_cluster():
     """Run kind-cluster with Airflow, use: start, stop, restart"""
 
+
 @kind_cluster.command()
 def start():
     """Run kind-cluster with Airflow, use: start, stop, restart"""
 
+
 @kind_cluster.command()
 def stop():
     """Run kind-cluster start"""
+
 
 @kind_cluster.command()
 def restart():
