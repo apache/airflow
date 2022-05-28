@@ -200,10 +200,11 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             view.datamodel = CustomSQLAInterface(view.datamodel.obj)
         self.perms = None
 
-    def _is_subdag(self, dag_id):
+    def _get_parent_dag(self, dag_id):
         if '.' in dag_id:
-            return self.get_session.query(DagModel.is_subdag).filter(DagModel.dag_id == dag_id).scalar()
-        return False
+            dm = self.get_session.query(DagModel).filter(DagModel.dag_id == dag_id).one_or_none()
+            return dm.parent_dag if dm else None
+        return None
 
     def init_role(self, role_name, perms):
         """
@@ -345,8 +346,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
     def can_access_some_dags(self, action: str, dag_id: Optional[str] = None) -> bool:
         """Checks if user has read or write access to some dags."""
         if dag_id and dag_id != '~':
-            is_subdag = self._is_subdag(dag_id)
-            return self.has_access(action, permissions.resource_name_for_dag(dag_id, is_subdag))
+            parent_dag = self._get_parent_dag(dag_id)
+            return self.has_access(action, permissions.resource_name_for_dag(dag_id, parent_dag))
 
         user = g.user
         if action == permissions.ACTION_CAN_READ:
@@ -355,20 +356,20 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
 
     def can_read_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG read access."""
-        is_subdag = self._is_subdag(dag_id)
-        dag_resource_name = permissions.resource_name_for_dag(dag_id, is_subdag)
+        parent_dag = self._get_parent_dag(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(dag_id, parent_dag)
         return self.has_access(permissions.ACTION_CAN_READ, dag_resource_name, user=user)
 
     def can_edit_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG edit access."""
-        is_subdag = self._is_subdag(dag_id)
-        dag_resource_name = permissions.resource_name_for_dag(dag_id, is_subdag)
+        parent_dag = self._get_parent_dag(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(dag_id, parent_dag)
         return self.has_access(permissions.ACTION_CAN_EDIT, dag_resource_name, user=user)
 
     def can_delete_dag(self, dag_id, user=None) -> bool:
         """Determines whether a user has DAG delete access."""
-        is_subdag = self._is_subdag(dag_id)
-        dag_resource_name = permissions.resource_name_for_dag(dag_id, is_subdag)
+        parent_dag = self._get_parent_dag(dag_id)
+        dag_resource_name = permissions.resource_name_for_dag(dag_id, parent_dag)
         return self.has_access(permissions.ACTION_CAN_DELETE, dag_resource_name, user=user)
 
     def prefixed_dag_id(self, dag_id):
@@ -379,8 +380,8 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             DeprecationWarning,
             stacklevel=2,
         )
-        is_subdag = self._is_subdag(dag_id)
-        return permissions.resource_name_for_dag(dag_id, is_subdag)
+        parent_dag = self._get_parent_dag(dag_id)
+        return permissions.resource_name_for_dag(dag_id, parent_dag)
 
     def is_dag_resource(self, resource_name):
         """Determines if a resource belongs to a DAG or all DAGs."""
@@ -540,13 +541,13 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         dags = dagbag.dags.values()
 
         for dag in dags:
-            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id, dag.is_subdag)
+            dag_resource_name = permissions.resource_name_for_dag(dag.dag_id, dag.parent_dag)
             for action_name in self.DAG_ACTIONS:
                 if (action_name, dag_resource_name) not in perms:
                     self._merge_perm(action_name, dag_resource_name)
 
             if dag.access_control:
-                self.sync_perm_for_dag(dag_resource_name, dag.access_control, dag.is_subdag)
+                self.sync_perm_for_dag(dag_resource_name, dag.access_control, dag.parent_dag)
 
     def update_admin_permission(self):
         """
@@ -599,7 +600,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             self.create_resource(resource_name)
             self.create_permission(action_name, resource_name)
 
-    def sync_perm_for_dag(self, dag_id, access_control=None, is_subdag=False):
+    def sync_perm_for_dag(self, dag_id, access_control=None, parent_dag=None):
         """
         Sync permissions for given dag id. The dag id surely exists in our dag bag
         as only / refresh button or DagBag will call this function
@@ -610,7 +611,7 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             {'can_read'}
         :return:
         """
-        dag_resource_name = permissions.resource_name_for_dag(dag_id, is_subdag)
+        dag_resource_name = permissions.resource_name_for_dag(dag_id, parent_dag)
         for dag_action_name in self.DAG_ACTIONS:
             self.create_permission(dag_action_name, dag_resource_name)
 

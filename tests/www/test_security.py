@@ -190,10 +190,10 @@ def sample_dags(security_manager):
 
 
 @pytest.fixture(scope="module")
-def has_dag_perm(security_manager, session):
+def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
-        is_subdag = security_manager._is_subdag(dag_id)
-        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id, is_subdag), user)
+        parent_dag = security_manager._get_parent_dag(dag_id)
+        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id, parent_dag), user)
 
     return _has_dag_perm
 
@@ -726,7 +726,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ('can_edit', dag_resource_name) in all_perms
 
     security_manager.sync_perm_for_dag.assert_called_once_with(
-        permissions.resource_name_for_dag('has_access_control'), access_control, False
+        permissions.resource_name_for_dag('has_access_control'), access_control, None
     )
 
     del dagbag_mock.dags["has_access_control"]
@@ -810,7 +810,7 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             security_manager.bulk_sync_roles(mock_roles)
             for dag in [dag1, dag2, dag3]:
                 security_manager.sync_perm_for_dag(
-                    dag.dag_id, access_control={role_name: READ_WRITE}, is_subdag=dag.is_subdag
+                    dag.dag_id, access_control={role_name: READ_WRITE}, parent_dag=dag.parent_dag
                 )
 
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
