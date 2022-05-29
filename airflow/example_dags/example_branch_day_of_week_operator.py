@@ -33,8 +33,8 @@ with DAG(
     schedule_interval="@daily",
 ) as dag:
     # [START howto_operator_day_of_week_branch]
-    empty_task_1 = EmptyOperator(task_id='branch_true', dag=dag)
-    empty_task_2 = EmptyOperator(task_id='branch_false', dag=dag)
+    empty_task_1 = EmptyOperator(task_id='branch_true')
+    empty_task_2 = EmptyOperator(task_id='branch_false')
 
     branch = BranchDayOfWeekOperator(
         task_id="make_choice",
