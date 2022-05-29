@@ -22,6 +22,7 @@
 import datetime
 import warnings
 from typing import Any, Dict, List, NamedTuple, Optional, Sized
+from http import HTTPStatus
 
 
 class AirflowException(Exception):
@@ -31,19 +32,19 @@ class AirflowException(Exception):
     Each custom exception should be derived from this class.
     """
 
-    status_code = 500
+    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
 
-    status_code = 400
+    status_code = HTTPStatus.BAD_REQUEST
 
 
 class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
-    status_code = 404
+    status_code = HTTPStatus.NOT_FOUND
 
 
 class AirflowConfigException(AirflowException):
