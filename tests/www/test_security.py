@@ -193,7 +193,7 @@ def sample_dags(security_manager):
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
         root_dag_id = security_manager._get_root_dag_id(dag_id)
-        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id, root_dag_id), user)
+        return security_manager.has_access(perm, permissions.resource_name_for_dag(root_dag_id), user)
 
     return _has_dag_perm
 
@@ -546,7 +546,7 @@ def test_has_all_dag_access(app, security_manager):
 
 def test_access_control_with_non_existent_role(security_manager):
     with pytest.raises(AirflowException) as ctx:
-        security_manager.sync_perm_for_dag(
+        security_manager._sync_dag_view_permissions(
             dag_id='access-control-test',
             access_control={
                 'this-role-does-not-exist': [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]
@@ -588,7 +588,7 @@ def test_access_control_with_invalid_permission(app, security_manager):
     ):
         for action in invalid_actions:
             with pytest.raises(AirflowException) as ctx:
-                security_manager.sync_perm_for_dag(
+                security_manager._sync_dag_view_permissions(
                     'access_control_test',
                     access_control={rolename: {action}},
                 )
@@ -611,7 +611,7 @@ def test_access_control_is_set_on_init(
             role_name=role_name,
             permissions=[],
         ) as user:
-            security_manager.sync_perm_for_dag(
+            security_manager._sync_dag_view_permissions(
                 'access_control_test',
                 access_control={role_name: [permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ]},
             )
@@ -646,10 +646,14 @@ def test_access_control_stale_perms_are_revoked(
             permissions=[],
         ) as user:
             set_user_single_role(app, user, role_name='team-a')
-            security_manager.sync_perm_for_dag('access_control_test', access_control={'team-a': READ_WRITE})
+            security_manager._sync_dag_view_permissions(
+                'access_control_test', access_control={'team-a': READ_WRITE}
+            )
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id='access_control_test', user=user)
 
-            security_manager.sync_perm_for_dag('access_control_test', access_control={'team-a': READ_ONLY})
+            security_manager._sync_dag_view_permissions(
+                'access_control_test', access_control={'team-a': READ_ONLY}
+            )
             # Clear the cache, to make it pick up new rol perms
             user._perms = None
             assert_user_has_dag_perms(
@@ -706,7 +710,7 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
     import airflow.www.security
 
     monkeypatch.setitem(airflow.www.security.__dict__, "DagBag", dagbag_class_mock)
-    security_manager.sync_perm_for_dag = mock.Mock()
+    security_manager._sync_dag_view_permissions = mock.Mock()
 
     for dag in sample_dags:
         dag_resource_name = permissions.resource_name_for_dag(dag.dag_id)
@@ -725,8 +729,9 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ('can_read', dag_resource_name) in all_perms
         assert ('can_edit', dag_resource_name) in all_perms
 
-    security_manager.sync_perm_for_dag.assert_called_once_with(
-        permissions.resource_name_for_dag('has_access_control'), access_control, None
+    security_manager._sync_dag_view_permissions.assert_called_once_with(
+        permissions.resource_name_for_dag('has_access_control'),
+        access_control,
     )
 
     del dagbag_mock.dags["has_access_control"]
@@ -809,9 +814,8 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             session.commit()
             security_manager.bulk_sync_roles(mock_roles)
             for dag in [dag1, dag2, dag3]:
-                root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else None
-                security_manager.sync_perm_for_dag(
-                    dag.dag_id, access_control={role_name: READ_WRITE}, root_dag_id=root_dag_id
+                security_manager._sync_dag_view_permissions(
+                    parent_dag_name, access_control={role_name: READ_WRITE}
                 )
 
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)

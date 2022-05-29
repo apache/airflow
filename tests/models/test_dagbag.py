@@ -882,7 +882,7 @@ class TestDagBag:
 
             # perms dont exist
             _sync_perms()
-            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None, dag.parent_dag)
+            mock_sync_perm_for_dag.assert_called_once_with("test_example_bash_operator", None)
 
             # perms now exist
             _sync_perms()
@@ -892,7 +892,7 @@ class TestDagBag:
             dag.access_control = {"Public": {"can_read"}}
             _sync_perms()
             mock_sync_perm_for_dag.assert_called_once_with(
-                "test_example_bash_operator", {"Public": {"can_read"}}, dag.parent_dag
+                "test_example_bash_operator", {"Public": {"can_read"}}
             )
 
     @patch("airflow.models.dagbag.settings.MIN_SERIALIZED_DAG_UPDATE_INTERVAL", 5)
