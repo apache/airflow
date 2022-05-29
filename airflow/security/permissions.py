@@ -66,7 +66,7 @@ DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 
-def resource_name_for_dag(dag_id, parent_dag=None):
+def resource_name_for_dag(dag_id, root_dag_id=None):
     """Returns the resource name for a DAG id."""
     if dag_id == RESOURCE_DAG:
         return dag_id
@@ -74,7 +74,7 @@ def resource_name_for_dag(dag_id, parent_dag=None):
     if dag_id.startswith(RESOURCE_DAG_PREFIX):
         return dag_id
 
-    if parent_dag:
+    if root_dag_id:
         # To account for SubDags
-        return f"{RESOURCE_DAG_PREFIX}{parent_dag.dag_id}"
+        return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"
     return f"{RESOURCE_DAG_PREFIX}{dag_id}"

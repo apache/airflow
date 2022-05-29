@@ -192,8 +192,8 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
-        parent_dag = security_manager._get_parent_dag(dag_id)
-        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id, parent_dag), user)
+        root_dag_id = security_manager._get_root_dag_id(dag_id)
+        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id, root_dag_id), user)
 
     return _has_dag_perm
 
@@ -809,8 +809,9 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             session.commit()
             security_manager.bulk_sync_roles(mock_roles)
             for dag in [dag1, dag2, dag3]:
+                root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else None
                 security_manager.sync_perm_for_dag(
-                    dag.dag_id, access_control={role_name: READ_WRITE}, parent_dag=dag.parent_dag
+                    dag.dag_id, access_control={role_name: READ_WRITE}, root_dag_id=root_dag_id
                 )
 
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)

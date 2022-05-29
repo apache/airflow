@@ -640,8 +640,10 @@ class DagBag(LoggingMixin):
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
         from airflow.www.fab_security.sqla.models import Action, Permission, Resource
 
+        root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else None
+
         def needs_perms(dag_id: str) -> bool:
-            dag_resource_name = resource_name_for_dag(dag_id, dag.parent_dag)
+            dag_resource_name = resource_name_for_dag(dag_id, root_dag_id)
             for permission_name in DAG_ACTIONS:
                 if not (
                     session.query(Permission)
@@ -659,4 +661,4 @@ class DagBag(LoggingMixin):
             from airflow.www.security import ApplessAirflowSecurityManager
 
             security_manager = ApplessAirflowSecurityManager(session=session)
-            security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control, dag.parent_dag)
+            security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control, root_dag_id)
