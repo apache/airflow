@@ -289,6 +289,12 @@ option_prepare_buildx_cache = click.option(
     is_flag=True,
     envvar='PREPARE_BUILDX_CACHE',
 )
+option_max_retries = click.option(
+    '--max-retries',
+    help='Maximum number of retries for the operation for "retryable" intermittent problems.',
+    type=click.IntRange(min=2),
+    envvar='MAX_RETRIES',
+)
 option_push_image = click.option(
     '--push-image',
     help='Push image after building it.',

@@ -405,3 +405,11 @@ def get_runnable_ci_image(verbose: bool, dry_run: bool) -> str:
         instruction=f"breeze build-image --python {python_version}",
     )
     return airflow_image
+
+
+def run_result_contains(result: RunCommandResult, message: str) -> bool:
+    if result.stdout and message in result.stdout:
+        return True
+    if result.stderr and message in result.stderr:
+        return True
+    return False
