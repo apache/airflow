@@ -55,6 +55,7 @@ class _CommonBuildParams:
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     github_username: str = ""
     image_tag: Optional[str] = None
+    max_retries: Optional[int] = None
     install_providers_from_sources: bool = False
     platform: str = f"linux/{os.uname().machine}"
     prepare_buildx_cache: bool = False

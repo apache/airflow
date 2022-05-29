@@ -18,6 +18,7 @@ import multiprocessing as mp
 import os
 import sys
 from pathlib import Path
+from subprocess import CompletedProcess
 from typing import List, Optional, Tuple, Union
 
 import click
@@ -50,6 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_image_name,
     option_image_tag,
     option_install_providers_from_sources,
+    option_max_retries,
     option_parallelism,
     option_platform,
     option_prepare_buildx_cache,
@@ -87,6 +89,7 @@ from airflow_breeze.utils.run_utils import (
     instruct_build_image,
     is_repo_rebased,
     run_command,
+    run_result_contains,
 )
 
 CI_IMAGE_TOOLS_COMMANDS = {
@@ -110,6 +113,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
                 "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
+                "--max-retries",
             ],
         },
         {
@@ -202,6 +206,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_docker_cache
 @option_image_tag
 @option_prepare_buildx_cache
+@option_max_retries
 @option_push_image
 @option_empty_image
 @option_install_providers_from_sources
@@ -477,15 +482,34 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
         )
     else:
         get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
-        build_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
-        )
-        if build_command_result.returncode == 0:
-            if ci_image_params.prepare_buildx_cache:
+        num_tries = 1 if ci_image_params.max_retries is None else ci_image_params.max_retries
+        build_command_result = CompletedProcess(args=[], returncode=1, stdout="This should never happen.")
+        while num_tries > 0:
+            build_command_result = run_command(
+                cmd,
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
+                text=True,
+                capture_output=True,
+            )
+            if ci_image_params.prepare_buildx_cache and build_command_result.returncode == 0:
                 build_command_result = build_cache(
                     image_params=ci_image_params, dry_run=dry_run, verbose=verbose
                 )
-
+            if build_command_result.returncode == 0:
+                break
+            num_tries -= 1
+            if run_result_contains(build_command_result, "cannot reuse body, request must be retried"):
+                if num_tries > 0:
+                    get_console().print(
+                        "[info]Retrying failed command on retryable condition. "
+                        f"There are {num_tries} left[/]"
+                    )
+                continue
+            else:
+                break
     if not ci_image_params.prepare_buildx_cache:
         if not dry_run:
             if build_command_result.returncode == 0:
@@ -504,7 +528,9 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
                     f"Image build: {ci_image_params.python}",
                 )
         else:
-            get_console().print("[info]Not updating build cache because we are in `dry_run` mode.[/]")
+            get_console().print(
+                "[info]Not tagging/marking image as refreshed because we are in `dry_run` mode.[/]"
+            )
     return build_command_result.returncode, f"Image build: {ci_image_params.python}"
 
 
