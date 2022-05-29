@@ -520,7 +520,10 @@ Here we select completely unique records from the retrieved data, then we check 
               FROM employees_temp
           )
           ON CONFLICT ("Serial Number") DO UPDATE
-          SET "Serial Number" = excluded."Serial Number";
+          SET "Company Name" = excluded."Company Name",
+              "Employee Markme" = excluded."Employee Markme",
+              "Description" = excluded."Description",
+              "Leave" = excluded."Leave";
       """
       try:
           postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
@@ -633,7 +636,10 @@ Putting all of the pieces together, we have our completed DAG.
                   FROM employees_temp
               )
               ON CONFLICT ("Serial Number") DO UPDATE
-              SET "Serial Number" = excluded."Serial Number";
+              SET "Company Name" = excluded."Company Name",
+                  "Employee Markme" = excluded."Employee Markme",
+                  "Description" = excluded."Description",
+                  "Leave" = excluded."Leave";
           """
           try:
               postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
