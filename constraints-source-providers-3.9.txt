@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-28T14:13:48Z
+# This constraints file was automatically generated on 2022-05-29T09:30:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -16,7 +16,7 @@ Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
-Flask-Caching==1.10.1
+Flask-Caching==1.11.1
 Flask-JWT-Extended==3.25.1
 Flask-Login==0.4.1
 Flask-OpenID==1.3.0
@@ -99,7 +99,7 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.23.9
+boto3==1.23.10
 boto==2.49.0
 botocore==1.26.10
 bowler==0.9.0
@@ -245,7 +245,7 @@ inflection==0.5.1
 influxdb-client==1.29.1
 iniconfig==1.1.1
 ipdb==0.13.9
-ipython==8.3.0
+ipython==8.4.0
 isodate==0.6.1
 itsdangerous==1.1.0
 jedi==0.18.1
@@ -443,7 +443,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==7.4.0
+sphinxcontrib-spelling==7.4.1
 spython==0.2.1
 sqlalchemy-bigquery==1.4.3
 sqlalchemy-drill==1.1.2
@@ -511,7 +511,7 @@ wcwidth==0.2.5
 webencodings==0.5.1
 websocket-client==1.3.2
 wrapt==1.14.1
-xmltodict==0.12.0
+xmltodict==0.13.0
 yamllint==1.26.3
 yandexcloud==0.163.0
 yarl==1.7.2
