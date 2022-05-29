@@ -21,20 +21,32 @@ import React from 'react';
 import {
   Text,
   Box,
-  Button,
   Flex,
-  Link,
   Divider,
 } from '@chakra-ui/react';
 
-import { getMetaValue } from '../../../../utils';
+import { getMetaValue } from '../../../../../utils';
+import { LogInternalLink, LogExternalLink } from './LogLinks';
 
-const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
-const externalLogUrl = getMetaValue('external_log_url');
 const externalLogName = getMetaValue('external_log_name');
 
-const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
+const getLinkIndexes = (tryNumber) => {
+  const internalIndexes = [];
+  const externalIndexes = [];
+
+  [...Array(tryNumber + 1 || 0)].forEach((_, index) => {
+    if (index === 0 && tryNumber < 2) return;
+    const isExternal = index !== 0 && showExternalLogRedirect;
+    if (isExternal) {
+      externalIndexes.push(index);
+    } else {
+      internalIndexes.push(index);
+    }
+  });
+
+  return [internalIndexes, externalIndexes];
+};
 
 const Logs = ({
   dagId,
@@ -42,47 +54,7 @@ const Logs = ({
   executionDate,
   tryNumber,
 }) => {
-  const externalLogs = [];
-
-  const logAttempts = [...Array(tryNumber + 1 || 0)].map((_, index) => {
-    if (index === 0 && tryNumber < 2) return null;
-
-    const isExternal = index !== 0 && showExternalLogRedirect;
-
-    if (isExternal) {
-      const fullExternalUrl = `${externalLogUrl
-      }?dag_id=${encodeURIComponent(dagId)
-      }&task_id=${encodeURIComponent(taskId)
-      }&execution_date=${encodeURIComponent(executionDate)
-      }&try_number=${index}`;
-      externalLogs.push(
-        <LinkButton
-          // eslint-disable-next-line react/no-array-index-key
-          key={index}
-          href={fullExternalUrl}
-          target="_blank"
-        >
-          {index}
-        </LinkButton>,
-      );
-    }
-
-    const fullMetadataUrl = `${logsWithMetadataUrl
-    }?dag_id=${encodeURIComponent(dagId)
-    }&task_id=${encodeURIComponent(taskId)
-    }&execution_date=${encodeURIComponent(executionDate)
-    }&format=file${index > 0 && `&try_number=${index}`}`;
-
-    return (
-      <LinkButton
-        // eslint-disable-next-line react/no-array-index-key
-        key={index}
-        href={fullMetadataUrl}
-      >
-        {index === 0 ? 'All' : index}
-      </LinkButton>
-    );
-  });
+  const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
 
   return (
     <>
@@ -91,13 +63,25 @@ const Logs = ({
         <Box>
           <Text>Download Log (by attempts):</Text>
           <Flex flexWrap="wrap">
-            {logAttempts}
+            {
+              internalIndexes.map(
+                (index) => (
+                  <LogInternalLink
+                    key={index}
+                    index={index}
+                    dagId={dagId}
+                    taskId={taskId}
+                    executionDate={executionDate}
+                  />
+                ),
+              )
+            }
           </Flex>
         </Box>
         <Divider my={2} />
       </>
       )}
-      {externalLogName && externalLogs.length > 0 && (
+      {externalLogName && externalIndexes.length > 0 && (
       <>
         <Box>
           <Text>
@@ -108,7 +92,19 @@ const Logs = ({
             (by attempts):
           </Text>
           <Flex flexWrap="wrap">
-            {externalLogs}
+            {
+              externalIndexes.map(
+                (index) => (
+                  <LogExternalLink
+                    key={index}
+                    index={index}
+                    dagId={dagId}
+                    taskId={taskId}
+                    executionDate={executionDate}
+                  />
+                ),
+              )
+            }
           </Flex>
         </Box>
         <Divider my={2} />
