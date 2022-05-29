@@ -503,12 +503,16 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
             num_tries -= 1
             if run_result_contains(build_command_result, "cannot reuse body, request must be retried"):
                 if num_tries > 0:
+                    get_console().print(build_command_result.stdout)
+                    get_console().print(build_command_result.stderr)
                     get_console().print(
                         "[info]Retrying failed command on retryable condition. "
                         f"There are {num_tries} left[/]"
                     )
                 continue
             else:
+                get_console().print(build_command_result.stdout)
+                get_console().print(build_command_result.stderr)
                 break
     if not ci_image_params.prepare_buildx_cache:
         if not dry_run:

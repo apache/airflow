@@ -551,11 +551,15 @@ def build_production_image(
             num_tries -= 1
             if run_result_contains(build_command_result, "cannot reuse body, request must be retried"):
                 if num_tries > 0:
+                    get_console().print(build_command_result.stdout)
+                    get_console().print(build_command_result.stderr)
                     get_console().print(
                         "[info]Retrying failed command on retryable condition. "
                         f"There are {num_tries} left[/]"
                     )
                 continue
             else:
+                get_console().print(build_command_result.stdout)
+                get_console().print(build_command_result.stderr)
                 break
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"
