@@ -637,9 +637,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
-          VERBOSE: false
+          VERBOSE: "false"
           SKIP: "identity"
-          COLUMNS: 250
+          COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -654,8 +654,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,run-mypy,run-flake8,lint-javascript,update-migration-references,identity"
-      MOUNT_SELECTED_LOCAL_SOURCES: "true"
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
       - name: Cleanup repo
@@ -695,7 +693,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze static-checks --all-files --show-diff-on-failure --color always
           --commit-ref "${{ github.sha }}"
         env:
-          VERBOSE: false
+          VERBOSE: "false"
+          SKIP_IMAGE_PRE_COMMITS: "true"
+          SKIP: "identity"
+          COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
