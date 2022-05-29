@@ -21,8 +21,8 @@
 """Exceptions used by Airflow"""
 import datetime
 import warnings
-from typing import Any, Dict, List, NamedTuple, Optional, Sized
 from http import HTTPStatus
+from typing import Any, Dict, List, NamedTuple, Optional, Sized
 
 
 class AirflowException(Exception):
