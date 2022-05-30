@@ -35,6 +35,8 @@ default_args = {
 
 CLIENT_ID = os.getenv("CLIENT_ID", "")
 QUEUE_NAME = "sb_mgmt_queue_test"
+MESSAGE = "Test Message"
+MESSAGE_LIST = [MESSAGE + " " + str(n) for n in range(0, 10)]
 
 with DAG(
     dag_id="example_azure_service_bus_queue",
@@ -54,17 +56,35 @@ with DAG(
     # [START howto_operator_send_message_to_service_bus_queue]
     send_message_to_service_bus_queue = AzureServiceBusSendMessageOperator(
         task_id="send_message_to_service_bus_queue",
-        message="Test message",
+        message=MESSAGE,
+        queue_name=QUEUE_NAME,
+        batch=False,
+    )
+    # [END howto_operator_send_message_to_service_bus_queue]
+
+    # [START howto_operator_send_list_message_to_service_bus_queue]
+    send_list_message_to_service_bus_queue = AzureServiceBusSendMessageOperator(
+        task_id="send_list_message_to_service_bus_queue",
+        message=MESSAGE_LIST,
+        queue_name=QUEUE_NAME,
+        batch=False,
+    )
+    # [END howto_operator_send_list_message_to_service_bus_queue]
+
+    # [START howto_operator_send_batch_message_to_service_bus_queue]
+    send_batch_message_to_service_bus_queue = AzureServiceBusSendMessageOperator(
+        task_id="send_batch_message_to_service_bus_queue",
+        message=MESSAGE_LIST,
         queue_name=QUEUE_NAME,
         batch=True,
     )
-    # [END howto_operator_send_message_to_service_bus_queue]
+    # [END howto_operator_send_batch_message_to_service_bus_queue]
 
     # [START howto_operator_receive_message_service_bus_queue]
     receive_message_service_bus_queue = AzureServiceBusReceiveMessageOperator(
         task_id="receive_message_service_bus_queue",
         queue_name=QUEUE_NAME,
-        max_message_count=10,
+        max_message_count=20,
         max_wait_time=5,
     )
     # [END howto_operator_receive_message_service_bus_queue]
@@ -78,6 +98,8 @@ with DAG(
     (
         create_service_bus_queue
         >> send_message_to_service_bus_queue
+        >> send_list_message_to_service_bus_queue
+        >> send_batch_message_to_service_bus_queue
         >> receive_message_service_bus_queue
         >> delete_service_bus_queue
     )

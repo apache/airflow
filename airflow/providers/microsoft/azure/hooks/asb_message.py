@@ -79,8 +79,8 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
 
     @staticmethod
     def send_list_messages(sender: ServiceBusSender, messages: List[str]):
-        list_messages: Union[List[ServiceBusMessage]] = [ServiceBusMessage(message) for message in messages]
-        sender.send_messages(list_messages)
+        list_messages = [ServiceBusMessage(message) for message in messages]
+        sender.send_messages(list_messages)  # type: ignore[arg-type]
 
     @staticmethod
     def send_batch_message(sender: ServiceBusSender, messages: List[str]):

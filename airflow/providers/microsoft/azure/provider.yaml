@@ -244,11 +244,7 @@ connection-types:
   - hook-class-name: >-
       airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
     connection-type: azure_container_registry
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.base_asb.AzureServiceBusHook
-    connection-type: azure_service_bus
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.asb_message.AzureServiceBusAdminClientHook
-    connection-type: azure_service_bus
-  - hook-class-name: airflow.providers.microsoft.azure.hooks.asb_admin_client.ServiceBusMessageHook
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.base_asb.BaseAzureServiceBusHook
     connection-type: azure_service_bus
 
 secrets-backends:
