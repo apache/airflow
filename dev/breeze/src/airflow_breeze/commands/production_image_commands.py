@@ -70,7 +70,7 @@ from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     perform_environment_checks,
     prepare_docker_build_command,
-    prepare_empty_docker_build_command,
+    prepare_docker_build_from_input,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
@@ -148,11 +148,11 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
             "options": [
                 "--github-token",
                 "--github-username",
+                "--platform",
                 "--login-to-github-registry",
                 "--push-image",
-                "--prepare-buildx-cache",
-                "--platform",
                 "--empty-image",
+                "--prepare-buildx-cache",
             ],
         },
     ],
@@ -497,36 +497,36 @@ def build_production_image(
     if prod_image_params.prepare_buildx_cache or prod_image_params.push_image:
         login_to_github_docker_registry(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
     get_console().print(f"\n[info]Building PROD Image for Python {prod_image_params.python}\n")
-    if prod_image_params.empty_image:
-        env = os.environ.copy()
-        env['DOCKER_BUILDKIT'] = "1"
-        get_console().print(f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n")
-        cmd = prepare_empty_docker_build_command(image_params=prod_image_params)
-        build_command_result = run_command(
-            cmd,
-            input="FROM scratch\n",
-            verbose=verbose,
-            dry_run=dry_run,
-            cwd=AIRFLOW_SOURCES_ROOT,
-            check=False,
-            text=True,
-            env=env,
-        )
+    if prod_image_params.prepare_buildx_cache:
+        build_command_result = build_cache(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
     else:
-        cmd = prepare_docker_build_command(
-            image_params=prod_image_params,
-            verbose=verbose,
-        )
-        build_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, check=False, text=True
-        )
-        if build_command_result.returncode == 0:
-            if prod_image_params.prepare_buildx_cache:
-                build_command_result = build_cache(
-                    image_params=prod_image_params, dry_run=dry_run, verbose=verbose
-                )
-            else:
+        if prod_image_params.empty_image:
+            env = os.environ.copy()
+            env['DOCKER_BUILDKIT'] = "1"
+            get_console().print(f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n")
+            build_command_result = run_command(
+                prepare_docker_build_from_input(image_params=prod_image_params),
+                input="FROM scratch\n",
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
+                text=True,
+                env=env,
+            )
+        else:
+            build_command_result = run_command(
+                prepare_docker_build_command(
+                    image_params=prod_image_params,
+                    verbose=verbose,
+                ),
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
+                text=True,
+            )
+            if build_command_result.returncode == 0:
                 if prod_image_params.tag_as_latest:
                     build_command_result = tag_image_as_latest(prod_image_params, dry_run, verbose)
-
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"

@@ -28,7 +28,6 @@ from re import match
 from typing import Dict, Generator, List, Mapping, Optional, Union
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
-from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.utils.ci_group import ci_group
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -300,64 +299,6 @@ def check_if_buildx_plugin_installed(verbose: bool) -> bool:
     if docker_buildx_version_result.returncode == 0:
         return True
     return False
-
-
-def prepare_base_build_command(image_params: _CommonBuildParams, verbose: bool) -> List[str]:
-    """
-    Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
-    and whether we run cache preparation, there might be different results:
-
-    * if buildx plugin is installed - `docker buildx` command is returned - using regular or cache builder
-      depending on whether we build regular image or cache
-    * if no buildx plugin is installed, and we do not prepare cache, regular docker `build` command is used.
-    * if no buildx plugin is installed, and we prepare cache - we fail. Cache can only be done with buildx
-    :param image_params: parameters of the image
-    :param verbose: print commands when running
-    :return: command to use as docker build command
-    """
-    build_command_param = []
-    is_buildx_available = check_if_buildx_plugin_installed(verbose=verbose)
-    if is_buildx_available:
-        if image_params.prepare_buildx_cache:
-            build_command_param.extend(
-                ["buildx", "build", "--builder", "airflow_cache", "--progress=tty", "--push"]
-            )
-        else:
-            build_command_param.extend(
-                [
-                    "buildx",
-                    "build",
-                    "--builder",
-                    "default",
-                    "--progress=tty",
-                    "--push" if image_params.push_image else "--load",
-                ]
-            )
-    else:
-        if image_params.prepare_buildx_cache or image_params.push_image:
-            get_console().print(
-                '\n[error] Buildx cli plugin is not available and you need it to prepare'
-                ' buildx cache or push image after build. \n'
-            )
-            get_console().print(
-                '[error] Please install it following https://docs.docker.com/buildx/working-with-buildx/ \n'
-            )
-            sys.exit(1)
-        build_command_param.append("build")
-    return build_command_param
-
-
-def prepare_build_cache_command() -> List[str]:
-    """
-    Prepare build cache command for docker build. We need to have buildx for that command.
-    This command is needed separately from the build image command because of the bug in multiplatform
-    support for buildx plugin https://github.com/docker/buildx/issues/1044 where when you run multiple
-    platform build, cache from one platform overrides cache for the other platform.
-
-    :param verbose: print commands when running
-    :return: command to use as docker build command
-    """
-    return ["buildx", "build", "--builder", "airflow_cache", "--progress=tty"]
 
 
 @lru_cache(maxsize=None)
