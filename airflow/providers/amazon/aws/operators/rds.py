@@ -858,6 +858,60 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         return json.dumps(create_db_instance, default=str)
 
 
+class RdsDeleteDbInstanceOperator(RdsBaseOperator):
+    """
+    Deletes an RDS DB Instance
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RdsDeleteDbInstanceOperator`
+
+    :param db_instance_identifier: The DB instance identifier for the DB instance to be deleted
+    :param skip_final_snapshot: A value that indicates whether to
+        skip the creation of a final DB snapshot before deleting the instance
+    :param final_db_snapshot_identifier: The DBSnapshotIdentifier of the new DBSnapshot created
+        when the SkipFinalSnapshot parameter is disabled
+    :param delete_automated_backups: A value that indicates whether to
+        remove automated backups immediately after the DB instance is deleted
+    """
+
+    def __init__(
+        self,
+        *,
+        db_instance_identifier: str,
+        skip_final_snapshot: Optional[bool] = None,
+        final_db_snapshot_identifier: Optional[str] = None,
+        delete_automated_backups: Optional[bool] = None,
+        aws_conn_id: str = "aws_default",
+        **kwargs,
+    ):
+        super().__init__(aws_conn_id=aws_conn_id, **kwargs)
+        self.db_instance_identifier = db_instance_identifier
+        self.skip_final_snapshot = skip_final_snapshot
+        self.final_db_snapshot_identifier = final_db_snapshot_identifier
+        self.delete_automated_backups = delete_automated_backups
+
+    def execute(self, context: 'Context') -> str:
+        self.log.info(f"Deleting DB instance {self.db_instance_identifier}")
+        params: Dict[str, Any] = {}
+        if self.skip_final_snapshot:
+            params["SkipFinalSnapshot"] = self.skip_final_snapshot
+        if self.final_db_snapshot_identifier:
+            params["FinalDBSnapshotIdentifier"] = self.final_db_snapshot_identifier
+        if self.delete_automated_backups:
+            params["DeleteAutomatedBackups"] = self.delete_automated_backups
+
+        delete_db_instance = self.hook.conn.delete_db_instance(
+            DBInstanceIdentifier=self.db_instance_identifier,
+            **params,
+        )
+        self.hook.conn.get_waiter("db_instance_deleted").wait(
+            DBInstanceIdentifier=self.db_instance_identifier
+        )
+
+        return json.dumps(delete_db_instance, default=str)
+
+
 __all__ = [
     "RdsCreateDbSnapshotOperator",
     "RdsCopyDbSnapshotOperator",
@@ -867,4 +921,5 @@ __all__ = [
     "RdsStartExportTaskOperator",
     "RdsCancelExportTaskOperator",
     "RdsCreateDbInstanceOperator",
+    "RdsDeleteDbInstanceOperator",
 ]

@@ -29,6 +29,7 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsCreateDbInstanceOperator,
     RdsCreateDbSnapshotOperator,
     RdsCreateEventSubscriptionOperator,
+    RdsDeleteDbInstanceOperator,
     RdsDeleteDbSnapshotOperator,
     RdsDeleteEventSubscriptionOperator,
     RdsStartExportTaskOperator,
@@ -484,3 +485,31 @@ class TestRdsCreateDbInstanceOperator:
         assert db_instances
         assert len(db_instances) == 1
         assert db_instances[0]['DBInstanceStatus'] == 'available'
+
+
+@pytest.mark.skipif(mock_rds is None, reason='mock_rds package not present')
+class TestRdsDeleteDbInstanceOperator:
+    @classmethod
+    def setup_class(cls):
+        cls.dag = DAG('test_dag', default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE})
+        cls.hook = RdsHook(aws_conn_id=AWS_CONN, region_name='us-east-1')
+
+    @classmethod
+    def teardown_class(cls):
+        del cls.dag
+        del cls.hook
+
+    @mock_rds
+    def test_delete_event_subscription(self):
+        _create_db_instance(self.hook)
+
+        delete_db_instance_operator = RdsDeleteDbInstanceOperator(
+            task_id='test_delete_db_instance',
+            db_instance_identifier=DB_INSTANCE_NAME,
+            aws_conn_id=AWS_CONN,
+            dag=self.dag,
+        )
+        delete_db_instance_operator.execute(None)
+
+        with pytest.raises(self.hook.conn.exceptions.ClientError):
+            self.hook.conn.describe_db_instances(DBInstanceIdentifier=DB_INSTANCE_NAME)
