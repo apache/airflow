@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-29T09:30:31Z
+# This constraints file was automatically generated on 2022-05-30T14:23:44Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -108,7 +108,7 @@ cachelib==0.7.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==1.10.0
-celery==5.2.6
+celery==5.2.7
 certifi==2020.12.5
 cffi==1.15.0
 cfgv==3.3.1
@@ -273,7 +273,7 @@ lxml==4.8.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.15.0
+marshmallow==3.16.0
 matplotlib-inline==0.1.3
 mccabe==0.6.1
 mongomock==4.0.0
@@ -473,7 +473,7 @@ traitlets==5.2.1.post0
 trino==0.313.0
 twine==4.0.0
 types-Deprecated==1.2.8
-types-Markdown==3.3.24
+types-Markdown==3.3.25
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.7
 types-boto==2.49.15

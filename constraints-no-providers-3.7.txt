@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-29T09:35:13Z
+# This constraints file was automatically generated on 2022-05-30T14:30:30Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -46,9 +46,9 @@ billiard==3.6.4.0
 blinker==1.4
 cached-property==1.5.2
 cachelib==0.7.0
-cachetools==5.1.0
+cachetools==5.2.0
 cattrs==1.10.0
-celery==5.2.6
+celery==5.2.7
 certifi==2020.12.5
 cffi==1.15.0
 cgroupspy==0.2.2
@@ -105,7 +105,7 @@ lockfile==0.12.2
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.15.0
+marshmallow==3.16.0
 msgpack==1.0.3
 numpy==1.21.6
 oauthlib==3.2.0
