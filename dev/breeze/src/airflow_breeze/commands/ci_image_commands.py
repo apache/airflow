@@ -72,7 +72,7 @@ from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     perform_environment_checks,
     prepare_docker_build_command,
-    prepare_empty_docker_build_command,
+    prepare_docker_build_from_input,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
@@ -143,13 +143,13 @@ CI_IMAGE_TOOLS_PARAMETERS = {
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
-                "--platform",
-                "--prepare-buildx-cache",
-                "--push-image",
-                "--empty-image",
                 "--github-token",
                 "--github-username",
+                "--platform",
                 "--login-to-github-registry",
+                "--push-image",
+                "--empty-image",
+                "--prepare-buildx-cache",
             ],
         },
     ],
@@ -460,54 +460,45 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
             return 0, f"Image build: {ci_image_params.python}"
     if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
         login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
-    cmd = prepare_docker_build_command(
-        image_params=ci_image_params,
-        verbose=verbose,
-    )
-    if ci_image_params.empty_image:
-        env = os.environ.copy()
-        env['DOCKER_BUILDKIT'] = "1"
-        get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
-        cmd = prepare_empty_docker_build_command(image_params=ci_image_params)
-        build_command_result = run_command(
-            cmd,
-            input="FROM scratch\n",
-            verbose=verbose,
-            dry_run=dry_run,
-            cwd=AIRFLOW_SOURCES_ROOT,
-            text=True,
-            env=env,
-        )
+    if ci_image_params.prepare_buildx_cache:
+        build_command_result = build_cache(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
     else:
-        get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
-        build_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, text=True, check=False
-        )
-        if build_command_result.returncode == 0:
-            if ci_image_params.prepare_buildx_cache:
-                build_command_result = build_cache(
-                    image_params=ci_image_params, dry_run=dry_run, verbose=verbose
-                )
-
-    if not ci_image_params.prepare_buildx_cache:
-        if not dry_run:
+        if ci_image_params.empty_image:
+            env = os.environ.copy()
+            env['DOCKER_BUILDKIT'] = "1"
+            get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
+            build_command_result = run_command(
+                prepare_docker_build_from_input(image_params=ci_image_params),
+                input="FROM scratch\n",
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                text=True,
+                env=env,
+            )
+        else:
+            get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
+            build_command_result = run_command(
+                prepare_docker_build_command(
+                    image_params=ci_image_params,
+                    verbose=verbose,
+                ),
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                text=True,
+                check=False,
+            )
             if build_command_result.returncode == 0:
                 if ci_image_params.tag_as_latest:
                     build_command_result = tag_image_as_latest(ci_image_params, dry_run, verbose)
-                if (
-                    ci_image_params.airflow_image_name == ci_image_params.airflow_image_name_with_tag
-                    or ci_image_params.tag_as_latest
-                    and build_command_result.returncode == 0
-                ):
-                    mark_image_as_refreshed(ci_image_params)
-            else:
-                get_console().print("[error]Error when building image![/]")
-                return (
-                    build_command_result.returncode,
-                    f"Image build: {ci_image_params.python}",
-                )
-        else:
-            get_console().print("[info]Not updating build cache because we are in `dry_run` mode.[/]")
+                if ci_image_params.preparing_latest_image():
+                    if dry_run:
+                        get_console().print(
+                            "[info]Not updating build hash because we are in `dry_run` mode.[/]"
+                        )
+                    else:
+                        mark_image_as_refreshed(ci_image_params)
     return build_command_result.returncode, f"Image build: {ci_image_params.python}"
 
 
