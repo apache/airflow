@@ -460,15 +460,19 @@ def prepare_docker_build_from_input(
     return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
 
 
-def build_cache(image_params: CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
+def build_cache(
+    image_params: CommonBuildParams, dry_run: bool, verbose: bool, parallel: bool
+) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
     )
     cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-    buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
+    buildx_command_result = run_command(
+        cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
+    )
     if buildx_command_result and buildx_command_result.returncode != 0:
         next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-        run_command(next_cmd, verbose=verbose, text=True, check=False)
+        run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -476,7 +480,13 @@ def build_cache(image_params: CommonBuildParams, dry_run: bool, verbose: bool) -
         platform_image_params.platform = platform
         cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, check=False, text=True
+            cmd,
+            verbose=verbose,
+            dry_run=dry_run,
+            cwd=AIRFLOW_SOURCES_ROOT,
+            check=False,
+            text=True,
+            enabled_output_group=not parallel,
         )
         if build_command_result.returncode != 0:
             break
