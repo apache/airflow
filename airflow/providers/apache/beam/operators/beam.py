@@ -319,6 +319,7 @@ class BeamRunPythonPipelineOperator(BeamBasePipelineOperator):
                         location=self.dataflow_config.location,
                         job_id=self.dataflow_job_id,
                         multiple_jobs=False,
+                        project_id=self.dataflow_config.project_id,
                     )
                 return {"dataflow_job_id": self.dataflow_job_id}
             else:
@@ -600,6 +601,7 @@ class BeamRunGoPipelineOperator(BeamBasePipelineOperator):
                         location=self.dataflow_config.location,
                         job_id=self.dataflow_job_id,
                         multiple_jobs=False,
+                        project_id=self.dataflow_config.project_id,
                     )
                 return {"dataflow_job_id": self.dataflow_job_id}
             else:
