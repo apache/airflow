@@ -19,7 +19,6 @@ import pytest
 
 REQUIRED_ENV_VARS = (
     "AIRFLOW_CONN_SLACK_DEFAULT",
-    "SYSTEM_TESTS_ENV_ID",
 )
 
 
