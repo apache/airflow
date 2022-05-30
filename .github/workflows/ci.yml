@@ -1689,7 +1689,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: >
           breeze build-image
           --prepare-buildx-cache
-          --max-retries 3
           --platform linux/amd64,linux/arm64
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -1723,7 +1722,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --install-packages-from-context
           --prepare-buildx-cache
           --disable-airflow-repo-cache
-          --max-retries 3
           --platform linux/amd64,linux/arm64
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
