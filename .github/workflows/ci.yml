@@ -1664,6 +1664,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       fail-fast: false
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -1685,11 +1686,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze free-space
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: matrix.platform == 'linux/arm64'
       - name: "Build & Push CI image ${{ matrix.python-version }}:latest"
         run: >
           breeze build-image
           --prepare-buildx-cache
-          --platform linux/amd64,linux/arm64
+          --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: >
@@ -1722,12 +1724,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --install-packages-from-context
           --prepare-buildx-cache
           --disable-airflow-repo-cache
-          --platform linux/amd64,linux/arm64
+          --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
+        if: always() && matrix.platform == 'linux/arm64'
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()

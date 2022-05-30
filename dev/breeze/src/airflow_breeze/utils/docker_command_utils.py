@@ -24,9 +24,9 @@ from random import randint
 from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
 from typing import Dict, List, Union
 
-from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -58,9 +58,8 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
+    check_if_buildx_plugin_installed,
     commit_sha,
-    prepare_base_build_command,
-    prepare_build_cache_command,
     run_command,
 )
 
@@ -313,7 +312,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
-def get_env_variable_value(arg_name: str, params: Union[BuildCiParams, BuildProdParams, ShellParams]):
+def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ''
     value = "true" if raw_value is True else value
@@ -323,7 +322,7 @@ def get_env_variable_value(arg_name: str, params: Union[BuildCiParams, BuildProd
     return value
 
 
-def prepare_arguments_for_docker_build_command(image_params: _CommonBuildParams) -> List[str]:
+def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> List[str]:
     """
     Constructs docker compose command arguments list based on parameters passed. Maps arguments to
     argument values.
@@ -353,9 +352,7 @@ def prepare_arguments_for_docker_build_command(image_params: _CommonBuildParams)
 
 
 def prepare_docker_build_cache_command(
-    image_params: _CommonBuildParams,
-    dry_run: bool,
-    verbose: bool,
+    image_params: CommonBuildParams,
 ) -> List[str]:
     """
     Constructs docker build_cache command based on the parameters passed.
@@ -365,11 +362,10 @@ def prepare_docker_build_cache_command(
     :return: Command to run as list of string
     """
     arguments = prepare_arguments_for_docker_build_command(image_params)
-    build_command = prepare_build_cache_command()
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(build_command)
+    final_command.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -381,16 +377,42 @@ def prepare_docker_build_cache_command(
     final_command.extend(
         [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"]
     )
-    cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-    buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True)
-    if buildx_command_result and buildx_command_result.returncode != 0:
-        next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-        run_command(next_cmd, verbose=verbose, text=True, check=False)
     return final_command
 
 
+def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> List[str]:
+    """
+    Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
+    and whether we run cache preparation, there might be different results:
+
+    * if buildx plugin is installed - `docker buildx` command is returned - using regular or cache builder
+      depending on whether we build regular image or cache
+    * if no buildx plugin is installed, and we do not prepare cache, regular docker `build` command is used.
+    * if no buildx plugin is installed, and we prepare cache - we fail. Cache can only be done with buildx
+    :param image_params: parameters of the image
+    :param verbose: print commands when running
+    :return: command to use as docker build command
+    """
+    build_command_param = []
+    is_buildx_available = check_if_buildx_plugin_installed(verbose=verbose)
+    if is_buildx_available:
+        build_command_param.extend(
+            [
+                "buildx",
+                "build",
+                "--builder",
+                "default",
+                "--progress=tty",
+                "--push" if image_params.push_image else "--load",
+            ]
+        )
+    else:
+        build_command_param.append("build")
+    return build_command_param
+
+
 def prepare_docker_build_command(
-    image_params: _CommonBuildParams,
+    image_params: CommonBuildParams,
     verbose: bool,
 ) -> List[str]:
     """
@@ -417,7 +439,7 @@ def prepare_docker_build_command(
 
 
 def construct_docker_push_command(
-    image_params: _CommonBuildParams,
+    image_params: CommonBuildParams,
 ) -> List[str]:
     """
     Constructs docker push command based on the parameters passed.
@@ -427,8 +449,8 @@ def construct_docker_push_command(
     return ["docker", "push", image_params.airflow_image_name_with_tag]
 
 
-def prepare_empty_docker_build_command(
-    image_params: _CommonBuildParams,
+def prepare_docker_build_from_input(
+    image_params: CommonBuildParams,
 ) -> List[str]:
     """
     Constructs docker build empty image command based on the parameters passed.
@@ -438,18 +460,21 @@ def prepare_empty_docker_build_command(
     return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
 
 
-def build_cache(image_params: _CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
+def build_cache(image_params: CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
     )
+    cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
+    buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, check=False)
+    if buildx_command_result and buildx_command_result.returncode != 0:
+        next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
+        run_command(next_cmd, verbose=verbose, text=True, check=False)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
         # as a workaround to https://github.com/docker/buildx/issues/1044
         platform_image_params.platform = platform
-        cmd = prepare_docker_build_cache_command(
-            image_params=platform_image_params, dry_run=dry_run, verbose=verbose
-        )
+        cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
             cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, check=False, text=True
         )
