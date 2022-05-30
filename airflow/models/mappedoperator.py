@@ -201,7 +201,7 @@ class OperatorPartial:
         from airflow.operators.empty import EmptyOperator
 
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
-        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
         ensure_xcomarg_return_value(mapped_kwargs)
 
         partial_kwargs = self.kwargs.copy()
