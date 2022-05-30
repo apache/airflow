@@ -74,7 +74,10 @@ def build_gcp_conn(
 
 
 @contextmanager
-def provide_gcp_credentials(key_file_path: Optional[str] = None, key_file_dict: Optional[Dict] = None):
+def provide_gcp_credentials(
+    key_file_path: Optional[str] = None,
+    key_file_dict: Optional[Dict] = None,
+) -> Generator[None, None, None]:
     """
     Context manager that provides a Google Cloud credentials for application supporting
     `Application Default Credentials (ADC) strategy`__.
@@ -111,7 +114,7 @@ def provide_gcp_connection(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
-) -> Generator:
+) -> Generator[None, None, None]:
     """
     Context manager that provides a temporary value of :envvar:`AIRFLOW_CONN_GOOGLE_CLOUD_DEFAULT`
     connection. It build a new connection that includes path to provided service json,
@@ -135,7 +138,7 @@ def provide_gcp_conn_and_credentials(
     key_file_path: Optional[str] = None,
     scopes: Optional[Sequence] = None,
     project_id: Optional[str] = None,
-) -> Generator:
+) -> Generator[None, None, None]:
     """
     Context manager that provides both:
 

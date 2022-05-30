@@ -40,7 +40,6 @@ from typing import (
     Dict,
     Generator,
     Iterable,
-    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -142,7 +141,7 @@ if TYPE_CHECKING:
 
 
 @contextlib.contextmanager
-def set_current_context(context: Context) -> Iterator[Context]:
+def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
     Sets the current execution context to the provided context object.
     This method should be called once per Task execution, before calling operator.execute.

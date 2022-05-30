@@ -25,7 +25,7 @@ from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
 from re import match
-from typing import Dict, List, Mapping, Optional, Union
+from typing import Dict, Generator, List, Mapping, Optional, Union
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.params._common_build_params import _CommonBuildParams
@@ -213,7 +213,7 @@ def instruct_build_image(python: str):
 
 
 @contextlib.contextmanager
-def working_directory(source_path: Path):
+def working_directory(source_path: Path) -> Generator[None, None, None]:
     """
     # Equivalent of pushd and popd in bash script.
     # https://stackoverflow.com/a/42441759/3101838

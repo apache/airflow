@@ -34,7 +34,7 @@ if not IS_WINDOWS:
     import pty
 
 from contextlib import contextmanager
-from typing import Dict, List, Optional
+from typing import Dict, Generator, List, Optional
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile
@@ -258,7 +258,7 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
 
 
 @contextmanager
-def patch_environ(new_env_variables: Dict[str, str]):
+def patch_environ(new_env_variables: Dict[str, str]) -> Generator[None, None, None]:
     """
     Sets environment variables in context. After leaving the context, it restores its original state.
 

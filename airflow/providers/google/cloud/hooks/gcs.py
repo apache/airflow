@@ -29,7 +29,20 @@ from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, overload
+from typing import (
+    IO,
+    Callable,
+    Generator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -385,7 +398,7 @@ class GCSHook(GoogleBaseHook):
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
         dir: Optional[str] = None,
-    ):
+    ) -> Generator[IO[bytes], None, None]:
         """
         Downloads the file to a temporary directory and returns a file handle
 
@@ -413,7 +426,7 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
-    ):
+    ) -> Generator[IO[bytes], None, None]:
         """
         Creates temporary file, returns a file handle and uploads the files content
         on close.
