@@ -31,7 +31,7 @@ with DAG(
     catchup=False,
     tags=["example"],
     schedule_interval="@daily",
-) as dag:
+):
     # [START howto_operator_day_of_week_branch]
     empty_task_1 = EmptyOperator(task_id='branch_true')
     empty_task_2 = EmptyOperator(task_id='branch_false')
