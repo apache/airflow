@@ -481,13 +481,11 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
 class TestSlackProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "slack"
 
-    BASE_CLASSES = {
-        "airflow.providers.slack.operators.SlackAPIFileOperator"
-    }
+    BASE_CLASSES = {"airflow.providers.slack.operators.SlackAPIFileOperator"}
     MISSING_EXAMPLES_FOR_CLASSES = {
         "airflow.providers.slack.operators.slack.SlackAPIOperator",
         "airflow.providers.slack.operators.slack.SlackAPIPostOperator",
-        "airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator"
+        "airflow.providers.slack.operators.slack_webhook.SlackWebhookOperator",
     }
 
 

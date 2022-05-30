@@ -17,9 +17,7 @@
 
 import pytest
 
-REQUIRED_ENV_VARS = (
-    "AIRFLOW_CONN_SLACK_DEFAULT",
-)
+REQUIRED_ENV_VARS = ("AIRFLOW_CONN_SLACK_DEFAULT",)
 
 
 @pytest.fixture()
