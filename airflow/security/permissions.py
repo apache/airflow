@@ -71,7 +71,7 @@ def resource_name_for_dag(root_dag_id: str) -> str:
 
     Note that since a sub-DAG should follow the permission of its
     parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
-    for a subdag. A normal dag should pass the DagModel.dag_id
+    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
     """
     if root_dag_id == RESOURCE_DAG:
         return root_dag_id
