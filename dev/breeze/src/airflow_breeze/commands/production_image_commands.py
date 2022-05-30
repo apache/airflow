@@ -480,9 +480,14 @@ def build_production_image(
     :param dry_run: do not execute "write" commands - just print what would happen
     :param prod_image_params: PROD image parameters
     """
-    if not prod_image_params.push_image and prod_image_params.is_multi_platform():
+    if (
+        prod_image_params.is_multi_platform()
+        and not prod_image_params.push_image
+        and not prod_image_params.prepare_buildx_cache
+    ):
         get_console().print(
-            "\n[red]You cannot use multi-platform build without using --push-image flag![/]\n"
+            "\n[red]You cannot use multi-platform build without using --push-image flag"
+            " or preparing buildx cache![/]\n"
         )
         return 1, "Error: building multi-platform image without --push-image."
     fix_group_permissions(verbose=verbose)
