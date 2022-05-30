@@ -138,6 +138,34 @@ To delete an Amazon RDS event subscription you can use
     :start-after: [START howto_operator_rds_delete_event_subscription]
     :end-before: [END howto_operator_rds_delete_event_subscription]
 
+.. _howto/operator:RdsCreateDbInstanceOperator:
+
+Create a database instance
+==========================
+
+To create a AWS DB instance you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RdsCreateDbInstanceOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_db_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_create_db_instance]
+    :end-before: [END howto_operator_rds_create_db_instance]
+
+.. _howto/operator:RDSDeleteDbInstanceOperator:
+
+Delete a database instance
+==========================
+
+To delete a AWS DB instance you can use
+:class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteDbInstanceOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_db_instance.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_rds_delete_db_instance]
+    :end-before: [END howto_operator_rds_delete_db_instance]
+
 Sensors
 -------
 
