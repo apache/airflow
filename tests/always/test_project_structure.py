@@ -478,6 +478,17 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     CLASS_SUFFIXES = ["Hook"]
 
 
+class TestSlackProviderProjectStructure(ExampleCoverageTest):
+    PROVIDER = "slack"
+
+    BASE_CLASSES = {
+        "airflow.providers.slack.operators.SlackAPIOperator"
+    }
+    MISSING_EXAMPLES_FOR_CLASSES = {
+        "airflow.providers.slack.operators.SlackAPIPostOperator"
+    }
+
+
 class TestDockerProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "docker"
 
