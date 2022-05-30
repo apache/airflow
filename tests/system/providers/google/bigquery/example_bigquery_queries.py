@@ -21,7 +21,6 @@ Example Airflow DAG for Google BigQuery service.
 """
 import os
 from datetime import datetime
-from pathlib import Path
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -40,7 +39,7 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 LOCATION = "us-east1"
-QUERY_SQL_PATH = str(Path(__file__).parent / "resources" / "example_bigquery_query.sql")
+QUERY_SQL_PATH = "resources/example_bigquery_query.sql"
 
 TABLE_1 = "table1"
 TABLE_2 = "table2"

@@ -2130,7 +2130,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         if self.job_id:
             return f"{self.job_id}_{uniqueness_suffix}"
 
-        exec_date = context['data_interval_start'].isoformat()
+        exec_date = context['logical_date'].isoformat()
         job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
