@@ -26,6 +26,17 @@ to work, you need to setup a Celery backend (**RabbitMQ**, **Redis**, ...) and
 change your ``airflow.cfg`` to point the executor parameter to
 ``CeleryExecutor`` and provide the related Celery settings.
 
+If you use Amazon SQS as a Celery broker, set environment variables like this:
+
+.. code-block:: bash
+
+    export AIRFLOW__CELERY__BROKER_URL=sqs://@your_sqs_host
+
+    # Celery's environment variables.
+    export AWS_ACCESS_KEY_ID=your_aws_access_key_id
+    export AWS_SECRET_ACCESS_KEY=your_aws_secret_access_key
+    export AWS_DEFAULT_REGION=your_aws_region
+
 For more information about setting up a Celery broker, refer to the
 exhaustive `Celery documentation on the topic <https://docs.celeryq.dev/en/latest/getting-started/>`_.
 
