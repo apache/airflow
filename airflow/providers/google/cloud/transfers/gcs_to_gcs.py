@@ -89,7 +89,7 @@ class GCSToGCSOperator(BaseOperator):
         account from the list granting this role to the originating account (templated).
     :param source_object_required: Whether you want to raise an exception when the source object
         doesn't exist. It doesn't have any effect when the source objects are folders or patterns.
-    : param exact_match: When specified, only exact match of the source object (filename) will be 
+    :param exact_match: When specified, only exact match of the source object (filename) will be
         copied.
 
     :Example:
