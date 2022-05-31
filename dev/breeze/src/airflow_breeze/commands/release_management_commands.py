@@ -267,6 +267,7 @@ def prepare_airflow_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -550,6 +551,7 @@ def verify_provider_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
