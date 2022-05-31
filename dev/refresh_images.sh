@@ -28,6 +28,7 @@ breeze self-upgrade --force
 breeze build-image \
      --build-multiple-images \
      --prepare-buildx-cache \
+     --force-build \
      --platform linux/amd64,linux/arm64 \
      --verbose
 

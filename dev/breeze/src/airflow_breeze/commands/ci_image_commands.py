@@ -217,6 +217,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_additional_runtime_apt_command
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_force_build
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_force_build

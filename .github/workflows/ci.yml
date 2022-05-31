@@ -1712,6 +1712,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: >
           breeze build-image
           --prepare-buildx-cache
+          --force-build
           --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
