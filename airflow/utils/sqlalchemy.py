@@ -23,7 +23,8 @@ from typing import Any, Dict, Iterable, Tuple
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy import TIMESTAMP, and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import ColumnElement
@@ -56,7 +57,12 @@ class UtcDateTime(TypeDecorator):
 
     """
 
-    impl = DateTime(timezone=True)
+    impl = (
+        DateTime(timezone=True)
+        .with_variant(TIMESTAMP(timezone=True), 'postgresql')
+        .with_variant(mssql.DATETIME2(precision=6), 'mssql')
+        .with_variant(mysql.TIMESTAMP(fsp=6), 'mysql')
+    )
 
     def process_bind_param(self, value, dialect):
         if value is not None:

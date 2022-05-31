@@ -18,7 +18,7 @@ import datetime
 from traceback import format_exception
 from typing import Any, Dict, Iterable, Optional
 
-from sqlalchemy import Column, Integer, String, func, or_
+from sqlalchemy import Column, DateTime, Integer, String, func, or_
 
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
@@ -26,7 +26,7 @@ from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import ExtendedJSON
 from airflow.utils.state import State
 
 
@@ -52,7 +52,7 @@ class Trigger(Base):
     id = Column(Integer, primary_key=True)
     classpath = Column(String(1000), nullable=False)
     kwargs = Column(ExtendedJSON, nullable=False)
-    created_date = Column(UtcDateTime, nullable=False)
+    created_date = Column(DateTime, nullable=False)  # DateTime without timezone
     triggerer_id = Column(Integer, nullable=True)
 
     def __init__(

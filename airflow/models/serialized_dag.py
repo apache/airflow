@@ -25,7 +25,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 import sqlalchemy_jsonfield
-from sqlalchemy import BigInteger, Column, Index, LargeBinary, String, and_
+from sqlalchemy import BigInteger, Column, Index, Integer, LargeBinary, String, and_
 from sqlalchemy.orm import Session, backref, foreign, relationship
 from sqlalchemy.sql.expression import func, literal
 
@@ -67,7 +67,7 @@ class SerializedDagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash = Column(BigInteger, nullable=False)
+    fileloc_hash = Column(BigInteger().with_variant(Integer, 'sqlite'), nullable=False)
     _data = Column('data', sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
