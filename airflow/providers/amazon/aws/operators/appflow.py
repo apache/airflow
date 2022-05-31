@@ -1,0 +1,562 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+
+import copy
+import json
+import sys
+from datetime import datetime, timedelta, timezone
+from time import sleep
+from typing import TYPE_CHECKING, List, Optional, cast
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
+
+from airflow.models import BaseOperator
+from airflow.operators.python import ShortCircuitOperator
+from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
+
+if TYPE_CHECKING:
+    from mypy_boto3_appflow.client import AppflowClient
+    from mypy_boto3_appflow.type_defs import (
+        DescribeFlowExecutionRecordsResponseTypeDef,
+        ExecutionRecordTypeDef,
+        TaskTypeDef,
+    )
+
+    from airflow.utils.context import Context
+
+EVENTUAL_CONSISTENCY_OFFSET: int = 15  # seconds
+EVENTUAL_CONSISTENCY_POLLING: int = 10  # seconds
+SUPPORTED_SOURCES = {"salesforce", "zendesk"}
+
+
+class AppflowOperatorException(Exception):
+    """Alias for Exception."""
+
+
+class AppflowOperatorBase(BaseOperator):
+    """Amazon Appflow Base Operator class (not supposed to be used directly in DAGs)."""
+
+    BLUE = "#2bccbd"
+    ui_color = BLUE
+
+    def __init__(
+        self,
+        source: str,
+        name: str,
+        flow_update: bool,
+        source_field: Optional[str] = None,
+        dt: Optional[str] = None,
+        poll_interval: int = 20,
+        aws_conn_id: Optional[str] = "aws_default",
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        if source not in SUPPORTED_SOURCES:
+            raise AppflowOperatorException(
+                f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!"
+            )
+        self.dt = dt
+        self._name = name
+        self._source = source
+        self._source_field = source_field
+        self._poll_interval = poll_interval
+        self._aws_conn_id = aws_conn_id
+        self._region = region
+        self._flow_update = flow_update
+
+    @cached_property
+    def hook(self) -> AppflowHook:
+        """Create and return an AppflowHook."""
+        return AppflowHook(aws_conn_id=self.aws_conn_id, region_name=self._region)
+
+    @staticmethod
+    def _dt_to_epoch_str(dt: datetime) -> str:
+        text = str(int(dt.timestamp() * 1000))
+        return text
+
+    def _get_connector_type(self) -> str:
+        connector_type = self._response["sourceFlowConfig"]["connectorType"]
+        if (self.source == "salesforce" and connector_type != "Salesforce") or (
+            self.source == "zendesk" and connector_type != "Zendesk"
+        ):
+            raise AppflowOperatorException(
+                f"Incompatible source ({self.source} and connector type ({connector_type})!"
+            )
+        return connector_type
+
+    def execute(self, context: "Context") -> None:
+        self._af_client: "AppflowClient" = self.hook.conn
+        self._dt_parsed: Optional[datetime] = datetime.fromisoformat(self.dt) if self.dt else None
+        if self._flow_update:
+            self._update_flow()
+        self._run_flow(context)
+
+    def _update_flow(self) -> None:
+        self._response = self._af_client.describe_flow(flowName=self.name)
+        self._connector_type = self._get_connector_type()
+
+        # cleanup
+        tasks: List["TaskTypeDef"] = []
+        for task in self._response["tasks"]:
+            if (
+                task["taskType"] == "Filter"
+                and task.get("connectorOperator", {}).get(self._connector_type) != "PROJECTION"
+            ):
+                self.log.info("Removing task: %s", task)
+            else:
+                tasks.append(task)  # List of non-filter tasks
+
+        self._add_filter(tasks)
+
+        # Clean up to force on-demand trigger
+        trigger_config = copy.deepcopy(self._response["triggerConfig"])
+        del trigger_config["triggerProperties"]
+
+        self._af_client.update_flow(
+            flowName=self._response["flowName"],
+            destinationFlowConfigList=self._response["destinationFlowConfigList"],
+            sourceFlowConfig=self._response["sourceFlowConfig"],
+            triggerConfig=trigger_config,
+            description=self._response.get("description", "Flow description."),
+            tasks=tasks,
+        )
+
+    def _add_filter(self, tasks: List["TaskTypeDef"]) -> None:  # Interface
+        pass
+
+    def _run_flow(self, context) -> str:
+        ts_before: datetime = datetime.now(timezone.utc)
+        sleep(EVENTUAL_CONSISTENCY_OFFSET)
+        response = self._af_client.start_flow(flowName=self.name)
+        task_instance = context["task_instance"]
+        task_instance.xcom_push("execution_id", response["executionId"])
+        self.log.info("executionId: %s", response["executionId"])
+
+        response = self._af_client.describe_flow(flowName=self.name)
+
+        # Wait Appflow eventual consistence
+        self.log.info("Waiting Appflow eventual consistence...")
+        while (
+            response.get("lastRunExecutionDetails", {}).get(
+                "mostRecentExecutionTime", datetime(1970, 1, 1, tzinfo=timezone.utc)
+            )
+            < ts_before
+        ):
+            sleep(EVENTUAL_CONSISTENCY_POLLING)
+            response = self._af_client.describe_flow(flowName=self.name)
+
+        # Wait flow stops
+        self.log.info("Waiting flow run...")
+        while (
+            "mostRecentExecutionStatus" not in response["lastRunExecutionDetails"]
+            or response["lastRunExecutionDetails"]["mostRecentExecutionStatus"] == "InProgress"
+        ):
+            sleep(self.poll_interval)
+            response = self._af_client.describe_flow(flowName=self.name)
+
+        self.log.info("lastRunExecutionDetails: %s", response["lastRunExecutionDetails"])
+
+        if response["lastRunExecutionDetails"]["mostRecentExecutionStatus"] == "Error":
+            raise Exception(f"Flow error:\n{json.dumps(response, default=str)}")
+
+        return response["lastRunExecutionDetails"]["mostRecentExecutionStatus"]
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def source(self):
+        return self._source
+
+    @property
+    def source_field(self):
+        return self._source_field
+
+    @property
+    def aws_conn_id(self):
+        return self._aws_conn_id
+
+    @property
+    def region(self):
+        return self._region
+
+    @property
+    def poll_interval(self):
+        return self._poll_interval
+
+
+class AppflowRunOperator(AppflowOperatorBase):
+    """
+    Execute a Appflow run with filters as is.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AppflowRunOperator`
+
+    :param source: The source name (e.g. salesforce, zendesk)
+    :param name: The flow name
+    :param poll_interval: how often in seconds to check the query status
+    :param aws_conn_id: aws connection to use
+    :param region: aws region to use
+    """
+
+    def __init__(
+        self,
+        source: str,
+        name: str,
+        poll_interval: int = 20,
+        aws_conn_id: Optional[str] = "aws_default",
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        if source not in {"salesforce", "zendesk"}:
+            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunOperator!")
+        super().__init__(
+            source=source,
+            name=name,
+            flow_update=False,
+            source_field=None,
+            dt=None,
+            poll_interval=poll_interval,
+            aws_conn_id=aws_conn_id,
+            region=region,
+            **kwargs,
+        )
+
+
+class AppflowRunFullOperator(AppflowOperatorBase):
+    """
+    Execute a Appflow full run removing any filter.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AppflowRunFullOperator`
+
+    :param source: The source name (e.g. salesforce, zendesk)
+    :param name: The flow name
+    :param poll_interval: how often in seconds to check the query status
+    :param aws_conn_id: aws connection to use
+    :param region: aws region to use
+    """
+
+    def __init__(
+        self,
+        source: str,
+        name: str,
+        poll_interval: int = 20,
+        aws_conn_id: Optional[str] = "aws_default",
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        if source not in {"salesforce", "zendesk"}:
+            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunFullOperator!")
+        super().__init__(
+            source=source,
+            name=name,
+            flow_update=True,
+            source_field=None,
+            dt=None,
+            poll_interval=poll_interval,
+            aws_conn_id=aws_conn_id,
+            region=region,
+            **kwargs,
+        )
+
+
+class AppflowRunBeforeOperator(AppflowOperatorBase):
+    """
+    Execute a Appflow run after updating the filters to select only previous data.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AppflowRunBeforeOperator`
+
+    :param source: The source name (e.g. salesforce)
+    :param name: The flow name
+    :param source_field: The field name to apply filters
+    :param dt: The date value (or template) to be used in filters.
+    :param poll_interval: how often in seconds to check the query status
+    :param aws_conn_id: aws connection to use
+    :param region: aws region to use
+    """
+
+    template_fields = ("dt",)
+
+    def __init__(
+        self,
+        source: str,
+        name: str,
+        source_field: str,
+        dt: str,
+        poll_interval: int = 20,
+        aws_conn_id: Optional[str] = "aws_default",
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        if not dt:
+            raise AppflowOperatorException("The dt argument is mandatory for AppflowRunBeforeOperator!")
+        if source not in {"salesforce"}:
+            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunBeforeOperator!")
+        super().__init__(
+            source=source,
+            name=name,
+            flow_update=True,
+            source_field=source_field,
+            dt=dt,
+            poll_interval=poll_interval,
+            aws_conn_id=aws_conn_id,
+            region=region,
+            **kwargs,
+        )
+
+    def _add_filter(self, tasks: List["TaskTypeDef"]) -> None:
+        if not self._dt_parsed:
+            raise AppflowOperatorException(f"Invalid dt argument parser value: {self._dt_parsed}")
+        if not self.source_field:
+            raise AppflowOperatorException(f"Invalid source_field argument value: {self.source_field}")
+        filter_task: "TaskTypeDef" = {
+            "taskType": "Filter",
+            "connectorOperator": {self._connector_type: "LESS_THAN"},  # type: ignore
+            "sourceFields": [self.source_field],
+            "taskProperties": {
+                "DATA_TYPE": "datetime",
+                "VALUE": AppflowOperatorBase._dt_to_epoch_str(self._dt_parsed),
+            },  # NOT inclusive
+        }
+        tasks.append(filter_task)
+
+
+class AppflowRunAfterOperator(AppflowOperatorBase):
+    """
+    Execute a Appflow run after updating the filters to select only future data.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AppflowRunAfterOperator`
+
+    :param source: The source name (e.g. salesforce, zendesk)
+    :param name: The flow name
+    :param source_field: The field name to apply filters
+    :param dt: The date value (or template) to be used in filters.
+    :param poll_interval: how often in seconds to check the query status
+    :param aws_conn_id: aws connection to use
+    :param region: aws region to use
+    """
+
+    template_fields = ("dt",)
+
+    def __init__(
+        self,
+        source: str,
+        name: str,
+        source_field: str,
+        dt: str,
+        poll_interval: int = 20,
+        aws_conn_id: Optional[str] = "aws_default",
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        if not dt:
+            raise AppflowOperatorException("The dt argument is mandatory for AppflowRunAfterOperator!")
+        if source not in {"salesforce", "zendesk"}:
+            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunAfterOperator!")
+        super().__init__(
+            source=source,
+            name=name,
+            flow_update=True,
+            source_field=source_field,
+            dt=dt,
+            poll_interval=poll_interval,
+            aws_conn_id=aws_conn_id,
+            region=region,
+            **kwargs,
+        )
+
+    def _add_filter(self, tasks: List["TaskTypeDef"]) -> None:
+        if not self._dt_parsed:
+            raise AppflowOperatorException(f"Invalid dt argument parser value: {self._dt_parsed}")
+        if not self.source_field:
+            raise AppflowOperatorException(f"Invalid source_field argument value: {self.source_field}")
+        filter_task: "TaskTypeDef" = {
+            "taskType": "Filter",
+            "connectorOperator": {self._connector_type: "GREATER_THAN"},  # type: ignore
+            "sourceFields": [self.source_field],
+            "taskProperties": {
+                "DATA_TYPE": "datetime",
+                "VALUE": AppflowOperatorBase._dt_to_epoch_str(self._dt_parsed),
+            },  # NOT inclusive
+        }
+        tasks.append(filter_task)
+
+
+class AppflowRunDailyOperator(AppflowOperatorBase):
+    """
+    Execute a Appflow run after updating the filters to select only a single day.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AppflowRunDailyOperator`
+
+    :param source: The source name (e.g. salesforce)
+    :param name: The flow name
+    :param source_field: The field name to apply filters
+    :param dt: The date value (or template) to be used in filters.
+    :param poll_interval: how often in seconds to check the query status
+    :param aws_conn_id: aws connection to use
+    :param region: aws region to use
+    """
+
+    template_fields = ("dt",)
+
+    def __init__(
+        self,
+        source: str,
+        name: str,
+        source_field: str,
+        dt: str,
+        poll_interval: int = 20,
+        aws_conn_id: Optional[str] = "aws_default",
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        if not dt:
+            raise AppflowOperatorException("The dt argument is mandatory for AppflowRunDailyOperator!")
+        if source not in {"salesforce"}:
+            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunDailyOperator!")
+        super().__init__(
+            source=source,
+            name=name,
+            flow_update=True,
+            source_field=source_field,
+            dt=dt,
+            poll_interval=poll_interval,
+            aws_conn_id=aws_conn_id,
+            region=region,
+            **kwargs,
+        )
+
+    def _add_filter(self, tasks: List["TaskTypeDef"]) -> None:
+        if not self._dt_parsed:
+            raise AppflowOperatorException(f"Invalid dt argument parser value: {self._dt_parsed}")
+        if not self.source_field:
+            raise AppflowOperatorException(f"Invalid source_field argument value: {self.source_field}")
+        start_dt = self._dt_parsed - timedelta(milliseconds=1)
+        end_dt = self._dt_parsed + timedelta(days=1)
+        filter_task: "TaskTypeDef" = {
+            "taskType": "Filter",
+            "connectorOperator": {self._connector_type: "BETWEEN"},  # type: ignore
+            "sourceFields": [self.source_field],
+            "taskProperties": {
+                "DATA_TYPE": "datetime",
+                "LOWER_BOUND": AppflowOperatorBase._dt_to_epoch_str(start_dt),  # NOT inclusive
+                "UPPER_BOUND": AppflowOperatorBase._dt_to_epoch_str(end_dt),  # NOT inclusive
+            },
+        }
+        tasks.append(filter_task)
+
+
+class AppflowRecordsShortCircuit(ShortCircuitOperator):
+    """
+    Short-circuit in case of a empty Appflow's run.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AppflowRecordsShortCircuit`
+
+    :param flow_name: The flow name
+    :param appflow_run_task_id: Run task ID from where this operator should extract the execution ID
+    :param ignore_downstream_trigger_rules: Ignore downstream trigger rules
+    :param aws_conn_id: aws connection to use
+    :param region: aws region to use
+    """
+
+    LIGHT_BLUE = "#33ffec"
+    ui_color = LIGHT_BLUE
+
+    def __init__(
+        self,
+        flow_name: str,
+        appflow_run_task_id: str,
+        ignore_downstream_trigger_rules: bool = True,
+        aws_conn_id: Optional[str] = "aws_default",
+        region: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(
+            python_callable=self._has_new_records_func,
+            op_kwargs={
+                "flow_name": flow_name,
+                "appflow_run_task_id": appflow_run_task_id,
+            },
+            ignore_downstream_trigger_rules=ignore_downstream_trigger_rules,
+            **kwargs,
+        )
+        self._aws_conn_id = aws_conn_id
+        self._region = region
+
+    @staticmethod
+    def _get_target_execution_id(
+        records: List["ExecutionRecordTypeDef"], execution_id: str
+    ) -> Optional["ExecutionRecordTypeDef"]:
+        for record in records:
+            if record.get("executionId") == execution_id:
+                return record
+        return None
+
+    @cached_property
+    def hook(self) -> AppflowHook:
+        """Create and return an AppflowHook."""
+        return AppflowHook(aws_conn_id=self._aws_conn_id, region_name=self._region)
+
+    def _has_new_records_func(self, **kwargs) -> bool:
+        appflow_task_id = kwargs["appflow_run_task_id"]
+        self.log.info("appflow_task_id: ", appflow_task_id)
+        flow_name = kwargs["flow_name"]
+        self.log.info("flow_name: %s", flow_name)
+        af_client = self.hook.conn
+        task_instance = kwargs["task_instance"]
+        execution_id = task_instance.xcom_pull(task_ids=appflow_task_id, key="execution_id")  # type: ignore
+        self.log.info("execution_id: %s", execution_id)
+        args = {"flowName": flow_name, "maxResults": 100}
+        response: "DescribeFlowExecutionRecordsResponseTypeDef" = cast(
+            "DescribeFlowExecutionRecordsResponseTypeDef", {}
+        )
+        record = None
+
+        while not record:
+            if "nextToken" in response:
+                response = af_client.describe_flow_execution_records(nextToken=response["nextToken"], **args)
+            else:
+                response = af_client.describe_flow_execution_records(**args)
+            record = AppflowRecordsShortCircuit._get_target_execution_id(
+                response["flowExecutions"], execution_id
+            )
+            if not record and "nextToken" not in response:
+                raise AppflowOperatorException(f"Flow ({execution_id}) without recordsProcessed info.")
+
+        execution = record.get("executionResult", {})
+        if "recordsProcessed" not in execution:
+            raise AppflowOperatorException(f"Flow ({execution_id}) without recordsProcessed info.")
+        records_processed = execution["recordsProcessed"]
+        self.log.info("records_processed: %d", records_processed)
+        task_instance.xcom_push("records_processed", records_processed)  # type: ignore
+        return records_processed > 0
