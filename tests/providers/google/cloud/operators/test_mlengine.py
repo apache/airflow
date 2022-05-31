@@ -230,7 +230,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args['model_name'] = 'fake_model'
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert 'Ambiguous model origin: Both uri and ' 'model/version name are provided.' == str(ctx.value)
+        assert 'Ambiguous model origin: Both uri and model/version name are provided.' == str(ctx.value)
 
         # Test that both uri and model/version is given
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()
@@ -239,7 +239,7 @@ class TestMLEngineBatchPredictionOperator(unittest.TestCase):
         task_args['version_name'] = 'fake_version'
         with pytest.raises(AirflowException) as ctx:
             MLEngineStartBatchPredictionJobOperator(**task_args).execute(None)
-        assert 'Ambiguous model origin: Both uri and ' 'model/version name are provided.' == str(ctx.value)
+        assert 'Ambiguous model origin: Both uri and model/version name are provided.' == str(ctx.value)
 
         # Test that a version is given without a model
         task_args = self.BATCH_PREDICTION_DEFAULT_ARGS.copy()

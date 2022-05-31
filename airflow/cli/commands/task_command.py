@@ -23,7 +23,7 @@ import logging
 import os
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -269,7 +269,7 @@ def _extract_external_executor_id(args) -> Optional[str]:
 
 
 @contextmanager
-def _capture_task_logs(ti):
+def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     """Manage logging context for a task run
 
     - Replace the root logger configuration with the airflow.task configuration

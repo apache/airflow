@@ -39,6 +39,7 @@ from airflow.utils.process_utils import (
     check_if_pidfile_process_is_running,
     execute_in_subprocess,
     execute_in_subprocess_with_kwargs,
+    set_new_process_group,
 )
 
 
@@ -220,3 +221,21 @@ class TestCheckIfPidfileProcessIsRunning(unittest.TestCase):
             f.flush()
             with pytest.raises(AirflowException, match="is already running under PID"):
                 check_if_pidfile_process_is_running(f.name, process_name="test")
+
+
+class TestSetNewProcessGroup(unittest.TestCase):
+    @mock.patch("os.setpgid")
+    def test_not_session_leader(self, mock_set_pid):
+        pid = os.getpid()
+        with mock.patch('os.getsid', autospec=True) as mock_get_sid:
+            mock_get_sid.return_value = pid + 1
+            set_new_process_group()
+            assert mock_set_pid.call_count == 1
+
+    @mock.patch("os.setpgid")
+    def test_session_leader(self, mock_set_pid):
+        pid = os.getpid()
+        with mock.patch('os.getsid', autospec=True) as mock_get_sid:
+            mock_get_sid.return_value = pid
+            set_new_process_group()
+            assert mock_set_pid.call_count == 0
