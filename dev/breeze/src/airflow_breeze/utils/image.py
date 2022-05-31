@@ -125,7 +125,6 @@ def run_pull_image(
                 dry_run=dry_run,
                 text=True,
                 check=False,
-                enabled_output_group=not parallel,
             )
             if not dry_run:
                 if command_result.returncode == 0:

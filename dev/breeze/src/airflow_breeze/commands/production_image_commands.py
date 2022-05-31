@@ -533,6 +533,7 @@ def build_production_image(
                 cwd=AIRFLOW_SOURCES_ROOT,
                 check=False,
                 text=True,
+                enabled_output_group=True,
             )
             if build_command_result.returncode == 0:
                 if prod_image_params.tag_as_latest:
