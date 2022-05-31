@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
@@ -22,6 +23,11 @@ from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
+
+
+def fetch_all_handler(cursor):
+    """Handler for DbApiHook.run() to return results"""
+    return cursor.fetchall()
 
 
 class JdbcOperator(BaseOperator):
@@ -67,4 +73,4 @@ class JdbcOperator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = JdbcHook(jdbc_conn_id=self.jdbc_conn_id)
-        hook.run(self.sql, self.autocommit, parameters=self.parameters)
+        return hook.run(self.sql, self.autocommit, parameters=self.parameters, handler=fetch_all_handler)

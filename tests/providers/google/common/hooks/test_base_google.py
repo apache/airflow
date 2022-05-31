@@ -448,7 +448,7 @@ class TestGoogleBaseHook(unittest.TestCase):
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields" "are all mutually exclusive. "
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive. "
             ),
         ):
             self.instance._get_credentials_and_project_id()

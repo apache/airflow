@@ -26,7 +26,6 @@ export const BASE_DATE_PARAM = 'base_date';
 export const NUM_RUNS_PARAM = 'num_runs';
 export const RUN_TYPE_PARAM = 'run_type';
 export const RUN_STATE_PARAM = 'run_state';
-export const TASK_STATE_PARAM = 'task_state';
 
 const date = new Date();
 date.setMilliseconds(0);
@@ -40,18 +39,12 @@ const useFilters = () => {
   const numRuns = searchParams.get(NUM_RUNS_PARAM) || defaultDagRunDisplayNumber;
   const runType = searchParams.get(RUN_TYPE_PARAM);
   const runState = searchParams.get(RUN_STATE_PARAM);
-  // taskState is only used to change the opacity of the tasks,
-  // it is not send to the api for filtering.
-  const taskState = searchParams.get(TASK_STATE_PARAM);
 
-  const makeOnChangeFn = (paramName, formatFn) => (e) => {
-    let { value } = e.target;
-    if (formatFn) {
-      value = formatFn(value);
-    }
+  const makeOnChangeFn = (paramName, formatFn) => (value) => {
+    const formattedValue = formatFn ? formatFn(value) : value;
     const params = new URLSearchParams(searchParams);
 
-    if (value) params.set(paramName, value);
+    if (formattedValue) params.set(paramName, formattedValue);
     else params.delete(paramName);
 
     setSearchParams(params);
@@ -62,14 +55,12 @@ const useFilters = () => {
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
   const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);
   const onRunStateChange = makeOnChangeFn(RUN_STATE_PARAM);
-  const onTaskStateChange = makeOnChangeFn(TASK_STATE_PARAM);
 
   const clearFilters = () => {
     searchParams.delete(BASE_DATE_PARAM);
     searchParams.delete(NUM_RUNS_PARAM);
     searchParams.delete(RUN_TYPE_PARAM);
     searchParams.delete(RUN_STATE_PARAM);
-    searchParams.delete(TASK_STATE_PARAM);
     setSearchParams(searchParams);
   };
 
@@ -79,13 +70,11 @@ const useFilters = () => {
       numRuns,
       runType,
       runState,
-      taskState,
     },
     onBaseDateChange,
     onNumRunsChange,
     onRunTypeChange,
     onRunStateChange,
-    onTaskStateChange,
     clearFilters,
   };
 };

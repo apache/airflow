@@ -86,7 +86,7 @@ class AzureCosmosDBHook(BaseHook):
     def __init__(self, azure_cosmos_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_cosmos_conn_id
-        self._conn = None
+        self._conn: Optional[CosmosClient] = None
 
         self.default_database_name = None
         self.default_collection_name = None

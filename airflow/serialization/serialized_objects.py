@@ -96,7 +96,8 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     are defaults, they are automatically supplied on de-serialization, so we
     don't need to store them.
     """
-    default_partial_kwargs = BaseOperator.partial(task_id="_").expand().partial_kwargs
+    # Use the private _expand() method to avoid the empty kwargs check.
+    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand().partial_kwargs
     return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 

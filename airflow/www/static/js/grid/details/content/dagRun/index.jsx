@@ -25,7 +25,9 @@ import {
   Link,
   Divider,
 } from '@chakra-ui/react';
-import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
+
+import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
+import { RiArrowGoBackFill } from 'react-icons/ri';
 
 import { SimpleStatus } from '../../../components/StatusBox';
 import { ClipboardText } from '../../../components/Clipboard';
@@ -97,6 +99,8 @@ const DagRun = ({ runId }) => {
         Run Type:
         {' '}
         {runType === 'manual' && <MdPlayArrow style={{ display: 'inline' }} />}
+        {runType === 'backfill' && <RiArrowGoBackFill style={{ display: 'inline' }} />}
+        {runType === 'scheduled' && <MdOutlineSchedule style={{ display: 'inline' }} />}
         {runType}
       </Text>
       <Text>

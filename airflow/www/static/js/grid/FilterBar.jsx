@@ -39,7 +39,6 @@ const FilterBar = () => {
     onNumRunsChange,
     onRunTypeChange,
     onRunStateChange,
-    onTaskStateChange,
     clearFilters,
   } = useFilters();
 
@@ -50,13 +49,13 @@ const FilterBar = () => {
   const inputStyles = { backgroundColor: 'white', size: 'lg' };
 
   return (
-    <Flex backgroundColor="#f0f0f0" mt={0} mb={2} p={4}>
+    <Flex backgroundColor="#f0f0f0" mt={4} p={4}>
       <Box px={2}>
         <Input
           {...inputStyles}
           type="datetime-local"
           value={formattedTime || ''}
-          onChange={onBaseDateChange}
+          onChange={(e) => onBaseDateChange(e.target.value)}
         />
       </Box>
       <Box px={2}>
@@ -64,7 +63,7 @@ const FilterBar = () => {
           {...inputStyles}
           placeholder="Runs"
           value={filters.numRuns || ''}
-          onChange={onNumRunsChange}
+          onChange={(e) => onNumRunsChange(e.target.value)}
         >
           {filtersOptions.numRuns.map((value) => (
             <option value={value} key={value}>{value}</option>
@@ -75,7 +74,7 @@ const FilterBar = () => {
         <Select
           {...inputStyles}
           value={filters.runType || ''}
-          onChange={onRunTypeChange}
+          onChange={(e) => onRunTypeChange(e.target.value)}
         >
           <option value="" key="all">All Run Types</option>
           {filtersOptions.runTypes.map((value) => (
@@ -88,22 +87,10 @@ const FilterBar = () => {
         <Select
           {...inputStyles}
           value={filters.runState || ''}
-          onChange={onRunStateChange}
+          onChange={(e) => onRunStateChange(e.target.value)}
         >
           <option value="" key="all">All Run States</option>
           {filtersOptions.dagStates.map((value) => (
-            <option value={value} key={value}>{value}</option>
-          ))}
-        </Select>
-      </Box>
-      <Box px={2}>
-        <Select
-          {...inputStyles}
-          value={filters.taskState || ''}
-          onChange={onTaskStateChange}
-        >
-          <option value="" key="all">All Task States</option>
-          {filtersOptions.taskStates.map((value) => (
             <option value={value} key={value}>{value}</option>
           ))}
         </Select>

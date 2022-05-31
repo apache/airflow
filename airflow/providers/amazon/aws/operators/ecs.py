@@ -375,7 +375,7 @@ class EcsOperator(BaseOperator):
 
         self.arn = response['tasks'][0]['taskArn']
         self.ecs_task_id = self.arn.split("/")[-1]
-        self.log.info(f"ECS task ID is: {self.ecs_task_id}")
+        self.log.info("ECS task ID is: %s", self.ecs_task_id)
 
         if self.reattach:
             # Save the task ARN in XCom to be able to reattach it if needed
