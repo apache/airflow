@@ -418,6 +418,10 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("execution_timeout")
 
     @property
+    def max_retry_delay(self) -> Optional[datetime.timedelta]:
+        return self.partial_kwargs.get("max_retry_delay")
+
+    @property
     def retry_delay(self) -> datetime.timedelta:
         return self.partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY)
 
@@ -476,6 +480,26 @@ class MappedOperator(AbstractOperator):
     @property
     def outlets(self) -> Optional[Any]:
         return self.partial_kwargs.get("outlets", None)
+
+    @property
+    def doc(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc")
+
+    @property
+    def doc_md(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_md")
+
+    @property
+    def doc_json(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_json")
+
+    @property
+    def doc_yaml(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_yaml")
+
+    @property
+    def doc_rst(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_rst")
 
     def get_dag(self) -> Optional["DAG"]:
         """Implementing Operator."""

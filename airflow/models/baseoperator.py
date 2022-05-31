@@ -121,11 +121,11 @@ def parse_retries(retries: Any) -> Optional[int]:
     return parsed_retries
 
 
-def coerce_retry_delay(retry_delay: Union[float, timedelta]) -> timedelta:
-    if isinstance(retry_delay, timedelta):
-        return retry_delay
-    logger.debug("retry_delay isn't a timedelta object, assuming secs")
-    return timedelta(seconds=retry_delay)
+def coerce_timedelta(value: Union[float, timedelta], *, key: str) -> timedelta:
+    if isinstance(value, timedelta):
+        return value
+    logger.debug("%s isn't a timedelta object, assuming secs", key)
+    return timedelta(seconds=value)
 
 
 def coerce_resources(resources: Optional[Dict[str, Any]]) -> Optional[Resources]:
@@ -205,6 +205,7 @@ def partial(
     pool: Optional[str] = None,
     pool_slots: int = DEFAULT_POOL_SLOTS,
     execution_timeout: Optional[timedelta] = DEFAULT_TASK_EXECUTION_TIMEOUT,
+    max_retry_delay: Union[None, timedelta, float] = None,
     retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
     retry_exponential_backoff: bool = False,
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
@@ -219,6 +220,11 @@ def partial(
     executor_config: Optional[Dict] = None,
     inlets: Optional[Any] = None,
     outlets: Optional[Any] = None,
+    doc: Optional[str] = None,
+    doc_md: Optional[str] = None,
+    doc_json: Optional[str] = None,
+    doc_yaml: Optional[str] = None,
+    doc_rst: Optional[str] = None,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -259,6 +265,7 @@ def partial(
     partial_kwargs.setdefault("pool", pool)
     partial_kwargs.setdefault("pool_slots", pool_slots)
     partial_kwargs.setdefault("execution_timeout", execution_timeout)
+    partial_kwargs.setdefault("max_retry_delay", max_retry_delay)
     partial_kwargs.setdefault("retry_delay", retry_delay)
     partial_kwargs.setdefault("retry_exponential_backoff", retry_exponential_backoff)
     partial_kwargs.setdefault("priority_weight", priority_weight)
@@ -274,6 +281,11 @@ def partial(
     partial_kwargs.setdefault("inlets", inlets)
     partial_kwargs.setdefault("outlets", outlets)
     partial_kwargs.setdefault("resources", resources)
+    partial_kwargs.setdefault("doc", doc)
+    partial_kwargs.setdefault("doc_json", doc_json)
+    partial_kwargs.setdefault("doc_md", doc_md)
+    partial_kwargs.setdefault("doc_rst", doc_rst)
+    partial_kwargs.setdefault("doc_yaml", doc_yaml)
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -285,7 +297,12 @@ def partial(
     if partial_kwargs["pool"] is None:
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
-    partial_kwargs["retry_delay"] = coerce_retry_delay(partial_kwargs["retry_delay"])
+    partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
+    if partial_kwargs["max_retry_delay"] is not None:
+        partial_kwargs["max_retry_delay"] = coerce_timedelta(
+            partial_kwargs["max_retry_delay"],
+            key="max_retry_delay",
+        )
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
     partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
@@ -757,10 +774,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        if task_group:
-            self.task_id = task_group.child_id(task_id)
-        else:
-            self.task_id = task_id
+        self.task_id = task_group.child_id(task_id) if task_group else task_id
         if not self.__from_mapped and task_group:
             task_group.add(self)
 
@@ -826,20 +840,18 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         self.trigger_rule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
-        self.ignore_first_depends_on_past = ignore_first_depends_on_past
-        self.wait_for_downstream = wait_for_downstream
+        self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
+        self.wait_for_downstream: bool = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
 
-        self.retry_delay = coerce_retry_delay(retry_delay)
+        self.retry_delay = coerce_timedelta(retry_delay, key="retry_delay")
         self.retry_exponential_backoff = retry_exponential_backoff
-        self.max_retry_delay = max_retry_delay
-        if max_retry_delay:
-            if isinstance(max_retry_delay, timedelta):
-                self.max_retry_delay = max_retry_delay
-            else:
-                self.log.debug("max_retry_delay isn't a timedelta object, assuming secs")
-                self.max_retry_delay = timedelta(seconds=max_retry_delay)
+        self.max_retry_delay = (
+            max_retry_delay
+            if max_retry_delay is None
+            else coerce_timedelta(max_retry_delay, key="max_retry_delay")
+        )
 
         # At execution_time this becomes a normal dict
         self.params: Union[ParamsDict, dict] = ParamsDict(params)
