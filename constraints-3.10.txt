@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-31T15:59:37Z
+# This constraints file was automatically generated on 2022-05-31T23:18:12Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -51,7 +51,7 @@ adal==1.2.7
 aiohttp==3.8.1
 aiosignal==1.2.0
 alabaster==0.7.12
-alembic==1.7.7
+alembic==1.8.0
 aliyun-python-sdk-core==2.13.36
 aliyun-python-sdk-kms==2.15.0
 amqp==5.1.1
@@ -173,9 +173,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.23.10
+boto3==1.24.0
 boto==2.49.0
-botocore==1.26.10
+botocore==1.27.0
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
@@ -232,7 +232,7 @@ executing==0.8.3
 facebook-business==13.0.0
 fastavro==1.4.12
 fastjsonschema==2.15.3
-filelock==3.7.0
+filelock==3.7.1
 fissix==21.11.13
 flake8-colors==0.1.9
 flake8==4.0.1
@@ -343,7 +343,7 @@ ldap3==2.9.1
 locket==1.0.0
 lockfile==0.12.2
 looker-sdk==22.4.0
-lxml==4.8.0
+lxml==4.9.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
@@ -356,19 +356,19 @@ more-itertools==8.13.0
 moreorless==0.4.0
 moto==3.1.9
 msal-extensions==1.0.0
-msal==1.17.0
+msal==1.18.0
 msgpack==1.0.3
 msrest==0.6.21
 msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
-mypy-boto3-rds==1.23.0.post1
-mypy-boto3-redshift-data==1.23.0.post1
+mypy-boto3-rds==1.24.0
+mypy-boto3-redshift-data==1.24.0
 mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.29
 mysqlclient==2.1.0
-nbclient==0.6.3
+nbclient==0.6.4
 nbformat==5.4.0
 neo4j==4.4.3
 nest-asyncio==1.5.5
@@ -483,7 +483,7 @@ rfc3986==1.5.0
 rich-click==1.4
 rich==12.4.4
 rsa==4.8
-s3transfer==0.5.2
+s3transfer==0.6.0
 sasl==0.3.1
 scramp==1.4.1
 scrapbook==0.5.0
@@ -544,11 +544,11 @@ toolz==0.11.2
 tornado==6.1
 towncrier==21.9.0
 tqdm==4.64.0
-traitlets==5.2.1.post0
+traitlets==5.2.2.post1
 trino==0.313.0
 twine==4.0.0
 types-Deprecated==1.2.8
-types-Markdown==3.3.25
+types-Markdown==3.3.26
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.7
 types-boto==2.49.15
