@@ -57,7 +57,8 @@ def run_pull_in_parallel(
     if not verify_image:
         results = [
             pool.apply_async(
-                run_pull_image, args=(image_param, dry_run, verbose, wait_for_image, tag_as_latest, poll_time)
+                run_pull_image,
+                args=(image_param, dry_run, verbose, wait_for_image, tag_as_latest, poll_time, True),
             )
             for image_param in image_params_list
         ]
@@ -88,6 +89,7 @@ def run_pull_image(
     wait_for_image: bool,
     tag_as_latest: bool,
     poll_time: float,
+    parallel: bool = False,
 ) -> Tuple[int, str]:
     """
     Pull image specified.
@@ -97,6 +99,7 @@ def run_pull_image(
     :param wait_for_image: whether we should wait for the image to be available
     :param tag_as_latest: tag the image as latest
     :param poll_time: what's the polling time between checks if images are there
+    :param parallel: whether the pull is run as part of parallel execution
     :return: Tuple of return code and description of the image pulled
     """
     get_console().print(
@@ -112,6 +115,7 @@ def run_pull_image(
             verbose=verbose,
             dry_run=dry_run,
             check=False,
+            enabled_output_group=not parallel,
         )
         if command_result.returncode == 0:
             command_result = run_command(
@@ -121,6 +125,7 @@ def run_pull_image(
                 dry_run=dry_run,
                 text=True,
                 check=False,
+                enabled_output_group=not parallel,
             )
             if not dry_run:
                 if command_result.returncode == 0:
