@@ -136,6 +136,8 @@ class EmrContainerOperator(BaseOperator):
     :param poll_interval: Time (in seconds) to wait between two consecutive calls to check query status on EMR
     :param max_tries: Maximum number of times to wait for the job run to finish.
         Defaults to None, which will poll until the job is *not* in a pending, submitted, or running state.
+    :param tags: The tags assigned to job runs.
+        Defaults to None
     """
 
     template_fields: Sequence[str] = (
@@ -160,6 +162,7 @@ class EmrContainerOperator(BaseOperator):
         aws_conn_id: str = "aws_default",
         poll_interval: int = 30,
         max_tries: Optional[int] = None,
+        tags: Optional[dict] = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -173,6 +176,7 @@ class EmrContainerOperator(BaseOperator):
         self.client_request_token = client_request_token or str(uuid4())
         self.poll_interval = poll_interval
         self.max_tries = max_tries
+        self.tags = tags
         self.job_id: Optional[str] = None
 
     @cached_property
@@ -192,6 +196,7 @@ class EmrContainerOperator(BaseOperator):
             self.job_driver,
             self.configuration_overrides,
             self.client_request_token,
+            self.tags,
         )
         query_status = self.hook.poll_query_status(self.job_id, self.max_tries, self.poll_interval)
 

@@ -48,7 +48,7 @@ INSERT_DATE = datetime.now().strftime("%Y-%m-%d")
 
 PARTITION_NAME = "{{ ds_nodash }}"
 
-INSERT_ROWS_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES " "(42, '{{ ds }}')"
+INSERT_ROWS_QUERY = f"INSERT {DATASET_NAME}.{TABLE_NAME} VALUES (42, '{{ ds }}')"
 
 SCHEMA = [
     {"name": "value", "type": "INTEGER", "mode": "REQUIRED"},

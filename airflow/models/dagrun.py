@@ -540,7 +540,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
-        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
+        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
@@ -789,8 +789,8 @@ class DagRun(Base, LoggingMixin):
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
-        except Exception as e:
-            self.log.warning(f'Failed to record first_task_scheduling_delay metric:\n{e}')
+        except Exception:
+            self.log.warning('Failed to record first_task_scheduling_delay metric:', exc_info=True)
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:

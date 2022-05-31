@@ -142,7 +142,7 @@ class SchedulerJob(BaseJob):
             self._log = log
 
         # Check what SQL backend we use
-        sql_conn: str = conf.get('database', 'sql_alchemy_conn').lower()
+        sql_conn: str = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower()
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
         # Dag Processor agent - not used in Dag Processor standalone mode.
@@ -153,7 +153,10 @@ class SchedulerJob(BaseJob):
 
         if conf.getboolean('smart_sensor', 'use_smart_sensor'):
             compatible_sensors = set(
-                map(lambda l: l.strip(), conf.get('smart_sensor', 'sensors_enabled').split(','))
+                map(
+                    lambda l: l.strip(),
+                    conf.get_mandatory_value('smart_sensor', 'sensors_enabled').split(','),
+                )
             )
             docs_url = get_docs_url('concepts/smart-sensors.html#migrating-to-deferrable-operators')
             warnings.warn(
@@ -550,9 +553,9 @@ class SchedulerJob(BaseJob):
                 queue=queue,
             )
 
-    def _critical_section_execute_task_instances(self, session: Session) -> int:
+    def _critical_section_enqueue_task_instances(self, session: Session) -> int:
         """
-        Attempts to execute TaskInstances that should be executed by the scheduler.
+        Enqueues TaskInstances for execution.
 
         There are three steps:
         1. Pick TIs by priority with the constraint that they are in the expected states
@@ -907,7 +910,7 @@ class SchedulerJob(BaseJob):
         - Then, via a Critical Section (locking the rows of the Pool model) we queue tasks, and then send them
           to the executor.
 
-          See docs of _critical_section_execute_task_instances for more.
+          See docs of _critical_section_enqueue_task_instances for more.
 
         :return: Number of TIs enqueued in this iteration
         :rtype: int
@@ -955,7 +958,7 @@ class SchedulerJob(BaseJob):
                     timer.start()
 
                     # Find anything TIs in state SCHEDULED, try to QUEUE it (send it to the executor)
-                    num_queued_tis = self._critical_section_execute_task_instances(session=session)
+                    num_queued_tis = self._critical_section_enqueue_task_instances(session=session)
 
                     # Make sure we only sent this metric if we obtained the lock, otherwise we'll skew the
                     # metric, way down

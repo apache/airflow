@@ -66,6 +66,4 @@ The ``QuickSightSensor`` waits for an Amazon QuickSight create ingestion until i
 Reference
 ---------
 
-For further information, look at:
-
 * `Boto3 Library Documentation for QuickSight <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/quicksight.html>`__

@@ -23,7 +23,7 @@ import logging
 import os
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -269,7 +269,7 @@ def _extract_external_executor_id(args) -> Optional[str]:
 
 
 @contextmanager
-def _capture_task_logs(ti):
+def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     """Manage logging context for a task run
 
     - Replace the root logger configuration with the airflow.task configuration
@@ -358,7 +358,11 @@ def task_run(args, dag=None):
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
         if args.local:
-            dag = get_dag_by_deserialization(args.dag_id)
+            try:
+                dag = get_dag_by_deserialization(args.dag_id)
+            except AirflowException:
+                print(f'DAG {args.dag_id} does not exist in the database, trying to parse the dag_file')
+                dag = get_dag(args.subdir, args.dag_id)
         else:
             dag = get_dag(args.subdir, args.dag_id)
     else:

@@ -41,7 +41,7 @@ class TestRedshiftCreateClusterOperator:
         assert redshift_operator.master_user_password == "Test123$"
 
     @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
-    def test_create_cluster(self, mock_get_conn):
+    def test_create_single_node_cluster(self, mock_get_conn):
         redshift_operator = RedshiftCreateClusterOperator(
             task_id="task_test",
             cluster_identifier="test-cluster",
@@ -54,7 +54,36 @@ class TestRedshiftCreateClusterOperator:
         params = {
             "DBName": "dev",
             "ClusterType": "single-node",
-            "NumberOfNodes": 1,
+            "AutomatedSnapshotRetentionPeriod": 1,
+            "ClusterVersion": "1.0",
+            "AllowVersionUpgrade": True,
+            "PubliclyAccessible": True,
+            "Port": 5439,
+        }
+        mock_get_conn.return_value.create_cluster.assert_called_once_with(
+            ClusterIdentifier='test-cluster',
+            NodeType="dc2.large",
+            MasterUsername="adminuser",
+            MasterUserPassword="Test123$",
+            **params,
+        )
+
+    @mock.patch("airflow.providers.amazon.aws.hooks.redshift.RedshiftHook.get_conn")
+    def test_create_multi_node_cluster(self, mock_get_conn):
+        redshift_operator = RedshiftCreateClusterOperator(
+            task_id="task_test",
+            cluster_identifier="test-cluster",
+            node_type="dc2.large",
+            number_of_nodes=3,
+            master_username="adminuser",
+            master_user_password="Test123$",
+            cluster_type="multi-node",
+        )
+        redshift_operator.execute(None)
+        params = {
+            "DBName": "dev",
+            "ClusterType": "multi-node",
+            "NumberOfNodes": 3,
             "AutomatedSnapshotRetentionPeriod": 1,
             "ClusterVersion": "1.0",
             "AllowVersionUpgrade": True,

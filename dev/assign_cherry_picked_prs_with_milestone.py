@@ -89,7 +89,7 @@ option_github_token = click.option(
     required=True,
     help=textwrap.dedent(
         """
-        Github token used to authenticate.
+        GitHub token used to authenticate.
         You can set omit it if you have GITHUB_TOKEN env variable set
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20Write%20isssues&scopes=repo"""
@@ -228,7 +228,7 @@ def get_changes(verbose: bool, previous_release: str, current_release: str) -> L
 
 
 def update_milestone(r: Repository, pr: PullRequest, m: Milestone):
-    # PR in Github API does not have a way to update milestone. It should be opened as issue,
+    # PR in GitHub API does not have a way to update milestone. It should be opened as issue,
     # and then it can be updated ¯\_(ツ)_/¯
     r.get_issue(pr.number).edit(milestone=m)
 

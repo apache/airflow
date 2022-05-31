@@ -49,7 +49,11 @@ from airflow.utils.file import list_py_file_paths, might_contain_dag
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.mixins import MultiprocessingStartMethodMixin
 from airflow.utils.net import get_hostname
-from airflow.utils.process_utils import kill_child_processes_by_pids, reap_process_group
+from airflow.utils.process_utils import (
+    kill_child_processes_by_pids,
+    reap_process_group,
+    set_new_process_group,
+)
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import prohibit_commit, skip_locked, with_row_locks
 
@@ -395,7 +399,10 @@ class DagFileProcessorManager(LoggingMixin):
             os.set_blocking(self._direct_scheduler_conn.fileno(), False)
 
         self._parallelism = conf.getint('scheduler', 'parsing_processes')
-        if conf.get('database', 'sql_alchemy_conn').startswith('sqlite') and self._parallelism > 1:
+        if (
+            conf.get_mandatory_value('database', 'sql_alchemy_conn').startswith('sqlite')
+            and self._parallelism > 1
+        ):
             self.log.warning(
                 "Because we cannot use more than 1 thread (parsing_processes = "
                 "%d) when using sqlite. So we set parallelism to 1.",
@@ -468,8 +475,7 @@ class DagFileProcessorManager(LoggingMixin):
         """
         self.register_exit_signals()
 
-        # Start a new process group
-        os.setpgid(0, 0)
+        set_new_process_group()
 
         self.log.info("Processing files using up to %s processes at a time ", self._parallelism)
         self.log.info("Process each file at most once every %s seconds", self._file_process_interval)
@@ -506,7 +512,7 @@ class DagFileProcessorManager(LoggingMixin):
                     dag.fileloc in last_parsed
                     and (dag.last_parsed_time + self._processor_timeout) < last_parsed[dag.fileloc]
                 ):
-                    self.log.info(f"DAG {dag.dag_id} is missing and will be deactivated.")
+                    self.log.info("DAG %s is missing and will be deactivated.", dag.dag_id)
                     to_deactivate.add(dag.dag_id)
 
             if to_deactivate:

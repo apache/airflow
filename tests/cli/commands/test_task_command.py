@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+
 import io
 import json
 import logging
@@ -24,7 +24,6 @@ import re
 import unittest
 from argparse import ArgumentParser
 from contextlib import redirect_stdout
-from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -38,14 +37,13 @@ from airflow.exceptions import AirflowException, DagRunNotFound
 from airflow.models import DagBag, DagRun, Pool, TaskInstance
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_pools, clear_db_runs
 
-DEFAULT_DATE = days_ago(1)
+DEFAULT_DATE = timezone.datetime(2022, 1, 1)
 ROOT_FOLDER = os.path.realpath(
     os.path.join(os.path.dirname(os.path.realpath(__file__)), os.pardir, os.pardir)
 )
@@ -111,7 +109,7 @@ class TestCliTasks(unittest.TestCase):
 
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
 
-        with self.assertLogs('airflow.models', level='INFO') as cm:
+        with self.assertLogs('airflow.task', level='INFO') as cm:
             task_command.task_test(args)
             assert any(
                 [
@@ -137,6 +135,38 @@ class TestCliTasks(unittest.TestCase):
             self.run_id,
         ]
         mock_get_dag_by_deserialization.return_value = SerializedDagModel.get(self.dag_id).dag
+
+        task_command.task_run(self.parser.parse_args(args))
+        mock_local_job.assert_called_once_with(
+            task_instance=mock.ANY,
+            mark_success=False,
+            ignore_all_deps=True,
+            ignore_depends_on_past=False,
+            ignore_task_deps=False,
+            ignore_ti_state=False,
+            pickle_id=None,
+            pool=None,
+            external_executor_id=None,
+        )
+        mock_get_dag_by_deserialization.assert_called_once_with(self.dag_id)
+
+    @mock.patch("airflow.cli.commands.task_command.get_dag_by_deserialization")
+    @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
+    def test_run_get_serialized_dag_fallback(self, mock_local_job, mock_get_dag_by_deserialization):
+        """
+        Fallback to parse dag_file when serialized dag does not exist in the db
+        """
+        task_id = self.dag.task_ids[0]
+        args = [
+            'tasks',
+            'run',
+            '--ignore-all-dependencies',
+            '--local',
+            self.dag_id,
+            task_id,
+            self.run_id,
+        ]
+        mock_get_dag_by_deserialization.side_effect = mock.Mock(side_effect=AirflowException('Not found'))
 
         task_command.task_run(self.parser.parse_args(args))
         mock_local_job.assert_called_once_with(
@@ -342,7 +372,7 @@ class TestCliTasks(unittest.TestCase):
 
         dag2 = DagBag().dags['example_python_operator']
         task2 = dag2.get_task(task_id='print_the_context')
-        default_date2 = timezone.make_aware(datetime(2016, 1, 9))
+        default_date2 = timezone.datetime(2016, 1, 9)
         dag2.clear()
         dagrun = dag2.create_dagrun(
             state=State.RUNNING,
@@ -385,7 +415,7 @@ class TestCliTasks(unittest.TestCase):
         task_states_for_dag_run should return an AirflowException when invalid dag id is passed
         """
         with pytest.raises(DagRunNotFound):
-            default_date2 = timezone.make_aware(datetime(2016, 1, 9))
+            default_date2 = timezone.datetime(2016, 1, 9)
             task_command.task_states_for_dag_run(
                 self.parser.parse_args(
                     [
@@ -423,10 +453,10 @@ class TestLogsfromTaskRunCommand(unittest.TestCase):
         self.run_id = "test_run"
         self.dag_path = os.path.join(ROOT_FOLDER, "dags", "test_logging_in_dag.py")
         reset(self.dag_id)
-        self.execution_date = timezone.make_aware(datetime(2017, 1, 1))
+        self.execution_date = timezone.datetime(2017, 1, 1)
         self.execution_date_str = self.execution_date.isoformat()
         self.task_args = ['tasks', 'run', self.dag_id, self.task_id, '--local', self.execution_date_str]
-        self.log_dir = conf.get('logging', 'base_log_folder')
+        self.log_dir = conf.get_mandatory_value('logging', 'base_log_folder')
         self.log_filename = f"dag_id={self.dag_id}/run_id={self.run_id}/task_id={self.task_id}/attempt=1.log"
         self.ti_log_file_path = os.path.join(self.log_dir, self.log_filename)
         self.parser = cli_parser.get_parser()

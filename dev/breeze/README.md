@@ -21,11 +21,11 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [Apache AirAirflow Breeze](#apache-airairflow-breeze)
+- [Apache Airflow Breeze](#apache-airflow-breeze)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-Apache AirAirflow Breeze
+Apache Airflow Breeze
 ------------------------
 
 The project is part of [Apache Airflow](https://airflow.apache.org) - it's a development environment

@@ -25,7 +25,7 @@ import tempfile
 import warnings
 from contextlib import ExitStack, contextmanager
 from subprocess import check_output
-from typing import Any, Callable, Dict, Optional, Sequence, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, Dict, Generator, Optional, Sequence, Tuple, TypeVar, Union, cast
 
 import google.auth
 import google.auth.credentials
@@ -459,7 +459,7 @@ class GoogleBaseHook(BaseHook):
         return cast(T, wrapper)
 
     @contextmanager
-    def provide_gcp_credential_file_as_context(self):
+    def provide_gcp_credential_file_as_context(self) -> Generator[Optional[str], None, None]:
         """
         Context manager that provides a Google Cloud credentials for application supporting `Application
         Default Credentials (ADC) strategy <https://cloud.google.com/docs/authentication/production>`__.
@@ -467,8 +467,8 @@ class GoogleBaseHook(BaseHook):
         It can be used to provide credentials for external programs (e.g. gcloud) that expect authorization
         file in ``GOOGLE_APPLICATION_CREDENTIALS`` environment variable.
         """
-        key_path = self._get_field('key_path', None)  # type: Optional[str]    #
-        keyfile_dict = self._get_field('keyfile_dict', None)  # type: Optional[Dict]
+        key_path: Optional[str] = self._get_field('key_path', None)
+        keyfile_dict: Optional[str] = self._get_field('keyfile_dict', None)
         if key_path and keyfile_dict:
             raise AirflowException(
                 "The `keyfile_dict` and `key_path` fields are mutually exclusive. "
@@ -490,7 +490,7 @@ class GoogleBaseHook(BaseHook):
             yield None
 
     @contextmanager
-    def provide_authorized_gcloud(self):
+    def provide_authorized_gcloud(self) -> Generator[None, None, None]:
         """
         Provides a separate gcloud configuration with current credentials.
 

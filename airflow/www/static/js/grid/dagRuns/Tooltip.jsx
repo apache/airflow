@@ -25,7 +25,7 @@ import Time from '../components/Time';
 
 const DagRunTooltip = ({
   dagRun: {
-    state, duration, dataIntervalStart, executionDate,
+    state, duration, dataIntervalStart, executionDate, runType,
   },
 }) => (
   <Box py="2px">
@@ -43,6 +43,11 @@ const DagRunTooltip = ({
       Duration:
       {' '}
       {formatDuration(duration)}
+    </Text>
+    <Text>
+      Type:
+      {' '}
+      {runType}
     </Text>
   </Box>
 );

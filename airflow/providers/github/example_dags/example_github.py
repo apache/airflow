@@ -59,7 +59,7 @@ def tag_checker(repo: Any, tag_name: str) -> Optional[bool]:
     except GithubException as github_error:  # type: ignore[misc]
         raise AirflowException(f"Failed to execute GithubSensor, error: {str(github_error)}")
     except Exception as e:
-        raise AirflowException(f"Github operator error: {str(e)}")
+        raise AirflowException(f"GitHub operator error: {str(e)}")
     return result
 
 

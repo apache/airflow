@@ -50,7 +50,8 @@ def ask_to_reinstall_breeze(breeze_sources: Path, timeout: Optional[int] = STAND
          otherwise it is yes
     """
     answer = user_confirm(
-        f"Do you want to reinstall Breeze from {breeze_sources.parent.parent}?",
+        f"Do you want to reinstall Breeze from {breeze_sources.parent.parent} "
+        "(This should usually take couple of seconds)?",
         default_answer=Answer.NO if timeout else Answer.YES,
         timeout=timeout,
     )
@@ -77,7 +78,8 @@ def warn_different_location(installation_airflow_sources: Path, current_airflow_
         f"Current Airflow sources : {current_airflow_sources}\n\n"
         f"[warning]This might cause various problems!![/]\n\n"
         f"If you experience problems - reinstall Breeze with:\n\n"
-        f"    {NAME} self-upgrade --force --use-current-airflow-sources\n\n"
+        f"    {NAME} self-upgrade --force --use-current-airflow-sources\n"
+        f"\nThis should usually take couple of seconds.\n"
     )
 
 
@@ -86,5 +88,6 @@ def warn_dependencies_changed():
         f"\n[warning]Breeze dependencies changed since the installation![/]\n\n"
         f"[warning]This might cause various problems!![/]\n\n"
         f"If you experience problems - reinstall Breeze with:\n\n"
-        f"    {NAME} self-upgrade --force\n\n"
+        f"    {NAME} self-upgrade --force\n"
+        "\nThis should usually take couple of seconds.\n"
     )
