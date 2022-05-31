@@ -41,7 +41,7 @@ with DAG(
 ) as dag:
 
     # [START howto_operator_appflow_run]
-    run = AppflowRunOperator(
+    campaign_dump = AppflowRunOperator(
         task_id="campaign-dump",
         source=SOURCE_NAME,
         name=FLOW_NAME,
@@ -49,16 +49,16 @@ with DAG(
     # [END howto_operator_appflow_run]
 
     # [START howto_operator_appflow_run_full]
-    run_full = AppflowRunFullOperator(
-        task_id="campaign-dump-full",
+    campaign_dump_full = AppflowRunFullOperator(
+        task_id="campaign_dump_full",
         source=SOURCE_NAME,
         name=FLOW_NAME,
     )
     # [END howto_operator_appflow_run_full]
 
     # [START howto_operator_appflow_run_daily]
-    run_daily = AppflowRunDailyOperator(
-        task_id="campaign-dump-daily",
+    campaign_dump_daily = AppflowRunDailyOperator(
+        task_id="campaign_dump_daily",
         source=SOURCE_NAME,
         name=FLOW_NAME,
         source_field="LastModifiedDate",
@@ -67,8 +67,8 @@ with DAG(
     # [END howto_operator_appflow_run_daily]
 
     # [START howto_operator_appflow_run_before]
-    run_before = AppflowRunBeforeOperator(
-        task_id="campaign-dump-before",
+    campaign_dump_before = AppflowRunBeforeOperator(
+        task_id="campaign_dump_before",
         source=SOURCE_NAME,
         name=FLOW_NAME,
         source_field="LastModifiedDate",
@@ -77,8 +77,8 @@ with DAG(
     # [END howto_operator_appflow_run_before]
 
     # [START howto_operator_appflow_run_after]
-    run_after = AppflowRunAfterOperator(
-        task_id="campaign-dump-after",
+    campaign_dump_after = AppflowRunAfterOperator(
+        task_id="campaign_dump_after",
         source=SOURCE_NAME,
         name=FLOW_NAME,
         source_field="LastModifiedDate",
@@ -87,16 +87,24 @@ with DAG(
     # [END howto_operator_appflow_run_after]
 
     # [START howto_operator_appflow_shortcircuit]
-    has_records = AppflowRecordsShortCircuitOperator(
+    campaign_dump_short_ciruit = AppflowRecordsShortCircuitOperator(
         task_id="campaign-dump-short-ciruit",
         flow_name=FLOW_NAME,
         appflow_run_task_id="campaign-dump-after",  # Should shortcircuit, no records expected
     )
     # [END howto_operator_appflow_shortcircuit]
 
-    skipped = BashOperator(
+    should_be_skipped = BashOperator(
         task_id="should_be_skipped",
         bash_command="echo 1",
     )
 
-    chain(run, run_full, run_daily, run_before, run_after, has_records, skipped)
+    chain(
+        campaign_dump,
+        campaign_dump_full,
+        campaign_dump_daily,
+        campaign_dump_before,
+        campaign_dump_after,
+        campaign_dump_short_ciruit,
+        should_be_skipped,
+    )
