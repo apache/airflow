@@ -22,8 +22,8 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, cast
 
 from airflow import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, FargateProfileStates
+from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 if TYPE_CHECKING:
@@ -49,7 +49,7 @@ NODEGROUP_FULL_NAME = 'Amazon EKS managed node groups'
 FARGATE_FULL_NAME = 'AWS Fargate profiles'
 
 
-class EksCreateClusterOperator(BaseOperator):
+class EksCreateClusterOperator(AwsBaseOperator[EksHook]):
     """
     Creates an Amazon EKS Cluster control plane.
 
@@ -82,8 +82,8 @@ class EksCreateClusterOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-         If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: (optional) region name to use in AWS Hook. (templated)
+        Override the region_name in connection (if provided)
 
     If compute is assigned the value of 'nodegroup':
 
@@ -118,8 +118,10 @@ class EksCreateClusterOperator(BaseOperator):
         "fargate_selectors",
         "create_fargate_profile_kwargs",
         "aws_conn_id",
-        "region",
+        "region_name",
     )
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -136,7 +138,7 @@ class EksCreateClusterOperator(BaseOperator):
         fargate_selectors: Optional[List] = None,
         create_fargate_profile_kwargs: Optional[Dict] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ) -> None:
         self.compute = compute
@@ -151,9 +153,7 @@ class EksCreateClusterOperator(BaseOperator):
         self.fargate_pod_execution_role_arn = fargate_pod_execution_role_arn
         self.fargate_selectors = fargate_selectors or [{"namespace": DEFAULT_NAMESPACE_NAME}]
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, **kwargs)
 
     def execute(self, context: 'Context'):
         if self.compute:
@@ -170,10 +170,7 @@ class EksCreateClusterOperator(BaseOperator):
                     )
                 )
 
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
+        eks_hook = self.hook
 
         eks_hook.create_cluster(
             name=self.cluster_name,
@@ -223,7 +220,7 @@ class EksCreateClusterOperator(BaseOperator):
             )
 
 
-class EksCreateNodegroupOperator(BaseOperator):
+class EksCreateNodegroupOperator(AwsBaseOperator[EksHook]):
     """
     Creates an Amazon EKS managed node group for an existing Amazon EKS Cluster.
 
@@ -243,8 +240,8 @@ class EksCreateNodegroupOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: (optional) region name to use in AWS Hook. (templated)
+        Override the region_name in connection (if provided)
 
     """
 
@@ -255,8 +252,10 @@ class EksCreateNodegroupOperator(BaseOperator):
         "nodegroup_name",
         "create_nodegroup_kwargs",
         "aws_conn_id",
-        "region",
+        "region_name",
     )
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -266,17 +265,15 @@ class EksCreateNodegroupOperator(BaseOperator):
         nodegroup_name: str = DEFAULT_NODEGROUP_NAME,
         create_nodegroup_kwargs: Optional[Dict] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ) -> None:
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, **kwargs)
         self.cluster_name = cluster_name
         self.nodegroup_role_arn = nodegroup_role_arn
         self.nodegroup_name = nodegroup_name
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         self.nodegroup_subnets = nodegroup_subnets
-        super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
         if isinstance(self.nodegroup_subnets, str):
@@ -292,11 +289,7 @@ class EksCreateNodegroupOperator(BaseOperator):
                     )
             self.nodegroup_subnets = nodegroup_subnets_list
 
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-        eks_hook.create_nodegroup(
+        self.hook.create_nodegroup(
             clusterName=self.cluster_name,
             nodegroupName=self.nodegroup_name,
             subnets=self.nodegroup_subnets,
@@ -305,7 +298,7 @@ class EksCreateNodegroupOperator(BaseOperator):
         )
 
 
-class EksCreateFargateProfileOperator(BaseOperator):
+class EksCreateFargateProfileOperator(AwsBaseOperator[EksHook]):
     """
     Creates an AWS Fargate profile for an Amazon EKS cluster.
 
@@ -326,8 +319,8 @@ class EksCreateFargateProfileOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: (optional) region name to use in AWS Hook. (templated)
+        Override the region_name in connection (if provided)
     """
 
     template_fields: Sequence[str] = (
@@ -337,8 +330,10 @@ class EksCreateFargateProfileOperator(BaseOperator):
         "fargate_profile_name",
         "create_fargate_profile_kwargs",
         "aws_conn_id",
-        "region",
+        "region_name",
     )
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
@@ -348,25 +343,18 @@ class EksCreateFargateProfileOperator(BaseOperator):
         fargate_profile_name: Optional[str] = DEFAULT_FARGATE_PROFILE_NAME,
         create_fargate_profile_kwargs: Optional[Dict] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ) -> None:
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, **kwargs)
         self.cluster_name = cluster_name
         self.pod_execution_role_arn = pod_execution_role_arn
         self.selectors = selectors
         self.fargate_profile_name = fargate_profile_name
         self.create_fargate_profile_kwargs = create_fargate_profile_kwargs or {}
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        eks_hook.create_fargate_profile(
+        self.hook.create_fargate_profile(
             clusterName=self.cluster_name,
             fargateProfileName=self.fargate_profile_name,
             podExecutionRoleArn=self.pod_execution_role_arn,
@@ -375,7 +363,7 @@ class EksCreateFargateProfileOperator(BaseOperator):
         )
 
 
-class EksDeleteClusterOperator(BaseOperator):
+class EksDeleteClusterOperator(AwsBaseOperator[EksHook]):
     """
     Deletes the Amazon EKS Cluster control plane and all nodegroups attached to it.
 
@@ -391,8 +379,8 @@ class EksDeleteClusterOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: (optional) region name to use in AWS Hook. (templated)
+        Override the region_name in connection (if provided)
 
     """
 
@@ -400,28 +388,25 @@ class EksDeleteClusterOperator(BaseOperator):
         "cluster_name",
         "force_delete_compute",
         "aws_conn_id",
-        "region",
+        "region_name",
     )
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
         cluster_name: str,
         force_delete_compute: bool = False,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ) -> None:
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, **kwargs)
         self.cluster_name = cluster_name
         self.force_delete_compute = force_delete_compute
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
+        eks_hook = self.hook
 
         if self.force_delete_compute:
             self.delete_any_nodegroups(eks_hook)
@@ -496,7 +481,7 @@ class EksDeleteClusterOperator(BaseOperator):
         self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
 
 
-class EksDeleteNodegroupOperator(BaseOperator):
+class EksDeleteNodegroupOperator(AwsBaseOperator[EksHook]):
     """
     Deletes an Amazon EKS managed node group from an Amazon EKS Cluster.
 
@@ -511,8 +496,8 @@ class EksDeleteNodegroupOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: (optional) region name to use in AWS Hook. (templated)
+        Override the region_name in connection (if provided)
 
     """
 
@@ -520,33 +505,28 @@ class EksDeleteNodegroupOperator(BaseOperator):
         "cluster_name",
         "nodegroup_name",
         "aws_conn_id",
-        "region",
+        "region_name",
     )
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
         cluster_name: str,
         nodegroup_name: str,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ) -> None:
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, **kwargs)
         self.cluster_name = cluster_name
         self.nodegroup_name = nodegroup_name
-        self.aws_conn_id = aws_conn_id
-        self.region = region
-        super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
+        self.hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=self.nodegroup_name)
 
 
-class EksDeleteFargateProfileOperator(BaseOperator):
+class EksDeleteFargateProfileOperator(AwsBaseOperator[EksHook]):
     """
     Deletes an AWS Fargate profile from an Amazon EKS Cluster.
 
@@ -561,43 +541,38 @@ class EksDeleteFargateProfileOperator(BaseOperator):
          running Airflow in a distributed manner and aws_conn_id is None or
          empty, then the default boto3 configuration would be used (and must be
          maintained on each worker node).
-    :param region: Which AWS region the connection should use. (templated)
-        If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: (optional) region name to use in AWS Hook. (templated)
+        Override the region_name in connection (if provided)
     """
 
     template_fields: Sequence[str] = (
         "cluster_name",
         "fargate_profile_name",
         "aws_conn_id",
-        "region",
+        "region_name",
     )
+
+    aws_hook_class = EksHook
 
     def __init__(
         self,
         cluster_name: str,
         fargate_profile_name: str,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region_name: Optional[str] = None,
         **kwargs,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, **kwargs)
         self.cluster_name = cluster_name
         self.fargate_profile_name = fargate_profile_name
-        self.aws_conn_id = aws_conn_id
-        self.region = region
 
     def execute(self, context: 'Context'):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-
-        eks_hook.delete_fargate_profile(
+        self.hook.delete_fargate_profile(
             clusterName=self.cluster_name, fargateProfileName=self.fargate_profile_name
         )
 
 
-class EksPodOperator(KubernetesPodOperator):
+class EksPodOperator(KubernetesPodOperator, AwsBaseOperator[EksHook]):
     """
     Executes a task in a Kubernetes pod on the specified Amazon EKS Cluster.
 
@@ -613,8 +588,8 @@ class EksPodOperator(KubernetesPodOperator):
     :param pod_name: The unique name to give the pod. (templated)
     :param aws_profile: The named profile containing the credentials for the AWS CLI tool to use.
     :param aws_profile: str
-    :param region: Which AWS region the connection should use. (templated)
-         If this is None or empty then the default boto3 behaviour is used.
+    :param region_name: (optional) region name to use in AWS Hook. (templated)
+        Override the region_name in connection (if provided)
     :param aws_conn_id: The Airflow connection used for AWS credentials. (templated)
          If this is None or empty then the default boto3 behaviour is used. If
          running Airflow in a distributed manner and aws_conn_id is None or
@@ -639,6 +614,8 @@ class EksPodOperator(KubernetesPodOperator):
         | set(KubernetesPodOperator.template_fields)
     )
 
+    aws_hook_class = EksHook
+
     def __init__(
         self,
         cluster_name: str,
@@ -650,7 +627,7 @@ class EksPodOperator(KubernetesPodOperator):
         pod_name: Optional[str] = None,
         pod_username: Optional[str] = None,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region_name: Optional[str] = None,
         is_delete_operator_pod: Optional[bool] = None,
         **kwargs,
     ) -> None:
@@ -678,9 +655,9 @@ class EksPodOperator(KubernetesPodOperator):
         self.in_cluster = in_cluster
         self.namespace = namespace
         self.pod_name = pod_name
-        self.aws_conn_id = aws_conn_id
-        self.region = region
         super().__init__(
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
             in_cluster=self.in_cluster,
             namespace=self.namespace,
             name=self.pod_name,
@@ -707,11 +684,7 @@ class EksPodOperator(KubernetesPodOperator):
             raise AirflowException("The config_file is not an allowed parameter for the EksPodOperator.")
 
     def execute(self, context: 'Context'):
-        eks_hook = EksHook(
-            aws_conn_id=self.aws_conn_id,
-            region_name=self.region,
-        )
-        with eks_hook.generate_config_file(
+        with self.hook.generate_config_file(
             eks_cluster_name=self.cluster_name, pod_namespace=self.namespace
         ) as self.config_file:
             return super().execute(context)

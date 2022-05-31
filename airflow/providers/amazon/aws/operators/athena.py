@@ -16,23 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
+from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AthenaOperator(BaseOperator):
+class AthenaOperator(AwsBaseOperator[AthenaHook]):
     """
     An operator that submits a presto query to athena.
 
@@ -44,6 +38,8 @@ class AthenaOperator(BaseOperator):
     :param database: Database to select. (templated)
     :param output_location: s3 path to write the query results into. (templated)
     :param aws_conn_id: aws connection to use
+    :param region_name: (optional) region name to use in AWS Hook.
+        Override the region_name in connection (if provided)
     :param client_request_token: Unique token created by user to avoid multiple executions of same query
     :param workgroup: Athena workgroup in which query will be run
     :param query_execution_context: Context in which query need to be run
@@ -57,6 +53,9 @@ class AthenaOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {"query": "sql"}
 
+    aws_hook_class = AthenaHook
+    aws_hook_class_kwargs = {"sleep_time"}
+
     def __init__(
         self,
         *,
@@ -64,6 +63,7 @@ class AthenaOperator(BaseOperator):
         database: str,
         output_location: str,
         aws_conn_id: str = "aws_default",
+        region_name: Optional[str] = None,
         client_request_token: Optional[str] = None,
         workgroup: str = "primary",
         query_execution_context: Optional[Dict[str, str]] = None,
@@ -72,11 +72,10 @@ class AthenaOperator(BaseOperator):
         max_tries: Optional[int] = None,
         **kwargs: Any,
     ) -> None:
-        super().__init__(**kwargs)
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, sleep_time=sleep_time, **kwargs)
         self.query = query
         self.database = database
         self.output_location = output_location
-        self.aws_conn_id = aws_conn_id
         self.client_request_token = client_request_token
         self.workgroup = workgroup
         self.query_execution_context = query_execution_context or {}
@@ -84,11 +83,6 @@ class AthenaOperator(BaseOperator):
         self.sleep_time = sleep_time
         self.max_tries = max_tries
         self.query_execution_id = None  # type: Optional[str]
-
-    @cached_property
-    def hook(self) -> AthenaHook:
-        """Create and return an AthenaHook."""
-        return AthenaHook(self.aws_conn_id, sleep_time=self.sleep_time)
 
     def execute(self, context: 'Context') -> Optional[str]:
         """Run Presto Query on Athena"""

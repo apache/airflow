@@ -29,14 +29,14 @@ import warnings
 from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class BatchOperator(BaseOperator):
+class BatchOperator(AwsBaseOperator[BatchClientHook]):
     """
     Execute a job on AWS Batch
 
@@ -95,6 +95,9 @@ class BatchOperator(BaseOperator):
     )
     template_fields_renderers = {"overrides": "json", "parameters": "json"}
 
+    aws_hook_class = BatchClientHook
+    aws_hook_class_kwargs = {"max_retries", "status_retries"}
+
     def __init__(
         self,
         *,
@@ -113,8 +116,13 @@ class BatchOperator(BaseOperator):
         tags: Optional[dict] = None,
         **kwargs,
     ):
-
-        BaseOperator.__init__(self, **kwargs)
+        super().__init__(
+            aws_conn_id=aws_conn_id,
+            region_name=region_name,
+            max_retries=max_retries,
+            status_retries=status_retries,
+            **kwargs,
+        )
         self.job_id = job_id
         self.job_name = job_name
         self.job_definition = job_definition
@@ -124,12 +132,6 @@ class BatchOperator(BaseOperator):
         self.parameters = parameters or {}
         self.waiters = waiters
         self.tags = tags or {}
-        self.hook = BatchClientHook(
-            max_retries=max_retries,
-            status_retries=status_retries,
-            aws_conn_id=aws_conn_id,
-            region_name=region_name,
-        )
 
     def execute(self, context: 'Context'):
         """

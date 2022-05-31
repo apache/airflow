@@ -57,6 +57,8 @@ CREATE_NODEGROUP_KWARGS = {
     "capacityType": "ON_DEMAND",
     "instanceTypes": "t3.large",
 }
+REGION_NAME = "eu-west-1"
+REGION_WARN_MSG = "Parameter `region` is deprecated. Please use `region_name` instead."
 
 
 class ClusterParams(TypedDict):
@@ -390,9 +392,16 @@ class TestEksPodOperator(unittest.TestCase):
         )
         op_return_value = op.execute(ti_context)
         mock_k8s_pod_operator_execute.assert_called_once_with(ti_context)
-        mock_eks_hook.assert_called_once_with(aws_conn_id='aws_default', region_name=None)
+        mock_eks_hook.assert_called_once_with(aws_conn_id='aws_default', config=None, region_name=None)
         mock_generate_config_file.assert_called_once_with(
             eks_cluster_name=CLUSTER_NAME, pod_namespace='default'
         )
         self.assertEqual(mock_k8s_pod_operator_execute.return_value, op_return_value)
         self.assertEqual(mock_generate_config_file.return_value.__enter__.return_value, op.config_file)
+
+    def test_deprecated_region_argument(self):
+        """Compatibility with previous `region` argument"""
+        with pytest.warns(DeprecationWarning, match=REGION_WARN_MSG):
+            op = EksPodOperator(task_id="run_pod", cluster_name=CLUSTER_NAME, region=REGION_NAME)
+
+        assert op.region_name == REGION_NAME

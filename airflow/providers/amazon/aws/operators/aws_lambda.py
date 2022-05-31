@@ -19,14 +19,14 @@
 import json
 from typing import TYPE_CHECKING, Optional, Sequence
 
-from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
+from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class AwsLambdaInvokeFunctionOperator(BaseOperator):
+class AwsLambdaInvokeFunctionOperator(AwsBaseOperator[LambdaHook]):
     """
     Invokes an AWS Lambda function.
     You can invoke a function synchronously (and wait for the response),
@@ -40,6 +40,8 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
     :param log_type: Set to Tail to include the execution log in the response. Otherwise, set to "None".
     :param qualifier: Specify a version or alias to invoke a published version of the function.
     :param aws_conn_id: The AWS connection ID to use
+    :param region_name: (optional) region name to use in AWS Hook.
+        Override the region_name in connection (if provided)
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -49,6 +51,8 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
 
     template_fields: Sequence[str] = ('function_name', 'payload', 'qualifier', 'invocation_type')
     ui_color = '#ff7300'
+
+    aws_hook_class = LambdaHook
 
     def __init__(
         self,
@@ -60,16 +64,16 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         client_context: Optional[str] = None,
         payload: Optional[str] = None,
         aws_conn_id: str = 'aws_default',
+        region_name: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(**kwargs)
+        super().__init__(aws_conn_id=aws_conn_id, region_name=region_name, **kwargs)
         self.function_name = function_name
         self.payload = payload
         self.log_type = log_type
         self.qualifier = qualifier
         self.invocation_type = invocation_type
         self.client_context = client_context
-        self.aws_conn_id = aws_conn_id
 
     def execute(self, context: 'Context'):
         """
@@ -77,10 +81,9 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
 
         :return: The response payload from the function, or an error object.
         """
-        hook = LambdaHook(aws_conn_id=self.aws_conn_id)
         success_status_codes = [200, 202, 204]
         self.log.info("Invoking AWS Lambda function: %s with payload: %s", self.function_name, self.payload)
-        response = hook.invoke_lambda(
+        response = self.hook.invoke_lambda(
             function_name=self.function_name,
             invocation_type=self.invocation_type,
             log_type=self.log_type,

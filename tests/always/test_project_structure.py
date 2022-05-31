@@ -424,6 +424,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
     CLASS_DIRS = ProjectStructureTest.CLASS_DIRS
 
     BASE_CLASSES = {
+        'airflow.providers.amazon.aws.operators.base.AwsBaseOperator',
         'airflow.providers.amazon.aws.operators.rds.RdsBaseOperator',
         'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
         'airflow.providers.amazon.aws.sensors.dms.DmsTaskBaseSensor',
