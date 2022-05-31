@@ -284,16 +284,9 @@ option_runtime_apt_deps = click.option(
 )
 option_prepare_buildx_cache = click.option(
     '--prepare-buildx-cache',
-    help='Prepares build cache additionally to building images (this is done as two separate steps after'
-    'the images are build). Implies --push-image flag',
+    help='Prepares build cache (this is done as separate per-platform steps instead of building the image).',
     is_flag=True,
     envvar='PREPARE_BUILDX_CACHE',
-)
-option_max_retries = click.option(
-    '--max-retries',
-    help='Maximum number of retries for the operation for "retryable" intermittent problems.',
-    type=click.IntRange(min=2),
-    envvar='MAX_RETRIES',
 )
 option_push_image = click.option(
     '--push-image',

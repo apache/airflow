@@ -277,11 +277,10 @@ class S3Hook(AwsBaseHook):
             Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
-        prefixes = []
+        prefixes = []  # type: List[str]
         for page in response:
             if 'CommonPrefixes' in page:
-                for common_prefix in page['CommonPrefixes']:
-                    prefixes.append(common_prefix['Prefix'])
+                prefixes.extend(common_prefix['Prefix'] for common_prefix in page['CommonPrefixes'])
 
         return prefixes
 
@@ -366,12 +365,10 @@ class S3Hook(AwsBaseHook):
             StartAfter=start_after_key,
         )
 
-        keys = []
+        keys = []  # type: List[str]
         for page in response:
             if 'Contents' in page:
-                for k in page['Contents']:
-                    keys.append(k)
-
+                keys.extend(iter(page['Contents']))
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
 
@@ -604,7 +601,7 @@ class S3Hook(AwsBaseHook):
             extra_args['ServerSideEncryption'] = "AES256"
         if gzip:
             with open(filename, 'rb') as f_in:
-                filename_gz = f_in.name + '.gz'
+                filename_gz = f'{f_in.name}.gz'
                 with gz.open(filename_gz, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
                     filename = filename_gz

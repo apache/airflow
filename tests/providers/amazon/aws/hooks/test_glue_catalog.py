@@ -21,7 +21,9 @@ from unittest import mock
 
 import boto3
 import pytest
+from botocore.exceptions import ClientError
 
+from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 
 try:
@@ -37,6 +39,9 @@ TABLE_INPUT = {
         "Columns": [{"Name": "string", "Type": "string", "Comment": "string"}],
         "Location": f"s3://mybucket/{DB_NAME}/{TABLE_NAME}",
     },
+}
+PARTITION_INPUT: dict = {
+    "Values": [],
 }
 
 
@@ -134,3 +139,54 @@ class TestGlueCatalogHook(unittest.TestCase):
 
         result = self.hook.get_table_location(DB_NAME, TABLE_NAME)
         assert result == TABLE_INPUT['StorageDescriptor']['Location']
+
+    @mock_glue
+    def test_get_partition(self):
+        self.client.create_database(DatabaseInput={'Name': DB_NAME})
+        self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
+        self.client.create_partition(
+            DatabaseName=DB_NAME, TableName=TABLE_NAME, PartitionInput=PARTITION_INPUT
+        )
+
+        result = self.hook.get_partition(DB_NAME, TABLE_NAME, PARTITION_INPUT['Values'])
+
+        assert result["Values"] == PARTITION_INPUT['Values']
+        assert result["DatabaseName"] == DB_NAME
+        assert result["TableName"] == TABLE_INPUT["Name"]
+
+    @mock_glue
+    @mock.patch.object(GlueCatalogHook, 'get_conn')
+    def test_get_partition_with_client_error(self, mocked_connection):
+        mocked_client = mock.Mock()
+        mocked_client.get_partition.side_effect = ClientError({}, "get_partition")
+        mocked_connection.return_value = mocked_client
+
+        with pytest.raises(AirflowException):
+            self.hook.get_partition(DB_NAME, TABLE_NAME, PARTITION_INPUT['Values'])
+
+        mocked_client.get_partition.assert_called_once_with(
+            DatabaseName=DB_NAME, TableName=TABLE_NAME, PartitionValues=PARTITION_INPUT['Values']
+        )
+
+    @mock_glue
+    def test_create_partition(self):
+        self.client.create_database(DatabaseInput={'Name': DB_NAME})
+        self.client.create_table(DatabaseName=DB_NAME, TableInput=TABLE_INPUT)
+
+        result = self.hook.create_partition(DB_NAME, TABLE_NAME, PARTITION_INPUT)
+
+        assert result
+
+    @mock_glue
+    @mock.patch.object(GlueCatalogHook, 'get_conn')
+    def test_create_partition_with_client_error(self, mocked_connection):
+        mocked_client = mock.Mock()
+        mocked_client.create_partition.side_effect = ClientError({}, "create_partition")
+        mocked_connection.return_value = mocked_client
+
+        with pytest.raises(AirflowException):
+            self.hook.create_partition(DB_NAME, TABLE_NAME, PARTITION_INPUT)
+
+        mocked_client.create_partition.assert_called_once_with(
+            DatabaseName=DB_NAME, TableName=TABLE_NAME, PartitionInput=PARTITION_INPUT
+        )

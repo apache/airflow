@@ -18,7 +18,6 @@ import multiprocessing as mp
 import os
 import sys
 from pathlib import Path
-from subprocess import CompletedProcess
 from typing import List, Optional, Tuple, Union
 
 import click
@@ -51,7 +50,6 @@ from airflow_breeze.utils.common_options import (
     option_image_name,
     option_image_tag,
     option_install_providers_from_sources,
-    option_max_retries,
     option_parallelism,
     option_platform,
     option_prepare_buildx_cache,
@@ -73,7 +71,7 @@ from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     perform_environment_checks,
     prepare_docker_build_command,
-    prepare_empty_docker_build_command,
+    prepare_docker_build_from_input,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
@@ -89,7 +87,6 @@ from airflow_breeze.utils.run_utils import (
     instruct_build_image,
     is_repo_rebased,
     run_command,
-    run_result_contains,
 )
 
 CI_IMAGE_TOOLS_COMMANDS = {
@@ -113,7 +110,6 @@ CI_IMAGE_TOOLS_PARAMETERS = {
                 "--tag-as-latest",
                 "--docker-cache",
                 "--force-build",
-                "--max-retries",
             ],
         },
         {
@@ -146,13 +142,13 @@ CI_IMAGE_TOOLS_PARAMETERS = {
         {
             "name": "Preparing cache and push (for maintainers and CI)",
             "options": [
-                "--platform",
-                "--prepare-buildx-cache",
-                "--push-image",
-                "--empty-image",
                 "--github-token",
                 "--github-username",
+                "--platform",
                 "--login-to-github-registry",
+                "--push-image",
+                "--empty-image",
+                "--prepare-buildx-cache",
             ],
         },
     ],
@@ -206,7 +202,6 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_docker_cache
 @option_image_tag
 @option_prepare_buildx_cache
-@option_max_retries
 @option_push_image
 @option_empty_image
 @option_install_providers_from_sources
@@ -237,7 +232,9 @@ def build_image(
     """Build CI image. Include building multiple images for all python versions (sequentially)."""
 
     def run_build(ci_image_params: BuildCiParams) -> None:
-        return_code, info = build_ci_image(verbose=verbose, dry_run=dry_run, ci_image_params=ci_image_params)
+        return_code, info = build_ci_image(
+            verbose=verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False
+        )
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
@@ -428,7 +425,9 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
         sys.exit(1)
 
 
-def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams) -> Tuple[int, str]:
+def build_ci_image(
+    verbose: bool, dry_run: bool, ci_image_params: BuildCiParams, parallel: bool
+) -> Tuple[int, str]:
     """
     Builds CI image:
 
@@ -445,10 +444,16 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
     :param verbose: print commands when running
     :param dry_run: do not execute "write" commands - just print what would happen
     :param ci_image_params: CI image parameters
+    :param parallel: whether the pull is run as part of parallel execution
     """
-    if not ci_image_params.push_image and ci_image_params.is_multi_platform():
+    if (
+        ci_image_params.is_multi_platform()
+        and not ci_image_params.push_image
+        and not ci_image_params.prepare_buildx_cache
+    ):
         get_console().print(
-            "\n[red]You cannot use multi-platform build without using --push-image flag![/]\n"
+            "\n[red]You cannot use multi-platform build without using --push-image flag or "
+            "preparing buildx cache![/]\n"
         )
         return 1, "Error: building multi-platform image without --push-image."
     fix_group_permissions(verbose=verbose)
@@ -462,75 +467,49 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
             return 0, f"Image build: {ci_image_params.python}"
     if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
         login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
-    cmd = prepare_docker_build_command(
-        image_params=ci_image_params,
-        verbose=verbose,
-    )
-    if ci_image_params.empty_image:
-        env = os.environ.copy()
-        env['DOCKER_BUILDKIT'] = "1"
-        get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
-        cmd = prepare_empty_docker_build_command(image_params=ci_image_params)
-        build_command_result = run_command(
-            cmd,
-            input="FROM scratch\n",
-            verbose=verbose,
-            dry_run=dry_run,
-            cwd=AIRFLOW_SOURCES_ROOT,
-            text=True,
-            env=env,
+    if ci_image_params.prepare_buildx_cache:
+        build_command_result = build_cache(
+            image_params=ci_image_params, dry_run=dry_run, verbose=verbose, parallel=parallel
         )
     else:
-        get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
-        num_tries = 1 if ci_image_params.max_retries is None else ci_image_params.max_retries
-        build_command_result = CompletedProcess(args=[], returncode=1, stdout="This should never happen.")
-        while num_tries > 0:
+        if ci_image_params.empty_image:
+            env = os.environ.copy()
+            env['DOCKER_BUILDKIT'] = "1"
+            get_console().print(f"\n[info]Building empty CI Image for Python {ci_image_params.python}\n")
             build_command_result = run_command(
-                cmd,
+                prepare_docker_build_from_input(image_params=ci_image_params),
+                input="FROM scratch\n",
                 verbose=verbose,
                 dry_run=dry_run,
                 cwd=AIRFLOW_SOURCES_ROOT,
-                check=False,
                 text=True,
-                capture_output=True,
+                env=env,
+                enabled_output_group=not parallel,
             )
-            if ci_image_params.prepare_buildx_cache and build_command_result.returncode == 0:
-                build_command_result = build_cache(
-                    image_params=ci_image_params, dry_run=dry_run, verbose=verbose
-                )
-            if build_command_result.returncode == 0:
-                break
-            num_tries -= 1
-            if run_result_contains(build_command_result, "cannot reuse body, request must be retried"):
-                if num_tries > 0:
-                    get_console().print(
-                        "[info]Retrying failed command on retryable condition. "
-                        f"There are {num_tries} left[/]"
-                    )
-                continue
-            else:
-                break
-    if not ci_image_params.prepare_buildx_cache:
-        if not dry_run:
+        else:
+            get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
+            build_command_result = run_command(
+                prepare_docker_build_command(
+                    image_params=ci_image_params,
+                    verbose=verbose,
+                ),
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                text=True,
+                check=False,
+                enabled_output_group=not parallel,
+            )
             if build_command_result.returncode == 0:
                 if ci_image_params.tag_as_latest:
                     build_command_result = tag_image_as_latest(ci_image_params, dry_run, verbose)
-                if (
-                    ci_image_params.airflow_image_name == ci_image_params.airflow_image_name_with_tag
-                    or ci_image_params.tag_as_latest
-                    and build_command_result.returncode == 0
-                ):
-                    mark_image_as_refreshed(ci_image_params)
-            else:
-                get_console().print("[error]Error when building image![/]")
-                return (
-                    build_command_result.returncode,
-                    f"Image build: {ci_image_params.python}",
-                )
-        else:
-            get_console().print(
-                "[info]Not tagging/marking image as refreshed because we are in `dry_run` mode.[/]"
-            )
+                if ci_image_params.preparing_latest_image():
+                    if dry_run:
+                        get_console().print(
+                            "[info]Not updating build hash because we are in `dry_run` mode.[/]"
+                        )
+                    else:
+                        mark_image_as_refreshed(ci_image_params)
     return build_command_result.returncode, f"Image build: {ci_image_params.python}"
 
 
@@ -570,4 +549,4 @@ def rebuild_ci_image_if_needed(
             'Forcing build.[/]'
         )
         ci_image_params.force_build = True
-    build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params)
+    build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False)
