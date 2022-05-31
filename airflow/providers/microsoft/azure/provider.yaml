@@ -216,8 +216,6 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
   - airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
   - airflow.providers.microsoft.azure.hooks.base_asb.BaseAzureServiceBusHook
-  - airflow.providers.microsoft.azure.hooks.asb_admin_client.AzureServiceBusAdminClientHook
-  - airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
