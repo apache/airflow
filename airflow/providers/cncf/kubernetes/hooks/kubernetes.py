@@ -63,6 +63,13 @@ class KubernetesHook(BaseHook):
 
     :param conn_id: The :ref:`kubernetes connection <howto/connection:kubernetes>`
         to Kubernetes cluster.
+    :param client_configuration: (Optional) The kubernetes.client.Configuration to set configs to.
+    :param cluster_context: (Optional) Use to set the active context. If is set to None, current_context from
+        config file will be used. Takes priority over ``extra__kubernetes__cluster_context``.
+    :param config_file: (Optional) Name of the kube-config file.
+        Takes priority over ``extra__kubernetes__kube_config_path``.
+    :param in_cluster: (Optional) Loads kube config from in_cluster configuration.
+        Takes priority over ``extra__kubernetes__in_cluster`` in connection.
     """
 
     conn_name_attr = 'kubernetes_conn_id'

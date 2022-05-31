@@ -111,6 +111,12 @@ class KubernetesPodOperator(BaseOperator):
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param get_logs: get the stdout of the container as logs of the tasks.
+    :param env_from: (Optional) List of sources to populate environment variables in the container.
+        The keys defined within a source must be a C_IDENTIFIER.
+        All invalid keys will be reported as an event when the container is starting.
+        When a key exists in multiple sources, the value associated with the last source
+        will take precedence. Values defined by an Env with a duplicate key will take precedence.
+        Cannot be updated.
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
@@ -119,6 +125,8 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param node_selectors: (Deprecated) A dict containing a group of scheduling rules.
+        Please use node_selector instead.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -142,6 +150,12 @@ class KubernetesPodOperator(BaseOperator):
     :param priority_class_name: priority class name for the launched Pod
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
+    :param pod_runtime_info_envs: (Optional) A list of environment variables,
+        to be set in the container. Cannot be updated.
+    :param configmaps: (Optional) A list of names of config maps which coselects a ConfigMap
+        to populate the environment variables with. The contents of the target
+        ConfigMap's Data field will represent the key-value pairs as environment variables.
+        Extends env_from.
     """
 
     BASE_CONTAINER_NAME = 'base'
