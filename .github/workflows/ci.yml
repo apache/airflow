@@ -485,6 +485,8 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/ui/ run test
+        env:
+          FORCE_COLOR: 2
 
   tests-www:
     timeout-minutes: 10
@@ -510,6 +512,8 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/www/ run test
+        env:
+          FORCE_COLOR: 2
 
 
   test-openapi-client-generation:
@@ -633,9 +637,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
-          VERBOSE: false
+          VERBOSE: "false"
           SKIP: "identity"
-          COLUMNS: 250
+          COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -650,8 +654,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,run-mypy,run-flake8,lint-javascript,update-migration-references,identity"
-      MOUNT_SELECTED_LOCAL_SOURCES: "true"
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
       - name: Cleanup repo
@@ -691,7 +693,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze static-checks --all-files --show-diff-on-failure --color always
           --commit-ref "${{ github.sha }}"
         env:
-          VERBOSE: false
+          VERBOSE: "false"
+          SKIP_IMAGE_PRE_COMMITS: "true"
+          SKIP: "identity"
+          COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -1656,8 +1661,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - docs
     if: needs.build-info.outputs.mergeRun == 'true'
     strategy:
+      fail-fast: false
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -1679,11 +1686,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze free-space
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: matrix.platform == 'linux/arm64'
       - name: "Build & Push CI image ${{ matrix.python-version }}:latest"
         run: >
           breeze build-image
           --prepare-buildx-cache
-          --platform linux/amd64,linux/arm64
+          --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: >
@@ -1716,12 +1724,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --install-packages-from-context
           --prepare-buildx-cache
           --disable-airflow-repo-cache
-          --platform linux/amd64,linux/arm64
+          --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
+        if: always() && matrix.platform == 'linux/arm64'
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()

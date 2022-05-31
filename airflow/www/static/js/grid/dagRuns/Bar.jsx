@@ -30,6 +30,7 @@ import {
   useTheme,
 } from '@chakra-ui/react';
 import { MdPlayArrow } from 'react-icons/md';
+import { RiArrowGoBackFill } from 'react-icons/ri';
 
 import DagRunTooltip from './Tooltip';
 import { useContainerRef } from '../context/containerRef';
@@ -101,6 +102,7 @@ const DagRunBar = ({
             data-testid="run"
           >
             {run.runType === 'manual' && <MdPlayArrow size="8px" color="white" data-testid="manual-run" />}
+            {run.runType === 'backfill' && <RiArrowGoBackFill size="8px" color="white" data-testid="backfill-run" />}
           </Flex>
         </Tooltip>
       </Flex>

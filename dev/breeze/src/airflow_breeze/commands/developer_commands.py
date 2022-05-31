@@ -438,7 +438,7 @@ def build_docs(
     type=BetterChoice(PRE_COMMIT_LIST),
     multiple=True,
 )
-@click.option('-a', '--all-files', help="Run checks on all files.")
+@click.option('-a', '--all-files', help="Run checks on all files.", is_flag=True)
 @click.option('-f', '--file', help="List of files to run the checks on.", type=click.Path(), multiple=True)
 @click.option(
     '-s', '--show-diff-on-failure', help="Show diff for files modified by the checks.", is_flag=True

@@ -326,10 +326,8 @@ function install_all_providers_from_pypi_with_eager_upgrade() {
     # Installing it with Airflow makes sure that the version of package that matches current
     # Airflow requirements will be used.
     # shellcheck disable=SC2086
-    # NOTE! Until we unyank the cncf.kubernetes provider, we explicitly install yanked 3.1.2 version
-    # TODO:(potiuk) REMOVE IT WHEN provider is released
     pip install -e ".[${NO_PROVIDERS_EXTRAS}]" "${packages_to_install[@]}" ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS} \
-        --upgrade --upgrade-strategy eager apache-airflow-providers-cncf-kubernetes==3.1.2
+        --upgrade --upgrade-strategy eager
 
 }
 

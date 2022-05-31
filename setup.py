@@ -200,9 +200,6 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
-    # XML to dict 0.13.0 breaks some EMR tests
-    # It should be removed once we solve https://github.com/apache/airflow/issues/23576
-    'xmltodict<0.13.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
@@ -618,6 +615,7 @@ devel_only = [
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
+    'flake8-implicit-str-concat',
     'flaky',
     'freezegun',
     # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0

@@ -62,13 +62,7 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return (
-        in_self_upgrade()
-        or in_autocomplete()
-        or in_help()
-        or hasattr(sys, '_called_from_test')
-        or os.environ.get('SKIP_BREEZE_UPGRADE_CHECK')
-    )
+    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -142,7 +136,11 @@ def print_warning_if_setup_changed() -> bool:
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-    package_hash = get_package_setup_metadata_hash()
+    try:
+        package_hash = get_package_setup_metadata_hash()
+    except ModuleNotFoundError as e:
+        if "importlib_metadata" in e.msg:
+            return False
     sources_hash = get_installation_sources_config_metadata_hash()
     if sources_hash != package_hash:
         installation_sources = get_installation_airflow_sources()
@@ -237,10 +235,11 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     return airflow_sources
 
 
-AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on()
+AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
+KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
 DIST_DIR = AIRFLOW_SOURCES_ROOT / 'dist'
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci'
@@ -250,14 +249,18 @@ OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, 'out.log')
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
 
-def create_directories() -> None:
+def create_directories_and_files() -> None:
     """
-    Creates all directories that are needed for Breeze to work.
+    Creates all directories and files that are needed for Breeze to work via docker-compose.
     Checks if setup has been updates since last time and proposes to upgrade if so.
     """
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
+    KUBE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_LOG.mkdir(parents=True, exist_ok=True)
+    (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
+    (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
+    (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()
