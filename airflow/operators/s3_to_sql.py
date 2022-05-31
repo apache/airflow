@@ -31,11 +31,6 @@ from airflow.utils.context import Context
 class S3ToSqlOperator(BaseOperator):
     """
     Moves data from s3 to sql.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:S3ToSqlOperator`
-
     :param source_path: path to s3 file
     :param destination_table: target table on sql
     :param file_format: input file format. CSV, JSON or Parquet
@@ -89,10 +84,10 @@ class S3ToSqlOperator(BaseOperator):
                 notna_series = df[col].dropna().values
                 if numpy.equal(notna_series, notna_series.astype(int)).all():
                     df[col] = numpy.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(numpy.Int64Dtype())
+                    df[col] = df[col].astype('Int64')
                 elif numpy.isclose(notna_series, notna_series.astype(int)).all():
                     df[col] = numpy.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(pandas.Float64Dtype())
+                    df[col] = df[col].astype('float64')
 
     def execute(self, context: Context):
         source_hook = S3Hook(aws_conn_id=self.source_conn_id)
