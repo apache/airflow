@@ -26,7 +26,8 @@ import {
   Heading,
   Text,
 } from '@chakra-ui/react';
-import { MdPlayArrow } from 'react-icons/md';
+import { MdPlayArrow, MdOutlineSchedule } from 'react-icons/md';
+import { RiArrowGoBackFill } from 'react-icons/ri';
 
 import { getMetaValue } from '../../utils';
 import useSelection from '../utils/useSelection';
@@ -68,6 +69,20 @@ const Header = () => {
       runLabel = (
         <>
           <MdPlayArrow style={{ display: 'inline' }} />
+          {runLabel}
+        </>
+      );
+    } else if (dagRun.runType === 'backfill') {
+      runLabel = (
+        <>
+          <RiArrowGoBackFill style={{ display: 'inline' }} />
+          {runLabel}
+        </>
+      );
+    } else if (dagRun.runType === 'scheduled') {
+      runLabel = (
+        <>
+          <MdOutlineSchedule style={{ display: 'inline' }} />
           {runLabel}
         </>
       );

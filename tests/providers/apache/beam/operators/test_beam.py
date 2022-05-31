@@ -149,6 +149,7 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
             job_name=job_name,
             location='us-central1',
             multiple_jobs=False,
+            project_id=dataflow_config.project_id,
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
@@ -415,6 +416,7 @@ class TestBeamRunGoPipelineOperator(unittest.TestCase):
             job_name=job_name,
             location='us-central1',
             multiple_jobs=False,
+            project_id=dataflow_config.project_id,
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 

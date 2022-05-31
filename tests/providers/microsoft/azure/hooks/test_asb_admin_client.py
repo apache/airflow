@@ -16,7 +16,6 @@
 # under the License.
 
 import json
-import unittest
 from unittest import mock
 
 import pytest
@@ -27,8 +26,8 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb_admin_client import AzureServiceBusAdminClientHook
 
 
-class TestAzureServiceBusAdminClientHook(unittest.TestCase):
-    def setUp(self) -> None:
+class TestAzureServiceBusAdminClientHook:
+    def setup_class(self) -> None:
         self.queue_name: str = "test_queue"
         self.conn_id: str = 'azure_service_bus_default'
         self.connection_string = (

@@ -391,7 +391,7 @@ class AirflowConfigParser(ConfigParser):
                 if value not in enum_options:
                     raise AirflowConfigException(
                         f"`[{section_key}] {option_key}` should not be "
-                        + f"{value!r}. Possible values: {', '.join(enum_options)}."
+                        f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
 
     def _validate_config_dependencies(self):

@@ -2638,7 +2638,11 @@ class DagTag(Base):
 
     __tablename__ = "dag_tag"
     name = Column(String(100), primary_key=True)
-    dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
+    dag_id = Column(
+        String(ID_LEN),
+        ForeignKey('dag.dag_id', name='dag_tag_dag_id_fkey', ondelete='CASCADE'),
+        primary_key=True,
+    )
 
     def __repr__(self):
         return self.name
@@ -2689,7 +2693,7 @@ class DagModel(Base):
     timetable_description = Column(String(1000), nullable=True)
 
     # Tags for view filter
-    tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
+    tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'))
 
     max_active_tasks = Column(Integer, nullable=False)
     max_active_runs = Column(Integer, nullable=True)

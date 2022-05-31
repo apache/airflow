@@ -244,11 +244,15 @@ def test_index_failure(dag_test_client):
 
 def test_dag_autocomplete_success(client_all_dags):
     resp = client_all_dags.get(
-        'dagmodel/autocomplete?query=example_bash',
+        'dagmodel/autocomplete?query=flow',
         follow_redirects=False,
     )
-    check_content_in_response('example_bash_operator', resp)
-    check_content_not_in_response('example_subdag_operator', resp)
+    assert resp.json == [
+        {'name': 'airflow', 'type': 'owner'},
+        {'name': 'test_mapped_taskflow', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api_etl', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api_etl_virtualenv', 'type': 'dag'},
+    ]
 
 
 @pytest.mark.parametrize(

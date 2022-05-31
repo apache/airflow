@@ -228,7 +228,7 @@ class KubernetesHook(BaseHook):
             )
             self.log.warning("Deleted SparkApplication with the same name.")
         except client.rest.ApiException:
-            self.log.info(f"SparkApp {body_dict['metadata']['name']} not found.")
+            self.log.info("SparkApp %s not found.", body_dict['metadata']['name'])
 
         try:
             response = api.create_namespaced_custom_object(

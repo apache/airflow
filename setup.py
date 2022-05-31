@@ -200,9 +200,6 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
-    # XML to dict 0.13.0 breaks some EMR tests
-    # It should be removed once we solve https://github.com/apache/airflow/issues/23576
-    'xmltodict<0.13.0',
 ]
 apache_beam = [
     'apache-beam>=2.33.0',
@@ -267,8 +264,9 @@ dask = [
     'distributed>=2.11.1',
 ]
 databricks = [
-    'requests>=2.26.0, <3',
+    'requests>=2.27,<3',
     'databricks-sql-connector>=2.0.0, <3.0.0',
+    'aiohttp>=3.6.3, <4',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -412,10 +410,6 @@ influxdb = [
 ]
 jdbc = [
     'jaydebeapi>=1.1.1',
-    # JPype1 has been published without sdist in PyPI which caused failures when trying to build an
-    # ARM image (JPype1 does not publish binary ARM packages)
-    # The whole line below can be removed when https://github.com/jpype-project/jpype/issues/1069 is solved
-    'jpype1<1.4.0',
 ]
 jenkins = [
     'python-jenkins>=1.0.0',
@@ -610,6 +604,7 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
+    'asynctest~=0.13',
     'aws_xray_sdk',
     'beautifulsoup4>=4.7.1',
     'black',
@@ -620,6 +615,7 @@ devel_only = [
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
+    'flake8-implicit-str-concat',
     'flaky',
     'freezegun',
     # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0
@@ -637,7 +633,9 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto[glue]>=3.1.6',
+    # Version 3.1.10 is breaking main bump to 3.1.11 when released.
+    # Fix already merged but was not released https://github.com/spulec/moto/pull/5165
+    'moto[glue]>=3.1.6, <3.1.10',
     'parameterized',
     'paramiko',
     'pipdeptree',

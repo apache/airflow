@@ -136,12 +136,12 @@ class RedshiftDataOperator(BaseOperator):
             elif status == 'FAILED' or status == 'ABORTED':
                 raise ValueError(f"Statement {statement_id!r} terminated with status {status}.")
             else:
-                self.log.info(f"Query {status}")
+                self.log.info("Query %s", status)
             sleep(self.poll_interval)
 
     def execute(self, context: 'Context') -> None:
         """Execute a statement against Amazon Redshift"""
-        self.log.info(f"Executing statement: {self.sql}")
+        self.log.info("Executing statement: %s", self.sql)
 
         self.statement_id = self.execute_query()
 

@@ -48,12 +48,12 @@ const renderTaskRows = ({
 ));
 
 const TaskInstances = ({
-  task, dagRunIds, selectedRunId, onSelect,
+  task, dagRunIds, selectedRunId, onSelect, activeTaskState,
 }) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId) => {
       // Check if an instance exists for the run, or return an empty box
-      const instance = task.instances.find((gi) => gi.runId === runId);
+      const instance = task.instances.find((gi) => gi && gi.runId === runId);
       const isSelected = selectedRunId === runId;
       return (
         <Box
@@ -71,6 +71,7 @@ const TaskInstances = ({
                 instance={instance}
                 group={task}
                 onSelect={onSelect}
+                isActive={activeTaskState === undefined || activeTaskState === instance.state}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
@@ -88,6 +89,7 @@ const Row = (props) => {
     openParentCount = 0,
     openGroupIds = [],
     onToggleGroups = () => {},
+    hoveredTaskState,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -162,6 +164,7 @@ const Row = (props) => {
               task={task}
               selectedRunId={selected.runId}
               onSelect={onSelect}
+              activeTaskState={hoveredTaskState}
             />
           </Collapse>
         </Td>

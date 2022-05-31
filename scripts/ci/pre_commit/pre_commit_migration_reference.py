@@ -16,11 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import subprocess
 import sys
 from pathlib import Path
-
-from rich import print
 
 if __name__ not in ("__main__", "__mp_main__"):
     raise SystemExit(
@@ -30,31 +27,36 @@ if __name__ not in ("__main__", "__mp_main__"):
 
 AIRFLOW_SOURCES = Path(__file__).parents[3].resolve()
 GITHUB_REPOSITORY = os.environ.get('GITHUB_REPOSITORY', "apache/airflow")
+# allow "False", "false", "True", "true", "f", "F", "t", "T" and the like
+VERBOSE = os.environ.get('VERBOSE', "false")[0].lower() == "t"
+DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
 
 if __name__ == '__main__':
-    sys.path.insert(0, str(Path(__file__).parents[3].resolve() / "dev" / "breeze" / "src"))
-    from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+    sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
+    from airflow_breeze.global_constants import MOUNT_SELECTED
+    from airflow_breeze.utils.docker_command_utils import create_static_check_volumes, get_extra_docker_flags
+    from airflow_breeze.utils.run_utils import get_runnable_ci_image, run_command
 
-    AIRFLOW_CI_IMAGE = f"ghcr.io/{GITHUB_REPOSITORY}/{AIRFLOW_BRANCH}/ci/python3.7"
-    if subprocess.call(args=["docker", "inspect", AIRFLOW_CI_IMAGE], stdout=subprocess.DEVNULL) != 0:
-        print(f'[red]The image {AIRFLOW_CI_IMAGE} is not available.[/]\n')
-        print("\n[yellow]Please run at the earliest convenience:[/]\n\nbreeze build-image --python 3.7\n\n")
-        sys.exit(1)
-    return_code = subprocess.call(
-        args=[
+    airflow_image = get_runnable_ci_image(verbose=VERBOSE, dry_run=DRY_RUN)
+    create_static_check_volumes()
+    cmd_result = run_command(
+        [
             "docker",
             "run",
-            "-v",
-            f"{AIRFLOW_SOURCES}:/opt/airflow/",
+            "-t",
+            *get_extra_docker_flags(MOUNT_SELECTED),
             "-e",
             "SKIP_ENVIRONMENT_INITIALIZATION=true",
             "-e",
             "PRINT_INFO_FROM_SCRIPTS=false",
             "--pull",
             "never",
-            AIRFLOW_CI_IMAGE,
+            airflow_image,
             "-c",
             "python3 /opt/airflow/scripts/in_container/run_migration_reference.py",
         ],
+        check=False,
+        verbose=VERBOSE,
+        dry_run=DRY_RUN,
     )
-    sys.exit(return_code)
+    sys.exit(cmd_result.returncode)

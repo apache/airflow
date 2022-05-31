@@ -159,8 +159,7 @@ class TestListPyFilesPath:
             list(find_path_from_directory(test_dir, ignore_list_file, ignore_file_syntax="glob"))
             assert False, "Walking a self-recursive tree should fail"
         except RuntimeError as err:
-            assert (
-                str(err)
-                == f"Detected recursive loop when walking DAG directory {test_dir}: "
-                + f"{Path(recursing_tgt).resolve()} has appeared more than once."
+            assert str(err) == (
+                f"Detected recursive loop when walking DAG directory {test_dir}: "
+                f"{Path(recursing_tgt).resolve()} has appeared more than once."
             )
