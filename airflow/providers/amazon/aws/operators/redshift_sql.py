@@ -73,6 +73,6 @@ class RedshiftSQLOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> None:
         """Execute a statement against Amazon Redshift"""
-        self.log.info(f"Executing statement: {self.sql}")
+        self.log.info("Executing statement: %s", self.sql)
         hook = self.get_hook()
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

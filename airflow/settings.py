@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 TIMEZONE = pendulum.tz.timezone('UTC')
 try:
-    tz = conf.get("core", "default_timezone")
+    tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
         TIMEZONE = pendulum.tz.local_timezone()
     else:
@@ -77,7 +77,7 @@ SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
 DONOT_MODIFY_HANDLERS: Optional[bool] = None
-DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
 
 engine: Engine
 Session: Callable[..., SASession]
@@ -88,16 +88,16 @@ json = json
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
 STATE_COLORS = {
+    "deferred": "mediumpurple",
+    "failed": "red",
     "queued": "gray",
     "running": "lime",
-    "success": "green",
-    "failed": "red",
-    "up_for_retry": "gold",
-    "up_for_reschedule": "turquoise",
-    "upstream_failed": "orange",
-    "skipped": "pink",
     "scheduled": "tan",
-    "deferred": "mediumpurple",
+    "skipped": "hotpink",
+    "success": "green",
+    "up_for_reschedule": "turquoise",
+    "up_for_retry": "gold",
+    "upstream_failed": "orange",
 }
 
 
@@ -240,7 +240,7 @@ def configure_vars():
     global DAGS_FOLDER
     global PLUGINS_FOLDER
     global DONOT_MODIFY_HANDLERS
-    SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
+    SQL_ALCHEMY_CONN = conf.get('database', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
@@ -262,8 +262,8 @@ def configure_orm(disable_connection_pool=False):
     global Session
     engine_args = prepare_engine_args(disable_connection_pool)
 
-    if conf.has_option('core', 'sql_alchemy_connect_args'):
-        connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
+    if conf.has_option('database', 'sql_alchemy_connect_args'):
+        connect_args = conf.getimport('database', 'sql_alchemy_connect_args')
     else:
         connect_args = {}
 
@@ -293,7 +293,7 @@ def configure_orm(disable_connection_pool=False):
             data = result.fetchone()[0]
             if data != 1:
                 log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("The database %s has it disabled.", engine.url.database)
                 log.critical("This will cause random deadlocks, Refusing to start.")
                 log.critical(
                     "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
@@ -321,16 +321,18 @@ def prepare_engine_args(disable_connection_pool=False):
             default_args = default.copy()
             break
 
-    engine_args: dict = conf.getjson('core', 'sql_alchemy_engine_args', fallback=default_args)  # type: ignore
+    engine_args: dict = conf.getjson(
+        'database', 'sql_alchemy_engine_args', fallback=default_args
+    )  # type: ignore
 
-    if disable_connection_pool or not conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED'):
+    if disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
-        pool_size = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
+        pool_size = conf.getint('database', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
 
         # The maximum overflow size of the pool.
         # When the number of checked-out connections reaches the size set in pool_size,
@@ -342,20 +344,20 @@ def prepare_engine_args(disable_connection_pool=False):
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
-        max_overflow = conf.getint('core', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
+        max_overflow = conf.getint('database', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
 
         # The DB server already has a value for wait_timeout (number of seconds after
         # which an idle sleeping connection should be killed). Since other DBs may
         # co-exist on the same server, SQLAlchemy should set its
         # pool_recycle to an equal or smaller value.
-        pool_recycle = conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
+        pool_recycle = conf.getint('database', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
 
         # Check connection at the start of each connection pool checkout.
         # Typically, this is a simple statement like “SELECT 1”, but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
-        pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
+        pool_pre_ping = conf.getboolean('database', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
         log.debug(
             "settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
@@ -386,7 +388,7 @@ def prepare_engine_args(disable_connection_pool=False):
 
     # Allow the user to specify an encoding for their DB otherwise default
     # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
+    engine_args['encoding'] = conf.get('database', 'SQL_ENGINE_ENCODING', fallback='utf-8')
 
     return engine_args
 

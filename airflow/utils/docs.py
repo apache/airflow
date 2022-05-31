@@ -19,6 +19,11 @@ from typing import Optional
 
 from airflow import version
 
+try:
+    import importlib_metadata
+except ImportError:
+    from importlib import metadata as importlib_metadata  # type: ignore[no-redef]
+
 
 def get_docs_url(page: Optional[str] = None) -> str:
     """Prepare link to Airflow documentation."""
@@ -35,4 +40,19 @@ def get_docs_url(page: Optional[str] = None) -> str:
 
 def get_doc_url_for_provider(provider_name: str, provider_version: str) -> str:
     """Prepare link to Airflow Provider documentation."""
-    return f'https://airflow.apache.org/docs/{provider_name}/{provider_version}/'
+    try:
+        metadata_items = importlib_metadata.metadata(provider_name).get_all("Project-URL")
+        if isinstance(metadata_items, str):
+            metadata_items = [metadata_items]
+        if metadata_items:
+            for item in metadata_items:
+                if item.lower().startswith('documentation'):
+                    _, _, url = item.partition(",")
+                    if url:
+                        return url.strip()
+    except importlib_metadata.PackageNotFoundError:
+        pass
+    # Fallback if provider is apache one
+    if provider_name.startswith("apache-airflow"):
+        return f'https://airflow.apache.org/docs/{provider_name}/{provider_version}/'
+    return "https://airflow.apache.org/docs/apache-airflow-providers/index.html#creating-your-own-providers"

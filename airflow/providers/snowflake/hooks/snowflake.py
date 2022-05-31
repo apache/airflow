@@ -86,7 +86,7 @@ class SnowflakeHook(DbApiHook):
     @staticmethod
     def get_connection_form_widgets() -> Dict[str, Any]:
         """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3TextAreaFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
         from wtforms import BooleanField, StringField
 
@@ -102,7 +102,7 @@ class SnowflakeHook(DbApiHook):
                 lazy_gettext('Private key (Path)'), widget=BS3TextFieldWidget()
             ),
             "extra__snowflake__private_key_content": StringField(
-                lazy_gettext('Private key (Text)'), widget=BS3PasswordFieldWidget()
+                lazy_gettext('Private key (Text)'), widget=BS3TextAreaFieldWidget()
             ),
             "extra__snowflake__insecure_mode": BooleanField(
                 label=lazy_gettext('Insecure mode'), description="Turns off OCSP certificate checks"
@@ -308,14 +308,18 @@ class SnowflakeHook(DbApiHook):
         """
         self.query_ids = []
 
+        if isinstance(sql, str):
+            split_statements_tuple = split_statements(StringIO(sql))
+            sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+
+        if sql:
+            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
+        else:
+            raise ValueError("List of SQL statements is empty")
+
         with closing(self.get_conn()) as conn:
             self.set_autocommit(conn, autocommit)
 
-            if isinstance(sql, str):
-                split_statements_tuple = split_statements(StringIO(sql))
-                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
-
-            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
             # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
             with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
 

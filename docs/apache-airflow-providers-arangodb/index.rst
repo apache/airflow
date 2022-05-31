@@ -81,10 +81,10 @@ You can install this package on top of an existing Airflow 2.1+ installation via
 PIP requirements
 ----------------
 
-===================  ==================
-PIP package          Version required
-===================  ==================
-``python-arangodb``  ``>=7.3.1``
-===================  ==================
+=================  ==================
+PIP package        Version required
+=================  ==================
+``python-arango``  ``>=7.3.2``
+=================  ==================
 
 .. include:: ../../airflow/providers/arangodb/CHANGELOG.rst

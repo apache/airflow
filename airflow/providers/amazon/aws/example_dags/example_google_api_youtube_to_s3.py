@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is a more advanced example dag for using `GoogleApiToS3Transfer` which uses xcom to pass data between
+This is a more advanced example dag for using `GoogleApiToS3Operator` which uses xcom to pass data between
 tasks to retrieve specific information about YouTube videos:
 
 First it searches for up to 50 videos (due to pagination) in a given time range

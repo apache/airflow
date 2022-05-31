@@ -24,12 +24,12 @@ Airflow is tested with:
 
 * Databases:
 
-  * PostgreSQL: 10, 11, 12, 13
+  * PostgreSQL: 10, 11, 12, 13, 14
   * MySQL: 5.7, 8
   * SQLite: 3.15.0+
   * MSSQL(Experimental): 2017, 2019
 
-* Kubernetes: 1.20.2 1.21.1 1.22.0, 1.23.0
+* Kubernetes: 1.20.2, 1.21.1, 1.22.0, 1.23.0, 1.24.0
 
 **Note:** MySQL 5.x versions are unable to or have limitations with
 running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB is not tested/recommended.
@@ -37,9 +37,7 @@ running multiple schedulers -- please see: :doc:`/concepts/scheduler`. MariaDB i
 **Note:** SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-**Note**: Python v3.10 is not supported yet. For details, see `#19059 <https://github.com/apache/airflow/issues/19059>`__.
-
-Starting with Airflow 2.1.2, Airflow is tested with Python 3.6, 3.7, 3.8, and 3.9.
+Starting with Airflow 2.3.0, Airflow is tested with Python 3.7, 3.8, 3.9 and 3.10.
 
 The minimum memory required we recommend Airflow to run with is 4GB, but the actual requirements depends
 wildly on the deployment options you have

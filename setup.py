@@ -44,7 +44,7 @@ PY39 = sys.version_info >= (3, 9)
 
 logger = logging.getLogger(__name__)
 
-version = '2.3.0.dev0'
+version = '2.4.0.dev0'
 
 my_dir = dirname(__file__)
 
@@ -202,7 +202,7 @@ amazon = [
     'mypy-boto3-redshift-data>=1.21.0',
 ]
 apache_beam = [
-    'apache-beam>=2.33.0',
+    'apache-beam>=2.39.0',
 ]
 arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
@@ -263,8 +263,9 @@ dask = [
     'distributed>=2.11.1',
 ]
 databricks = [
-    'requests>=2.26.0, <3',
-    'databricks-sql-connector>=1.0.0, <2.0.0',
+    'requests>=2.27,<3',
+    'databricks-sql-connector>=2.0.0, <3.0.0',
+    'aiohttp>=3.6.3, <4',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -324,11 +325,8 @@ google = [
     # Introduced breaking changes across the board. Those libraries should be upgraded soon
     # TODO: Upgrade all Google libraries that are limited to <2.0.0
     'PyOpenSSL',
-    # The Google Ads 14.0.1 breaks PIP and eager upgrade as it requires
-    # google-api-core>=2.0.0 which cannot be used yet (see below comment)
-    # and https://github.com/apache/airflow/issues/18705#issuecomment-933746150
-    'google-ads>=12.0.0,<14.0.1',
-    'google-api-core>=1.25.1,<3.0.0',
+    'google-ads>=15.1.1',
+    'google-api-core>=2.7.0,<3.0.0',
     'google-api-python-client>=1.6.0,<2.0.0',
     'google-auth>=1.0.0',
     'google-auth-httplib2>=0.0.1',
@@ -337,7 +335,7 @@ google = [
     'google-cloud-bigquery-datatransfer>=3.0.0',
     'google-cloud-bigtable>=1.0.0,<2.0.0',
     'google-cloud-build>=3.0.0',
-    'google-cloud-container>=0.1.1,<2.0.0',
+    'google-cloud-container>=2.2.0,<3.0.0',
     'google-cloud-datacatalog>=3.0.0',
     'google-cloud-dataplex>=0.1.0',
     'google-cloud-dataproc>=3.1.0',
@@ -605,6 +603,7 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
+    'asynctest~=0.13',
     'aws_xray_sdk',
     'beautifulsoup4>=4.7.1',
     'black',
@@ -615,6 +614,7 @@ devel_only = [
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
+    'flake8-implicit-str-concat',
     'flaky',
     'freezegun',
     # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0
@@ -632,7 +632,9 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    'moto>=3.1.0',
+    # Version 3.1.10 is breaking main bump to 3.1.11 when released.
+    # Fix already merged but was not released https://github.com/spulec/moto/pull/5165
+    'moto[glue]>=3.1.6, <3.1.10',
     'parameterized',
     'paramiko',
     'pipdeptree',
@@ -660,6 +662,7 @@ devel_only = [
     'requests_mock',
     'rich_click',
     'semver',
+    'towncrier',
     'twine',
     'wheel',
     'yamllint',

@@ -23,7 +23,7 @@ from typing import Optional
 import daemon
 import psutil
 import sqlalchemy.exc
-from celery import maybe_patch_concurrency
+from celery import maybe_patch_concurrency  # type: ignore[attr-defined]
 from daemon.pidfile import TimeoutPIDLockFile
 from lockfile.pidlockfile import read_pid_from_pidfile, remove_existing_pidfile
 

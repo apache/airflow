@@ -26,7 +26,7 @@ from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import DagRun, TaskFail, TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
@@ -124,7 +124,7 @@ class TestCore:
         execution_ds_nodash = execution_ds.replace('-', '')
 
         with dag_maker(schedule_interval=timedelta(weeks=1)):
-            task = DummyOperator(task_id='test_externally_triggered_dag_context')
+            task = EmptyOperator(task_id='test_externally_triggered_dag_context')
         dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             execution_date=execution_date,
@@ -153,11 +153,11 @@ class TestCore:
             schedule_interval=timedelta(weeks=1),
             params={'key_1': 'value_1', 'key_2': 'value_2_old'},
         ):
-            task1 = DummyOperator(
+            task1 = EmptyOperator(
                 task_id='task1',
                 params={'key_2': 'value_2_new', 'key_3': 'value_3'},
             )
-            task2 = DummyOperator(task_id='task2')
+            task2 = EmptyOperator(task_id='task2')
         dag_maker.create_dagrun(
             run_type=DagRunType.SCHEDULED,
             external_trigger=True,

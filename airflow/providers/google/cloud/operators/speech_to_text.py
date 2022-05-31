@@ -18,6 +18,7 @@
 """This module contains a Google Speech to Text operator."""
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.speech_v1.types import RecognitionConfig
 from google.protobuf.json_format import MessageToDict
@@ -25,6 +26,7 @@ from google.protobuf.json_format import MessageToDict
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
+from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -71,6 +73,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         "impersonation_chain",
     )
     # [END gcp_speech_to_text_synthesize_template_fields]
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -79,7 +82,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         config: RecognitionConfig,
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -105,6 +108,15 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            # Slice from: "gs://{BUCKET_NAME}/{FILE_NAME}" to: "{BUCKET_NAME}/{FILE_NAME}"
+            uri=self.audio["uri"][5:],
+            project_id=self.project_id or hook.project_id,
+        )
+
         response = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )

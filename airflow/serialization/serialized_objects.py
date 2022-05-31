@@ -41,7 +41,9 @@ from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.taskmixin import DAGNode
 from airflow.models.xcom_arg import XComArg
+from airflow.operators.trigger_dagrun import TriggerDagRunOperator
 from airflow.providers_manager import ProvidersManager
+from airflow.sensors.external_task import ExternalTaskSensor
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
 from airflow.serialization.json_schema import Validator, load_dag_schema
@@ -94,7 +96,8 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     are defaults, they are automatically supplied on de-serialization, so we
     don't need to store them.
     """
-    default_partial_kwargs = BaseOperator.partial(task_id="_").expand().partial_kwargs
+    # Use the private _expand() method to avoid the empty kwargs check.
+    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand().partial_kwargs
     return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 
@@ -528,14 +531,14 @@ class DependencyDetector:
     @staticmethod
     def detect_task_dependencies(task: Operator) -> Optional['DagDependency']:
         """Detects dependencies caused by tasks"""
-        if task.task_type == "TriggerDagRunOperator":
+        if isinstance(task, TriggerDagRunOperator):
             return DagDependency(
                 source=task.dag_id,
                 target=getattr(task, "trigger_dag_id"),
                 dependency_type="trigger",
                 dependency_id=task.task_id,
             )
-        elif task.task_type == "ExternalTaskSensor":
+        elif isinstance(task, ExternalTaskSensor):
             return DagDependency(
                 source=getattr(task, "external_dag_id"),
                 target=task.dag_id,
@@ -628,8 +631,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialize_op['_task_type'] = getattr(op, "_task_type", type(op).__name__)
         serialize_op['_task_module'] = getattr(op, "_task_module", type(op).__module__)
 
-        # Used to determine if an Operator is inherited from DummyOperator
-        serialize_op['_is_dummy'] = op.inherits_from_dummy_operator
+        # Used to determine if an Operator is inherited from EmptyOperator
+        serialize_op['_is_empty'] = op.inherits_from_empty_operator
 
         if op.operator_extra_links:
             serialize_op['_operator_extra_links'] = cls._serialize_operator_extra_links(
@@ -637,25 +640,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             )
 
         if include_deps:
-            # Are the deps different to "stock", if so serialize the class names!
-            # For Airflow 2.0 expediency we _only_ allow built in Dep classes.
-            # Fix this for 2.0.x or 2.1
-            deps = []
-            for dep in op.deps:
-                klass = type(dep)
-                module_name = klass.__module__
-                if not module_name.startswith("airflow.ti_deps.deps."):
-                    assert op.dag  # for type checking
-                    raise SerializationError(
-                        f"Cannot serialize {(op.dag.dag_id + '.' + op.task_id)!r} with `deps` from non-core "
-                        f"module {module_name!r}"
-                    )
-
-                deps.append(f'{module_name}.{klass.__name__}')
-            # deps needs to be sorted here, because op.deps is a set, which is unstable when traversing,
-            # and the same call may get different results.
-            # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
-            serialize_op['deps'] = sorted(deps)
+            serialize_op['deps'] = cls._serialize_deps(op.deps)
 
         # Store all template_fields as they are if there are JSON Serializable
         # If not, store them as strings
@@ -669,6 +654,32 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             serialize_op['params'] = cls._serialize_params_dict(op.params)
 
         return serialize_op
+
+    @classmethod
+    def _serialize_deps(cls, op_deps: Iterable["BaseTIDep"]) -> List[str]:
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_ti_deps_plugins()
+        if plugins_manager.registered_ti_dep_classes is None:
+            raise AirflowException("Can not load plugins")
+
+        deps = []
+        for dep in op_deps:
+            klass = type(dep)
+            module_name = klass.__module__
+            qualname = f'{module_name}.{klass.__name__}'
+            if (
+                not qualname.startswith("airflow.ti_deps.deps.")
+                and qualname not in plugins_manager.registered_ti_dep_classes
+            ):
+                raise SerializationError(
+                    f"Custom dep class {qualname} not serialized, please register it through plugins."
+                )
+            deps.append(qualname)
+        # deps needs to be sorted here, because op_deps is a set, which is unstable when traversing,
+        # and the same call may get different results.
+        # When calling json.dumps(self.data, sort_keys=True) to generate dag_hash, misjudgment will occur
+        return sorted(deps)
 
     @classmethod
     def populate_operator(cls, op: Operator, encoded_op: Dict[str, Any]) -> None:
@@ -704,6 +715,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
+            # Todo: TODO: Remove in Airflow 3.0 when dummy operator is removed
+            if k == "_is_dummy":
+                k = "_is_empty"
             if k == "_downstream_task_ids":
                 # Upgrade from old format/name
                 k = "downstream_task_ids"
@@ -765,8 +779,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             if not hasattr(op, field):
                 setattr(op, field, None)
 
-        # Used to determine if an Operator is inherited from DummyOperator
-        setattr(op, "_is_dummy", bool(encoded_op.get("_is_dummy", False)))
+        # Used to determine if an Operator is inherited from EmptyOperator
+        setattr(op, "_is_empty", bool(encoded_op.get("_is_empty", False)))
 
     @classmethod
     def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Operator:
@@ -780,7 +794,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 mapped_kwargs={},
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
-                user_supplied_task_id=encoded_op["user_supplied_task_id"],
                 params={},
                 deps=MappedOperator.deps_for(BaseOperator),
                 operator_extra_links=BaseOperator.operator_extra_links,
@@ -789,7 +802,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 template_fields_renderers=BaseOperator.template_fields_renderers,
                 ui_color=BaseOperator.ui_color,
                 ui_fgcolor=BaseOperator.ui_fgcolor,
-                is_dummy=False,
+                is_empty=False,
                 task_module=encoded_op["_task_module"],
                 task_type=encoded_op["_task_type"],
                 dag=None,
@@ -821,11 +834,21 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
 
     @classmethod
     def _deserialize_deps(cls, deps: List[str]) -> Set["BaseTIDep"]:
+        from airflow import plugins_manager
+
+        plugins_manager.initialize_ti_deps_plugins()
+        if plugins_manager.registered_ti_dep_classes is None:
+            raise AirflowException("Can not load plugins")
+
         instances = set()
         for qualname in set(deps):
-            if not qualname.startswith("airflow.ti_deps.deps."):
-                log.error("Dep class %r not registered", qualname)
-                continue
+            if (
+                not qualname.startswith("airflow.ti_deps.deps.")
+                and qualname not in plugins_manager.registered_ti_dep_classes
+            ):
+                raise SerializationError(
+                    f"Custom dep class {qualname} not deserialized, please register it through plugins."
+                )
 
             try:
                 instances.add(import_string(qualname)())
@@ -836,7 +859,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     @classmethod
     def _deserialize_operator_extra_links(cls, encoded_op_links: list) -> Dict[str, BaseOperatorLink]:
         """
-        Deserialize Operator Links if the Classes  are registered in Airflow Plugins.
+        Deserialize Operator Links if the Classes are registered in Airflow Plugins.
         Error is raised if the OperatorLink is not found in Plugins too.
 
         :param encoded_op_links: Serialized Operator Link
@@ -1064,12 +1087,12 @@ class SerializedDAG(DAG, BaseSerialization):
                 setattr(task.subdag, 'parent_dag', dag)
 
             if isinstance(task, MappedOperator):
-                for d in (task.mapped_kwargs, task.partial_kwargs):
-                    for k, v in d.items():
-                        if not isinstance(v, _XComRef):
-                            continue
+                expansion_kwargs = task._get_expansion_kwargs()
+                for k, v in expansion_kwargs.items():
+                    if not isinstance(v, _XComRef):
+                        continue
 
-                        d[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
+                    expansion_kwargs[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
 
             for task_id in task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want

@@ -85,15 +85,15 @@ Airflow is not a streaming solution, but it is often used to process real-time d
 
 Apache Airflow is tested with:
 
-|                     | Main version (dev)      | Stable version (2.2.5)   |
-|---------------------|-------------------------|--------------------------|
-| Python              | 3.7, 3.8, 3.9, 3.10     | 3.6, 3.7, 3.8, 3.9       |
-| Platform            | AMD64/ARM64(\*)         | AMD64                    |
-| Kubernetes          | 1.20, 1.21, 1.22, 1.23  | 1.18, 1.19, 1.20         |
-| PostgreSQL          | 10, 11, 12, 13          | 9.6, 10, 11, 12, 13      |
-| MySQL               | 5.7, 8                  | 5.7, 8                   |
-| SQLite              | 3.15.0+                 | 3.15.0+                  |
-| MSSQL               | 2017(\*), 2019 (\*)     |                          |
+|                     | Main version (dev)           | Stable version (2.3.1)       |
+|---------------------|------------------------------|------------------------------|
+| Python              | 3.7, 3.8, 3.9, 3.10          | 3.7, 3.8, 3.9, 3.10          |
+| Platform            | AMD64/ARM64(\*)              | AMD64/ARM64(\*)              |
+| Kubernetes          | 1.20, 1.21, 1.22, 1.23, 1.24 | 1.20, 1.21, 1.22, 1.23, 1.24 |
+| PostgreSQL          | 10, 11, 12, 13, 14           | 10, 11, 12, 13, 14           |
+| MySQL               | 5.7, 8                       | 5.7, 8                       |
+| SQLite              | 3.15.0+                      | 3.15.0+                      |
+| MSSQL               | 2017(\*), 2019 (\*)          | 2017(\*), 2019 (\*)          |
 
 \* Experimental
 
@@ -160,15 +160,15 @@ them to the appropriate format and workflow that your tool requires.
 
 
 ```bash
-pip install 'apache-airflow==2.2.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+pip install 'apache-airflow==2.3.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.1/constraints-3.7.txt"
 ```
 
 2. Installing with extras (i.e., postgres, google)
 
 ```bash
-pip install 'apache-airflow[postgres,google]==2.2.5' \
- --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.5/constraints-3.7.txt"
+pip install 'apache-airflow[postgres,google]==2.3.1' \
+ --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.3.1/constraints-3.7.txt"
 ```
 
 For information on installing provider packages, check
@@ -215,9 +215,9 @@ following the ASF Policy.
 
   ![DAGs](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/dags.png)
 
-- **Tree**: Tree representation of a DAG that spans across time.
+- **Grid**: Grid representation of a DAG that spans across time.
 
-  ![Tree](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/tree.png)
+  ![Grid](https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/img/grid.png)
 
 - **Graph**: Visualization of a DAG's dependencies and their current status for a specific run.
 
@@ -268,12 +268,12 @@ packages:
 
 Apache Airflow version life cycle:
 
-<!-- This table is automatically updated by pre-commit scripts/ci/pre-commit/supported_versions.py -->
+<!-- This table is automatically updated by pre-commit scripts/ci/pre_commit/pre_commit_supported_versions.py -->
 <!-- Beginning of auto-generated table -->
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.2.5                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.3.1                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |
@@ -296,14 +296,14 @@ They are based on the official release schedule of Python and Kubernetes, nicely
 1. We drop support for Python and Kubernetes versions when they reach EOL. Except for kubernetes, a
    version stay supported by Airflow if two major cloud provider still provide support for it. We drop
    support for those EOL versions in main right after EOL date, and it is effectively removed when we release
-   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow For example, for Python 3.7 it
+   the first new MINOR (Or MAJOR if there is no new MINOR version) of Airflow. For example, for Python 3.7 it
    means that we will drop support in main right after 27.06.2023, and the first MAJOR or MINOR version of
    Airflow released after will not have it.
 
 2. The "oldest" supported version of Python/Kubernetes is the default one until we decide to switch to
    later version. "Default" is only meaningful in terms of "smoke tests" in CI PRs, which are run using this
    default version and the default reference image available. Currently `apache/airflow:latest`
-   and `apache/airflow:2.2.5` images are Python 3.7 images. This means that default reference image will
+   and `apache/airflow:2.3.1` images are Python 3.7 images. This means that default reference image will
    become the default at the time when we start preparing for dropping 3.7 support which is few months
    before the end of life for Python 3.7.
 

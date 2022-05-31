@@ -61,7 +61,7 @@ or another developer's PR.
 This requires those prerequisites:
 
   * the images need to be built in a workflow that has "write" access to store the images after they are
-    built, so that the images can then be "pulled" by the test jobs rather than rebuilt
+    built, so that the images can then be pulled by the test jobs rather than rebuilt
 
   * the process to build the images need to be secured from malicious users that would like to inject a
     code in the build process to make bad use of the "write" access - for example to push the code

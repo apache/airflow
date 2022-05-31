@@ -26,6 +26,8 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import ModelServiceClient
@@ -41,9 +43,10 @@ class ModelServiceHook(GoogleBaseHook):
 
     def get_model_service_client(self, region: Optional[str] = None) -> ModelServiceClient:
         """Returns ModelServiceClient."""
-        client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-aiplatform.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        else:
+            client_options = ClientOptions()
 
         return ModelServiceClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -68,7 +71,7 @@ class ModelServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         model: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -102,7 +105,7 @@ class ModelServiceHook(GoogleBaseHook):
         region: str,
         model: str,
         output_config: Union[model_service.ExportModelRequest.OutputConfig, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -141,7 +144,7 @@ class ModelServiceHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListModelsPager:
@@ -196,7 +199,7 @@ class ModelServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         model: Union[Model, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:

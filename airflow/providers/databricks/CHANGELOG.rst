@@ -19,6 +19,52 @@
 Changelog
 ---------
 
+2.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update to the released version of DBSQL connector``
+* ``DatabricksSqlOperator - switch to databricks-sql-connector 2.x``
+* ``Further improvement of Databricks Jobs operators (#23199)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Address review comments``
+   * ``Clean up in-line f-string concatenation (#23591)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``More operators for Databricks Repos (#22422)``
+* ``Add a link to Databricks Job Run (#22541)``
+* ``Databricks SQL operators are now Python 3.10 compatible (#22886)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Databricks: Correctly handle HTTP exception (#22885)``
+
+Misc
+~~~~
+
+* ``Refactor 'DatabricksJobRunLink' to not create ad hoc TaskInstances (#22571)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update black precommit (#22521)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Prepare mid-April provider documentation. (#22819)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare for RC2 release of March Databricks provider (#22979)``
+
 2.5.0
 .....
 

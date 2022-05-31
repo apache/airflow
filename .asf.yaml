@@ -39,7 +39,7 @@ github:
   enabled_merge_buttons:
     squash: true
     merge: false
-    rebase: true
+    rebase: false
 
   protected_branches:
     main:
@@ -55,6 +55,9 @@ github:
       required_pull_request_reviews:
         required_approving_review_count: 1
     v2-2-stable:
+      required_pull_request_reviews:
+        required_approving_review_count: 1
+    v2-3-stable:
       required_pull_request_reviews:
         required_approving_review_count: 1
 

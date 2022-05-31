@@ -133,9 +133,9 @@ the comments removed and configured in the ``$AIRFLOW_HOME/webserver_config.py``
 For more details, please refer to
 `Security section of FAB documentation <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.
 
-Example using team based Authorization with Github OAuth
+Example using team based Authorization with GitHub OAuth
 ''''''''''''''''''''''''''''''''''''''''''''''''''''''''
-There are a few steps required in order to use team-based authorization with Github OAuth.
+There are a few steps required in order to use team-based authorization with GitHub OAuth.
 
 * configure OAuth through the FAB config in webserver_config.py
 * create a custom security manager class and supply it to FAB in webserver_config.py
@@ -199,7 +199,7 @@ webserver_config.py itself if you wish.
 
 
     def team_parser(team_payload: Dict[str, Any]) -> List[int]:
-        # Parse the team payload from Github however you want here.
+        # Parse the team payload from GitHub however you want here.
         return [team["id"] for team in team_payload]
 
 
@@ -234,9 +234,7 @@ webserver_config.py itself if you wish.
             team_data = remote_app.get("user/teams")
             teams = team_parser(team_data.json())
             roles = map_roles(teams)
-            log.debug(
-                f"User info from Github: {user_data}\n" f"Team info from Github: {teams}"
-            )
+            log.debug(f"User info from Github: {user_data}\nTeam info from Github: {teams}")
             return {"username": "github_" + user_data.get("login"), "role_keys": roles}
 
 

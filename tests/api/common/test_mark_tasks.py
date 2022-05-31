@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
+import datetime
 from typing import Callable
 
 import pytest
@@ -34,11 +34,11 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from tests.test_utils.db import clear_db_runs
+from tests.test_utils.mapping import expand_mapped_task
 
 DEV_NULL = "/dev/null"
 
@@ -60,12 +60,13 @@ class TestMarkTasks:
         cls.dag1 = dagbag.get_dag('miscellaneous_test_dag')
         cls.dag2 = dagbag.get_dag('example_subdag_operator')
         cls.dag3 = dagbag.get_dag('example_trigger_target_dag')
-        cls.execution_dates = [days_ago(2), days_ago(1)]
+        cls.dag4 = dagbag.get_dag('test_mapped_classic')
+        cls.execution_dates = [timezone.datetime(2022, 1, 1), timezone.datetime(2022, 1, 2)]
         start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [
             start_date3,
-            start_date3 + timedelta(days=1),
-            start_date3 + timedelta(days=2),
+            start_date3 + datetime.timedelta(days=1),
+            start_date3 + datetime.timedelta(days=2),
         ]
 
     @pytest.fixture(autouse=True)
@@ -74,7 +75,7 @@ class TestMarkTasks:
         clear_db_runs()
         drs = _create_dagruns(
             self.dag1,
-            [_DagRunInfo(d, (d, d + timedelta(days=1))) for d in self.execution_dates],
+            [_DagRunInfo(d, (d, d + datetime.timedelta(days=1))) for d in self.execution_dates],
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
@@ -86,7 +87,7 @@ class TestMarkTasks:
             [
                 _DagRunInfo(
                     self.dag2.start_date,
-                    (self.dag2.start_date, self.dag2.start_date + timedelta(days=1)),
+                    (self.dag2.start_date, self.dag2.start_date + datetime.timedelta(days=1)),
                 ),
             ],
             state=State.RUNNING,
@@ -104,6 +105,20 @@ class TestMarkTasks:
         )
         for dr in drs:
             dr.dag = self.dag3
+
+        drs = _create_dagruns(
+            self.dag4,
+            [
+                _DagRunInfo(
+                    self.dag4.start_date,
+                    (self.dag4.start_date, self.dag4.start_date + datetime.timedelta(days=1)),
+                )
+            ],
+            state=State.SUCCESS,
+            run_type=DagRunType.MANUAL,
+        )
+        for dr in drs:
+            dr.dag = self.dag4
 
         yield
 
@@ -123,30 +138,41 @@ class TestMarkTasks:
             )
 
     @provide_session
-    def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None):
+    def verify_state(self, dag, task_ids, execution_dates, state, old_tis, session=None, map_task_pairs=None):
         TI = models.TaskInstance
         DR = models.DagRun
 
         tis = (
             session.query(TI)
             .join(TI.dag_run)
-            .options(eagerload(TI.dag_run))
             .filter(TI.dag_id == dag.dag_id, DR.execution_date.in_(execution_dates))
             .all()
         )
-
         assert len(tis) > 0
 
+        unexpected_tis = []
         for ti in tis:
             assert ti.operator == dag.get_task(ti.task_id).task_type
             if ti.task_id in task_ids and ti.execution_date in execution_dates:
-                assert ti.state == state
-                if state in State.finished:
-                    assert ti.end_date is not None
+                if map_task_pairs:
+                    if (ti.task_id, ti.map_index) in map_task_pairs:
+                        assert ti.state == state
+                else:
+                    assert ti.state == state, ti
+                if ti.state in State.finished:
+                    assert ti.end_date is not None, ti
             else:
                 for old_ti in old_tis:
-                    if old_ti.task_id == ti.task_id and old_ti.execution_date == ti.execution_date:
+                    if (
+                        old_ti.task_id == ti.task_id
+                        and old_ti.run_id == ti.run_id
+                        and old_ti.map_index == ti.map_index
+                    ):
                         assert ti.state == old_ti.state
+                        break
+                else:
+                    unexpected_tis.append(ti)
+        assert not unexpected_tis
 
     def test_mark_tasks_now(self):
         # set one task to success but do not commit
@@ -386,6 +412,7 @@ class TestMarkTasks:
     @pytest.mark.backend("sqlite", "postgres")
     def test_mark_tasks_subdag(self):
         # set one task to success towards end of scheduled dag runs
+        snapshot = TestMarkTasks.snapshot_state(self.dag2, self.execution_dates)
         task = self.dag2.get_task("section-1")
         relatives = task.get_flat_relatives(upstream=False)
         task_ids = [t.task_id for t in relatives]
@@ -404,10 +431,37 @@ class TestMarkTasks:
         )
         assert len(altered) == 14
 
-        # cannot use snapshot here as that will require drilling down the
-        # sub dag tree essentially recreating the same code as in the
-        # tested logic.
-        self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, [])
+        self.verify_state(self.dag2, task_ids, [self.execution_dates[0]], State.SUCCESS, snapshot)
+
+    def test_mark_mapped_task_instance_state(self, session):
+        # set mapped task instance to success
+        mapped = self.dag4.get_task("consumer")
+        tasks = [(mapped, 0), (mapped, 1)]
+        dr = DagRun.find(dag_id=self.dag4.dag_id, execution_date=self.execution_dates[0], session=session)[0]
+        expand_mapped_task(mapped, dr.run_id, "make_arg_lists", length=3, session=session)
+        snapshot = TestMarkTasks.snapshot_state(self.dag4, self.execution_dates)
+        altered = set_state(
+            tasks=tasks,
+            run_id=dr.run_id,
+            upstream=True,
+            downstream=False,
+            future=False,
+            past=False,
+            state=State.SUCCESS,
+            commit=True,
+            session=session,
+        )
+        assert len(altered) == 3
+        self.verify_state(
+            self.dag4,
+            ["consumer", "make_arg_lists"],
+            [self.execution_dates[0]],
+            State.SUCCESS,
+            snapshot,
+            map_task_pairs=[(task.task_id, map_index) for (task, map_index) in tasks]
+            + [("make_arg_lists", -1)],
+            session=session,
+        )
 
 
 class TestMarkDAGRun:
@@ -427,7 +481,11 @@ class TestMarkDAGRun:
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
-        cls.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
+        cls.execution_dates = [
+            timezone.datetime(2022, 1, 1),
+            timezone.datetime(2022, 1, 2),
+            timezone.datetime(2022, 1, 3),
+        ]
 
     def setup_method(self):
         clear_db_runs()

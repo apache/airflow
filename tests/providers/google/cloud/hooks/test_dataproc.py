@@ -18,9 +18,12 @@
 #
 import unittest
 from unittest import mock
+from unittest.mock import ANY
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.dataproc_v1 import JobStatus
+from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook, DataProcJobBuilder
@@ -78,24 +81,8 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            client_options=ANY,
         )
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
-    @mock.patch(DATAPROC_STRING.format("ClusterControllerClient"))
-    def test_get_cluster_client_region_deprecation_warning(self, mock_client, mock_get_credentials):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            self.hook.get_cluster_client(location='region1')
-            mock_client.assert_called_once_with(
-                credentials=mock_get_credentials.return_value,
-                client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
-            )
-            assert warning_message == str(warnings[0].message)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
     @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
@@ -114,24 +101,8 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            client_options=ANY,
         )
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
-    @mock.patch(DATAPROC_STRING.format("WorkflowTemplateServiceClient"))
-    def test_get_template_client_region_deprecation_warning(self, mock_client, mock_get_credentials):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            _ = self.hook.get_template_client(location='region1')
-            mock_client.assert_called_once_with(
-                credentials=mock_get_credentials.return_value,
-                client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
-            )
-            assert warning_message == str(warnings[0].message)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
     @mock.patch(DATAPROC_STRING.format("JobControllerClient"))
@@ -150,24 +121,8 @@ class TestDataprocHook(unittest.TestCase):
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
             client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            client_options=ANY,
         )
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
-    @mock.patch(DATAPROC_STRING.format("JobControllerClient"))
-    def test_get_job_client_region_deprecation_warning(self, mock_client, mock_get_credentials):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            self.hook.get_job_client(location='region1')
-            mock_client.assert_called_once_with(
-                credentials=mock_get_credentials.return_value,
-                client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
-            )
-            assert warning_message == str(warnings[0].message)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
     @mock.patch(DATAPROC_STRING.format("BatchControllerClient"))
@@ -184,26 +139,8 @@ class TestDataprocHook(unittest.TestCase):
     def test_get_batch_client_region(self, mock_client, mock_get_credentials):
         self.hook.get_batch_client(region='region1')
         mock_client.assert_called_once_with(
-            credentials=mock_get_credentials.return_value,
-            client_info=CLIENT_INFO,
-            client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
+            credentials=mock_get_credentials.return_value, client_info=CLIENT_INFO, client_options=ANY
         )
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook._get_credentials"))
-    @mock.patch(DATAPROC_STRING.format("BatchControllerClient"))
-    def test_get_batch_client_region_deprecation_warning(self, mock_client, mock_get_credentials):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            self.hook.get_batch_client(location='region1')
-            mock_client.assert_called_once_with(
-                credentials=mock_get_credentials.return_value,
-                client_info=CLIENT_INFO,
-                client_options={'api_endpoint': 'region1-dataproc.googleapis.com:443'},
-            )
-            assert warning_message == str(warnings[0].message)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
     def test_create_cluster(self, mock_client):
@@ -223,7 +160,7 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -240,7 +177,7 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -255,7 +192,7 @@ class TestDataprocHook(unittest.TestCase):
                 cluster_name=CLUSTER_NAME,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.diagnose_cluster.return_value.result.assert_called_once_with()
@@ -271,7 +208,7 @@ class TestDataprocHook(unittest.TestCase):
                 cluster_name=CLUSTER_NAME,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -289,7 +226,7 @@ class TestDataprocHook(unittest.TestCase):
                 page_size=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -315,48 +252,18 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_cluster_client"))
-    def test_update_cluster_depreciation_warning(self, mock_client):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            update_mask = "update-mask"
-            self.hook.update_cluster(
-                project_id=GCP_PROJECT,
-                location=GCP_LOCATION,
-                cluster=CLUSTER,
-                cluster_name=CLUSTER_NAME,
-                update_mask=update_mask,
-            )
-            mock_client.assert_called_once_with(region=GCP_LOCATION)
-            mock_client.return_value.update_cluster.assert_called_once_with(
-                request=dict(
-                    project_id=GCP_PROJECT,
-                    region=GCP_LOCATION,
-                    cluster=CLUSTER,
-                    cluster_name=CLUSTER_NAME,
-                    update_mask=update_mask,
-                    graceful_decommission_timeout=None,
-                    request_id=None,
-                ),
-                metadata=(),
-                retry=None,
-                timeout=None,
-            )
-            assert warning_message == str(warnings[0].message)
-
+    def test_update_cluster_missing_region(self, mock_client):
         with pytest.raises(TypeError):
             self.hook.update_cluster(
                 project_id=GCP_PROJECT,
                 cluster=CLUSTER,
                 cluster_name=CLUSTER_NAME,
-                update_mask=update_mask,
+                update_mask="update-mask",
             )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
@@ -365,28 +272,8 @@ class TestDataprocHook(unittest.TestCase):
         parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
         self.hook.create_workflow_template(region=GCP_LOCATION, template=template, project_id=GCP_PROJECT)
         mock_client.return_value.create_workflow_template.assert_called_once_with(
-            request=dict(parent=parent, template=template), retry=None, timeout=None, metadata=()
+            request=dict(parent=parent, template=template), retry=DEFAULT, timeout=None, metadata=()
         )
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
-    def test_create_workflow_template_depreciation_warning(self, mock_client):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            template = {"test": "test"}
-            parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
-            self.hook.create_workflow_template(
-                location=GCP_LOCATION, template=template, project_id=GCP_PROJECT
-            )
-            mock_client.return_value.create_workflow_template.assert_called_once_with(
-                request=dict(parent=parent, template=template), retry=None, timeout=None, metadata=()
-            )
-            assert warning_message == str(warnings[0].message)
-
-        with pytest.raises(TypeError):
-            self.hook.create_workflow_template(template=template, project_id=GCP_PROJECT)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_workflow_template(self, mock_client):
@@ -397,33 +284,15 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.return_value.instantiate_workflow_template.assert_called_once_with(
             request=dict(name=name, version=None, parameters=None, request_id=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
-    def test_instantiate_workflow_template_depreciation_warning(self, mock_client):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            template_name = "template_name"
-            name = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}/workflowTemplates/{template_name}'
-            self.hook.instantiate_workflow_template(
-                location=GCP_LOCATION, template_name=template_name, project_id=GCP_PROJECT
-            )
-            mock_client.return_value.instantiate_workflow_template.assert_called_once_with(
-                request=dict(name=name, version=None, parameters=None, request_id=None),
-                retry=None,
-                timeout=None,
-                metadata=(),
-            )
-            assert warning_message == str(warnings[0].message)
-
+    def test_instantiate_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):
-            self.hook.instantiate_workflow_template(template_name=template_name, project_id=GCP_PROJECT)
+            self.hook.instantiate_workflow_template(template_name="template_name", project_id=GCP_PROJECT)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
     def test_instantiate_inline_workflow_template(self, mock_client):
@@ -434,33 +303,15 @@ class TestDataprocHook(unittest.TestCase):
         )
         mock_client.return_value.instantiate_inline_workflow_template.assert_called_once_with(
             request=dict(parent=parent, template=template, request_id=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_template_client"))
-    def test_instantiate_inline_workflow_template_deprecation_warning(self, mock_client):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            template = {"test": "test"}
-            parent = f'projects/{GCP_PROJECT}/regions/{GCP_LOCATION}'
-            self.hook.instantiate_inline_workflow_template(
-                location=GCP_LOCATION, template=template, project_id=GCP_PROJECT
-            )
-            mock_client.return_value.instantiate_inline_workflow_template.assert_called_once_with(
-                request=dict(parent=parent, template=template, request_id=None),
-                retry=None,
-                timeout=None,
-                metadata=(),
-            )
-            assert warning_message == str(warnings[0].message)
-
+    def test_instantiate_inline_workflow_template_missing_region(self, mock_client):
         with pytest.raises(TypeError):
-            self.hook.instantiate_inline_workflow_template(template=template, project_id=GCP_PROJECT)
+            self.hook.instantiate_inline_workflow_template(template={"test": "test"}, project_id=GCP_PROJECT)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job"))
     def test_wait_for_job(self, mock_get_job):
@@ -477,27 +328,7 @@ class TestDataprocHook(unittest.TestCase):
         mock_get_job.assert_has_calls(calls)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job"))
-    def test_wait_for_job_deprecation_warning(self, mock_get_job):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            mock_get_job.side_effect = [
-                mock.MagicMock(status=mock.MagicMock(state=JobStatus.State.RUNNING)),
-                mock.MagicMock(status=mock.MagicMock(state=JobStatus.State.ERROR)),
-            ]
-            with pytest.raises(AirflowException):
-                self.hook.wait_for_job(
-                    job_id=JOB_ID, location=GCP_LOCATION, project_id=GCP_PROJECT, wait_time=0
-                )
-            calls = [
-                mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
-                mock.call(region=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT),
-            ]
-            mock_get_job.assert_has_calls(calls)
-            assert warning_message == str(warnings[0].message)
-
+    def test_wait_for_job_missing_region(self, mock_get_job):
         with pytest.raises(TypeError):
             self.hook.wait_for_job(job_id=JOB_ID, project_id=GCP_PROJECT, wait_time=0)
 
@@ -511,32 +342,13 @@ class TestDataprocHook(unittest.TestCase):
                 job_id=JOB_ID,
                 project_id=GCP_PROJECT,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
-    def test_get_job_deprecation_warning(self, mock_client):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            self.hook.get_job(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
-            mock_client.assert_called_once_with(region=GCP_LOCATION)
-            mock_client.return_value.get_job.assert_called_once_with(
-                request=dict(
-                    region=GCP_LOCATION,
-                    job_id=JOB_ID,
-                    project_id=GCP_PROJECT,
-                ),
-                retry=None,
-                timeout=None,
-                metadata=(),
-            )
-            assert warning_message == str(warnings[0].message)
-
+    def test_get_job_missing_region(self, mock_client):
         with pytest.raises(TypeError):
             self.hook.get_job(job_id=JOB_ID, project_id=GCP_PROJECT)
 
@@ -551,43 +363,15 @@ class TestDataprocHook(unittest.TestCase):
                 project_id=GCP_PROJECT,
                 request_id=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
-    def test_submit_job_deprecation_warning(self, mock_client):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            self.hook.submit_job(location=GCP_LOCATION, job=JOB, project_id=GCP_PROJECT)
-            mock_client.assert_called_once_with(region=GCP_LOCATION)
-            mock_client.return_value.submit_job.assert_called_once_with(
-                request=dict(
-                    region=GCP_LOCATION,
-                    job=JOB,
-                    project_id=GCP_PROJECT,
-                    request_id=None,
-                ),
-                retry=None,
-                timeout=None,
-                metadata=(),
-            )
-            assert warning_message == str(warnings[0].message)
+    def test_submit_job_missing_region(self, mock_client):
         with pytest.raises(TypeError):
             self.hook.submit_job(job=JOB, project_id=GCP_PROJECT)
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook.wait_for_job"))
-    @mock.patch(DATAPROC_STRING.format("DataprocHook.submit_job"))
-    def test_submit(self, mock_submit_job, mock_wait_for_job):
-        mock_submit_job.return_value.reference.job_id = JOB_ID
-        with pytest.warns(DeprecationWarning):
-            self.hook.submit(project_id=GCP_PROJECT, job=JOB, region=GCP_LOCATION)
-        mock_submit_job.assert_called_once_with(region=GCP_LOCATION, project_id=GCP_PROJECT, job=JOB)
-        mock_wait_for_job.assert_called_once_with(region=GCP_LOCATION, project_id=GCP_PROJECT, job_id=JOB_ID)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
     def test_cancel_job(self, mock_client):
@@ -599,47 +383,10 @@ class TestDataprocHook(unittest.TestCase):
                 job_id=JOB_ID,
                 project_id=GCP_PROJECT,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
-    def test_cancel_job_deprecation_warning_default_region(self, mock_client):
-        with pytest.warns(DeprecationWarning):
-            self.hook.cancel_job(job_id=JOB_ID, project_id=GCP_PROJECT)
-        mock_client.assert_called_once_with(region='global')
-        mock_client.return_value.cancel_job.assert_called_once_with(
-            request=dict(
-                region='global',
-                job_id=JOB_ID,
-                project_id=GCP_PROJECT,
-            ),
-            retry=None,
-            timeout=None,
-            metadata=(),
-        )
-
-    @mock.patch(DATAPROC_STRING.format("DataprocHook.get_job_client"))
-    def test_cancel_job_deprecation_warning_param_rename(self, mock_client):
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            self.hook.cancel_job(location=GCP_LOCATION, job_id=JOB_ID, project_id=GCP_PROJECT)
-            mock_client.assert_called_once_with(region='global')
-            mock_client.return_value.cancel_job.assert_called_once_with(
-                request=dict(
-                    region='global',
-                    job_id=JOB_ID,
-                    project_id=GCP_PROJECT,
-                ),
-                retry=None,
-                timeout=None,
-                metadata=(),
-            )
-            assert warning_message == str(warnings[0].message)
 
     @mock.patch(DATAPROC_STRING.format("DataprocHook.get_batch_client"))
     def test_create_batch(self, mock_client):
@@ -658,7 +405,7 @@ class TestDataprocHook(unittest.TestCase):
                 request_id=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -675,7 +422,7 @@ class TestDataprocHook(unittest.TestCase):
                 name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -692,7 +439,7 @@ class TestDataprocHook(unittest.TestCase):
                 name=BATCH_NAME.format(GCP_PROJECT, GCP_LOCATION, BATCH_ID),
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -710,7 +457,7 @@ class TestDataprocHook(unittest.TestCase):
                 page_token=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -726,27 +473,28 @@ class TestDataProcJobBuilder(unittest.TestCase):
             properties={"test": "test"},
         )
 
+    @parameterized.expand([TASK_ID, f"group.{TASK_ID}"])
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
-    def test_init(self, mock_uuid):
+    def test_init(self, job_name, mock_uuid):
         mock_uuid.return_value = "uuid"
         properties = {"test": "test"}
-        job = {
+        expected_job_id = f"{job_name}_{mock_uuid.return_value}".replace(".", "_")
+        expected_job = {
             "job": {
                 "labels": {"airflow-version": AIRFLOW_VERSION},
                 "placement": {"cluster_name": CLUSTER_NAME},
-                "reference": {"job_id": TASK_ID + "_uuid", "project_id": GCP_PROJECT},
+                "reference": {"job_id": expected_job_id, "project_id": GCP_PROJECT},
                 "test": {"properties": properties},
             }
         }
         builder = DataProcJobBuilder(
             project_id=GCP_PROJECT,
-            task_id=TASK_ID,
+            task_id=job_name,
             cluster_name=CLUSTER_NAME,
             job_type="test",
             properties=properties,
         )
-
-        assert job == builder.job
+        assert expected_job == builder.job
 
     def test_add_labels(self):
         labels = {"key": "value"}
@@ -813,14 +561,22 @@ class TestDataProcJobBuilder(unittest.TestCase):
         self.builder.set_python_main(main)
         assert main == self.builder.job["job"][self.job_type]["main_python_file_uri"]
 
+    @parameterized.expand(
+        [
+            ("simple", "name"),
+            ("name with underscores", "name_with_dash"),
+            ("name with dot", "group.name"),
+            ("name with dot and underscores", "group.name_with_dash"),
+        ]
+    )
     @mock.patch(DATAPROC_STRING.format("uuid.uuid4"))
-    def test_set_job_name(self, mock_uuid):
+    def test_set_job_name(self, name, job_name, mock_uuid):
         uuid = "test_uuid"
+        expected_job_name = f"{job_name}_{uuid[:8]}".replace(".", "_")
         mock_uuid.return_value = uuid
-        name = "name"
-        self.builder.set_job_name(name)
-        name += "_" + uuid[:8]
-        assert name == self.builder.job["job"]["reference"]["job_id"]
+        self.builder.set_job_name(job_name)
+        assert expected_job_name == self.builder.job["job"]["reference"]["job_id"]
+        assert len(self.builder.job["job"]["reference"]["job_id"]) == len(job_name) + 9
 
     def test_build(self):
         assert self.builder.job == self.builder.build()

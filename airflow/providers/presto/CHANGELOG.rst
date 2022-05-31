@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+2.2.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Make presto and trino compatible with airflow 2.1 (#23061)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass X-Presto-Client-Info in presto hook (#22416)``
+
 2.1.2
 .....
 

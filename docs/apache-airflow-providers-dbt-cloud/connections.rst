@@ -37,7 +37,7 @@ Authenticating to the dbt Cloud API
 
 To interact with the dbt Cloud API in Airflow, either a
 `User API Token <https://docs.getdbt.com/docs/dbt-cloud/dbt-cloud-api/user-tokens>`__ or a
-`Service Account API Token <hhttps://docs.getdbt.com/docs/dbt-cloud/dbt-cloud-api/service-tokens>`__ is
+`Service Account API Token <https://docs.getdbt.com/docs/dbt-cloud/dbt-cloud-api/service-tokens>`__ is
 required.
 
 

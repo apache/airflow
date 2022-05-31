@@ -37,6 +37,7 @@ else:
     from cached_property import cached_property
 
 from google.api_core.exceptions import AlreadyExists, GoogleAPICallError
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.exceptions import NotFound
 from google.cloud.pubsub_v1 import PublisherClient, SubscriberClient
@@ -175,7 +176,7 @@ class PubSubHook(GoogleBaseHook):
         labels: Optional[Dict[str, str]] = None,
         message_storage_policy: Union[Dict, MessageStoragePolicy] = None,
         kms_key_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -242,7 +243,7 @@ class PubSubHook(GoogleBaseHook):
         topic: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -297,7 +298,7 @@ class PubSubHook(GoogleBaseHook):
         filter_: Optional[str] = None,
         dead_letter_policy: Optional[Union[dict, DeadLetterPolicy]] = None,
         retry_policy: Optional[Union[dict, RetryPolicy]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
@@ -415,7 +416,7 @@ class PubSubHook(GoogleBaseHook):
         subscription: str,
         project_id: str = PROVIDE_PROJECT_ID,
         fail_if_not_exists: bool = False,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -464,7 +465,7 @@ class PubSubHook(GoogleBaseHook):
         max_messages: int,
         project_id: str = PROVIDE_PROJECT_ID,
         return_immediately: bool = False,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> List[ReceivedMessage]:
@@ -521,7 +522,7 @@ class PubSubHook(GoogleBaseHook):
         project_id: str,
         ack_ids: Optional[List[str]] = None,
         messages: Optional[List[ReceivedMessage]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:

@@ -70,7 +70,7 @@ from airflow.utils import timezone
 from airflow.utils.helpers import is_container
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import UtcDateTime, nulls_first, skip_locked, tuple_in_condition, with_row_locks
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import NOTSET, ArgNotSet, DagRunType
 
@@ -540,7 +540,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
-        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
+        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
@@ -655,7 +655,18 @@ class DagRun(Base, LoggingMixin):
         if unfinished_tis:
             schedulable_tis = [ut for ut in unfinished_tis if ut.state in SCHEDULEABLE_STATES]
             self.log.debug("number of scheduleable tasks for %s: %s task(s)", self, len(schedulable_tis))
-            schedulable_tis, changed_tis = self._get_ready_tis(schedulable_tis, finished_tis, session)
+            schedulable_tis, changed_tis, expansion_happened = self._get_ready_tis(
+                schedulable_tis,
+                finished_tis,
+                session=session,
+            )
+
+            # During expansion we may change some tis into non-schedulable
+            # states, so we need to re-compute.
+            if expansion_happened:
+                new_unfinished_tis = [t for t in unfinished_tis if t.state in State.unfinished]
+                finished_tis.extend(t for t in unfinished_tis if t.state in State.finished)
+                unfinished_tis = new_unfinished_tis
 
         return TISchedulingDecision(
             tis=tis,
@@ -670,56 +681,51 @@ class DagRun(Base, LoggingMixin):
         schedulable_tis: List[TI],
         finished_tis: List[TI],
         session: Session,
-    ) -> Tuple[List[TI], bool]:
+    ) -> Tuple[List[TI], bool, bool]:
         old_states = {}
         ready_tis: List[TI] = []
         changed_tis = False
 
         if not schedulable_tis:
-            return ready_tis, changed_tis
+            return ready_tis, changed_tis, False
 
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
-        expanded_tis: List[TI] = []
+        additional_tis: List[TI] = []
         dep_context = DepContext(
             flag_upstream_failed=True,
             ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
             finished_tis=finished_tis,
         )
 
-        # Check dependencies
-        for schedulable in itertools.chain(schedulable_tis, expanded_tis):
-
+        # Check dependencies.
+        expansion_happened = False
+        for schedulable in itertools.chain(schedulable_tis, additional_tis):
             old_state = schedulable.state
-            if schedulable.are_dependencies_met(session=session, dep_context=dep_context):
-                ready_tis.append(schedulable)
-            else:
+            if not schedulable.are_dependencies_met(session=session, dep_context=dep_context):
                 old_states[schedulable.key] = old_state
                 continue
-
-            # Expansion of last resort! This is ideally handled in the mini-scheduler in LocalTaskJob, but if
-            # for any reason it wasn't, we need to expand it now
-            if schedulable.map_index < 0 and schedulable.task.is_mapped:
-                # HACK. This needs a better way, one that copes with multiple upstreams!
-                for ti in finished_tis:
-                    if schedulable.task_id in ti.task.downstream_task_ids:
-
-                        assert isinstance(schedulable.task, MappedOperator)
-                        new_tis = schedulable.task.expand_mapped_task(self.run_id, session=session)
-                        if schedulable.state == TaskInstanceState.SKIPPED:
-                            # Task is now skipped (likely cos upstream returned 0 tasks
-                            continue
-                        assert new_tis[0] is schedulable
-                        expanded_tis.extend(new_tis[1:])
-                        break
+            # If schedulable is from a mapped task, but not yet expanded, do it
+            # now. This is called in two places: First and ideally in the mini
+            # scheduler at the end of LocalTaskJob, and then as an "expansion of
+            # last resort" in the scheduler to ensure that the mapped task is
+            # correctly expanded before executed.
+            if schedulable.map_index < 0 and isinstance(schedulable.task, MappedOperator):
+                expanded_tis, _ = schedulable.task.expand_mapped_task(self.run_id, session=session)
+                if expanded_tis:
+                    assert expanded_tis[0] is schedulable
+                    additional_tis.extend(expanded_tis[1:])
+                expansion_happened = True
+            if schedulable.state in SCHEDULEABLE_STATES:
+                ready_tis.append(schedulable)
 
         # Check if any ti changed state
-        tis_filter = TI.filter_for_tis(old_states.keys())
+        tis_filter = TI.filter_for_tis(old_states)
         if tis_filter is not None:
             fresh_tis = session.query(TI).filter(tis_filter).all()
             changed_tis = any(ti.state != old_states[ti.key] for ti in fresh_tis)
 
-        return ready_tis, changed_tis
+        return ready_tis, changed_tis, expansion_happened
 
     def _are_premature_tis(
         self,
@@ -783,8 +789,8 @@ class DagRun(Base, LoggingMixin):
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
-        except Exception as e:
-            self.log.warning(f'Failed to record first_task_scheduling_delay metric:\n{e}')
+        except Exception:
+            self.log.warning('Failed to record first_task_scheduling_delay metric:', exc_info=True)
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
@@ -838,14 +844,47 @@ class DagRun(Base, LoggingMixin):
                     ti.state = State.REMOVED
                 continue
 
-            if task.is_mapped:
-                task = cast("MappedOperator", task)
-                num_mapped_tis = task.parse_time_mapped_ti_count
-                # Check if the number of mapped literals has changed and we need to mark this TI as removed
-                if not num_mapped_tis or ti.map_index >= num_mapped_tis:
+            if not task.is_mapped:
+                continue
+            task = cast("MappedOperator", task)
+            num_mapped_tis = task.parse_time_mapped_ti_count
+            # Check if the number of mapped literals has changed and we need to mark this TI as removed
+            if num_mapped_tis is not None:
+                if ti.map_index >= num_mapped_tis:
+                    self.log.debug(
+                        "Removing task '%s' as the map_index is longer than the literal mapping list (%s)",
+                        ti,
+                        num_mapped_tis,
+                    )
                     ti.state = State.REMOVED
                 elif ti.map_index < 0:
+                    self.log.debug("Removing the unmapped TI '%s' as the mapping can now be performed", ti)
                     ti.state = State.REMOVED
+                else:
+                    self.log.info("Restoring mapped task '%s'", ti)
+                    Stats.incr(f"task_restored_to_dag.{dag.dag_id}", 1, 1)
+                    ti.state = State.NONE
+            else:
+                #  What if it is _now_ dynamically mapped, but wasn't before?
+                total_length = task.run_time_mapped_ti_count(self.run_id, session=session)
+
+                if total_length is None:
+                    # Not all upstreams finished, so we can't tell what should be here. Remove everything.
+                    if ti.map_index >= 0:
+                        self.log.debug(
+                            "Removing the unmapped TI '%s' as the mapping can't be resolved yet", ti
+                        )
+                        ti.state = State.REMOVED
+                    continue
+                # Upstreams finished, check there aren't any extras
+                if ti.map_index >= total_length:
+                    self.log.debug(
+                        "Removing task '%s' as the map_index is longer than the resolved mapping list (%d)",
+                        ti,
+                        total_length,
+                    )
+                    ti.state = State.REMOVED
+                    ...
 
         def task_filter(task: "Operator") -> bool:
             return task.task_id not in task_ids and (
@@ -884,7 +923,9 @@ class DagRun(Base, LoggingMixin):
             if not task.is_mapped:
                 return (task, (-1,))
             task = cast("MappedOperator", task)
-            count = task.parse_time_mapped_ti_count
+            count = task.parse_time_mapped_ti_count or task.run_time_mapped_ti_count(
+                self.run_id, session=session
+            )
             if not count:
                 return (task, (-1,))
             return (task, range(count))
@@ -969,24 +1010,24 @@ class DagRun(Base, LoggingMixin):
 
         Each element of ``schedulable_tis`` should have it's ``task`` attribute already set.
 
-        Any DummyOperator without callbacks is instead set straight to the success state.
+        Any EmptyOperator without callbacks is instead set straight to the success state.
 
         All the TIs should belong to this DagRun, but this code is in the hot-path, this is not checked -- it
         is the caller's responsibility to call this function only with TIs from a single dag run.
         """
         # Get list of TI IDs that do not need to executed, these are
-        # tasks using DummyOperator and without on_execute_callback / on_success_callback
+        # tasks using EmptyOperator and without on_execute_callback / on_success_callback
         dummy_ti_ids = []
         schedulable_ti_ids = []
         for ti in schedulable_tis:
             if (
-                ti.task.inherits_from_dummy_operator
+                ti.task.inherits_from_empty_operator
                 and not ti.task.on_execute_callback
                 and not ti.task.on_success_callback
             ):
                 dummy_ti_ids.append(ti.task_id)
             else:
-                schedulable_ti_ids.append(ti.task_id)
+                schedulable_ti_ids.append((ti.task_id, ti.map_index))
 
         count = 0
 
@@ -996,12 +1037,12 @@ class DagRun(Base, LoggingMixin):
                 .filter(
                     TI.dag_id == self.dag_id,
                     TI.run_id == self.run_id,
-                    TI.task_id.in_(schedulable_ti_ids),
+                    tuple_in_condition((TI.task_id, TI.map_index), schedulable_ti_ids),
                 )
                 .update({TI.state: State.SCHEDULED}, synchronize_session=False)
             )
 
-        # Tasks using DummyOperator should not be executed, mark them as success
+        # Tasks using EmptyOperator should not be executed, mark them as success
         if dummy_ti_ids:
             count += (
                 session.query(TI)

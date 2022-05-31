@@ -15,12 +15,17 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from datetime import timedelta
+from urllib.parse import quote
+
 import pytest
 
 from airflow.configuration import conf
-from airflow.models import DAG
+from airflow.models import DAG, DagRun
+from airflow.models.baseoperator import BaseOperator
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.session import create_session, provide_session
+from airflow.utils.state import State, TaskInstanceState
 
 DAG_ID = "dag_for_testing_dt_nr_dr_form"
 DEFAULT_DATE = timezone.datetime(2017, 9, 1)
@@ -30,6 +35,7 @@ RUNS_DATA = [
     ("dag_run_for_testing_dt_nr_dr_form_2", timezone.datetime(2018, 2, 2)),
     ("dag_run_for_testing_dt_nr_dr_form_1", timezone.datetime(2018, 1, 1)),
 ]
+VERY_CLOSE_RUNS_DATE = timezone.datetime(2020, 1, 1, 0, 0, 0)
 
 ENDPOINTS = [
     "/graph?dag_id=dag_for_testing_dt_nr_dr_form",
@@ -44,9 +50,10 @@ def dag(app):
     return dag
 
 
+@provide_session
 @pytest.fixture(scope="module")
-def runs(dag):
-    return [
+def runs(dag, session):
+    dag_runs = [
         dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
@@ -56,6 +63,9 @@ def runs(dag):
         )
         for run_id, execution_date, in RUNS_DATA
     ]
+    yield dag_runs
+    for dag_run in dag_runs:
+        session.delete(dag_run)
 
 
 def _assert_run_is_in_dropdown_not_selected(run, data):
@@ -66,6 +76,10 @@ def _assert_run_is_in_dropdown_not_selected(run, data):
 def _assert_run_is_selected(run, data):
     exec_date = run.execution_date.isoformat()
     assert f'<option selected value="{exec_date}">{run.run_id}</option>' in data
+
+
+def _assert_base_date(base_date, data):
+    assert f'name="base_date" required type="text" value="{base_date.isoformat()}"' in data
 
 
 def _assert_base_date_and_num_runs(base_date, num, data):
@@ -205,3 +219,129 @@ def test_with_base_date_and_num_runs_and_execution_date_within(admin_client, run
     _assert_run_is_not_in_dropdown(runs[1], data)
     _assert_run_is_in_dropdown_not_selected(runs[2], data)
     _assert_run_is_selected(runs[3], data)
+
+
+@provide_session
+@pytest.fixture
+def very_close_dagruns(dag, session):
+    dag_runs = []
+    for idx, (run_id, _) in enumerate(RUNS_DATA):
+        execution_date = VERY_CLOSE_RUNS_DATE.replace(microsecond=idx)
+        dag_runs.append(
+            dag.create_dagrun(
+                run_id=run_id + '_close',
+                execution_date=execution_date,
+                data_interval=(execution_date, execution_date),
+                state=State.SUCCESS,
+                external_trigger=True,
+            )
+        )
+    yield dag_runs
+    for dag_run in dag_runs:
+        session.delete(dag_run)
+    session.commit()
+
+
+@pytest.mark.parametrize("endpoint", ENDPOINTS)
+def test_rounds_base_date_but_queries_with_execution_date(admin_client, very_close_dagruns, endpoint):
+    exec_date = quote(very_close_dagruns[1].execution_date.isoformat())
+    response = admin_client.get(
+        f'{endpoint}&num_runs=2&execution_date={exec_date}',
+        data={"username": "test", "password": "test"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+
+    data = response.data.decode()
+    _assert_base_date(VERY_CLOSE_RUNS_DATE + timedelta(seconds=1), data)
+    _assert_run_is_in_dropdown_not_selected(very_close_dagruns[0], data)
+    _assert_run_is_selected(very_close_dagruns[1], data)
+    _assert_run_is_not_in_dropdown(very_close_dagruns[2], data)
+    _assert_run_is_not_in_dropdown(very_close_dagruns[3], data)
+
+
+@pytest.mark.parametrize("endpoint", ENDPOINTS)
+def test_uses_execution_date_on_filter_application_if_base_date_hasnt_changed(
+    admin_client, very_close_dagruns, endpoint
+):
+    base_date = quote((VERY_CLOSE_RUNS_DATE + timedelta(seconds=1)).isoformat())
+    exec_date = quote(very_close_dagruns[1].execution_date.isoformat())
+    response = admin_client.get(
+        f'{endpoint}&base_date={base_date}&num_runs=2&execution_date={exec_date}',
+        data={"username": "test", "password": "test"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+
+    data = response.data.decode()
+    _assert_base_date(VERY_CLOSE_RUNS_DATE + timedelta(seconds=1), data)
+    _assert_run_is_in_dropdown_not_selected(very_close_dagruns[0], data)
+    _assert_run_is_selected(very_close_dagruns[1], data)
+    _assert_run_is_not_in_dropdown(very_close_dagruns[2], data)
+    _assert_run_is_not_in_dropdown(very_close_dagruns[3], data)
+
+
+@pytest.mark.parametrize("endpoint", ENDPOINTS)
+def test_uses_base_date_if_changed_away_from_execution_date(admin_client, very_close_dagruns, endpoint):
+    base_date = quote((VERY_CLOSE_RUNS_DATE + timedelta(seconds=2)).isoformat())
+    exec_date = quote(very_close_dagruns[1].execution_date.isoformat())
+    response = admin_client.get(
+        f'{endpoint}&base_date={base_date}&num_runs=2&execution_date={exec_date}',
+        data={"username": "test", "password": "test"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200
+
+    data = response.data.decode()
+    _assert_base_date(VERY_CLOSE_RUNS_DATE + timedelta(seconds=2), data)
+    _assert_run_is_not_in_dropdown(very_close_dagruns[0], data)
+    _assert_run_is_not_in_dropdown(very_close_dagruns[1], data)
+    _assert_run_is_in_dropdown_not_selected(very_close_dagruns[2], data)
+    _assert_run_is_selected(very_close_dagruns[3], data)
+
+
+@pytest.mark.parametrize("endpoint", ENDPOINTS)
+def test_view_works_with_deleted_tasks(request, admin_client, app, endpoint):
+    task_to_state = {
+        "existing-task": TaskInstanceState.SUCCESS,
+        "deleted-task-success": TaskInstanceState.SUCCESS,
+        "deleted-task-failed": TaskInstanceState.FAILED,
+    }
+    dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+    for task_id in task_to_state.keys():
+        BaseOperator(task_id=task_id, dag=dag)
+
+    execution_date = timezone.datetime(2022, 3, 14)
+    dag_run_id = "test-deleted-tasks-dag-run"
+    with create_session() as session:
+        dag_run = dag.create_dagrun(
+            run_id=dag_run_id,
+            execution_date=execution_date,
+            data_interval=(execution_date, execution_date + timedelta(minutes=5)),
+            state=State.SUCCESS,
+            external_trigger=True,
+            session=session,
+        )
+        for ti in dag_run.task_instances:
+            ti.refresh_from_task(dag.get_task(ti.task_id))
+            ti.state = task_to_state[ti.task_id]
+            ti.start_date = execution_date
+            ti.end_date = execution_date + timedelta(minutes=5)
+            session.merge(ti)
+
+    def cleanup_database():
+        with create_session() as session:
+            session.query(DagRun).filter_by(run_id=dag_run_id).delete()
+
+    request.addfinalizer(cleanup_database)
+
+    dag = DAG(DAG_ID, start_date=DEFAULT_DATE)
+    BaseOperator(task_id="existing-task", dag=dag)
+    app.dag_bag.bag_dag(dag=dag, root_dag=dag)
+
+    response = admin_client.get(
+        f'{endpoint}&execution_date={execution_date.isoformat()}',
+        data={"username": "test", "password": "test"},
+        follow_redirects=True,
+    )
+    assert response.status_code == 200

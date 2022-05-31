@@ -20,6 +20,8 @@
 import unittest
 from unittest.mock import patch
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
@@ -53,5 +55,5 @@ class TestTextToSpeechHook(unittest.TestCase):
             input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG
         )
         synthesize_method.assert_called_once_with(
-            input_=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=None, timeout=None
+            input_=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=DEFAULT, timeout=None
         )

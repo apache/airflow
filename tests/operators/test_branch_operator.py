@@ -21,7 +21,7 @@ import unittest
 
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.operators.branch import BaseBranchOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -57,8 +57,8 @@ class TestBranchOperator(unittest.TestCase):
             schedule_interval=INTERVAL,
         )
 
-        self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id='branch_2', dag=self.dag)
         self.branch_3 = None
         self.branch_op = None
 
@@ -97,7 +97,7 @@ class TestBranchOperator(unittest.TestCase):
         self.branch_op = ChooseBranchOneTwo(task_id='make_choice', dag=self.dag)
         self.branch_1.set_upstream(self.branch_op)
         self.branch_2.set_upstream(self.branch_op)
-        self.branch_3 = DummyOperator(task_id='branch_3', dag=self.dag)
+        self.branch_3 = EmptyOperator(task_id='branch_3', dag=self.dag)
         self.branch_3.set_upstream(self.branch_op)
         self.dag.clear()
 

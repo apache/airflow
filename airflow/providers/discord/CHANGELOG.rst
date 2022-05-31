@@ -19,6 +19,17 @@
 Changelog
 ---------
 
+2.1.4
+.....
+
+Features
+~~~~~~~~
+
+* ``Set 'webhook_endpoint' as templated field in 'DiscordWebhookOperator'(#22570)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
 2.0.4
 .....
 

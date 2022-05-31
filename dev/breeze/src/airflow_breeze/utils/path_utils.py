@@ -26,7 +26,8 @@ from pathlib import Path
 from typing import Optional
 
 from airflow_breeze import NAME
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.confirm import set_forced_answer
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.reinstall import (
     ask_to_reinstall_breeze,
     warn_dependencies_changed,
@@ -61,7 +62,7 @@ def in_help() -> bool:
 
 
 def skip_upgrade_check():
-    return in_self_upgrade() or in_autocomplete() or in_help()
+    return in_self_upgrade() or in_autocomplete() or in_help() or hasattr(sys, '_called_from_test')
 
 
 def get_package_setup_metadata_hash() -> str:
@@ -120,19 +121,35 @@ def get_used_sources_setup_metadata_hash() -> str:
     return get_sources_setup_metadata_hash(get_used_airflow_sources())
 
 
+def set_forced_answer_for_upgrade_check():
+    """When we run upgrade check --answer is not parsed yet, so we need to guess it."""
+    if "--answer n" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("n"):
+        set_forced_answer("no")
+    if "--answer y" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("y"):
+        set_forced_answer("yes")
+    if "--answer q" in " ".join(sys.argv).lower() or os.environ.get('ANSWER', '').lower().startswith("q"):
+        set_forced_answer("quit")
+
+
 def print_warning_if_setup_changed() -> bool:
     """
     Prints warning if detected airflow sources are not the ones that Breeze was installed with.
     :return: True if warning was printed.
     """
-    package_hash = get_package_setup_metadata_hash()
+    try:
+        package_hash = get_package_setup_metadata_hash()
+    except ModuleNotFoundError as e:
+        if "importlib_metadata" in e.msg:
+            return False
     sources_hash = get_installation_sources_config_metadata_hash()
     if sources_hash != package_hash:
         installation_sources = get_installation_airflow_sources()
         if installation_sources is not None:
             breeze_sources = installation_sources / "dev" / "breeze"
             warn_dependencies_changed()
+            set_forced_answer_for_upgrade_check()
             ask_to_reinstall_breeze(breeze_sources)
+            set_forced_answer(None)
         return True
     return False
 
@@ -144,7 +161,7 @@ def print_warning_if_different_sources(airflow_sources: Path) -> bool:
     :return: True if warning was printed.
     """
     installation_airflow_sources = get_installation_airflow_sources()
-    if airflow_sources != installation_airflow_sources:
+    if installation_airflow_sources and airflow_sources != installation_airflow_sources:
         warn_different_location(installation_airflow_sources, airflow_sources)
         ask_to_reinstall_breeze(airflow_sources / "dev" / "breeze")
         return True
@@ -198,11 +215,14 @@ def find_airflow_sources_root_to_operate_on() -> Path:
     :return: Path for the found sources.
 
     """
+    sources_root_from_env = os.getenv('AIRFLOW_SOURCES_ROOT', None)
+    if sources_root_from_env:
+        return Path(sources_root_from_env)
     installation_airflow_sources = get_installation_airflow_sources()
     if installation_airflow_sources is None and not skip_upgrade_check():
-        console.print(
-            "\n[red]Breeze should only be installed with -e flag[/]\n\n"
-            "[bright_yellow]Please go to Airflow sources and run[/]\n\n"
+        get_console().print(
+            "\n[error]Breeze should only be installed with -e flag[/]\n\n"
+            "[warning]Please go to Airflow sources and run[/]\n\n"
             f"     {NAME} self-upgrade --force\n"
         )
         sys.exit(1)
@@ -211,16 +231,15 @@ def find_airflow_sources_root_to_operate_on() -> Path:
         # only print warning and sleep if not producing complete results
         print_warning_if_different_sources(airflow_sources)
         print_warning_if_setup_changed()
-    console.print(f"[bright_blue]Airflow sources: {airflow_sources}[/]")
     os.chdir(str(airflow_sources))
     return airflow_sources
 
 
-AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on()
+AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
-MYPY_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.mypy_cache'
+KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
 DIST_DIR = AIRFLOW_SOURCES_ROOT / 'dist'
 SCRIPTS_CI_DIR = AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci'
@@ -230,15 +249,18 @@ OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, 'out.log')
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
 
-def create_directories() -> None:
+def create_directories_and_files() -> None:
     """
-    Creates all directories that are needed for Breeze to work.
+    Creates all directories and files that are needed for Breeze to work via docker-compose.
     Checks if setup has been updates since last time and proposes to upgrade if so.
     """
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
-    MYPY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    KUBE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
     DIST_DIR.mkdir(parents=True, exist_ok=True)
     OUTPUT_LOG.mkdir(parents=True, exist_ok=True)
+    (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
+    (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
+    (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()

@@ -26,16 +26,17 @@ from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 # FORCE_PULL_IMAGES = False
 # CHECK_IF_BASE_PYTHON_IMAGE_UPDATED = False
 FORCE_BUILD_IMAGES = False
-FORCE_ANSWER_TO_QUESTION = ""
+ANSWER = ""
 SKIP_CHECK_REMOTE_IMAGE = False
 # PUSH_PYTHON_BASE_IMAGE = False
 
-DEFAULT_PYTHON_MAJOR_MINOR_VERSION = '3.7'
-DEFAULT_BACKEND = 'sqlite'
 
 # Checked before putting in build cache
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
+DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
+ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
+DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 ALLOWED_INTEGRATIONS = [
     'cassandra',
     'kerberos',
@@ -49,19 +50,20 @@ ALLOWED_INTEGRATIONS = [
     'all',
 ]
 ALLOWED_KUBERNETES_MODES = ['image']
-ALLOWED_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
-ALLOWED_KIND_VERSIONS = ['v0.12.0']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
+ALLOWED_KIND_VERSIONS = ['v0.14.0']
 ALLOWED_HELM_VERSIONS = ['v3.6.3']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
-ALLOWED_GENERATE_CONSTRAINTS_MODES = ['source-providers', 'pypi-providers', 'no-providers']
+ALLOWED_CONSTRAINTS_MODES_CI = ['constraints-source-providers', 'constraints', 'constraints-no-providers']
+ALLOWED_CONSTRAINTS_MODES_PROD = ['constraints', 'constraints-no-providers', 'constraints-source-providers']
 
 MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"
 MOUNT_NONE = "none"
 
 ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_NONE]
-ALLOWED_POSTGRES_VERSIONS = ['10', '11', '12', '13']
+ALLOWED_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
 ALLOWED_MYSQL_VERSIONS = ['5.7', '8']
 ALLOWED_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
 ALLOWED_TEST_TYPES = [
@@ -79,11 +81,14 @@ ALLOWED_TEST_TYPES = [
     'Helm',
     'Quarantined',
 ]
-ALLOWED_PACKAGE_FORMATS = ['both', 'sdist', 'wheel']
+ALLOWED_PACKAGE_FORMATS = ['wheel', 'sdist', 'both']
+ALLOWED_INSTALLATION_PACKAGE_FORMATS = ['wheel', 'sdist']
 ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
-ALLOWED_DEBIAN_VERSIONS = ['buster', 'bullseye']
-ALLOWED_BUILD_CACHE = ["pulled", "local", "disabled"]
-ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", "linux/amd64,linux/arm64"]
+ALLOWED_DEBIAN_VERSIONS = ['bullseye', 'buster']
+ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
+MULTI_PLATFORM = "linux/amd64,linux/arm64"
+ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", MULTI_PLATFORM]
+ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
 
 PARAM_NAME_DESCRIPTION = {
     "BACKEND": "backend",
@@ -119,10 +124,17 @@ EXCLUDE_DOCS_PACKAGE_FOLDER = [
 ]
 
 
-def get_available_packages() -> List[str]:
+def get_available_packages(short_version=False) -> List[str]:
     docs_path_content = (AIRFLOW_SOURCES_ROOT / 'docs').glob('*/')
     available_packages = [x.name for x in docs_path_content if x.is_dir()]
-    return list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
+    package_list = list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
+    package_list.sort()
+    if short_version:
+        prefix_len = len("apache-airflow-providers-")
+        package_list = [
+            package[prefix_len:].replace("-", ".") for package in package_list if len(package) > prefix_len
+        ]
+    return package_list
 
 
 # Initialise base variables
@@ -143,7 +155,7 @@ PYTHONDONTWRITEBYTECODE = True
 PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
-CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13']
+CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
 CURRENT_MYSQL_VERSIONS = ['5.7', '8']
 CURRENT_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
 POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
@@ -154,7 +166,7 @@ START_AIRFLOW = "false"
 LOAD_EXAMPLES = False
 LOAD_DEFAULT_CONNECTIONS = False
 PRESERVE_VOLUMES = False
-CLEANUP_DOCKER_CONTEXT_FILES = False
+CLEANUP_CONTEXT = False
 INIT_SCRIPT_FILE = ""
 DRY_RUN_DOCKER = False
 INSTALL_AIRFLOW_VERSION = ""
@@ -214,8 +226,8 @@ FILES_FOR_REBUILD_CHECK = [
 ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_MODES = ['image']
-CURRENT_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
-CURRENT_KIND_VERSIONS = ['v0.12.0']
+CURRENT_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
+CURRENT_KIND_VERSIONS = ['v0.14.0']
 CURRENT_HELM_VERSIONS = ['v3.6.3']
 CURRENT_EXECUTORS = ['KubernetesExecutor']
 
@@ -226,17 +238,11 @@ DEFAULT_HELM_VERSIONS = CURRENT_HELM_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
-SKIP_TWINE_CHECK = ""
-USE_AIRFLOW_VERSION = ""
+USE_AIRFLOW_VERSION = None
 GITHUB_ACTIONS = ""
 
 ISSUE_ID = ""
 NUM_RUNS = ""
-
-# Initialize package variables
-PACKAGE_FORMAT = "wheel"
-VERSION_SUFFIX_FOR_SVN = ""
-VERSION_SUFFIX_FOR_PYPI = ""
 
 MIN_DOCKER_VERSION = "20.10.0"
 MIN_DOCKER_COMPOSE_VERSION = "1.29.0"
@@ -245,3 +251,34 @@ AIRFLOW_SOURCES_FROM = "."
 AIRFLOW_SOURCES_TO = "/opt/airflow"
 AIRFLOW_SOURCES_WWW_FROM = "./airflow/www"
 AIRFLOW_SOURCES_WWW_TO = "/opt/airflow/airflow/www"
+
+DEFAULT_EXTRAS = [
+    # BEGINNING OF EXTRAS LIST UPDATED BY PRE COMMIT
+    "amazon",
+    "async",
+    "celery",
+    "cncf.kubernetes",
+    "dask",
+    "docker",
+    "elasticsearch",
+    "ftp",
+    "google",
+    "google_auth",
+    "grpc",
+    "hashicorp",
+    "http",
+    "ldap",
+    "microsoft.azure",
+    "mysql",
+    "odbc",
+    "pandas",
+    "postgres",
+    "redis",
+    "sendgrid",
+    "sftp",
+    "slack",
+    "ssh",
+    "statsd",
+    "virtualenv",
+    # END OF EXTRAS LIST UPDATED BY PRE COMMIT
+]

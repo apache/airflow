@@ -20,7 +20,7 @@ services:
   airflow:
     environment:
       - BACKEND=postgres
-      - AIRFLOW__CORE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
+      - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://postgres:airflow@postgres/airflow
       - AIRFLOW__CELERY__RESULT_BACKEND=db+postgresql://postgres:airflow@postgres/airflow
       - AIRFLOW__CORE__EXECUTOR=LocalExecutor
     depends_on:
@@ -42,3 +42,5 @@ services:
       timeout: 10s
       retries: 5
     restart: always
+volumes:
+  postgres-db-volume:

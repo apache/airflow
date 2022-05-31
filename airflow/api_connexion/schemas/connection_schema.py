@@ -45,7 +45,7 @@ class ConnectionSchema(ConnectionCollectionItemSchema):
     """Connection schema"""
 
     password = auto_field(load_only=True)
-    extra = fields.Method('serialize_extra', deserialize='deserialize_extra')
+    extra = fields.Method('serialize_extra', deserialize='deserialize_extra', allow_none=True)
 
     @staticmethod
     def serialize_extra(obj: Connection):

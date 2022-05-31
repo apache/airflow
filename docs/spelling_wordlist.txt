@@ -217,6 +217,7 @@ JobStatus
 JobTrigger
 Json
 Jupyter
+KEDA
 KYLIN
 Kalibrr
 Kamil
@@ -268,6 +269,7 @@ Namenode
 Namespace
 Neo4j
 NetBIOS
+NetworkPolicy
 Nextdoor
 Nodegroup
 Nodegroups
@@ -286,6 +288,8 @@ PEM
 POSIX
 PTarget
 PTransform
+PVC
+PVCs
 Pagerduty
 Papermill
 Parallelize
@@ -339,6 +343,7 @@ Reserialize
 ResourceRequirements
 Roadmap
 Robinhood
+RoleBinding
 SIGTERM
 SSHClient
 SSHTunnelForwarder
@@ -347,9 +352,11 @@ Sagemaker
 Sasl
 SearchResultGenerator
 SecretManagerClient
+SecurityManager
 Seedlist
 Sendgrid
 SerializedDAG
+ServiceAccount
 SlackHook
 SlackResponse
 SnowflakeHook
@@ -494,6 +501,7 @@ asciiart
 asctime
 asia
 assertEqualIgnoreMultipleSpaces
+assigment
 ast
 async
 athena
@@ -626,6 +634,7 @@ configfile
 configmap
 configmaps
 configs
+configurability
 conftest
 conn
 connectTimeoutMS
@@ -653,6 +662,7 @@ csv
 ctor
 cubeName
 customDataImportUids
+customizability
 customizable
 customizations
 cx
@@ -814,6 +824,7 @@ filesize
 filesystem
 filesystems
 filetype
+finalizers
 findall
 firstname
 fluentd
@@ -852,6 +863,7 @@ github
 gitignore
 gitpython
 gitter
+gke
 globstring
 glyphicon
 golang
@@ -880,6 +892,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+hoc
 homebrew
 honoured
 hookable
@@ -898,12 +911,14 @@ https
 httpx
 hvac
 hyperparameter
+hyperparameters
 iPython
 iTerm
 iam
 idempotence
 idempotency
 ie
+iframe
 ignorable
 ignoreUnknownValues
 imageORfile
@@ -915,10 +930,12 @@ imgcat
 impyla
 incompliancies
 inexhaustive
+inferral
 infile
 influxdb
 infoType
 infoTypes
+ingestions
 ini
 init
 initcontainer
@@ -1031,6 +1048,7 @@ metarouter
 metastore
 mget
 microservice
+microservices
 microsoft
 middleware
 midnights
@@ -1038,6 +1056,7 @@ milton
 minicluster
 minikube
 misconfigured
+mixin
 mixup
 mkdir
 mkdirs
@@ -1130,6 +1149,7 @@ passwd
 pathType
 pem
 performant
+permalinks
 personalizations
 pformat
 picklable
@@ -1195,6 +1215,7 @@ pydruid
 pyexasol
 pyhive
 pyhs
+pylint
 pymongo
 pymssql
 pymysql
@@ -1235,6 +1256,7 @@ reinit
 reinitialization
 relativedelta
 remoting
+renderers
 renewer
 replicaSet
 repo
@@ -1245,6 +1267,7 @@ reqs
 reserialize
 reserialized
 resetdb
+resizable
 resourceVersion
 resultset
 resumable
@@ -1265,6 +1288,7 @@ runAsUser
 runnable
 runspace
 runtime
+sade
 sagemaker
 salesforce
 samesite
@@ -1436,6 +1460,7 @@ todo
 tokenization
 tokopedia
 tolerations
+toolchain
 tooltip
 tooltips
 traceback
@@ -1451,6 +1476,7 @@ tsv
 ttl
 tunables
 txt
+typeahead
 tz
 tzinfo
 ui

@@ -167,7 +167,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         assert mock_auth_default.return_value == result
 
     @mock.patch(
-        'airflow.providers.google.cloud.utils.credentials_provider.' 'impersonated_credentials.Credentials'
+        'airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials'
     )
     @mock.patch('google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_target_principal(
@@ -189,7 +189,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         assert (mock_impersonated_credentials.return_value, ANOTHER_PROJECT_ID) == result
 
     @mock.patch(
-        'airflow.providers.google.cloud.utils.credentials_provider.' 'impersonated_credentials.Credentials'
+        'airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials'
     )
     @mock.patch('google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_scopes_and_target_principal(
@@ -212,7 +212,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         assert (mock_impersonated_credentials.return_value, self.test_project_id) == result
 
     @mock.patch(
-        'airflow.providers.google.cloud.utils.credentials_provider.' 'impersonated_credentials.Credentials'
+        'airflow.providers.google.cloud.utils.credentials_provider.impersonated_credentials.Credentials'
     )
     @mock.patch('google.auth.default')
     def test_get_credentials_and_project_id_with_default_auth_and_target_principal_and_delegates(
@@ -312,7 +312,7 @@ class TestGetGcpCredentialsAndProjectId(unittest.TestCase):
         with pytest.raises(
             AirflowException,
             match=re.escape(
-                'The `keyfile_dict`, `key_path`, and `key_secret_name` fieldsare all mutually exclusive.'
+                'The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive.'
             ),
         ):
             get_credentials_and_project_id(key_path='KEY.json', keyfile_dict={'private_key': 'PRIVATE_KEY'})

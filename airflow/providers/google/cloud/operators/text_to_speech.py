@@ -20,6 +20,7 @@
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.texttospeech_v1.types import AudioConfig, SynthesisInput, VoiceSelectionParams
 
@@ -27,6 +28,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.cloud.hooks.text_to_speech import CloudTextToSpeechHook
+from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -79,6 +81,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         "impersonation_chain",
     )
     # [END gcp_text_to_speech_synthesize_template_fields]
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -90,7 +93,7 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
         target_filename: str,
         project_id: Optional[str] = None,
         gcp_conn_id: str = "google_cloud_default",
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -139,4 +142,10 @@ class CloudTextToSpeechSynthesizeOperator(BaseOperator):
             )
             cloud_storage_hook.upload(
                 bucket_name=self.target_bucket_name, object_name=self.target_filename, filename=temp_file.name
+            )
+            FileDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                uri=f"{self.target_bucket_name}/{self.target_filename}",
+                project_id=cloud_storage_hook.project_id,
             )

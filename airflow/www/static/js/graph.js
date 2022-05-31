@@ -102,7 +102,12 @@ const updateNodeLabels = (node, instances) => {
     haveLabelsChanged = true;
   }
 
-  if (node.children) return node.children.some((n) => updateNodeLabels(n, instances));
+  if (node.children) {
+    // Iterate through children and return true if at least one has been changed
+    const updatedNodes = node.children.map((n) => updateNodeLabels(n, instances));
+    return updatedNodes.some((changed) => changed);
+  }
+
   return haveLabelsChanged;
 };
 
@@ -177,8 +182,8 @@ function draw() {
       // A task node
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
-      let mappedLength = 0;
-      if (task.is_mapped) mappedLength = taskInstances[nodeId].mapped_states.length;
+      let mappedStates = [];
+      if (task.is_mapped) mappedStates = taskInstances[nodeId].mapped_states;
 
       callModal({
         taskId: nodeId,
@@ -189,7 +194,7 @@ function draw() {
         dagRunId,
         mapIndex: task.map_index,
         isMapped: task.is_mapped,
-        mappedLength,
+        mappedStates,
       });
     }
   });
@@ -241,7 +246,7 @@ function setUpZoomSupport() {
   const graphWidth = g.graph().width;
   const graphHeight = g.graph().height;
   // Get SVG dimensions
-  const padding = 20;
+  const padding = 80;
   const svgBb = svg.node().getBoundingClientRect();
   const width = svgBb.width - padding * 2;
   const height = svgBb.height - padding; // we are not centering the dag vertically
@@ -445,8 +450,9 @@ function handleRefresh() {
         setTimeout(() => { $('#loading-dots').hide(); }, 500);
         $('#error').hide();
       },
-    ).fail((_, textStatus, err) => {
-      $('#error_msg').text(`${textStatus}: ${err}`);
+    ).fail((response, textStatus, err) => {
+      const description = (response.responseJSON && response.responseJSON.error) || 'Something went wrong.';
+      $('#error_msg').text(`${textStatus}: ${err} ${description}`);
       $('#error').show();
       setTimeout(() => { $('#loading-dots').hide(); }, 500);
       $('#chart_section').hide(1000);

@@ -15,21 +15,28 @@
     specific language governing permissions and limitations
     under the License.
 
-Imap Attachment to Amazon S3 Transfer Operator
-==============================================
+============================
+Imap Attachment to Amazon S3
+============================
 
 The ``ImapAttachmentToS3Operator`` transfers an email attachment via IMAP
-protocol from a mail server to an Amazon S3 Bucket.
+protocol from an email server to an Amazon S3 Bucket.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:ImapAttachmentToS3Operator:
 
-Imap Attachment To Amazon S3
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Imap Attachment To Amazon S3 transfer operator
+==============================================
+
+To save an email attachment via IMAP protocol from an email server to an Amazon S3 Bucket you can use
+:class:`~airflow.providers.amazon.aws.transfers.imap_attachment_to_s3.ImapAttachmentToS3Operator`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_imap_attachment_to_s3.py
     :language: python
@@ -38,7 +45,7 @@ Imap Attachment To Amazon S3
     :end-before: [END howto_transfer_imap_attachment_to_s3]
 
 Reference
-^^^^^^^^^
+---------
 
-* `IMAP Library Documentation <https://docs.python.org/3/library/imaplib.html>`__
-* `AWS boto3 Library Documentation for S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `IMAP Library documentation <https://docs.python.org/3/library/imaplib.html>`__
+* `AWS boto3 library documentation for S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__

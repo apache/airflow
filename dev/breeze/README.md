@@ -21,11 +21,11 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of Contents**  *generated with [DocToc](https://github.com/thlorenz/doctoc)*
 
-- [Apache AirAirflow Breeze](#apache-airairflow-breeze)
+- [Apache Airflow Breeze](#apache-airflow-breeze)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
-Apache AirAirflow Breeze
+Apache Airflow Breeze
 ------------------------
 
 The project is part of [Apache Airflow](https://airflow.apache.org) - it's a development environment
@@ -52,6 +52,6 @@ PLEASE DO NOT MODIFY THE HASH BELOW! IT IS AUTOMATICALLY UPDATED BY PRE-COMMIT.
 
 ---------------------------------------------------------------------------------------------------------
 
-Package config hash: 4832d19ac2e6ffaf6184adb3741d58ae1934849c49a8c28305f5efa966f4bab0b450472767cb923cebcbb1a020e7f1eee46b660e11abf8c737d61a0f12796faa
+Package config hash: 480e3d6ae41e7d82216d1d4196b5b44f65e0ff06a6e58f2a5b0c79c70c5912e8e4a42e99429cf3220718491f0ebde35a1a1d2663fd36cbd8d902a4d51f7ebeb1
 
 ---------------------------------------------------------------------------------------------------------

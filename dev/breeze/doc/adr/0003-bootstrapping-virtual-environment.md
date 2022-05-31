@@ -87,7 +87,7 @@ Integration we run. It's been established practice of the CI is that the logic
 of the CI is stored in the same repository as the source code of the
 application it tests and part of the Breeze functions are shared with CI.
 
-In the future when Breeze2 stabilizes and it's update cadence will be
+In the future when breeze stabilizes and it's update cadence will be
 much slower (which is likele as it happened with the Breeze predecessor)
 there could be an option that Breeze is installed as separate package and
 same released Breeze version could be ued to manage multiple Airflow
@@ -108,10 +108,10 @@ The sub-project could be used in the future to produce a  PyPI package
 to install Breeze in a separate virtualenv bootstrapped
 automatically in editable mode.
 
-There are two ways you will be able to install `Breeze2` - locally in
-repository using ./Breeze2 bootstrapping script and using `pipx`.
+There are two ways you will be able to install `breeze` - locally in
+repository using ./breeze bootstrapping script and using `pipx`.
 
-The bootstrapping Python script (`Breeze2` in the main repository
+The bootstrapping Python script (`breeze` in the main repository
 of Airflow) performs the following tasks:
 
 * when run for the first time it creates `.build/breeze2/venv` virtual
@@ -122,20 +122,20 @@ of Airflow) performs the following tasks:
 * when run subsequently, it will check if setup files changed for
   Breeze (dependencies changed) and if they did it will automatically
   reinstall the environment, adding missing dependencies
-* after managing the venv, the Breeze2 script will simply execute
-  the actual Breeze2 script in the `.build/venv` passing the
+* after managing the venv, the breeze script will simply execute
+  the actual breeze script in the `.build/venv` passing the
   parameters to the script. For the user, the effect will be same
-  as activating the virtualenv and executing the ./Breeze2 from
+  as activating the virtualenv and executing the ./breeze from
   there (but it will happen automatically and invisibly for the
   user
 * In Windows environment where you have no easy/popular mechanism
   of running scripts with shebang (#!) equivalent in Posix
   environments, Users will be able to locally build (using
-  `pyinstaller` a `Breeze2.exe` frozen Python script that will
-  essentially do the same, they could also use `python Breeze2`
+  `pyinstaller` a `breeze.exe` frozen Python script that will
+  essentially do the same, they could also use `python breeze`
   command or switch to Git Bash to utilize the shebang feature
   (Git Bash comes together with Git when installed on Windows)
-* The second option is to use `pipx` to install Breeze2.
+* The second option is to use `pipx` to install breeze.
   The `pipx` is almost equivalent to what the Bootstrapping does
   and many users might actually choose to install Breeze this
   way - and we will add it as an option to install Breeze
@@ -152,7 +152,7 @@ of Airflow) performs the following tasks:
   environment, and it might create some confusions for the
   users who would have to learn `pipx` and it's commands.
   Another drawback of `pipx` is that installs one global
-  version of Breeze2 for all projects, where it is quite
+  version of breeze for all projects, where it is quite
   possible that someone has two different versions of
   Airflow repository checked out and the bootstraping
   script provides this capability.
@@ -184,13 +184,13 @@ The alternatives considered were:
   purpose quite well. However the problem is that if you
   also use `pyenv` to manage your `airflow` virtualenv this might
   be source of confusion. Should I activate airflow virtualenv
-  or Breeze2 venv to run tests? Part of Breeze experience is
+  or breeze venv to run tests? Part of Breeze experience is
   to activate local Airflow virtualenv for IDE integration and
   since this is different than simple Breeze virtualenv, using
   pytest and autoactivation in this case might lead to a lot
   of confusion. Keeping the Breeze virtualenv "hidden" and
   mostly "used" but not deliberately activated is a better
-  choice - especially that most users will simply "use" Breeze2
+  choice - especially that most users will simply "use" breeze
   as an app rather than activate the environment deliberately.
   Also choosing `pyenv` and it's virtualenv plugin would
   add extra, unnecessary steps and prerequisites for Breeze.
@@ -200,7 +200,7 @@ The alternatives considered were:
 
 Using Breeze for new users will be much simpler, without
 having to install any prerequisites. The virtualenv used by
-Breeze2 will be hidden from the user, and used behind the
+breeze will be hidden from the user, and used behind the
 scenes - and the dependencies used will be automatically
 installed when needed. This will allow to seamlessly
 integrate Breeze tool in the develiopment experience without

@@ -19,6 +19,7 @@
 import unittest
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.videointelligence_v1 import enums
 
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
@@ -69,7 +70,7 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             video_context=None,
             output_uri=None,
             location_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -92,7 +93,7 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             features=FEATURES,
             video_context=None,
             location_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

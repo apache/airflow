@@ -41,21 +41,21 @@ which will add the DAG to anything inside it implicitly::
         "my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         schedule_interval="@daily", catchup=False
     ) as dag:
-        op = DummyOperator(task_id="task")
+        op = EmptyOperator(task_id="task")
 
 Or, you can use a standard constructor, passing the dag into any
 operators you use::
 
     my_dag = DAG("my_dag_name", start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
                  schedule_interval="@daily", catchup=False)
-    op = DummyOperator(task_id="task", dag=my_dag)
+    op = EmptyOperator(task_id="task", dag=my_dag)
 
 Or, you can use the ``@dag`` decorator to :ref:`turn a function into a DAG generator <concepts:dag-decorator>`::
 
     @dag(start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
          schedule_interval="@daily", catchup=False)
     def generate_dag():
-        op = DummyOperator(task_id="task")
+        op = EmptyOperator(task_id="task")
 
     dag = generate_dag()
 
@@ -94,7 +94,7 @@ And if you want to chain together dependencies, you can use ``chain``::
     chain(op1, op2, op3, op4)
 
     # You can also do it dynamically
-    chain(*[DummyOperator(task_id='op' + i) for i in range(1, 6)])
+    chain(*[EmptyOperator(task_id='op' + i) for i in range(1, 6)])
 
 Chain can also do *pairwise* dependencies for lists the same size (this is different to the *cross dependencies* done by ``cross_downstream``!)::
 
@@ -132,7 +132,7 @@ While both DAG constructors get called when the file is accessed, only ``dag_1``
 
     To consider all Python files instead, disable the ``DAG_DISCOVERY_SAFE_MODE`` configuration flag.
 
-You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it, and should be one regular expression per line, with ``#`` indicating comments.
+You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or any of its subfolders, which describes patterns of files for the loader to ignore. It covers the directory it's in plus all subfolders underneath it. See  :ref:`.airflowignore <concepts:airflowignore>` below for details of the file syntax.
 
 
 .. _concepts:dag-run:
@@ -309,8 +309,8 @@ The ``BranchPythonOperator`` can also be used with XComs allowing branching cont
         dag=dag,
     )
 
-    continue_op = DummyOperator(task_id="continue_task", dag=dag)
-    stop_op = DummyOperator(task_id="stop_task", dag=dag)
+    continue_op = EmptyOperator(task_id="continue_task", dag=dag)
+    stop_op = EmptyOperator(task_id="stop_task", dag=dag)
 
     start_op >> branch_op >> [continue_op, stop_op]
 
@@ -403,7 +403,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         import pendulum
 
         from airflow.models import DAG
-        from airflow.operators.dummy import DummyOperator
+        from airflow.operators.empty import EmptyOperator
         from airflow.operators.python import BranchPythonOperator
 
         dag = DAG(
@@ -412,17 +412,17 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
             start_date=pendulum.datetime(2019, 2, 28, tz="UTC"),
         )
 
-        run_this_first = DummyOperator(task_id="run_this_first", dag=dag)
+        run_this_first = EmptyOperator(task_id="run_this_first", dag=dag)
         branching = BranchPythonOperator(
             task_id="branching", dag=dag, python_callable=lambda: "branch_a"
         )
 
-        branch_a = DummyOperator(task_id="branch_a", dag=dag)
-        follow_branch_a = DummyOperator(task_id="follow_branch_a", dag=dag)
+        branch_a = EmptyOperator(task_id="branch_a", dag=dag)
+        follow_branch_a = EmptyOperator(task_id="follow_branch_a", dag=dag)
 
-        branch_false = DummyOperator(task_id="branch_false", dag=dag)
+        branch_false = EmptyOperator(task_id="branch_false", dag=dag)
 
-        join = DummyOperator(task_id="join", dag=dag)
+        join = EmptyOperator(task_id="join", dag=dag)
 
         run_this_first >> branching
         branching >> branch_a >> follow_branch_a >> join
@@ -446,12 +446,12 @@ For example, here is a DAG that uses a ``for`` loop to define some Tasks::
 
     with DAG("loop_example") as dag:
 
-        first = DummyOperator(task_id="first")
-        last = DummyOperator(task_id="last")
+        first = EmptyOperator(task_id="first")
+        last = EmptyOperator(task_id="last")
 
         options = ["branch_a", "branch_b", "branch_c", "branch_d"]
         for option in options:
-            t = DummyOperator(task_id=option)
+            t = EmptyOperator(task_id=option)
             first >> t >> last
 
 In general, we advise you to try and keep the *topology* (the layout) of your DAG tasks relatively stable; dynamic DAGs are usually better used for dynamically loading configuration options or changing operator options.
@@ -484,10 +484,10 @@ Unlike :ref:`concepts:subdags`, TaskGroups are purely a UI grouping concept. Tas
 Dependency relationships can be applied across all tasks in a TaskGroup with the ``>>`` and ``<<`` operators. For example, the following code puts ``task1`` and ``task2`` in TaskGroup ``group1`` and then puts both tasks upstream of ``task3``::
 
     with TaskGroup("group1") as group1:
-        task1 = DummyOperator(task_id="task1")
-        task2 = DummyOperator(task_id="task2")
+        task1 = EmptyOperator(task_id="task1")
+        task2 = EmptyOperator(task_id="task2")
 
-    task3 = DummyOperator(task_id="task3")
+    task3 = EmptyOperator(task_id="task3")
 
     group1 >> task3
 
@@ -503,7 +503,7 @@ TaskGroup also supports ``default_args`` like DAG, it will overwrite the ``defau
         default_args={'retries': 1},
     ):
         with TaskGroup('group1', default_args={'retries': 3}):
-            task1 = DummyOperator(task_id='task1')
+            task1 = EmptyOperator(task_id='task1')
             task2 = BashOperator(task_id='task2', bash_command='echo Hello World!', retries=2)
             print(task1.retries) # 3
             print(task2.retries) # 2
@@ -700,25 +700,54 @@ Note that packaged DAGs come with some caveats:
 
 In general, if you have a complex set of compiled dependencies and modules, you are likely better off using the Python ``virtualenv`` system and installing the necessary packages on your target systems with ``pip``.
 
+.. _concepts:airflowignore:
+
 ``.airflowignore``
 ------------------
 
-A ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
-or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore.
-Each line in ``.airflowignore`` specifies a regular expression pattern,
-and directories or files whose names (not DAG id) match any of the patterns
-would be ignored (under the hood, ``Pattern.search()`` is used to match the pattern).
-Overall it works like a ``.gitignore`` file.
-Use the ``#`` character to indicate a comment; all characters
+An ``.airflowignore`` file specifies the directories or files in ``DAG_FOLDER``
+or ``PLUGINS_FOLDER`` that Airflow should intentionally ignore. Airflow supports
+two syntax flavors for patterns in the file, as specified by the ``DAG_IGNORE_FILE_SYNTAX``
+configuration parameter (*added in Airflow 2.3*): ``regexp`` and ``glob``.
+
+.. note::
+
+    The default ``DAG_IGNORE_FILE_SYNTAX`` is ``regexp`` to ensure backwards compatibility.
+
+For the ``regexp`` pattern syntax (the default), each line in ``.airflowignore``
+specifies a regular expression pattern, and directories or files whose names (not DAG id)
+match any of the patterns would be ignored (under the hood, ``Pattern.search()`` is used
+to match the pattern). Use the ``#`` character to indicate a comment; all characters
 on a line following a ``#`` will be ignored.
 
-``.airflowignore`` file should be put in your ``DAG_FOLDER``.
-For example, you can prepare a ``.airflowignore`` file with content
+With the ``glob`` syntax, the patterns work just like those in a ``.gitignore`` file:
+
+* The ``*`` character will any number of characters, except ``/``
+* The ``?`` character will match any single character, except ``/``
+* The range notation, e.g. ``[a-zA-Z]``, can be used to match one of the characters in a range
+* A pattern can be negated by prefixing with ``!``. Patterns are evaluated in order so
+  a negation can override a previously defined pattern in the same file or patterns defined in
+  a parent directory.
+* A double asterisk (``**``) can be used to match across directories. For example, ``**/__pycache__/``
+  will ignore ``__pycache__`` directories in each sub-directory to infinite depth.
+* If there is a ``/`` at the beginning or middle (or both) of the pattern, then the pattern
+  is relative to the directory level of the particular .airflowignore file itself. Otherwise the
+  pattern may also match at any level below the .airflowignore level.
+
+The ``.airflowignore`` file should be put in your ``DAG_FOLDER``. For example, you can prepare
+a ``.airflowignore`` file using the ``regexp`` syntax with content
 
 .. code-block::
 
     project_a
     tenant_[\d]
+
+Or, equivalently, in the ``glob`` syntax
+
+.. code-block::
+
+    **/*project_a*
+    tenant_[0-9]*
 
 Then files like ``project_a_dag_1.py``, ``TESTING_project_a.py``, ``tenant_1.py``,
 ``project_a/dag_1.py``, and ``tenant_1/dag_1.py`` in your ``DAG_FOLDER`` would be ignored
@@ -762,7 +791,7 @@ via UI and API. Paused DAG is not scheduled by the Scheduler, but you can trigge
 manual runs. In the UI, you can see Paused DAGs (in ``Paused`` tab). The DAGs that are un-paused
 can be found in the ``Active`` tab.
 
-Dag can be deactivated (do not confuse it with ``Active`` tag in the UI by removing them from the
+Dag can be deactivated (do not confuse it with ``Active`` tag in the UI) by removing them from the
 ``DAGS_FOLDER``. When scheduler parses the ``DAGS_FOLDER`` and misses the DAG that it had seen
 before and stored in the database it will set is as deactivated. The metadata and history of the
 DAG` is kept for deactivated DAGs and when the DAG is re-added to the ``DAGS_FOLDER`` it will be again

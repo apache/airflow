@@ -34,6 +34,7 @@ from unittest.mock import MagicMock, PropertyMock
 
 import pytest
 from freezegun import freeze_time
+from sqlalchemy import func
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
@@ -57,7 +58,7 @@ from tests.models import TEST_DAGS_FOLDER
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_callbacks, clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-TEST_DAG_FOLDER = pathlib.Path(__file__).parent.parent / 'dags'
+TEST_DAG_FOLDER = pathlib.Path(__file__).parents[1].resolve() / 'dags'
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 
@@ -148,7 +149,7 @@ class TestDagFileProcessorManager:
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
 
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
@@ -183,7 +184,7 @@ class TestDagFileProcessorManager:
         child_pipe, parent_pipe = multiprocessing.Pipe()
 
         with TemporaryDirectory(prefix="empty-airflow-dags-") as dags_folder:
-            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+            async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
             manager = DagFileProcessorManager(
                 dag_directory=dags_folder,
                 max_runs=1,
@@ -476,6 +477,7 @@ class TestDagFileProcessorManager:
             dag = dagbag.get_dag('test_example_bash_operator')
             dag.last_parsed_time = timezone.utcnow()
             dag.sync_to_db()
+            SerializedDagModel.write_dag(dag)
 
             # Add DAG to the file_parsing_stats
             stat = DagFileStat(
@@ -488,18 +490,36 @@ class TestDagFileProcessorManager:
             manager._file_paths = [test_dag_path]
             manager._file_stats[test_dag_path] = stat
 
-            active_dags = (
-                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
             )
-            assert len(active_dags) == 1
+            assert active_dag_count == 1
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 1
 
             manager._file_stats[test_dag_path] = stat
             manager._deactivate_stale_dags()
-            active_dags = (
-                session.query(DagModel).filter(DagModel.is_active, DagModel.fileloc == test_dag_path).all()
-            )
 
-            assert len(active_dags) == 0
+            active_dag_count = (
+                session.query(func.count(DagModel.dag_id))
+                .filter(DagModel.is_active, DagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert active_dag_count == 0
+
+            serialized_dag_count = (
+                session.query(func.count(SerializedDagModel.dag_id))
+                .filter(SerializedDagModel.fileloc == test_dag_path)
+                .scalar()
+            )
+            assert serialized_dag_count == 0
 
     @mock.patch(
         "airflow.dag_processing.processor.DagFileProcessorProcess.waitable_handle", new_callable=PropertyMock
@@ -678,7 +698,7 @@ class TestDagFileProcessorManager:
 
         child_pipe, parent_pipe = multiprocessing.Pipe()
 
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
         manager = DagFileProcessorManager(
             dag_directory=tmpdir,
             max_runs=1,
@@ -876,7 +896,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
             # Launch a process through DagFileProcessorAgent, which will try
             # reload the logging module.
             test_dag_path = TEST_DAG_FOLDER / 'test_scheduler_dags.py'
-            async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+            async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
             log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
 
             try:
@@ -904,7 +924,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
         clear_db_dags()
 
         test_dag_path = TEST_DAG_FOLDER / 'test_scheduler_dags.py'
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
         processor_agent = DagFileProcessorAgent(test_dag_path, 1, timedelta(days=365), [], False, async_mode)
         processor_agent.start()
         if not async_mode:
@@ -926,7 +946,7 @@ class TestDagFileProcessorAgent(unittest.TestCase):
 
     def test_launch_process(self):
         test_dag_path = TEST_DAG_FOLDER / 'test_scheduler_dags.py'
-        async_mode = 'sqlite' not in conf.get('core', 'sql_alchemy_conn')
+        async_mode = 'sqlite' not in conf.get('database', 'sql_alchemy_conn')
 
         log_file_loc = conf.get('logging', 'DAG_PROCESSOR_MANAGER_LOG_LOCATION')
         try:

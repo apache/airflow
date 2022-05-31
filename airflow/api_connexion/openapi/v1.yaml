@@ -781,6 +781,43 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+
+    post:
+      summary: Clear a DAG run
+      description: |
+        Clear a DAG run.
+
+        *New in version 2.4.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: clear_dag_run
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearDagRun'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /eventLogs:
     get:
       summary: List log entries
@@ -2392,6 +2429,28 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        data_interval_start:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_end:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_scheduling_decision:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        run_type:
+          type: string
+          readOnly: true
+          enum:
+            - backfill
+            - manual
+            - scheduled
         state:
           $ref: '#/components/schemas/DagState'
           readOnly: true
@@ -2420,6 +2479,7 @@ components:
           enum:
             - success
             - failed
+            - queued
 
     DAGRunCollection:
       type: object
@@ -2912,7 +2972,49 @@ components:
                 User-specified DAG params.
 
                 *New in version 2.0.1*
+            end_date:
+              type: string
+              format: 'date-time'
+              readOnly: true
+              nullable: true
+              description: |
+                The DAG's end date.
 
+                *New in version 2.3.0*.
+            is_paused_upon_creation:
+              type: boolean
+              readOnly: true
+              nullable: true
+              description: |
+                Whether the DAG is paused upon creation.
+
+                *New in version 2.3.0*
+            last_parsed:
+              type: string
+              format: date-time
+              nullable: true
+              readOnly: true
+              description: |
+                The last time the DAG was parsed.
+
+                *New in version 2.3.0*
+            template_search_path:
+              type: array
+              nullable: true
+              items:
+                type: string
+              description: |
+                The template search path.
+
+                *New in version 2.3.0*
+            render_template_as_native_obj:
+              type: boolean
+              nullable: true
+              readOnly: true
+              description: |
+                Whether to render templates as native Python objects.
+
+                *New in version 2.3.0*
     ExtraLink:
       type: object
       description: Additional links containing additional information about the task.
@@ -2969,6 +3071,9 @@ components:
               class_ref:
                 $ref: '#/components/schemas/ClassReference'
         depends_on_past:
+          type: boolean
+          readOnly: true
+        is_mapped:
           type: boolean
           readOnly: true
         wait_for_downstream:
@@ -3243,6 +3348,16 @@ components:
           nullable: true
 
     # Form
+    ClearDagRun:
+      type: object
+      properties:
+        dry_run:
+          description: |
+            If set, don't actually run this operation. The response will contain a list of task instances
+            planned to be cleaned, but not modified in any way.
+          type: boolean
+          default: true
+
     ClearTaskInstance:
       type: object
       properties:

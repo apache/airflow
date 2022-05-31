@@ -23,7 +23,7 @@ import pytest
 from airflow import DAG
 from airflow.models import DagBag
 from airflow.models.serialized_dag import SerializedDagModel
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_user
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
@@ -52,20 +52,29 @@ def configured_app(minimal_app_for_api):
 
 class TestTaskEndpoint:
     dag_id = "test_dag"
+    mapped_dag_id = "test_mapped_task"
     task_id = "op1"
     task_id2 = 'op2'
+    task_id3 = "op3"
+    mapped_task_id = "mapped_task"
     task1_start_date = datetime(2020, 6, 15)
     task2_start_date = datetime(2020, 6, 16)
 
     @pytest.fixture(scope="class")
     def setup_dag(self, configured_app):
         with DAG(self.dag_id, start_date=self.task1_start_date, doc_md="details") as dag:
-            task1 = DummyOperator(task_id=self.task_id, params={'foo': 'bar'})
-            task2 = DummyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
+            task1 = EmptyOperator(task_id=self.task_id, params={'foo': 'bar'})
+            task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
+
+        with DAG(self.mapped_dag_id, start_date=self.task1_start_date) as mapped_dag:
+            EmptyOperator(task_id=self.task_id3)
+            # Use the private _expand() method to avoid the empty kwargs check.
+            # We don't care about how the operator runs here, only its presence.
+            EmptyOperator.partial(task_id=self.mapped_task_id)._expand()
 
         task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)
-        dag_bag.dags = {dag.dag_id: dag}
+        dag_bag.dags = {dag.dag_id: dag, mapped_dag.dag_id: mapped_dag}
         configured_app.dag_bag = dag_bag  # type:ignore
 
     @staticmethod
@@ -88,8 +97,8 @@ class TestGetTask(TestTaskEndpoint):
     def test_should_respond_200(self):
         expected = {
             "class_ref": {
-                "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy",
+                "class_name": "EmptyOperator",
+                "module_path": "airflow.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -120,9 +129,44 @@ class TestGetTask(TestTaskEndpoint):
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
             "weight_rule": "downstream",
+            "is_mapped": False,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert response.json == expected
+
+    def test_mapped_task(self):
+        expected = {
+            "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+            "depends_on_past": False,
+            "downstream_task_ids": [],
+            "end_date": None,
+            "execution_timeout": None,
+            "extra_links": [],
+            "is_mapped": True,
+            "owner": "airflow",
+            "params": {},
+            "pool": "default_pool",
+            "pool_slots": 1.0,
+            "priority_weight": 1.0,
+            "queue": "default",
+            "retries": 0.0,
+            "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
+            "retry_exponential_backoff": False,
+            "start_date": "2020-06-15T00:00:00+00:00",
+            "task_id": "mapped_task",
+            "template_fields": [],
+            "trigger_rule": "all_success",
+            "ui_color": "#e8f7e4",
+            "ui_fgcolor": "#000",
+            "wait_for_downstream": False,
+            "weight_rule": "downstream",
+        }
+        response = self.client.get(
+            f"/api/v1/dags/{self.mapped_dag_id}/tasks/{self.mapped_task_id}",
+            environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
         assert response.json == expected
@@ -138,8 +182,8 @@ class TestGetTask(TestTaskEndpoint):
 
         expected = {
             "class_ref": {
-                "class_name": "DummyOperator",
-                "module_path": "airflow.operators.dummy",
+                "class_name": "EmptyOperator",
+                "module_path": "airflow.operators.empty",
             },
             "depends_on_past": False,
             "downstream_task_ids": [self.task_id2],
@@ -170,6 +214,7 @@ class TestGetTask(TestTaskEndpoint):
             "ui_fgcolor": "#000",
             "wait_for_downstream": False,
             "weight_rule": "downstream",
+            "is_mapped": False,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks/{self.task_id}", environ_overrides={'REMOTE_USER': "test"}
@@ -203,8 +248,8 @@ class TestGetTasks(TestTaskEndpoint):
             "tasks": [
                 {
                     "class_ref": {
-                        "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy",
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [self.task_id2],
@@ -235,11 +280,12 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
+                    "is_mapped": False,
                 },
                 {
                     "class_ref": {
-                        "class_name": "DummyOperator",
-                        "module_path": "airflow.operators.dummy",
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
                     },
                     "depends_on_past": False,
                     "downstream_task_ids": [],
@@ -263,12 +309,80 @@ class TestGetTasks(TestTaskEndpoint):
                     "ui_fgcolor": "#000",
                     "wait_for_downstream": False,
                     "weight_rule": "downstream",
+                    "is_mapped": False,
                 },
             ],
             "total_entries": 2,
         }
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
+        )
+        assert response.status_code == 200
+        assert response.json == expected
+
+    def test_get_tasks_mapped(self):
+        expected = {
+            "tasks": [
+                {
+                    "class_ref": {"class_name": "EmptyOperator", "module_path": "airflow.operators.empty"},
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "is_mapped": True,
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "microseconds": 0, "seconds": 300},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00+00:00",
+                    "task_id": "mapped_task",
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                },
+                {
+                    "class_ref": {
+                        "class_name": "EmptyOperator",
+                        "module_path": "airflow.operators.empty",
+                    },
+                    "depends_on_past": False,
+                    "downstream_task_ids": [],
+                    "end_date": None,
+                    "execution_timeout": None,
+                    "extra_links": [],
+                    "owner": "airflow",
+                    "params": {},
+                    "pool": "default_pool",
+                    "pool_slots": 1.0,
+                    "priority_weight": 1.0,
+                    "queue": "default",
+                    "retries": 0.0,
+                    "retry_delay": {"__type": "TimeDelta", "days": 0, "seconds": 300, "microseconds": 0},
+                    "retry_exponential_backoff": False,
+                    "start_date": "2020-06-15T00:00:00+00:00",
+                    "task_id": self.task_id3,
+                    "template_fields": [],
+                    "trigger_rule": "all_success",
+                    "ui_color": "#e8f7e4",
+                    "ui_fgcolor": "#000",
+                    "wait_for_downstream": False,
+                    "weight_rule": "downstream",
+                    "is_mapped": False,
+                },
+            ],
+            "total_entries": 2,
+        }
+        response = self.client.get(
+            f"/api/v1/dags/{self.mapped_dag_id}/tasks", environ_overrides={'REMOTE_USER': "test"}
         )
         assert response.status_code == 200
         assert response.json == expected
@@ -300,7 +414,7 @@ class TestGetTasks(TestTaskEndpoint):
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 400
-        assert response.json['detail'] == "'DummyOperator' object has no attribute 'invalid_task_colume_name'"
+        assert response.json['detail'] == "'EmptyOperator' object has no attribute 'invalid_task_colume_name'"
 
     def test_should_respond_404(self):
         dag_id = "xxxx_not_existing"

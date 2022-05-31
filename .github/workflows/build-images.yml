@@ -24,7 +24,7 @@ permissions:
   contents: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
-  FORCE_ANSWER_TO_QUESTIONS: "yes"
+  ANSWER: "yes"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
   DEBIAN_VERSION: "bullseye"
@@ -39,7 +39,6 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  AIRFLOW_LOGIN_TO_GITHUB_REGISTRY: "true"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
 
 concurrency:
@@ -47,7 +46,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-
   build-info:
     timeout-minutes: 10
     name: "Build Info"
@@ -98,6 +96,8 @@ jobs:
         if: github.event_name == 'pull_request_target'
       # Retrieve it to be able to determine which files has changed in the incoming commit of the PR
       # we checkout the target commit and it's parent to be able to compare them
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v2
         with:
           ref: ${{ env.TARGET_COMMIT_SHA }}
@@ -134,7 +134,7 @@ jobs:
           if [[ "${{ github.event_name }}" == 'schedule' ]]; then
               echo "::set-output name=cacheDirective::disabled"
           else
-              echo "::set-output name=cacheDirective::pulled"
+              echo "::set-output name=cacheDirective:registry"
           fi
 
           if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then
@@ -167,10 +167,12 @@ jobs:
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
-      BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
+      BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v2
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
@@ -212,39 +214,35 @@ jobs:
         # changed in the image built - we should only override those that are executed to build
         # the image.
         run: |
-          rm -rf "scripts/ci"
-          rm -rf "dev"
-          mv "main-airflow/scripts/ci" "scripts"
-          mv "main-airflow/dev" "."
+          rm -rfv "scripts/ci"
+          rm -rfv "dev"
+          mv -v "main-airflow/scripts/ci" "scripts"
+          mv -v "main-airflow/dev" "."
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
-      - name: "Build CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: Breeze2 build-image
+        run: breeze free-space
+      - name: Build & Push CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: breeze build-image --push-image --tag-as-latest
         env:
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      - name: "Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: ./scripts/ci/images/ci_push_ci_images.sh
-        env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: >
-          Push empty CI images to finish waiting jobs:
-          ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
-        run: ./scripts/ci/images/ci_push_empty_ci_images.sh
+        run: breeze build-image --push-image --empty-image
         env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
         if: failure() || cancelled()
-        run: airflow-find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
 
   build-prod-images:
     permissions:
@@ -262,11 +260,11 @@ jobs:
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
-      BACKEND: sqlite
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
-      DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      VERSION_SUFFIX_FOR_PYPI: ".dev0"
+      BACKEND: sqlite
     steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v2
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
@@ -308,37 +306,55 @@ jobs:
         # changed in the image built - we should only override those that are executed to build
         # the image.
         run: |
-          rm -rf "scripts/ci"
-          rm -rf "dev"
-          mv "main-airflow/scripts/ci" "scripts"
-          mv "main-airflow/dev" "."
+          rm -rfv "scripts/ci"
+          rm -rfv "dev"
+          mv -v "main-airflow/scripts/ci" "scripts"
+          mv -v "main-airflow/dev" "."
       - uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
-      - run: python -m pip install --editable ./dev/breeze/
+      - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
-        run: airflow-freespace
-      - name: "Pull CI image for PROD build: ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: ./scripts/ci/images/ci_pull_ci_image_on_ci.sh
+        run: breeze free-space
+      - name: >
+          Pull CI image for PROD build:
+          ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: breeze pull-image --tag-as-latest
         env:
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-      - name: "Build PROD image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: ./scripts/ci/images/ci_build_prod_image_on_ci.sh
+          # Always use default Python version of CI image for preparing packages
+          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Cleanup dist and context file"
+        run: rm -fv ./dist/*  ./docker-context-files/*
+      - name: "Prepare providers packages"
+        run: >
+          breeze prepare-provider-packages
+          --package-list-file ./scripts/ci/installed_providers.txt
+          --package-format wheel
+          --version-suffix-for-pypi dev0
+      - name: "Prepare airflow package"
+        run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
+      - name: "Move dist packages to docker-context files"
+        run: mv -v ./dist/*.whl ./docker-context-files
+      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+        run: >
+          breeze build-prod-image
+          --tag-as-latest
+          --push-image
+          --install-packages-from-context
+          --disable-airflow-repo-cache
+          --airflow-is-in-context
         env:
-          GITHUB_REGISTRY_PULL_IMAGE_TAG: "latest"
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-      - name: "Push PROD image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
-        run: ./scripts/ci/images/ci_push_production_images.sh
-        env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: >
-          Push empty PROD images to finish waiting jobs:
-          ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: Push empty PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
-        run: ./scripts/ci/images/ci_push_empty_prod_images.sh
+        run: breeze build-prod-image --cleanup-context --push-image --empty-image
         env:
-          GITHUB_REGISTRY_PUSH_IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()

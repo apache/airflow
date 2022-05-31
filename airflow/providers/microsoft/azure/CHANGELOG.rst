@@ -19,6 +19,39 @@
 Changelog
 ---------
 
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``wasb hook: user defaultAzureCredentials instead of managedIdentity (#23394)``
+
+Misc
+~~~~
+
+* ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pre-commit hook versions (#22887)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+Misc
+~~~~
+
+* ``Docs: Fix example usage for 'AzureCosmosDocumentSensor' (#22735)``
+
+
 3.7.2
 .....
 

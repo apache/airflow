@@ -18,6 +18,7 @@
 from typing import Dict, List
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.api_core.retry import Retry
 
 from airflow.providers.google.cloud.operators.vertex_ai.auto_ml import (
@@ -147,7 +148,7 @@ TEST_BATCH_PREDICTION_JOB_ID = "test_batch_prediction_job_id"
 TEST_ENDPOINT = {
     "display_name": "endpoint_test",
 }
-TEST_ENDPOINT_ID = "test_endpoint_id"
+TEST_ENDPOINT_ID = "1234567890"
 TEST_DEPLOYED_MODEL = {
     # format: 'projects/{project}/locations/{location}/models/{model}'
     'model': f"projects/{GCP_PROJECT}/locations/{GCP_LOCATION}/models/test_model_id",
@@ -1136,6 +1137,7 @@ class TestVertexAICreateEndpointOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             endpoint=TEST_ENDPOINT,
+            endpoint_id=TEST_ENDPOINT_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -1148,6 +1150,7 @@ class TestVertexAICreateEndpointOperator:
             region=GCP_LOCATION,
             project_id=GCP_PROJECT,
             endpoint=TEST_ENDPOINT,
+            endpoint_id=TEST_ENDPOINT_ID,
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
@@ -1366,7 +1369,7 @@ class TestVertexAIGetHyperparameterTuningJobOperator:
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -1392,7 +1395,7 @@ class TestVertexAIDeleteHyperparameterTuningJobOperator:
             project_id=GCP_PROJECT,
             region=GCP_LOCATION,
             hyperparameter_tuning_job=TEST_HYPERPARAMETER_TUNING_JOB_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

@@ -244,11 +244,15 @@ def test_index_failure(dag_test_client):
 
 def test_dag_autocomplete_success(client_all_dags):
     resp = client_all_dags.get(
-        'dagmodel/autocomplete?query=example_bash',
+        'dagmodel/autocomplete?query=flow',
         follow_redirects=False,
     )
-    check_content_in_response('example_bash_operator', resp)
-    check_content_not_in_response('example_subdag_operator', resp)
+    assert resp.json == [
+        {'name': 'airflow', 'type': 'owner'},
+        {'name': 'test_mapped_taskflow', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api_etl', 'type': 'dag'},
+        {'name': 'tutorial_taskflow_api_etl_virtualenv', 'type': 'dag'},
+    ]
 
 
 @pytest.mark.parametrize(
@@ -736,6 +740,7 @@ def user_only_dags_tis(acl_app):
         username="user_only_dags_tis",
         role_name="role_only_dags_tis",
         permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
         ],
@@ -756,7 +761,7 @@ def test_success_fail_for_read_only_task_instance_access(client_only_dags_tis):
     form = dict(
         task_id="run_this_last",
         dag_id="example_bash_operator",
-        execution_date=DEFAULT_DATE,
+        dag_run_id=DEFAULT_RUN_ID,
         upstream="false",
         downstream="false",
         future="false",
@@ -844,3 +849,82 @@ def client_anonymous(acl_app):
 def test_no_roles_permissions(request, client, url, status_code, expected_content):
     resp = request.getfixturevalue(client).get(url, follow_redirects=True)
     check_content_in_response(expected_content, resp, status_code)
+
+
+@pytest.fixture(scope="module")
+def user_dag_level_access_with_ti_edit(acl_app):
+    with create_user_scope(
+        acl_app,
+        username="user_dag_level_access_with_ti_edit",
+        role_name="role_dag_level_access_with_ti_edit",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.resource_name_for_dag("example_bash_operator")),
+        ],
+    ) as user:
+        yield user
+
+
+@pytest.fixture()
+def client_dag_level_access_with_ti_edit(acl_app, user_dag_level_access_with_ti_edit):
+    return client_with_login(
+        acl_app,
+        username="user_dag_level_access_with_ti_edit",
+        password="user_dag_level_access_with_ti_edit",
+    )
+
+
+def test_success_edit_ti_with_dag_level_access_only(client_dag_level_access_with_ti_edit):
+    form = dict(
+        task_id="run_this_last",
+        dag_id="example_bash_operator",
+        dag_run_id=DEFAULT_RUN_ID,
+        upstream="false",
+        downstream="false",
+        future="false",
+        past="false",
+    )
+    resp = client_dag_level_access_with_ti_edit.post('/success', data=form, follow_redirects=True)
+    check_content_in_response('Marked success on 1 task instances', resp)
+
+
+@pytest.fixture(scope="module")
+def user_ti_edit_without_dag_level_access(acl_app):
+    with create_user_scope(
+        acl_app,
+        username="user_ti_edit_without_dag_level_access",
+        role_name="role_ti_edit_without_dag_level_access",
+        permissions=[
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_WEBSITE),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
+            (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
+        ],
+    ) as user:
+        yield user
+
+
+@pytest.fixture()
+def client_ti_edit_without_dag_level_access(acl_app, user_ti_edit_without_dag_level_access):
+    return client_with_login(
+        acl_app,
+        username="user_ti_edit_without_dag_level_access",
+        password="user_ti_edit_without_dag_level_access",
+    )
+
+
+def test_failure_edit_ti_without_dag_level_access(client_ti_edit_without_dag_level_access):
+    form = dict(
+        task_id="run_this_last",
+        dag_id="example_bash_operator",
+        dag_run_id=DEFAULT_RUN_ID,
+        upstream="false",
+        downstream="false",
+        future="false",
+        past="false",
+    )
+    resp = client_ti_edit_without_dag_level_access.post('/success', data=form, follow_redirects=True)
+    check_content_not_in_response('Marked success on 1 task instances', resp)

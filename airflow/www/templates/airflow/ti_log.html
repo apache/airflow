@@ -23,6 +23,7 @@
 {% block head_meta %}
   {{ super() }}
   <meta name="task_id" content="{{ task_id }}">
+  <meta name="map_index" content="{{ map_index }}">
   <meta name="execution_date" content="{{ execution_date }}">
   <meta name="logs_with_metadata_url" content="{{ url_for('Airflow.get_logs_with_metadata') }}">
   {# Time interval to wait before next log fetching. Default 2s. #}
@@ -40,10 +41,10 @@
   <h4>{{ title }}</h4>
   <div class="row">
     <div class="col-md-8">
-      <ul class="nav nav-pills" role="tablist">
+      <ul id="ti_log_try_number_list" class="nav nav-pills" role="tablist">
         {% for log in logs %}
           <li role="presentation" class="{{ 'active' if loop.last else '' }}">
-            <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab">
+            <a href="#{{ loop.index }}" aria-controls="{{ loop.index }}" role="tab" data-toggle="tab" data-try-number="{{ loop.index }}">
               {{ loop.index }}
             </a>
           </li>
@@ -53,6 +54,7 @@
     <div class="col-md-4 text-right">
       <a class="btn btn-default" onclick="scrollBottomLogs()">Jump To End</a>
       <a class="btn btn-default" onclick="toggleWrapLogs()">Toggle Wrap</a>
+      <a class="btn btn-default" id="ti_log_download_active">Download</a>
     </div>
   </div>
   <div class="tab-content">

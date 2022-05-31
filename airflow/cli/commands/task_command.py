@@ -23,7 +23,7 @@ import logging
 import os
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from typing import List, Optional, Tuple, Union
+from typing import Dict, Generator, List, Optional, Tuple, Union
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -45,6 +45,7 @@ from airflow.typing_compat import Literal
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import (
     get_dag,
+    get_dag_by_deserialization,
     get_dag_by_file_location,
     get_dag_by_pickle,
     get_dags,
@@ -137,6 +138,7 @@ def _get_ti(
     exec_date_or_run_id: str,
     map_index: int,
     *,
+    pool: Optional[str] = None,
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
 ) -> Tuple[TaskInstance, bool]:
@@ -165,7 +167,7 @@ def _get_ti(
         ti.dag_run = dag_run
     else:
         ti = ti_or_none
-    ti.refresh_from_task(task)
+    ti.refresh_from_task(task, pool_override=pool)
     return ti, dr_created
 
 
@@ -257,7 +259,6 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
         mark_success=args.mark_success,
         job_id=args.job_id,
         pool=args.pool,
-        error_file=args.error_file,
     )
 
 
@@ -268,7 +269,7 @@ def _extract_external_executor_id(args) -> Optional[str]:
 
 
 @contextmanager
-def _capture_task_logs(ti):
+def _capture_task_logs(ti: TaskInstance) -> Generator[None, None, None]:
     """Manage logging context for a task run
 
     - Replace the root logger configuration with the airflow.task configuration
@@ -356,12 +357,19 @@ def task_run(args, dag=None):
         print(f'Loading pickle id: {args.pickle}')
         dag = get_dag_by_pickle(args.pickle)
     elif not dag:
-        dag = get_dag(args.subdir, args.dag_id)
+        if args.local:
+            try:
+                dag = get_dag_by_deserialization(args.dag_id)
+            except AirflowException:
+                print(f'DAG {args.dag_id} does not exist in the database, trying to parse the dag_file')
+                dag = get_dag(args.subdir, args.dag_id)
+        else:
+            dag = get_dag(args.subdir, args.dag_id)
     else:
         # Use DAG from parameter
         pass
     task = dag.get_task(task_id=args.task_id)
-    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index)
+    ti, _ = _get_ti(task, args.execution_date_or_run_id, args.map_index, pool=args.pool)
     ti.init_run_context(raw=args.raw)
 
     hostname = get_hostname()
@@ -483,18 +491,22 @@ def task_states_for_dag_run(args, session=None):
             "not found"
         )
 
-    AirflowConsole().print_as(
-        data=dag_run.task_instances,
-        output=args.output,
-        mapper=lambda ti: {
+    has_mapped_instances = any(ti.map_index >= 0 for ti in dag_run.task_instances)
+
+    def format_task_instance(ti: TaskInstance) -> Dict[str, str]:
+        data = {
             "dag_id": ti.dag_id,
             "execution_date": dag_run.execution_date.isoformat(),
             "task_id": ti.task_id,
             "state": ti.state,
             "start_date": ti.start_date.isoformat() if ti.start_date else "",
             "end_date": ti.end_date.isoformat() if ti.end_date else "",
-        },
-    )
+        }
+        if has_mapped_instances:
+            data["map_index"] = str(ti.map_index) if ti.map_index >= 0 else ""
+        return data
+
+    AirflowConsole().print_as(data=dag_run.task_instances, output=args.output, mapper=format_task_instance)
 
 
 @cli_utils.action_cli(check_db=False)

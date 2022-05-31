@@ -21,6 +21,7 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.aiplatform import datasets
 from google.cloud.aiplatform.models import Model
@@ -516,7 +517,7 @@ class DeleteAutoMLTrainingJobOperator(BaseOperator):
         training_pipeline_id: str,
         region: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -580,7 +581,7 @@ class ListAutoMLTrainingJobOperator(BaseOperator):
         page_token: Optional[str] = None,
         filter: Optional[str] = None,
         read_mask: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

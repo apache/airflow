@@ -65,7 +65,7 @@ def check_main_dependent_group(setup_contents: str) -> None:
     Test for an order of dependencies groups between mark
     '# Start dependencies group' and '# End dependencies group' in setup.py
     """
-    print("[blue]Checking main dependency group[/]")
+    print("[info]Checking main dependency group[/]")
     pattern_main_dependent_group = re.compile(
         '# Start dependencies group\n(.*)# End dependencies group', re.DOTALL
     )
@@ -86,7 +86,7 @@ def check_sub_dependent_group(group_name: str) -> None:
     Test for an order of each dependencies groups declare like
     `^dependent_group_name = [.*?]\n` in setup.py
     """
-    print(f"[blue]Checking dependency group {group_name}[/]")
+    print(f"[info]Checking dependency group {group_name}[/]")
     _check_list_sorted(getattr(setup, group_name), f"Order of dependency group: {group_name}")
 
 
@@ -99,13 +99,13 @@ def check_alias_dependent_group(setup_context: str) -> None:
     dependents = pattern.findall(setup_context)
 
     for dependent in dependents:
-        print(f"[blue]Checking alias-dependent group {dependent}[/]")
+        print(f"[info]Checking alias-dependent group {dependent}[/]")
         src = dependent.split(' + ')
         _check_list_sorted(src, f"Order of alias dependencies group: {dependent}")
 
 
 def check_variable_order(var_name: str) -> None:
-    print(f"[blue]Checking {var_name}[/]")
+    print(f"[info]Checking {var_name}[/]")
 
     var = getattr(setup, var_name)
 
@@ -129,7 +129,7 @@ def check_install_and_setup_requires() -> None:
     pattern_dependent_version = re.compile('[~|><=;].*')
 
     for key in ('install_requires', 'setup_requires'):
-        print(f"[blue]Checking setup.cfg group {key}[/]")
+        print(f"[info]Checking setup.cfg group {key}[/]")
         deps = config['options'][key]
         dists = [pattern_dependent_version.sub('', p) for p in deps]
         _check_list_sorted(dists, f"Order of dependencies in do_setup section: {key}")

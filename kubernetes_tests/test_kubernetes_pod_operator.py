@@ -22,6 +22,7 @@ import shutil
 import sys
 import textwrap
 import unittest
+from copy import copy
 from unittest import mock
 from unittest.mock import ANY, MagicMock
 
@@ -167,8 +168,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         )
         context = create_context(k)
         k.execute(context)
+        expected_pod = copy(self.expected_pod)
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        assert self.expected_pod == actual_pod
+        assert actual_pod == expected_pod
 
     def test_working_pod(self):
         k = KubernetesPodOperator(
@@ -206,6 +208,57 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert self.expected_pod['spec'] == actual_pod['spec']
         assert self.expected_pod['metadata']['labels'] == actual_pod['metadata']['labels']
+
+    def test_already_checked_on_success(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
+
+    def test_already_checked_on_failure(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["lalala"],
+            labels={"foo": "bar"},
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        with pytest.raises(AirflowException):
+            k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        status = next(iter(filter(lambda x: x['name'] == 'base', actual_pod['status']['containerStatuses'])))
+        assert status['state']['terminated']['reason'] == 'Error'
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
 
     def test_pod_hostnetwork(self):
         k = KubernetesPodOperator(
@@ -982,19 +1035,23 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         client = kube_client.get_kube_client(in_cluster=False)
         name = "test"
         namespace = "default"
-        k = KubernetesPodOperator(
-            namespace='default',
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            arguments=["exit 1"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id=name,
-            in_cluster=False,
-            do_xcom_push=False,
-            is_delete_operator_pod=False,
-            termination_grace_period=0,
-        )
+
+        def get_op():
+            return KubernetesPodOperator(
+                namespace='default',
+                image="ubuntu:16.04",
+                cmds=["bash", "-cx"],
+                arguments=["exit 1"],
+                labels={"foo": "bar"},
+                name="test",
+                task_id=name,
+                in_cluster=False,
+                do_xcom_push=False,
+                is_delete_operator_pod=False,
+                termination_grace_period=0,
+            )
+
+        k = get_op()
 
         context = create_context(k)
 
@@ -1004,9 +1061,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         ) as await_pod_completion_mock:
             pod_mock = MagicMock()
 
-            # we don't want failure because we don't want the pod to be patched as "already_checked"
             pod_mock.status.phase = 'Succeeded'
             await_pod_completion_mock.return_value = pod_mock
+
+            # we want to simulate that there was a worker failure and the airflow operator process
+            # was killed without running the cleanup process.  in this case the pod will not be marked as
+            # already checked
+            k.cleanup = MagicMock()
+
             k.execute(context)
             name = k.pod.metadata.name
             pod = client.read_namespaced_pod(name=name, namespace=namespace)
@@ -1014,7 +1076,11 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 pod = client.read_namespaced_pod(name=name, namespace=namespace)
             assert 'already_checked' not in pod.metadata.labels
 
-        # should not call `create_pod`, because there's a pod there it should find
+        # create a new version of the same operator instance to remove the monkey patching in first
+        # part of the test
+        k = get_op()
+
+        # `create_pod` should not be called because there's a pod there it should find
         # should use the found pod and patch as "already_checked" (in failure block)
         with mock.patch(
             "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod"
@@ -1024,6 +1090,9 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             pod = client.read_namespaced_pod(name=name, namespace=namespace)
             assert pod.metadata.labels["already_checked"] == "True"
             create_mock.assert_not_called()
+
+        # recreate op just to ensure we're not relying on any statefulness
+        k = get_op()
 
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
