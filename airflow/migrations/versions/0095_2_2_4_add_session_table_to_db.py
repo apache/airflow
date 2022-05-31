@@ -24,8 +24,6 @@ Create Date: 2022-01-25 13:56:35.069429
 
 """
 
-import sqlalchemy as sa
-from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = 'c381b21cb7e4'
@@ -39,17 +37,11 @@ TABLE_NAME = 'session'
 
 def upgrade():
     """Apply Create a ``session`` table to store web session data"""
-    op.create_table(
-        TABLE_NAME,
-        sa.Column('id', sa.Integer()),
-        sa.Column('session_id', sa.String(255)),
-        sa.Column('data', sa.LargeBinary()),
-        sa.Column('expiry', sa.DateTime()),
-        sa.PrimaryKeyConstraint('id'),
-        sa.UniqueConstraint('session_id'),
-    )
+    # The session table is now created by the webserver. We leave this here
+    # until we prune the migration history.
 
 
 def downgrade():
     """Unapply Create a ``session`` table to store web session data"""
-    op.drop_table(TABLE_NAME)
+    # The session table is now created by the webserver. We leave this here
+    # until we prune the migration history.

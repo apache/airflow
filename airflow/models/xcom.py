@@ -26,7 +26,16 @@ from functools import wraps
 from typing import TYPE_CHECKING, Any, Iterable, List, Optional, Type, Union, cast, overload
 
 import pendulum
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, LargeBinary, String, text
+from sqlalchemy import (
+    Column,
+    ForeignKeyConstraint,
+    Index,
+    Integer,
+    LargeBinary,
+    PrimaryKeyConstraint,
+    String,
+    text,
+)
 from sqlalchemy.ext.associationproxy import association_proxy
 from sqlalchemy.orm import Query, Session, reconstructor, relationship
 from sqlalchemy.orm.exc import NoResultFound
@@ -55,10 +64,10 @@ class BaseXCom(Base, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
-    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
-    key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
+    dag_run_id = Column(Integer(), nullable=False)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    key = Column(String(512, **COLLATION_ARGS), nullable=False)
 
     # Denormalized for easier lookup.
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
@@ -73,6 +82,7 @@ class BaseXCom(Base, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
+        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

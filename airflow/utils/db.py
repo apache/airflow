@@ -664,16 +664,23 @@ def create_default_connections(session: Session = NEW_SESSION):
 @provide_session
 def initdb(session: Session = NEW_SESSION):
     """Initialize Airflow database."""
-    upgradedb(session=session)
+    from alembic import command
 
+    from airflow.models import Base
+    from airflow.www.fab_security.sqla.models import Model
+
+    Base.metadata.create_all(settings.engine)
+    Model.metadata.create_all(settings.engine)
+    # stamp the migration head
+    config = _get_alembic_config()
+    command.stamp(config, "head")
+    # Load default connections
     if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
-
-    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
-
-        from flask_appbuilder.models.sqla import Base
-
-        Base.metadata.create_all(settings.engine)
+    reserialize_dags(session=session)
+    # Add default pool & sync log_template
+    add_default_pool_if_not_exists()
+    synchronize_log_template()
 
 
 def _get_alembic_config():
@@ -1699,7 +1706,10 @@ def compare_type(context, inspected_column, metadata_column, inspected_type, met
 
         if isinstance(inspected_type, mysql.VARCHAR) and isinstance(metadata_type, String):
             # This is a hack to get around MySQL VARCHAR collation
-            # not being possible to change from utf8_bin to utf8mb3_bin
+            # not being possible to change from utf8_bin to utf8mb3_bin.
+            # We only make sure lengths are the same
+            if inspected_type.length != metadata_type.length:
+                return True
             return False
     return None
 

@@ -44,5 +44,10 @@ def upgrade():
 
 def downgrade():
     """Unapply Change default ``pool_slots`` to ``1``"""
-    with op.batch_alter_table("task_instance", schema=None) as batch_op:
-        batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=True, server_default=None)
+    try:
+        with op.batch_alter_table("task_instance", schema=None) as batch_op:
+            # DB created from ORM doesn't set a server_default here and MSSQL fails while trying to drop
+            # the non existent server_default. So we try to drop it first and if it fails, we ignore it.
+            batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=True, server_default=None)
+    except Exception:
+        pass
