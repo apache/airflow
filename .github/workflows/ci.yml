@@ -1653,7 +1653,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     permissions:
       packages: write
     timeout-minutes: 120
-    name: "Push images as cache to GitHub Registry"
+    name: "Push Image Cache"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:
       - build-info
@@ -1687,7 +1687,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
         if: matrix.platform == 'linux/arm64'
-      - name: "Build & Push CI image ${{ matrix.python-version }}:latest"
+      - name: "Push CI cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze build-image
           --prepare-buildx-cache
@@ -1717,7 +1717,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           VERSION_SUFFIX_FOR_PYPI: "dev0"
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest
+      - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze build-prod-image
           --airflow-is-in-context
