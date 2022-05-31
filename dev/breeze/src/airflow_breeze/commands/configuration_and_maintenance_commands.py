@@ -177,7 +177,13 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:
         system_prune_command_to_execute = ['docker', 'system', 'prune']
-        run_command(system_prune_command_to_execute, verbose=verbose, dry_run=dry_run, check=False)
+        run_command(
+            system_prune_command_to_execute,
+            verbose=verbose,
+            dry_run=dry_run,
+            check=False,
+            enabled_output_group=True,
+        )
     elif given_answer == Answer.QUIT:
         sys.exit(0)
     get_console().print(f"Removing build cache dir ${BUILD_CACHE_DIR}")
@@ -455,7 +461,9 @@ def fix_ownership(github_repository: str, verbose: bool, dry_run: bool):
         shell_params.airflow_image_name_with_tag,
         "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
     ]
-    run_command(cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False)
+    run_command(
+        cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False, enabled_output_group=True
+    )
     # Always succeed
     sys.exit(0)
 

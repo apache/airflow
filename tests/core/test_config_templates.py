@@ -49,7 +49,6 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'scheduler',
     'triggerer',
     'kerberos',
-    'github_enterprise',
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',

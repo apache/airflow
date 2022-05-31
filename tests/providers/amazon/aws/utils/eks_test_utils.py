@@ -64,7 +64,7 @@ def attributes_to_test(
         # The below tag is mandatory and must have a value of either 'owned' or 'shared'
         # A value of 'owned' denotes that the subnets are exclusive to the nodegroup.
         # The 'shared' value allows more than one resource to use the subnet.
-        required_tag: Dict = {'kubernetes.io/cluster/' + cluster_name: 'owned'}
+        required_tag: Dict = {f'kubernetes.io/cluster/{cluster_name}': 'owned'}
         # Find the user-submitted tag set and append the required tag to it.
         final_tag_set: Dict = required_tag
         for key, value in result:
@@ -93,7 +93,7 @@ def generate_clusters(eks_hook: EksHook, num_clusters: int, minimal: bool) -> Li
     """
     # Generates N clusters named cluster0, cluster1, .., clusterN
     return [
-        eks_hook.create_cluster(name="cluster" + str(count), **_input_builder(ClusterInputs, minimal))[
+        eks_hook.create_cluster(name=f"cluster{str(count)}", **_input_builder(ClusterInputs, minimal))[
             ResponseAttributes.CLUSTER
         ][ClusterAttributes.NAME]
         for count in range(num_clusters)
@@ -116,7 +116,7 @@ def generate_fargate_profiles(
     # Generates N Fargate profiles named profile0, profile1, .., profileN
     return [
         eks_hook.create_fargate_profile(
-            fargateProfileName="profile" + str(count),
+            fargateProfileName=f"profile{str(count)}",
             clusterName=cluster_name,
             **_input_builder(FargateProfileInputs, minimal),
         )[ResponseAttributes.FARGATE_PROFILE][FargateProfileAttributes.FARGATE_PROFILE_NAME]
@@ -140,7 +140,7 @@ def generate_nodegroups(
     # Generates N nodegroups named nodegroup0, nodegroup1, .., nodegroupN
     return [
         eks_hook.create_nodegroup(
-            nodegroupName="nodegroup" + str(count),
+            nodegroupName=f"nodegroup{str(count)}",
             clusterName=cluster_name,
             **_input_builder(NodegroupInputs, minimal),
         )[ResponseAttributes.NODEGROUP][NodegroupAttributes.NODEGROUP_NAME]

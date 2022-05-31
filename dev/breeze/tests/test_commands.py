@@ -32,7 +32,7 @@ def test_get_extra_docker_flags_all():
 def test_get_extra_docker_flags_selected():
     flags = get_extra_docker_flags(MOUNT_SELECTED)
     assert "empty" not in "".join(flags)
-    assert len(flags) > 60
+    assert len(flags) > 40
 
 
 def test_get_extra_docker_flags_none():
