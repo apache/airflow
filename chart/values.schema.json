@@ -2460,7 +2460,7 @@
                         "scheme": {
                             "description": "Webserver Readiness probe scheme.",
                             "type": "string",
-                            "default": "http"
+                            "default": "HTTP"
                         }
                     }
                 },

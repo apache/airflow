@@ -105,21 +105,17 @@ class WebserverDeploymentTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "webserver": {
-                    "livenessProbe": {
-                        "scheme": "https"
-                    },
-                    "readinessProbe": {
-                        "scheme": "https"
-                    },
+                    "livenessProbe": {"scheme": "HTTPS"},
+                    "readinessProbe": {"scheme": "HTTPS"},
                 }
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "https" in jmespath.search(
+        assert "HTTPS" in jmespath.search(
             "spec.template.spec.containers[0].livenessProbe.httpGet.scheme", docs[0]
         )
-        assert "https" in jmespath.search(
+        assert "HTTPS" in jmespath.search(
             "spec.template.spec.containers[0].readinessProbe.httpGet.scheme", docs[0]
         )
 
