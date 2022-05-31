@@ -31,11 +31,11 @@ from airflow.utils.context import Context
 class S3ToSqlOperator(BaseOperator):
     """
     Moves data from s3 to sql.
+
     :param source_path: path to s3 file
     :param destination_table: target table on sql
     :param file_format: input file format. CSV, JSON or Parquet
     :param file_options: file reader options
-    :param destination_table: target table. (templated)
     :param source_conn_id: source connection
     :param destination_conn_id: destination connection
     :param preoperator: sql statement or list of statements to be
