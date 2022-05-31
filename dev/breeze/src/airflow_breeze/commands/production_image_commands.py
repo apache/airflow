@@ -362,6 +362,7 @@ def pull_prod_image(
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
             poll_time=10.0,
+            parallel=False,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when pulling PROD image: {info}[/]")
@@ -503,7 +504,9 @@ def build_production_image(
         login_to_github_docker_registry(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
     get_console().print(f"\n[info]Building PROD Image for Python {prod_image_params.python}\n")
     if prod_image_params.prepare_buildx_cache:
-        build_command_result = build_cache(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
+        build_command_result = build_cache(
+            image_params=prod_image_params, dry_run=dry_run, verbose=verbose, parallel=False
+        )
     else:
         if prod_image_params.empty_image:
             env = os.environ.copy()
