@@ -22,7 +22,7 @@ from unittest.mock import ANY
 import pytest
 
 from airflow.providers.amazon.aws.operators.appflow import (
-    AppflowRecordsShortCircuit,
+    AppflowRecordsShortCircuitOperator,
     AppflowRunAfterOperator,
     AppflowRunBeforeOperator,
     AppflowRunDailyOperator,
@@ -158,7 +158,7 @@ def test_run_daily(appflow_conn, ctx):
 def test_short_circuit(appflow_conn, dag_maker):
     with dag_maker(dag_id="unit_test_short_circuit"):
         AppflowRunFullOperator(**DUMP_COMMON_ARGS)
-        AppflowRecordsShortCircuit(
+        AppflowRecordsShortCircuitOperator(
             task_id=SHORT_CIRCUIT_TASK_ID,
             flow_name=FLOW_NAME,
             appflow_run_task_id=TASK_ID,

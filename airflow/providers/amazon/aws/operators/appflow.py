@@ -27,6 +27,7 @@ if sys.version_info >= (3, 8):
 else:
     from cached_property import cached_property
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
@@ -46,12 +47,22 @@ EVENTUAL_CONSISTENCY_POLLING: int = 10  # seconds
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 
 
-class AppflowOperatorException(Exception):
-    """Alias for Exception."""
-
-
 class AppflowOperatorBase(BaseOperator):
-    """Amazon Appflow Base Operator class (not supposed to be used directly in DAGs)."""
+    """
+    Amazon Appflow Base Operator class (not supposed to be used directly in DAGs).
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AppflowRunOperator`
+
+    :param source: The source name (e.g. salesforce)
+    :param name: The flow name
+    :param source_field: The field name to apply filters
+    :param dt: The date value (or template) to be used in filters.
+    :param poll_interval: how often in seconds to check the query status
+    :param aws_conn_id: aws connection to use
+    :param region: aws region to use
+    """
 
     BLUE = "#2bccbd"
     ui_color = BLUE
@@ -70,9 +81,7 @@ class AppflowOperatorBase(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         if source not in SUPPORTED_SOURCES:
-            raise AppflowOperatorException(
-                f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!"
-            )
+            raise AirflowException(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
         self.dt = dt
         self._name = name
         self._source = source
@@ -97,7 +106,7 @@ class AppflowOperatorBase(BaseOperator):
         if (self.source == "salesforce" and connector_type != "Salesforce") or (
             self.source == "zendesk" and connector_type != "Zendesk"
         ):
-            raise AppflowOperatorException(
+            raise AirflowException(
                 f"Incompatible source ({self.source} and connector type ({connector_type})!"
             )
         return connector_type
@@ -229,7 +238,7 @@ class AppflowRunOperator(AppflowOperatorBase):
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
-            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunOperator!")
+            raise AirflowException(f"Source {source} is not supported for AppflowRunOperator!")
         super().__init__(
             source=source,
             name=name,
@@ -268,7 +277,7 @@ class AppflowRunFullOperator(AppflowOperatorBase):
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
-            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunFullOperator!")
+            raise AirflowException(f"Source {source} is not supported for AppflowRunFullOperator!")
         super().__init__(
             source=source,
             name=name,
@@ -313,9 +322,9 @@ class AppflowRunBeforeOperator(AppflowOperatorBase):
         **kwargs,
     ) -> None:
         if not dt:
-            raise AppflowOperatorException("The dt argument is mandatory for AppflowRunBeforeOperator!")
+            raise AirflowException("The dt argument is mandatory for AppflowRunBeforeOperator!")
         if source not in {"salesforce"}:
-            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunBeforeOperator!")
+            raise AirflowException(f"Source {source} is not supported for AppflowRunBeforeOperator!")
         super().__init__(
             source=source,
             name=name,
@@ -330,9 +339,9 @@ class AppflowRunBeforeOperator(AppflowOperatorBase):
 
     def _add_filter(self, tasks: List["TaskTypeDef"]) -> None:
         if not self._dt_parsed:
-            raise AppflowOperatorException(f"Invalid dt argument parser value: {self._dt_parsed}")
+            raise AirflowException(f"Invalid dt argument parser value: {self._dt_parsed}")
         if not self.source_field:
-            raise AppflowOperatorException(f"Invalid source_field argument value: {self.source_field}")
+            raise AirflowException(f"Invalid source_field argument value: {self.source_field}")
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
             "connectorOperator": {self._connector_type: "LESS_THAN"},  # type: ignore
@@ -376,9 +385,9 @@ class AppflowRunAfterOperator(AppflowOperatorBase):
         **kwargs,
     ) -> None:
         if not dt:
-            raise AppflowOperatorException("The dt argument is mandatory for AppflowRunAfterOperator!")
+            raise AirflowException("The dt argument is mandatory for AppflowRunAfterOperator!")
         if source not in {"salesforce", "zendesk"}:
-            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunAfterOperator!")
+            raise AirflowException(f"Source {source} is not supported for AppflowRunAfterOperator!")
         super().__init__(
             source=source,
             name=name,
@@ -393,9 +402,9 @@ class AppflowRunAfterOperator(AppflowOperatorBase):
 
     def _add_filter(self, tasks: List["TaskTypeDef"]) -> None:
         if not self._dt_parsed:
-            raise AppflowOperatorException(f"Invalid dt argument parser value: {self._dt_parsed}")
+            raise AirflowException(f"Invalid dt argument parser value: {self._dt_parsed}")
         if not self.source_field:
-            raise AppflowOperatorException(f"Invalid source_field argument value: {self.source_field}")
+            raise AirflowException(f"Invalid source_field argument value: {self.source_field}")
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
             "connectorOperator": {self._connector_type: "GREATER_THAN"},  # type: ignore
@@ -439,9 +448,9 @@ class AppflowRunDailyOperator(AppflowOperatorBase):
         **kwargs,
     ) -> None:
         if not dt:
-            raise AppflowOperatorException("The dt argument is mandatory for AppflowRunDailyOperator!")
+            raise AirflowException("The dt argument is mandatory for AppflowRunDailyOperator!")
         if source not in {"salesforce"}:
-            raise AppflowOperatorException(f"Source {source} is not supported for AppflowRunDailyOperator!")
+            raise AirflowException(f"Source {source} is not supported for AppflowRunDailyOperator!")
         super().__init__(
             source=source,
             name=name,
@@ -456,9 +465,9 @@ class AppflowRunDailyOperator(AppflowOperatorBase):
 
     def _add_filter(self, tasks: List["TaskTypeDef"]) -> None:
         if not self._dt_parsed:
-            raise AppflowOperatorException(f"Invalid dt argument parser value: {self._dt_parsed}")
+            raise AirflowException(f"Invalid dt argument parser value: {self._dt_parsed}")
         if not self.source_field:
-            raise AppflowOperatorException(f"Invalid source_field argument value: {self.source_field}")
+            raise AirflowException(f"Invalid source_field argument value: {self.source_field}")
         start_dt = self._dt_parsed - timedelta(milliseconds=1)
         end_dt = self._dt_parsed + timedelta(days=1)
         filter_task: "TaskTypeDef" = {
@@ -474,13 +483,13 @@ class AppflowRunDailyOperator(AppflowOperatorBase):
         tasks.append(filter_task)
 
 
-class AppflowRecordsShortCircuit(ShortCircuitOperator):
+class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
     """
     Short-circuit in case of a empty Appflow's run.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AppflowRecordsShortCircuit`
+        :ref:`howto/operator:AppflowRecordsShortCircuitOperator`
 
     :param flow_name: The flow name
     :param appflow_run_task_id: Run task ID from where this operator should extract the execution ID
@@ -547,15 +556,15 @@ class AppflowRecordsShortCircuit(ShortCircuitOperator):
                 response = af_client.describe_flow_execution_records(nextToken=response["nextToken"], **args)
             else:
                 response = af_client.describe_flow_execution_records(**args)
-            record = AppflowRecordsShortCircuit._get_target_execution_id(
+            record = AppflowRecordsShortCircuitOperator._get_target_execution_id(
                 response["flowExecutions"], execution_id
             )
             if not record and "nextToken" not in response:
-                raise AppflowOperatorException(f"Flow ({execution_id}) without recordsProcessed info.")
+                raise AirflowException(f"Flow ({execution_id}) without recordsProcessed info.")
 
         execution = record.get("executionResult", {})
         if "recordsProcessed" not in execution:
-            raise AppflowOperatorException(f"Flow ({execution_id}) without recordsProcessed info.")
+            raise AirflowException(f"Flow ({execution_id}) without recordsProcessed info.")
         records_processed = execution["recordsProcessed"]
         self.log.info("records_processed: %d", records_processed)
         task_instance.xcom_push("records_processed", records_processed)  # type: ignore
