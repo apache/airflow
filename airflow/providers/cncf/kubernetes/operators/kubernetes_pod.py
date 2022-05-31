@@ -152,7 +152,7 @@ class KubernetesPodOperator(BaseOperator):
         defaults to kubernetes default
     :param pod_runtime_info_envs: (Optional) A list of environment variables,
         to be set in the container. Cannot be updated.
-    :param configmaps: (Optional) A list of names of config maps which coselects a ConfigMap
+    :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
         Extends env_from.
