@@ -221,11 +221,13 @@ class TestAzureServiceBusReceiveMessageOperator(unittest.TestCase):
         )
         asb_receive_queue_operator.execute(None)
         expected_calls = [
-            mock.call()
-            .__enter__()
-            .get_queue_receiver(QUEUE_NAME)
-            .__enter__()
-            .receive_messages(max_message_count=10, max_wait_time=5)
-            .__iter__()
+            mock.call(),
+            mock.call().__enter__(),
+            mock.call().get_queue_receiver(queue_name='test_queue'),
+            mock.call().get_queue_receiver().__enter__(),
+            mock.call().get_queue_receiver().receive_messages(max_message_count=10, max_wait_time=5),
+            mock.call().get_queue_receiver().receive_messages().__iter__(),
+            mock.call().get_queue_receiver().__exit__(None, None, None),
+            mock.call().__exit__(None, None, None),
         ]
         mock_get_conn.assert_has_calls(expected_calls)
