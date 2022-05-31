@@ -33,7 +33,13 @@ const AutoRefresh = () => {
   return (
     <FormControl display="flex" width="auto" mr={2}>
       <Spinner color="blue.500" speed="1s" mr="4px" visibility={isRefreshOn ? 'visible' : 'hidden'} />
-      <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
+      <FormLabel
+        htmlFor="auto-refresh"
+        mb={0}
+        fontWeight="normal"
+        display="flex"
+        alignItems="center"
+      >
         Auto-refresh
       </FormLabel>
       <Switch

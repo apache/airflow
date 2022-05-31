@@ -273,6 +273,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): _available_logging_levels + [''],
+        ("webserver", "analytical_tool"): ['google_analytics', 'metarouter', 'segment', ''],
     }
 
     upgraded_values: Dict[Tuple[str, str], str]
@@ -391,7 +392,7 @@ class AirflowConfigParser(ConfigParser):
                 if value not in enum_options:
                     raise AirflowConfigException(
                         f"`[{section_key}] {option_key}` should not be "
-                        + f"{value!r}. Possible values: {', '.join(enum_options)}."
+                        f"{value!r}. Possible values: {', '.join(enum_options)}."
                     )
 
     def _validate_config_dependencies(self):
