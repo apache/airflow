@@ -49,6 +49,7 @@ from airflow import settings
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
+    DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
@@ -388,6 +389,11 @@ class MappedOperator(AbstractOperator):
         return bool(self.partial_kwargs.get("depends_on_past"))
 
     @property
+    def ignore_first_depends_on_past(self) -> bool:
+        value = self.partial_kwargs.get("ignore_first_depends_on_past", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST)
+        return bool(value)
+
+    @property
     def wait_for_downstream(self) -> bool:
         return bool(self.partial_kwargs.get("wait_for_downstream"))
 
@@ -480,7 +486,6 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
-
         return {
             "task_id": self.task_id,
             "dag": self.dag,

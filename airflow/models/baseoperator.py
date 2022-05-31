@@ -59,6 +59,7 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
+    DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
@@ -197,6 +198,7 @@ def partial(
     resources: Optional[Dict[str, Any]] = None,
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
+    ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     wait_for_downstream: bool = False,
     retries: Optional[int] = DEFAULT_RETRIES,
     queue: str = DEFAULT_QUEUE,
@@ -250,6 +252,7 @@ def partial(
     partial_kwargs.setdefault("params", default_params)
     partial_kwargs.setdefault("trigger_rule", trigger_rule)
     partial_kwargs.setdefault("depends_on_past", depends_on_past)
+    partial_kwargs.setdefault("ignore_first_depends_on_past", ignore_first_depends_on_past)
     partial_kwargs.setdefault("wait_for_downstream", wait_for_downstream)
     partial_kwargs.setdefault("retries", retries)
     partial_kwargs.setdefault("queue", queue)
@@ -694,9 +697,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
-        ignore_first_depends_on_past: bool = conf.getboolean(
-            'scheduler', 'ignore_first_depends_on_past_by_default'
-        ),
+        ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
         wait_for_downstream: bool = False,
         dag: Optional['DAG'] = None,
         params: Optional[Dict] = None,
