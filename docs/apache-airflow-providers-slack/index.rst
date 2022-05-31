@@ -34,12 +34,12 @@ Content
 
     Connection Types <connections/slack>
     Python API <_api/airflow/providers/slack/index>
-    Example DAGs <https://github.com/apache/airflow/tree/main/test/system/providers/slack>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <example-dags>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-slack/>
     Installing from sources <installing-providers-from-sources>
 
