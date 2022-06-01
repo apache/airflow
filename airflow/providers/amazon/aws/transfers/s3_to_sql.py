@@ -30,6 +30,7 @@ from airflow.utils.context import Context
 
 class S3ToSqlOperator(BaseOperator):
     """
+    
     Moves data from s3 to sql.
 
     :param s3_key: path to s3 file
