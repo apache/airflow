@@ -30,12 +30,12 @@ from airflow_breeze.global_constants import (
     get_airflow_extras,
     get_airflow_version,
 )
-from airflow_breeze.params._common_build_params import _CommonBuildParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
 
 
 @dataclass
-class BuildProdParams(_CommonBuildParams):
+class BuildProdParams(CommonBuildParams):
     """
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """

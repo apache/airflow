@@ -27,7 +27,7 @@ from airflow_breeze.utils.platforms import get_real_platform
 
 
 @dataclass
-class _CommonBuildParams:
+class CommonBuildParams:
     """
     Common build parameters. Those parameters are common parameters for CI And PROD build.
     """
@@ -55,7 +55,6 @@ class _CommonBuildParams:
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     github_username: str = ""
     image_tag: Optional[str] = None
-    max_retries: Optional[int] = None
     install_providers_from_sources: bool = False
     platform: str = f"linux/{os.uname().machine}"
     prepare_buildx_cache: bool = False
@@ -148,6 +147,9 @@ class _CommonBuildParams:
     def is_multi_platform(self) -> bool:
         return "," in self.platform
 
+    def preparing_latest_image(self) -> bool:
+        return self.tag_as_latest or self.airflow_image_name == self.airflow_image_name_with_tag
+
     @property
     def platforms(self) -> List[str]:
         return self.platform.split(",")
@@ -161,6 +163,4 @@ class _CommonBuildParams:
         raise NotImplementedError()
 
     def __post_init__(self):
-        if self.prepare_buildx_cache:
-            get_console().print("[info]Forcing --push-image since we are preparing buildx cache[/]")
-            self.push_image = True
+        pass

@@ -102,8 +102,7 @@ class GlueCrawlerHook(AwsBaseHook):
         """
         crawler_name = crawler_kwargs['Name']
         self.log.info("Creating crawler: %s", crawler_name)
-        crawler = self.glue_client.create_crawler(**crawler_kwargs)
-        return crawler
+        return self.glue_client.create_crawler(**crawler_kwargs)
 
     def start_crawler(self, crawler_name: str) -> dict:
         """
@@ -113,8 +112,7 @@ class GlueCrawlerHook(AwsBaseHook):
         :return: Empty dictionary
         """
         self.log.info("Starting crawler %s", crawler_name)
-        crawler = self.glue_client.start_crawler(Name=crawler_name)
-        return crawler
+        return self.glue_client.start_crawler(Name=crawler_name)
 
     def wait_for_crawler_completion(self, crawler_name: str, poll_interval: int = 5) -> str:
         """
@@ -137,18 +135,17 @@ class GlueCrawlerHook(AwsBaseHook):
                 crawler_status = crawler['LastCrawl']['Status']
                 if crawler_status in failed_status:
                     raise AirflowException(f"Status: {crawler_status}")
-                else:
-                    metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
-                        'CrawlerMetricsList'
-                    ][0]
-                    self.log.info("Status: %s", crawler_status)
-                    self.log.info("Last Runtime Duration (seconds): %s", metrics['LastRuntimeSeconds'])
-                    self.log.info("Median Runtime Duration (seconds): %s", metrics['MedianRuntimeSeconds'])
-                    self.log.info("Tables Created: %s", metrics['TablesCreated'])
-                    self.log.info("Tables Updated: %s", metrics['TablesUpdated'])
-                    self.log.info("Tables Deleted: %s", metrics['TablesDeleted'])
+                metrics = self.glue_client.get_crawler_metrics(CrawlerNameList=[crawler_name])[
+                    'CrawlerMetricsList'
+                ][0]
+                self.log.info("Status: %s", crawler_status)
+                self.log.info("Last Runtime Duration (seconds): %s", metrics['LastRuntimeSeconds'])
+                self.log.info("Median Runtime Duration (seconds): %s", metrics['MedianRuntimeSeconds'])
+                self.log.info("Tables Created: %s", metrics['TablesCreated'])
+                self.log.info("Tables Updated: %s", metrics['TablesUpdated'])
+                self.log.info("Tables Deleted: %s", metrics['TablesDeleted'])
 
-                    return crawler_status
+                return crawler_status
 
             else:
                 self.log.info("Polling for AWS Glue crawler: %s ", crawler_name)

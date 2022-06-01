@@ -155,13 +155,12 @@ class GoogleApiToS3Operator(BaseOperator):
             api_version=self.google_api_service_version,
             impersonation_chain=self.google_impersonation_chain,
         )
-        google_api_response = google_discovery_api_hook.query(
+        return google_discovery_api_hook.query(
             endpoint=self.google_api_endpoint_path,
             data=self.google_api_endpoint_params,
             paginate=self.google_api_pagination,
             num_retries=self.google_api_num_retries,
         )
-        return google_api_response
 
     def _load_data_to_s3(self, data: dict) -> None:
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)

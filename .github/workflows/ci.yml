@@ -1653,7 +1653,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     permissions:
       packages: write
     timeout-minutes: 120
-    name: "Push images as cache to GitHub Registry"
+    name: "Push Image Cache"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:
       - build-info
@@ -1664,6 +1664,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       fail-fast: false
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -1683,16 +1684,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze free-space
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-      - name: "Build & Push CI image ${{ matrix.python-version }}:latest"
-        run: >
-          breeze build-image
-          --prepare-buildx-cache
-          --max-retries 3
-          --platform linux/amd64,linux/arm64
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: >
           Pull CI image for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1703,33 +1694,43 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
-      - name: "Prepare providers packages"
+      - name: "Prepare providers packages for PROD build"
         run: >
           breeze prepare-provider-packages
           --package-list-file ./scripts/ci/installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
-      - name: "Prepare airflow package"
+      - name: "Prepare airflow package for PROD build"
         run: breeze prepare-airflow-package --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: matrix.platform == 'linux/arm64'
+      - name: "Push CI cache ${{ matrix.python-version }} ${{ matrix.platform }}"
+        run: >
+          breeze build-image
+          --prepare-buildx-cache
+          --force-build
+          --platform ${{ matrix.platform }}
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest
+      - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze build-prod-image
           --airflow-is-in-context
           --install-packages-from-context
           --prepare-buildx-cache
           --disable-airflow-repo-cache
-          --max-retries 3
-          --platform linux/amd64,linux/arm64
+          --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
+        if: always() && matrix.platform == 'linux/arm64'
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()

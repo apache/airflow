@@ -51,5 +51,4 @@ class GlacierCreateJobOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
-        response = hook.retrieve_inventory(vault_name=self.vault_name)
-        return response
+        return hook.retrieve_inventory(vault_name=self.vault_name)
