@@ -758,6 +758,7 @@ dropdown
 druidHook
 ds
 dsn
+dt
 dttm
 dtypes
 durations

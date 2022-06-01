@@ -14,3 +14,22 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from datetime import datetime
+
+from airflow.providers.amazon.aws.utils import datetime_to_epoch, datetime_to_epoch_ms, datetime_to_epoch_us
+
+DT = datetime(2000, 1, 1)
+EPOCH = 946_684_800
+
+
+def test_datetime_to_epoch():
+    assert datetime_to_epoch(DT) == EPOCH
+
+
+def test_datetime_to_epoch_ms():
+    assert datetime_to_epoch_ms(DT) == EPOCH * 1000
+
+
+def test_datetime_to_epoch_us():
+    assert datetime_to_epoch_us(DT) == EPOCH * 1_000_000

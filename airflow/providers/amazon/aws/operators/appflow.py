@@ -31,6 +31,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.providers.amazon.aws.hooks.appflow import AppflowHook
+from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.type_defs import (
@@ -50,10 +51,6 @@ SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 class AppflowOperatorBase(BaseOperator):
     """
     Amazon Appflow Base Operator class (not supposed to be used directly in DAGs).
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:AppflowRunOperator`
 
     :param source: The source name (e.g. salesforce)
     :param name: The flow name
@@ -95,11 +92,6 @@ class AppflowOperatorBase(BaseOperator):
     def hook(self) -> AppflowHook:
         """Create and return an AppflowHook."""
         return AppflowHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
-
-    @staticmethod
-    def _dt_to_epoch_str(dt: datetime) -> str:
-        text = str(int(dt.timestamp() * 1000))
-        return text
 
     def execute(self, context: "Context") -> None:
         self.dt_parsed: Optional[datetime] = datetime.fromisoformat(self.dt) if self.dt else None
@@ -321,7 +313,7 @@ class AppflowRunBeforeOperator(AppflowOperatorBase):
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
-                "VALUE": AppflowOperatorBase._dt_to_epoch_str(self.dt_parsed),
+                "VALUE": str(datetime_to_epoch_ms(self.dt_parsed)),
             },  # NOT inclusive
         }
         tasks.append(filter_task)
@@ -384,7 +376,7 @@ class AppflowRunAfterOperator(AppflowOperatorBase):
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
-                "VALUE": AppflowOperatorBase._dt_to_epoch_str(self.dt_parsed),
+                "VALUE": str(datetime_to_epoch_ms(self.dt_parsed)),
             },  # NOT inclusive
         }
         tasks.append(filter_task)
@@ -449,8 +441,8 @@ class AppflowRunDailyOperator(AppflowOperatorBase):
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
-                "LOWER_BOUND": AppflowOperatorBase._dt_to_epoch_str(start_dt),  # NOT inclusive
-                "UPPER_BOUND": AppflowOperatorBase._dt_to_epoch_str(end_dt),  # NOT inclusive
+                "LOWER_BOUND": str(datetime_to_epoch_ms(start_dt)),  # NOT inclusive
+                "UPPER_BOUND": str(datetime_to_epoch_ms(end_dt)),  # NOT inclusive
             },
         }
         tasks.append(filter_task)

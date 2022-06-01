@@ -14,3 +14,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from datetime import datetime
+
+
+def datetime_to_epoch(dt: datetime) -> int:
+    """Convert a datetime object to an epoch integer (seconds)."""
+    return int(dt.timestamp())
+
+
+def datetime_to_epoch_ms(dt: datetime) -> int:
+    """Convert a datetime object to an epoch integer (milliseconds)."""
+    return int(dt.timestamp() * 1_000)
+
+
+def datetime_to_epoch_us(dt: datetime) -> int:
+    """Convert a datetime object to an epoch integer (microseconds)."""
+    return int(dt.timestamp() * 1_000_000)
