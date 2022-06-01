@@ -202,7 +202,7 @@ amazon = [
     'mypy-boto3-redshift-data>=1.21.0',
 ]
 apache_beam = [
-    'apache-beam>=2.33.0',
+    'apache-beam>=2.39.0',
 ]
 arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
@@ -367,6 +367,9 @@ google = [
     'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
+    # A transient dependency of google-cloud-bigquery-datatransfer, but we
+    # further constrain it since older versions are buggy.
+    'proto-plus>=1.19.6',
 ]
 grpc = [
     # Google has very clear rules on what dependencies should be used. All the limits below

@@ -57,7 +57,7 @@ class GlueJobSensor(BaseSensorOperator):
             self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)
             return True
         elif job_state in self.errored_states:
-            job_error_message = "Exiting Job " + self.run_id + " Run State: " + job_state
+            job_error_message = f"Exiting Job {self.run_id} Run State: {job_state}"
             raise AirflowException(job_error_message)
         else:
             return False

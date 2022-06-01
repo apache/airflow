@@ -2168,15 +2168,6 @@
       type: boolean
       example: ~
       default: "True"
-- name: github_enterprise
-  description: ~
-  options:
-    - name: api_rev
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "v3"
 - name: elasticsearch
   description: ~
   options:
