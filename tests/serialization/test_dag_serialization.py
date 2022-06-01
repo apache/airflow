@@ -26,6 +26,7 @@ import multiprocessing
 import os
 from datetime import datetime, timedelta
 from glob import glob
+from typing import Any
 from unittest import mock
 
 import pendulum
@@ -454,11 +455,14 @@ class TestStringifiedDAGs:
             'default_args',
             "_task_group",
             'params',
+            # Exclude those for mapped tasks
+            'partial_kwargs',
+            'operator_class',
         }
         for field in fields_to_check:
-            assert getattr(serialized_dag, field) == getattr(
-                dag, field
-            ), f'{dag.dag_id}.{field} does not match'
+            serialized_field = getattr(serialized_dag, field)
+            base_field = getattr(dag, field)
+            self.compare_fields(base_field, serialized_field, dag.dag_id, field)
 
         if dag.default_args:
             for k, v in dag.default_args.items():
@@ -477,15 +481,36 @@ class TestStringifiedDAGs:
         for task_id in dag.task_ids:
             self.validate_deserialized_task(serialized_dag.get_task(task_id), dag.get_task(task_id))
 
+    def compare_fields(self, base_field: Any, serialized_field: Any, obj_id: str, field: str):
+        if isinstance(serialized_field, dict) and isinstance(base_field, dict):
+            # Attempt to compare sets by values (assuming they are hashable)
+            try:
+                assert serialized_field.items() - base_field.items() == set(), (
+                    f"The dicts {obj_id}.{field} are not the same: "
+                    f"{serialized_field.items()}, {base_field.items()}"
+                )
+            except TypeError as e:
+                if "unhashable type" not in str(e):
+                    raise
+                # if the dict values are not hashable - compare the dicts directly
+                if serialized_field != base_field:
+                    print("Different")
+                assert serialized_field == base_field, f'{obj_id}.{field} does not match'
+        else:
+            assert serialized_field == base_field, f'{obj_id}.{field} does not match'
+
     def validate_deserialized_task(
         self,
         serialized_task,
         task,
     ):
         """Verify non-airflow operators are casted to BaseOperator."""
-        assert isinstance(serialized_task, SerializedBaseOperator)
-        assert not isinstance(task, SerializedBaseOperator)
-        assert isinstance(task, BaseOperator)
+        if serialized_task.is_mapped:
+            assert isinstance(serialized_task, MappedOperator)
+            assert isinstance(task, MappedOperator)
+        else:
+            assert isinstance(serialized_task, SerializedBaseOperator)
+            assert isinstance(task, BaseOperator)
 
         # Every task should have a task_group property -- even if it's the DAG's root task group
         assert serialized_task.task_group
@@ -506,6 +531,10 @@ class TestStringifiedDAGs:
             # Checked separately
             'resources',
             'params',
+            # Mapped operators
+            'operator_class',
+            'partial_kwargs',
+            'mapped_op_kwargs',
         }
 
         assert serialized_task.task_type == task.task_type
@@ -517,18 +546,22 @@ class TestStringifiedDAGs:
         assert serialized_task.downstream_task_ids == task.downstream_task_ids
 
         for field in fields_to_check:
-            assert getattr(serialized_task, field) == getattr(
-                task, field
-            ), f'{task.dag.dag_id}.{task.task_id}.{field} does not match'
+            serialized_field = getattr(serialized_task, field)
+            base_field = getattr(task, field)
+            self.compare_fields(base_field, serialized_field, task.task_id, field)
 
         if serialized_task.resources is None:
             assert task.resources is None or task.resources == []
         else:
-            assert serialized_task.resources == task.resources
+            assert serialized_task.resources == task.resources, "serialized resources do not match"
 
         # Ugly hack as some operators override params var in their init
         if isinstance(task.params, ParamsDict):
-            assert serialized_task.params.dump() == task.params.dump()
+            if isinstance(serialized_task.params, ParamsDict):
+                assert serialized_task.params.dump() == task.params.dump()
+            else:
+                # Serialized task params for mapped operatoprs is already a dict
+                assert serialized_task.params == task.params.dump()
 
         # Check that for Deserialized task, task.subdag is None for all other Operators
         # except for the SubDagOperator where task.subdag is an instance of DAG object

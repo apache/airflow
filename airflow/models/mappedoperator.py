@@ -292,10 +292,25 @@ class MappedOperator(AbstractOperator):
     )
 
     def __hash__(self):
-        return id(self)
+        hash_components = [type(self)]
+        for component in self._comps:
+            val = getattr(self, component, None)
+            try:
+                hash(val)
+                hash_components.append(val)
+            except TypeError:
+                hash_components.append(repr(val))
+        return hash(tuple(hash_components))
+
+    def __eq__(self, other):
+        if isinstance(other, MappedOperator):
+            # Use getattr() instead of __dict__ as __dict__ doesn't return
+            # correct values for properties.
+            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
+        return False
 
     def __repr__(self):
-        return f"<Mapped({self._task_type}): {self.task_id}>"
+        return f"<MappedOperator({self._task_type}): {self.task_id}>"
 
     def __attrs_post_init__(self):
         from airflow.models.xcom_arg import XComArg

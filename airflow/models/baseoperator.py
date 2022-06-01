@@ -628,47 +628,13 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     pool: str = ""
 
-    # base list which includes all the attrs that don't need deep copy.
-    _base_operator_shallow_copy_attrs: Tuple[str, ...] = (
-        'user_defined_macros',
-        'user_defined_filters',
-        'params',
-        '_log',
-    )
-
-    # each operator should override this class attr for shallow copy attrs.
-    shallow_copy_attrs: Sequence[str] = ()
-
     # Defines the operator level extra links
-    operator_extra_links: Collection['BaseOperatorLink'] = ()
+    operator_extra_links: Collection['BaseOperatorLink'] = []
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
 
     partial: Callable[..., OperatorPartial] = _PartialDescriptor()  # type: ignore
-
-    _comps = {
-        'task_id',
-        'dag_id',
-        'owner',
-        'email',
-        'email_on_retry',
-        'retry_delay',
-        'retry_exponential_backoff',
-        'max_retry_delay',
-        'start_date',
-        'end_date',
-        'depends_on_past',
-        'wait_for_downstream',
-        'priority_weight',
-        'sla',
-        'execution_timeout',
-        'on_execute_callback',
-        'on_failure_callback',
-        'on_success_callback',
-        'on_retry_callback',
-        'do_xcom_push',
-    }
 
     # Defines if the operator supports lineage without manual definitions
     supports_lineage = False
@@ -929,27 +895,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
             )
             self.template_fields = [self.template_fields]
 
-    def __eq__(self, other):
-        if type(self) is type(other):
-            # Use getattr() instead of __dict__ as __dict__ doesn't return
-            # correct values for properties.
-            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
-        return False
-
-    def __ne__(self, other):
-        return not self == other
-
-    def __hash__(self):
-        hash_components = [type(self)]
-        for component in self._comps:
-            val = getattr(self, component, None)
-            try:
-                hash(val)
-                hash_components.append(val)
-            except TypeError:
-                hash_components.append(repr(val))
-        return hash(tuple(hash_components))
-
     # including lineage information
     def __or__(self, other):
         """
@@ -998,6 +943,27 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         self.add_inlets(other)
 
         return self
+
+    def __hash__(self):
+        hash_components = [type(self)]
+        for component in self._comps:
+            val = getattr(self, component, None)
+            try:
+                hash(val)
+                hash_components.append(val)
+            except TypeError:
+                hash_components.append(repr(val))
+        return hash(tuple(hash_components))
+
+    def __eq__(self, other):
+        if isinstance(other, BaseOperator):
+            # Use getattr() instead of __dict__ as __dict__ doesn't return
+            # correct values for properties.
+            return all(getattr(self, c, None) == getattr(other, c, None) for c in self._comps)
+        return False
+
+    def __ne__(self, other):
+        return not self == other
 
     def __setattr__(self, key, value):
         super().__setattr__(key, value)
@@ -1151,25 +1117,6 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         module within an operator needs to be cleaned up or it will leave
         ghost processes behind.
         """
-
-    def __deepcopy__(self, memo):
-        """
-        Hack sorting double chained task lists by task_id to avoid hitting
-        max_depth on deepcopy operations.
-        """
-        sys.setrecursionlimit(5000)  # TODO fix this in a better way
-        cls = self.__class__
-        result = cls.__new__(cls)
-        memo[id(self)] = result
-
-        shallow_copy = cls.shallow_copy_attrs + cls._base_operator_shallow_copy_attrs
-
-        for k, v in self.__dict__.items():
-            if k not in shallow_copy:
-                setattr(result, k, copy.deepcopy(v, memo))
-            else:
-                setattr(result, k, copy.copy(v))
-        return result
 
     def __getstate__(self):
         state = dict(self.__dict__)

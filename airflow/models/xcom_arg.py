@@ -71,11 +71,17 @@ class XComArg(DependencyMixin):
     def __eq__(self, other):
         return self.operator == other.operator and self.key == other.key
 
+    def __hash__(self):
+        return hash((self.operator, self.key))
+
     def __getitem__(self, item: str) -> "XComArg":
         """Implements xcomresult['some_result_key']"""
         if not isinstance(item, str):
             raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
         return XComArg(operator=self.operator, key=item)
+
+    def __repr__(self):
+        return f"Operator: {self.operator}, Item: {self.key}"
 
     def __iter__(self):
         """Override iterable protocol to raise error explicitly.

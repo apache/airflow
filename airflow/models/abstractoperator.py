@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import copy
 import datetime
 import inspect
+import sys
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -31,6 +32,7 @@ from typing import (
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     Union,
 )
@@ -90,6 +92,17 @@ class AbstractOperator(LoggingMixin, DAGNode):
     :meta private:
     """
 
+    # each operator should override this class attr for shallow copy attrs.
+    shallow_copy_attrs: Sequence[str] = ()
+
+    # base list which includes all the attrs that don't need deep copy.
+    _abstract_operator_shallow_copy_attrs: Tuple[str, ...] = (
+        'user_defined_macros',
+        'user_defined_filters',
+        'params',
+        '_log',
+    )
+
     operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
 
     weight_rule: str
@@ -123,6 +136,48 @@ class AbstractOperator(LoggingMixin, DAGNode):
             'operator_extra_link_dict',
         )
     )
+
+    _comps = {
+        'task_id',
+        'dag_id',
+        'owner',
+        'email',
+        'email_on_retry',
+        'retry_delay',
+        'retry_exponential_backoff',
+        'max_retry_delay',
+        'start_date',
+        'end_date',
+        'depends_on_past',
+        'wait_for_downstream',
+        'priority_weight',
+        'sla',
+        'execution_timeout',
+        'on_execute_callback',
+        'on_failure_callback',
+        'on_success_callback',
+        'on_retry_callback',
+        'do_xcom_push',
+    }
+
+    def __deepcopy__(self, memo):
+        """
+        Hack sorting double chained task lists by task_id to avoid hitting
+        max_depth on deepcopy operations.
+        """
+        sys.setrecursionlimit(5000)  # TODO fix this in a better way
+        cls = self.__class__
+        result = cls.__new__(cls)
+        memo[id(self)] = result
+
+        shallow_copy = cls.shallow_copy_attrs + cls._abstract_operator_shallow_copy_attrs
+
+        for k, v in self.__dict__.items():
+            if k not in shallow_copy:
+                setattr(result, k, copy.deepcopy(v, memo))
+            else:
+                setattr(result, k, copy.copy(v))
+        return result
 
     def get_dag(self) -> "Optional[DAG]":
         raise NotImplementedError()
