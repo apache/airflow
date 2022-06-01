@@ -123,6 +123,7 @@ operators:
   - integration-name: Microsoft Azure Service Bus
     python-modules:
       - airflow.providers.microsoft.azure.operators.azure_service_bus_queue
+      - airflow.providers.microsoft.azure.operators.azure_service_bus_subscription
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
