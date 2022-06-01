@@ -35,7 +35,7 @@ keywords:
 dependencies:
   - name: postgresql
     version: 10.5.3
-    repository: "https://charts.bitnami.com/bitnami"
+    repository: "https://raw.githubusercontent.com/bitnami/charts/index/bitnami"
     condition: postgresql.enabled
 maintainers:
   - email: dev@airflow.apache.org
