@@ -3833,23 +3833,18 @@ class AirflowModelView(ModelView):
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
     def __getattribute__(self, attr):
-        """Wraps action REST methods with `action_logging` wrapper
-        Overriding enables differentiating resource and generation of event name at the decorator level.
-
-        if attr in ["show", "list", "read", "get", "get_list"]:
-            return action_logging(event="RESOURCE_NAME"."action_name")(attr)
-        else:
-            return attr
-        """
         attribute = object.__getattribute__(self, attr)
-        if (
-            callable(attribute)
-            and hasattr(attribute, "_permission_name")
-            and attribute._permission_name in self.method_permission_name
-        ):
-            permission_str = self.method_permission_name[attribute._permission_name]
-            if permission_str not in ["show", "list", "read", "get", "get_list"]:
-                return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
+        if callable(attribute) and attr in [
+            "list",
+            "show",
+            "add",
+            "edit",
+            "delete",
+            "download",
+            "action",
+            "action_post",
+        ]:
+            return action_logging(event=f"{self.route_base.strip('/')}.{attr}")(attribute)
         return attribute
 
 
