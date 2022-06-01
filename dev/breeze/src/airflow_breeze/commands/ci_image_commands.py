@@ -44,6 +44,7 @@ from airflow_breeze.utils.common_options import (
     option_docker_cache,
     option_dry_run,
     option_empty_image,
+    option_force_build,
     option_github_repository,
     option_github_token,
     option_github_username,
@@ -216,6 +217,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_additional_runtime_apt_command
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_force_build
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_airflow_constraints_mode_ci
@@ -232,7 +234,9 @@ def build_image(
     """Build CI image. Include building multiple images for all python versions (sequentially)."""
 
     def run_build(ci_image_params: BuildCiParams) -> None:
-        return_code, info = build_ci_image(verbose=verbose, dry_run=dry_run, ci_image_params=ci_image_params)
+        return_code, info = build_ci_image(
+            verbose=verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False
+        )
         if return_code != 0:
             get_console().print(f"[error]Error when building image! {info}")
             sys.exit(return_code)
@@ -423,7 +427,9 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
         sys.exit(1)
 
 
-def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams) -> Tuple[int, str]:
+def build_ci_image(
+    verbose: bool, dry_run: bool, ci_image_params: BuildCiParams, parallel: bool
+) -> Tuple[int, str]:
     """
     Builds CI image:
 
@@ -440,6 +446,7 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
     :param verbose: print commands when running
     :param dry_run: do not execute "write" commands - just print what would happen
     :param ci_image_params: CI image parameters
+    :param parallel: whether the pull is run as part of parallel execution
     """
     if (
         ci_image_params.is_multi_platform()
@@ -463,7 +470,9 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
     if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
         login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
     if ci_image_params.prepare_buildx_cache:
-        build_command_result = build_cache(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
+        build_command_result = build_cache(
+            image_params=ci_image_params, dry_run=dry_run, verbose=verbose, parallel=parallel
+        )
     else:
         if ci_image_params.empty_image:
             env = os.environ.copy()
@@ -477,6 +486,7 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 env=env,
+                enabled_output_group=not parallel,
             )
         else:
             get_console().print(f"\n[info]Building CI Image for Python {ci_image_params.python}\n")
@@ -490,6 +500,7 @@ def build_ci_image(verbose: bool, dry_run: bool, ci_image_params: BuildCiParams)
                 cwd=AIRFLOW_SOURCES_ROOT,
                 text=True,
                 check=False,
+                enabled_output_group=not parallel,
             )
             if build_command_result.returncode == 0:
                 if ci_image_params.tag_as_latest:
@@ -540,4 +551,4 @@ def rebuild_ci_image_if_needed(
             'Forcing build.[/]'
         )
         ci_image_params.force_build = True
-    build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params)
+    build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False)
