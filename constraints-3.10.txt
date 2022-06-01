@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-31T23:03:01Z
+# This constraints file was automatically generated on 2022-06-01T20:08:55Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -148,7 +148,7 @@ attrs==20.3.0
 aws-xray-sdk==2.9.0
 azure-batch==12.0.0
 azure-common==1.1.28
-azure-core==1.24.0
+azure-core==1.24.1
 azure-cosmos==4.3.0
 azure-datalake-store==0.0.52
 azure-identity==1.10.0
@@ -173,9 +173,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.24.0
+boto3==1.24.1
 boto==2.49.0
-botocore==1.27.0
+botocore==1.27.1
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
@@ -183,7 +183,7 @@ cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==1.10.0
 celery==5.2.7
-certifi==2020.12.5
+certifi==2022.5.18.1
 cffi==1.15.0
 cfgv==3.3.1
 cgroupspy==0.2.2
@@ -377,7 +377,7 @@ ntlm-auth==1.5.0
 numpy==1.22.4
 oauthlib==3.2.0
 opsgenie-sdk==2.1.5
-orjson==3.6.8
+orjson==3.6.9
 oscrypto==1.3.0
 oss2==2.15.0
 packaging==21.3
@@ -546,11 +546,11 @@ towncrier==21.9.0
 tqdm==4.64.0
 traitlets==5.2.2.post1
 trino==0.313.0
-twine==4.0.0
+twine==4.0.1
 types-Deprecated==1.2.8
-types-Markdown==3.3.26
+types-Markdown==3.3.27
 types-PyMySQL==1.0.19
-types-PyYAML==6.0.7
+types-PyYAML==6.0.8
 types-boto==2.49.15
 types-certifi==2021.10.8.2
 types-croniter==1.0.10
