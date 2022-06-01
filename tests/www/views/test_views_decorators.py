@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DagBag, DagRun, Log, TaskInstance
+from airflow.models import DagBag, DagRun, Log, TaskInstance, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -171,6 +171,29 @@ def test_action_logging_post(session, admin_client):
         event="clear",
         execution_date=EXAMPLE_DAG_DEFAULT_DATE,
     )
+
+
+def delete_variable(session, key):
+    session.query(Variable).filter(Variable.key == key).delete()
+    session.commit()
+
+
+def test_action_logging_variables_post(session, admin_client):
+    form = dict(key="random", value="random")
+    admin_client.post("/variable/add", data=form)
+    session.flush()
+    session.commit()
+    _check_last_log(session, dag_id=None, event="variable.add", execution_date=None)
+    delete_variable(session, key="random")
+
+
+def test_action_logging_variables_get(session, admin_client):
+    variable = Variable("random", "random")
+    session.add(variable)
+    session.commit()
+    admin_client.get(f'/variable/show/{variable.id}', follow_redirects=True)
+    _check_last_log(session, dag_id=None, event="variable.show", execution_date=None)
+    delete_variable(session, key="random")
 
 
 def test_calendar(admin_client, dagruns):

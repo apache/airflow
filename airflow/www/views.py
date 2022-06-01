@@ -3829,6 +3829,21 @@ class AirflowModelView(ModelView):
 
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
+    def __getattribute__(self, attr):
+        attribute = object.__getattribute__(self, attr)
+        if callable(attribute) and attr in [
+            "list",
+            "show",
+            "add",
+            "edit",
+            "delete",
+            "download",
+            "action",
+            "action_post",
+        ]:
+            return action_logging(event=f"{self.route_base.strip('/')}.{attr}")(attribute)
+        return attribute
+
 
 class AirflowPrivilegeVerifierModelView(AirflowModelView):
     """
