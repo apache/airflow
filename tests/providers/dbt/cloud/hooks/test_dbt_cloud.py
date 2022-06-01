@@ -136,22 +136,16 @@ class TestDbtCloudHook:
         db.merge_conn(schema_conn)
 
     @pytest.mark.parametrize(
-        argnames="conn_id",
-        argvalues=[ACCOUNT_ID_CONN, SINGLE_TENANT_CONN],
+        argnames="conn_id, url",
+        argvalues=[(ACCOUNT_ID_CONN, BASE_URL), (SINGLE_TENANT_CONN, SINGLE_TENANT_URL)],
         ids=["multi-tenant", "single-tenant"],
     )
-    def test_init_hook(self, conn_id):
+    def test_init_hook(self, conn_id, url):
         hook = DbtCloudHook(conn_id)
         assert hook.auth_type == TokenAuth
         assert hook.method == "POST"
-
-        if conn_id == ACCOUNT_ID_CONN:
-            assert hook.dbt_cloud_conn_id == ACCOUNT_ID_CONN
-            assert hook.base_url == BASE_URL
-
-        if conn_id == SINGLE_TENANT_CONN:
-            assert hook.dbt_cloud_conn_id == SINGLE_TENANT_CONN
-            assert hook.base_url == SINGLE_TENANT_URL
+        assert hook.dbt_cloud_conn_id == conn_id
+        assert hook.base_url == url
 
     @pytest.mark.parametrize(
         argnames="conn_id, account_id",
