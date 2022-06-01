@@ -489,25 +489,58 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
         )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @pytest.mark.backend("postgres")
-    def test_sql_branch_operator_postgres(self):
-        """Check if BranchSQLOperator works with backend"""
-        try:
-            BaseHook().get_connection("postgres_default")
-            print("The connection has been made previously.")
-        except AirflowNotFoundException:
-            local_connection = Connection(
-                conn_id="postgres_default",
-                conn_type="postgres",
-                host="postgres",
-                login="postgres",
-                password="airflow",
-                schema=None,
-                port=5432,
-            )
+    @pytest.fixture
+    def ensure_connection(self, request):
+        def _ensure_session(conn_id: str,
+                            conn_type: str,
+                            host: str,
+                            login: str,
+                            password: str,
+                            schema: str,
+                            port: int):
             session = settings.Session()
-            session.add(local_connection)
-            session.commit()
+            try:
+                Connection.get_connection_from_secrets(conn_id)
+            except AirflowNotFoundException:
+                conn = session.add(Connection(
+                    conn_id=conn_id,
+                    conn_type=conn_type,
+                    host=host,
+                    login=login,
+                    password=password,
+                    schema=schema,
+                    port=port
+                ))
+                session.commit()
+
+                def _delete_session():
+                    session.delete(conn)
+                    session.commit()
+                
+                request.addfinalizer(_delete_session)
+
+            return _ensure_session
+
+    @pytest.mark.backend("postgres")
+    def test_sql_branch_operator_postgres(self, ensure_connection):
+        """Check if BranchSQLOperator works with backend"""
+        ensure_connection("postgres_default")._ensure_session("postgres_default", "postgres", "postgres", "postgres", "airflow", None, 5432)
+        # try:
+        #     BaseHook().get_connection("postgres_default")
+        #     print("The connection has been made previously.")
+        # except AirflowNotFoundException:
+        #     local_connection = Connection(
+        #         conn_id="postgres_default",
+        #         conn_type="postgres",
+        #         host="postgres",
+        #         login="postgres",
+        #         password="airflow",
+        #         schema=None,
+        #         port=5432,
+        #     )
+        #     session = settings.Session()
+        #     session.add(local_connection)
+        #     session.commit()
 
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -518,29 +551,30 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             dag=self.dag,
         )
         branch_op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
-        conn = Connection().get_connection_from_secrets("postgres_default")
-        session = settings.Session()
-        session.delete(conn)
+        # conn = Connection().get_connection_from_secrets("postgres_default")
+        # session = settings.Session()
+        # session.delete(conn)
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
-    def test_branch_single_value_with_dag_run(self, mock_get_db_hook):
+    def test_branch_single_value_with_dag_run(self, mock_get_db_hook, ensure_connection):
         """Check BranchSQLOperator branch operation"""
-        try:
-            BaseHook().get_connection("mysql_default")
-            print("The connection has been made previously.")
-        except AirflowNotFoundException:
-            local_connection = Connection(
-                conn_id="mysql_default",
-                conn_type="mysql",
-                host="mysql",
-                login="root",
-                password=None,
-                schema="airflow",
-                port=3306,
-            )
-            session = settings.Session()
-            session.add(local_connection)
-            session.commit()
+        ensure_connection("mysql_default")
+        # try:
+        #     BaseHook().get_connection("mysql_default")
+        #     print("The connection has been made previously.")
+        # except AirflowNotFoundException:
+        #     local_connection = Connection(
+        #         conn_id="mysql_default",
+        #         conn_type="mysql",
+        #         host="mysql",
+        #         login="root",
+        #         password=None,
+        #         schema="airflow",
+        #         port=3306,
+        #     )
+        #     session = settings.Session()
+        #     session.add(local_connection)
+        #     session.commit()
 
         branch_op = BranchSQLOperator(
             task_id="make_choice",
@@ -579,9 +613,9 @@ class TestSqlBranch(TestHiveEnvironment, unittest.TestCase):
             else:
                 raise ValueError(f"Invalid task id {ti.task_id} found!")
         
-        conn = Connection().get_connection_from_secrets("mysql_default")
-        session = settings.Session()
-        session.delete(conn)
+        # conn = Connection().get_connection_from_secrets("mysql_default")
+        # session = settings.Session()
+        # session.delete(conn)
 
     @mock.patch("airflow.operators.sql.BaseSQLOperator.get_db_hook")
     def test_branch_true_with_dag_run(self, mock_get_db_hook):
