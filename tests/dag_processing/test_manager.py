@@ -426,7 +426,7 @@ class TestDagFileProcessorManager:
         # let's say the DAG was just parsed 2 seconds before the Freezed time
         last_finish_time = freezed_base_time - timedelta(seconds=10)
         manager._file_stats = {
-            "file_1.py": DagFileStat(1, 0, last_finish_time, 1.0, 1),
+            "file_1.py": DagFileStat(1, 0, last_finish_time, timedelta(seconds=1.0), 1),
         }
         with freeze_time(freezed_base_time):
             manager.set_file_paths(dag_files)
@@ -695,7 +695,9 @@ class TestDagFileProcessorManager:
         child_pipe.close()
         parent_pipe.close()
 
-        statsd_timing_mock.assert_called_with('dag_processing.last_duration.temp_dag', last_runtime)
+        statsd_timing_mock.assert_called_with(
+            'dag_processing.last_duration.temp_dag', timedelta(seconds=last_runtime)
+        )
 
     def test_refresh_dags_dir_doesnt_delete_zipped_dags(self, tmpdir):
         """Test DagFileProcessorManager._refresh_dag_dir method"""

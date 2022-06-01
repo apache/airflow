@@ -74,7 +74,7 @@ class DagFileStat(NamedTuple):
     num_dags: int
     import_errors: int
     last_finish_time: Optional[datetime]
-    last_duration: Optional[float]
+    last_duration: Optional[timedelta]
     run_count: int
 
 
@@ -834,7 +834,7 @@ class DagFileProcessorManager(LoggingMixin):
         :rtype: float
         """
         stat = self._file_stats.get(file_path)
-        return stat.last_duration if stat else None
+        return stat.last_duration.total_seconds() if stat and stat.last_duration else None
 
     def get_last_dag_count(self, file_path):
         """
@@ -927,7 +927,7 @@ class DagFileProcessorManager(LoggingMixin):
             count_import_errors = -1
             num_dags = 0
 
-        last_duration = (last_finish_time - processor.start_time).total_seconds()
+        last_duration = last_finish_time - processor.start_time
         stat = DagFileStat(
             num_dags=num_dags,
             import_errors=count_import_errors,
