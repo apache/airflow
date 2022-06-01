@@ -48,7 +48,7 @@ EVENTUAL_CONSISTENCY_POLLING: int = 10  # seconds
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 
 
-class AppflowOperatorBase(BaseOperator):
+class AppflowBaseOperator(BaseOperator):
     """
     Amazon Appflow Base Operator class (not supposed to be used directly in DAGs).
 
@@ -178,7 +178,7 @@ class AppflowOperatorBase(BaseOperator):
         return response["lastRunExecutionDetails"]["mostRecentExecutionStatus"]
 
 
-class AppflowRunOperator(AppflowOperatorBase):
+class AppflowRunOperator(AppflowBaseOperator):
     """
     Execute a Appflow run with filters as is.
 
@@ -217,7 +217,7 @@ class AppflowRunOperator(AppflowOperatorBase):
         )
 
 
-class AppflowRunFullOperator(AppflowOperatorBase):
+class AppflowRunFullOperator(AppflowBaseOperator):
     """
     Execute a Appflow full run removing any filter.
 
@@ -256,7 +256,7 @@ class AppflowRunFullOperator(AppflowOperatorBase):
         )
 
 
-class AppflowRunBeforeOperator(AppflowOperatorBase):
+class AppflowRunBeforeOperator(AppflowBaseOperator):
     """
     Execute a Appflow run after updating the filters to select only previous data.
 
@@ -319,7 +319,7 @@ class AppflowRunBeforeOperator(AppflowOperatorBase):
         tasks.append(filter_task)
 
 
-class AppflowRunAfterOperator(AppflowOperatorBase):
+class AppflowRunAfterOperator(AppflowBaseOperator):
     """
     Execute a Appflow run after updating the filters to select only future data.
 
@@ -382,7 +382,7 @@ class AppflowRunAfterOperator(AppflowOperatorBase):
         tasks.append(filter_task)
 
 
-class AppflowRunDailyOperator(AppflowOperatorBase):
+class AppflowRunDailyOperator(AppflowBaseOperator):
     """
     Execute a Appflow run after updating the filters to select only a single day.
 
@@ -529,7 +529,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
 
         execution = record.get("executionResult", {})
         if "recordsProcessed" not in execution:
-            raise AirflowException(f"Flow ({execution_id}) without recordsProcessed info.")
+            raise AirflowException(f"Flow ({execution_id}) without recordsProcessed info!")
         records_processed = execution["recordsProcessed"]
         self.log.info("records_processed: %d", records_processed)
         task_instance.xcom_push("records_processed", records_processed)  # type: ignore
