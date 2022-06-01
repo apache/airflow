@@ -76,6 +76,8 @@ TEST_CONN_TIMEOUT = 30
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
+TEST_DISABLED_ALGORITHMS = {'pubkeys': ['rsa-sha2-256', 'rsa-sha2-512']}
+
 
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_NO_EXTRA = 'ssh_with_no_extra'
@@ -96,6 +98,7 @@ class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE = (
         'ssh_with_host_key_and_allow_host_key_changes_true'
     )
+    CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS = 'ssh_with_extra_disabled_algorithms'
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -115,6 +118,7 @@ class TestSSHHook(unittest.TestCase):
                 cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
                 cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
+                cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
             ]
             connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
             connections.delete(synchronize_session=False)
@@ -261,6 +265,14 @@ class TestSSHHook(unittest.TestCase):
                         "allow_host_key_change": True,
                     }
                 ),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"disabled_algorithms": TEST_DISABLED_ALGORITHMS}),
             )
         )
 
@@ -745,6 +757,27 @@ class TestSSHHook(unittest.TestCase):
                 port='port',
                 sock=None,
                 look_for_keys=True,
+            )
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_with_extra_disabled_algorithms(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
+                hostname='remote_host',
+                username='username',
+                compress=True,
+                port='port',
+                sock=None,
+                look_for_keys=True,
+                disabled_algorithms=TEST_DISABLED_ALGORITHMS,
             )
 
     def test_openssh_private_key(self):
