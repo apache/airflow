@@ -27,7 +27,7 @@ BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
 click_color = click.option(
     '--color',
-    choices=click.Choice({ColorMode.ON, ColorMode.OFF, ColorMode.AUTO}),
+    type=click.Choice({ColorMode.ON, ColorMode.OFF, ColorMode.AUTO}),
     default=ColorMode.AUTO,
     help="Do emit colored output (default: auto)",
 )
@@ -68,7 +68,7 @@ click_log_file = click.option(
 click_output = click.option(
     "-o",
     "--output",
-    choices=click.Choice(["table", "json", "yaml", "plain"]),
+    type=click.Choice(["table", "json", "yaml", "plain"]),
     default="table",
     help="Output format.",
 )
