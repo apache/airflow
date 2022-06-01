@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-05-31T23:18:33Z
+# This constraints file was automatically generated on 2022-06-01T12:25:47Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -544,10 +544,10 @@ towncrier==21.9.0
 tqdm==4.64.0
 traitlets==5.2.2.post1
 trino==0.313.0
-twine==4.0.0
+twine==4.0.1
 typed-ast==1.5.4
 types-Deprecated==1.2.8
-types-Markdown==3.3.26
+types-Markdown==3.3.27
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.7
 types-boto==2.49.15
