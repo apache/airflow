@@ -377,7 +377,7 @@ class TestSFTPHook(unittest.TestCase):
         self.assertEqual(LOG_FILE_FOR_TESTS, output)
 
     def test_get_first_pattern_match(self):
-        output = self.hook.get_file_by_pattern(TMP_PATH, "*.txt")
+        output = self.hook.get_file_by_pattern(TMP_PATH, "test_*.txt")
         self.assertEqual(TMP_FILE_FOR_TESTS, output)
 
     def test_get_middle_pattern_match(self):
