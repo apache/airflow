@@ -26,13 +26,13 @@ S3_KEY = os.environ.get("S3_KEY", "key")
 DESTINATION_TABLE = os.environ.get("DESTINATION_TABLE", "destination")
 
 with models.DAG(
-    "example_3_to_sql",
+    "example_s3_to_sql",
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
     # [START howto_transfer_s3_to_sql]
-    sql_to_s3_task = S3ToSqlOperator(
+    s3_to_sql_task = S3ToSqlOperator(
         s3_key=S3_KEY,
         destination_table=DESTINATION_TABLE,
         file_format='csv',
