@@ -367,6 +367,9 @@ google = [
     'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
+    # A transient dependency of google-cloud-bigquery-datatransfer, but we
+    # further constrain it since older versions are buggy.
+    'proto-plus>=1.19.6',
 ]
 grpc = [
     # Google has very clear rules on what dependencies should be used. All the limits below
