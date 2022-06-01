@@ -30,7 +30,7 @@ from airflow.utils.context import Context
 
 class S3ToSqlOperator(BaseOperator):
     """
-    
+
     Moves data from s3 to sql.
 
     :param s3_key: path to s3 file
@@ -44,7 +44,7 @@ class S3ToSqlOperator(BaseOperator):
     :param insert_args: extra params for `insert_rows` method.
     """
 
-    template_fields: Sequence[str] = ('source_key', 'destination_table', 'file_format', 'preoperator')
+    template_fields: Sequence[str] = ('s3_key', 'destination_table', 'file_format', 'preoperator')
     template_ext: Sequence[str] = (
         '.sql',
         '.hql',
@@ -97,7 +97,7 @@ class S3ToSqlOperator(BaseOperator):
         if self.file_format == 'csv':
             df = pandas.read_csv(file, **self.file_options)
         elif self.file_format == 'parquet':
-            df = pandas.read_csv(file, **self.file_options)
+            df = pandas.read_parquet(file, **self.file_options)
         else:
             raise AirflowException('File format was not found!!')
         if self.preoperator:
