@@ -42,7 +42,7 @@ with DAG(
 
     # [START howto_operator_appflow_run]
     campaign_dump = AppflowRunOperator(
-        task_id="campaign-dump",
+        task_id="campaign_dump",
         source=SOURCE_NAME,
         name=FLOW_NAME,
     )
@@ -88,9 +88,9 @@ with DAG(
 
     # [START howto_operator_appflow_shortcircuit]
     campaign_dump_short_ciruit = AppflowRecordsShortCircuitOperator(
-        task_id="campaign-dump-short-ciruit",
+        task_id="campaign_dump_short_ciruit",
         flow_name=FLOW_NAME,
-        appflow_run_task_id="campaign-dump-after",  # Should shortcircuit, no records expected
+        appflow_run_task_id="campaign_dump_after",  # Should shortcircuit, no records expected
     )
     # [END howto_operator_appflow_shortcircuit]
 
