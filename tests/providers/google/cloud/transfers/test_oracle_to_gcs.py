@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-import cx_Oracle
+import oracledb
 
 from airflow.providers.google.cloud.transfers.oracle_to_gcs import OracleToGCSOperator
 
@@ -32,8 +32,8 @@ GZIP = False
 
 ROWS = [('mock_row_content_1', 42), ('mock_row_content_2', 43), ('mock_row_content_3', 44)]
 CURSOR_DESCRIPTION = (
-    ('some_str', cx_Oracle.DB_TYPE_VARCHAR, None, None, None, None, None),
-    ('some_num', cx_Oracle.DB_TYPE_NUMBER, None, None, None, None, None),
+    ('some_str', oracledb.DB_TYPE_VARCHAR, None, None, None, None, None),
+    ('some_num', oracledb.DB_TYPE_NUMBER, None, None, None, None, None),
 )
 NDJSON_LINES = [
     b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',

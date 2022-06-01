@@ -460,7 +460,7 @@ opsgenie = [
     'opsgenie-sdk>=2.1.5',
 ]
 oracle = [
-    'cx_Oracle>=5.1.2',
+	'oracledb>=1.0.0',
 ]
 pagerduty = [
     'pdpyras>=4.1.2',

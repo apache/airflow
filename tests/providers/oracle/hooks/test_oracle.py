@@ -28,12 +28,12 @@ from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 try:
-    import cx_Oracle
+    import oracledb
 except ImportError:
-    cx_Oracle = None
+    oracledb = None
 
 
-@unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')
+@unittest.skipIf(oracledb is None, 'oracledb package not present')
 class TestOracleHookConn(unittest.TestCase):
     def setUp(self):
         super().setUp()
@@ -46,7 +46,7 @@ class TestOracleHookConn(unittest.TestCase):
         self.db_hook.get_connection = mock.Mock()
         self.db_hook.get_connection.return_value = self.connection
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_host(self, mock_connect):
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
@@ -56,7 +56,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert kwargs['password'] == 'password'
         assert kwargs['dsn'] == 'host:1521/schema'
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_host_alternative_port(self, mock_connect):
         self.connection.port = 1522
         self.db_hook.get_conn()
@@ -67,7 +67,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert kwargs['password'] == 'password'
         assert kwargs['dsn'] == 'host:1522/schema'
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_sid(self, mock_connect):
         dsn_sid = {'dsn': 'ignored', 'sid': 'sid'}
         self.connection.extra = json.dumps(dsn_sid)
@@ -75,9 +75,9 @@ class TestOracleHookConn(unittest.TestCase):
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         assert args == ()
-        assert kwargs['dsn'] == cx_Oracle.makedsn("host", self.connection.port, dsn_sid['sid'])
+        assert kwargs['dsn'] == oracledb.makedsn("host", self.connection.port, dsn_sid['sid'])
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_service_name(self, mock_connect):
         dsn_service_name = {'dsn': 'ignored', 'service_name': 'service_name'}
         self.connection.extra = json.dumps(dsn_service_name)
@@ -85,11 +85,11 @@ class TestOracleHookConn(unittest.TestCase):
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
         assert args == ()
-        assert kwargs['dsn'] == cx_Oracle.makedsn(
+        assert kwargs['dsn'] == oracledb.makedsn(
             "host", self.connection.port, service_name=dsn_service_name['service_name']
         )
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_encoding_without_nencoding(self, mock_connect):
         self.connection.extra = json.dumps({'encoding': 'UTF-8'})
         self.db_hook.get_conn()
@@ -99,7 +99,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert kwargs['encoding'] == 'UTF-8'
         assert kwargs['nencoding'] == 'UTF-8'
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_encoding_with_nencoding(self, mock_connect):
         self.connection.extra = json.dumps({'encoding': 'UTF-8', 'nencoding': 'gb2312'})
         self.db_hook.get_conn()
@@ -109,7 +109,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert kwargs['encoding'] == 'UTF-8'
         assert kwargs['nencoding'] == 'gb2312'
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_nencoding(self, mock_connect):
         self.connection.extra = json.dumps({'nencoding': 'UTF-8'})
         self.db_hook.get_conn()
@@ -119,15 +119,15 @@ class TestOracleHookConn(unittest.TestCase):
         assert 'encoding' not in kwargs
         assert kwargs['nencoding'] == 'UTF-8'
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_mode(self, mock_connect):
         mode = {
-            'sysdba': cx_Oracle.SYSDBA,
-            'sysasm': cx_Oracle.SYSASM,
-            'sysoper': cx_Oracle.SYSOPER,
-            'sysbkp': cx_Oracle.SYSBKP,
-            'sysdgd': cx_Oracle.SYSDGD,
-            'syskmt': cx_Oracle.SYSKMT,
+            'sysdba': oracledb.SYSDBA,
+            'sysasm': oracledb.SYSASM,
+            'sysoper': oracledb.SYSOPER,
+            'sysbkp': oracledb.SYSBKP,
+            'sysdgd': oracledb.SYSDGD,
+            'syskmt': oracledb.SYSKMT,
         }
         first = True
         for mod in mode:
@@ -140,7 +140,7 @@ class TestOracleHookConn(unittest.TestCase):
             assert args == ()
             assert kwargs['mode'] == mode.get(mod)
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_threaded(self, mock_connect):
         self.connection.extra = json.dumps({'threaded': True})
         self.db_hook.get_conn()
@@ -149,7 +149,7 @@ class TestOracleHookConn(unittest.TestCase):
         assert args == ()
         assert kwargs['threaded'] is True
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_events(self, mock_connect):
         self.connection.extra = json.dumps({'events': True})
         self.db_hook.get_conn()
@@ -158,12 +158,12 @@ class TestOracleHookConn(unittest.TestCase):
         assert args == ()
         assert kwargs['events'] is True
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_purity(self, mock_connect):
         purity = {
-            'new': cx_Oracle.ATTR_PURITY_NEW,
-            'self': cx_Oracle.ATTR_PURITY_SELF,
-            'default': cx_Oracle.ATTR_PURITY_DEFAULT,
+            'new': oracledb.ATTR_PURITY_NEW,
+            'self': oracledb.ATTR_PURITY_SELF,
+            'default': oracledb.ATTR_PURITY_DEFAULT,
         }
         first = True
         for pur in purity:
@@ -176,14 +176,14 @@ class TestOracleHookConn(unittest.TestCase):
             assert args == ()
             assert kwargs['purity'] == purity.get(pur)
 
-    @mock.patch('airflow.providers.oracle.hooks.oracle.cx_Oracle.connect')
+    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_set_current_schema(self, mock_connect):
         self.connection.schema = "schema_name"
         self.connection.extra = json.dumps({'service_name': 'service_name'})
         assert self.db_hook.get_conn().current_schema == self.connection.schema
 
 
-@unittest.skipIf(cx_Oracle is None, 'cx_Oracle package not present')
+@unittest.skipIf(oracledb is None, 'oracledb package not present')
 class TestOracleHook(unittest.TestCase):
     def setUp(self):
         super().setUp()

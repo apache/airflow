@@ -78,7 +78,7 @@ PIP requirements
 PIP package         Version required
 ==================  ==================
 ``apache-airflow``  ``>=2.1.0``
-``cx_Oracle``       ``>=5.1.2``
+``oracledb``        ``>=1.0.0``
 ==================  ==================
 
 .. include:: ../../airflow/providers/oracle/CHANGELOG.rst
