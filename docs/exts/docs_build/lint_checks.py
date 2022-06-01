@@ -268,7 +268,7 @@ def check_enforce_code_block() -> List[DocBuildError]:
 def find_example_dags(provider_dir):
     system_tests_dir = provider_dir.replace(f"{ROOT_PACKAGE_DIR}/", "")
     yield from glob(f"{provider_dir}/**/*example_dags", recursive=True)
-    yield from glob(f"{ROOT_PROJECT_DIR}/tests/system/{system_tests_dir}/*/", recursive=True)
+    yield from glob(f"{ROOT_PROJECT_DIR}/tests/system/{system_tests_dir}/**/example_dags", recursive=True)
 
 
 def check_example_dags_in_provider_tocs() -> List[DocBuildError]:
