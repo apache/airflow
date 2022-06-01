@@ -119,7 +119,7 @@ class TestCliDags(unittest.TestCase):
                         DEFAULT_DATE.isoformat(),
                     ]
                 ),
-                dags=[dag],
+                dag=dag,
             )
 
         output = stdout.getvalue()
@@ -139,7 +139,7 @@ class TestCliDags(unittest.TestCase):
                     DEFAULT_DATE.isoformat(),
                 ]
             ),
-            dags=[dag],
+            dag=dag,
         )
 
         mock_run.assert_not_called()  # Dry run shouldn't run the backfill
@@ -155,7 +155,7 @@ class TestCliDags(unittest.TestCase):
                     DEFAULT_DATE.isoformat(),
                 ]
             ),
-            dags=[dag],
+            dag=dag,
         )
 
         mock_run.assert_called_once_with(
@@ -291,7 +291,7 @@ class TestCliDags(unittest.TestCase):
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        dag_command.dag_backfill(self.parser.parse_args(args), dags=[dag])
+        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
 
         mock_run.assert_called_once_with(
             start_date=run_date,
@@ -332,7 +332,7 @@ class TestCliDags(unittest.TestCase):
         ]
         dag = self.dagbag.get_dag(dag_id)
 
-        dag_command.dag_backfill(self.parser.parse_args(args), dags=[dag])
+        dag_command.dag_backfill(self.parser.parse_args(args), dag=dag)
         mock_run.assert_called_once_with(
             start_date=start_date,
             end_date=end_date,

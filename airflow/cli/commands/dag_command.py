@@ -49,8 +49,8 @@ log = logging.getLogger(__name__)
 
 
 @cli_utils.action_cli
-def dag_backfill(args, dags=None):
-    """Creates backfill job or dry run for a DAG"""
+def dag_backfill(args, dag=None):
+    """Creates backfill job or dry run for a DAG or list of DAGs using regex"""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
 
     signal.signal(signal.SIGTERM, sigint_handler)
@@ -68,7 +68,12 @@ def dag_backfill(args, dags=None):
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
 
-    dags = dags or get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.dag_regex)
+    if not dag:
+        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.dag_regex)
+    else:
+        dags = dag if type(dag) == list else [dag]
+
+    dags.sort(key=lambda d: d.dag_id)
 
     # If only one date is passed, using same as start and end
     args.end_date = args.end_date or args.start_date
