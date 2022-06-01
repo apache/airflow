@@ -24,7 +24,6 @@ import axios from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import { areActiveRuns } from '../utils/gridData';
 import useErrorToast from '../utils/useErrorToast';
 import useFilters, {
   BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
@@ -41,6 +40,8 @@ const emptyData = {
   dagRuns: [],
   groups: {},
 };
+
+export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
 const useGridData = () => {
   const { isRefreshOn, stopRefresh } = useAutoRefresh();

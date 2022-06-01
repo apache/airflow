@@ -17,5 +17,31 @@
  * under the License.
  */
 
-export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
-export const somethingElse = '';
+/* global describe, test, expect */
+
+import { areActiveRuns } from './useGridData';
+
+describe('Test areActiveRuns()', () => {
+  test('Correctly detects active runs', () => {
+    const runs = [
+      { state: 'success' },
+      { state: 'queued' },
+    ];
+    expect(areActiveRuns(runs)).toBe(true);
+  });
+
+  test('Returns false when all runs are resolved', () => {
+    const runs = [
+      { state: 'success' },
+      { state: 'failed' },
+      { state: 'not_queued' },
+    ];
+    const result = areActiveRuns(runs);
+    expect(result).toBe(false);
+  });
+
+  test('Returns false when there are no runs', () => {
+    const result = areActiveRuns();
+    expect(result).toBe(false);
+  });
+});
