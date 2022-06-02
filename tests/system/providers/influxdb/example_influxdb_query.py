@@ -15,25 +15,35 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.influxdb.operators.influxdb import InfluxDBOperator
 
-dag = DAG(
-    'example_influxdb_operator',
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_influxdb_operator"
+
+with DAG(
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
-)
+) as dag:
 
-# [START howto_operator_influxdb]
+    # [START howto_operator_influxdb]
 
-query_influxdb_task = InfluxDBOperator(
-    influxdb_conn_id='influxdb_conn_id',
-    task_id='query_influxdb',
-    sql='from(bucket:"test-influx") |> range(start: -10m, stop: {{ds}})',
-    dag=dag,
-)
+    query_influxdb_task = InfluxDBOperator(
+        influxdb_conn_id='influxdb_conn_id',
+        task_id='query_influxdb',
+        sql='from(bucket:"test-influx") |> range(start: -10m, stop: {{ds}})',
+        dag=dag,
+    )
 
-# [END howto_operator_influxdb]
+    # [END howto_operator_influxdb]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
