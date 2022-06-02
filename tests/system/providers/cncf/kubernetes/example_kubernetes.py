@@ -19,6 +19,7 @@
 This is an example dag for using the KubernetesPodOperator.
 """
 
+import os
 from datetime import datetime
 
 from kubernetes.client import models as k8s
@@ -27,6 +28,7 @@ from airflow import DAG
 from airflow.kubernetes.secret import Secret
 from airflow.operators.bash import BashOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
+
 
 # [START howto_operator_k8s_cluster_resources]
 secret_file = Secret('volume', '/etc/sql_conn', 'airflow-secrets', 'sql_alchemy_conn')
@@ -97,6 +99,8 @@ tolerations = [k8s.V1Toleration(key="key", operator="Equal", value="value")]
 
 # [END howto_operator_k8s_cluster_resources]
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_kubernetes_operator"
 
 with DAG(
     dag_id='example_kubernetes_operator',
@@ -158,6 +162,17 @@ with DAG(
         bash_command="echo \"{{ task_instance.xcom_pull('write-xcom')[0] }}\"",
         task_id="pod_task_xcom_result",
     )
-    # [END howto_operator_k8s_write_xcom]
 
     write_xcom >> pod_task_xcom_result
+    # [END howto_operator_k8s_write_xcom]
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
