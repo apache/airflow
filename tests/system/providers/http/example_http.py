@@ -19,14 +19,19 @@
 """Example HTTP operator and sensor"""
 
 import json
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.http.operators.http import SimpleHttpOperator
 from airflow.providers.http.sensors.http import HttpSensor
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = 'example_http_operator'
+
+
 dag = DAG(
-    'example_http_operator',
+    DAG_ID,
     default_args={'retries': 1},
     tags=['example'],
     start_date=datetime(2021, 1, 1),
@@ -107,3 +112,8 @@ task_http_sensor_check = HttpSensor(
 # [END howto_operator_http_http_sensor_check]
 task_http_sensor_check >> task_post_op >> task_get_op >> task_get_op_response_filter
 task_get_op_response_filter >> task_put_op >> task_del_op >> task_post_op_formenc
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
