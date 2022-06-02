@@ -202,6 +202,9 @@ class SSHHook(BaseHook):
                 ):
                     self.look_for_keys = False
 
+                if "disabled_algorithms" in extra_options:
+                    self.disabled_algorithms = extra_options.get("disabled_algorithms")
+
                 if host_key is not None:
                     if host_key.startswith("ssh-"):
                         key_type, host_key = host_key.split(None)[:2]
@@ -306,7 +309,6 @@ class SSHHook(BaseHook):
             sock=self.host_proxy,
             look_for_keys=self.look_for_keys,
             banner_timeout=self.banner_timeout,
-            disabled_algorithms=self.disabled_algorithms,
         )
 
         if self.password:
@@ -318,6 +320,9 @@ class SSHHook(BaseHook):
 
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
+
+        if self.disabled_algorithms:
+            connect_kwargs.update(disabled_algorithms=self.disabled_algorithms)
 
         log_before_sleep = lambda retry_state: self.log.info(
             "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
