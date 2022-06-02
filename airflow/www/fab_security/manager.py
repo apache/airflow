@@ -797,7 +797,7 @@ class BaseSecurityManager:
         if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
             self.appbuilder.add_view(
                 self.permissionmodelview,
-                "Permissions",
+                "Permission Pairs",
                 icon="fa-link",
                 label=_("Permissions"),
                 category="Security",
