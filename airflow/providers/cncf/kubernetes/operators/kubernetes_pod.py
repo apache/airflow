@@ -400,6 +400,8 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+            # finding remote pod to ensure it exists
+            remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
@@ -437,16 +439,18 @@ class KubernetesPodOperator(BaseOperator):
                 with _suppress(Exception):
                     for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            with _suppress(Exception):
-                self.process_pod_deletion(pod)
+            if remote_pod is not None:
+                with _suppress(Exception):
+                    self.process_pod_deletion(pod)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
                 f'Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}'
             )
         else:
-            with _suppress(Exception):
-                self.process_pod_deletion(pod)
+            if remote_pod is not None:
+                with _suppress(Exception):
+                    self.process_pod_deletion(pod)
 
     def process_pod_deletion(self, pod):
         if self.is_delete_operator_pod:
