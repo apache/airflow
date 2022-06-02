@@ -18,13 +18,17 @@
 """
 This is an example dag for using the AzureContainerInstancesOperator.
 """
+import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "aci_example"
+
 with DAG(
-    dag_id='aci_example',
+    dag_id=DAG_ID,
     default_args={'retries': 1},
     schedule_interval=timedelta(days=1),
     start_date=datetime(2018, 11, 1),
@@ -45,3 +49,9 @@ with DAG(
         cpu=1.0,
         task_id='start_container',
     )
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

@@ -32,6 +32,8 @@ LOCAL_FILE_PATH = os.environ.get("LOCAL_SRC_PATH", "/tmp")
 SAMPLE_FILENAME = os.environ.get("SFTP_SAMPLE_FILENAME", "sftp_to_wasb_test.txt")
 FILE_COMPLETE_PATH = os.path.join(LOCAL_FILE_PATH, SAMPLE_FILENAME)
 SFTP_FILE_COMPLETE_PATH = os.path.join(SFTP_SRC_PATH, SAMPLE_FILENAME)
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_sftp_to_wasb"
 
 
 @task
@@ -41,7 +43,7 @@ def delete_sftp_file():
 
 
 with DAG(
-    "example_sftp_to_wasb",
+    DAG_ID,
     schedule_interval=None,
     catchup=False,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
@@ -70,3 +72,14 @@ with DAG(
     )
 
     transfer_files_to_sftp_step >> transfer_files_to_azure >> delete_blob_file_step >> delete_sftp_file()
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

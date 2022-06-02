@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 from datetime import datetime, timedelta
 
 from airflow.models import DAG, BaseOperator
@@ -27,8 +27,11 @@ from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFa
 from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.utils.edgemodifier import Label
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_adf_run_pipeline"
+
 with DAG(
-    dag_id="example_adf_run_pipeline",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 8, 13),
     schedule_interval="@daily",
     catchup=False,
@@ -71,3 +74,14 @@ with DAG(
 
     # Task dependency created via `XComArgs`:
     #   run_pipeline2 >> pipeline_run_sensor
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
