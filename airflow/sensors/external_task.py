@@ -96,6 +96,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         execution_delta: Optional[datetime.timedelta] = None,
         execution_date_fn: Optional[Callable] = None,
         check_existence: bool = False,
+        wait_task: bool = True,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -146,6 +147,7 @@ class ExternalTaskSensor(BaseSensorOperator):
         self.external_task_ids = external_task_ids
         self.check_existence = check_existence
         self._has_checked_existence = False
+        self.wait_task = wait_task
 
     @provide_session
     def poke(self, context, session=None):
