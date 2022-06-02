@@ -204,8 +204,8 @@ with DAG(
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=SLEEP_WORKFLOW_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
-    delete_workflow_for_cancel.trigger_rule = TriggerRule.ALL_DONE
 
     create_workflow >> update_workflow >> [get_workflow, list_workflows]
     update_workflow >> [create_execution, create_execution_for_cancel]
