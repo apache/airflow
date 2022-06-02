@@ -121,7 +121,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
         for (src, dst) in NECESSARY_HOST_VOLUMES:
             if (AIRFLOW_SOURCES_ROOT / src).exists():
                 extra_docker_flags.extend(
-                    ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
+                    ["--volume", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
                 )
         extra_docker_flags.extend(
             ['--mount', "type=volume,src=docker-compose_mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
