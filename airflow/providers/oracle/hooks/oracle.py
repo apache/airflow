@@ -20,8 +20,8 @@ import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-import oracledb
 import numpy
+import oracledb
 
 from airflow.hooks.dbapi import DbApiHook
 
@@ -158,7 +158,7 @@ class OracleHook(DbApiHook):
 
         # if Connection.schema is defined, set schema after connecting successfully
         # cannot be part of conn_config
-        #https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
+        # https://python-oracledb.readthedocs.io/en/latest/api_manual/connection.html?highlight=schema#Connection.current_schema
         # Only set schema when not using conn.schema as Service Name
         if schema and service_name:
             conn.current_schema = schema

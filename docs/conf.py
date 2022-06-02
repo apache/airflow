@@ -44,9 +44,10 @@ try:
 except ImportError:
     from yaml import SafeLoader  # type: ignore[misc]
 
+from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
+
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
-from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
 sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
 
