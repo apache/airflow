@@ -28,7 +28,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
 import lazy_object_proxy
 
-from airflow import PY37, settings
+from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -97,9 +97,6 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
-        if action.dest == 'subcommand' and value == 'triggerer':
-            if not PY37:
-                raise ArgumentError(action, 'triggerer subcommand only works with Python 3.7+')
 
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
@@ -515,7 +512,6 @@ ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
 )
 ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
-ARG_ERROR_FILE = Arg(("--error-file",), help="File to store task failure error")
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MAP_INDEX = Arg(('--map-index',), type=int, default=-1, help="Mapped task index")
@@ -559,6 +555,12 @@ ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
     "Required if using either `--from-version` or `--from-version`.",
+    action="store_true",
+    default=False,
+)
+ARG_DB_SKIP_INIT = Arg(
+    ("-s", "--skip-init"),
+    help="Only remove tables; do not perform db init.",
     action="store_true",
     default=False,
 )
@@ -1261,7 +1263,6 @@ TASKS_COMMANDS = (
             ARG_PICKLE,
             ARG_JOB_ID,
             ARG_INTERACTIVE,
-            ARG_ERROR_FILE,
             ARG_SHUT_DOWN_LOGGING,
             ARG_MAP_INDEX,
         ),
@@ -1387,7 +1388,7 @@ DB_COMMANDS = (
         name='reset',
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command('airflow.cli.commands.db_command.resetdb'),
-        args=(ARG_YES,),
+        args=(ARG_YES, ARG_DB_SKIP_INIT),
     ),
     ActionCommand(
         name='upgrade',

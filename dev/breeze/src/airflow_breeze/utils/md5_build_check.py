@@ -22,7 +22,7 @@ from pathlib import Path
 from typing import List, Tuple
 
 from airflow_breeze.global_constants import FILES_FOR_REBUILD_CHECK
-from airflow_breeze.utils.console import console
+from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
 
@@ -86,27 +86,29 @@ def calculate_md5_checksum_for_files(
     return modified_files, not_modified_files
 
 
-def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path, the_image_type: str) -> bool:
+def md5sum_check_if_build_is_needed(md5sum_cache_dir: Path) -> bool:
     """
     Checks if build is needed based on whether important files were modified.
 
     :param md5sum_cache_dir: directory where cached md5 sums are stored
-    :param the_image_type: type of the image to check (PROD/CI)
+    :param verbose: should we print verbose information
     :return: True if build is needed.
     """
     build_needed = False
     modified_files, not_modified_files = calculate_md5_checksum_for_files(md5sum_cache_dir, update=False)
     if len(modified_files) > 0:
-        console.print(
-            '[bright_yellow]The following files are modified since last time image was built: [/]\n\n'
+        get_console().print(
+            f'[warning]The following important files are modified in {AIRFLOW_SOURCES_ROOT} '
+            f'since last time image was built: [/]\n\n'
         )
         for file in modified_files:
-            console.print(f" * [bright_blue]{file}[/]")
-        console.print(f'\n[bright_yellow]Likely {the_image_type} image needs rebuild[/]\n')
+            get_console().print(f" * [info]{file}[/]")
+        get_console().print('\n[warning]Likely CI image needs rebuild[/]\n')
         build_needed = True
     else:
-        console.print(
-            f'Docker image build is not needed for {the_image_type} build as no important files are changed!'
+        get_console().print(
+            '[info]Docker image build is not needed for CI build as no important files are changed! '
+            'You can add --force-build to force it[/]'
         )
     return build_needed
 

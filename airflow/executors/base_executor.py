@@ -49,6 +49,9 @@ QueuedTaskInstanceType = Tuple[CommandType, int, Optional[str], TaskInstance]
 # Tuple of: state, info
 EventBufferValueType = Tuple[Optional[str], Any]
 
+# Task tuple to send to be executed
+TaskTuple = Tuple[TaskInstanceKey, CommandType, Optional[str], Optional[Any]]
+
 
 class BaseExecutor(LoggingMixin):
     """
@@ -186,6 +189,7 @@ class BaseExecutor(LoggingMixin):
         :param open_slots: Number of open slots
         """
         sorted_queue = self.order_queued_tasks_by_priority()
+        task_tuples = []
 
         for _ in range(min((open_slots, len(self.queued_tasks)))):
             key, (command, _, queue, ti) = sorted_queue.pop(0)
@@ -212,9 +216,16 @@ class BaseExecutor(LoggingMixin):
                 del self.attempts[key]
                 del self.queued_tasks[key]
             else:
-                del self.queued_tasks[key]
-                self.running.add(key)
-                self.execute_async(key=key, command=command, queue=queue, executor_config=ti.executor_config)
+                task_tuples.append((key, command, queue, ti.executor_config))
+
+        if task_tuples:
+            self._process_tasks(task_tuples)
+
+    def _process_tasks(self, task_tuples: List[TaskTuple]) -> None:
+        for key, command, queue, executor_config in task_tuples:
+            del self.queued_tasks[key]
+            self.execute_async(key=key, command=command, queue=queue, executor_config=executor_config)
+            self.running.add(key)
 
     def change_state(self, key: TaskInstanceKey, state: str, info=None) -> None:
         """

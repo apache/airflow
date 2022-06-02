@@ -177,7 +177,7 @@ class TestSessionWithBasicAuthFallback(BaseTestAuth):
                     (
                         "api",
                         "auth_backends",
-                    ): "airflow.api.auth.backend.session\nairflow.api.auth.backend.basic_auth"
+                    ): "airflow.api.auth.backend.session,airflow.api.auth.backend.basic_auth"
                 }
             ):
                 init_api_experimental_auth(minimal_app_for_api)

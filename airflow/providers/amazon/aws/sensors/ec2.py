@@ -31,6 +31,10 @@ class EC2InstanceStateSensor(BaseSensorOperator):
     Check the state of the AWS EC2 instance until
     state of the instance become equal to the target state.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:EC2InstanceStateSensor`
+
     :param target_state: target state of instance
     :param instance_id: id of the AWS EC2 instance
     :param region_name: (optional) aws region name associated with the client

@@ -31,6 +31,7 @@
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1.types import DeployedModel, Endpoint, endpoint_service
 from google.protobuf.field_mask_pb2 import FieldMask
@@ -54,6 +55,8 @@ class CreateEndpointOperator(BaseOperator):
     :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
     :param region: Required. The ID of the Google Cloud region that the service belongs to.
     :param endpoint: Required. The Endpoint to create.
+    :param endpoint_id: The ID of Endpoint. This value should be 1-10 characters, and valid characters
+        are /[0-9]/. If not provided, Vertex AI will generate a value for this ID.
     :param retry: Designation of what errors, if any, should be retried.
     :param timeout: The timeout for this request.
     :param metadata: Strings which should be sent along with the request as metadata.
@@ -80,7 +83,8 @@ class CreateEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint: Union[Endpoint, Dict],
-        retry: Optional[Retry] = None,
+        endpoint_id: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -92,6 +96,7 @@ class CreateEndpointOperator(BaseOperator):
         self.region = region
         self.project_id = project_id
         self.endpoint = endpoint
+        self.endpoint_id = endpoint_id
         self.retry = retry
         self.timeout = timeout
         self.metadata = metadata
@@ -111,6 +116,7 @@ class CreateEndpointOperator(BaseOperator):
             project_id=self.project_id,
             region=self.region,
             endpoint=self.endpoint,
+            endpoint_id=self.endpoint_id,
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
@@ -158,7 +164,7 @@ class DeleteEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -251,7 +257,7 @@ class DeployModelOperator(BaseOperator):
         endpoint_id: str,
         deployed_model: Union[DeployedModel, Dict],
         traffic_split: Optional[Union[Sequence, Dict]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -334,7 +340,7 @@ class GetEndpointOperator(BaseOperator):
         region: str,
         project_id: str,
         endpoint_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -435,7 +441,7 @@ class ListEndpointsOperator(BaseOperator):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -523,7 +529,7 @@ class UndeployModelOperator(BaseOperator):
         endpoint_id: str,
         deployed_model_id: str,
         traffic_split: Optional[Union[Sequence, Dict]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -551,7 +557,7 @@ class UndeployModelOperator(BaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
 
-        self.log.info(f"Removing a DeployedModel {self.deployed_model_id}")
+        self.log.info("Removing a DeployedModel %s", self.deployed_model_id)
         operation = hook.undeploy_model(
             project_id=self.project_id,
             region=self.region,
@@ -604,7 +610,7 @@ class UpdateEndpointOperator(BaseOperator):
         endpoint_id: str,
         endpoint: Union[Endpoint, Dict],
         update_mask: Union[FieldMask, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

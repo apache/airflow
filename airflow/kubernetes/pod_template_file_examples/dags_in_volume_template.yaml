@@ -34,7 +34,7 @@ spec:
             secretKeyRef:
               name: RELEASE-NAME-fernet-key
               key: fernet-key
-        - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
               name: RELEASE-NAME-airflow-metadata

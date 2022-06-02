@@ -30,6 +30,8 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import EndpointServiceClient
@@ -46,9 +48,10 @@ class EndpointServiceHook(GoogleBaseHook):
 
     def get_endpoint_service_client(self, region: Optional[str] = None) -> EndpointServiceClient:
         """Returns EndpointServiceClient."""
-        client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-aiplatform.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        else:
+            client_options = ClientOptions()
 
         return EndpointServiceClient(
             credentials=self._get_credentials(), client_info=self.client_info, client_options=client_options
@@ -78,7 +81,8 @@ class EndpointServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         endpoint: Union[Endpoint, Dict],
-        retry: Optional[Retry] = None,
+        endpoint_id: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -88,6 +92,8 @@ class EndpointServiceHook(GoogleBaseHook):
         :param project_id: Required. The ID of the Google Cloud project that the service belongs to.
         :param region: Required. The ID of the Google Cloud region that the service belongs to.
         :param endpoint: Required. The Endpoint to create.
+        :param endpoint_id: The ID of Endpoint. This value should be 1-10 characters, and valid characters
+            are /[0-9]/. If not provided, Vertex AI will generate a value for this ID.
         :param retry: Designation of what errors, if any, should be retried.
         :param timeout: The timeout for this request.
         :param metadata: Strings which should be sent along with the request as metadata.
@@ -99,6 +105,7 @@ class EndpointServiceHook(GoogleBaseHook):
             request={
                 'parent': parent,
                 'endpoint': endpoint,
+                'endpoint_id': endpoint_id,
             },
             retry=retry,
             timeout=timeout,
@@ -112,7 +119,7 @@ class EndpointServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         endpoint: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -147,7 +154,7 @@ class EndpointServiceHook(GoogleBaseHook):
         endpoint: str,
         deployed_model: Union[DeployedModel, Dict],
         traffic_split: Optional[Union[Sequence, Dict]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -198,7 +205,7 @@ class EndpointServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         endpoint: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Endpoint:
@@ -235,7 +242,7 @@ class EndpointServiceHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListEndpointsPager:
@@ -296,7 +303,7 @@ class EndpointServiceHook(GoogleBaseHook):
         endpoint: str,
         deployed_model_id: str,
         traffic_split: Optional[Union[Sequence, Dict]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -341,7 +348,7 @@ class EndpointServiceHook(GoogleBaseHook):
         endpoint_id: str,
         endpoint: Union[Endpoint, Dict],
         update_mask: Union[FieldMask, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Endpoint:

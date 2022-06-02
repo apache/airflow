@@ -15,37 +15,41 @@
     specific language governing permissions and limitations
     under the License.
 
-Amazon Redshift Data Operators
-==============================
+====================
+Amazon Redshift Data
+====================
+
+`Amazon Redshift <https://aws.amazon.com/redshift/>`__ manages all the work of setting up, operating, and scaling a data warehouse:
+provisioning capacity, monitoring and backing up the cluster, and applying patches and upgrades to
+the Amazon Redshift engine. You can focus on using your data to acquire new insights for your
+business and customers.
+
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
+Operators
+---------
+
+.. _howto/operator:RedshiftDataOperator:
+
+Execute a statement on an Amazon Redshift cluster
+=================================================
 
 Use the :class:`RedshiftDataOperator <airflow.providers.amazon.aws.operators.redshift_data>` to execute
 statements against an Amazon Redshift cluster.
 
-This differs from ``RedshiftSQLOperator`` in that it allows users to query and retrieve data via the AWS API and avoid the necessity of a Postgres connection.
-
-Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
-
-.. include:: _partials/prerequisite_tasks.rst
-
-Amazon Redshift Data
-^^^^^^^^^^^^^^^^^^^^
-
-.. _howto/operator:RedshiftDataOperator:
-
-Execute a statement on an Amazon Redshift Cluster
-"""""""""""""""""""""""""""""""""""""""""""""""""
-
-This is a basic example DAG for using :class:`RedshiftDataOperator <airflow.providers.amazon.aws.operators.redshift_data>`
-to execute statements against an Amazon Redshift cluster.
+This differs from ``RedshiftSQLOperator`` in that it allows users to query and retrieve data via the AWS API and avoid
+the necessity of a Postgres connection.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_data_execute_sql.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_redshift_data]
-    :end-before: [END howto_redshift_data]
+    :start-after: [START howto_operator_redshift_data]
+    :end-before: [END howto_operator_redshift_data]
 
 Reference
-^^^^^^^^^
+---------
 
- * `AWS boto3 Library Documentation for Amazon Redshift Data <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-data.html>`__
+ * `AWS boto3 library documentation for Amazon Redshift Data <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift-data.html>`__

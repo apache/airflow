@@ -85,33 +85,32 @@ You can build the CI image using current sources this command:
 
 .. code-block:: bash
 
-  ./breeze build-image
+  breeze build-image
 
 You can build the PROD image using current sources with this command:
 
 .. code-block:: bash
 
-  ./breeze build-image --production-image
+  breeze build-prod-image
 
 By adding ``--python <PYTHON_MAJOR_MINOR_VERSION>`` parameter you can build the
 image version for the chosen Python version.
 
 The images are build with default extras - different extras for CI and production image and you
 can change the extras via the ``--extras`` parameters and add new ones with ``--additional-extras``.
-You can see default extras used via ``./breeze flags``.
 
 For example if you want to build Python 3.7 version of production image with
 "all" extras installed you should run this command:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --extras "all" --production-image
+  breeze build-prod-image --python 3.7 --extras "all"
 
 If you just want to add new extras you can add them like that:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --additional-extras "all" --production-image
+  breeze build-prod-image --python 3.7 --additional-extras "all"
 
 The command that builds the CI image is optimized to minimize the time needed to rebuild the image when
 the source code of Airflow evolves. This means that if you already have the image locally downloaded and
@@ -129,8 +128,7 @@ parameter to Breeze:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --additional-extras=trino \
-      --production-image --install-airflow-version=2.0.0
+  breeze build-prod-image --python 3.7 --additional-extras=trino --install-airflow-version=2.0.0
 
 This will build the image using command similar to:
 
@@ -138,7 +136,7 @@ This will build the image using command similar to:
 
     pip install \
       apache-airflow[async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv]==2.0.0 \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.0.0/constraints-3.7.txt"
 
 .. note::
 
@@ -160,15 +158,15 @@ HEAD of development for constraints):
 .. code-block:: bash
 
     pip install "https://github.com/apache/airflow/archive/<tag>.tar.gz#egg=apache-airflow" \
-      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.6.txt"
+      --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-3.7.txt"
 
 You can also skip installing airflow and install it from locally provided files by using
-``--install-from-docker-context-files`` parameter and ``--disable-pypi-when-building`` to Breeze:
+``--install-packages-from-context`` parameter to Breeze:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --additional-extras=trino \
-      --production-image --disable-pypi-when-building --install-from-docker-context-files
+  breeze build-prod-image --python 3.7 --additional-extras=trino \
+     --airflow-is-in-context-pypi --install-packages-from-context
 
 In this case you airflow and all packages (.whl files) should be placed in ``docker-context-files`` folder.
 
@@ -190,31 +188,37 @@ Dockerfile image= and scripts further rebuilds with local build cache will be co
 You can also disable build cache altogether. This is the strategy used by the scheduled builds in CI - they
 will always rebuild all the images from scratch.
 
-You can change the strategy by providing one of the ``--build-cache-local``, ``--build-cache-pulled`` or
-even ``--build-cache-disabled`` flags when you run Breeze commands. For example:
+You can change the strategy by providing one of the ``--build-cache`` flags: ``registry`` (default), ``local``,
+or ``disabled`` flags when you run Breeze commands. For example:
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --build-cache-local
+  breeze build-image --python 3.7 --docker-cache local
 
 Will build the CI image using local build cache (note that it will take quite a long time the first
 time you run it).
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --production-image --build-cache-pulled
+  breeze build-prod-image --python 3.7 --docker-cache registry
 
-Will build the production image with pulled images as cache.
+Will build the production image with cache used from registry.
 
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.7 --production-image --build-cache-disabled
+  breeze build-prod-image --python 3.7 --docker-cache disabled
 
 Will build the production image from the scratch.
 
-You can also turn local docker caching by setting ``DOCKER_CACHE`` variable to "local", "pulled",
-"disabled" and exporting it.
+You can also turn local docker caching by setting ``DOCKER_CACHE`` variable to ``local``, ``registry``,
+``disabled`` and exporting it.
+
+.. code-block:: bash
+
+  export DOCKER_CACHE="registry"
+
+or
 
 .. code-block:: bash
 
@@ -229,7 +233,7 @@ or
 Naming conventions
 ==================
 
-By default images we are using cache for images in Github Container registry. We are using GitHub
+By default images we are using cache for images in GitHub Container registry. We are using GitHub
 Container Registry as development image cache and CI registry for build images.
 The images are all in organization wide "apache/" namespace. We are adding "airflow-" as prefix for
 the image names of all Airflow images. The images are linked to the repository
@@ -285,7 +289,7 @@ For example this command will run the same Python 3.8 image as was used in build
 
 .. code-block:: bash
 
-  ./breeze --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e \
+  ./breeze-legacy --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e \
     --python 3.8 --integration rabbitmq
 
 You can see more details and examples in `Breeze <BREEZE.rst>`_
@@ -325,9 +329,7 @@ the same image can be built using ``breeze`` (it supports auto-completion of the
 
 .. code-block:: bash
 
-  ./breeze build-image -f Dockerfile.ci \
-      --production-image  --python 3.7 \
-      --additional-extras=jdbc --additional-python-deps="pandas" \
+  breeze build-prod-image --python 3.7 --additional-extras=jdbc --additional-python-deps="pandas" \
       --additional-dev-apt-deps="gcc g++" --additional-runtime-apt-deps="default-jre-headless"
 
 You can customize more aspects of the image - such as additional commands executed before apt dependencies
@@ -369,7 +371,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 +==========================================+==========================================+==========================================+
 | ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-bullseye``             | Base Python image                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.6``                                  | major/minor version of Python (should    |
+| ``PYTHON_MAJOR_MINOR_VERSION``           | ``3.7``                                  | major/minor version of Python (should    |
 |                                          |                                          | match base image)                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``DEPENDENCIES_EPOCH_NUMBER``            | ``2``                                    | increasing this number will reinstall    |
@@ -473,7 +475,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.0.4``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
@@ -489,7 +491,7 @@ This builds the CI image in version 3.7 with default extras ("all").
      --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" --tag my-image:0.0.1
 
 
-This builds the CI image in version 3.6 with "gcp" extra only.
+This builds the CI image in version 3.7 with "gcp" extra only.
 
 .. code-block:: bash
 
@@ -499,7 +501,7 @@ This builds the CI image in version 3.6 with "gcp" extra only.
     --build-arg AIRFLOW_EXTRAS=gcp --tag my-image:0.0.1
 
 
-This builds the CI image in version 3.6 with "apache-beam" extra added.
+This builds the CI image in version 3.7 with "apache-beam" extra added.
 
 .. code-block:: bash
 
@@ -508,7 +510,7 @@ This builds the CI image in version 3.6 with "apache-beam" extra added.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg ADDITIONAL_AIRFLOW_EXTRAS="apache-beam" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "mssql" additional package added.
+This builds the CI image in version 3.7 with "mssql" additional package added.
 
 .. code-block:: bash
 
@@ -517,7 +519,7 @@ This builds the CI image in version 3.6 with "mssql" additional package added.
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mssql" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev dependencies added.
+This builds the CI image in version 3.7 with "gcc" and "g++" additional apt dev dependencies added.
 
 .. code-block::
 
@@ -526,7 +528,7 @@ This builds the CI image in version 3.6 with "gcc" and "g++" additional apt dev 
     --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-bullseye" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="gcc g++" --tag my-image:0.0.1
 
-This builds the CI image in version 3.6 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
+This builds the CI image in version 3.7 with "jdbc" extra and "default-jre-headless" additional apt runtime dependencies added.
 
 .. code-block::
 

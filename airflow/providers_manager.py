@@ -188,11 +188,51 @@ class ConnectionFormWidgetInfo(NamedTuple):
     hook_class_name: str
     package_name: str
     field: Any
+    field_name: str
 
 
 T = TypeVar("T", bound=Callable)
 
 logger = logging.getLogger(__name__)
+
+
+def log_debug_import_from_sources(class_name, e, provider_package):
+    log.debug(
+        "Optional feature disabled on exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+
+
+def log_optional_feature_disabled(class_name, e, provider_package):
+    log.debug(
+        "Optional feature disabled on exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+    log.info(
+        "Optional provider feature disabled when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+    )
+
+
+def log_import_warning(class_name, e, provider_package):
+    log.warning(
+        "Exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+
+
+# This is a temporary measure until all community providers will add AirflowOptionalProviderFeatureException
+# where they have optional features. We are going to add tests in our CI to catch all such cases and will
+# fix them, but until now all "known unhandled optional feature errors" from community providers
+# should be added here
+KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
 
 
 def _sanity_check(
@@ -216,38 +256,34 @@ def _sanity_check(
     except AirflowOptionalProviderFeatureException as e:
         # When the provider class raises AirflowOptionalProviderFeatureException
         # this is an expected case when only some classes in provider are
-        # available. We just log debug level here
-        log.debug(
-            "Optional feature disabled on exception when importing '%s' from '%s' package",
-            class_name,
-            provider_package,
-            exc_info=e,
-        )
+        # available. We just log debug level here and print info message in logs so that
+        # the user is aware of it
+        log_optional_feature_disabled(class_name, e, provider_package)
         return None
     except ImportError as e:
-        # When there is an ImportError we turn it into debug warnings as this is
-        # an expected case when only some providers are installed
         if provider_info.is_source:
-            log.debug(
-                "Exception when importing '%s' from '%s' package",
-                class_name,
-                provider_package,
-            )
-        else:
-            log.warning(
-                "Exception when importing '%s' from '%s' package",
-                class_name,
-                provider_package,
-                exc_info=e,
-            )
+            # When we have providers from sources, then we just turn all import logs to debug logs
+            # As this is pretty expected that you have a number of dependencies not installed
+            # (we always have all providers from sources until we split providers to separate repo)
+            log_debug_import_from_sources(class_name, e, provider_package)
+            return None
+        if "No module named 'airflow.providers." in e.msg:
+            # handle cases where another provider is missing. This can only happen if
+            # there is an optional feature, so we log debug and print information about it
+            log_optional_feature_disabled(class_name, e, provider_package)
+            return None
+        for known_error in KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS:
+            # Until we convert all providers to use AirflowOptionalProviderFeatureException
+            # we assume any problem with importing another "provider" is because this is an
+            # optional feature, so we log debug and print information about it
+            if known_error[0] == provider_package and known_error[1] in e.msg:
+                log_optional_feature_disabled(class_name, e, provider_package)
+                return None
+        # But when we have no idea - we print warning to logs
+        log_import_warning(class_name, e, provider_package)
         return None
     except Exception as e:
-        log.warning(
-            "Exception when importing '%s' from '%s' package",
-            class_name,
-            provider_package,
-            exc_info=e,
-        )
+        log_import_warning(class_name, e, provider_package)
         return None
     return imported_class
 
@@ -341,9 +377,12 @@ class ProvidersManager(LoggingMixin):
             if min_version:
                 if packaging_version.parse(min_version) > packaging_version.parse(info.version):
                     log.warning(
-                        f"The package {provider_id} is not compatible with this version of Airflow. "
-                        f"The package has version {info.version} but the minimum supported version "
-                        f"of the package is {min_version}"
+                        "The package %s is not compatible with this version of Airflow. "
+                        "The package has version %s but the minimum supported version "
+                        "of the package is %s",
+                        provider_id,
+                        info.version,
+                        min_version,
                     )
 
     @provider_info_cache("hooks")
@@ -760,24 +799,22 @@ class ProvidersManager(LoggingMixin):
         )
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
-        for field_name, field in widgets.items():
-            if not field_name.startswith("extra__"):
-                log.warning(
-                    "The field %s from class %s does not start with 'extra__'. Ignoring it.",
-                    field_name,
-                    hook_class.__name__,
-                )
-                continue
-            if field_name in self._connection_form_widgets:
+        conn_type = hook_class.conn_type  # type: ignore
+        for field_identifier, field in widgets.items():
+            if field_identifier.startswith('extra__'):
+                prefixed_field_name = field_identifier
+            else:
+                prefixed_field_name = f"extra__{conn_type}__{field_identifier}"
+            if prefixed_field_name in self._connection_form_widgets:
                 log.warning(
                     "The field %s from class %s has already been added by another provider. Ignoring it.",
-                    field_name,
+                    field_identifier,
                     hook_class.__name__,
                 )
                 # In case of inherited hooks this might be happening several times
                 continue
-            self._connection_form_widgets[field_name] = ConnectionFormWidgetInfo(
-                hook_class.__name__, package_name, field
+            self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
+                hook_class.__name__, package_name, field, field_identifier
             )
 
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: Dict):

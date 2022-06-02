@@ -17,16 +17,19 @@
 # under the License.
 import logging
 import re
-import unittest
+from typing import Dict
 from unittest.mock import patch
 
 import pytest
+from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+from flask_babel import lazy_gettext
+from wtforms import BooleanField, Field, StringField
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers_manager import HookClassProvider, ProviderInfo, ProvidersManager
 
 
-class TestProviderManager(unittest.TestCase):
+class TestProviderManager:
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -142,6 +145,49 @@ class TestProviderManager(unittest.TestCase):
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         assert len(connections_form_widgets) > 29
 
+    @pytest.mark.parametrize(
+        'scenario',
+        [
+            'prefix',
+            'no_prefix',
+            'both_1',
+            'both_2',
+        ],
+    )
+    def test_connection_form__add_widgets_prefix_backcompat(self, scenario):
+        """
+        When the field name is prefixed, it should be used as is.
+        When not prefixed, we should add the prefix
+        When there's a collision, the one that appears first in the list will be used.
+        """
+
+        class MyHook:
+            conn_type = 'test'
+
+        provider_manager = ProvidersManager()
+        widget_field = StringField(lazy_gettext('My Param'), widget=BS3TextFieldWidget())
+        dummy_field = BooleanField(label=lazy_gettext('Dummy param'), description="dummy")
+        widgets: Dict[str, Field] = {}
+        if scenario == 'prefix':
+            widgets['extra__test__my_param'] = widget_field
+        elif scenario == 'no_prefix':
+            widgets['my_param'] = widget_field
+        elif scenario == 'both_1':
+            widgets['my_param'] = widget_field
+            widgets['extra__test__my_param'] = dummy_field
+        elif scenario == 'both_2':
+            widgets['extra__test__my_param'] = widget_field
+            widgets['my_param'] = dummy_field
+        else:
+            raise Exception('unexpected')
+
+        provider_manager._add_widgets(
+            package_name='abc',
+            hook_class=MyHook,
+            widgets=widgets,
+        )
+        assert provider_manager.connection_form_widgets['extra__test__my_param'].field == widget_field
+
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())
@@ -182,7 +228,7 @@ class TestProviderManager(unittest.TestCase):
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_debug(self, mock_importlib_import_string):
-        with self._caplog.at_level(logging.DEBUG):
+        with self._caplog.at_level(logging.INFO):
             mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
             providers_manager = ProvidersManager()
             providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
@@ -192,6 +238,5 @@ class TestProviderManager(unittest.TestCase):
                 hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
             assert [
-                "Optional feature disabled on exception when importing 'HookClass' from "
-                "'test_package' package"
+                "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
             ] == self._caplog.messages

@@ -43,7 +43,12 @@ class TestCliDb:
     def test_cli_resetdb(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(['db', 'reset', '--yes']))
 
-        mock_resetdb.assert_called_once_with()
+        mock_resetdb.assert_called_once_with(skip_init=False)
+
+    @mock.patch("airflow.cli.commands.db_command.db.resetdb")
+    def test_cli_resetdb_skip_init(self, mock_resetdb):
+        db_command.resetdb(self.parser.parse_args(['db', 'reset', '--yes', '--skip-init']))
+        mock_resetdb.assert_called_once_with(skip_init=True)
 
     @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
     def test_cli_check_migrations(self, mock_wait_for_migrations):

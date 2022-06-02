@@ -160,6 +160,64 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
+
+Reusing a decorated task
+-------------------------
+
+Decorated tasks are flexible. You can reuse a decorated task in multiple DAGs, overriding the task
+parameters such as the ``task_id``, ``queue``, ``pool``, etc.
+
+Below is an example of how you can reuse a decorated task in multiple DAGs:
+
+.. code-block:: python
+
+    from airflow.decorators import task, dag
+    from datetime import datetime
+
+
+    @task
+    def add_task(x, y):
+        print(f"Task args: x={x}, y={y}")
+        return x + y
+
+
+    @dag(start_date=datetime(2022, 1, 1))
+    def mydag():
+        start = add_task.override(task_id="start")(1, 2)
+        for i in range(3):
+            start >> add_task.override(task_id=f"add_start_{i}")(start, i)
+
+
+    @dag(start_date=datetime(2022, 1, 1))
+    def mydag2():
+        start = add_task(1, 2)
+        for i in range(3):
+            start >> add_task.override(task_id=f"new_add_task_{i}")(start, i)
+
+
+    first_dag = mydag()
+    second_dag = mydag2()
+
+You can also import the above ``add_task`` and use it in another DAG file.
+Suppose the ``add_task`` code lives in a file called ``common.py``. You can do this:
+
+.. code-block:: python
+
+    from common import add_task
+    from airflow.decorators import dag
+    from datetime import datetime
+
+
+    @dag(start_date=datetime(2022, 1, 1))
+    def use_add_task():
+        start = add_task.override(priority_weight=3)(1, 2)
+        for i in range(3):
+            start >> add_task.override(task_id=f"new_add_task_{i}", retries=4)(start, i)
+
+
+    created_dag = use_add_task()
+
+
 Using the TaskFlow API with Docker or Virtual Environments
 ----------------------------------------------------------
 

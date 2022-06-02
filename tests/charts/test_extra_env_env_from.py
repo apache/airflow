@@ -70,7 +70,8 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         values_str = textwrap.dedent(
             """
-            executor: "CeleryExecutor"
+            flower:
+              enabled: true
             extraEnvFrom: |
               - secretRef:
                   name: '{{ .Release.Name }}-airflow-connections'

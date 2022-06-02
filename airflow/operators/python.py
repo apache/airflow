@@ -29,7 +29,7 @@ from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Opt
 import dill
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator
+from airflow.models.baseoperator import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
 from airflow.utils.context import Context, context_copy_partial, context_merge
@@ -327,7 +327,8 @@ class PythonVirtualenvOperator(PythonOperator):
         processing templated fields, for examples ``['.sql', '.hql']``
     """
 
-    template_fields: Sequence[str] = ('requirements',)
+    template_fields: Sequence[str] = tuple({'requirements'} | set(PythonOperator.template_fields))
+
     template_ext: Sequence[str] = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds',

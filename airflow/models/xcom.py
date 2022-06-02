@@ -103,7 +103,9 @@ class BaseXCom(Base, LoggingMixin):
         self.value = self.orm_deserialize_value()
 
     def __repr__(self):
-        return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
+        if self.map_index < 0:
+            return f'<XCom "{self.key}" ({self.task_id} @ {self.run_id})>'
+        return f'<XCom "{self.key}" ({self.task_id}[{self.map_index}] @ {self.run_id})>'
 
     @overload
     @classmethod

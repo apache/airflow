@@ -56,6 +56,8 @@ def create_user(app, username, role_name=None, email=None, permissions=None):
     if role_name:
         delete_role(app, role_name)
         role = create_role(app, role_name, permissions)
+    else:
+        role = []
 
     return appbuilder.sm.add_user(
         username=username,
@@ -80,12 +82,12 @@ def create_role(app, name, permissions=None):
     return role
 
 
-def set_user_single_role(app, username, role_name):
+def set_user_single_role(app, user, role_name):
     role = create_role(app, role_name)
-    user = app.appbuilder.sm.find_user(username)
     if role not in user.roles:
         user.roles = [role]
         app.appbuilder.sm.update_user(user)
+        user._perms = None
 
 
 def delete_role(app, name):

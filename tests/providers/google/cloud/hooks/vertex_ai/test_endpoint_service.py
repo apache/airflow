@@ -19,6 +19,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.vertex_ai.endpoint_service import EndpointServiceHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -29,6 +31,7 @@ TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"
 TEST_PROJECT_ID: str = "test-project-id"
 TEST_ENDPOINT: dict = {}
+TEST_ENDPOINT_ID: str = "1234567890"
 TEST_ENDPOINT_NAME: str = "test_endpoint_name"
 TEST_DEPLOYED_MODEL: dict = {}
 TEST_DEPLOYED_MODEL_ID: str = "test-deployed-model-id"
@@ -52,15 +55,17 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
             endpoint=TEST_ENDPOINT,
+            endpoint_id=TEST_ENDPOINT_ID,
         )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.create_endpoint.assert_called_once_with(
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 endpoint=TEST_ENDPOINT,
+                endpoint_id=TEST_ENDPOINT_ID,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(
@@ -81,7 +86,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -107,7 +112,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -129,7 +134,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -155,7 +160,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(
@@ -180,7 +185,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -203,7 +208,7 @@ class TestEndpointServiceWithDefaultProjectIdHook(TestCase):
                 update_mask=TEST_UPDATE_MASK,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -221,15 +226,17 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
             project_id=TEST_PROJECT_ID,
             region=TEST_REGION,
             endpoint=TEST_ENDPOINT,
+            endpoint_id=TEST_ENDPOINT_ID,
         )
         mock_client.assert_called_once_with(TEST_REGION)
         mock_client.return_value.create_endpoint.assert_called_once_with(
             request=dict(
                 parent=mock_client.return_value.common_location_path.return_value,
                 endpoint=TEST_ENDPOINT,
+                endpoint_id=TEST_ENDPOINT_ID,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(
@@ -250,7 +257,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -276,7 +283,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -298,7 +305,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.endpoint_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -324,7 +331,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(
@@ -349,7 +356,7 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 traffic_split=TEST_TRAFFIC_SPLIT,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.endpoint_path.assert_called_once_with(
@@ -372,6 +379,6 @@ class TestEndpointServiceWithoutDefaultProjectIdHook(TestCase):
                 update_mask=TEST_UPDATE_MASK,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )

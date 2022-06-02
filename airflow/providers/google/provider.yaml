@@ -29,6 +29,8 @@ description: |
       - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
 
 versions:
+  - 7.0.0
+  - 6.8.0
   - 6.7.0
   - 6.6.0
   - 6.5.0
@@ -881,9 +883,15 @@ extra-links:
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
+  - airflow.providers.google.cloud.links.cloud_sql.CloudSQLInstanceLink
+  - airflow.providers.google.cloud.links.cloud_sql.CloudSQLInstanceDatabaseLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
+  - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
+  - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink
+  - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
+  - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
@@ -903,7 +911,17 @@ extra-links:
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
+  - airflow.providers.google.cloud.links.datastore.CloudDatastoreImportExportLink
+  - airflow.providers.google.cloud.links.datastore.CloudDatastoreEntitiesLink
+  - airflow.providers.google.cloud.links.bigtable.BigtableInstanceLink
+  - airflow.providers.google.cloud.links.bigtable.BigtableClusterLink
+  - airflow.providers.google.cloud.links.bigtable.BigtableTablesLink
+  - airflow.providers.google.cloud.links.spanner.SpannerDatabaseLink
+  - airflow.providers.google.cloud.links.spanner.SpannerInstanceLink
+  - airflow.providers.google.cloud.links.stackdriver.StackdriverNotificationsLink
+  - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
   - airflow.providers.google.common.links.storage.StorageLink
+  - airflow.providers.google.common.links.storage.FileDetailsLink
 
 additional-extras:
   apache.beam: apache-beam[gcp]

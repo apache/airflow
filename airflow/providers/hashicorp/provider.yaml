@@ -22,6 +22,7 @@ description: |
     Hashicorp including `Hashicorp Vault <https://www.vaultproject.io/>`__
 
 versions:
+  - 2.2.0
   - 2.1.4
   - 2.1.3
   - 2.1.2

@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+import datetime
 import logging
 from unittest import mock
 
 import pytest
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
+from freezegun import freeze_time
 from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
@@ -425,9 +427,10 @@ def test_get_current_user_permissions(app):
         ) as user:
             assert user.perms == {(action, resource)}
 
-            user._perms = None
-            user.roles = []
-
+        with create_user_scope(
+            app,
+            username='no_perms',
+        ) as user:
             assert len(user.perms) == 0
 
 
@@ -617,7 +620,7 @@ def test_access_control_is_set_on_init(
             )
 
             security_manager.bulk_sync_roles([{'role': negated_role, 'perms': []}])
-            set_user_single_role(app, username, role_name=negated_role)
+            set_user_single_role(app, user, role_name=negated_role)
             assert_user_does_not_have_dag_perms(
                 perms=[permissions.ACTION_CAN_EDIT, permissions.ACTION_CAN_READ],
                 dag_id='access_control_test',
@@ -640,7 +643,7 @@ def test_access_control_stale_perms_are_revoked(
             role_name=role_name,
             permissions=[],
         ) as user:
-            set_user_single_role(app, username, role_name='team-a')
+            set_user_single_role(app, user, role_name='team-a')
             security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_WRITE}
             )
@@ -649,6 +652,8 @@ def test_access_control_stale_perms_are_revoked(
             security_manager._sync_dag_view_permissions(
                 'access_control_test', access_control={'team-a': READ_ONLY}
             )
+            # Clear the cache, to make it pick up new rol perms
+            user._perms = None
             assert_user_has_dag_perms(
                 perms=[permissions.ACTION_CAN_READ], dag_id='access_control_test', user=user
             )
@@ -811,3 +816,68 @@ def test_fab_models_use_airflow_base_meta():
     # TODO: move this test to appropriate place when we have more tests for FAB models
     user = User()
     assert user.metadata is Base.metadata
+
+
+@pytest.fixture()
+def mock_security_manager(app_builder):
+    mocked_security_manager = MockSecurityManager(appbuilder=app_builder)
+    mocked_security_manager.update_user = mock.MagicMock()
+    return mocked_security_manager
+
+
+@pytest.fixture()
+def new_user():
+    user = mock.MagicMock()
+    user.login_count = None
+    user.fail_login_count = None
+    user.last_login = None
+    return user
+
+
+@pytest.fixture()
+def old_user():
+    user = mock.MagicMock()
+    user.login_count = 42
+    user.fail_login_count = 9
+    user.last_login = datetime.datetime(1984, 12, 1, 0, 0, 0)
+    return user
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))  # Get the Delorean, doc!
+def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_user):
+    mock_security_manager.update_user_auth_stat(new_user, success=True)
+
+    assert new_user.login_count == 1
+    assert new_user.fail_login_count == 0
+    assert new_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager, old_user):
+    mock_security_manager.update_user_auth_stat(old_user, success=True)
+
+    assert old_user.login_count == 43
+    assert old_user.fail_login_count == 0
+    assert old_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_first_unsuccessful_auth(mock_security_manager, new_user):
+    mock_security_manager.update_user_auth_stat(new_user, success=False)
+
+    assert new_user.login_count == 0
+    assert new_user.fail_login_count == 1
+    assert new_user.last_login is None
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manager, old_user):
+    mock_security_manager.update_user_auth_stat(old_user, success=False)
+
+    assert old_user.login_count == 42
+    assert old_user.fail_login_count == 10
+    assert old_user.last_login == datetime.datetime(1984, 12, 1, 0, 0, 0)
+    assert mock_security_manager.update_user.called_once

@@ -17,6 +17,7 @@
 
 .. image:: /img/helm-logo.svg
     :width: 100
+    :class: no-scaled-link
 
 Helm Chart for Apache Airflow
 =============================
@@ -47,8 +48,7 @@ Helm Chart for Apache Airflow
     :caption: References
 
     Parameters <parameters-ref>
-    changelog
-    Updating <updating>
+    release_notes
 
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
@@ -65,7 +65,7 @@ Requirements
 Features
 --------
 
-* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``.
+* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``
 * Supported database backend: ``PostgresSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA

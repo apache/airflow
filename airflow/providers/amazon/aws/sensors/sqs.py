@@ -33,9 +33,13 @@ if TYPE_CHECKING:
 
 class SqsSensor(BaseSensorOperator):
     """
-    Get messages from an SQS queue and then deletes  the message from the SQS queue.
-    If deletion of messages fails an AirflowException is thrown otherwise, the message
-    is pushed through XCom with the key ``messages``.
+    Get messages from an Amazon SQS queue and then delete the messages from the queue.
+    If deletion of messages fails an AirflowException is thrown. Otherwise, the messages
+    are pushed through XCom with the key ``messages``.
+
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SqsSensor`
 
     :param aws_conn_id: AWS connection id
     :param sqs_queue: The SQS queue url (templated)
@@ -128,20 +132,17 @@ class SqsSensor(BaseSensorOperator):
         num_messages = len(messages)
         self.log.info("Received %d messages", num_messages)
 
-        if not num_messages:
-            return False
-
-        if self.message_filtering:
+        if num_messages and self.message_filtering:
             messages = self.filter_messages(messages)
             num_messages = len(messages)
             self.log.info("There are %d messages left after filtering", num_messages)
 
+        if not num_messages:
+            return False
+
         if not self.delete_message_on_reception:
             context['ti'].xcom_push(key='messages', value=messages)
             return True
-
-        if not num_messages:
-            return False
 
         self.log.info("Deleting %d messages", num_messages)
 

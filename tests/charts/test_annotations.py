@@ -102,6 +102,7 @@ class TestServiceAccountAnnotations:
             (
                 {
                     "flower": {
+                        "enabled": True,
                         "serviceAccount": {
                             "annotations": {
                                 "example": "flower",
@@ -270,6 +271,7 @@ class TestServiceAccountAnnotations:
         (
             {
                 "flower": {
+                    "enabled": True,
                     "podAnnotations": {
                         "example": "flower",
                     },

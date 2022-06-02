@@ -20,14 +20,13 @@
 
 CONSTRAINTS_DIR="/files/constraints-${PYTHON_MAJOR_MINOR_VERSION}"
 
-LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+LATEST_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/original-${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 mkdir -pv "${CONSTRAINTS_DIR}"
 
 
-if [[ ${GENERATE_CONSTRAINTS_MODE} == "no-providers" ]]; then
-    AIRFLOW_CONSTRAINTS="constraints-no-providers"
+if [[ ${AIRFLOW_CONSTRAINTS_MODE} == "constraints-no-providers" ]]; then
     NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS.keys()))')
-    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
     echo "UnInstall All PIP packages."
     echo
@@ -47,9 +46,8 @@ if [[ ${GENERATE_CONSTRAINTS_MODE} == "no-providers" ]]; then
 # Airflow in any way.
 #
 EOF
-elif [[ ${GENERATE_CONSTRAINTS_MODE} == "source-providers" ]]; then
-    AIRFLOW_CONSTRAINTS="constraints-source-providers"
-    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+elif [[ ${AIRFLOW_CONSTRAINTS_MODE} == "constraints-source-providers" ]]; then
+    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
     echo "Providers are already installed from sources."
     echo
@@ -65,9 +63,8 @@ elif [[ ${GENERATE_CONSTRAINTS_MODE} == "source-providers" ]]; then
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
 EOF
-elif [[ ${GENERATE_CONSTRAINTS_MODE} == "pypi-providers" ]]; then
-    AIRFLOW_CONSTRAINTS="constraints"
-    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+elif [[ ${AIRFLOW_CONSTRAINTS_MODE} == "constraints" ]]; then
+    CURRENT_CONSTRAINT_FILE="${CONSTRAINTS_DIR}/${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
     echo
     echo "Install all providers from PyPI so that they are included in the constraints."
     echo
@@ -86,14 +83,14 @@ elif [[ ${GENERATE_CONSTRAINTS_MODE} == "pypi-providers" ]]; then
 EOF
 else
     echo
-    echo "${COLOR_RED}Error! GENERATE_CONSTRAINTS_MODE has wrong value: '${GENERATE_CONSTRAINTS_MODE}' ${COLOR_RESET}"
+    echo "${COLOR_RED}Error! AIRFLOW_CONSTRAINTS_MODE has wrong value: '${AIRFLOW_CONSTRAINTS_MODE}' ${COLOR_RESET}"
     echo
     exit 1
 fi
 
-readonly AIRFLOW_CONSTRAINTS
+readonly AIRFLOW_CONSTRAINTS_MODE
 
-CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/${AIRFLOW_CONSTRAINTS}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
+CONSTRAINTS_LOCATION="https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/${AIRFLOW_CONSTRAINTS_MODE}-${PYTHON_MAJOR_MINOR_VERSION}.txt"
 readonly CONSTRAINTS_LOCATION
 
 touch "${LATEST_CONSTRAINT_FILE}"

@@ -1,0 +1,49 @@
+{#
+ Licensed to the Apache Software Foundation (ASF) under one
+ or more contributor license agreements.  See the NOTICE file
+ distributed with this work for additional information
+ regarding copyright ownership.  The ASF licenses this file
+ to you under the Apache License, Version 2.0 (the
+ "License"); you may not use this file except in compliance
+ with the License.  You may obtain a copy of the License at
+
+   http://www.apache.org/licenses/LICENSE-2.0
+
+ Unless required by applicable law or agreed to in writing,
+ software distributed under the License is distributed on an
+ "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+ KIND, either express or implied.  See the License for the
+ specific language governing permissions and limitations
+ under the License.
+#}
+
+{% extends "airflow/dag.html" %}
+{% block page_title %}{{ dag.dag_id }} - Grid - {{ appbuilder.app_name }}{% endblock %}
+{% from 'appbuilder/loading_dots.html' import loading_dots %}
+
+{% block head_meta %}
+  {{ super() }}
+  <meta name="num_runs" content="{{ num_runs }}">
+  <meta name="root" content="{{ root if root else '' }}">
+  <meta name="base_date" content="{{ request.args.get('base_date') if request.args.get('base_date') else '' }}">
+{% endblock %}
+
+{% block content %}
+  {{ super() }}
+  <div id="root">
+    <div id="react-container"></div>
+    {{ loading_dots(id='react-loading') }}
+  </div>
+{% endblock %}
+
+{% block tail_js %}
+  {{ super()}}
+  <script>
+    const gridData = {{ data|tojson }};
+    const stateColors = {{ state_color_mapping|tojson }};
+    const autoRefreshInterval = {{ auto_refresh_interval }};
+    const defaultDagRunDisplayNumber = {{ default_dag_run_display_number }};
+    const filtersOptions = {{ filters_drop_down_values }};
+  </script>
+  <script src="{{ url_for_asset('grid.js') }}"></script>
+{% endblock %}

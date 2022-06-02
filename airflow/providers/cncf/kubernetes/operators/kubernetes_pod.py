@@ -25,8 +25,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client, pod_generator
+from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
@@ -42,11 +43,17 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume,
     convert_volume_mount,
 )
-from airflow.providers.cncf.kubernetes.utils import xcom_sidecar
-from airflow.providers.cncf.kubernetes.utils.pod_manager import PodLaunchFailedException, PodManager, PodPhase
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
+from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
+from airflow.providers.cncf.kubernetes.utils.pod_manager import (
+    PodLaunchFailedException,
+    PodManager,
+    PodPhase,
+    get_container_termination_message,
+)
 from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
-from airflow.utils.helpers import validate_key
+from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
 
 if sys.version_info >= (3, 8):
@@ -78,6 +85,8 @@ class KubernetesPodOperator(BaseOperator):
         :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which
         simplifies the authorization process.
 
+    :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
+        for the Kubernetes cluster.
     :param namespace: the namespace to run within kubernetes.
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
         but fully qualified URLS will point to custom repositories. (templated)
@@ -98,7 +107,8 @@ class KubernetesPodOperator(BaseOperator):
     :param in_cluster: run kubernetes client with in_cluster configuration.
     :param cluster_context: context that points to kubernetes cluster.
         Ignored when in_cluster is True. If None, current-context is used.
-    :param reattach_on_restart: if the scheduler dies while the pod is running, reattach and monitor
+    :param reattach_on_restart: if the worker dies while the pod is running, reattach and monitor
+        during the next try. If False, always create a new pod for each try.
     :param labels: labels to apply to the Pod. (templated)
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param get_logs: get the stdout of the container as logs of the tasks.
@@ -133,6 +143,7 @@ class KubernetesPodOperator(BaseOperator):
     :param priority_class_name: priority class name for the launched Pod
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
+    :param: kubernetes_conn_id: To retrieve credentials for your k8s cluster from an Airflow connection
     """
 
     BASE_CONTAINER_NAME = 'base'
@@ -152,6 +163,7 @@ class KubernetesPodOperator(BaseOperator):
     def __init__(
         self,
         *,
+        kubernetes_conn_id: Optional[str] = None,  # 'kubernetes_default',
         namespace: Optional[str] = None,
         image: Optional[str] = None,
         name: Optional[str] = None,
@@ -199,7 +211,7 @@ class KubernetesPodOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
-
+        self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
         self.namespace = namespace
@@ -285,7 +297,12 @@ class KubernetesPodOperator(BaseOperator):
         ti = context['ti']
         run_id = context['run_id']
 
-        labels = {'dag_id': ti.dag_id, 'task_id': ti.task_id, 'run_id': run_id}
+        labels = {
+            'dag_id': ti.dag_id,
+            'task_id': ti.task_id,
+            'run_id': run_id,
+            'kubernetes_pod_operator': 'True',
+        }
 
         # If running on Airflow 2.3+:
         map_index = getattr(ti, 'map_index', -1)
@@ -308,20 +325,24 @@ class KubernetesPodOperator(BaseOperator):
     def pod_manager(self) -> PodManager:
         return PodManager(kube_client=self.client)
 
+    def get_hook(self):
+        hook = KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+        self._patch_deprecated_k8s_settings(hook)
+        return hook
+
     @cached_property
     def client(self) -> CoreV1Api:
-        # todo: use airflow Connection / hook to authenticate to the cluster
-        kwargs: Dict[str, Any] = dict(
-            cluster_context=self.cluster_context,
-            config_file=self.config_file,
-        )
-        if self.in_cluster is not None:
-            kwargs.update(in_cluster=self.in_cluster)
-        return kube_client.get_kube_client(**kwargs)
+        hook = self.get_hook()
+        return hook.core_v1_client
 
-    def find_pod(self, namespace, context) -> Optional[k8s.V1Pod]:
+    def find_pod(self, namespace, context, *, exclude_checked=True) -> Optional[k8s.V1Pod]:
         """Returns an already-running pod for this task instance if one exists."""
-        label_selector = self._build_find_pod_label_selector(context)
+        label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list = self.client.list_namespaced_pod(
             namespace=namespace,
             label_selector=label_selector,
@@ -399,17 +420,21 @@ class KubernetesPodOperator(BaseOperator):
 
     def cleanup(self, pod: k8s.V1Pod, remote_pod: k8s.V1Pod):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
+        if not self.is_delete_operator_pod:
+            with _suppress(Exception):
+                self.patch_already_checked(remote_pod)
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
                     for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            if not self.is_delete_operator_pod:
-                with _suppress(Exception):
-                    self.patch_already_checked(pod)
             with _suppress(Exception):
                 self.process_pod_deletion(pod)
-            raise AirflowException(f'Pod {pod and pod.metadata.name} returned a failure: {remote_pod}')
+            error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
+            error_message = "\n" + error_message if error_message else ""
+            raise AirflowException(
+                f'Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}'
+            )
         else:
             with _suppress(Exception):
                 self.process_pod_deletion(pod)
@@ -421,10 +446,14 @@ class KubernetesPodOperator(BaseOperator):
         else:
             self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
-    def _build_find_pod_label_selector(self, context: Optional[dict] = None) -> str:
+    def _build_find_pod_label_selector(self, context: Optional[dict] = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
         label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
-        return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True'
+        labels_value = ','.join(label_strings)
+        if exclude_checked:
+            labels_value += f',{self.POD_CHECKED_KEY}!=True'
+        labels_value += ',!airflow-worker'
+        return labels_value
 
     def _set_name(self, name):
         if name is None:
@@ -433,7 +462,7 @@ class KubernetesPodOperator(BaseOperator):
             raise AirflowException("`name` is required unless `pod_template_file` or `full_pod_spec` is set")
 
         validate_key(name, max_length=220)
-        return re.sub(r'[^a-z0-9.-]+', '-', name.lower())
+        return re.sub(r'[^a-z0-9-]+', '-', name.lower())
 
     def patch_already_checked(self, pod: k8s.V1Pod):
         """Add an "already checked" annotation to ensure we don't reattach on retries"""
@@ -532,7 +561,6 @@ class KubernetesPodOperator(BaseOperator):
         pod.metadata.labels.update(
             {
                 'airflow_version': airflow_version.replace('+', '-'),
-                'kubernetes_pod_operator': 'True',
             }
         )
         pod_mutation_hook(pod)
@@ -545,7 +573,40 @@ class KubernetesPodOperator(BaseOperator):
         one in a dry_run) and excludes all empty elements.
         """
         pod = self.build_pod_request_obj()
-        print(yaml.dump(_prune_dict(pod.to_dict(), mode='strict')))
+        print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
+
+    def _patch_deprecated_k8s_settings(self, hook: KubernetesHook):
+        """
+        Here we read config from core Airflow config [kubernetes] section.
+        In a future release we will stop looking at this section and require users
+        to use Airflow connections to configure KPO.
+
+        When we find values there that we need to apply on the hook, we patch special
+        hook attributes here.
+        """
+
+        # default for enable_tcp_keepalive is True; patch if False
+        if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
+            hook._deprecated_core_disable_tcp_keepalive = True
+
+        # default verify_ssl is True; patch if False.
+        if conf.getboolean('kubernetes', 'verify_ssl') is False:
+            hook._deprecated_core_disable_verify_ssl = True
+
+        # default for in_cluster is True; patch if False and no KPO param.
+        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster')
+        if self.in_cluster is None and conf_in_cluster is False:
+            hook._deprecated_core_in_cluster = conf_in_cluster
+
+        # there's no default for cluster context; if we get something (and no KPO param) patch it.
+        conf_cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+        if not self.cluster_context and conf_cluster_context:
+            hook._deprecated_core_cluster_context = conf_cluster_context
+
+        # there's no default for config_file; if we get something (and no KPO param) patch it.
+        conf_config_file = conf.get('kubernetes', 'config_file', fallback=None)
+        if not self.config_file and conf_config_file:
+            hook._deprecated_core_config_file = conf_config_file
 
 
 class _suppress(AbstractContextManager):
@@ -568,56 +629,6 @@ class _suppress(AbstractContextManager):
         caught_error = exctype is not None and issubclass(exctype, self._exceptions)
         if caught_error:
             self.exception = excinst
-            logger = logging.getLogger()
+            logger = logging.getLogger(__name__)
             logger.error(str(excinst), exc_info=True)
         return caught_error
-
-
-def _prune_dict(val: Any, mode='strict'):
-    """
-    Note: this is duplicated from ``airflow.utils.helpers.prune_dict``.  That one should
-    be the one used if possible, but this one is included to avoid having to
-    bump min airflow version.  This function will be removed once the min airflow version
-    is bumped to 2.3.
-
-    Given dict ``val``, returns new dict based on ``val`` with all
-    empty elements removed.
-
-    What constitutes "empty" is controlled by the ``mode`` parameter.  If mode is 'strict'
-    then only ``None`` elements will be removed.  If mode is ``truthy``, then element ``x``
-    will be removed if ``bool(x) is False``.
-    """
-
-    def is_empty(x):
-        if mode == 'strict':
-            return x is None
-        elif mode == 'truthy':
-            return bool(x) is False
-        raise ValueError("allowable values for `mode` include 'truthy' and 'strict'")
-
-    if isinstance(val, dict):
-        new_dict = {}
-        for k, v in val.items():
-            if is_empty(v):
-                continue
-            elif isinstance(v, (list, dict)):
-                new_val = _prune_dict(v, mode=mode)
-                if new_val:
-                    new_dict[k] = new_val
-            else:
-                new_dict[k] = v
-        return new_dict
-    elif isinstance(val, list):
-        new_list = []
-        for v in val:
-            if is_empty(v):
-                continue
-            elif isinstance(v, (list, dict)):
-                new_val = _prune_dict(v, mode=mode)
-                if new_val:
-                    new_list.append(new_val)
-            else:
-                new_list.append(v)
-        return new_list
-    else:
-        return val

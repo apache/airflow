@@ -30,6 +30,7 @@ from urllib3 import HTTPResponse
 
 from airflow import AirflowException
 from airflow.models.taskinstance import TaskInstanceKey
+from airflow.operators.bash import BashOperator
 from airflow.utils import timezone
 from tests.test_utils.config import conf_vars
 
@@ -38,6 +39,7 @@ try:
         AirflowKubernetesScheduler,
         KubernetesExecutor,
         KubernetesJobWatcher,
+        ResourceVersion,
         create_pod_id,
         get_base_pod_from_template,
     )
@@ -311,9 +313,9 @@ class TestKubernetesExecutor:
     @mock.patch('airflow.executors.kubernetes_executor.AirflowKubernetesScheduler.run_pod_async')
     @mock.patch('airflow.executors.kubernetes_executor.get_kube_client')
     def test_pod_template_file_override_in_executor_config(self, mock_get_kube_client, mock_run_pod_async):
-        current_folder = pathlib.Path(__file__).parent.absolute()
+        current_folder = pathlib.Path(__file__).parent.resolve()
         template_file = str(
-            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").absolute()
+            (current_folder / "kubernetes_executor_template_files" / "basic_template.yaml").resolve()
         )
 
         mock_kube_client = mock.patch('kubernetes.client.CoreV1Api', autospec=True)
@@ -720,7 +722,17 @@ class TestKubernetesExecutor:
             ),
         )
 
-    def test_clear_not_launched_queued_tasks_launched(self, dag_maker, create_dummy_dag, session):
+    @pytest.mark.parametrize(
+        'task_queue, kubernetes_queue',
+        [
+            pytest.param('default', None),
+            pytest.param('kubernetes', None),
+            pytest.param('kubernetes', 'kubernetes'),
+        ],
+    )
+    def test_clear_not_launched_queued_tasks_launched(
+        self, dag_maker, create_dummy_dag, session, task_queue, kubernetes_queue
+    ):
         """Leave the state alone if a pod already exists"""
         mock_kube_client = mock.MagicMock()
         mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=["something"])
@@ -731,9 +743,11 @@ class TestKubernetesExecutor:
         ti = dag_run.task_instances[0]
         ti.state = State.QUEUED
         ti.queued_by_job_id = 1
+        ti.queue = task_queue
         session.flush()
 
         executor = self.kubernetes_executor
+        executor.kubernetes_queue = kubernetes_queue
         executor.kube_client = mock_kube_client
         executor.clear_not_launched_queued_tasks(session=session)
 
@@ -742,6 +756,86 @@ class TestKubernetesExecutor:
         mock_kube_client.list_namespaced_pod.assert_called_once_with(
             "default", label_selector="dag_id=test_clear,task_id=task1,airflow-worker=1,run_id=test"
         )
+
+    def test_clear_not_launched_queued_tasks_mapped_task(self, dag_maker, session):
+        """One mapped task has a launched pod - other does not."""
+
+        def list_namespaced_pod(*args, **kwargs):
+            if 'map_index=0' in kwargs['label_selector']:
+                return k8s.V1PodList(items=["something"])
+            else:
+                return k8s.V1PodList(items=[])
+
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.side_effect = list_namespaced_pod
+
+        with dag_maker(dag_id='test_clear'):
+            op = BashOperator.partial(task_id="bash").expand(bash_command=["echo 0", "echo 1"])
+
+        dag_run = dag_maker.create_dagrun()
+        ti0 = dag_run.get_task_instance(op.task_id, session, map_index=0)
+        ti0.state = State.QUEUED
+        ti0.queued_by_job_id = 1
+
+        ti1 = dag_run.get_task_instance(op.task_id, session, map_index=1)
+        ti1.state = State.QUEUED
+        ti1.queued_by_job_id = 1
+
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti0.refresh_from_db()
+        ti1.refresh_from_db()
+        assert ti0.state == State.QUEUED
+        assert ti1.state == State.SCHEDULED
+
+        assert mock_kube_client.list_namespaced_pod.call_count == 3
+        execution_date_label = pod_generator.datetime_to_label_safe_datestring(dag_run.execution_date)
+        mock_kube_client.list_namespaced_pod.assert_has_calls(
+            [
+                mock.call(
+                    "default",
+                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=0,run_id=test",
+                ),
+                mock.call(
+                    "default",
+                    label_selector="dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,run_id=test",
+                ),
+                mock.call(
+                    "default",
+                    label_selector=f"dag_id=test_clear,task_id=bash,airflow-worker=1,map_index=1,"
+                    f"execution_date={execution_date_label}",
+                ),
+            ],
+            any_order=True,
+        )
+
+    def test_clear_not_launched_queued_tasks_not_launched_other_queue(
+        self, dag_maker, create_dummy_dag, session
+    ):
+        """Queued TI has no pod, but it is not queued for the k8s executor"""
+        mock_kube_client = mock.MagicMock()
+        mock_kube_client.list_namespaced_pod.return_value = k8s.V1PodList(items=[])
+
+        create_dummy_dag(dag_id="test_clear", task_id="task1", with_dagrun_type=None)
+        dag_run = dag_maker.create_dagrun()
+
+        ti = dag_run.task_instances[0]
+        ti.state = State.QUEUED
+        ti.queued_by_job_id = 1
+        session.flush()
+
+        executor = self.kubernetes_executor
+        executor.kubernetes_queue = 'kubernetes'
+        executor.kube_client = mock_kube_client
+        executor.clear_not_launched_queued_tasks(session=session)
+
+        ti.refresh_from_db()
+        assert ti.state == State.QUEUED
+        assert mock_kube_client.list_namespaced_pod.call_count == 0
 
 
 class TestKubernetesJobWatcher(unittest.TestCase):
@@ -860,8 +954,40 @@ class TestKubernetesJobWatcher(unittest.TestCase):
         self.events.append({"type": "ERROR", "object": self.pod, "raw_object": raw_object})
         with self.assertRaises(AirflowException) as e:
             self._run()
-        assert str(e.exception) == 'Kubernetes failure for {} with code {} and message: {}'.format(
-            raw_object['reason'],
-            raw_object['code'],
-            raw_object['message'],
+        assert str(e.exception) == (
+            f"Kubernetes failure for {raw_object['reason']} "
+            f"with code {raw_object['code']} and message: {raw_object['message']}"
         )
+
+    def test_recover_from_resource_too_old(self):
+        # too old resource
+        mock_underscore_run = mock.MagicMock()
+
+        def effect():
+            yield '500'
+            while True:
+                yield Exception('sentinel')
+
+        mock_underscore_run.side_effect = effect()
+
+        self.watcher._run = mock_underscore_run
+
+        with mock.patch('airflow.executors.kubernetes_executor.get_kube_client'):
+            try:
+                # self.watcher._run() is mocked and return "500" as last resource_version
+                self.watcher.run()
+            except Exception as e:
+                assert e.args == ('sentinel',)
+
+            # both  resource_version should be 0 after _run raises and exception
+            assert self.watcher.resource_version == '0'
+            assert ResourceVersion().resource_version == '0'
+
+            # check that in the next run, _run is invoked with resource_version = 0
+            mock_underscore_run.reset_mock()
+            try:
+                self.watcher.run()
+            except Exception as e:
+                assert e.args == ('sentinel',)
+
+            mock_underscore_run.assert_called_once_with(mock.ANY, '0', mock.ANY, mock.ANY)

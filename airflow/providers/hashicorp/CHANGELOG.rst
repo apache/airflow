@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``Prepare mid-April provider documentation. (#22819)``
+   * ``Clean up in-line f-string concatenation (#23591)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
 2.1.4
 .....
 

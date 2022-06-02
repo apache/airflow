@@ -20,6 +20,7 @@ from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 from airflow.providers.google.cloud.utils.bigquery_get_data import bigquery_get_data
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 
@@ -75,6 +76,7 @@ class BigQueryToMsSqlOperator(BaseOperator):
     """
 
     template_fields: Sequence[str] = ('source_project_dataset_table', 'mssql_table', 'impersonation_chain')
+    operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
         self,
@@ -117,6 +119,14 @@ class BigQueryToMsSqlOperator(BaseOperator):
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
+        )
+        project_id, dataset_id, table_id = self.source_project_dataset_table.split('.')
+        BigQueryTableLink.persist(
+            context=context,
+            task_instance=self,
+            dataset_id=dataset_id,
+            project_id=project_id,
+            table_id=table_id,
         )
         mssql_hook = MsSqlHook(mssql_conn_id=self.mssql_conn_id, schema=self.database)
         for rows in bigquery_get_data(

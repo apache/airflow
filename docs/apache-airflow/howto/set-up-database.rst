@@ -44,18 +44,18 @@ Database URI
 ------------
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
-You can do this in option ``sql_alchemy_conn`` in section ``[core]``. It is also common to configure
-this option with ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` environment variable.
+You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
+this option with ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
 
-If you want to check the current value, you can use ``airflow config get-value core sql_alchemy_conn`` command as in
+If you want to check the current value, you can use ``airflow config get-value database sql_alchemy_conn`` command as in
 the example below.
 
 .. code-block:: bash
 
-    $ airflow config get-value core sql_alchemy_conn
+    $ airflow config get-value database sql_alchemy_conn
     sqlite:////tmp/airflow/airflow.db
 
 The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
@@ -86,7 +86,7 @@ You can make sure which version is used by the interpreter by running this check
 .. code-block:: bash
 
     root@b8a8e73caa2c:/opt/airflow# python
-    Python 3.6.12 (default, Nov 25 2020, 03:59:00)
+    Python 3.8.10 (default, Mar 15 2022, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import sqlite3
@@ -228,7 +228,7 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    services will close idle connections after some time of inactivity (typically 300 seconds),
    which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
    The ``keepalive`` settings can be changed via ``sql_alchemy_connect_args`` configuration parameter
-   :doc:`../configurations-ref` in ``[core]`` section. You can configure the args for example in your
+   :doc:`../configurations-ref` in ``[database]`` section. You can configure the args for example in your
    local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary
    that stores the configuration parameters. You can read about
    `Postgres Keepalives <https://www.postgresql.org/docs/current/libpq-connect.html>`_.

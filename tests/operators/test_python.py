@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.taskinstance import clear_task_instances, set_current_context
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import (
     BranchPythonOperator,
     PythonOperator,
@@ -42,7 +42,6 @@ from airflow.operators.python import (
 )
 from airflow.utils import timezone
 from airflow.utils.context import AirflowContextDeprecationWarning, Context
-from airflow.utils.dates import days_ago
 from airflow.utils.python_virtualenv import prepare_virtualenv
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -392,8 +391,8 @@ class TestBranchOperator(unittest.TestCase):
             schedule_interval=INTERVAL,
         )
 
-        self.branch_1 = DummyOperator(task_id='branch_1', dag=self.dag)
-        self.branch_2 = DummyOperator(task_id='branch_2', dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id='branch_1', dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id='branch_2', dag=self.dag)
         self.branch_3 = None
 
     def tearDown(self):
@@ -601,8 +600,8 @@ class TestShortCircuitOperator:
         )
 
         with self.dag:
-            self.op1 = DummyOperator(task_id="op1")
-            self.op2 = DummyOperator(task_id="op2")
+            self.op1 = EmptyOperator(task_id="op1")
+            self.op2 = EmptyOperator(task_id="op2")
             self.op1.set_downstream(self.op2)
 
     def teardown(self):
@@ -867,6 +866,9 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
         )
         task.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE)
         return task
+
+    def test_template_fields(self):
+        assert set(PythonOperator.template_fields).issubset(PythonVirtualenvOperator.template_fields)
 
     def test_add_dill(self):
         def f():
@@ -1158,7 +1160,7 @@ class TestPythonVirtualenvOperator(unittest.TestCase):
 DEFAULT_ARGS = {
     "owner": "test",
     "depends_on_past": True,
-    "start_date": days_ago(1),
+    "start_date": timezone.datetime(2022, 1, 1),
     "end_date": datetime.today(),
     "schedule_interval": "@once",
     "retries": 1,
@@ -1258,8 +1260,8 @@ def test_empty_branch(dag_maker, choice, expected_states):
         start_date=DEFAULT_DATE,
     ) as dag:
         branch = BranchPythonOperator(task_id='branch', python_callable=lambda: choice)
-        task1 = DummyOperator(task_id='task1')
-        join = DummyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
+        task1 = EmptyOperator(task_id='task1')
+        join = EmptyOperator(task_id='join', trigger_rule="none_failed_min_one_success")
 
         branch >> [task1, join]
         task1 >> join

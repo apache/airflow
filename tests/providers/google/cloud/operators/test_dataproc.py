@@ -25,6 +25,7 @@ from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
 
 from airflow import AirflowException
+from airflow.exceptions import AirflowTaskTimeout
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.dataproc import (
     DATAPROC_CLUSTER_LINK,
@@ -111,6 +112,21 @@ CONFIG = {
         {"executable_file": "init_actions_uris", "execution_timeout": {'seconds': 600}}
     ],
     "endpoint_config": {},
+}
+VIRTUAL_CLUSTER_CONFIG = {
+    "kubernetes_cluster_config": {
+        "gke_cluster_config": {
+            "gke_cluster_target": "projects/project_id/locations/region/clusters/gke_cluster_name",
+            "node_pool_target": [
+                {
+                    "node_pool": "projects/project_id/locations/region/clusters/gke_cluster_name/nodePools/dp",  # noqa
+                    "roles": ["DEFAULT"],
+                }
+            ],
+        },
+        "kubernetes_software_config": {"component_version": {"SPARK": b'3'}},
+    },
+    "staging_bucket": "test-staging-bucket",
 }
 
 CONFIG_WITH_CUSTOM_IMAGE_FAMILY = {
@@ -398,16 +414,6 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
         assert op.cluster_config['worker_config']['num_instances'] == 2
         assert "zones/zone" in op.cluster_config['master_config']["machine_type_uri"]
 
-        with pytest.warns(DeprecationWarning) as warnings:
-            op_default_region = DataprocCreateClusterOperator(
-                task_id=TASK_ID,
-                project_id=GCP_PROJECT,
-                cluster_name="cluster_name",
-                cluster_config=op.cluster_config,
-            )
-        assert_warning("Default region value", warnings)
-        assert op_default_region.region == 'global'
-
     @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
     def test_execute(self, mock_hook, to_dict_mock):
@@ -423,6 +429,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             'metadata': METADATA,
             'cluster_config': CONFIG,
             'labels': LABELS,
+            'virtual_cluster_config': None,
         }
         expected_calls = self.extra_links_expected_calls_base + [
             call.hook().create_cluster(**create_cluster_args),
@@ -435,6 +442,55 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             cluster_name=CLUSTER_NAME,
             project_id=GCP_PROJECT,
             cluster_config=CONFIG,
+            request_id=REQUEST_ID,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute(context=self.mock_context)
+        mock_hook.assert_called_once_with(gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)
+        mock_hook.return_value.create_cluster.assert_called_once_with(**create_cluster_args)
+
+        # Test whether xcom push occurs before create cluster is called
+        self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
+
+        to_dict_mock.assert_called_once_with(mock_hook().create_cluster().result())
+        self.mock_ti.xcom_push.assert_called_once_with(
+            key="conf",
+            value=DATAPROC_CLUSTER_CONF_EXPECTED,
+            execution_date=None,
+        )
+
+    @mock.patch(DATAPROC_PATH.format("Cluster.to_dict"))
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_execute_in_gke(self, mock_hook, to_dict_mock):
+        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        mock_hook.return_value.create_cluster.result.return_value = None
+        create_cluster_args = {
+            'region': GCP_LOCATION,
+            'project_id': GCP_PROJECT,
+            'cluster_name': CLUSTER_NAME,
+            'request_id': REQUEST_ID,
+            'retry': RETRY,
+            'timeout': TIMEOUT,
+            'metadata': METADATA,
+            'cluster_config': None,
+            'labels': LABELS,
+            'virtual_cluster_config': VIRTUAL_CLUSTER_CONFIG,
+        }
+        expected_calls = self.extra_links_expected_calls_base + [
+            call.hook().create_cluster(**create_cluster_args),
+        ]
+
+        op = DataprocCreateClusterOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            labels=LABELS,
+            cluster_name=CLUSTER_NAME,
+            project_id=GCP_PROJECT,
+            virtual_cluster_config=VIRTUAL_CLUSTER_CONFIG,
             request_id=REQUEST_ID,
             gcp_conn_id=GCP_CONN_ID,
             retry=RETRY,
@@ -487,6 +543,7 @@ class TestDataprocClusterCreateOperator(DataprocClusterTestBase):
             retry=RETRY,
             timeout=TIMEOUT,
             metadata=METADATA,
+            virtual_cluster_config=None,
         )
         mock_hook.return_value.get_cluster.assert_called_once_with(
             region=GCP_LOCATION,
@@ -878,72 +935,40 @@ class TestDataprocSubmitJobOperator(DataprocJobTestBase):
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_location_deprecation_warning(self, mock_hook):
-        xcom_push_call = call.ti.xcom_push(execution_date=None, key='conf', value=DATAPROC_JOB_CONF_EXPECTED)
-        wait_for_job_call = call.hook().wait_for_job(
-            job_id=TEST_JOB_ID, region=GCP_LOCATION, project_id=GCP_PROJECT, timeout=None
-        )
-
+    def test_on_kill_after_execution_timeout(self, mock_hook):
         job = {}
-        mock_hook.return_value.wait_for_job.return_value = None
-        mock_hook.return_value.submit_job.return_value.reference.job_id = TEST_JOB_ID
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
+        job_id = "job_id"
+        mock_hook.return_value.wait_for_job.side_effect = AirflowTaskTimeout()
+        mock_hook.return_value.submit_job.return_value.reference.job_id = job_id
 
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
+        op = DataprocSubmitJobOperator(
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            project_id=GCP_PROJECT,
+            job=job,
+            gcp_conn_id=GCP_CONN_ID,
+            retry=RETRY,
+            timeout=TIMEOUT,
+            metadata=METADATA,
+            request_id=REQUEST_ID,
+            impersonation_chain=IMPERSONATION_CHAIN,
+            cancel_on_kill=True,
         )
-
-        with pytest.warns(DeprecationWarning) as warnings:
-            op = DataprocSubmitJobOperator(
-                task_id=TASK_ID,
-                location=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                job=job,
-                gcp_conn_id=GCP_CONN_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                request_id=REQUEST_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
+        with pytest.raises(AirflowTaskTimeout):
             op.execute(context=self.mock_context)
 
-            mock_hook.assert_called_once_with(
-                gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
-            )
+        op.on_kill()
+        mock_hook.return_value.cancel_job.assert_called_once_with(
+            project_id=GCP_PROJECT, region=GCP_LOCATION, job_id=job_id
+        )
 
-            # Test whether xcom push occurs before polling for job
-            self.assertLess(
-                self.extra_links_manager_mock.mock_calls.index(xcom_push_call),
-                self.extra_links_manager_mock.mock_calls.index(wait_for_job_call),
-                msg='Xcom push for Job Link has to be done before polling for job status',
-            )
-
-            mock_hook.return_value.submit_job.assert_called_once_with(
-                project_id=GCP_PROJECT,
-                region=GCP_LOCATION,
-                job=job,
-                request_id=REQUEST_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-            )
-            mock_hook.return_value.wait_for_job.assert_called_once_with(
-                job_id=TEST_JOB_ID, project_id=GCP_PROJECT, region=GCP_LOCATION, timeout=None
-            )
-
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="conf", value=DATAPROC_JOB_CONF_EXPECTED, execution_date=None
-            )
-
-            assert warning_message == str(warnings[0].message)
-
-        with pytest.raises(TypeError):
+    @mock.patch(DATAPROC_PATH.format("DataprocHook"))
+    def test_missing_region_parameter(self, mock_hook):
+        with pytest.raises(AirflowException):
             op = DataprocSubmitJobOperator(
                 task_id=TASK_ID,
                 project_id=GCP_PROJECT,
-                job=job,
+                job={},
                 gcp_conn_id=GCP_CONN_ID,
                 retry=RETRY,
                 timeout=TIMEOUT,
@@ -1047,70 +1072,15 @@ class TestDataprocUpdateClusterOperator(DataprocClusterTestBase):
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_location_deprecation_warning(self, mock_hook):
-        self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
-        mock_hook.return_value.update_cluster.result.return_value = None
-        cluster_decommission_timeout = {"graceful_decommission_timeout": "600s"}
-        update_cluster_args = {
-            'region': GCP_LOCATION,
-            'project_id': GCP_PROJECT,
-            'cluster_name': CLUSTER_NAME,
-            'cluster': CLUSTER,
-            'update_mask': UPDATE_MASK,
-            'graceful_decommission_timeout': cluster_decommission_timeout,
-            'request_id': REQUEST_ID,
-            'retry': RETRY,
-            'timeout': TIMEOUT,
-            'metadata': METADATA,
-        }
-        expected_calls = self.extra_links_expected_calls_base + [
-            call.hook().update_cluster(**update_cluster_args)
-        ]
-        warning_message = (
-            "Parameter `location` will be deprecated. "
-            "Please provide value through `region` parameter instead."
-        )
-
-        with pytest.warns(DeprecationWarning) as warnings:
-            op = DataprocUpdateClusterOperator(
-                task_id=TASK_ID,
-                location=GCP_LOCATION,
-                cluster_name=CLUSTER_NAME,
-                cluster=CLUSTER,
-                update_mask=UPDATE_MASK,
-                request_id=REQUEST_ID,
-                graceful_decommission_timeout=cluster_decommission_timeout,
-                project_id=GCP_PROJECT,
-                gcp_conn_id=GCP_CONN_ID,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                impersonation_chain=IMPERSONATION_CHAIN,
-            )
-            op.execute(context=self.mock_context)
-            mock_hook.assert_called_once_with(
-                gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
-            )
-            mock_hook.return_value.update_cluster.assert_called_once_with(**update_cluster_args)
-            assert warning_message == str(warnings[0].message)
-
-            # Test whether the xcom push happens before updating the cluster
-            self.extra_links_manager_mock.assert_has_calls(expected_calls, any_order=False)
-
-            self.mock_ti.xcom_push.assert_called_once_with(
-                key="conf",
-                value=DATAPROC_CLUSTER_CONF_EXPECTED,
-                execution_date=None,
-            )
-
-        with pytest.raises(TypeError):
+    def test_missing_region_parameter(self, mock_hook):
+        with pytest.raises(AirflowException):
             op = DataprocUpdateClusterOperator(
                 task_id=TASK_ID,
                 cluster_name=CLUSTER_NAME,
                 cluster=CLUSTER,
                 update_mask=UPDATE_MASK,
                 request_id=REQUEST_ID,
-                graceful_decommission_timeout=cluster_decommission_timeout,
+                graceful_decommission_timeout={"graceful_decommission_timeout": "600s"},
                 project_id=GCP_PROJECT,
                 gcp_conn_id=GCP_CONN_ID,
                 retry=RETRY,
@@ -1234,8 +1204,9 @@ class TestDataProcHiveOperator(unittest.TestCase):
     query = "define sin HiveUDF('sin');"
     variables = {"key": "value"}
     job_id = "uuid_id"
+    job_name = "simple"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hive_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -1256,6 +1227,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitHiveJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1279,6 +1251,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitHiveJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1293,8 +1266,9 @@ class TestDataProcPigOperator(unittest.TestCase):
     query = "define sin HiveUDF('sin');"
     variables = {"key": "value"}
     job_id = "uuid_id"
+    job_name = "simple"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pig_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -1315,6 +1289,7 @@ class TestDataProcPigOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitPigJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1338,6 +1313,7 @@ class TestDataProcPigOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitPigJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1351,15 +1327,16 @@ class TestDataProcPigOperator(unittest.TestCase):
 class TestDataProcSparkSqlOperator(unittest.TestCase):
     query = "SHOW DATABASES;"
     variables = {"key": "value"}
+    job_name = "simple"
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
     other_project_job = {
-        "reference": {"project_id": "other-project", "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": "other-project", "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -1380,6 +1357,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitSparkSqlJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1405,6 +1383,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitSparkSqlJobOperator(
+            job_name=self.job_name,
             project_id="other-project",
             task_id=TASK_ID,
             region=GCP_LOCATION,
@@ -1429,6 +1408,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitSparkSqlJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1442,10 +1422,11 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
 class TestDataProcSparkOperator(DataprocJobTestBase):
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
+    job_name = "simple"
     job = {
         "reference": {
             "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + TEST_JOB_ID,
+            "job_id": f"{job_name}_{TEST_JOB_ID}",
         },
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
@@ -1470,6 +1451,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
         self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
 
         op = DataprocSubmitSparkJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1535,9 +1517,10 @@ def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task
 class TestDataProcHadoopOperator(unittest.TestCase):
     args = ["wordcount", "gs://pub/shakespeare/rose.txt"]
     jar = "file:///usr/lib/spark/examples/jars/spark-examples.jar"
+    job_name = "simple"
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hadoop_job": {"main_jar_file_uri": jar, "args": args},
@@ -1559,6 +1542,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitHadoopJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1572,8 +1556,9 @@ class TestDataProcHadoopOperator(unittest.TestCase):
 class TestDataProcPySparkOperator(unittest.TestCase):
     uri = "gs://{}/{}"
     job_id = "uuid_id"
+    job_name = "simple"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pyspark_job": {"main_python_file_uri": uri},
@@ -1592,7 +1577,11 @@ class TestDataProcPySparkOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitPySparkJobOperator(
-            task_id=TASK_ID, region=GCP_LOCATION, gcp_conn_id=GCP_CONN_ID, main=self.uri
+            job_name=self.job_name,
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            main=self.uri,
         )
         job = op.generate_job()
         assert self.job == job
@@ -1624,38 +1613,8 @@ class TestDataprocCreateWorkflowTemplateOperator:
         )
 
     @mock.patch(DATAPROC_PATH.format("DataprocHook"))
-    def test_location_deprecation_warning(self, mock_hook):
-        with pytest.warns(DeprecationWarning) as warnings:
-            warning_message = (
-                "Parameter `location` will be deprecated. "
-                "Please provide value through `region` parameter instead."
-            )
-            op = DataprocCreateWorkflowTemplateOperator(
-                task_id=TASK_ID,
-                gcp_conn_id=GCP_CONN_ID,
-                impersonation_chain=IMPERSONATION_CHAIN,
-                location=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                template=WORKFLOW_TEMPLATE,
-            )
-            op.execute(context=MagicMock())
-            mock_hook.assert_called_once_with(
-                gcp_conn_id=GCP_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN
-            )
-            mock_hook.return_value.create_workflow_template.assert_called_once_with(
-                region=GCP_LOCATION,
-                project_id=GCP_PROJECT,
-                retry=RETRY,
-                timeout=TIMEOUT,
-                metadata=METADATA,
-                template=WORKFLOW_TEMPLATE,
-            )
-            assert warning_message == str(warnings[0].message)
-
-        with pytest.raises(TypeError):
+    def test_missing_region_parameter(self, mock_hook):
+        with pytest.raises(AirflowException):
             op = DataprocCreateWorkflowTemplateOperator(
                 task_id=TASK_ID,
                 gcp_conn_id=GCP_CONN_ID,

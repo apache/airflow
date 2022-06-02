@@ -21,7 +21,6 @@
 import collections
 import difflib
 import glob
-import importlib
 import json
 import logging
 import os
@@ -31,7 +30,6 @@ import subprocess
 import sys
 import tempfile
 import textwrap
-import warnings
 from contextlib import contextmanager
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -39,18 +37,19 @@ from enum import Enum
 from functools import lru_cache
 from os.path import dirname, relpath
 from pathlib import Path
+from random import choice
 from shutil import copyfile
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Type, Union
+from typing import Any, Dict, Generator, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
 
 import jsonschema
 import rich_click as click
+import semver as semver
 from github import Github, Issue, PullRequest, UnknownObjectException
 from packaging.version import Version
 from rich.console import Console
 from rich.progress import Progress
 from rich.syntax import Syntax
-
-from airflow.utils.yaml import safe_load
+from yaml import safe_load
 
 ALL_PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
@@ -88,24 +87,24 @@ HTTPS_REMOTE = "apache-https-for-providers"
 HEAD_OF_HTTPS_REMOTE = f"{HTTPS_REMOTE}/main"
 
 MY_DIR_PATH = Path(__file__).parent
-SOURCE_DIR_PATH = MY_DIR_PATH.parent.parent
-AIRFLOW_PATH = SOURCE_DIR_PATH / "airflow"
-DIST_PATH = SOURCE_DIR_PATH / "dist"
+AIRFLOW_SOURCES_ROOT_PATH = MY_DIR_PATH.parents[1]
+AIRFLOW_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow"
+DIST_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dist"
 PROVIDERS_PATH = AIRFLOW_PATH / "providers"
-DOCUMENTATION_PATH = SOURCE_DIR_PATH / "docs"
-TARGET_PROVIDER_PACKAGES_PATH = SOURCE_DIR_PATH / "provider_packages"
+DOCUMENTATION_PATH = AIRFLOW_SOURCES_ROOT_PATH / "docs"
+TARGET_PROVIDER_PACKAGES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "provider_packages"
 GENERATED_AIRFLOW_PATH = TARGET_PROVIDER_PACKAGES_PATH / "airflow"
 GENERATED_PROVIDERS_PATH = GENERATED_AIRFLOW_PATH / "providers"
 
-PROVIDER_RUNTIME_DATA_SCHEMA_PATH = SOURCE_DIR_PATH / "airflow" / "provider_info.schema.json"
+PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "provider_info.schema.json"
 
-sys.path.insert(0, str(SOURCE_DIR_PATH))
+sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
-from dev.import_all_classes import import_all_classes  # noqa # isort:skip
-from setup import PROVIDERS_REQUIREMENTS, PREINSTALLED_PROVIDERS  # noqa # isort:skip
+from setup import PROVIDERS_REQUIREMENTS  # type: ignore[attr-defined] # isort:skip # noqa
+from setup import PREINSTALLED_PROVIDERS  # type: ignore[attr-defined] # isort:skip # noqa
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -115,6 +114,33 @@ logger = logging.getLogger(__name__)
 PY3 = sys.version_info[0] == 3
 
 console = Console(width=400, color_system="standard")
+
+
+class ProviderPackageDetails(NamedTuple):
+    provider_package_id: str
+    full_package_name: str
+    pypi_package_name: str
+    source_provider_package_path: str
+    documentation_provider_package_path: str
+    provider_description: str
+    versions: List[str]
+    excluded_python_versions: List[str]
+
+
+class EntityType(Enum):
+    Operators = "Operators"
+    Transfers = "Transfers"
+    Sensors = "Sensors"
+    Hooks = "Hooks"
+    Secrets = "Secrets"
+
+
+def get_provider_packages() -> List[str]:
+    """
+    Returns all provider packages.
+
+    """
+    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
@@ -136,11 +162,13 @@ option_git_update = click.option(
     help=f"If the git remote {HTTPS_REMOTE} already exists, don't try to update it",
 )
 
-option_interactive = click.option(
-    '--interactive/--non-interactive',
-    default=True,
-    is_flag=True,
-    help="If the script should interactively ask the user what to do in case of doubt",
+option_package_format = click.option(
+    '--package-format',
+    type=click.Choice(["wheel", "sdist", "both"]),
+    help='Format of packages.',
+    default="wheel",
+    show_default=True,
+    envvar='PACKAGE_FORMAT',
 )
 
 option_version_suffix = click.option(
@@ -168,7 +196,7 @@ argument_package_ids = click.argument('package_ids', nargs=-1)
 
 
 @contextmanager
-def with_group(title):
+def with_group(title: str) -> Generator[None, None, None]:
     """
     If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, display simple text groups.
@@ -177,83 +205,12 @@ def with_group(title):
     https://docs.github.com/en/free-pro-team@latest/actions/reference/workflow-commands-for-github-actions#grouping-log-lines
     """
     if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
-        console.print("[blue]" + "#" * 10 + ' ' + title + ' ' + "#" * 10 + "[/]")
+        console.print("#" * 10 + ' [bright_blue]' + title + '[/] ' + "#" * 10)
         yield
         return
-    console.print(f"::group::{title}")
+    console.print(f"::group::[bright_blue]{title}[/]")
     yield
     console.print("::endgroup::")
-
-
-class EntityType(Enum):
-    Operators = "Operators"
-    Transfers = "Transfers"
-    Sensors = "Sensors"
-    Hooks = "Hooks"
-    Secrets = "Secrets"
-
-
-class EntityTypeSummary(NamedTuple):
-    entities: List[str]
-    new_entities_table: str
-    wrong_entities: List[Tuple[type, str]]
-
-
-class VerifiedEntities(NamedTuple):
-    all_entities: Set[str]
-    wrong_entities: List[Tuple[type, str]]
-
-
-class ProviderPackageDetails(NamedTuple):
-    provider_package_id: str
-    full_package_name: str
-    pypi_package_name: str
-    source_provider_package_path: str
-    documentation_provider_package_path: str
-    provider_description: str
-    versions: List[str]
-    excluded_python_versions: List[str]
-
-
-ENTITY_NAMES = {
-    EntityType.Operators: "Operators",
-    EntityType.Transfers: "Transfer Operators",
-    EntityType.Sensors: "Sensors",
-    EntityType.Hooks: "Hooks",
-    EntityType.Secrets: "Secrets",
-}
-
-TOTALS: Dict[EntityType, int] = {
-    EntityType.Operators: 0,
-    EntityType.Hooks: 0,
-    EntityType.Sensors: 0,
-    EntityType.Transfers: 0,
-    EntityType.Secrets: 0,
-}
-
-OPERATORS_PATTERN = r".*Operator$"
-SENSORS_PATTERN = r".*Sensor$"
-HOOKS_PATTERN = r".*Hook$"
-SECRETS_PATTERN = r".*Backend$"
-TRANSFERS_PATTERN = r".*To[A-Z0-9].*Operator$"
-WRONG_TRANSFERS_PATTERN = r".*Transfer$|.*TransferOperator$"
-
-ALL_PATTERNS = {
-    OPERATORS_PATTERN,
-    SENSORS_PATTERN,
-    HOOKS_PATTERN,
-    SECRETS_PATTERN,
-    TRANSFERS_PATTERN,
-    WRONG_TRANSFERS_PATTERN,
-}
-
-EXPECTED_SUFFIXES: Dict[EntityType, str] = {
-    EntityType.Operators: "Operator",
-    EntityType.Hooks: "Hook",
-    EntityType.Sensors: "Sensor",
-    EntityType.Secrets: "Backend",
-    EntityType.Transfers: "Operator",
-}
 
 
 def get_source_airflow_folder() -> str:
@@ -262,7 +219,7 @@ def get_source_airflow_folder() -> str:
 
     :return: the folder path
     """
-    return os.path.abspath(SOURCE_DIR_PATH)
+    return os.path.abspath(AIRFLOW_SOURCES_ROOT_PATH)
 
 
 def get_source_providers_folder() -> str:
@@ -374,7 +331,9 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
             # or >=2.0.1rc1 if we build rc1 version of the packages.
             for dependency in additional_dependencies:
                 if dependency.startswith("apache-airflow") and ">=" in dependency:
-                    dependency = dependency + version_suffix
+                    dependency = (
+                        dependency + ("." if not version_suffix.startswith(".") else "") + version_suffix
+                    )
                 install_requires.append(dependency)
         else:
             install_requires.extend(additional_dependencies)
@@ -422,320 +381,6 @@ def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
             else:
                 extras_dict[key] = additional_extras[key]
     return extras_dict
-
-
-def get_provider_packages() -> List[str]:
-    """
-    Returns all provider packages.
-
-    """
-    return list(PROVIDERS_REQUIREMENTS.keys())
-
-
-def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:
-    """
-    Is the class imported from another module?
-
-    :param the_class: the class object itself
-    :param imported_name: name of the imported class
-    :return: true if the class was imported from another module
-    """
-    return ".".join(imported_name.split(".")[:-1]) == the_class.__module__
-
-
-def is_example_dag(imported_name: str) -> bool:
-    """
-    Is the class an example_dag class?
-
-    :param imported_name: name where the class is imported from
-    :return: true if it is an example_dags class
-    """
-    return ".example_dags." in imported_name
-
-
-def is_from_the_expected_base_package(the_class: Type, expected_package: str) -> bool:
-    """
-    Returns true if the class is from the package expected.
-    :param the_class: the class object
-    :param expected_package: package expected for the class
-    :return:
-    """
-    return the_class.__module__.startswith(expected_package)
-
-
-def inherits_from(the_class: Type, expected_ancestor: Optional[Type] = None) -> bool:
-    """
-    Returns true if the class inherits (directly or indirectly) from the class specified.
-    :param the_class: The class to check
-    :param expected_ancestor: expected class to inherit from
-    :return: true is the class inherits from the class expected
-    """
-    if expected_ancestor is None:
-        return False
-    import inspect
-
-    mro = inspect.getmro(the_class)
-    return the_class is not expected_ancestor and expected_ancestor in mro
-
-
-def is_class(the_class: Type) -> bool:
-    """
-    Returns true if the object passed is a class
-    :param the_class: the class to pass
-    :return: true if it is a class
-    """
-    import inspect
-
-    return inspect.isclass(the_class)
-
-
-def package_name_matches(the_class: Type, expected_pattern: Optional[str] = None) -> bool:
-    """
-    In case expected_pattern is set, it checks if the package name matches the pattern.
-    .
-    :param the_class: imported class
-    :param expected_pattern: the pattern that should match the package
-    :return: true if the expected_pattern is None or the pattern matches the package
-    """
-    return expected_pattern is None or re.match(expected_pattern, the_class.__module__) is not None
-
-
-def find_all_entities(
-    imported_classes: List[str],
-    base_package: str,
-    ancestor_match: Type,
-    sub_package_pattern_match: str,
-    expected_class_name_pattern: str,
-    unexpected_class_name_patterns: Set[str],
-    exclude_class_type: Optional[Type] = None,
-    false_positive_class_names: Optional[Set[str]] = None,
-) -> VerifiedEntities:
-    """
-    Returns set of entities containing all subclasses in package specified.
-
-    :param imported_classes: entities imported from providers
-    :param base_package: base package name where to start looking for the entities
-    :param sub_package_pattern_match: this string is expected to appear in the sub-package name
-    :param ancestor_match: type of the object the method looks for
-    :param expected_class_name_pattern: regexp of class name pattern to expect
-    :param unexpected_class_name_patterns: set of regexp of class name pattern that are not expected
-    :param exclude_class_type: exclude class of this type (Sensor are also Operators, so
-           they should be excluded from the list)
-    :param false_positive_class_names: set of class names that are wrongly recognised as badly named
-    """
-    found_entities: Set[str] = set()
-    wrong_entities: List[Tuple[type, str]] = []
-    for imported_name in imported_classes:
-        module, class_name = imported_name.rsplit(".", maxsplit=1)
-        the_class = getattr(importlib.import_module(module), class_name)
-        if (
-            is_class(the_class=the_class)
-            and not is_example_dag(imported_name=imported_name)
-            and is_from_the_expected_base_package(the_class=the_class, expected_package=base_package)
-            and is_imported_from_same_module(the_class=the_class, imported_name=imported_name)
-            and inherits_from(the_class=the_class, expected_ancestor=ancestor_match)
-            and not inherits_from(the_class=the_class, expected_ancestor=exclude_class_type)
-            and package_name_matches(the_class=the_class, expected_pattern=sub_package_pattern_match)
-        ):
-
-            if not false_positive_class_names or class_name not in false_positive_class_names:
-                if not re.match(expected_class_name_pattern, class_name):
-                    wrong_entities.append(
-                        (
-                            the_class,
-                            f"The class name {class_name} is wrong. "
-                            f"It should match {expected_class_name_pattern}",
-                        )
-                    )
-                    continue
-                if unexpected_class_name_patterns:
-                    for unexpected_class_name_pattern in unexpected_class_name_patterns:
-                        if re.match(unexpected_class_name_pattern, class_name):
-                            wrong_entities.append(
-                                (
-                                    the_class,
-                                    f"The class name {class_name} is wrong. "
-                                    f"It should not match {unexpected_class_name_pattern}",
-                                )
-                            )
-                        continue
-            found_entities.add(imported_name)
-    return VerifiedEntities(all_entities=found_entities, wrong_entities=wrong_entities)
-
-
-def convert_classes_to_table(entity_type: EntityType, entities: List[str], full_package_name: str) -> str:
-    """
-    Converts new entities to a Markdown table.
-
-    :param entity_type: entity type to convert to markup
-    :param entities: list of  entities
-    :param full_package_name: name of the provider package
-    :return: table of new classes
-    """
-    from tabulate import tabulate
-
-    headers = [f"New Airflow 2.0 {entity_type.value.lower()}: `{full_package_name}` package"]
-    table = [(get_class_code_link(full_package_name, class_name, "main"),) for class_name in entities]
-    return tabulate(table, headers=headers, tablefmt="pipe")
-
-
-def get_details_about_classes(
-    entity_type: EntityType,
-    entities: Set[str],
-    wrong_entities: List[Tuple[type, str]],
-    full_package_name: str,
-) -> EntityTypeSummary:
-    """
-    Get details about entities.
-
-    :param entity_type: type of entity (Operators, Hooks etc.)
-    :param entities: set of entities found
-    :param wrong_entities: wrong entities found for that type
-    :param full_package_name: full package name
-    :return:
-    """
-    all_entities = list(entities)
-    all_entities.sort()
-    TOTALS[entity_type] += len(all_entities)
-    return EntityTypeSummary(
-        entities=all_entities,
-        new_entities_table=convert_classes_to_table(
-            entity_type=entity_type,
-            entities=all_entities,
-            full_package_name=full_package_name,
-        ),
-        wrong_entities=wrong_entities,
-    )
-
-
-def strip_package_from_class(base_package: str, class_name: str) -> str:
-    """
-    Strips base package name from the class (if it starts with the package name).
-    """
-    if class_name.startswith(base_package):
-        return class_name[len(base_package) + 1 :]
-    else:
-        return class_name
-
-
-def convert_class_name_to_url(base_url: str, class_name) -> str:
-    """
-    Converts the class name to URL that the class can be reached
-
-    :param base_url: base URL to use
-    :param class_name: name of the class
-    :return: URL to the class
-    """
-    return base_url + os.path.sep.join(class_name.split(".")[:-1]) + ".py"
-
-
-def get_class_code_link(base_package: str, class_name: str, git_tag: str) -> str:
-    """
-    Provides a Markdown link for the class passed as parameter.
-
-    :param base_package: base package to strip from most names
-    :param class_name: name of the class
-    :param git_tag: tag to use for the URL link
-    :return: URL to the class
-    """
-    url_prefix = f'https://github.com/apache/airflow/blob/{git_tag}/'
-    return (
-        f'[{strip_package_from_class(base_package, class_name)}]'
-        f'({convert_class_name_to_url(url_prefix, class_name)})'
-    )
-
-
-def print_wrong_naming(entity_type: EntityType, wrong_classes: List[Tuple[type, str]]):
-    """
-    Prints wrong entities of a given entity type if there are any
-    :param entity_type: type of the class to print
-    :param wrong_classes: list of wrong entities
-    """
-    if wrong_classes:
-        console.print(f"\n[red]There are wrongly named entities of type {entity_type}:[/]\n")
-        for wrong_entity_type, message in wrong_classes:
-            console.print(f"{wrong_entity_type}: {message}")
-
-
-def get_package_class_summary(
-    full_package_name: str, imported_classes: List[str]
-) -> Dict[EntityType, EntityTypeSummary]:
-    """
-    Gets summary of the package in the form of dictionary containing all types of entities
-    :param full_package_name: full package name
-    :param imported_classes: entities imported_from providers
-    :return: dictionary of objects usable as context for JINJA2 templates - or None if there are some errors
-    """
-    from airflow.hooks.base import BaseHook
-    from airflow.models.baseoperator import BaseOperator
-    from airflow.secrets import BaseSecretsBackend
-    from airflow.sensors.base import BaseSensorOperator
-
-    all_verified_entities: Dict[EntityType, VerifiedEntities] = {
-        EntityType.Operators: find_all_entities(
-            imported_classes=imported_classes,
-            base_package=full_package_name,
-            sub_package_pattern_match=r".*\.operators\..*",
-            ancestor_match=BaseOperator,
-            expected_class_name_pattern=OPERATORS_PATTERN,
-            unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN},
-            exclude_class_type=BaseSensorOperator,
-            false_positive_class_names={
-                'CloudVisionAddProductToProductSetOperator',
-                'CloudDataTransferServiceGCSToGCSOperator',
-                'CloudDataTransferServiceS3ToGCSOperator',
-                'BigQueryCreateDataTransferOperator',
-                'CloudTextToSpeechSynthesizeOperator',
-                'CloudSpeechToTextRecognizeSpeechOperator',
-            },
-        ),
-        EntityType.Sensors: find_all_entities(
-            imported_classes=imported_classes,
-            base_package=full_package_name,
-            sub_package_pattern_match=r".*\.sensors\..*",
-            ancestor_match=BaseSensorOperator,
-            expected_class_name_pattern=SENSORS_PATTERN,
-            unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, SENSORS_PATTERN},
-        ),
-        EntityType.Hooks: find_all_entities(
-            imported_classes=imported_classes,
-            base_package=full_package_name,
-            sub_package_pattern_match=r".*\.hooks\..*",
-            ancestor_match=BaseHook,
-            expected_class_name_pattern=HOOKS_PATTERN,
-            unexpected_class_name_patterns=ALL_PATTERNS - {HOOKS_PATTERN},
-        ),
-        EntityType.Secrets: find_all_entities(
-            imported_classes=imported_classes,
-            sub_package_pattern_match=r".*\.secrets\..*",
-            base_package=full_package_name,
-            ancestor_match=BaseSecretsBackend,
-            expected_class_name_pattern=SECRETS_PATTERN,
-            unexpected_class_name_patterns=ALL_PATTERNS - {SECRETS_PATTERN},
-        ),
-        EntityType.Transfers: find_all_entities(
-            imported_classes=imported_classes,
-            base_package=full_package_name,
-            sub_package_pattern_match=r".*\.transfers\..*",
-            ancestor_match=BaseOperator,
-            expected_class_name_pattern=TRANSFERS_PATTERN,
-            unexpected_class_name_patterns=ALL_PATTERNS - {OPERATORS_PATTERN, TRANSFERS_PATTERN},
-        ),
-    }
-    for entity in EntityType:
-        print_wrong_naming(entity, all_verified_entities[entity].wrong_entities)
-
-    entities_summary: Dict[EntityType, EntityTypeSummary] = {}
-
-    for entity_type in EntityType:
-        entities_summary[entity_type] = get_details_about_classes(
-            entity_type,
-            all_verified_entities[entity_type].all_entities,
-            all_verified_entities[entity_type].wrong_entities,
-            full_package_name,
-        )
-
-    return entities_summary
 
 
 def render_template(
@@ -1063,9 +708,11 @@ def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
                 subprocess.check_output(
                     remote_add_command,
                     stderr=subprocess.STDOUT,
+                    text=True,
                 )
             except subprocess.CalledProcessError as ex:
                 console.print("[red]Error: when adding remote:[/]", ex)
+                sys.exit(128)
         else:
             raise
     if verbose:
@@ -1185,49 +832,6 @@ def get_additional_package_info(provider_package_path: str) -> str:
     return ""
 
 
-def is_camel_case_with_acronyms(s: str):
-    """
-    Checks if the string passed is Camel Case (with capitalised acronyms allowed).
-    :param s: string to check
-    :return: true if the name looks cool as Class name.
-    """
-    return s != s.lower() and s != s.upper() and "_" not in s and s[0].upper() == s[0]
-
-
-def check_if_classes_are_properly_named(
-    entity_summary: Dict[EntityType, EntityTypeSummary]
-) -> Tuple[int, int]:
-    """
-    Check if all entities in the dictionary are named properly. It prints names at the output
-    and returns the status of class names.
-
-    :param entity_summary: dictionary of class names to check, grouped by types.
-    :return: Tuple of 2 ints = total number of entities and number of badly named entities
-    """
-    total_class_number = 0
-    badly_named_class_number = 0
-    for entity_type, class_suffix in EXPECTED_SUFFIXES.items():
-        for class_full_name in entity_summary[entity_type].entities:
-            _, class_name = class_full_name.rsplit(".", maxsplit=1)
-            error_encountered = False
-            if not is_camel_case_with_acronyms(class_name):
-                console.print(
-                    f"[red]The class {class_full_name} is wrongly named. The "
-                    f"class name should be CamelCaseWithACRONYMS ![/]"
-                )
-                error_encountered = True
-            if not class_name.endswith(class_suffix):
-                console.print(
-                    f"[red]The class {class_full_name} is wrongly named. It is one of the {entity_type.value}"
-                    f" so it should end with {class_suffix}[/]"
-                )
-                error_encountered = True
-            total_class_number += 1
-            if error_encountered:
-                badly_named_class_number += 1
-    return total_class_number, badly_named_class_number
-
-
 def get_package_pip_name(provider_package_id: str):
     return f"apache-airflow-providers-{provider_package_id.replace('.', '-')}"
 
@@ -1293,26 +897,23 @@ def print_changes_table(changes_table):
 
 
 def get_all_changes_for_package(
-    versions: List[str],
     provider_package_id: str,
-    source_provider_package_path: str,
     verbose: bool,
 ) -> Tuple[bool, Optional[Union[List[List[Change]], Change]], str]:
     """
     Retrieves all changes for the package.
-    :param versions: list of versions
     :param provider_package_id: provider package id
-    :param source_provider_package_path: path where package is located
     :param verbose: whether to print verbose messages
 
     """
-    current_version = versions[0]
+    provider_details = get_provider_details(provider_package_id)
+    current_version = provider_details.versions[0]
     current_tag_no_suffix = get_version_tag(current_version, provider_package_id)
     if verbose:
         console.print(f"Checking if tag '{current_tag_no_suffix}' exist.")
     if not subprocess.call(
         get_git_tag_check_command(current_tag_no_suffix),
-        cwd=source_provider_package_path,
+        cwd=provider_details.source_provider_package_path,
         stderr=subprocess.DEVNULL,
     ):
         if verbose:
@@ -1320,8 +921,8 @@ def get_all_changes_for_package(
         # The tag already exists
         changes = subprocess.check_output(
             get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, current_tag_no_suffix),
-            cwd=source_provider_package_path,
-            universal_newlines=True,
+            cwd=provider_details.source_provider_package_path,
+            text=True,
         )
         if changes:
             provider_details = get_provider_details(provider_package_id)
@@ -1334,8 +935,8 @@ def get_all_changes_for_package(
                 try:
                     changes_since_last_doc_only_check = subprocess.check_output(
                         get_git_log_command(verbose, HEAD_OF_HTTPS_REMOTE, last_doc_only_hash),
-                        cwd=source_provider_package_path,
-                        universal_newlines=True,
+                        cwd=provider_details.source_provider_package_path,
+                        text=True,
                     )
                     if not changes_since_last_doc_only_check:
                         console.print()
@@ -1354,14 +955,9 @@ def get_all_changes_for_package(
 
             console.print(f"[yellow]The provider {provider_package_id} has changes since last release[/]")
             console.print()
-            console.print(
-                "[yellow]Please update version in "
-                f"'airflow/providers/{provider_package_id.replace('-','/')}/'"
-                "provider.yaml'[/]\n"
-            )
-            console.print("[yellow]Or mark the changes as doc-only[/]")
+            console.print(f"[bright_blue]Provider: {provider_package_id}[/]\n")
             changes_table, array_of_changes = convert_git_changes_to_table(
-                "UNKNOWN",
+                f"NEXT VERSION AFTER + {provider_details.versions[0]}",
                 changes,
                 base_url="https://github.com/apache/airflow/commit/",
                 markdown=False,
@@ -1373,7 +969,7 @@ def get_all_changes_for_package(
             return False, None, ""
     if verbose:
         console.print("The tag does not exist. ")
-    if len(versions) == 1:
+    if len(provider_details.versions) == 1:
         console.print(
             f"The provider '{provider_package_id}' has never been released but it is ready to release!\n"
         )
@@ -1381,14 +977,14 @@ def get_all_changes_for_package(
         console.print(f"New version of the '{provider_package_id}' package is ready to be released!\n")
     next_version_tag = HEAD_OF_HTTPS_REMOTE
     changes_table = ''
-    current_version = versions[0]
+    current_version = provider_details.versions[0]
     list_of_list_of_changes: List[List[Change]] = []
-    for version in versions[1:]:
+    for version in provider_details.versions[1:]:
         version_tag = get_version_tag(version, provider_package_id)
         changes = subprocess.check_output(
             get_git_log_command(verbose, next_version_tag, version_tag),
-            cwd=source_provider_package_path,
-            universal_newlines=True,
+            cwd=provider_details.source_provider_package_path,
+            text=True,
         )
         changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
             current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
@@ -1399,8 +995,8 @@ def get_all_changes_for_package(
         current_version = version
     changes = subprocess.check_output(
         get_git_log_command(verbose, next_version_tag),
-        cwd=source_provider_package_path,
-        universal_newlines=True,
+        cwd=provider_details.source_provider_package_path,
+        text=True,
     )
     changes_table_for_version, array_of_changes_for_version = convert_git_changes_to_table(
         current_version, changes, base_url="https://github.com/apache/airflow/commit/", markdown=False
@@ -1463,7 +1059,7 @@ def get_provider_jinja_context(
     supported_python_versions = [
         p for p in ALL_PYTHON_VERSIONS if p not in provider_details.excluded_python_versions
     ]
-    python_requires = "~=3.6"
+    python_requires = "~=3.7"
     for p in provider_details.excluded_python_versions:
         python_requires += f", !={p}"
     context: Dict[str, Any] = {
@@ -1515,25 +1111,69 @@ def prepare_readme_file(context):
         readme_file.write(readme_content)
 
 
-def confirm(message: str):
+def confirm(message: str, answer: Optional[str] = None) -> bool:
     """
     Ask user to confirm (case-insensitive).
-    :return: True if the answer is Y. Exits with 65 exit code if Q is chosen.
-    :rtype: bool
+    :param message: message to display
+    :param answer: force answer if set
+    :return: True if the answer is any form of y/yes. Exits with 65 exit code if any form of q/quit is chosen.
     """
-    answer = ""
-    while answer not in ["y", "n", "q"]:
-        console.print(f"[yellow]{message}[Y/N/Q]?[/] ", end='')
-        answer = input("").lower()
-    if answer == "q":
+    given_answer = answer.lower() if answer is not None else ""
+    while given_answer not in ["y", "n", "q", "yes", "no", "quit"]:
+        console.print(f"[yellow]{message}[y/n/q]?[/] ", end='')
+        try:
+            given_answer = input("").lower()
+        except KeyboardInterrupt:
+            given_answer = "q"
+    if given_answer.lower() in ["q", "quit"]:
         # Returns 65 in case user decided to quit
         sys.exit(65)
-    return answer == "y"
+    return given_answer in ["y", "yes"]
 
 
-def mark_latest_changes_as_documentation_only(
-    provider_details: ProviderPackageDetails, latest_change: Change
-):
+class TypeOfChange(Enum):
+    DOCUMENTATION = "d"
+    BUGFIX = "b"
+    FEATURE = "f"
+    BREAKING_CHANGE = "x"
+    SKIP = "s"
+
+
+def get_type_of_changes(answer: Optional[str]) -> TypeOfChange:
+    """
+    Ask user to specify type of changes (case-insensitive).
+    :return: Type of change.
+    """
+    given_answer = ""
+    if answer and answer.lower() in ["yes", "y"]:
+        # Simulate all possible non-terminal answers
+        return choice(
+            [
+                TypeOfChange.DOCUMENTATION,
+                TypeOfChange.BUGFIX,
+                TypeOfChange.FEATURE,
+                TypeOfChange.BREAKING_CHANGE,
+                TypeOfChange.SKIP,
+            ]
+        )
+    while given_answer not in [*[t.value for t in TypeOfChange], "q"]:
+        console.print(
+            "[yellow]Type of change (d)ocumentation, (b)ugfix, (f)eature, (x)breaking "
+            "change, (s)kip, (q)uit [d/b/f/x/s/q]?[/] ",
+            end='',
+        )
+        try:
+            given_answer = input("").lower()
+        except KeyboardInterrupt:
+            given_answer = 'q'
+    if given_answer == "q":
+        # Returns 65 in case user decided to quit
+        sys.exit(65)
+    return TypeOfChange(given_answer)
+
+
+def mark_latest_changes_as_documentation_only(provider_package_id: str, latest_change: Change):
+    provider_details = get_provider_details(provider_package_id=provider_package_id)
     console.print(
         f"Marking last change: {latest_change.short_hash} and all above changes since the last release "
         "as doc-only changes!"
@@ -1546,12 +1186,30 @@ def mark_latest_changes_as_documentation_only(
         sys.exit(66)
 
 
+def add_new_version(type_of_change: TypeOfChange, provider_package_id: str):
+    provider_details = get_provider_details(provider_package_id)
+    version = provider_details.versions[0]
+    v = semver.VersionInfo.parse(version)
+    if type_of_change == TypeOfChange.BREAKING_CHANGE:
+        v = v.bump_major()
+    elif type_of_change == TypeOfChange.FEATURE:
+        v = v.bump_minor()
+    elif type_of_change == TypeOfChange.BUGFIX:
+        v = v.bump_patch()
+    provider_yaml_path = Path(get_source_package_path(provider_package_id)) / "provider.yaml"
+    original_text = provider_yaml_path.read_text()
+    new_text = re.sub(r'versions:', f'versions:\n  - {v}', original_text, 1)
+    provider_yaml_path.write_text(new_text)
+    console.print()
+    console.print(f"[bright_blue]Bumped version to {v}")
+
+
 def update_release_notes(
     provider_package_id: str,
     version_suffix: str,
     force: bool,
     verbose: bool,
-    interactive: bool,
+    answer: Optional[str],
 ) -> bool:
     """
     Updates generated files (readme, changes and/or setup.cfg/setup.py/manifest.in/provider_info)
@@ -1560,28 +1218,14 @@ def update_release_notes(
     :param version_suffix: version suffix corresponding to the version in the code
     :param force: regenerate already released documentation
     :param verbose: whether to print verbose messages
-    :param interactive: whether the script should ask the user in case of doubt
+    :param answer: force answer to questions if set.
     :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
-    provider_details = get_provider_details(provider_package_id)
-    provider_info = get_provider_info_from_provider_yaml(provider_package_id)
-    current_release_version = provider_details.versions[0]
-    jinja_context = get_provider_jinja_context(
-        provider_info=provider_info,
-        provider_details=provider_details,
-        current_release_version=current_release_version,
-        version_suffix=version_suffix,
-    )
-    proceed, latest_change, changes = get_all_changes_for_package(
-        provider_details.versions,
-        provider_package_id,
-        provider_details.source_provider_package_path,
-        verbose,
-    )
+    proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
     if not force:
         if proceed:
-            if interactive and not confirm("Provider marked for release. Proceed?"):
+            if not confirm("Provider marked for release. Proceed", answer=answer):
                 return False
         elif not latest_change:
             console.print()
@@ -1591,17 +1235,29 @@ def update_release_notes(
             console.print()
             return False
         else:
-            if interactive and confirm("Are those changes documentation-only?"):
+            type_of_change = get_type_of_changes(answer=answer)
+            if type_of_change == TypeOfChange.DOCUMENTATION:
                 if isinstance(latest_change, Change):
-                    mark_latest_changes_as_documentation_only(provider_details, latest_change)
+                    mark_latest_changes_as_documentation_only(provider_package_id, latest_change)
                 else:
                     raise ValueError(
                         "Expected only one change to be present to mark changes "
                         f"in provider {provider_package_id} as docs-only. "
                         f"Received {len(latest_change)}."
                     )
-            return False
-
+            elif type_of_change == TypeOfChange.SKIP:
+                return False
+            elif type_of_change in [TypeOfChange.BUGFIX, TypeOfChange.FEATURE, TypeOfChange.BREAKING_CHANGE]:
+                add_new_version(type_of_change, provider_package_id)
+            proceed, latest_change, changes = get_all_changes_for_package(provider_package_id, verbose)
+    provider_details = get_provider_details(provider_package_id)
+    provider_info = get_provider_info_from_provider_yaml(provider_package_id)
+    jinja_context = get_provider_jinja_context(
+        provider_info=provider_info,
+        provider_details=provider_details,
+        current_release_version=provider_details.versions[0],
+        version_suffix=version_suffix,
+    )
     jinja_context["DETAILED_CHANGES_RST"] = changes
     jinja_context["DETAILED_CHANGES_PRESENT"] = len(changes) > 0
     update_commits_rst(
@@ -1709,7 +1365,7 @@ def update_commits_rst(
 def black_mode():
     from black import Mode, parse_pyproject_toml, target_version_option_callback
 
-    config = parse_pyproject_toml(os.path.join(SOURCE_DIR_PATH, "pyproject.toml"))
+    config = parse_pyproject_toml(os.path.join(AIRFLOW_SOURCES_ROOT_PATH, "pyproject.toml"))
 
     target_versions = set(
         target_version_option_callback(None, None, tuple(config.get('target_version', ()))),
@@ -1838,14 +1494,20 @@ def list_providers_packages():
 @cli.command()
 @option_version_suffix
 @option_git_update
-@option_interactive
 @argument_package_id
 @option_force
 @option_verbose
+@click.option(
+    "-a",
+    "--answer",
+    type=click.Choice(['y', 'n', 'q', 'yes', 'no', 'quit']),
+    help="Force answer to questions.",
+    envvar='ANSWER',
+)
 def update_package_documentation(
     version_suffix: str,
     git_update: bool,
-    interactive: bool,
+    answer: Optional[str],
     package_id: str,
     force: bool,
     verbose: bool,
@@ -1861,7 +1523,7 @@ def update_package_documentation(
         console.print("Updating documentation for the latest release version.")
         make_sure_remote_apache_exists_and_fetch(git_update, verbose)
         if not update_release_notes(
-            provider_package_id, version_suffix, force=force, verbose=verbose, interactive=interactive
+            provider_package_id, version_suffix, force=force, verbose=verbose, answer=answer
         ):
             # Returns 64 in case of skipped package
             sys.exit(64)
@@ -1905,12 +1567,10 @@ def generate_setup_files(
             current_tag = get_current_tag(provider_package_id, version_suffix, git_update, verbose)
             if tag_exists_for_version(provider_package_id, current_tag, verbose):
                 console.print(f"[yellow]The tag {current_tag} exists. Not preparing the package.[/]")
-                # Returns 1 in case of skipped package
-                sys.exit(1)
+                sys.exit(64)
         if update_setup_files(provider_package_id, version_suffix):
             console.print(f"[green]Generated regular package setup files for {provider_package_id}[/]")
         else:
-            # Returns 64 in case of skipped package
             sys.exit(64)
 
 
@@ -1952,12 +1612,7 @@ def verify_setup_cfg_prepared(provider_package):
 
 
 @cli.command()
-@click.option(
-    '--package-format',
-    type=click.Choice(['sdist', 'wheel', 'both']),
-    default='wheel',
-    help='Optional format - only used in case of building packages (default: wheel)',
-)
+@option_package_format
 @option_git_update
 @option_version_suffix
 @argument_package_id
@@ -2001,7 +1656,7 @@ def build_provider_packages(
             verify_setup_cfg_prepared(provider_package)
 
             console.print(f"Building provider package: {provider_package} in format {package_format}")
-            command = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
+            command: List[str] = ["python3", "setup.py", "build", "--build-temp", tmp_build_dir]
             if version_suffix is not None:
                 command.extend(['egg_info', '--tag-build', version_suffix])
             if package_format in ['sdist', 'both']:
@@ -2010,267 +1665,16 @@ def build_provider_packages(
                 command.extend(["bdist_wheel", "--bdist-dir", tmp_dist_dir])
             console.print(f"Executing command: '{' '.join(command)}'")
             try:
-                subprocess.check_call(command, stdout=subprocess.DEVNULL)
+                subprocess.check_call(args=command, stdout=subprocess.DEVNULL)
             except subprocess.CalledProcessError as ex:
-                console.print(ex.output.decode())
-                raise Exception("The command returned an error %s", command)
+                console.print("[red]The command returned an error %s", ex)
+                sys.exit(ex.returncode)
             console.print(
                 f"[green]Prepared provider package {provider_package} in format {package_format}[/]"
             )
     finally:
         shutil.rmtree(tmp_build_dir, ignore_errors=True)
         shutil.rmtree(tmp_dist_dir, ignore_errors=True)
-
-
-def verify_provider_classes_for_single_provider(imported_classes: List[str], provider_package_id: str):
-    """Verify naming of provider classes for single provider."""
-    full_package_name = f"airflow.providers.{provider_package_id}"
-    entity_summaries = get_package_class_summary(full_package_name, imported_classes)
-    total, bad = check_if_classes_are_properly_named(entity_summaries)
-    bad += sum(len(entity_summary.wrong_entities) for entity_summary in entity_summaries.values())
-    if bad != 0:
-        console.print()
-        console.print(f"[red]There are {bad} errors of {total} entities for {provider_package_id}[/]")
-        console.print()
-    return total, bad
-
-
-def summarise_total_vs_bad_and_warnings(total: int, bad: int, warns: List[warnings.WarningMessage]) -> bool:
-    """Summarises Bad/Good class names for providers and warnings"""
-    raise_error = False
-    if bad == 0:
-        console.print()
-        console.print(f"[green]OK: All {total} entities are properly named[/]")
-        console.print()
-        console.print("Totals:")
-        console.print()
-        for entity in EntityType:
-            console.print(f"{entity.value}: {TOTALS[entity]}")
-        console.print()
-    else:
-        console.print()
-        console.print(
-            f"[red]ERROR! There are in total: {bad} entities badly named out of {total} entities[/]"
-        )
-        console.print()
-        raise_error = True
-    if warns:
-        if os.environ.get('GITHUB_ACTIONS'):
-            # Ends group in GitHub Actions so that the errors are immediately visible in CI log
-            console.print("::endgroup::")
-        console.print()
-        console.print("[red]Unknown warnings generated:[/]")
-        console.print()
-        for w in warns:
-            one_line_message = str(w.message).replace('\n', ' ')
-            console.print(f"{w.filename}:{w.lineno}:[yellow]{one_line_message}[/]")
-        console.print()
-        console.print(f"[red]ERROR! There were {len(warns)} warnings generated during the import[/]")
-        console.print()
-        console.print("[yellow]Ideally, fix it, so that no warnings are generated during import.[/]")
-        console.print("[yellow]There are two cases that are legitimate deprecation warnings though:[/]")
-        console.print("[yellow] 1) when you deprecate whole module or class and replace it in provider[/]")
-        console.print("[yellow] 2) when 3rd-party module generates Deprecation and you cannot upgrade it[/]")
-        console.print(
-            "[yellow] 3) when many 3rd-party module generates same Deprecation warning that "
-            "comes from another common library[/]"
-        )
-        console.print()
-        console.print(
-            "[yellow]In case 1), add the deprecation message to "
-            "the KNOWN_DEPRECATED_DIRECT_IMPORTS in prepare_provider_packages.py[/]"
-        )
-        console.print(
-            "[yellow]In case 2), add the deprecation message together with module it generates to "
-            "the KNOWN_DEPRECATED_MESSAGES in prepare_provider_packages.py[/]"
-        )
-        console.print(
-            "[yellow]In case 3), add the deprecation message to "
-            "the KNOWN_COMMON_DEPRECATED_MESSAGES in prepare_provider_packages.py[/]"
-        )
-        console.print()
-        raise_error = True
-    else:
-        console.print()
-        console.print("[green]OK: No warnings generated[/]")
-        console.print()
-
-    if raise_error:
-        console.print("[red]Please fix the problems listed above [/]")
-        return False
-    return True
-
-
-# The set of known deprecation messages that we know about.
-# It contains tuples of "message" and the module that generates the warning - so when the
-# Same warning is generated by different module, it is not treated as "known" warning.
-KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
-    (
-        'This version of Apache Beam has not been sufficiently tested on Python 3.9. '
-        'You may encounter bugs or missing features.',
-        "apache_beam",
-    ),
-    (
-        'This version of Apache Beam has not been sufficiently tested on Python 3.10. '
-        'You may encounter bugs or missing features.',
-        "apache_beam",
-    ),
-    (
-        "Using or importing the ABCs from 'collections' instead of from 'collections.abc' is deprecated since"
-        " Python 3.3,and in 3.9 it will stop working",
-        "apache_beam",
-    ),
-    (
-        'pyarrow.HadoopFileSystem is deprecated as of 2.0.0, please use pyarrow.fs.HadoopFileSystem instead.',
-        "papermill",
-    ),
-    (
-        "You have an incompatible version of 'pyarrow' installed (4.0.1), please install a version that "
-        "adheres to: 'pyarrow<3.1.0,>=3.0.0; extra == \"pandas\"'",
-        "apache_beam",
-    ),
-    (
-        "You have an incompatible version of 'pyarrow' installed (4.0.1), please install a version that "
-        "adheres to: 'pyarrow<5.1.0,>=5.0.0; extra == \"pandas\"'",
-        "snowflake",
-    ),
-    ("dns.hash module will be removed in future versions. Please use hashlib instead.", "dns"),
-    ("PKCS#7 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
-    ("PKCS#12 support in pyOpenSSL is deprecated. You should use the APIs in cryptography.", "eventlet"),
-    (
-        "the imp module is deprecated in favour of importlib; see the module's documentation"
-        " for alternative uses",
-        "hdfs",
-    ),
-    ("This operator is deprecated. Please use `airflow.providers.tableau.operators.tableau`.", "salesforce"),
-    (
-        "You have an incompatible version of 'pyarrow' installed (4.0.1), please install a version that"
-        " adheres to: 'pyarrow<3.1.0,>=3.0.0; extra == \"pandas\"'",
-        "snowflake",
-    ),
-    (
-        "You have an incompatible version of 'pyarrow' installed (6.0.1), please install a version that"
-        " adheres to: 'pyarrow<5.1.0,>=5.0.0; extra == \"pandas\"'",
-        "snowflake",
-    ),
-    ("SelectableGroups dict interface is deprecated. Use select.", "kombu"),
-    ("The module cloudant is now deprecated. The replacement is ibmcloudant.", "cloudant"),
-}
-
-KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
-    "distutils Version classes are deprecated. Use packaging.version instead."
-}
-
-# The set of warning messages generated by direct importing of some deprecated modules. We should only
-# ignore those messages when the warnings are generated directly by importlib - which means that
-# we imported it directly during module walk by the importlib library
-KNOWN_DEPRECATED_DIRECT_IMPORTS: Set[str] = {
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.batch`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_instance`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_registry`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_volume`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_factory`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.data_lake`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.fileshare`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.batch`.",
-    "This module is deprecated. "
-    "Please use `airflow.providers.microsoft.azure.operators.container_instances`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.operators.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.secrets.key_vault`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.sensors.cosmos`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.dynamodb`.",
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.transfers.local_to_wasb`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.sensors.tableau_job_status`.",
-    "This module is deprecated. Please use `airflow.providers.tableau.hooks.tableau`.",
-    "This module is deprecated. Please use `kubernetes.client.models.V1Volume`.",
-    "This module is deprecated. Please use `kubernetes.client.models.V1VolumeMount`.",
-    (
-        "This module is deprecated. Please use `kubernetes.client.models.V1ResourceRequirements`"
-        " and `kubernetes.client.models.V1ContainerPort`."
-    ),
-    "This module is deprecated. Please use `kubernetes.client.models.V1EnvVar`.",
-    'numpy.ufunc size changed, may indicate binary incompatibility. Expected 192 from C header,'
-    ' got 216 from PyObject',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.step_function`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.step_function`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.ec2`.',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.s3`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.s3`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.dms`.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.dms`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.emr`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.emr`.',
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.redshift_cluster` "
-    "or `airflow.providers.amazon.aws.hooks.redshift_sql` as appropriate.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` "
-    "or `airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.",
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.",
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.sagemaker`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sagemaker`.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.hooks.emr`.',
-    'This module is deprecated. Please use `airflow.providers.opsgenie.hooks.opsgenie`.',
-    'This module is deprecated. Please use `airflow.providers.opsgenie.operators.opsgenie`.',
-    'This module is deprecated. Please use `airflow.hooks.redshift_sql` '
-    'or `airflow.hooks.redshift_cluster` as appropriate.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.operators.redshift_sql` or '
-    '`airflow.providers.amazon.aws.operators.redshift_cluster` as appropriate.',
-    'This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.',
-    "This module is deprecated. Please use airflow.providers.amazon.aws.transfers.sql_to_s3`.",
-}
-
-
-def filter_known_warnings(warn: warnings.WarningMessage) -> bool:
-    msg_string = str(warn.message).replace("\n", " ")
-    for m in KNOWN_DEPRECATED_MESSAGES:
-        expected_package_string = "/" + m[1] + "/"
-        if msg_string == m[0] and warn.filename.find(expected_package_string) != -1:
-            return False
-    return True
-
-
-def filter_direct_importlib_warning(warn: warnings.WarningMessage) -> bool:
-    msg_string = str(warn.message).replace("\n", " ")
-    for m in KNOWN_DEPRECATED_DIRECT_IMPORTS:
-        if msg_string == m and warn.filename.find("/importlib/") != -1:
-            return False
-    return True
-
-
-def filter_known_common_deprecated_messages(warn: warnings.WarningMessage) -> bool:
-    msg_string = str(warn.message).replace("\n", " ")
-    for m in KNOWN_COMMON_DEPRECATED_MESSAGES:
-        if msg_string == m:
-            return False
-    return True
-
-
-@cli.command()
-def verify_provider_classes():
-    """Verifies names for all provider classes."""
-    with with_group("Verifies names for all provider classes"):
-        provider_ids = get_all_providers()
-        imported_classes, warns = import_all_classes(
-            provider_ids=provider_ids,
-            print_imports=True,
-            paths=[str(PROVIDERS_PATH)],
-            prefix="airflow.providers.",
-        )
-        total = 0
-        bad = 0
-        for provider_package_id in provider_ids:
-            inc_total, inc_bad = verify_provider_classes_for_single_provider(
-                imported_classes, provider_package_id
-            )
-            total += inc_total
-            bad += inc_bad
-        warns = list(filter(filter_known_warnings, warns))
-        warns = list(filter(filter_direct_importlib_warning, warns))
-        warns = list(filter(filter_known_common_deprecated_messages, warns))
-        if not summarise_total_vs_bad_and_warnings(total, bad, warns):
-            sys.exit(1)
 
 
 def find_insertion_index_for_version(content: List[str], version: str) -> Tuple[int, bool]:
@@ -2356,9 +1760,7 @@ def _update_changelog(package_id: str, verbose: bool) -> bool:
         )
         changelog_path = os.path.join(provider_details.source_provider_package_path, "CHANGELOG.rst")
         proceed, changes, _ = get_all_changes_for_package(
-            provider_details.versions,
             package_id,
-            provider_details.source_provider_package_path,
             verbose,
         )
         if not proceed:
@@ -2423,7 +1825,7 @@ def generate_new_changelog(package_id, provider_details, changelog_path, changes
         )
     else:
         console.print(
-            f"[green]Appending the provider {package_id} changelog for" f"`{latest_version}` version.[/]"
+            f"[green]Appending the provider {package_id} changelog for `{latest_version}` version.[/]"
         )
     with open(changelog_path, "wt") as changelog:
         changelog.write("\n".join(new_changelog_lines))
@@ -2511,7 +1913,7 @@ def is_package_in_dist(dist_files: List[str], package: str) -> bool:
     envvar='GITHUB_TOKEN',
     help=textwrap.dedent(
         """
-      Github token used to authenticate.
+      GitHub token used to authenticate.
       You can set omit it if you have GITHUB_TOKEN env variable set.
       Can be generated with:
       https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
@@ -2564,7 +1966,7 @@ def generate_issue_content(
             for i in range(len(pr_list)):
                 pr_number = pr_list[i]
                 progress.console.print(
-                    f"Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+                    f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
                 )
                 try:
                     pull_requests[pr_number] = repo.get_pull(pr_number)
@@ -2621,4 +2023,11 @@ if __name__ == "__main__":
     #   * 64 in case of skipped package
     #   * 65 in case user decided to quit
     #   * 66 in case package has doc-only changes
-    cli()
+    try:
+        cli()
+    except KeyboardInterrupt:
+        print('Interrupted')
+        try:
+            sys.exit(65)
+        except SystemExit:
+            os._exit(65)

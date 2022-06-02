@@ -46,10 +46,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.2.5"
+defaultAirflowTag: "2.3.1"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.2.5"
+airflowVersion: "2.3.1"
 
 # Images
 images:
@@ -97,17 +97,21 @@ images:
 nodeSelector: {}
 affinity: {}
 tolerations: []
+topologySpreadConstraints: []
 
 # Add common labels to all objects and pods defined in this chart.
 labels: {}
 
 # Ingress configuration
 ingress:
-  # Enable ingress resource
-  enabled: false
+  # Enable all ingress resources (deprecated - use ingress.web.enabled and ingress.flower.enabled)
+  enabled: ~
 
   # Configs for the Ingress of the web Service
   web:
+    # Enable web ingress resource
+    enabled: false
+
     # Annotations for the web Ingress
     annotations: {}
 
@@ -148,6 +152,9 @@ ingress:
 
   # Configs for the Ingress of the flower Service
   flower:
+    # Enable web ingress resource
+    enabled: false
+
     # Annotations for the flower Ingress
     annotations: {}
 
@@ -219,7 +226,7 @@ rbac:
   createSCCRoleBinding: false
 
 # Airflow executor
-# Options: LocalExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
+# One of: LocalExecutor, LocalKubernetesExecutor, CeleryExecutor, KubernetesExecutor, CeleryKubernetesExecutor
 executor: "CeleryExecutor"
 
 # If this is true and using LocalExecutor/KubernetesExecutor/CeleryKubernetesExecutor, the scheduler's
@@ -245,7 +252,9 @@ secret: []
 # in this case disable setting of those variables by setting the relevant configuration to false.
 enableBuiltInSecretEnvVars:
   AIRFLOW__CORE__FERNET_KEY: true
+  # For Airflow <2.3, backward compatibility; moved to [database] in 2.3
   AIRFLOW__CORE__SQL_ALCHEMY_CONN: true
+  AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: true
   AIRFLOW_CONN_AIRFLOW_DB: true
   AIRFLOW__WEBSERVER__SECRET_KEY: true
   AIRFLOW__CELERY__CELERY_RESULT_BACKEND: true
@@ -474,6 +483,8 @@ workers:
     # This is currently only needed in kind, due to usage
     # of local-path provisioner.
     fixPermissions: false
+    # Annotations to add to worker volumes
+    annotations: {}
 
   kerberosSidecar:
     # Enable kerberos sidecar
@@ -526,6 +537,7 @@ workers:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
   # hostAliases to use in worker pods.
   # See:
   # https://kubernetes.io/docs/concepts/services-networking/add-entries-to-pod-etc-hosts-with-host-aliases/
@@ -639,6 +651,7 @@ scheduler:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -723,6 +736,7 @@ createUserJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -789,6 +803,7 @@ migrateDatabaseJob:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
@@ -888,7 +903,7 @@ webserver:
   #   from airflow import configuration as conf
 
   #   # The SQLAlchemy connection string.
-  #   SQLALCHEMY_DATABASE_URI = conf.get('core', 'SQL_ALCHEMY_CONN')
+  #   SQLALCHEMY_DATABASE_URI = conf.get('database', 'SQL_ALCHEMY_CONN')
 
   #   # Flask-WTF flag for CSRF
   #   CSRF_ENABLED = True
@@ -930,6 +945,7 @@ webserver:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
 
   podAnnotations: {}
 
@@ -1017,6 +1033,7 @@ triggerer:
   #        topologyKey: kubernetes.io/hostname
   #      weight: 100
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1030,7 +1047,7 @@ triggerer:
 flower:
   # Enable flower.
   # If True, and using CeleryExecutor/CeleryKubernetesExecutor, will deploy flower app.
-  enabled: true
+  enabled: false
 
   # Command to use when running flower (templated).
   command: ~
@@ -1113,6 +1130,7 @@ flower:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1157,6 +1175,7 @@ statsd:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1265,6 +1284,7 @@ pgbouncer:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   priorityClassName: ~
 
@@ -1303,6 +1323,8 @@ redis:
     size: 1Gi
     # If using a custom storageClass, pass name ref to all statefulSets here
     storageClassName:
+    # Annotations to add to redis volumes
+    annotations: {}
 
   resources: {}
   #  limits:
@@ -1328,6 +1350,14 @@ redis:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
+
+  # Set to 0 for backwards-compatiblity
+  uid: 0
+  # If not set, `redis.uid` will be used
+  securityContext: {}
+  #  runAsUser: 999
+  #  runAsGroup: 0
 
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
@@ -1389,6 +1419,7 @@ cleanup:
   nodeSelector: {}
   affinity: {}
   tolerations: []
+  topologySpreadConstraints: []
 
   podAnnotations: {}
 

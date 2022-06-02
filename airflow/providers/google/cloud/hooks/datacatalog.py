@@ -17,6 +17,7 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud import datacatalog
 from google.cloud.datacatalog import (
@@ -81,7 +82,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_id: str,
         entry: Union[dict, Entry],
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Entry:
@@ -123,7 +124,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group_id: str,
         entry_group: Union[Dict, EntryGroup],
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> EntryGroup:
@@ -169,7 +170,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         tag: Union[dict, Tag],
         project_id: str = PROVIDE_PROJECT_ID,
         template_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Tag:
@@ -232,7 +233,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         tag_template_id: str,
         tag_template: Union[dict, TagTemplate],
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> TagTemplate:
@@ -291,7 +292,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         tag_template_field_id: str,
         tag_template_field: Union[dict, TagTemplateField],
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> TagTemplateField:
@@ -343,7 +344,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group: str,
         entry: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -373,7 +374,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location,
         entry_group,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -409,7 +410,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry: str,
         tag: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -444,7 +445,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         tag_template,
         force: bool,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -481,7 +482,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         field: str,
         force: bool,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> None:
@@ -516,7 +517,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group: str,
         entry: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Entry:
@@ -552,7 +553,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group: str,
         project_id: str,
         read_mask: Optional[FieldMask] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> EntryGroup:
@@ -595,7 +596,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: str,
         tag_template: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> TagTemplate:
@@ -633,7 +634,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry: str,
         project_id: str,
         page_size: int = 100,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -678,7 +679,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry: str,
         template_name: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Tag:
@@ -713,7 +714,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         self,
         linked_resource: Optional[str] = None,
         sql_resource: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Entry:
@@ -769,7 +770,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         field: str,
         new_tag_template_field_id: str,
         project_id: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> TagTemplateField:
@@ -814,7 +815,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         query: str,
         page_size: int = 100,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):
@@ -888,7 +889,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: Optional[str] = None,
         entry_group: Optional[str] = None,
         entry_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Entry:
@@ -958,7 +959,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group: Optional[str] = None,
         entry: Optional[str] = None,
         tag_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Tag:
@@ -1028,7 +1029,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         project_id: str,
         location: Optional[str] = None,
         tag_template_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> TagTemplate:
@@ -1102,7 +1103,7 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: Optional[str] = None,
         tag_template: Optional[str] = None,
         tag_template_field_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ):

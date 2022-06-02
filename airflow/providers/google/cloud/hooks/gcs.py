@@ -22,14 +22,26 @@ import gzip as gz
 import os
 import shutil
 import time
-import warnings
 from contextlib import contextmanager
 from datetime import datetime
 from functools import partial
 from io import BytesIO
 from os import path
 from tempfile import NamedTemporaryFile
-from typing import Callable, List, Optional, Sequence, Set, Tuple, TypeVar, Union, cast, overload
+from typing import (
+    IO,
+    Callable,
+    Generator,
+    List,
+    Optional,
+    Sequence,
+    Set,
+    Tuple,
+    TypeVar,
+    Union,
+    cast,
+    overload,
+)
 from urllib.parse import urlparse
 
 from google.api_core.exceptions import NotFound
@@ -133,19 +145,8 @@ class GCSHook(GoogleBaseHook):
         self,
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
-        google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -385,7 +386,7 @@ class GCSHook(GoogleBaseHook):
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
         dir: Optional[str] = None,
-    ):
+    ) -> Generator[IO[bytes], None, None]:
         """
         Downloads the file to a temporary directory and returns a file handle
 
@@ -413,7 +414,7 @@ class GCSHook(GoogleBaseHook):
         bucket_name: str = PROVIDE_BUCKET,
         object_name: Optional[str] = None,
         object_url: Optional[str] = None,
-    ):
+    ) -> Generator[IO[bytes], None, None]:
         """
         Creates temporary file, returns a file handle and uploads the files content
         on close.

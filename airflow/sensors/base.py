@@ -32,7 +32,8 @@ from airflow.exceptions import (
     AirflowSensorTimeout,
     AirflowSkipException,
 )
-from airflow.models import BaseOperator, SensorInstance
+from airflow.models.baseoperator import BaseOperator
+from airflow.models.sensorinstance import SensorInstance
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskreschedule import TaskReschedule
 from airflow.ti_deps.deps.ready_to_reschedule import ReadyToRescheduleDep
@@ -142,7 +143,7 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
         self._validate_input_values()
         self.sensor_service_enabled = conf.getboolean('smart_sensor', 'use_smart_sensor')
         self.sensors_support_sensor_service = set(
-            map(lambda l: l.strip(), conf.get('smart_sensor', 'sensors_enabled').split(','))
+            map(lambda l: l.strip(), conf.get_mandatory_value('smart_sensor', 'sensors_enabled').split(','))
         )
 
     def _validate_input_values(self) -> None:
@@ -156,10 +157,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
                 f".{self.task_id}'; received '{self.mode}'."
             )
 
-        # Sanity check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
+        # Quick check for poke_interval isn't immediately over MySQL's TIMESTAMP limit.
         # This check is only rudimentary to catch trivial user errors, e.g. mistakenly
         # set the value to milliseconds instead of seconds. There's another check when
-        # we actually try to reschedule to ensure database sanity.
+        # we actually try to reschedule to ensure database coherence.
         if self.reschedule and _is_metadatabase_mysql():
             if timezone.utcnow() + datetime.timedelta(seconds=self.poke_interval) > _MYSQL_TIMESTAMP_MAX:
                 raise AirflowException(
@@ -337,6 +338,10 @@ class BaseSensorOperator(BaseOperator, SkipMixin):
     def reschedule(self):
         """Define mode rescheduled sensors."""
         return self.mode == 'reschedule'
+
+    @classmethod
+    def get_serialized_fields(cls):
+        return super().get_serialized_fields() | {"reschedule"}
 
 
 def poke_mode_only(cls):

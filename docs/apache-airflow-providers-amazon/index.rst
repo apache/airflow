@@ -60,7 +60,7 @@ Package apache-airflow-providers-amazon
 Amazon integration (including `Amazon Web Services (AWS) <https://aws.amazon.com/>`__).
 
 
-Release: 3.2.0
+Release: 3.4.0
 
 Provider package
 ----------------
@@ -89,6 +89,7 @@ PIP package                   Version required
 ``redshift_connector``        ``>=2.0.888``
 ``sqlalchemy_redshift``       ``>=0.8.6``
 ``watchtower``                ``~=2.0.1``
+``xmltodict``                 ``<0.13.0``
 ============================  ==================
 
 Cross provider package dependencies
@@ -124,7 +125,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-amazon 3.2.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-3.2.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-3.2.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-3.2.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-amazon 3.2.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-3.2.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-3.2.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-3.2.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-amazon 3.4.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-3.4.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-3.4.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-amazon-3.4.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-amazon 3.4.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-3.4.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-3.4.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_amazon-3.4.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/amazon/CHANGELOG.rst

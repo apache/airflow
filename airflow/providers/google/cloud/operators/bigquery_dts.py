@@ -18,6 +18,7 @@
 """This module contains Google BigQuery Data Transfer Service operators."""
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.bigquery_datatransfer_v1 import StartManualTransferRunsResponse, TransferConfig
 
@@ -82,7 +83,7 @@ class BigQueryCreateDataTransferOperator(BaseOperator):
         project_id: Optional[str] = None,
         location: Optional[str] = None,
         authorization_code: Optional[str] = None,
-        retry: Retry = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
@@ -171,7 +172,7 @@ class BigQueryDeleteDataTransferConfigOperator(BaseOperator):
         transfer_config_id: str,
         project_id: Optional[str] = None,
         location: Optional[str] = None,
-        retry: Retry = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
@@ -258,7 +259,7 @@ class BigQueryDataTransferServiceStartTransferRunsOperator(BaseOperator):
         location: Optional[str] = None,
         requested_time_range: Optional[dict] = None,
         requested_run_time: Optional[dict] = None,
-        retry: Retry = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id="google_cloud_default",
