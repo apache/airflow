@@ -774,6 +774,7 @@ class TestSSHHook(unittest.TestCase):
                 hostname='remote_host',
                 username='username',
                 compress=True,
+                timeout=10,
                 port='port',
                 sock=None,
                 look_for_keys=True,
