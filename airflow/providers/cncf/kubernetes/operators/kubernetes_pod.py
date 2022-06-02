@@ -113,11 +113,6 @@ class KubernetesPodOperator(BaseOperator):
     :param startup_timeout_seconds: timeout in seconds to startup the pod.
     :param get_logs: get the stdout of the container as logs of the tasks.
     :param env_from: (Optional) List of sources to populate environment variables in the container.
-        The keys defined within a source must be a C_IDENTIFIER.
-        All invalid keys will be reported as an event when the container is starting.
-        When a key exists in multiple sources, the value associated with the last source
-        will take precedence. Values defined by an Env with a duplicate key will take precedence.
-        Cannot be updated.
     :param image_pull_policy: Specify a policy to cache or always pull an image.
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
