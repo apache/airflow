@@ -237,7 +237,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
+DAGS_DIR = AIRFLOW_SOURCES_ROOT / 'dags'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
+HOOKS_DIR = AIRFLOW_SOURCES_ROOT / 'hooks'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
@@ -255,7 +257,9 @@ def create_directories_and_files() -> None:
     Checks if setup has been updates since last time and proposes to upgrade if so.
     """
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    DAGS_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
+    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
     KUBE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
