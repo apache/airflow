@@ -26,6 +26,7 @@
 """
 This is an example dag for using the WinRMOperator.
 """
+import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
@@ -37,8 +38,12 @@ except ModuleNotFoundError:
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
 
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "POC_winrm_parallel"
+
 with DAG(
-    dag_id='POC_winrm_parallel',
+    dag_id=DAG_ID,
     schedule_interval='0 0 * * *',
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
@@ -61,3 +66,14 @@ with DAG(
     # [END run_operator]
 
     [t1, t2, t3] >> run_this_last
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
