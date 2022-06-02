@@ -470,10 +470,12 @@ class TestRdsCreateDbInstanceOperator:
     def test_create_db_instance(self):
         create_db_instance_operator = RdsCreateDbInstanceOperator(
             task_id='test_create_db_instance',
-            db_name=DB_INSTANCE_NAME,
             db_instance_identifier=DB_INSTANCE_NAME,
             db_instance_class="db.m5.large",
             engine="postgres",
+            rds_kwargs={
+                "DBName": DB_INSTANCE_NAME,
+            },
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )
@@ -506,6 +508,9 @@ class TestRdsDeleteDbInstanceOperator:
         delete_db_instance_operator = RdsDeleteDbInstanceOperator(
             task_id='test_delete_db_instance',
             db_instance_identifier=DB_INSTANCE_NAME,
+            rds_kwargs={
+                "SkipFinalSnapshot": True,
+            },
             aws_conn_id=AWS_CONN,
             dag=self.dag,
         )

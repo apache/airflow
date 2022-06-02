@@ -18,9 +18,9 @@
 
 import json
 import time
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence
 
-from mypy_boto3_rds.type_defs import ProcessorFeatureTypeDef, TagTypeDef
+from mypy_boto3_rds.type_defs import TagTypeDef
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -563,75 +563,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         contain from 1 to 63 letters, numbers, or hyphens
     :param db_instance_class: The compute and memory capacity of the DB instance, for example db.m5.large
     :param engine: The name of the database engine to be used for this instance
-    :param db_name: The name of the database to create when the DB instance is created
-    :param allocated_storage: The amount of storage in GiB to allocate for the DB instance
-    :param master_username: The name for the master user
-    :param master_user_password: The password for the master user
-    :param db_security_groups: A list of DB security groups to associate with this DB instance
-    :param vpc_security_group_ids: A list of Amazon EC2 VPC security groups to associate with this DB instance
-    :param availability_zone: The Availability Zone (AZ) where the database will be created
-    :param db_subnet_group_name: A DB subnet group to associate with this DB instance
-    :param preferred_maintenance_window: The time range each week in format during
-        which system maintenance can occur
-    :param db_parameter_group_name: The name of the DB parameter group to associate with this DB instance
-    :param backup_retention_period: The number of days for which automated backups are retained
-    :param preferred_backup_window: The daily time range during which automated backups are created
-        if automated backups are enabled
-    :param port: The port number on which the database accepts connections
-    :param multi_az: A value that indicates whether the DB instance is a Multi-AZ deployment
-    :param engine_version: The version number of the database engine to use
-    :param auto_minor_version_upgrade: A value that indicates whether
-        minor engine upgrades are applied automatically to the DB instance during the maintenance window
-    :param license_model: License model information for this DB instance
-    :param iops: The amount of Provisioned IOPS to be initially allocated for the DB instance
-    :param option_group_name: A value that indicates that
-        the DB instance should be associated with the specified option group
-    :param character_set_name: For supported engines, this value indicates
-        that the DB instance should be associated with the specified CharacterSet
-    :param nchar_character_set_name: The name of the NCHAR character set for the Oracle DB instance
-    :param publicly_accessible: A value that indicates whether the DB instance is publicly accessible
-    :param tags: Tags to assign to the DB instance
-    :param db_cluster_identifier: The identifier of the DB cluster that the instance will belong to
-    :param storage_type: Specifies the storage type to be associated with the DB instance
-    :param tde_credential_arn: The ARN from the key store
-        with which to associate the instance for TDE encryption
-    :param tde_credential_password: The password for the given ARN from the key store
-        in order to access the device
-    :param storage_encrypted: A value that indicates whether the DB instance is encrypted
-    :param kms_key_id: The AWS KMS key identifier for an encrypted DB instance
-    :param domain: The Active Directory directory ID to create the DB instance in
-    :param copy_tags_to_snapshot: A value that indicates whether to copy tags
-        from the DB instance to snapshots of the DB instance
-    :param monitoring_interval: The interval, in seconds,
-        between points when Enhanced Monitoring metrics are collected for the DB instance
-    :param monitoring_role_arn: The ARN for the IAM role
-        that permits RDS to send enhanced monitoring metrics to Amazon CloudWatch Logs
-    :param domain_iam_role_name: Specify the name of the IAM role to be used
-        when making API calls to the Directory Service
-    :param promotion_tier: A value that specifies the order in which
-        an Aurora Replica is promoted to the primary instance after a failure of the existing primary instance
-    :param timezone: The time zone of the DB instance
-    :param enable_iam_database_authentication: A value that indicates whether to enable
-        mapping of IAM accounts to database accounts
-    :param enable_performance_insights: A value that indicates whether to enable
-        Performance Insights for the DB instance
-    :param performance_insights_kms_key_id: The AWS KMS key identifier for
-        encryption of Performance Insights data
-    :param performance_insights_retention_period: The amount of time, in days, to retain
-        Performance Insights data, valid values are 7 or 731 (2 years)
-    :param enable_cloudwatch_logs_exports: The list of log types that need to be enabled
-        for exporting to CloudWatch Logs
-    :param processor_features: The number of CPU cores and the number of threads
-        per core for the DB instance class of the DB instance
-    :param deletion_protection: A value that indicates whether the DB instance has deletion protection enabled
-    :param max_allocated_storage: The upper limit in GiB to
-        which Amazon RDS can automatically scale the storage of the DB instance
-    :param enable_customer_owned_ip: A value that indicates whether to
-        enable a customer-owned IP address (CoIP) for an RDS on Outposts DB instance
-    :param custom_iam_instance_profile: The instance profile associated with
-        the underlying Amazon EC2 instance of an RDS Custom DB instance
-    :param backup_target: Specifies where automated backups and manual snapshots are stored
-    :param network_type: The network type of the DB instance
+    :rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
     """
 
     def __init__(
@@ -640,54 +572,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         db_instance_identifier: str,
         db_instance_class: str,
         engine: str,
-        db_name: Optional[str] = None,
-        allocated_storage: Optional[int] = None,
-        master_username: Optional[str] = None,
-        master_user_password: Optional[str] = None,
-        db_security_groups: Optional[Sequence[str]] = None,
-        vpc_security_group_ids: Optional[Sequence[str]] = None,
-        availability_zone: Optional[str] = None,
-        db_subnet_group_name: Optional[str] = None,
-        preferred_maintenance_window: Optional[str] = None,
-        db_parameter_group_name: Optional[str] = None,
-        backup_retention_period: Optional[int] = None,
-        preferred_backup_window: Optional[str] = None,
-        port: Optional[int] = None,
-        multi_az: Optional[bool] = None,
-        engine_version: Optional[str] = None,
-        auto_minor_version_upgrade: Optional[bool] = None,
-        license_model: Optional[str] = None,
-        iops: Optional[int] = None,
-        option_group_name: Optional[str] = None,
-        character_set_name: Optional[str] = None,
-        nchar_character_set_name: Optional[str] = None,
-        publicly_accessible: Optional[bool] = None,
-        tags: Optional[Sequence[TagTypeDef]] = None,
-        db_cluster_identifier: Optional[str] = None,
-        storage_type: Optional[str] = None,
-        tde_credential_arn: Optional[str] = None,
-        tde_credential_password: Optional[str] = None,
-        storage_encrypted: Optional[bool] = None,
-        kms_key_id: Optional[str] = None,
-        domain: Optional[str] = None,
-        copy_tags_to_snapshot: Optional[bool] = None,
-        monitoring_interval: Optional[int] = None,
-        monitoring_role_arn: Optional[str] = None,
-        domain_iam_role_name: Optional[str] = None,
-        promotion_tier: Optional[int] = None,
-        timezone: Optional[str] = None,
-        enable_iam_database_authentication: Optional[bool] = None,
-        enable_performance_insights: Optional[bool] = None,
-        performance_insights_kms_key_id: Optional[str] = None,
-        performance_insights_retention_period: Optional[int] = None,
-        enable_cloudwatch_logs_exports: Optional[Sequence[str]] = None,
-        processor_features: Optional[Sequence[ProcessorFeatureTypeDef]] = None,
-        deletion_protection: Optional[bool] = None,
-        max_allocated_storage: Optional[int] = None,
-        enable_customer_owned_ip: Optional[bool] = None,
-        custom_iam_instance_profile: Optional[str] = None,
-        backup_target: Optional[str] = None,
-        network_type: Optional[str] = None,
+        rds_kwargs: Optional[Dict] = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -696,160 +581,16 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         self.db_instance_identifier = db_instance_identifier
         self.db_instance_class = db_instance_class
         self.engine = engine
-        self.db_name = db_name
-        self.allocated_storage = allocated_storage
-        self.master_username = master_username
-        self.master_user_password = master_user_password
-        self.db_security_groups = db_security_groups or []
-        self.vpc_security_group_ids = vpc_security_group_ids or []
-        self.availability_zone = availability_zone
-        self.db_subnet_group_name = db_subnet_group_name
-        self.preferred_maintenance_window = preferred_maintenance_window
-        self.db_parameter_group_name = db_parameter_group_name
-        self.backup_retention_period = backup_retention_period
-        self.preferred_backup_window = preferred_backup_window
-        self.port = port
-        self.multi_az = multi_az
-        self.engine_version = engine_version
-        self.auto_minor_version_upgrade = auto_minor_version_upgrade
-        self.license_model = license_model
-        self.iops = iops
-        self.option_group_name = option_group_name
-        self.character_set_name = character_set_name
-        self.nchar_character_set_name = nchar_character_set_name
-        self.publicly_accessible = publicly_accessible
-        self.tags = tags or []
-        self.db_cluster_identifier = db_cluster_identifier
-        self.storage_type = storage_type
-        self.tde_credential_arn = tde_credential_arn
-        self.tde_credential_password = tde_credential_password
-        self.storage_encrypted = storage_encrypted
-        self.kms_key_id = kms_key_id
-        self.domain = domain
-        self.copy_tags_to_snapshot = copy_tags_to_snapshot
-        self.monitoring_interval = monitoring_interval
-        self.monitoring_role_arn = monitoring_role_arn
-        self.domain_iam_role_name = domain_iam_role_name
-        self.promotion_tier = promotion_tier
-        self.timezone = timezone
-        self.enable_iam_database_authentication = enable_iam_database_authentication
-        self.enable_performance_insights = enable_performance_insights
-        self.performance_insights_kms_key_id = performance_insights_kms_key_id
-        self.performance_insights_retention_period = performance_insights_retention_period
-        self.enable_cloudwatch_logs_exports = enable_cloudwatch_logs_exports or []
-        self.processor_features = processor_features or []
-        self.deletion_protection = deletion_protection
-        self.max_allocated_storage = max_allocated_storage
-        self.enable_customer_owned_ip = enable_customer_owned_ip
-        self.custom_iam_instance_profile = custom_iam_instance_profile
-        self.backup_target = backup_target
-        self.network_type = network_type
+        self.rds_kwargs = rds_kwargs or {}
 
     def execute(self, context: 'Context') -> str:
         self.log.info(f"Creating new DB instance {self.db_instance_identifier}")
-        params: Dict[str, Any] = {}
-        if self.db_name:
-            params["DBName"] = self.db_name
-        if self.allocated_storage:
-            params["AllocatedStorage"] = self.allocated_storage
-        if self.master_username:
-            params["MasterUsername"] = self.master_username
-        if self.master_user_password:
-            params["MasterUserPassword"] = self.master_user_password
-        if self.db_security_groups:
-            params["DBSecurityGroups"] = self.db_security_groups
-        if self.vpc_security_group_ids:
-            params["VpcSecurityGroupIds"] = self.vpc_security_group_ids
-        if self.availability_zone:
-            params["AvailabilityZone"] = self.availability_zone
-        if self.db_subnet_group_name:
-            params["DBSubnetGroupName"] = self.db_subnet_group_name
-        if self.preferred_maintenance_window:
-            params["PreferredMaintenanceWindow"] = self.preferred_maintenance_window
-        if self.db_parameter_group_name:
-            params["DBParameterGroupName"] = self.db_parameter_group_name
-        if self.backup_retention_period:
-            params["BackupRetentionPeriod"] = self.backup_retention_period
-        if self.preferred_backup_window:
-            params["PreferredBackupWindow"] = self.preferred_backup_window
-        if self.port:
-            params["Port"] = self.port
-        if self.multi_az:
-            params["MultiAZ"] = self.multi_az
-        if self.engine_version:
-            params["EngineVersion"] = self.engine_version
-        if self.auto_minor_version_upgrade:
-            params["AutoMinorVersionUpgrade"] = self.auto_minor_version_upgrade
-        if self.license_model:
-            params["LicenseModel"] = self.license_model
-        if self.iops:
-            params["Iops"] = self.iops
-        if self.option_group_name:
-            params["OptionGroupName"] = self.option_group_name
-        if self.character_set_name:
-            params["CharacterSetName"] = self.character_set_name
-        if self.nchar_character_set_name:
-            params["NcharCharacterSetName"] = self.nchar_character_set_name
-        if self.publicly_accessible:
-            params["PubliclyAccessible"] = self.publicly_accessible
-        if self.tags:
-            params["Tags"] = self.tags
-        if self.db_cluster_identifier:
-            params["DBClusterIdentifier"] = self.db_cluster_identifier
-        if self.storage_type:
-            params["StorageType"] = self.storage_type
-        if self.tde_credential_arn:
-            params["TdeCredentialArn"] = self.tde_credential_arn
-        if self.tde_credential_password:
-            params["TdeCredentialPassword"] = self.tde_credential_password
-        if self.storage_encrypted:
-            params["StorageEncrypted"] = self.storage_encrypted
-        if self.kms_key_id:
-            params["KmsKeyId"] = self.kms_key_id
-        if self.domain:
-            params["Domain"] = self.domain
-        if self.copy_tags_to_snapshot:
-            params["CopyTagsToSnapshot"] = self.copy_tags_to_snapshot
-        if self.monitoring_interval:
-            params["MonitoringInterval"] = self.monitoring_interval
-        if self.monitoring_role_arn:
-            params["MonitoringRoleArn"] = self.monitoring_role_arn
-        if self.domain_iam_role_name:
-            params["DomainIAMRoleName"] = self.domain_iam_role_name
-        if self.promotion_tier:
-            params["PromotionTier"] = self.promotion_tier
-        if self.timezone:
-            params["Timezone"] = self.timezone
-        if self.enable_iam_database_authentication:
-            params["EnableIAMDatabaseAuthentication"] = self.enable_iam_database_authentication
-        if self.enable_performance_insights:
-            params["EnablePerformanceInsights"] = self.enable_performance_insights
-        if self.performance_insights_kms_key_id:
-            params["PerformanceInsightsKMSKeyId"] = self.performance_insights_kms_key_id
-        if self.performance_insights_retention_period:
-            params["PerformanceInsightsRetentionPeriod"] = self.performance_insights_retention_period
-        if self.enable_cloudwatch_logs_exports:
-            params["EnableCloudwatchLogsExports"] = self.enable_cloudwatch_logs_exports
-        if self.processor_features:
-            params["ProcessorFeatures"] = self.processor_features
-        if self.deletion_protection:
-            params["DeletionProtection"] = self.deletion_protection
-        if self.max_allocated_storage:
-            params["MaxAllocatedStorage"] = self.max_allocated_storage
-        if self.enable_customer_owned_ip:
-            params["EnableCustomerOwnedIp"] = self.enable_customer_owned_ip
-        if self.custom_iam_instance_profile:
-            params["CustomIamInstanceProfile"] = self.custom_iam_instance_profile
-        if self.backup_target:
-            params["BackupTarget"] = self.backup_target
-        if self.network_type:
-            params["NetworkType"] = self.network_type
 
         create_db_instance = self.hook.conn.create_db_instance(
             DBInstanceIdentifier=self.db_instance_identifier,
             DBInstanceClass=self.db_instance_class,
             Engine=self.engine,
-            **params,
+            **self.rds_kwargs,
         )
         self.hook.conn.get_waiter("db_instance_available").wait(
             DBInstanceIdentifier=self.db_instance_identifier
@@ -867,43 +608,27 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         :ref:`howto/operator:RdsDeleteDbInstanceOperator`
 
     :param db_instance_identifier: The DB instance identifier for the DB instance to be deleted
-    :param skip_final_snapshot: A value that indicates whether to
-        skip the creation of a final DB snapshot before deleting the instance
-    :param final_db_snapshot_identifier: The DBSnapshotIdentifier of the new DBSnapshot created
-        when the SkipFinalSnapshot parameter is disabled
-    :param delete_automated_backups: A value that indicates whether to
-        remove automated backups immediately after the DB instance is deleted
+    :rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
     """
 
     def __init__(
         self,
         *,
         db_instance_identifier: str,
-        skip_final_snapshot: Optional[bool] = None,
-        final_db_snapshot_identifier: Optional[str] = None,
-        delete_automated_backups: Optional[bool] = None,
+        rds_kwargs: Optional[Dict] = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_instance_identifier = db_instance_identifier
-        self.skip_final_snapshot = skip_final_snapshot
-        self.final_db_snapshot_identifier = final_db_snapshot_identifier
-        self.delete_automated_backups = delete_automated_backups
+        self.rds_kwargs = rds_kwargs or {}
 
     def execute(self, context: 'Context') -> str:
         self.log.info(f"Deleting DB instance {self.db_instance_identifier}")
-        params: Dict[str, Any] = {}
-        if self.skip_final_snapshot:
-            params["SkipFinalSnapshot"] = self.skip_final_snapshot
-        if self.final_db_snapshot_identifier:
-            params["FinalDBSnapshotIdentifier"] = self.final_db_snapshot_identifier
-        if self.delete_automated_backups:
-            params["DeleteAutomatedBackups"] = self.delete_automated_backups
 
         delete_db_instance = self.hook.conn.delete_db_instance(
             DBInstanceIdentifier=self.db_instance_identifier,
-            **params,
+            **self.rds_kwargs,
         )
         self.hook.conn.get_waiter("db_instance_deleted").wait(
             DBInstanceIdentifier=self.db_instance_identifier

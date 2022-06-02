@@ -27,6 +27,10 @@ from airflow.providers.amazon.aws.operators.rds import (
 )
 
 RDS_DB_IDENTIFIER = getenv("RDS_DB_IDENTIFIER", "database-identifier")
+RDS_USERNAME = getenv("RDS_USERNAME", "database_username")
+# NEVER store your production password in plaintext in a DAG like this.
+# Use Airflow Secrets or a secret manager for this in production.
+RDS_PASSWORD = getenv("RDS_PASSWORD", "database_password")
 
 with DAG(
     dag_id='example_rds_instance',
@@ -38,10 +42,14 @@ with DAG(
     # [START howto_operator_rds_create_db_instance]
     create_db_instance = RdsCreateDbInstanceOperator(
         task_id='create_db_instance',
-        db_name=RDS_DB_IDENTIFIER,
         db_instance_identifier=RDS_DB_IDENTIFIER,
         db_instance_class="db.m5.large",
         engine="postgres",
+        rds_kwargs={
+            "MasterUsername": RDS_USERNAME,
+            "MasterUserPassword": RDS_PASSWORD,
+            "AllocatedStorage": 20,
+        },
     )
     # [END howto_operator_rds_create_db_instance]
 
@@ -49,6 +57,9 @@ with DAG(
     delete_db_instance = RdsDeleteDbInstanceOperator(
         task_id='delete_db_instance',
         db_instance_identifier=RDS_DB_IDENTIFIER,
+        rds_kwargs={
+            "SkipFinalSnapshot": True,
+        },
     )
     # [END howto_operator_rds_delete_db_instance]
 
