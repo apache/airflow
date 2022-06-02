@@ -134,7 +134,7 @@ Docker in WSL 2
 - **WSL 2 Docker volume remount errors**:
     If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
     Cannot create container for service airflow: not a directory`` when starting Breeze
-    or an error like ``docker: Error response from daemon: not a directory.
+    after the first time or an error like ``docker: Error response from daemon: not a directory.
     See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
     `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
     instead of using Docker Desktop for Windows.
