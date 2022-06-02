@@ -144,10 +144,10 @@ class KubernetesPodOperator(BaseOperator):
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
     :param priority_class_name: priority class name for the launched Pod
+    :param pod_runtime_info_envs: (Optional) A list of environment variables,
+        to be set in the container.
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
-    :param pod_runtime_info_envs: (Optional) A list of environment variables,
-        to be set in the container. Cannot be updated.
     :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
         to populate the environment variables with. The contents of the target
         ConfigMap's Data field will represent the key-value pairs as environment variables.
