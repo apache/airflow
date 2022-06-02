@@ -1253,6 +1253,7 @@ commands:
     yarn run prod
 
     # Starts a web server that manages and updates your assets as you modify them
+    # You'll need to run the webserver in dev mode too: `airflow webserver -d`
     yarn run dev
 
 
