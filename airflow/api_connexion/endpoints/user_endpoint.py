@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from http import HTTPStatus
 from typing import List, Optional
 
 from connexion import NoContent
@@ -205,4 +206,4 @@ def delete_user(*, username: str) -> APIResponse:
     security_manager.get_session.delete(user)
     security_manager.get_session.commit()
 
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT

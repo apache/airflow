@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from http import HTTPStatus
 from typing import List, Optional, Tuple
 
 import pendulum
@@ -55,7 +56,7 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
     """Delete a DAG Run"""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT
 
 
 @security.requires_access(

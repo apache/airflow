@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from http import HTTPStatus
 from typing import List, Optional, Tuple
 
 from connexion import NoContent
@@ -105,7 +106,7 @@ def delete_role(*, role_name: str) -> APIResponse:
     if not role:
         raise NotFound(title="Role not found", detail=f"Role with name {role_name!r} was not found")
     ab_security_manager.delete_role(role_name=role_name)
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_ROLE)])

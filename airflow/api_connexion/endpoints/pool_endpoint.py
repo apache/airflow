@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
+from http import HTTPStatus
 from typing import Optional
 
 from flask import Response
@@ -42,7 +44,7 @@ def delete_pool(*, pool_name: str, session: Session = NEW_SESSION) -> APIRespons
     affected_count = session.query(Pool).filter(Pool.pool == pool_name).delete()
     if affected_count == 0:
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
-    return Response(status=204)
+    return Response(status=HTTPStatus.NO_CONTENT)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_POOL)])

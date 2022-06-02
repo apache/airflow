@@ -15,6 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from http import HTTPStatus
 from typing import Collection, Optional
 
 from connexion import NoContent
@@ -177,4 +178,4 @@ def delete_dag(dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     except AirflowException:
         raise AlreadyExists(detail=f"Task instances of dag with id: '{dag_id}' are still running")
 
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT
