@@ -76,7 +76,7 @@ TEST_CONN_TIMEOUT = 30
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
-TEST_DISABLED_ALGORITHMS = {'pubkeys': ['rsa-sha2-256', 'rsa-sha2-512']}
+TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
 
 
 class TestSSHHook(unittest.TestCase):

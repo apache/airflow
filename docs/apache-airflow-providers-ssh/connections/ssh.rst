@@ -67,7 +67,7 @@ Extra (optional)
           "look_for_keys": "false",
           "allow_host_key_change": "false",
           "host_key": "AAAHD...YDWwq=="
-          "disabled_algorithms": {'pubkeys': ['rsa-sha2-256', 'rsa-sha2-512']}
+          "disabled_algorithms": {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
        }
 
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it
