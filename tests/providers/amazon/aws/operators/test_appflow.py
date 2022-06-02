@@ -155,18 +155,17 @@ def test_run_daily(appflow_conn, ctx):
     )
 
 
-def test_short_circuit(appflow_conn, dag_maker):
-    with dag_maker(dag_id="unit_test_short_circuit"):
-        AppflowRunFullOperator(**DUMP_COMMON_ARGS)
-        AppflowRecordsShortCircuitOperator(
-            task_id=SHORT_CIRCUIT_TASK_ID,
-            flow_name=FLOW_NAME,
-            appflow_run_task_id=TASK_ID,
-        )
-
-    dagrun = dag_maker.create_dagrun(execution_date=timezone.utcnow())
-    tis = {ti.task_id: ti for ti in dagrun.task_instances}
-    for _, ti in tis.items():
-        ti.run()
-    appflow_conn.describe_flow_execution_records.assert_called_once_with(flowName=FLOW_NAME, maxResults=100)
-    assert tis[SHORT_CIRCUIT_TASK_ID].xcom_pull(task_ids=SHORT_CIRCUIT_TASK_ID, key='return_value') == 1
+def test_short_circuit(appflow_conn, ctx):
+    with mock.patch("airflow.models.TaskInstance.xcom_pull") as mock_xcom_pull:
+        with mock.patch("airflow.models.TaskInstance.xcom_push") as mock_xcom_push:
+            mock_xcom_pull.return_value = EXECUTION_ID
+            operator = AppflowRecordsShortCircuitOperator(
+                task_id=SHORT_CIRCUIT_TASK_ID,
+                flow_name=FLOW_NAME,
+                appflow_run_task_id=TASK_ID,
+            )
+            operator.execute(ctx)  # type: ignore
+            appflow_conn.describe_flow_execution_records.assert_called_once_with(
+                flowName=FLOW_NAME, maxResults=100
+            )
+            mock_xcom_push.assert_called_with("records_processed", 1)

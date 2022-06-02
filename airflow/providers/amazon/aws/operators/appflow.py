@@ -468,6 +468,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
 
     def __init__(
         self,
+        *,
         flow_name: str,
         appflow_run_task_id: str,
         ignore_downstream_trigger_rules: bool = True,
