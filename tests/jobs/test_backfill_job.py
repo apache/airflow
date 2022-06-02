@@ -1679,6 +1679,7 @@ class TestBackfillJob:
                         run_id=key.run_id,
                         task_id=key.task_id,
                         map_index=key.map_index,
+                        item="",
                     )
                 )
                 session.flush()

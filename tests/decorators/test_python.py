@@ -725,6 +725,7 @@ def test_mapped_render_template_fields(dag_maker, session):
             task_id=task1.task_id,
             run_id=dr.run_id,
             map_index=-1,
+            item="",
             length=1,
             keys=None,
         )

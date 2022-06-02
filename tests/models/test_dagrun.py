@@ -1080,7 +1080,15 @@ def test_ti_scheduling_mapped_zero_length(dag_maker, session):
     ti1, ti2 = sorted(dr.task_instances, key=lambda ti: ti.task_id)
     ti1.state = TaskInstanceState.SUCCESS
     session.add(
-        TaskMap(dag_id=dr.dag_id, task_id=ti1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=ti1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            item="",
+            length=0,
+            keys=None,
+        ),
     )
     session.flush()
 

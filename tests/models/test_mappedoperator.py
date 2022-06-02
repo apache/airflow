@@ -159,6 +159,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
             task_id=task1.task_id,
             run_id=dr.run_id,
             map_index=-1,
+            item="",
             length=len(literal),
             keys=None,
         )
@@ -262,6 +263,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
             task_id=task1.task_id,
             run_id=dr.run_id,
             map_index=-1,
+            item="",
             length=1,
             keys=None,
         )

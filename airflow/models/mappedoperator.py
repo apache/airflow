@@ -509,6 +509,9 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
+    def should_unpack_mapped_kwargs(self) -> bool:
+        return False  # TODO: Implement to support expand_kwargs().
+
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
         return {
             "task_id": self.task_id,
@@ -597,6 +600,7 @@ class MappedOperator(AbstractOperator):
             TaskMap.run_id == run_id,
             TaskMap.task_id.in_(non_mapped_dep_keys),
             TaskMap.map_index < 0,
+            TaskMap.item == "",
         )
         for task_id, length in taskmap_query:
             for mapped_arg_name in non_mapped_dep_keys[task_id]:

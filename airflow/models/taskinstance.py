@@ -18,6 +18,7 @@
 import collections.abc
 import contextlib
 import hashlib
+import itertools
 import logging
 import math
 import operator
@@ -91,8 +92,6 @@ from airflow.exceptions import (
     DagRunNotFound,
     TaskDeferralError,
     TaskDeferred,
-    UnmappableXComLengthPushed,
-    UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
@@ -2272,19 +2271,20 @@ class TaskInstance(Base, LoggingMixin):
         # currently possible for a downstream to depend on one individual mapped
         # task instance, only a task as a whole. This will change in AIP-42
         # Phase 2, and we'll need to further analyze the mapped task case.
-        if next(task.iter_mapped_dependants(), None) is None:
-            return
-        if value is None:
-            raise XComForMappingNotPushed()
         if task.is_mapped:
+            # But we still need to check the mapped task did push something for
+            # its downstream tasks...
+            if next(task.iter_mapped_dependants(), None) is not None and value is None:
+                raise XComForMappingNotPushed()
             return
-        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            raise UnmappableXComTypePushed(value)
-        task_map = TaskMap.from_task_instance_xcom(self, value)
-        max_map_length = conf.getint("core", "max_map_length", fallback=1024)
-        if task_map.length > max_map_length:
-            raise UnmappableXComLengthPushed(value, max_map_length)
-        session.merge(task_map)
+
+        it1, it2 = itertools.tee(task.iter_mapped_dependants())
+        if next(it1, None) is None:  # No children need to expand, don't bother recording.
+            return
+        session.merge(TaskMap.from_task_instance_xcom(self, value, item=""))
+        if isinstance(value, dict) and any(node.should_unpack_mapped_kwargs() for node in it2):
+            for task_map in TaskMap.from_unpacking_task_instance_xcom(self, value):
+                session.merge(task_map)
 
     @provide_session
     def xcom_push(

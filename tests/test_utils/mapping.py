@@ -34,6 +34,7 @@ def expand_mapped_task(
             task_id=upstream_task_id,
             run_id=run_id,
             map_index=-1,
+            item="",
             length=length,
             keys=None,
         )

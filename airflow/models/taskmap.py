@@ -20,10 +20,12 @@
 
 import collections.abc
 import enum
-from typing import TYPE_CHECKING, Any, Collection, List, Optional
+from typing import TYPE_CHECKING, Any, Iterator, List, Optional
 
-from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
+from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, Text
 
+from airflow.configuration import conf
+from airflow.exceptions import UnmappableXComLengthPushed, UnmappableXComTypePushed, XComForMappingNotPushed
 from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
 from airflow.utils.sqlalchemy import ExtendedJSON
 
@@ -57,6 +59,11 @@ class TaskMap(Base):
     run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
     map_index = Column(Integer, primary_key=True)
 
+    # If the upstream XCom is used for expand_kwargs(), we use this to store
+    # lengths of each item in the dict, i.e. {"a": [1, 2]} generates a TaskMap
+    # with item set to "a". This is an empty string for normal expand() calls.
+    item = Column(Text(), nullable=False, server_default="", primary_key=True)
+
     length = Column(Integer, nullable=False)
     keys = Column(ExtendedJSON, nullable=True)
 
@@ -81,6 +88,7 @@ class TaskMap(Base):
         task_id: str,
         run_id: str,
         map_index: int,
+        item: str,
         length: int,
         keys: Optional[List[Any]],
     ) -> None:
@@ -88,21 +96,36 @@ class TaskMap(Base):
         self.task_id = task_id
         self.run_id = run_id
         self.map_index = map_index
+        self.item = item
         self.length = length
         self.keys = keys
 
     @classmethod
-    def from_task_instance_xcom(cls, ti: "TaskInstance", value: Collection) -> "TaskMap":
-        if ti.run_id is None:
-            raise ValueError("cannot record task map for unrun task instance")
+    def from_task_instance_xcom(cls, ti: "TaskInstance", value: Any, *, item: str) -> "TaskMap":
+        assert ti.run_id is not None, "cannot record task map for unrun task instance"
+        if value is None:
+            raise XComForMappingNotPushed()
+        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
+            raise UnmappableXComTypePushed(value)
+        max_map_length = conf.getint("core", "max_map_length", fallback=1024)
+        if len(value) > max_map_length:
+            raise UnmappableXComLengthPushed(value, max_map_length)
         return cls(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=ti.run_id,
             map_index=ti.map_index,
+            item=item,
             length=len(value),
             keys=(list(value) if isinstance(value, collections.abc.Mapping) else None),
         )
+
+    @classmethod
+    def from_unpacking_task_instance_xcom(cls, ti: "TaskInstance", coll: dict) -> Iterator["TaskMap"]:
+        for key, val in coll.items():
+            if not isinstance(key, str):
+                raise ValueError(f"cannot unpack {coll} as keyword arguments")
+            yield cls.from_task_instance_xcom(ti, val, item=key)
 
     @property
     def variant(self) -> TaskMapVariant:

@@ -101,6 +101,7 @@ class TestMappedTaskInstanceEndpoint:
                     task_id=task1.task_id,
                     run_id=dr.run_id,
                     map_index=-1,
+                    item="",
                     length=count,
                     keys=None,
                 )
