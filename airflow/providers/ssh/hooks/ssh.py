@@ -266,17 +266,16 @@ class SSHHook(BaseHook):
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
 
-        if not self.allow_host_key_change:
+        if self.allow_host_key_change:
             self.log.warning(
                 "Remote Identification Change is not verified. "
                 "This won't protect against Man-In-The-Middle attacks"
             )
+        else:
             client.load_system_host_keys()
 
         if self.no_host_key_check:
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
-            # Default is RejectPolicy
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
@@ -288,6 +287,10 @@ class SSHHook(BaseHook):
                     )
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
+
+        if self.no_host_key_check or self.allow_host_key_change:
+            # Default is RejectPolicy
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         connect_kwargs: Dict[str, Any] = dict(
             hostname=self.remote_host,
