@@ -91,7 +91,6 @@ with DAG(
         task_id="campaign_dump_short_circuit",
         flow_name=FLOW_NAME,
         appflow_run_task_id="campaign_dump_after",  # Should shortcircuit, no records expected
-        ignore_downstream_trigger_rules=True,
     )
     # [END howto_operator_appflow_shortcircuit]
 
