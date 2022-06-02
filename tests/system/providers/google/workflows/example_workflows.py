@@ -33,11 +33,15 @@ from airflow.providers.google.cloud.operators.workflows import (
     WorkflowsUpdateWorkflowOperator,
 )
 from airflow.providers.google.cloud.sensors.workflows import WorkflowExecutionSensor
+from airflow.utils.trigger_rule import TriggerRule
 
-LOCATION = os.environ.get("GCP_WORKFLOWS_LOCATION", "us-central1")
-PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "an-id")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
 
-WORKFLOW_ID = os.getenv("GCP_WORKFLOWS_WORKFLOW_ID", "airflow-test-workflow")
+DAG_ID = "cloud_workflows"
+
+LOCATION = "us-central1"
+WORKFLOW_ID = f"workflow-{DAG_ID}-{ENV_ID}"
 
 # [START how_to_define_workflow]
 WORKFLOW_CONTENT = """
@@ -67,7 +71,7 @@ WORKFLOW = {
 
 EXECUTION = {"argument": ""}
 
-SLEEP_WORKFLOW_ID = os.getenv("GCP_WORKFLOWS_SLEEP_WORKFLOW_ID", "sleep_workflow")
+SLEEP_WORKFLOW_ID = f"sleep-workflow-{DAG_ID}-{ENV_ID}"
 SLEEP_WORKFLOW_CONTENT = """
 - someSleep:
     call: sys.sleep
@@ -83,7 +87,7 @@ SLEEP_WORKFLOW = {
 
 
 with DAG(
-    "example_cloud_workflows",
+    DAG_ID,
     schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -99,8 +103,8 @@ with DAG(
     # [END how_to_create_workflow]
 
     # [START how_to_update_workflow]
-    update_workflows = WorkflowsUpdateWorkflowOperator(
-        task_id="update_workflows",
+    update_workflow = WorkflowsUpdateWorkflowOperator(
+        task_id="update_workflow",
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=WORKFLOW_ID,
@@ -127,6 +131,7 @@ with DAG(
         task_id="delete_workflow", location=LOCATION, project_id=PROJECT_ID, workflow_id=WORKFLOW_ID
     )
     # [END how_to_delete_workflow]
+    delete_workflow.trigger_rule = TriggerRule.ALL_DONE
 
     # [START how_to_create_execution]
     create_execution = WorkflowsCreateExecutionOperator(
@@ -182,21 +187,36 @@ with DAG(
         workflow_id=SLEEP_WORKFLOW_ID,
     )
 
+    cancel_execution_id = create_execution_for_cancel.output["execution_id"]
+
     # [START how_to_cancel_execution]
     cancel_execution = WorkflowsCancelExecutionOperator(
         task_id="cancel_execution",
         location=LOCATION,
         project_id=PROJECT_ID,
         workflow_id=SLEEP_WORKFLOW_ID,
-        execution_id=create_execution_id,
+        execution_id=cancel_execution_id,
     )
     # [END how_to_cancel_execution]
 
-    create_workflow >> update_workflows >> [get_workflow, list_workflows]
-    update_workflows >> [create_execution, create_execution_for_cancel]
+    delete_workflow_for_cancel = WorkflowsDeleteWorkflowOperator(
+        task_id="delete_workflow_for_cancel",
+        location=LOCATION,
+        project_id=PROJECT_ID,
+        workflow_id=SLEEP_WORKFLOW_ID,
+    )
+    delete_workflow_for_cancel.trigger_rule = TriggerRule.ALL_DONE
+
+    create_workflow >> update_workflow >> [get_workflow, list_workflows]
+    update_workflow >> [create_execution, create_execution_for_cancel]
 
     wait_for_execution >> [get_execution, list_executions]
-    create_workflow_for_cancel >> create_execution_for_cancel >> cancel_execution
+    (
+        create_workflow_for_cancel
+        >> create_execution_for_cancel
+        >> cancel_execution
+        >> delete_workflow_for_cancel
+    )
 
     [cancel_execution, list_executions] >> delete_workflow
 
@@ -205,7 +225,16 @@ with DAG(
     #   create_execution >> get_execution
     #   create_execution >> cancel_execution
 
+    # ### Everything below this line is not part of example ###
+    # ### Just for system tests purpose ###
+    from tests.system.utils.watcher import watcher
 
-if __name__ == '__main__':
-    dag.clear(dag_run_state=None)
-    dag.run()
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

@@ -908,6 +908,9 @@ extra-links:
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIBatchPredictionJobListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
+  - airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink
+  - airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink
+  - airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
