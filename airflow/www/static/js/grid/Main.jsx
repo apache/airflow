@@ -25,17 +25,21 @@ import {
   Flex,
   useDisclosure,
   Divider,
+  Spinner,
 } from '@chakra-ui/react';
+import { isEmpty } from 'lodash';
 
 import Details from './details';
 import useSelection from './utils/useSelection';
 import Grid from './Grid';
 import FilterBar from './FilterBar';
 import LegendRow from './LegendRow';
+import { useGridData } from './api';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
 const Main = () => {
+  const { data: { groups }, isLoading } = useGridData();
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
@@ -57,14 +61,20 @@ const Main = () => {
       <LegendRow setHoveredTaskState={setHoveredTaskState} />
       <Divider mb={5} borderBottomWidth={2} />
       <Flex justifyContent="space-between">
-        <Grid
-          isPanelOpen={isOpen}
-          onPanelToggle={onPanelToggle}
-          hoveredTaskState={hoveredTaskState}
-        />
-        <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
-          {isOpen && (<Details />)}
-        </Box>
+        {isLoading || isEmpty(groups)
+          ? (<Spinner />)
+          : (
+            <>
+              <Grid
+                isPanelOpen={isOpen}
+                onPanelToggle={onPanelToggle}
+                hoveredTaskState={hoveredTaskState}
+              />
+              <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
+                {isOpen && (<Details />)}
+              </Box>
+            </>
+          )}
       </Flex>
     </Box>
   );

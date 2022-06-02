@@ -2612,8 +2612,6 @@ class Airflow(AirflowBaseView):
             .limit(num_runs)
             .all()
         )
-        dag_runs.reverse()
-        encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
         dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         max_date = max(dag_run_dates, default=None)
@@ -2633,14 +2631,6 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
-        data = {
-            'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
-            'dag_runs': encoded_runs,
-        }
-
-        # avoid spaces to reduce payload size
-        data = htmlsafe_json_dumps(data, separators=(',', ':'))
-
         default_dag_run_display_number = conf.getint('webserver', 'default_dag_run_display_number')
 
         num_runs_options = [5, 25, 50, 100, 365]
@@ -2655,7 +2645,6 @@ class Airflow(AirflowBaseView):
             form=form,
             dag=dag,
             doc_md=doc_md,
-            data=data,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
