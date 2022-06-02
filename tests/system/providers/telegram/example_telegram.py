@@ -18,22 +18,31 @@
 """
 Example use of Telegram operator.
 """
-
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.telegram.operators.telegram import TelegramOperator
 
-dag = DAG('example_telegram', start_date=datetime(2021, 1, 1), tags=['example'])
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = 'example_telegram'
+CONN_ID = 'telegram_conn_id'
+
+dag = DAG(DAG_ID, start_date=datetime(2021, 1, 1), tags=['example'])
 
 # [START howto_operator_telegram]
 
 send_message_telegram_task = TelegramOperator(
     task_id='send_message_telegram',
-    telegram_conn_id='telegram_conn_id',
+    telegram_conn_id=CONN_ID,
     chat_id='-3222103937',
     text='Hello from Airflow!',
     dag=dag,
 )
 
 # [END howto_operator_telegram]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
