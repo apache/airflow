@@ -40,15 +40,17 @@ ASANA_TASK_TO_DELETE = os.environ.get("ASANA_TASK_TO_DELETE", "delete_task")
 ASANA_PROJECT_ID_OVERRIDE = os.environ.get("ASANA_PROJECT_ID_OVERRIDE", "test_project")
 # This connection should specify a personal access token and a default project ID
 CONN_ID = os.environ.get("ASANA_CONNECTION_ID")
-
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_asana"
 
 with DAG(
-    "example_asana",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     default_args={"conn_id": CONN_ID},
     tags=["example"],
     catchup=False,
 ) as dag:
+    # [START asana_example_dag]
     # [START run_asana_create_task_operator]
     # Create a task. `task_parameters` is used to specify attributes the new task should have.
     # You must specify at least one of 'workspace', 'projects', or 'parent' in `task_parameters`
@@ -93,3 +95,15 @@ with DAG(
     # [END run_asana_delete_task_operator]
 
     create >> find >> update >> delete
+    # [END asana_example_dag]
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
