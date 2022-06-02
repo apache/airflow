@@ -18,11 +18,14 @@
 """
 This is an example dag for using the DingdingOperator.
 """
+import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.dingding.operators.dingding import DingdingOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_dingding_operator"
 
 # [START howto_operator_dingding_failure_callback]
 def failure_callback(context):
@@ -48,7 +51,7 @@ def failure_callback(context):
 # [END howto_operator_dingding_failure_callback]
 
 with DAG(
-    dag_id='example_dingding_operator',
+    dag_id=DAG_ID,
     default_args={'retries': 3, 'on_failure_callback': failure_callback},
     schedule_interval='@once',
     dagrun_timeout=timedelta(minutes=60),
@@ -201,3 +204,14 @@ with DAG(
         >> feed_card_msg
         >> msg_failure_callback
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
