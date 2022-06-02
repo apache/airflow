@@ -413,23 +413,23 @@ Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
      breeze static-checks --type run-flake8 --file tests/core/* --verbose
 
-Run all tests for the currently staged files:
+Run all checks for the currently staged files:
 
 .. code-block:: bash
 
      breeze static-checks --type all
 
-Run all tests for all files:
+Run all checks for all files:
 
 .. code-block:: bash
 
     breeze static-checks --type all --all-files
 
-Run all tests for last commit :
+Run all checks for last commit :
 
 .. code-block:: bash
 
-     breeze static-checks -type all --last-commit
+     breeze static-checks --type all --last-commit
 
 Debugging pre-commit check scripts requiring image
 --------------------------------------------------
