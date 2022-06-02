@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """MsSQL to GCS operator."""
-
+import datetime
 import decimal
 from typing import Dict
 
@@ -42,7 +42,7 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
                 filename='data/customers/export.json',
                 schema_filename='schemas/export.json',
                 mssql_conn_id='mssql_default',
-                google_cloud_storage_conn_id='google_cloud_default',
+                gcp_conn_id='google_cloud_default',
                 dag=dag
             )
 
@@ -80,11 +80,14 @@ class MSSQLToGCSOperator(BaseSQLToGCSOperator):
         }
 
     @classmethod
-    def convert_type(cls, value, schema_type):
+    def convert_type(cls, value, schema_type, **kwargs):
         """
         Takes a value from MSSQL, and converts it to a value that's safe for
         JSON/Google Cloud Storage/BigQuery.
+        Datetime, Date and Time are converted to ISO formatted strings.
         """
         if isinstance(value, decimal.Decimal):
             return float(value)
+        if isinstance(value, (datetime.date, datetime.time)):
+            return value.isoformat()
         return value

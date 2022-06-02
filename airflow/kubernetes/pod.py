@@ -17,17 +17,18 @@
 # under the License.
 """
 This module is deprecated.
-Please use :mod:`kubernetes.client.models for V1ResourceRequirements and Port.
+Please use :mod:`kubernetes.client.models` for `V1ResourceRequirements` and `Port`.
 """
 # flake8: noqa
 
 import warnings
 
 with warnings.catch_warnings():
+    warnings.simplefilter("ignore", DeprecationWarning)
     from airflow.providers.cncf.kubernetes.backcompat.pod import Port, Resources  # noqa: autoflake
 
 warnings.warn(
-    "This module is deprecated. Please use `kubernetes.client.models for V1ResourceRequirements and Port.",
+    "This module is deprecated. Please use `kubernetes.client.models` for `V1ResourceRequirements` and `Port`.",
     DeprecationWarning,
     stacklevel=2,
 )

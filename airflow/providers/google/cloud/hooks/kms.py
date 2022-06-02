@@ -22,6 +22,7 @@
 import base64
 from typing import Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
@@ -88,7 +89,7 @@ class CloudKMSHook(GoogleBaseHook):
         key_name: str,
         plaintext: bytes,
         authenticated_data: Optional[bytes] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> str:
@@ -128,7 +129,7 @@ class CloudKMSHook(GoogleBaseHook):
         key_name: str,
         ciphertext: str,
         authenticated_data: Optional[bytes] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> bytes:

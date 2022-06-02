@@ -19,6 +19,7 @@ import unittest
 from unittest import mock
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow import AirflowException
 from airflow.providers.google.cloud.sensors.dataplex import DataplexTaskStateSensor, TaskState
@@ -67,7 +68,7 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
             region=REGION,
             lake_id=LAKE_ID,
             dataplex_task_id=DATAPLEX_TASK_ID,
-            retry=None,
+            retry=DEFAULT,
             metadata=(),
         )
 
@@ -98,6 +99,6 @@ class TestDataplexTaskStateSensor(unittest.TestCase):
             region=REGION,
             lake_id=LAKE_ID,
             dataplex_task_id=DATAPLEX_TASK_ID,
-            retry=None,
+            retry=DEFAULT,
             metadata=(),
         )

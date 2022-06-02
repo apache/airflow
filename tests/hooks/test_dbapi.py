@@ -273,3 +273,8 @@ class TestDbApiHook(unittest.TestCase):
         assert called == 2
         assert self.conn.commit.called
         assert result == [obj, obj]
+
+    def test_run_no_queries(self):
+        with pytest.raises(ValueError) as err:
+            self.db_hook.run(sql=[])
+        assert err.value.args[0] == "List of SQL statements is empty"

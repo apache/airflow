@@ -527,6 +527,18 @@ class TestPostConnection(TestConnectionEndpoint):
         assert len(connection) == 1
         assert connection[0].conn_id == 'test-connection-id'
 
+    def test_post_should_respond_200_extra_null(self, session):
+        payload = {"connection_id": "test-connection-id", "conn_type": 'test_type', "extra": None}
+        response = self.client.post(
+            "/api/v1/connections", json=payload, environ_overrides={"REMOTE_USER": "test"}
+        )
+        assert response.status_code == 200
+        assert response.json["extra"] is None
+        connection = session.query(Connection).all()
+        assert len(connection) == 1
+        assert connection[0].conn_id == "test-connection-id"
+        assert connection[0].extra is None
+
     def test_post_should_respond_400_for_invalid_payload(self):
         payload = {
             "connection_id": "test-connection-id",

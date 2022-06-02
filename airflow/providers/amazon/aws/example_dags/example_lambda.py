@@ -36,10 +36,10 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
-    # [START howto_lambda_operator]
+    # [START howto_operator_lambda]
     invoke_lambda_function = AwsLambdaInvokeFunctionOperator(
         task_id='setup__invoke_lambda_function',
         function_name=LAMBDA_FUNCTION_NAME,
         payload=SAMPLE_EVENT,
     )
-    # [END howto_lambda_operator]
+    # [END howto_operator_lambda]

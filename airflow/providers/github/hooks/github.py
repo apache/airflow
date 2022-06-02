@@ -69,11 +69,11 @@ class GithubHook(BaseHook):
         return {
             "hidden_fields": ['schema', 'port', 'login', 'extra'],
             "relabeling": {
-                'host': 'Github Enterprise Url (Optional)',
-                'password': 'Github Access Token',
+                'host': 'GitHub Enterprise Url (Optional)',
+                'password': 'GitHub Access Token',
             },
             "placeholders": {
-                'host': 'https://{hostname}/api/v3 (for Github Enterprise Connection)',
+                'host': 'https://{hostname}/api/v3 (for GitHub Enterprise Connection)',
                 'password': 'token credentials auth',
             },
         }

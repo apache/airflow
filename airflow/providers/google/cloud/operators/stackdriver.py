@@ -18,11 +18,16 @@
 
 from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
-from google.api_core.gapic_v1.method import DEFAULT
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.retry import Retry
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
+from airflow.providers.google.cloud.links.stackdriver import (
+    StackdriverNotificationsLink,
+    StackdriverPoliciesLink,
+)
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -81,6 +86,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverPoliciesLink(),)
     ui_color = "#e5ffcc"
 
     def __init__(
@@ -90,7 +96,7 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -139,6 +145,11 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
         return [AlertPolicy.to_dict(policy) for policy in result]
 
 
@@ -181,12 +192,13 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverPoliciesLink(),)
 
     def __init__(
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -220,6 +232,11 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -263,12 +280,13 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverPoliciesLink(),)
 
     def __init__(
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -302,6 +320,11 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -345,6 +368,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         'impersonation_chain',
     )
     template_ext: Sequence[str] = ('.json',)
+    operator_extra_links = (StackdriverPoliciesLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -352,7 +376,7 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self,
         *,
         alerts: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -386,6 +410,11 @@ class StackdriverUpsertAlertOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -432,7 +461,7 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -521,6 +550,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -531,7 +561,7 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -579,8 +609,12 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = [NotificationChannel.to_dict(channel) for channel in channels]
-        return result
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
+        return [NotificationChannel.to_dict(channel) for channel in channels]
 
 
 class StackdriverEnableNotificationChannelsOperator(BaseOperator):
@@ -621,6 +655,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -628,7 +663,7 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -664,6 +699,11 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -705,6 +745,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -712,7 +753,7 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -748,6 +789,11 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -791,6 +837,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         'impersonation_chain',
     )
     template_ext: Sequence[str] = ('.json',)
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -798,7 +845,7 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self,
         *,
         channels: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
@@ -834,6 +881,11 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -880,7 +932,7 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Optional[str] = DEFAULT,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',

@@ -1436,8 +1436,12 @@ OPERATORS = [
         "airflow.operators.subdag_operator.SubDagOperator",
     ),
     (
-        "airflow.operators.dummy.DummyOperator",
+        "airflow.operators.empty.EmptyOperator",
         "airflow.operators.dummy_operator.DummyOperator",
+    ),
+    (
+        "airflow.operators.empty.EmptyOperator",
+        "airflow.operators.dummy.DummyOperator",
     ),
     (
         "airflow.providers.amazon.aws.operators.ec2.EC2StartInstanceOperator",

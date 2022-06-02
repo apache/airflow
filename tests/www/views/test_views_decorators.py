@@ -22,7 +22,7 @@ from unittest import mock
 import pytest
 
 from airflow.models import DagBag, DagRun, Log, TaskInstance
-from airflow.utils import dates, timezone
+from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 from airflow.www import app
@@ -30,7 +30,7 @@ from airflow.www.views import action_has_dag_edit_access
 from tests.test_utils.db import clear_db_runs
 from tests.test_utils.www import check_content_in_response
 
-EXAMPLE_DAG_DEFAULT_DATE = dates.days_ago(2)
+EXAMPLE_DAG_DEFAULT_DATE = timezone.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
 
 
 @pytest.fixture(scope="module")

@@ -22,7 +22,7 @@ from sqlalchemy.orm.session import Session
 
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.models import TaskInstance
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session

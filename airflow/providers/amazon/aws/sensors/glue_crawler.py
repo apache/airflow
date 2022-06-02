@@ -31,6 +31,10 @@ class GlueCrawlerSensor(BaseSensorOperator):
     Waits for an AWS Glue crawler to reach any of the statuses below
     'FAILED', 'CANCELLED', 'SUCCEEDED'
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:GlueCrawlerSensor`
+
     :param crawler_name: The AWS Glue crawler unique name
     :param aws_conn_id: aws connection to use, defaults to 'aws_default'
     """

@@ -15,44 +15,43 @@
     specific language governing permissions and limitations
     under the License.
 
-Amazon Redshift Operators
-=========================
+===============
+Amazon Redshift
+===============
 
 `Amazon Redshift <https://aws.amazon.com/redshift/>`__ manages all the work of setting up, operating, and scaling a data warehouse:
 provisioning capacity, monitoring and backing up the cluster, and applying patches and upgrades to
 the Amazon Redshift engine. You can focus on using your data to acquire new insights for your
 business and customers.
 
-Airflow provides operators to manage your Redshift clusters.
-
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
-Manage Amazon Redshift Clusters
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Operators
+---------
 
-.. _howto/sensor:RedshiftClusterSensor:
+.. _howto/operator:RedshiftCreateClusterOperator:
 
-Amazon Redshift Cluster Sensor
-""""""""""""""""""""""""""""""
+Create an Amazon Redshift cluster
+=================================
 
-To check the state of an Amazon Redshift Cluster until it reaches the target state or another terminal
-state you can use :class:`~airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.
+To create an Amazon Redshift Cluster with the specified parameters you can use
+:class:`~airflow.providers.amazon.aws.operators.redshift_cluster.RedshiftCreateClusterOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_sensor_redshift_cluster]
-    :end-before: [END howto_sensor_redshift_cluster]
+    :start-after: [START howto_operator_redshift_cluster]
+    :end-before: [END howto_operator_redshift_cluster]
 
 .. _howto/operator:RedshiftResumeClusterOperator:
 
-Resume an Amazon Redshift Cluster
-"""""""""""""""""""""""""""""""""
+Resume an Amazon Redshift cluster
+=================================
 
-To resume a 'paused' Amazon Redshift Cluster you can use
+To resume a 'paused' Amazon Redshift cluster you can use
 :class:`RedshiftResumeClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
@@ -63,10 +62,10 @@ To resume a 'paused' Amazon Redshift Cluster you can use
 
 .. _howto/operator:RedshiftPauseClusterOperator:
 
-Pause an Amazon Redshift Cluster
-""""""""""""""""""""""""""""""""
+Pause an Amazon Redshift cluster
+================================
 
-To pause an 'available' Amazon Redshift Cluster you can use
+To pause an 'available' Amazon Redshift cluster you can use
 :class:`RedshiftPauseClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
@@ -75,7 +74,38 @@ To pause an 'available' Amazon Redshift Cluster you can use
     :start-after: [START howto_operator_redshift_pause_cluster]
     :end-before: [END howto_operator_redshift_pause_cluster]
 
-Reference
-^^^^^^^^^
+.. _howto/operator:RedshiftDeleteClusterOperator:
 
-* `AWS boto3 Library Documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__
+Delete an Amazon Redshift cluster
+=================================
+
+To delete an Amazon Redshift cluster you can use
+:class:`RedshiftDeleteClusterOperator <airflow.providers.amazon.aws.operators.redshift_cluster>`
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_redshift_delete_cluster]
+    :end-before: [END howto_operator_redshift_delete_cluster]
+
+Sensors
+-------
+
+.. _howto/sensor:RedshiftClusterSensor:
+
+Wait on an Amazon Redshift cluster state
+========================================
+
+To check the state of an Amazon Redshift Cluster until it reaches the target state or another terminal
+state you can use :class:`~airflow.providers.amazon.aws.sensors.redshift_cluster.RedshiftClusterSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_redshift_cluster.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_redshift_cluster]
+    :end-before: [END howto_sensor_redshift_cluster]
+
+Reference
+---------
+
+* `AWS boto3 library documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__

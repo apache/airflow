@@ -43,7 +43,12 @@ class TestCliDb:
     def test_cli_resetdb(self, mock_resetdb):
         db_command.resetdb(self.parser.parse_args(['db', 'reset', '--yes']))
 
-        mock_resetdb.assert_called_once_with()
+        mock_resetdb.assert_called_once_with(skip_init=False)
+
+    @mock.patch("airflow.cli.commands.db_command.db.resetdb")
+    def test_cli_resetdb_skip_init(self, mock_resetdb):
+        db_command.resetdb(self.parser.parse_args(['db', 'reset', '--yes', '--skip-init']))
+        mock_resetdb.assert_called_once_with(skip_init=True)
 
     @mock.patch("airflow.cli.commands.db_command.db.check_migrations")
     def test_cli_check_migrations(self, mock_wait_for_migrations):
@@ -56,33 +61,33 @@ class TestCliDb:
         [
             ([], dict(to_revision=None, from_revision=None, show_sql_only=False)),
             (['--show-sql-only'], dict(to_revision=None, from_revision=None, show_sql_only=True)),
-            (['--revision', 'abc'], dict(to_revision='abc', from_revision=None, show_sql_only=False)),
+            (['--to-revision', 'abc'], dict(to_revision='abc', from_revision=None, show_sql_only=False)),
             (
-                ['--revision', 'abc', '--show-sql-only'],
+                ['--to-revision', 'abc', '--show-sql-only'],
                 dict(to_revision='abc', from_revision=None, show_sql_only=True),
             ),
             (
-                ['--version', '2.2.2'],
+                ['--to-version', '2.2.2'],
                 dict(to_revision='7b2661a43ba3', from_revision=None, show_sql_only=False),
             ),
             (
-                ['--version', '2.2.2', '--show-sql-only'],
+                ['--to-version', '2.2.2', '--show-sql-only'],
                 dict(to_revision='7b2661a43ba3', from_revision=None, show_sql_only=True),
             ),
             (
-                ['--revision', 'abc', '--from-revision', 'abc123', '--show-sql-only'],
+                ['--to-revision', 'abc', '--from-revision', 'abc123', '--show-sql-only'],
                 dict(to_revision='abc', from_revision='abc123', show_sql_only=True),
             ),
             (
-                ['--revision', 'abc', '--from-version', '2.2.2', '--show-sql-only'],
+                ['--to-revision', 'abc', '--from-version', '2.2.2', '--show-sql-only'],
                 dict(to_revision='abc', from_revision='7b2661a43ba3', show_sql_only=True),
             ),
             (
-                ['--version', '2.2.4', '--from-revision', 'abc123', '--show-sql-only'],
+                ['--to-version', '2.2.4', '--from-revision', 'abc123', '--show-sql-only'],
                 dict(to_revision='587bdf053233', from_revision='abc123', show_sql_only=True),
             ),
             (
-                ['--version', '2.2.4', '--from-version', '2.2.2', '--show-sql-only'],
+                ['--to-version', '2.2.4', '--from-version', '2.2.2', '--show-sql-only'],
                 dict(to_revision='587bdf053233', from_revision='7b2661a43ba3', show_sql_only=True),
             ),
         ],
@@ -95,19 +100,19 @@ class TestCliDb:
     @pytest.mark.parametrize(
         'args, pattern',
         [
-            param(['--version', '2.1.25'], 'not supported', id='bad version'),
+            param(['--to-version', '2.1.25'], 'not supported', id='bad version'),
             param(
-                ['--revision', 'abc', '--from-revision', 'abc123'],
+                ['--to-revision', 'abc', '--from-revision', 'abc123'],
                 'used with `--show-sql-only`',
                 id='requires offline',
             ),
             param(
-                ['--revision', 'abc', '--from-version', '2.0.2'],
+                ['--to-revision', 'abc', '--from-version', '2.0.2'],
                 'used with `--show-sql-only`',
                 id='requires offline',
             ),
             param(
-                ['--revision', 'abc', '--from-version', '2.1.25', '--show-sql-only'],
+                ['--to-revision', 'abc', '--from-version', '2.1.25', '--show-sql-only'],
                 'Unknown version',
                 id='bad version',
             ),
@@ -201,15 +206,15 @@ class TestCliDb:
     @pytest.mark.parametrize(
         'args, match',
         [
-            (['-y', '--revision', 'abc', '--version', '2.2.0'], 'Cannot supply both'),
-            (['-y', '--revision', 'abc1', '--from-revision', 'abc2'], 'only .* with `--show-sql-only`'),
-            (['-y', '--revision', 'abc1', '--from-version', '2.2.2'], 'only .* with `--show-sql-only`'),
-            (['-y', '--version', '2.2.2', '--from-version', '2.2.2'], 'only .* with `--show-sql-only`'),
+            (['-y', '--to-revision', 'abc', '--to-version', '2.2.0'], 'Cannot supply both'),
+            (['-y', '--to-revision', 'abc1', '--from-revision', 'abc2'], 'only .* with `--show-sql-only`'),
+            (['-y', '--to-revision', 'abc1', '--from-version', '2.2.2'], 'only .* with `--show-sql-only`'),
+            (['-y', '--to-version', '2.2.2', '--from-version', '2.2.2'], 'only .* with `--show-sql-only`'),
             (
-                ['-y', '--revision', 'abc', '--from-version', '2.2.0', '--from-revision', 'abc'],
+                ['-y', '--to-revision', 'abc', '--from-version', '2.2.0', '--from-revision', 'abc'],
                 'may not be combined',
             ),
-            (['-y', '--version', 'abc'], r'Downgrading to .* not supported\.'),
+            (['-y', '--to-version', 'abc'], r'Downgrading to .* not supported\.'),
             (['-y'], 'Must provide either'),
         ],
     )
@@ -223,20 +228,20 @@ class TestCliDb:
     @pytest.mark.parametrize(
         'args, expected',
         [
-            (['-y', '--revision', 'abc1'], dict(to_revision='abc1')),
+            (['-y', '--to-revision', 'abc1'], dict(to_revision='abc1')),
             (
-                ['-y', '--revision', 'abc1', '--from-revision', 'abc2', '-s'],
+                ['-y', '--to-revision', 'abc1', '--from-revision', 'abc2', '-s'],
                 dict(to_revision='abc1', from_revision='abc2', show_sql_only=True),
             ),
             (
-                ['-y', '--revision', 'abc1', '--from-version', '2.2.2', '-s'],
+                ['-y', '--to-revision', 'abc1', '--from-version', '2.2.2', '-s'],
                 dict(to_revision='abc1', from_revision='7b2661a43ba3', show_sql_only=True),
             ),
             (
-                ['-y', '--version', '2.2.2', '--from-version', '2.2.2', '-s'],
+                ['-y', '--to-version', '2.2.2', '--from-version', '2.2.2', '-s'],
                 dict(to_revision='7b2661a43ba3', from_revision='7b2661a43ba3', show_sql_only=True),
             ),
-            (['-y', '--version', '2.2.2'], dict(to_revision='7b2661a43ba3')),
+            (['-y', '--to-version', '2.2.2'], dict(to_revision='7b2661a43ba3')),
         ],
     )
     @mock.patch("airflow.utils.db.downgrade")
@@ -260,9 +265,9 @@ class TestCliDb:
         mock_input.return_value = resp
         if raise_:
             with pytest.raises(SystemExit):
-                db_command.downgrade(self.parser.parse_args(['db', 'downgrade', '--revision', 'abc']))
+                db_command.downgrade(self.parser.parse_args(['db', 'downgrade', '--to-revision', 'abc']))
         else:
-            db_command.downgrade(self.parser.parse_args(['db', 'downgrade', '--revision', 'abc']))
+            db_command.downgrade(self.parser.parse_args(['db', 'downgrade', '--to-revision', 'abc']))
             mock_dg.assert_called_with(to_revision='abc', from_revision=None, show_sql_only=False)
 
 

@@ -20,6 +20,7 @@ from airflow import DAG
 from airflow.providers.opsgenie.operators.opsgenie import (
     OpsgenieCloseAlertOperator,
     OpsgenieCreateAlertOperator,
+    OpsgenieDeleteAlertOperator,
 )
 
 with DAG(
@@ -38,3 +39,9 @@ with DAG(
         task_id="opsgenie_close_task", identifier="identifier_example"
     )
     # [END howto_opsgenie_close_alert_operator]
+
+    # [START howto_opsgenie_delete_alert_operator]
+    opsgenie_delete_alert_operator = OpsgenieDeleteAlertOperator(
+        task_id="opsgenie_delete_task", identifier="identifier_example"
+    )
+    # [END howto_opsgenie_delete_alert_operator]

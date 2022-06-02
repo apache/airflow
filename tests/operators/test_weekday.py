@@ -24,7 +24,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI, XCom
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.weekday import BranchDayOfWeekOperator
 from airflow.utils import timezone
 from airflow.utils.session import create_session
@@ -53,8 +53,8 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
             start_date=DEFAULT_DATE,
             schedule_interval=INTERVAL,
         )
-        self.branch_1 = DummyOperator(task_id="branch_1", dag=self.dag)
-        self.branch_2 = DummyOperator(task_id="branch_2", dag=self.dag)
+        self.branch_1 = EmptyOperator(task_id="branch_1", dag=self.dag)
+        self.branch_2 = EmptyOperator(task_id="branch_2", dag=self.dag)
         self.branch_3 = None
 
     def tearDown(self):
@@ -109,7 +109,7 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
         self.branch_1.set_upstream(branch_op)
         self.branch_2.set_upstream(branch_op)
-        self.branch_3 = DummyOperator(task_id="branch_3", dag=self.dag)
+        self.branch_3 = EmptyOperator(task_id="branch_3", dag=self.dag)
         self.branch_3.set_upstream(branch_op)
         self.dag.clear()
 
@@ -134,14 +134,14 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
     @freeze_time("2021-01-25")  # Monday
     def test_branch_follow_true_with_execution_date(self):
-        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_execution_day"""
+        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_logical_date"""
 
         branch_op = BranchDayOfWeekOperator(
             task_id="make_choice",
             follow_task_ids_if_true="branch_1",
             follow_task_ids_if_false="branch_2",
             week_day="Wednesday",
-            use_task_execution_day=True,  # We compare to DEFAULT_DATE which is Wednesday
+            use_task_logical_date=True,  # We compare to DEFAULT_DATE which is Wednesday
             dag=self.dag,
         )
 
@@ -274,3 +274,18 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         for ti in tis:
             if ti.task_id == 'make_choice':
                 assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'
+
+    def test_deprecation_warning(self):
+        warning_message = (
+            """Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``."""
+        )
+        with pytest.warns(DeprecationWarning) as warnings:
+            BranchDayOfWeekOperator(
+                task_id="week_day_warn",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                week_day="Monday",
+                use_task_execution_day=True,
+                dag=self.dag,
+            )
+        assert warning_message == str(warnings[0].message)

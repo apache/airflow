@@ -139,8 +139,6 @@ class RedshiftToS3Operator(BaseOperator):
     def execute(self, context: 'Context') -> None:
         redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-
-        credentials_block = None
         if conn.extra_dejson.get('role_arn', False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:

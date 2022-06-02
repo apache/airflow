@@ -34,7 +34,7 @@ def provider_get(args):
     providers = ProvidersManager().providers
     if args.provider_name in providers:
         provider_version = providers[args.provider_name].version
-        provider_info = providers[args.provider_name].provider_info
+        provider_info = providers[args.provider_name].data
         if args.full:
             provider_info["description"] = _remove_rst_syntax(provider_info["description"])
             AirflowConsole().print_as(
@@ -55,9 +55,9 @@ def providers_list(args):
         data=list(ProvidersManager().providers.values()),
         output=args.output,
         mapper=lambda x: {
-            "package_name": x[1]["package-name"],
-            "description": _remove_rst_syntax(x[1]["description"]),
-            "version": x[0],
+            "package_name": x.data["package-name"],
+            "description": _remove_rst_syntax(x.data["description"]),
+            "version": x.version,
         },
     )
 

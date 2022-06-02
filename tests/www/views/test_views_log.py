@@ -56,7 +56,12 @@ def backup_modules():
 @pytest.fixture(scope="module")
 def log_app(backup_modules):
     @dont_initialize_flask_app_submodules(
-        skip_all_except=["init_appbuilder", "init_jinja_globals", "init_appbuilder_views"]
+        skip_all_except=[
+            "init_appbuilder",
+            "init_jinja_globals",
+            "init_appbuilder_views",
+            "init_api_connexion",
+        ]
     )
     @conf_vars({('logging', 'logging_config_class'): 'airflow_local_settings.LOGGING_CONFIG'})
     def factory():
@@ -330,6 +335,26 @@ def test_get_logs_with_metadata(log_admin_client, metadata):
     assert '"message":' in data
     assert '"metadata":' in data
     assert 'Log for testing.' in data
+
+
+def test_get_logs_with_invalid_metadata(log_admin_client):
+    """Test invalid metadata JSON returns error message"""
+    metadata = "invalid"
+    url_template = "get_logs_with_metadata?dag_id={}&task_id={}&execution_date={}&try_number={}&metadata={}"
+    response = log_admin_client.get(
+        url_template.format(
+            DAG_ID,
+            TASK_ID,
+            urllib.parse.quote_plus(DEFAULT_DATE.isoformat()),
+            1,
+            metadata,
+        ),
+        data={"username": "test", "password": "test"},
+        follow_redirects=True,
+    )
+
+    assert response.status_code == 400
+    assert response.json == {"error": "Invalid JSON metadata"}
 
 
 @unittest.mock.patch(

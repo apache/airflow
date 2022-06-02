@@ -19,6 +19,8 @@
 import unittest
 from unittest import mock
 
+from parameterized import parameterized
+
 from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 
 
@@ -65,3 +67,16 @@ class TestJenkinsHook(unittest.TestCase):
         hook = JenkinsHook(default_connection_id)
         assert hook.jenkins_server is not None
         assert hook.jenkins_server.server == complete_url
+
+    @parameterized.expand([(True,), (False,)])
+    @mock.patch('airflow.hooks.base.BaseHook.get_connection')
+    @mock.patch('jenkins.Jenkins.get_job_info')
+    @mock.patch('jenkins.Jenkins.get_build_info')
+    def test_get_build_building_state(
+        self, param_building, mock_get_build_info, mock_get_job_info, get_connection_mock
+    ):
+        mock_get_build_info.return_value = {'building': param_building}
+
+        hook = JenkinsHook('none_connection_id')
+        result = hook.get_build_building_state('some_job', 1)
+        assert result == param_building

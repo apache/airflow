@@ -227,7 +227,7 @@ class QuboleHook(BaseHook):
         """
         if fp is None:
             iso = datetime.datetime.utcnow().isoformat()
-            logpath = os.path.expanduser(conf.get('logging', 'BASE_LOG_FOLDER'))
+            logpath = os.path.expanduser(conf.get_mandatory_value('logging', 'BASE_LOG_FOLDER'))
             resultpath = logpath + '/' + self.dag_id + '/' + self.task_id + '/results'
             pathlib.Path(resultpath).mkdir(parents=True, exist_ok=True)
             fp = open(resultpath + '/' + iso, 'wb')

@@ -19,6 +19,27 @@
 Changelog
 ---------
 
+2.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow multiline text in private key field for Snowflake (#23066)``
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for private key in connection for Snowflake (#22266)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 2.5.2
 .....
 

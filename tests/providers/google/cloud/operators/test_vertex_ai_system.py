@@ -43,3 +43,19 @@ class VertexAIExampleDagsTest(GoogleSystemTest):
     @provide_gcp_context(GCP_VERTEX_AI_KEY)
     def test_run_auto_ml_example_dag(self):
         self.run_dag(dag_id="example_gcp_vertex_ai_auto_ml", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_VERTEX_AI_KEY)
+    def test_run_batch_prediction_job_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_batch_prediction_job", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_VERTEX_AI_KEY)
+    def test_run_endpoint_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_endpoint", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_VERTEX_AI_KEY)
+    def test_run_hyperparameter_tuning_job_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_hyperparameter_tuning_job", dag_folder=CLOUD_DAG_FOLDER)
+
+    @provide_gcp_context(GCP_VERTEX_AI_KEY)
+    def test_run_model_service_example_dag(self):
+        self.run_dag(dag_id="example_gcp_vertex_ai_model_service", dag_folder=CLOUD_DAG_FOLDER)

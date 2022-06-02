@@ -18,23 +18,27 @@
 """
 This dag tests performance of simple bash commands executed with Airflow.
 """
-from datetime import timedelta
+import datetime
 
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
-from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
-    'start_date': days_ago(3),
+    'start_date': datetime.datetime(2022, 1, 1),
 }
 
 dag = DAG(
-    dag_id='perf_dag_2', default_args=args, schedule_interval='@daily', dagrun_timeout=timedelta(minutes=60)
+    dag_id='perf_dag_2',
+    default_args=args,
+    schedule_interval='@daily',
+    dagrun_timeout=datetime.timedelta(minutes=60),
 )
 
 task_1 = BashOperator(
-    task_id='perf_task_1', bash_command='sleep 5; echo "run_id={{ run_id }} | dag_run={{ dag_run }}"', dag=dag
+    task_id='perf_task_1',
+    bash_command='sleep 5; echo "run_id={{ run_id }} | dag_run={{ dag_run }}"',
+    dag=dag,
 )
 
 for i in range(2, 5):

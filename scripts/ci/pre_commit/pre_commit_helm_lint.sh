@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="no"}
+export ANSWER=${ANSWER:="no"}
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 

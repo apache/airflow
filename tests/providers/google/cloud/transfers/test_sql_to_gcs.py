@@ -29,7 +29,7 @@ from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOper
 
 SQL = "SELECT * FROM test_table"
 BUCKET = "TEST-BUCKET-1"
-FILENAME = "test_results.csv"
+FILENAME = "test_results_{}.csv"
 TASK_ID = "TEST_TASK_ID"
 SCHEMA = [
     {"name": "column_a", "type": "3"},
@@ -61,6 +61,12 @@ APP_JSON = "application/json"
 
 OUTPUT_DF = pd.DataFrame([['convert_type_return_value'] * 3] * 3, columns=COLUMNS)
 
+EXCLUDE_COLUMNS = set('column_c')
+NEW_COLUMNS = [c for c in COLUMNS if c not in EXCLUDE_COLUMNS]
+OUTPUT_DF_WITH_EXCLUDE_COLUMNS = pd.DataFrame(
+    [['convert_type_return_value'] * len(NEW_COLUMNS)] * 3, columns=NEW_COLUMNS
+)
+
 
 class DummySQLToGCSOperator(BaseSQLToGCSOperator):
     def field_to_bigquery(self, field) -> Dict[str, str]:
@@ -70,7 +76,7 @@ class DummySQLToGCSOperator(BaseSQLToGCSOperator):
             'mode': 'NULLABLE',
         }
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, stringify_dict):
         return 'convert_type_return_value'
 
     def query(self):
@@ -137,9 +143,13 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             ]
         )
         mock_flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call(), mock.call()])
-        csv_call = mock.call(BUCKET, FILENAME, TMP_FILE_NAME, mime_type='text/csv', gzip=True)
+        csv_calls = []
+        for i in range(0, 3):
+            csv_calls.append(
+                mock.call(BUCKET, FILENAME.format(i), TMP_FILE_NAME, mime_type='text/csv', gzip=True)
+            )
         json_call = mock.call(BUCKET, SCHEMA_FILE, TMP_FILE_NAME, mime_type=APP_JSON, gzip=False)
-        upload_calls = [csv_call, csv_call, csv_call, json_call]
+        upload_calls = [json_call, csv_calls[0], csv_calls[1], csv_calls[2]]
         mock_upload.assert_has_calls(upload_calls)
         mock_close.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call(), mock.call()])
 
@@ -169,7 +179,9 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             ]
         )
         mock_flush.assert_called_once()
-        mock_upload.assert_called_once_with(BUCKET, FILENAME, TMP_FILE_NAME, mime_type=APP_JSON, gzip=False)
+        mock_upload.assert_called_once_with(
+            BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type=APP_JSON, gzip=False
+        )
         mock_close.assert_called_once()
 
         mock_query.reset_mock()
@@ -189,7 +201,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         mock_query.assert_called_once()
         mock_flush.assert_called_once()
         mock_upload.assert_called_once_with(
-            BUCKET, FILENAME, TMP_FILE_NAME, mime_type='application/octet-stream', gzip=False
+            BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type='application/octet-stream', gzip=False
         )
         mock_close.assert_called_once()
 
@@ -233,7 +245,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         cursor.description = CURSOR_DESCRIPTION
 
         files = op._write_local_data_files(cursor)
-        file = files[0]['file_handle']
+        file = next(files)['file_handle']
         file.flush()
         df = pd.read_csv(file.name)
         assert df.equals(OUTPUT_DF)
@@ -255,7 +267,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         cursor.description = CURSOR_DESCRIPTION
 
         files = op._write_local_data_files(cursor)
-        file = files[0]['file_handle']
+        file = next(files)['file_handle']
         file.flush()
         df = pd.read_json(file.name, orient='records', lines=True)
         assert df.equals(OUTPUT_DF)
@@ -277,7 +289,30 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         cursor.description = CURSOR_DESCRIPTION
 
         files = op._write_local_data_files(cursor)
-        file = files[0]['file_handle']
+        file = next(files)['file_handle']
         file.flush()
         df = pd.read_parquet(file.name)
         assert df.equals(OUTPUT_DF)
+
+    def test__write_local_data_files_json_with_exclude_columns(self):
+        op = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            schema_filename=SCHEMA_FILE,
+            export_format="json",
+            gzip=False,
+            schema=SCHEMA,
+            gcp_conn_id='google_cloud_default',
+            exclude_columns=EXCLUDE_COLUMNS,
+        )
+        cursor = MagicMock()
+        cursor.__iter__.return_value = INPUT_DATA
+        cursor.description = CURSOR_DESCRIPTION
+
+        files = op._write_local_data_files(cursor)
+        file = next(files)['file_handle']
+        file.flush()
+        df = pd.read_json(file.name, orient='records', lines=True)
+        assert df.equals(OUTPUT_DF_WITH_EXCLUDE_COLUMNS)

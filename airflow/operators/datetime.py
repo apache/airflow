@@ -16,6 +16,7 @@
 # under the License.
 
 import datetime
+import warnings
 from typing import Iterable, Union
 
 from airflow.exceptions import AirflowException
@@ -39,7 +40,7 @@ class BranchDateTimeOperator(BaseBranchOperator):
         ``datetime.datetime.now()`` falls below target_lower or above ``target_upper``.
     :param target_lower: target lower bound.
     :param target_upper: target upper bound.
-    :param use_task_execution_date: If ``True``, uses task's execution day to compare with targets.
+    :param use_task_logical_date: If ``True``, uses task's logical date to compare with targets.
         Execution date is useful for backfilling. If ``False``, uses system's date.
     """
 
@@ -50,6 +51,7 @@ class BranchDateTimeOperator(BaseBranchOperator):
         follow_task_ids_if_false: Union[str, Iterable[str]],
         target_lower: Union[datetime.datetime, datetime.time, None],
         target_upper: Union[datetime.datetime, datetime.time, None],
+        use_task_logical_date: bool = False,
         use_task_execution_date: bool = False,
         **kwargs,
     ) -> None:
@@ -64,10 +66,17 @@ class BranchDateTimeOperator(BaseBranchOperator):
         self.target_upper = target_upper
         self.follow_task_ids_if_true = follow_task_ids_if_true
         self.follow_task_ids_if_false = follow_task_ids_if_false
-        self.use_task_execution_date = use_task_execution_date
+        self.use_task_logical_date = use_task_logical_date
+        if use_task_execution_date:
+            self.use_task_logical_date = use_task_execution_date
+            warnings.warn(
+                "Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
 
     def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
-        if self.use_task_execution_date is True:
+        if self.use_task_logical_date:
             now = timezone.make_naive(context["logical_date"], self.dag.timezone)
         else:
             now = timezone.make_naive(timezone.utcnow(), self.dag.timezone)

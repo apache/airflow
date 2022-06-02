@@ -32,7 +32,7 @@ Edit ``airflow.cfg`` and set the ``webserver`` block to have an ``analytics_tool
   analytics_id = XXXXXXXXXXX
 
 .. note:: You can see view injected tracker html within Airflow's source code at
-  ``airflow/www/templates/appbuilder/baselayout.html``. The related global
+  ``airflow/www/templates/airflow/main.html``. The related global
   variables are set in ``airflow/www/templates/app.py``.
 
 .. note::

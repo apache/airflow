@@ -33,7 +33,7 @@ readonly TMP_FILE
 TMP_OUTPUT=$(mktemp)
 readonly TMP_OUTPUT
 
-find  "licenses" -type f -exec echo "  " {} \; | LC_ALL=C sort >>"${TMP_FILE}"
+find  "licenses" -type f -exec echo "  " {} \; | grep -v "LICENSES-ui.txt" | LC_ALL=C sort >>"${TMP_FILE}"
 
 SETUP_CFG_FILE="${AIRFLOW_SOURCES}/setup.cfg"
 readonly SETUP_CFG_FILE

@@ -66,8 +66,7 @@ class MySQLToS3Operator(SqlToS3Operator):
             if "header" not in pd_kwargs:
                 pd_kwargs["header"] = header
             kwargs["pd_kwargs"] = {**kwargs.get('pd_kwargs', {}), **pd_kwargs}
-        else:
-            if pd_csv_kwargs is not None:
-                raise TypeError("pd_csv_kwargs may not be specified when file_format='parquet'")
+        elif pd_csv_kwargs is not None:
+            raise TypeError("pd_csv_kwargs may not be specified when file_format='parquet'")
 
         super().__init__(sql_conn_id=mysql_conn_id, **kwargs)

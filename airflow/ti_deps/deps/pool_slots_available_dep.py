@@ -46,7 +46,7 @@ class PoolSlotsAvailableDep(BaseTIDep):
         pools = session.query(Pool).filter(Pool.pool == pool_name).all()
         if not pools:
             yield self._failing_status(
-                reason=("Tasks using non-existent pool '%s' will not be scheduled", pool_name)
+                reason=f"Tasks using non-existent pool '{pool_name}' will not be scheduled"
             )
             return
         else:
@@ -59,14 +59,10 @@ class PoolSlotsAvailableDep(BaseTIDep):
 
         if open_slots <= (ti.pool_slots - 1):
             yield self._failing_status(
-                reason=(
-                    "Not scheduling since there are %s open slots in pool %s and require %s pool slots",
-                    open_slots,
-                    pool_name,
-                    ti.pool_slots,
-                )
+                reason=f"Not scheduling since there are {open_slots} open slots in pool {pool_name} "
+                f"and require {ti.pool_slots} pool slots"
             )
         else:
             yield self._passing_status(
-                reason=("There are enough open slots in %s to execute the task", pool_name)
+                reason=f"There are enough open slots in {pool_name} to execute the task",
             )

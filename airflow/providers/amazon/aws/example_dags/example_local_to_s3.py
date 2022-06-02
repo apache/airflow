@@ -31,11 +31,12 @@ with models.DAG(
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
 ) as dag:
-    # [START howto_local_transfer_data_to_s3]
+    # [START howto_transfer_local_to_s3]
     create_local_to_s3_job = LocalFilesystemToS3Operator(
         task_id="create_local_to_s3_job",
         filename="relative/path/to/file.csv",
         dest_key=S3_KEY,
         dest_bucket=S3_BUCKET,
+        replace=True,
     )
-    # [END howto_local_transfer_data_to_s3]
+    # [END howto_transfer_local_to_s3]

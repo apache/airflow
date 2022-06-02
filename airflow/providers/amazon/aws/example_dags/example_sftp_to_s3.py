@@ -28,16 +28,14 @@ S3_KEY = os.environ.get("S3_KEY", "key")
 with models.DAG(
     "example_sftp_to_s3",
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    # [START howto_sftp_transfer_data_to_s3]
+    # [START howto_transfer_sftp_to_s3]
     create_sftp_to_s3_job = SFTPToS3Operator(
         task_id="create_sftp_to_s3_job",
-        sftp_conn_id="sftp_conn_id",
-        sftp_path="sftp_path",
-        s3_conn_id="s3_conn_id",
+        sftp_path="/tmp/sftp_path",
         s3_bucket=S3_BUCKET,
         s3_key=S3_KEY,
     )
-    # [END howto_sftp_transfer_data_to_s3]
+    # [END howto_transfer_sftp_to_s3]

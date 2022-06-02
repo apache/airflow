@@ -125,6 +125,25 @@ g.node text {
   border-radius: 4px;
   background-color: #f0f0f0;
   cursor: move;
+  overflow: hidden;
+  height: 100%;
+  width: 100%;
+}
+
+#graph-svg {
+  overflow: visible;
+}
+
+.refresh-actions {
+  justify-content: flex-end;
+  min-width: 225px;
+  display: inline-flex;
+  align-items: center;
+  right: 20px;
+  margin-top: 10px;
+  margin-bottom: 15px;
+  position: absolute;
+  background-color: #f0f0f0ee; /* the last two chars apply an opacity to the background color */
 }
 
 .legend-item.dag {

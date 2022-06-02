@@ -19,6 +19,7 @@ import os
 import shutil
 from datetime import datetime
 from pathlib import Path
+from typing import Optional
 from unittest import TestCase
 
 from airflow.configuration import AIRFLOW_HOME, AirflowConfigParser, get_airflow_config
@@ -31,6 +32,12 @@ from tests.test_utils.logging_command_executor import get_executor
 DEFAULT_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "example_dags")
 
 
+def get_default_logs_if_none(logs: Optional[str]) -> str:
+    if logs is None:
+        return os.path.join(AIRFLOW_HOME, 'logs')
+    return logs
+
+
 def resolve_logs_folder() -> str:
     """
     Returns LOGS folder specified in current Airflow config.
@@ -39,13 +46,13 @@ def resolve_logs_folder() -> str:
     conf = AirflowConfigParser()
     conf.read(config_file)
     try:
-        logs = conf.get("logging", "base_log_folder")
+        return get_default_logs_if_none(conf.get("logging", "base_log_folder"))
     except AirflowException:
         try:
-            logs = conf.get("core", "base_log_folder")
+            return get_default_logs_if_none(conf.get("core", "base_log_folder"))
         except AirflowException:
-            logs = os.path.join(AIRFLOW_HOME, 'logs')
-    return logs
+            pass
+    return get_default_logs_if_none(None)
 
 
 class SystemTest(TestCase, LoggingMixin):

@@ -30,6 +30,10 @@ class EC2StartInstanceOperator(BaseOperator):
     """
     Start AWS EC2 instance using boto3.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EC2StartInstanceOperator`
+
     :param instance_id: id of the AWS EC2 instance
     :param aws_conn_id: aws connection to use
     :param region_name: (optional) aws region name associated with the client
@@ -71,6 +75,10 @@ class EC2StartInstanceOperator(BaseOperator):
 class EC2StopInstanceOperator(BaseOperator):
     """
     Stop AWS EC2 instance using boto3.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:EC2StopInstanceOperator`
 
     :param instance_id: id of the AWS EC2 instance
     :param aws_conn_id: aws connection to use

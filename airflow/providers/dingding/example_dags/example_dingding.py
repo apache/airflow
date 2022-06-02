@@ -32,12 +32,10 @@ def failure_callback(context):
     :param context: The context of the executed task.
     """
     message = (
-        'AIRFLOW TASK FAILURE TIPS:\n'
-        'DAG:    {}\n'
-        'TASKS:  {}\n'
-        'Reason: {}\n'.format(
-            context['task_instance'].dag_id, context['task_instance'].task_id, context['exception']
-        )
+        f"AIRFLOW TASK FAILURE TIPS:\n"
+        f"DAG:    {context['task_instance'].dag_id}\n"
+        f"TASKS:  {context['task_instance'].task_id}\n"
+        f"Reason: {context['exception']}\n"
     )
     return DingdingOperator(
         task_id='dingding_success_callback',
@@ -168,9 +166,9 @@ with DAG(
                     "picURL": "https://airflow.apache.org/_images/dags.png",
                 },
                 {
-                    "title": "Airflow tree feed card",
+                    "title": "Airflow grid feed card",
                     "messageURL": "https://airflow.apache.org/docs/apache-airflow/stable/ui.html",
-                    "picURL": "https://airflow.apache.org/_images/tree.png",
+                    "picURL": "https://airflow.apache.org/_images/grid.png",
                 },
                 {
                     "title": "Airflow graph feed card",

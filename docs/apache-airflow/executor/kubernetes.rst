@@ -214,7 +214,10 @@ To get task logs out of the workers, you can:
 Comparison with CeleryExecutor
 ------------------------------
 
-In contrast to CeleryExecutor, KubernetesExecutor does not require additional components such as Redis and Flower, but does require access to Kubernetes cluster.
+In contrast to CeleryExecutor, KubernetesExecutor does not require additional components such as Redis,
+but does require access to Kubernetes cluster.
+
+Also monitoring the Pods can be done with the built-in Kubernetes monitoring.
 
 With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
 Historically, in scenarios such as burstable workloads, this presented a resource utilization advantage over CeleryExecutor, where you needed

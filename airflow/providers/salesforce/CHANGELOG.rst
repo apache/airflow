@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+3.4.4
+.....
+
+Misc
+~~~~
+
+* ``Organize Tableau classes (#23353)``
+
+3.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 3.4.2
 .....
 

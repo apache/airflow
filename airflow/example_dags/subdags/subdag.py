@@ -22,7 +22,7 @@
 import pendulum
 
 from airflow import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 
 
 def subdag(parent_dag_name, child_dag_name, args):
@@ -44,7 +44,7 @@ def subdag(parent_dag_name, child_dag_name, args):
     )
 
     for i in range(5):
-        DummyOperator(
+        EmptyOperator(
             task_id=f'{child_dag_name}-task-{i + 1}',
             default_args=args,
             dag=dag_subdag,

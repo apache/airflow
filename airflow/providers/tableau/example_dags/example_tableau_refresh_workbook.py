@@ -24,7 +24,7 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.providers.tableau.operators.tableau import TableauOperator
-from airflow.providers.tableau.sensors.tableau_job_status import TableauJobStatusSensor
+from airflow.providers.tableau.sensors.tableau import TableauJobStatusSensor
 
 with DAG(
     dag_id='example_tableau_refresh_workbook',

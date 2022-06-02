@@ -19,6 +19,44 @@
 Changelog
 ---------
 
+2.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'device_requests' parameter to 'DockerOperator' (#23554)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix new MyPy errors in main (#22884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add timeout parameter to 'DockerOperator' (#22502)``
+
+2.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+Misc
+~~~~
+
+* ``Correct 'multiple_outputs' param descriptions mentioning lists/tuples (#22371)``
+
 2.5.1
 .....
 

@@ -146,6 +146,10 @@ class PsrpOperator(BaseOperator):
         if ps.had_errors:
             raise AirflowException("Process failed")
 
+        rc = ps.runspace_pool.host.rc
+        if rc:
+            raise AirflowException(f"Process exited with non-zero status code: {rc}")
+
         if not self.do_xcom_push:
             return None
 
@@ -160,7 +164,7 @@ class PsrpOperator(BaseOperator):
         def securestring(value: str):
             if not native:
                 raise AirflowException(
-                    "Filter 'securestring' not applicable to non-native " "templating environment"
+                    "Filter 'securestring' not applicable to non-native templating environment"
                 )
             return TaggedValue("SS", value)
 

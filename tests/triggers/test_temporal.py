@@ -17,12 +17,10 @@
 
 import asyncio
 import datetime
-import sys
 
 import pendulum
 import pytest
 
-from airflow.compat.asyncio import create_task
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import DateTimeTrigger, TimeDeltaTrigger
 from airflow.utils import timezone
@@ -62,7 +60,6 @@ def test_timedelta_trigger_serialization():
     assert -2 < (kwargs["moment"] - expected_moment).total_seconds() < 2
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No async on 3.6")
 @pytest.mark.asyncio
 async def test_datetime_trigger_timing():
     """
@@ -74,7 +71,7 @@ async def test_datetime_trigger_timing():
 
     # Create a task that runs the trigger for a short time then cancels it
     trigger = DateTimeTrigger(future_moment)
-    trigger_task = create_task(trigger.run().__anext__())
+    trigger_task = asyncio.create_task(trigger.run().__anext__())
     await asyncio.sleep(0.5)
 
     # It should not have produced a result
@@ -83,7 +80,7 @@ async def test_datetime_trigger_timing():
 
     # Now, make one waiting for en event in the past and do it again
     trigger = DateTimeTrigger(past_moment)
-    trigger_task = create_task(trigger.run().__anext__())
+    trigger_task = asyncio.create_task(trigger.run().__anext__())
     await asyncio.sleep(0.5)
 
     assert trigger_task.done() is True

@@ -26,7 +26,6 @@ from typing import Deque, Dict, Set, Tuple, Type
 
 from sqlalchemy import func
 
-from airflow.compat.asyncio import create_task
 from airflow.configuration import conf
 from airflow.jobs.base_job import BaseJob
 from airflow.models.trigger import Trigger
@@ -236,7 +235,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         The loop in here runs trigger addition/deletion/cleanup. Actual
         triggers run in their own separate coroutines.
         """
-        watchdog = create_task(self.block_watchdog())
+        watchdog = asyncio.create_task(self.block_watchdog())
         last_status = time.time()
         while not self.stop:
             # Run core logic
@@ -263,7 +262,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
             trigger_id, trigger_instance = self.to_create.popleft()
             if trigger_id not in self.triggers:
                 self.triggers[trigger_id] = {
-                    "task": create_task(self.run_trigger(trigger_id, trigger_instance)),
+                    "task": asyncio.create_task(self.run_trigger(trigger_id, trigger_instance)),
                     "name": f"{trigger_instance!r} (ID {trigger_id})",
                     "events": 0,
                 }

@@ -99,26 +99,6 @@ breeze and I'll run unit tests for my Hook.
 
       root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
 
-Update Airflow validation tests
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-There are some tests that Airflow performs to ensure consistency that is related to the providers.
-
-  .. code-block:: bash
-
-      airflow/scripts/in_container/
-      └── run_install_and_test_provider_packages.sh
-      tests/core/
-      └── test_providers_manager.py
-
-Change expected number of providers, hooks and connections if needed in ``run_install_and_test_provider_packages.sh`` file.
-
-Add your provider information in the following variables in ``test_providers_manager.py``:
-
-- add your provider to ``ALL_PROVIDERS`` list;
-- add your provider into ``CONNECTIONS_LIST`` if your provider create a new connection type.
-
-
 Integration tests
 ^^^^^^^^^^^^^^^^^
 
@@ -301,8 +281,8 @@ main Airflow documentation that involves some steps with the providers is also w
 
   .. code-block:: bash
 
-    ./breeze build-docs -- --package-filter apache-airflow-providers-<NEW_PROVIDER>
-    ./breeze build-docs -- --package-filter apache-airflow
+    ./breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
+    ./breeze build-docs --package-filter apache-airflow
 
 Optional provider features
 --------------------------
@@ -387,6 +367,46 @@ this (note the ``if ti_key is not None:`` condition).
             return None
         job_id = job_ids[self.index]
         return BIGQUERY_JOB_DETAILS_LINK_FMT.format(job_id=job_id)
+
+
+Having sensors return XOM values
+--------------------------------
+In Airflow 2.3, sensor operators will be able to return XCOM values. This is achieved by returning an instance of the ``PokeReturnValue`` object at the end of the ``poke()`` method:
+
+  .. code-block:: python
+
+    from airflow.sensors.base import PokeReturnValue
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> Union[bool, PokeReturnValue]:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            return PokeReturnValue(is_done, xcom_value)
+
+
+To implement a sensor operator that pushes a XCOM value and supports both version 2.3 and pre-2.3, you need to explicitly push the XCOM value if the version is pre-2.3.
+
+  .. code-block:: python
+
+    try:
+        from airflow.sensors.base import PokeReturnValue
+    except ImportError:
+        PokeReturnValue = None
+
+
+    class SensorWithXcomValue(BaseSensorOperator):
+        def poke(self, context: Context) -> bool:
+            # ...
+            is_done = ...  # set to true if the sensor should stop poking.
+            xcom_value = ...  # return value of the sensor operator to be pushed to XCOM.
+            if PokeReturnValue is not None:
+                return PokeReturnValue(is_done, xcom_value)
+            else:
+                if is_done:
+                    context["ti"].xcom_push(key="xcom_key", value=xcom_value)
+                return is_done
 
 
 How-to Update a community provider

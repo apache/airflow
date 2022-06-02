@@ -105,3 +105,15 @@ class TestLookerCheckPdtBuildSensor(unittest.TestCase):
 
         # assert hook.pdt_build_status called once
         mock_hook.return_value.pdt_build_status.assert_called_once_with(materialization_id=TEST_JOB_ID)
+
+    def test_empty_materialization_id(self):
+
+        # run task in mock context
+        sensor = LookerCheckPdtBuildSensor(
+            task_id=TASK_ID,
+            looker_conn_id=LOOKER_CONN_ID,
+            materialization_id="",
+        )
+
+        with pytest.raises(AirflowException, match="^Invalid `materialization_id`.$"):
+            sensor.poke(context={})

@@ -30,6 +30,7 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Set, Tuple, Un
 
 from google.api_core import operation  # type: ignore
 from google.api_core.exceptions import AlreadyExists, NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry, exponential_sleep_generator
 from google.cloud.dataproc_v1 import Batch, Cluster
 from google.protobuf.duration_pb2 import Duration
@@ -411,6 +412,10 @@ class DataprocCreateClusterOperator(BaseOperator):
     :param cluster_config: Required. The cluster config to create.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1.types.ClusterConfig`
+    :param virtual_cluster_config: Optional. The virtual cluster config, used when creating a Dataproc
+        cluster that does not directly control the underlying compute resources, for example, when creating a
+        `Dataproc-on-GKE cluster
+        <https://cloud.google.com/dataproc/docs/concepts/jobs/dataproc-gke#create-a-dataproc-on-gke-cluster>`
     :param region: The specified region where the dataproc cluster is created.
     :param delete_on_error: If true the cluster will be deleted if created with ERROR state. Default
         value is true.
@@ -438,11 +443,12 @@ class DataprocCreateClusterOperator(BaseOperator):
         'project_id',
         'region',
         'cluster_config',
+        'virtual_cluster_config',
         'cluster_name',
         'labels',
         'impersonation_chain',
     )
-    template_fields_renderers = {'cluster_config': 'json'}
+    template_fields_renderers = {'cluster_config': 'json', 'virtual_cluster_config': 'json'}
 
     operator_extra_links = (DataprocLink(),)
 
@@ -450,30 +456,24 @@ class DataprocCreateClusterOperator(BaseOperator):
         self,
         *,
         cluster_name: str,
-        region: Optional[str] = None,
+        region: str,
         project_id: Optional[str] = None,
-        cluster_config: Optional[Dict] = None,
+        cluster_config: Optional[Union[Dict, Cluster]] = None,
+        virtual_cluster_config: Optional[Dict] = None,
         labels: Optional[Dict] = None,
         request_id: Optional[str] = None,
         delete_on_error: bool = True,
         use_if_exists: bool = True,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: float = 1 * 60 * 60,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-        if region is None:
-            warnings.warn(
-                "Default region value `global` will be deprecated. Please, provide region value.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = 'global'
 
         # TODO: remove one day
-        if cluster_config is None:
+        if cluster_config is None and virtual_cluster_config is None:
             warnings.warn(
                 f"Passing cluster parameters by keywords to `{type(self).__name__}` will be deprecated. "
                 "Please provide cluster_config object using `cluster_config` parameter. "
@@ -515,6 +515,7 @@ class DataprocCreateClusterOperator(BaseOperator):
         self.delete_on_error = delete_on_error
         self.use_if_exists = use_if_exists
         self.impersonation_chain = impersonation_chain
+        self.virtual_cluster_config = virtual_cluster_config
 
     def _create_cluster(self, hook: DataprocHook):
         operation = hook.create_cluster(
@@ -523,6 +524,7 @@ class DataprocCreateClusterOperator(BaseOperator):
             cluster_name=self.cluster_name,
             labels=self.labels,
             cluster_config=self.cluster_config,
+            virtual_cluster_config=self.virtual_cluster_config,
             request_id=self.request_id,
             retry=self.retry,
             timeout=self.timeout,
@@ -790,7 +792,7 @@ class DataprocDeleteClusterOperator(BaseOperator):
         project_id: Optional[str] = None,
         cluster_uuid: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -830,6 +832,7 @@ class DataprocJobBaseOperator(BaseOperator):
     """
     The base class for operators that launch job on DataProc.
 
+    :param region: The specified region where the dataproc cluster is created.
     :param job_name: The job name used in the DataProc cluster. This name by default
         is the task_id appended with the execution data, but can be templated. The
         name will always be appended with a random number to avoid name clashes.
@@ -847,7 +850,6 @@ class DataprocJobBaseOperator(BaseOperator):
     :param labels: The labels to associate with this job. Label keys must contain 1 to 63 characters,
         and must conform to RFC 1035. Label values may be empty, but, if present, must contain 1 to 63
         characters, and must conform to RFC 1035. No more than 32 labels can be associated with a job.
-    :param region: The specified region where the dataproc cluster is created.
     :param job_error_states: Job states that should be considered error states.
         Any states in this set will result in an error being raised and failure of the
         task. Eg, if the ``CANCELLED`` state should also be considered a task failure,
@@ -880,6 +882,7 @@ class DataprocJobBaseOperator(BaseOperator):
     def __init__(
         self,
         *,
+        region: str,
         job_name: str = '{{task.task_id}}_{{ds_nodash}}',
         cluster_name: str = "cluster-1",
         project_id: Optional[str] = None,
@@ -888,7 +891,6 @@ class DataprocJobBaseOperator(BaseOperator):
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
-        region: Optional[str] = None,
         job_error_states: Optional[Set[str]] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         asynchronous: bool = False,
@@ -902,14 +904,6 @@ class DataprocJobBaseOperator(BaseOperator):
         self.cluster_name = cluster_name
         self.dataproc_properties = dataproc_properties
         self.dataproc_jars = dataproc_jars
-
-        if region is None:
-            warnings.warn(
-                "Default region value `global` will be deprecated. Please, provide region value.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            region = 'global'
         self.region = region
 
         self.job_error_states = job_error_states if job_error_states is not None else {'ERROR'}
@@ -950,6 +944,8 @@ class DataprocJobBaseOperator(BaseOperator):
     def execute(self, context: 'Context'):
         if self.job_template:
             self.job = self.job_template.build()
+            if self.job is None:
+                raise Exception("The job should be set here.")
             self.dataproc_job_id = self.job["job"]["reference"]["job_id"]
             self.log.info('Submitting %s job %s', self.job_type, self.dataproc_job_id)
             job_object = self.hook.submit_job(
@@ -1501,7 +1497,6 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
 
     :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param template: The Dataproc workflow template to create. If a dict is provided,
         it must be of the same form as the protobuf message WorkflowTemplate.
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
@@ -1519,27 +1514,15 @@ class DataprocCreateWorkflowTemplateOperator(BaseOperator):
         self,
         *,
         template: Dict,
-        region: Optional[str] = None,
+        region: str,
         project_id: Optional[str] = None,
-        location: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ):
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.region = region
         self.template = template
@@ -1624,7 +1607,7 @@ class DataprocInstantiateWorkflowTemplateOperator(BaseOperator):
         version: Optional[int] = None,
         request_id: Optional[str] = None,
         parameters: Optional[Dict[str, str]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1719,7 +1702,7 @@ class DataprocInstantiateInlineWorkflowTemplateOperator(BaseOperator):
         region: str,
         project_id: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1764,7 +1747,6 @@ class DataprocSubmitJobOperator(BaseOperator):
 
     :param project_id: Optional. The ID of the Google Cloud project that the job belongs to.
     :param region: Required. The Cloud Dataproc region in which to handle the request.
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param job: Required. The job resource.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.dataproc_v1.types.Job`
@@ -1802,11 +1784,10 @@ class DataprocSubmitJobOperator(BaseOperator):
         self,
         *,
         job: Dict,
+        region: str,
         project_id: Optional[str] = None,
-        region: Optional[str] = None,
-        location: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -1816,17 +1797,6 @@ class DataprocSubmitJobOperator(BaseOperator):
         wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -1855,19 +1825,21 @@ class DataprocSubmitJobOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        job_id = job_object.reference.job_id
-        self.log.info('Job %s submitted successfully.', job_id)
+        new_job_id: str = job_object.reference.job_id
+        self.log.info('Job %s submitted successfully.', new_job_id)
         # Save data required by extra links no matter what the job status will be
-        DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=job_id)
+        DataprocLink.persist(
+            context=context, task_instance=self, url=DATAPROC_JOB_LOG_LINK, resource=new_job_id
+        )
 
+        self.job_id = new_job_id
         if not self.asynchronous:
-            self.log.info('Waiting for job %s to complete', job_id)
+            self.log.info('Waiting for job %s to complete', new_job_id)
             self.hook.wait_for_job(
-                job_id=job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
+                job_id=new_job_id, region=self.region, project_id=self.project_id, timeout=self.wait_timeout
             )
-            self.log.info('Job %s completed successfully.', job_id)
+            self.log.info('Job %s completed successfully.', new_job_id)
 
-        self.job_id = job_id
         return self.job_id
 
     def on_kill(self):
@@ -1881,7 +1853,6 @@ class DataprocUpdateClusterOperator(BaseOperator):
 
     :param region: Required. The Cloud Dataproc region in which to handle the request.
     :param project_id: Optional. The ID of the Google Cloud project the cluster belongs to.
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request.
     :param cluster_name: Required. The cluster name.
     :param cluster: Required. The changes to the cluster.
 
@@ -1933,28 +1904,16 @@ class DataprocUpdateClusterOperator(BaseOperator):
         cluster: Union[Dict, Cluster],
         update_mask: Union[Dict, FieldMask],
         graceful_decommission_timeout: Union[Dict, Duration],
-        region: Optional[str] = None,
-        location: Optional[str] = None,
+        region: str,
         request_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Retry = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ):
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
         self.region = region
@@ -2038,7 +1997,7 @@ class DataprocCreateBatchOperator(BaseOperator):
         batch: Union[Dict, Batch],
         batch_id: Optional[str] = None,
         request_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2074,6 +2033,8 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+            if self.operation is None:
+                raise RuntimeError("The operation should be set here!")
             result = hook.wait_for_operation(timeout=self.timeout, operation=self.operation)
             self.log.info("Batch %s created", self.batch_id)
         except AlreadyExists:
@@ -2130,7 +2091,7 @@ class DataprocDeleteBatchOperator(BaseOperator):
         batch_id: str,
         region: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2194,8 +2155,8 @@ class DataprocGetBatchOperator(BaseOperator):
         *,
         batch_id: str,
         region: str,
-        project_id: Optional[Retry] = None,
-        retry: Optional[Retry] = None,
+        project_id: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
@@ -2267,7 +2228,7 @@ class DataprocListBatchesOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         page_token: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",

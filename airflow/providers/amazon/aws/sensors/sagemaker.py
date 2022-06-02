@@ -27,10 +27,10 @@ if TYPE_CHECKING:
 
 
 class SageMakerBaseSensor(BaseSensorOperator):
-    """Contains general sensor behavior for SageMaker.
+    """
+    Contains general sensor behavior for SageMaker.
 
-    Subclasses should implement get_sagemaker_response()
-    and state_from_response() methods.
+    Subclasses should implement get_sagemaker_response() and state_from_response() methods.
     Subclasses should also implement NON_TERMINAL_STATES and FAILED_STATE methods.
     """
 
@@ -50,7 +50,7 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
     def poke(self, context: 'Context'):
         response = self.get_sagemaker_response()
-        if not (response['ResponseMetadata']['HTTPStatusCode'] == 200):
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             self.log.info('Bad HTTP response: %s', response)
             return False
         state = self.state_from_response(response)
@@ -84,13 +84,15 @@ class SageMakerBaseSensor(BaseSensorOperator):
 
 
 class SageMakerEndpointSensor(SageMakerBaseSensor):
-    """Asks for the state of the endpoint state until it reaches a
-    terminal state.
-    If it fails the sensor errors, the task fails.
+    """
+    Polls the endpoint state until it reaches a terminal state.  Raises an
+    AirflowException with the failure reason if a failed state is reached.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerEndpointSensor`
 
-    :param job_name: job_name of the endpoint instance to check the state of
-
+    :param endpoint_name: Name of the endpoint instance to watch.
     """
 
     template_fields: Sequence[str] = ('endpoint_name',)
@@ -118,15 +120,15 @@ class SageMakerEndpointSensor(SageMakerBaseSensor):
 
 
 class SageMakerTransformSensor(SageMakerBaseSensor):
-    """Asks for the state of the transform state until it reaches a
-    terminal state.
-    The sensor will error if the job errors, throwing a
-    AirflowException
-    containing the failure reason.
+    """
+    Polls the transform job until it reaches a terminal state.  Raises an
+    AirflowException with the failure reason if a failed state is reached.
 
-    :param
-    job_name: job_name of the transform job instance to check the state of
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerTransformSensor`
 
+    :param job_name: Name of the transform job to watch.
     """
 
     template_fields: Sequence[str] = ('job_name',)
@@ -154,16 +156,15 @@ class SageMakerTransformSensor(SageMakerBaseSensor):
 
 
 class SageMakerTuningSensor(SageMakerBaseSensor):
-    """Asks for the state of the tuning state until it reaches a terminal
-    state.
-    The sensor will error if the job errors, throwing a
-    AirflowException
-    containing the failure reason.
+    """
+    Asks for the state of the tuning state until it reaches a terminal state.
+    Raises an AirflowException with the failure reason if a failed state is reached.
 
-    :param
-    job_name: job_name of the tuning instance to check the state of
-    :type
-    job_name: str
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerTuningSensor`
+
+    :param job_name: Name of the tuning instance to watch.
     """
 
     template_fields: Sequence[str] = ('job_name',)
@@ -191,14 +192,16 @@ class SageMakerTuningSensor(SageMakerBaseSensor):
 
 
 class SageMakerTrainingSensor(SageMakerBaseSensor):
-    """Asks for the state of the training state until it reaches a
-    terminal state.
-    If it fails the sensor errors, failing the task.
+    """
+    Polls the training job until it reaches a terminal state.  Raises an
+    AirflowException with the failure reason if a failed state is reached.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:SageMakerTrainingSensor`
 
-    :param job_name: name of the SageMaker training job to check the state of
-
-    :param print_log: if the operator should print the cloudwatch log
+    :param job_name: Name of the training job to watch.
+    :param print_log: Prints the cloudwatch log if True; Defaults to True.
     """
 
     template_fields: Sequence[str] = ('job_name',)
@@ -222,7 +225,7 @@ class SageMakerTrainingSensor(SageMakerBaseSensor):
         self.instance_count = description['ResourceConfig']['InstanceCount']
         status = description['TrainingJobStatus']
         job_already_completed = status not in self.non_terminal_states()
-        self.state = LogState.TAILING if (not job_already_completed) else LogState.COMPLETE
+        self.state = LogState.COMPLETE if job_already_completed else LogState.TAILING
         self.last_description = description
         self.last_describe_job_call = time.monotonic()
         self.log_resource_inited = True

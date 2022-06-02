@@ -26,6 +26,7 @@ CONFIG_TEMPLATES_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "config_t
 
 DEFAULT_AIRFLOW_SECTIONS = [
     'core',
+    'database',
     "logging",
     "metrics",
     'secrets',
@@ -48,7 +49,6 @@ DEFAULT_AIRFLOW_SECTIONS = [
     'scheduler',
     'triggerer',
     'kerberos',
-    'github_enterprise',
     'elasticsearch',
     'elasticsearch_configs',
     'kubernetes',
@@ -58,6 +58,7 @@ DEFAULT_AIRFLOW_SECTIONS = [
 
 DEFAULT_TEST_SECTIONS = [
     'core',
+    'database',
     "logging",
     'cli',
     'api',

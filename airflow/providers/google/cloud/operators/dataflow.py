@@ -124,6 +124,7 @@ class DataflowConfiguration:
         WaitForRun = wait until job finished and the run job.
         Supported only by:
         :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
+    :param service_account: Run the job as a specific service account, instead of the default GCE robot.
     """
 
     template_fields: Sequence[str] = ("job_name", "location")
@@ -144,6 +145,7 @@ class DataflowConfiguration:
         wait_until_finished: Optional[bool] = None,
         multiple_jobs: Optional[bool] = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
+        service_account: Optional[str] = None,
     ) -> None:
         self.job_name = job_name
         self.append_job_name = append_job_name
@@ -158,6 +160,7 @@ class DataflowConfiguration:
         self.wait_until_finished = wait_until_finished
         self.multiple_jobs = multiple_jobs
         self.check_if_running = check_if_running
+        self.service_account = service_account
 
 
 class DataflowCreateJavaJobOperator(BaseOperator):
@@ -316,7 +319,7 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                "labels": {"foo": "bar"},
            },
            gcp_conn_id="airflow-conn-id",
-           dag=my - dag,
+           dag=my_dag,
        )
 
     """
@@ -410,33 +413,33 @@ class DataflowCreateJavaJobOperator(BaseOperator):
                 tmp_gcs_file = exit_stack.enter_context(gcs_hook.provide_file(object_url=self.jar))
                 self.jar = tmp_gcs_file.name
 
-                is_running = False
-                if self.check_if_running != CheckJobRunning.IgnoreJob:
+            is_running = False
+            if self.check_if_running != CheckJobRunning.IgnoreJob:
+                is_running = self.dataflow_hook.is_job_dataflow_running(
+                    name=self.job_name,
+                    variables=pipeline_options,
+                )
+                while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
+
                     is_running = self.dataflow_hook.is_job_dataflow_running(
                         name=self.job_name,
                         variables=pipeline_options,
                     )
-                    while is_running and self.check_if_running == CheckJobRunning.WaitForRun:
-
-                        is_running = self.dataflow_hook.is_job_dataflow_running(
-                            name=self.job_name,
-                            variables=pipeline_options,
-                        )
-                if not is_running:
-                    pipeline_options["jobName"] = job_name
-                    with self.dataflow_hook.provide_authorized_gcloud():
-                        self.beam_hook.start_java_pipeline(
-                            variables=pipeline_options,
-                            jar=self.jar,
-                            job_class=self.job_class,
-                            process_line_callback=process_line_callback,
-                        )
-                    self.dataflow_hook.wait_for_done(
-                        job_name=job_name,
-                        location=self.location,
-                        job_id=self.job_id,
-                        multiple_jobs=self.multiple_jobs,
+            if not is_running:
+                pipeline_options["jobName"] = job_name
+                with self.dataflow_hook.provide_authorized_gcloud():
+                    self.beam_hook.start_java_pipeline(
+                        variables=pipeline_options,
+                        jar=self.jar,
+                        job_class=self.job_class,
+                        process_line_callback=process_line_callback,
                     )
+                self.dataflow_hook.wait_for_done(
+                    job_name=job_name,
+                    location=self.location,
+                    job_id=self.job_id,
+                    multiple_jobs=self.multiple_jobs,
+                )
 
         return {"job_id": self.job_id}
 
@@ -560,7 +563,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
                "outputFile": "gs://bucket/output/my_output.txt",
            },
            gcp_conn_id="airflow-conn-id",
-           dag=my - dag,
+           dag=my_dag,
        )
 
     ``template``, ``dataflow_default_options``, ``parameters``, and ``job_name`` are
@@ -587,6 +590,7 @@ class DataflowTemplatedJobStartOperator(BaseOperator):
         "gcp_conn_id",
         "impersonation_chain",
         "environment",
+        "dataflow_default_options",
     )
     ui_color = "#0273d4"
     operator_extra_links = (DataflowJobLink(),)

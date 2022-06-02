@@ -53,6 +53,9 @@ class LookerCheckPdtBuildSensor(BaseSensorOperator):
 
         self.hook = LookerHook(looker_conn_id=self.looker_conn_id)
 
+        if not self.materialization_id:
+            raise AirflowException('Invalid `materialization_id`.')
+
         # materialization_id is templated var pulling output from start task
         status_dict = self.hook.pdt_build_status(materialization_id=self.materialization_id)
         status = status_dict['status']

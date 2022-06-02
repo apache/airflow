@@ -515,3 +515,11 @@ class TestPytestSnowflakeHook:
             assert status is False
             assert msg == 'Connection Errors'
             mock_run.assert_called_once_with(sql='select 1')
+
+    def test_empty_sql_parameter(self):
+        hook = SnowflakeHook()
+
+        for empty_statement in ([], '', '\n'):
+            with pytest.raises(ValueError) as err:
+                hook.run(sql=empty_statement)
+            assert err.value.args[0] == "List of SQL statements is empty"

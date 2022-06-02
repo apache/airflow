@@ -19,6 +19,19 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``adds ability to pass config params to postgres operator (#21551)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 4.0.1
 .....
 
@@ -67,21 +80,10 @@ Misc
 3.0.1
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
+Misc
+~~~~
 
-
-Features
-~~~~~~~~
-
-
-Bug Fixes
-~~~~~~~~~
-
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Make DbApiHook use get_uri from Connection (#21764)``
+* ``Make DbApiHook use get_uri from Connection (#21764)``
 
 2.4.0
 .....

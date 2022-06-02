@@ -66,7 +66,12 @@ class OSSKeySensor(BaseSensorOperator):
         self.hook: Optional[OSSHook] = None
 
     def poke(self, context: 'Context'):
-
+        """
+        Check if the object exists in the bucket to pull key.
+        @param self - the object itself
+        @param context - the context of the object
+        @returns True if the object exists, False otherwise
+        """
         if self.bucket_name is None:
             parsed_url = urlparse(self.bucket_key)
             if parsed_url.netloc == '':

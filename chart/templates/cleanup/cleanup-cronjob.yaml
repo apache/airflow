@@ -22,6 +22,7 @@
 {{- $nodeSelector := or .Values.cleanup.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.cleanup.affinity .Values.affinity }}
 {{- $tolerations := or .Values.cleanup.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.cleanup.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.cleanup) }}
 {{- if semverCompare ">= 1.21.x" (include "kubeVersion" .) }}
 apiVersion: batch/v1
@@ -72,6 +73,8 @@ spec:
 {{ toYaml $affinity | indent 12 }}
           tolerations:
 {{ toYaml $tolerations | indent 12 }}
+          topologySpreadConstraints:
+{{ toYaml $topologySpreadConstraints | indent 12 }}
           serviceAccountName: {{ include "cleanup.serviceAccountName" . }}
           {{- if or .Values.registry.secretName .Values.registry.connection }}
           imagePullSecrets:

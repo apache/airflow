@@ -57,6 +57,8 @@ from airflow.providers.google.cloud.operators.vision import (
 )
 
 # [START howto_operator_vision_retry_import]
+
+
 from google.api_core.retry import Retry  # isort:skip
 
 # [END howto_operator_vision_retry_import]

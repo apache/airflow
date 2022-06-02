@@ -194,7 +194,7 @@ For reference, here's our plugin and DAG files in their entirety:
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
 
 
     with DAG(
@@ -203,7 +203,7 @@ For reference, here's our plugin and DAG files in their entirety:
         timetable=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
     ) as dag:
-        DummyOperator(task_id="run_this")
+        EmptyOperator(task_id="run_this")
 
 
 Parameterized Timetables

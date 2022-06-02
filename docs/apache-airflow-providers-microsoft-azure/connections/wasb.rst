@@ -48,7 +48,7 @@ configure multiple connections.
 Default Connection IDs
 ----------------------
 
-All hooks and operators related to Microsoft Azure Blob Storage use ``azure_container_volume_default`` by default.
+All hooks and operators related to Microsoft Azure Blob Storage use ``wasb_default`` by default.
 
 Configuring the Connection
 --------------------------

@@ -15,8 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 set -e
+
+if [[ ${GITHUB_ACTIONS:="false"} == "true" ]]; then
+    echo
+    echo -e "${BLUE}Skipping asset compilation check in CI.${NO_COLOR}"
+    echo
+    exit 0
+fi
 
 cd "$( dirname "${BASH_SOURCE[0]}" )"
 
@@ -30,7 +36,7 @@ NO_COLOR='\033[0m'
 md5sum=$(find package.json yarn.lock static/css static/js -type f | sort | xargs md5sum)
 old_md5sum=$(cat "${MD5SUM_FILE}" 2>/dev/null || true)
 if [[ ${old_md5sum} != "${md5sum}" ]]; then
-    if [[ ${START_AIRFLOW:="false"} == "true" && ${USE_AIRFLOW_VERSION:=} == "" ]]; then
+    if [[ ( ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" )  && ${USE_AIRFLOW_VERSION:=} == "" ]]; then
         echo
         echo -e "${YELLOW}Recompiling assets as they have changed and you need them for 'start_airflow' command${NO_COLOR}"
         echo

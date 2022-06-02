@@ -738,16 +738,17 @@ class SmartSensorOperator(BaseOperator, SkipMixin):
             for sensor_work in self.sensor_works:
                 self._execute_sensor_work(sensor_work)
 
-            duration = (timezone.utcnow() - poke_start_time).total_seconds()
+            duration = timezone.utcnow() - poke_start_time
+            duration_seconds = duration.total_seconds()
 
-            self.log.info("Taking %s to execute %s tasks.", duration, len(self.sensor_works))
+            self.log.info("Taking %s seconds to execute %s tasks.", duration_seconds, len(self.sensor_works))
 
             Stats.timing("smart_sensor_operator.loop_duration", duration)
             Stats.gauge("smart_sensor_operator.executed_tasks", len(self.sensor_works))
             self._emit_loop_stats()
 
-            if duration < self.poke_interval:
-                sleep(self.poke_interval - duration)
+            if duration_seconds < self.poke_interval:
+                sleep(self.poke_interval - duration_seconds)
             if (timezone.utcnow() - started_at).total_seconds() > self.timeout:
                 self.log.info("Time is out for smart sensor.")
                 return

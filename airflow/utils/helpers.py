@@ -43,7 +43,7 @@ from airflow.utils.module_loading import import_string
 if TYPE_CHECKING:
     import jinja2
 
-    from airflow.models import TaskInstance
+    from airflow.models.taskinstance import TaskInstance
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
 GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')
@@ -256,7 +256,7 @@ def build_airflow_url_with_query(query: Dict[str, Any]) -> str:
     """
     import flask
 
-    view = conf.get('webserver', 'dag_default_view').lower()
+    view = conf.get_mandatory_value('webserver', 'dag_default_view').lower()
     return flask.url_for(f"Airflow.{view}", **query)
 
 

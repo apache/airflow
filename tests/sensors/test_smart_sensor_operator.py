@@ -20,6 +20,7 @@ import logging
 import os
 import time
 import unittest
+from unittest import mock
 from unittest.mock import Mock
 
 from freezegun import freeze_time
@@ -27,7 +28,7 @@ from freezegun import freeze_time
 from airflow import DAG, settings
 from airflow.configuration import conf
 from airflow.models import DagRun, SensorInstance, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.sensors.smart_sensor import SmartSensorOperator
 from airflow.utils import timezone
@@ -147,7 +148,7 @@ class SmartSensorTest(unittest.TestCase):
 
         smart_task = DummySmartSensor(task_id=SMART_OP + "_" + str(index), dag=self.dag, **kwargs)
 
-        dummy_op = DummyOperator(task_id=DUMMY_OP, dag=self.dag)
+        dummy_op = EmptyOperator(task_id=DUMMY_OP, dag=self.dag)
         dummy_op.set_upstream(smart_task)
         return smart_task
 
@@ -310,3 +311,25 @@ class SmartSensorTest(unittest.TestCase):
         assert sensor_instance is not None
         assert sensor_instance.state == State.SENSING
         assert sensor_instance.operator == "DummySensor"
+
+    @mock.patch('airflow.sensors.smart_sensor.Stats.timing')
+    @mock.patch('airflow.sensors.smart_sensor.timezone.utcnow')
+    def test_send_sensor_timing(self, timezone_utcnow_mock, statsd_timing_mock):
+        initial_time = timezone.datetime(2022, 1, 5, 0, 0, 0)
+        timezone_utcnow_mock.return_value = initial_time
+        self._make_sensor_dag_run()
+        smart = self._make_smart_operator(0)
+        smart.timeout = 0
+        duration = datetime.timedelta(seconds=3)
+        timezone_utcnow_mock.side_effect = [
+            # started_at
+            initial_time,
+            # poke_start_time
+            initial_time,
+            # duration
+            initial_time + duration,
+            # timeout check
+            initial_time + duration,
+        ]
+        smart.execute(None)
+        statsd_timing_mock.assert_called_with('smart_sensor_operator.loop_duration', duration)

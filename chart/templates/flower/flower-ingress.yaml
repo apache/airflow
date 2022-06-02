@@ -19,7 +19,7 @@
 ## Airflow Flower Ingress
 #################################
 {{- if .Values.flower.enabled }}
-{{- if and .Values.ingress.enabled (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
+{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
 {{- $apiIsStable := semverCompare ">= 1.19.x" (include "kubeVersion" .) -}}
 {{- if $apiIsStable }}
 apiVersion: networking.k8s.io/v1

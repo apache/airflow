@@ -28,7 +28,7 @@ if TYPE_CHECKING:
 
 class SqsPublishOperator(BaseOperator):
     """
-    Publish message to a SQS queue.
+    Publish a message to an Amazon SQS queue.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
@@ -65,7 +65,7 @@ class SqsPublishOperator(BaseOperator):
 
     def execute(self, context: 'Context'):
         """
-        Publish the message to SQS queue
+        Publish the message to the Amazon SQS queue
 
         :param context: the context object
         :return: dict with information about the message sent
@@ -81,7 +81,7 @@ class SqsPublishOperator(BaseOperator):
             message_attributes=self.message_attributes,
         )
 
-        self.log.info('result is send_message is %s', result)
+        self.log.info('send_message result: %s', result)
 
         return result
 

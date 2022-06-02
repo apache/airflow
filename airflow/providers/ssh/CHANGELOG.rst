@@ -19,6 +19,22 @@
 Changelog
 ---------
 
+2.4.4
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add exception to catch single line private keys (#23043)``
+
+2.4.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 2.4.2
 .....
 

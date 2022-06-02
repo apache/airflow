@@ -146,6 +146,35 @@ class S3Hook(AwsBaseHook):
 
         return bucket_name, key
 
+    @staticmethod
+    def get_s3_bucket_key(
+        bucket: Optional[str], key: str, bucket_param_name: str, key_param_name: str
+    ) -> Tuple[str, str]:
+        """
+        Get the S3 bucket name and key from either:
+            - bucket name and key. Return the info as it is after checking `key` is a relative path
+            - key. Must be a full s3:// url
+
+        :param bucket: The S3 bucket name
+        :param key: The S3 key
+        :param bucket_param_name: The parameter name containing the bucket name
+        :param key_param_name: The parameter name containing the key name
+        :return: the parsed bucket name and key
+        :rtype: tuple of str
+        """
+
+        if bucket is None:
+            return S3Hook.parse_s3_url(key)
+
+        parsed_url = urlparse(key)
+        if parsed_url.scheme != '' or parsed_url.netloc != '':
+            raise TypeError(
+                f'If `{bucket_param_name}` is provided, {key_param_name} should be a relative path '
+                'from root level, rather than a full s3:// url'
+            )
+
+        return bucket, key
+
     @provide_bucket_name
     def check_for_bucket(self, bucket_name: Optional[str] = None) -> bool:
         """
@@ -248,11 +277,10 @@ class S3Hook(AwsBaseHook):
             Bucket=bucket_name, Prefix=prefix, Delimiter=delimiter, PaginationConfig=config
         )
 
-        prefixes = []
+        prefixes = []  # type: List[str]
         for page in response:
             if 'CommonPrefixes' in page:
-                for common_prefix in page['CommonPrefixes']:
-                    prefixes.append(common_prefix['Prefix'])
+                prefixes.extend(common_prefix['Prefix'] for common_prefix in page['CommonPrefixes'])
 
         return prefixes
 
@@ -337,16 +365,65 @@ class S3Hook(AwsBaseHook):
             StartAfter=start_after_key,
         )
 
-        keys = []
+        keys = []  # type: List[str]
         for page in response:
             if 'Contents' in page:
-                for k in page['Contents']:
-                    keys.append(k)
-
+                keys.extend(iter(page['Contents']))
         if self.object_filter_usr is not None:
             return self.object_filter_usr(keys, from_datetime, to_datetime)
 
         return self._list_key_object_filter(keys, from_datetime, to_datetime)
+
+    @provide_bucket_name
+    def get_file_metadata(
+        self,
+        prefix: str,
+        bucket_name: Optional[str] = None,
+        page_size: Optional[int] = None,
+        max_items: Optional[int] = None,
+    ) -> List:
+        """
+        Lists metadata objects in a bucket under prefix
+
+        :param prefix: a key prefix
+        :param bucket_name: the name of the bucket
+        :param page_size: pagination size
+        :param max_items: maximum items to return
+        :return: a list of metadata of objects
+        :rtype: list
+        """
+        config = {
+            'PageSize': page_size,
+            'MaxItems': max_items,
+        }
+
+        paginator = self.get_conn().get_paginator('list_objects_v2')
+        response = paginator.paginate(Bucket=bucket_name, Prefix=prefix, PaginationConfig=config)
+
+        files = []
+        for page in response:
+            if 'Contents' in page:
+                files += page['Contents']
+        return files
+
+    @provide_bucket_name
+    @unify_bucket_name_and_key
+    def head_object(self, key: str, bucket_name: Optional[str] = None) -> Optional[dict]:
+        """
+        Retrieves metadata of an object
+
+        :param key: S3 key that will point to the file
+        :param bucket_name: Name of the bucket in which the file is stored
+        :return: metadata of an object
+        :rtype: dict
+        """
+        try:
+            return self.get_conn().head_object(Bucket=bucket_name, Key=key)
+        except ClientError as e:
+            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
+                return None
+            else:
+                raise e
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -359,14 +436,8 @@ class S3Hook(AwsBaseHook):
         :return: True if the key exists and False if not.
         :rtype: bool
         """
-        try:
-            self.get_conn().head_object(Bucket=bucket_name, Key=key)
-            return True
-        except ClientError as e:
-            if e.response["ResponseMetadata"]["HTTPStatusCode"] == 404:
-                return False
-            else:
-                raise e
+        obj = self.head_object(key, bucket_name)
+        return obj is not None
 
     @provide_bucket_name
     @unify_bucket_name_and_key
@@ -530,7 +601,7 @@ class S3Hook(AwsBaseHook):
             extra_args['ServerSideEncryption'] = "AES256"
         if gzip:
             with open(filename, 'rb') as f_in:
-                filename_gz = f_in.name + '.gz'
+                filename_gz = f'{f_in.name}.gz'
                 with gz.open(filename_gz, 'wb') as f_out:
                     shutil.copyfileobj(f_in, f_out)
                     filename = filename_gz
@@ -604,7 +675,7 @@ class S3Hook(AwsBaseHook):
         """
         Loads bytes to S3
 
-        This is provided as a convenience to drop a string in S3. It uses the
+        This is provided as a convenience to drop bytes data into S3. It uses the
         boto infrastructure to ship a file to s3.
 
         :param bytes_data: bytes to set as content for the key.
@@ -710,27 +781,13 @@ class S3Hook(AwsBaseHook):
         """
         acl_policy = acl_policy or 'private'
 
-        if dest_bucket_name is None:
-            dest_bucket_name, dest_bucket_key = self.parse_s3_url(dest_bucket_key)
-        else:
-            parsed_url = urlparse(dest_bucket_key)
-            if parsed_url.scheme != '' or parsed_url.netloc != '':
-                raise AirflowException(
-                    'If dest_bucket_name is provided, '
-                    'dest_bucket_key should be relative path '
-                    'from root level, rather than a full s3:// url'
-                )
+        dest_bucket_name, dest_bucket_key = self.get_s3_bucket_key(
+            dest_bucket_name, dest_bucket_key, 'dest_bucket_name', 'dest_bucket_key'
+        )
 
-        if source_bucket_name is None:
-            source_bucket_name, source_bucket_key = self.parse_s3_url(source_bucket_key)
-        else:
-            parsed_url = urlparse(source_bucket_key)
-            if parsed_url.scheme != '' or parsed_url.netloc != '':
-                raise AirflowException(
-                    'If source_bucket_name is provided, '
-                    'source_bucket_key should be relative path '
-                    'from root level, rather than a full s3:// url'
-                )
+        source_bucket_name, source_bucket_key = self.get_s3_bucket_key(
+            source_bucket_name, source_bucket_key, 'source_bucket_name', 'source_bucket_key'
+        )
 
         copy_source = {'Bucket': source_bucket_name, 'Key': source_bucket_key, 'VersionId': source_version_id}
         response = self.get_conn().copy_object(

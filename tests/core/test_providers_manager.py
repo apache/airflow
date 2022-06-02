@@ -17,16 +17,19 @@
 # under the License.
 import logging
 import re
-import unittest
+from typing import Dict
 from unittest.mock import patch
 
 import pytest
+from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+from flask_babel import lazy_gettext
+from wtforms import BooleanField, Field, StringField
 
 from airflow.exceptions import AirflowOptionalProviderFeatureException
 from airflow.providers_manager import HookClassProvider, ProviderInfo, ProvidersManager
 
 
-class TestProviderManager(unittest.TestCase):
+class TestProviderManager:
     @pytest.fixture(autouse=True)
     def inject_fixtures(self, caplog):
         self._caplog = caplog
@@ -37,8 +40,8 @@ class TestProviderManager(unittest.TestCase):
             provider_list = list(provider_manager.providers.keys())
             # No need to sort the list - it should be sorted alphabetically !
             for provider in provider_list:
-                package_name = provider_manager.providers[provider][1]['package-name']
-                version = provider_manager.providers[provider][0]
+                package_name = provider_manager.providers[provider].data['package-name']
+                version = provider_manager.providers[provider].version
                 assert re.search(r'[0-9]*\.[0-9]*\.[0-9]*.*', version)
                 assert package_name == provider
             # just a coherence check - no exact number as otherwise we would have to update
@@ -51,7 +54,8 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['test-package'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook']},
+                data={'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook']},
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
         assert warning_records
@@ -61,7 +65,7 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={
+                data={
                     'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
                     'connection-types': [
                         {
@@ -70,6 +74,7 @@ class TestProviderManager(unittest.TestCase):
                         }
                     ],
                 },
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
         assert [] == [w.message for w in warning_records.list if "hook-class-names" in str(w.message)]
@@ -79,7 +84,7 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={
+                data={
                     'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
                     'connection-types': [
                         {
@@ -88,6 +93,7 @@ class TestProviderManager(unittest.TestCase):
                         }
                     ],
                 },
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict['wrong-connection-type']
@@ -100,7 +106,7 @@ class TestProviderManager(unittest.TestCase):
             providers_manager = ProvidersManager()
             providers_manager._provider_dict['apache-airflow-providers-sftp'] = ProviderInfo(
                 version='0.0.1',
-                provider_info={
+                data={
                     'hook-class-names': ['airflow.providers.sftp.hooks.sftp.SFTPHook'],
                     'connection-types': [
                         {
@@ -109,6 +115,7 @@ class TestProviderManager(unittest.TestCase):
                         }
                     ],
                 },
+                package_or_source='package',
             )
             providers_manager._discover_hooks()
             _ = providers_manager._hooks_lazy_dict['sftp']
@@ -137,6 +144,49 @@ class TestProviderManager(unittest.TestCase):
         provider_manager = ProvidersManager()
         connections_form_widgets = list(provider_manager.connection_form_widgets.keys())
         assert len(connections_form_widgets) > 29
+
+    @pytest.mark.parametrize(
+        'scenario',
+        [
+            'prefix',
+            'no_prefix',
+            'both_1',
+            'both_2',
+        ],
+    )
+    def test_connection_form__add_widgets_prefix_backcompat(self, scenario):
+        """
+        When the field name is prefixed, it should be used as is.
+        When not prefixed, we should add the prefix
+        When there's a collision, the one that appears first in the list will be used.
+        """
+
+        class MyHook:
+            conn_type = 'test'
+
+        provider_manager = ProvidersManager()
+        widget_field = StringField(lazy_gettext('My Param'), widget=BS3TextFieldWidget())
+        dummy_field = BooleanField(label=lazy_gettext('Dummy param'), description="dummy")
+        widgets: Dict[str, Field] = {}
+        if scenario == 'prefix':
+            widgets['extra__test__my_param'] = widget_field
+        elif scenario == 'no_prefix':
+            widgets['my_param'] = widget_field
+        elif scenario == 'both_1':
+            widgets['my_param'] = widget_field
+            widgets['extra__test__my_param'] = dummy_field
+        elif scenario == 'both_2':
+            widgets['extra__test__my_param'] = widget_field
+            widgets['my_param'] = dummy_field
+        else:
+            raise Exception('unexpected')
+
+        provider_manager._add_widgets(
+            package_name='abc',
+            hook_class=MyHook,
+            widgets=widgets,
+        )
+        assert provider_manager.connection_form_widgets['extra__test__my_param'].field == widget_field
 
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
@@ -172,22 +222,21 @@ class TestProviderManager(unittest.TestCase):
                 package_name="test_package", hook_class_name="HookClass"
             )
             providers_manager._import_hook(
-                hook_class_name=None, package_name=None, connection_type="test_connection"
+                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
             assert [] == self._caplog.messages
 
     @patch("airflow.providers_manager.import_string")
     def test_optional_feature_debug(self, mock_importlib_import_string):
-        with self._caplog.at_level(logging.DEBUG):
+        with self._caplog.at_level(logging.INFO):
             mock_importlib_import_string.side_effect = AirflowOptionalProviderFeatureException()
             providers_manager = ProvidersManager()
             providers_manager._hook_provider_dict["test_connection"] = HookClassProvider(
                 package_name="test_package", hook_class_name="HookClass"
             )
             providers_manager._import_hook(
-                hook_class_name=None, package_name=None, connection_type="test_connection"
+                hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
             assert [
-                "Optional feature disabled on exception when importing 'HookClass' from "
-                "'test_package' package"
+                "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
             ] == self._caplog.messages

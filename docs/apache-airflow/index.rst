@@ -98,7 +98,7 @@ unit of work and continuity.
     dag-serialization
     modules_management
     Release Policies <release-process>
-    changelog
+    release_notes
     best-practices
     production-deployment
     faq

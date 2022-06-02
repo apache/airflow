@@ -21,6 +21,7 @@ from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
+from airflow.providers.google.cloud.links.spanner import SpannerDatabaseLink, SpannerInstanceLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -67,6 +68,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         'impersonation_chain',
     )
     # [END gcp_spanner_deploy_template_fields]
+    operator_extra_links = (SpannerInstanceLink(),)
 
     def __init__(
         self,
@@ -113,6 +115,12 @@ class SpannerDeployInstanceOperator(BaseOperator):
             configuration_name=self.configuration_name,
             node_count=self.node_count,
             display_name=self.display_name,
+        )
+        SpannerInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            project_id=self.project_id or hook.project_id,
         )
 
 
@@ -223,6 +231,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'query': 'sql'}
     # [END gcp_spanner_query_template_fields]
+    operator_extra_links = (SpannerDatabaseLink(),)
 
     def __init__(
         self,
@@ -277,6 +286,13 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
             database_id=self.database_id,
             queries=queries,
         )
+        SpannerDatabaseLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            database_id=self.database_id,
+            project_id=self.project_id or hook.project_id,
+        )
 
     @staticmethod
     def sanitize_queries(queries: List[str]) -> None:
@@ -327,6 +343,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'ddl_statements': 'sql'}
     # [END gcp_spanner_database_deploy_template_fields]
+    operator_extra_links = (SpannerDatabaseLink(),)
 
     def __init__(
         self,
@@ -360,6 +377,13 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        SpannerDatabaseLink.persist(
+            context=context,
+            task_instance=self,
+            instance_id=self.instance_id,
+            database_id=self.database_id,
+            project_id=self.project_id or hook.project_id,
         )
         if not hook.get_database(
             project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
@@ -425,6 +449,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
     template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'ddl_statements': 'sql'}
     # [END gcp_spanner_database_update_template_fields]
+    operator_extra_links = (SpannerDatabaseLink(),)
 
     def __init__(
         self,
@@ -472,6 +497,13 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
                 f"Create the database first before you can update it."
             )
         else:
+            SpannerDatabaseLink.persist(
+                context=context,
+                task_instance=self,
+                instance_id=self.instance_id,
+                database_id=self.database_id,
+                project_id=self.project_id or hook.project_id,
+            )
             return hook.update_database(
                 project_id=self.project_id,
                 instance_id=self.instance_id,

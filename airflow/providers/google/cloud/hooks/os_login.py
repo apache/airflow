@@ -24,6 +24,7 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.oslogin_v1 import ImportSshPublicKeyResponse, OsLoginServiceClient
 
@@ -66,7 +67,7 @@ class OSLoginHook(GoogleBaseHook):
         user: str,
         ssh_public_key: Dict,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ImportSshPublicKeyResponse:

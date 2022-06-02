@@ -57,3 +57,6 @@ scheduler.rst concepts/scheduler.rst
 installation.rst installation/index.rst
 upgrade-check.rst installation/upgrade-check.rst
 upgrading-to-2.rst upgrading-from-1-10/index.rst
+
+# Release Notes
+changelog.rst release_notes.rst

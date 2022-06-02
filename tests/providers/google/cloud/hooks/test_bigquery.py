@@ -82,25 +82,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         )
         assert mock_bigquery_connection.return_value == result
 
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
-    def test_bigquery_bigquery_conn_id_deprecation_warning(
-        self,
-        mock_base_hook_init,
-    ):
-        bigquery_conn_id = "bigquery conn id"
-        warning_message = (
-            "The bigquery_conn_id parameter has been deprecated. "
-            "You should pass the gcp_conn_id parameter."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            BigQueryHook(bigquery_conn_id=bigquery_conn_id)
-            mock_base_hook_init.assert_called_once_with(
-                delegate_to=None,
-                gcp_conn_id='bigquery conn id',
-                impersonation_chain=None,
-            )
-        assert warning_message == str(warnings[0].message)
-
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
     def test_location_propagates_properly(self, run_with_config, _):
@@ -212,7 +193,8 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
         self.hook.running_job_id = running_job_id
         self.hook.cancel_query()
 
-        mock_poll_job_complete.has_calls(mock.call(running_job_id), mock.call(running_job_id))
+        calls = [mock.call(job_id=running_job_id), mock.call(running_job_id)]
+        mock_poll_job_complete.assert_has_calls(calls)
         mock_client.assert_called_once_with(project_id=PROJECT_ID, location=None)
         mock_client.return_value.cancel_job.assert_called_once_with(job_id=running_job_id)
 
@@ -461,7 +443,7 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             location=LOCATION,
         )
         mock_table.from_api_repr.assert_called_once_with({"tableReference": TABLE_REFERENCE_REPR})
-        mock_schema.has_calls([mock.call(x, "") for x in ["field_1", "field_2"]])
+        mock_schema.assert_has_calls([mock.call(x, "") for x in ["field_1", "field_2"]])
         mock_client.return_value.list_rows.assert_called_once_with(
             table=mock_table.from_api_repr.return_value,
             max_results=10,
@@ -936,16 +918,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_uri(self):
         assert self.hook.get_uri().startswith('bigquery://')
 
-    def test_dbapi_get_sqlalchemy_engine_failed(self):
-        with pytest.raises(
-            AirflowException,
-            match="For now, we only support instantiating SQLAlchemy engine by"
-            " using ADC"
-            ", extra__google_cloud_platform__key_path"
-            "and extra__google_cloud_platform__keyfile_dict",
-        ):
-            self.hook.get_sqlalchemy_engine()
-
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
@@ -1216,29 +1188,31 @@ class TestBigQueryCursor(_BigQueryBaseTestClass):
         bq_cursor = self.hook.get_cursor()
         bq_cursor.executemany("SELECT %(foo)s", [{"foo": "bar"}, {"foo": "baz"}])
         assert mock_insert.call_count == 2
-        assert mock_insert.has_calls(
-            mock.call(
-                configuration={
-                    'query': {
-                        'query': "SELECT 'bar'",
-                        'priority': 'INTERACTIVE',
-                        'useLegacySql': True,
-                        'schemaUpdateOptions': [],
-                    }
-                },
-                project_id=PROJECT_ID,
-            ),
-            mock.call(
-                configuration={
-                    'query': {
-                        'query': "SELECT 'baz'",
-                        'priority': 'INTERACTIVE',
-                        'useLegacySql': True,
-                        'schemaUpdateOptions': [],
-                    }
-                },
-                project_id=PROJECT_ID,
-            ),
+        mock_insert.assert_has_calls(
+            [
+                mock.call(
+                    configuration={
+                        'query': {
+                            'query': "SELECT 'bar'",
+                            'priority': 'INTERACTIVE',
+                            'useLegacySql': True,
+                            'schemaUpdateOptions': [],
+                        }
+                    },
+                    project_id=PROJECT_ID,
+                ),
+                mock.call(
+                    configuration={
+                        'query': {
+                            'query': "SELECT 'baz'",
+                            'priority': 'INTERACTIVE',
+                            'useLegacySql': True,
+                            'schemaUpdateOptions': [],
+                        }
+                    },
+                    project_id=PROJECT_ID,
+                ),
+            ]
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")

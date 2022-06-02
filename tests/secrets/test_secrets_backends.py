@@ -62,9 +62,7 @@ class TestBaseSecretsBackend(unittest.TestCase):
         sample_conn_1 = SampleConn("sample_1", "A")
         env_secrets_backend = EnvironmentVariablesBackend()
         os.environ[sample_conn_1.var_name] = sample_conn_1.conn_uri
-        conn_list = env_secrets_backend.get_connections(sample_conn_1.conn_id)
-        assert 1 == len(conn_list)
-        conn = conn_list[0]
+        conn = env_secrets_backend.get_connection(sample_conn_1.conn_id)
 
         # we could make this more precise by defining __eq__ method for Connection
         assert sample_conn_1.host.lower() == conn.host
@@ -75,9 +73,8 @@ class TestBaseSecretsBackend(unittest.TestCase):
             session.add(sample_conn_2.conn)
             session.commit()
         metastore_backend = MetastoreBackend()
-        conn_list = metastore_backend.get_connections("sample_2")
-        host_list = {x.host for x in conn_list}
-        assert {sample_conn_2.host.lower()} == set(host_list)
+        conn = metastore_backend.get_connection("sample_2")
+        assert sample_conn_2.host.lower() == conn.host
 
     @mock.patch.dict(
         'os.environ',

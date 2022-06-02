@@ -118,6 +118,7 @@ def dag_backfill(args, dag=None):
                 conf=run_conf,
                 rerun_failed_tasks=args.rerun_failed_tasks,
                 run_backwards=args.run_backwards,
+                continue_on_failures=args.continue_on_failures,
             )
         except ValueError as vr:
             print(str(vr))

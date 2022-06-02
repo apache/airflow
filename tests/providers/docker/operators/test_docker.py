@@ -21,13 +21,14 @@ from unittest import mock
 from unittest.mock import call
 
 import pytest
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from docker.errors import APIError
 
 from airflow.exceptions import AirflowException
 
 try:
     from docker import APIClient
-    from docker.types import Mount
+    from docker.types import DeviceRequest, Mount
 
     from airflow.providers.docker.hooks.docker import DockerHook
     from airflow.providers.docker.operators.docker import DockerOperator
@@ -87,11 +88,12 @@ class TestDockerOperator(unittest.TestCase):
             host_tmp_dir='/host/airflow',
             container_name='test_container',
             tty=True,
+            device_requests=[DeviceRequest(count=-1, capabilities=[['gpu']])],
         )
         operator.execute(None)
 
         self.client_class_mock.assert_called_once_with(
-            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19', timeout=DEFAULT_TIMEOUT_SECONDS
         )
 
         self.client_mock.create_container.assert_called_once_with(
@@ -120,6 +122,7 @@ class TestDockerOperator(unittest.TestCase):
             cap_add=None,
             extra_hosts=None,
             privileged=False,
+            device_requests=[DeviceRequest(count=-1, capabilities=[['gpu']])],
         )
         self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
@@ -157,7 +160,7 @@ class TestDockerOperator(unittest.TestCase):
         operator.execute(None)
 
         self.client_class_mock.assert_called_once_with(
-            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19', timeout=DEFAULT_TIMEOUT_SECONDS
         )
 
         self.client_mock.create_container.assert_called_once_with(
@@ -185,6 +188,7 @@ class TestDockerOperator(unittest.TestCase):
             cap_add=None,
             extra_hosts=None,
             privileged=False,
+            device_requests=None,
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
@@ -230,7 +234,7 @@ class TestDockerOperator(unittest.TestCase):
                 "and mounting temporary volume from host is not supported" in captured.output[0]
             )
         self.client_class_mock.assert_called_once_with(
-            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19', timeout=DEFAULT_TIMEOUT_SECONDS
         )
         self.client_mock.create_container.assert_has_calls(
             [
@@ -275,6 +279,7 @@ class TestDockerOperator(unittest.TestCase):
                     cap_add=None,
                     extra_hosts=None,
                     privileged=False,
+                    device_requests=None,
                 ),
                 call(
                     mounts=[
@@ -290,6 +295,7 @@ class TestDockerOperator(unittest.TestCase):
                     cap_add=None,
                     extra_hosts=None,
                     privileged=False,
+                    device_requests=None,
                 ),
             ]
         )
@@ -340,7 +346,7 @@ class TestDockerOperator(unittest.TestCase):
         )
 
         self.client_class_mock.assert_called_once_with(
-            base_url='https://127.0.0.1:2376', tls=tls_mock, version=None
+            base_url='https://127.0.0.1:2376', tls=tls_mock, version=None, timeout=DEFAULT_TIMEOUT_SECONDS
         )
 
     def test_execute_unicode_logs(self):

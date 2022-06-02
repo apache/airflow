@@ -127,6 +127,6 @@ class SalesforceToS3Operator(BaseOperator):
             )
 
             s3_uri = f"s3://{self.s3_bucket_name}/{self.s3_key}"
-            self.log.info(f"Salesforce data uploaded to S3 at {s3_uri}.")
+            self.log.info("Salesforce data uploaded to S3 at %s.", s3_uri)
 
             return s3_uri

@@ -20,6 +20,8 @@
 import unittest
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
 
 TEST_GCP_REGION = "global"
@@ -41,7 +43,7 @@ TEST_UPDATED_ENVIRONMENT = {
         "label1": "testing",
     }
 }
-TEST_RETRY = None
+TEST_RETRY = DEFAULT
 TEST_TIMEOUT = None
 TEST_METADATA = [("key", "value")]
 TEST_PARENT = "test-parent"

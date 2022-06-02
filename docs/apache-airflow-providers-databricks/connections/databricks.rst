@@ -64,9 +64,9 @@ Password (optional)
 Extra (optional)
     Specify the extra parameter (as json dictionary) that can be used in the Databricks connection.
 
-    Following parameter should be used if using the *PAT* authentication method:
+    Following parameter could be used if using the *PAT* authentication method:
 
-    * ``token``: Specify PAT to use. Note, the PAT must appear in both the Password field as the token value in Extra.
+    * ``token``: Specify PAT to use. Consider to switch to specification of PAT in the Password field as it's more secure.
 
     Following parameters are necessary if using authentication with AAD token:
 

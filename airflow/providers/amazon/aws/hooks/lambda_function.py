@@ -66,8 +66,7 @@ class LambdaHook(AwsBaseHook):
             "Payload": payload,
             "Qualifier": qualifier,
         }
-        response = self.conn.invoke(**{k: v for k, v in invoke_args.items() if v is not None})
-        return response
+        return self.conn.invoke(**{k: v for k, v in invoke_args.items() if v is not None})
 
     def create_lambda(
         self,
@@ -118,10 +117,9 @@ class LambdaHook(AwsBaseHook):
             "CodeSigningConfigArn": code_signing_config_arn,
             "Architectures": architectures,
         }
-        response = self.conn.create_function(
+        return self.conn.create_function(
             **{k: v for k, v in create_function_args.items() if v is not None},
         )
-        return response
 
 
 class AwsLambdaHook(LambdaHook):

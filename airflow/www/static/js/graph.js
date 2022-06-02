@@ -87,16 +87,27 @@ let innerSvg = d3.select('#graph-svg g');
 // returns true if at least one node is changed
 const updateNodeLabels = (node, instances) => {
   let haveLabelsChanged = false;
-  const label = tasks[node.id] && tasks[node.id].is_mapped
-    ? `${node.id} [${(instances[node.id].mapped_states && instances[node.id].mapped_states.length) || ' '}]`
-    : node.value.label;
+  let { label } = node.value;
+  // Check if there is a count of mapped instances
+  if (tasks[node.id] && tasks[node.id].is_mapped) {
+    const count = instances[node.id]
+      && instances[node.id].mapped_states
+      ? instances[node.id].mapped_states.length
+      : ' ';
 
+    label = `${node.id} [${count}]`;
+  }
   if (g.node(node.id) && g.node(node.id).label !== label) {
     g.node(node.id).label = label;
     haveLabelsChanged = true;
   }
 
-  if (node.children) return node.children.some((n) => updateNodeLabels(n, instances));
+  if (node.children) {
+    // Iterate through children and return true if at least one has been changed
+    const updatedNodes = node.children.map((n) => updateNodeLabels(n, instances));
+    return updatedNodes.some((changed) => changed);
+  }
+
   return haveLabelsChanged;
 };
 
@@ -171,9 +182,20 @@ function draw() {
       // A task node
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
+      let mappedStates = [];
+      if (task.is_mapped) mappedStates = taskInstances[nodeId].mapped_states;
 
-      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true, dagRunId);
-      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined, dagRunId);
+      callModal({
+        taskId: nodeId,
+        executionDate,
+        extraLinks: task.extra_links,
+        tryNumber,
+        isSubDag: task.task_type === 'SubDagOperator',
+        dagRunId,
+        mapIndex: task.map_index,
+        isMapped: task.is_mapped,
+        mappedStates,
+      });
     }
   });
 
@@ -224,7 +246,7 @@ function setUpZoomSupport() {
   const graphWidth = g.graph().width;
   const graphHeight = g.graph().height;
   // Get SVG dimensions
-  const padding = 20;
+  const padding = 80;
   const svgBb = svg.node().getBoundingClientRect();
   const width = svgBb.width - padding * 2;
   const height = svgBb.height - padding; // we are not centering the dag vertically
@@ -428,8 +450,9 @@ function handleRefresh() {
         setTimeout(() => { $('#loading-dots').hide(); }, 500);
         $('#error').hide();
       },
-    ).fail((_, textStatus, err) => {
-      $('#error_msg').text(`${textStatus}: ${err}`);
+    ).fail((response, textStatus, err) => {
+      const description = (response.responseJSON && response.responseJSON.error) || 'Something went wrong.';
+      $('#error_msg').text(`${textStatus}: ${err} ${description}`);
       $('#error').show();
       setTimeout(() => { $('#loading-dots').hide(); }, 500);
       $('#chart_section').hide(1000);

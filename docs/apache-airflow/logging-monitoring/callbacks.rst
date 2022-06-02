@@ -32,7 +32,7 @@ For example, you may wish to alert when certain tasks have failed, or have the l
 Callback Types
 --------------
 
-There are four types of task events that can trigger a callback:
+There are five types of task events that can trigger a callback:
 
 =========================================== ================================================================
 Name                                        Description
@@ -41,6 +41,7 @@ Name                                        Description
 ``on_failure_callback``                     Invoked when the task :ref:`fails <concepts:task-instances>`
 ``sla_miss_callback``                       Invoked when a task misses its defined :ref:`SLA <concepts:slas>`
 ``on_retry_callback``                       Invoked when the task is :ref:`up for retry <concepts:task-instances>`
+``on_execute_callback``                     Invoked right before the task begins executing.
 =========================================== ================================================================
 
 
@@ -55,7 +56,7 @@ In the following example, failures in any task call the ``task_failure_alert`` f
     import pendulum
 
     from airflow import DAG
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
 
 
     def task_failure_alert(context):
@@ -77,7 +78,7 @@ In the following example, failures in any task call the ``task_failure_alert`` f
         tags=["example"],
     ) as dag:
 
-        task1 = DummyOperator(task_id="task1")
-        task2 = DummyOperator(task_id="task2")
-        task3 = DummyOperator(task_id="task3", on_success_callback=dag_success_alert)
+        task1 = EmptyOperator(task_id="task1")
+        task2 = EmptyOperator(task_id="task2")
+        task3 = EmptyOperator(task_id="task3", on_success_callback=dag_success_alert)
         task1 >> task2 >> task3

@@ -29,44 +29,14 @@ command.
 Using the Operator
 ------------------
 
-Operator loads data from a specified location into a table using a configured endpoint.
+Operator loads data from a specified location into a table using a configured endpoint.  The only required parameters are:
 
-.. list-table::
-   :widths: 15 25
-   :header-rows: 1
+* ``table_name`` - string with the table name
+* ``file_location`` - string with the URI of data to load
+* ``file_format`` - string specifying the file format of data to load. Supported formats are ``CSV``, ``JSON``, ``AVRO``, ``ORC``, ``PARQUET``, ``TEXT``, ``BINARYFILE``.
+* One of ``sql_endpoint_name`` (name of Databricks SQL endpoint to use) or ``http_path`` (HTTP path for Databricks SQL endpoint or Databricks cluster).
 
-   * - Parameter
-     - Input
-   * - table_name: str
-     - Required name of the table.
-   * - file_location: str
-     - Required location of files to import.
-   * - file_format: str
-     - Required file format. Supported formats are ``CSV``, ``JSON``, ``AVRO``, ``ORC``, ``PARQUET``, ``TEXT``, ``BINARYFILE``.
-   * - sql_endpoint_name: str
-     - Optional name of Databricks SQL endpoint to use. If not specified, ``http_path`` should be provided.
-   * - http_path: str
-     - Optional HTTP path for Databricks SQL endpoint or Databricks cluster. If not specified, it should be provided in Databricks connection, or the ``sql_endpoint_name`` parameter must be set.
-   * - session_configuration: dict[str,str]
-     - optional dict specifying Spark configuration parameters that will be set for the session.
-   * - files: Optional[List[str]]
-     - optional list of files to import. Can't be specified together with ``pattern``.
-   * - pattern: Optional[str]
-     - optional regex string to match file names to import. Can't be specified together with ``files``.
-   * - expression_list: Optional[str]
-     - optional string that will be used in the ``SELECT`` expression.
-   * - credential: Optional[Dict[str, str]]
-     - optional credential configuration for authentication against a specified location
-   * - encryption: Optional[Dict[str, str]]
-     - optional encryption configuration for a specified location
-   * - format_options: Optional[Dict[str, str]]
-     - optional dictionary with options specific for a given file format.
-   * - force_copy: Optional[bool]
-     - optional bool to control forcing of data import (could be also specified in ``copy_options``).
-   * - copy_options: Optional[Dict[str, str]]
-     - optional dictionary of copy options. Right now only ``force`` option is supported.
-   * - validate: Optional[Union[bool, int]]
-     - optional validation configuration. ``True`` forces validation of all rows, positive number - only N first rows. (requires Preview channel)
+Other parameters are optional and could be found in the class documentation.
 
 Examples
 --------

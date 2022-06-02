@@ -21,7 +21,6 @@ data from Cassandra to Google Cloud Storage in JSON format.
 """
 
 import json
-import warnings
 from base64 import b64encode
 from datetime import datetime
 from decimal import Decimal
@@ -66,8 +65,6 @@ class CassandraToGCSOperator(BaseOperator):
     :param cassandra_conn_id: Reference to a specific Cassandra hook.
     :param gzip: Option to compress file for upload
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -82,6 +79,8 @@ class CassandraToGCSOperator(BaseOperator):
     :param query_timeout: (Optional) The amount of time, in seconds, used to execute the Cassandra query.
         If not set, the timeout value will be set in Session.execute() by Cassandra driver.
         If set to None, there is no timeout.
+    :param encode_uuid: (Optional) Option to encode UUID or not when upload from Cassandra to GCS.
+        Default is to encode UUID.
     """
 
     template_fields: Sequence[str] = (
@@ -105,22 +104,13 @@ class CassandraToGCSOperator(BaseOperator):
         gzip: bool = False,
         cassandra_conn_id: str = 'cassandra_default',
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         query_timeout: Union[float, None, NotSetType] = NOT_SET,
+        encode_uuid: bool = True,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.cql = cql
         self.bucket = bucket
@@ -133,6 +123,7 @@ class CassandraToGCSOperator(BaseOperator):
         self.gzip = gzip
         self.impersonation_chain = impersonation_chain
         self.query_timeout = query_timeout
+        self.encode_uuid = encode_uuid
 
     # Default Cassandra to BigQuery type mapping
     CQL_TYPE_MAP = {
@@ -169,21 +160,30 @@ class CassandraToGCSOperator(BaseOperator):
 
         cursor = hook.get_conn().execute(self.cql, **query_extra)
 
-        files_to_upload = self._write_local_data_files(cursor)
-
         # If a schema is set, create a BQ schema JSON file.
         if self.schema_filename:
-            files_to_upload.update(self._write_local_schema_file(cursor))
+            self.log.info('Writing local schema file')
+            schema_file = self._write_local_schema_file(cursor)
 
-        # Flush all files before uploading
-        for file_handle in files_to_upload.values():
-            file_handle.flush()
+            # Flush file before uploading
+            schema_file['file_handle'].flush()
 
-        self._upload_to_gcs(files_to_upload)
+            self.log.info('Uploading schema file to GCS.')
+            self._upload_to_gcs(schema_file)
+            schema_file['file_handle'].close()
 
-        # Close all temp file handles.
-        for file_handle in files_to_upload.values():
-            file_handle.close()
+        counter = 0
+        self.log.info('Writing local data files')
+        for file_to_upload in self._write_local_data_files(cursor):
+            # Flush file before uploading
+            file_to_upload['file_handle'].flush()
+
+            self.log.info('Uploading chunk file #%d to GCS.', counter)
+            self._upload_to_gcs(file_to_upload)
+
+            self.log.info('Removing local file')
+            file_to_upload['file_handle'].close()
+            counter += 1
 
         # Close all sessions and connection associated with this Cassandra cluster
         hook.shutdown_cluster()
@@ -197,8 +197,12 @@ class CassandraToGCSOperator(BaseOperator):
             contain the data for the GCS objects.
         """
         file_no = 0
+
         tmp_file_handle = NamedTemporaryFile(delete=True)
-        tmp_file_handles = {self.filename.format(file_no): tmp_file_handle}
+        file_to_upload = {
+            'file_name': self.filename.format(file_no),
+            'file_handle': tmp_file_handle,
+        }
         for row in cursor:
             row_dict = self.generate_data_dict(row._fields, row)
             content = json.dumps(row_dict).encode('utf-8')
@@ -209,10 +213,14 @@ class CassandraToGCSOperator(BaseOperator):
 
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
-                tmp_file_handle = NamedTemporaryFile(delete=True)
-                tmp_file_handles[self.filename.format(file_no)] = tmp_file_handle
 
-        return tmp_file_handles
+                yield file_to_upload
+                tmp_file_handle = NamedTemporaryFile(delete=True)
+                file_to_upload = {
+                    'file_name': self.filename.format(file_no),
+                    'file_handle': tmp_file_handle,
+                }
+        yield file_to_upload
 
     def _write_local_schema_file(self, cursor):
         """
@@ -231,30 +239,32 @@ class CassandraToGCSOperator(BaseOperator):
         json_serialized_schema = json.dumps(schema).encode('utf-8')
 
         tmp_schema_file_handle.write(json_serialized_schema)
-        return {self.schema_filename: tmp_schema_file_handle}
+        schema_file_to_upload = {
+            'file_name': self.schema_filename,
+            'file_handle': tmp_schema_file_handle,
+        }
+        return schema_file_to_upload
 
-    def _upload_to_gcs(self, files_to_upload: Dict[str, Any]):
+    def _upload_to_gcs(self, file_to_upload):
+        """Upload a file (data split or schema .json file) to Google Cloud Storage."""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        for obj, tmp_file_handle in files_to_upload.items():
-            hook.upload(
-                bucket_name=self.bucket,
-                object_name=obj,
-                filename=tmp_file_handle.name,
-                mime_type='application/json',
-                gzip=self.gzip,
-            )
+        hook.upload(
+            bucket_name=self.bucket,
+            object_name=file_to_upload.get('file_name'),
+            filename=file_to_upload.get('file_handle').name,
+            mime_type='application/json',
+            gzip=self.gzip,
+        )
 
-    @classmethod
-    def generate_data_dict(cls, names: Iterable[str], values: Any) -> Dict[str, Any]:
+    def generate_data_dict(self, names: Iterable[str], values: Any) -> Dict[str, Any]:
         """Generates data structure that will be stored as file in GCS."""
-        return {n: cls.convert_value(v) for n, v in zip(names, values)}
+        return {n: self.convert_value(v) for n, v in zip(names, values)}
 
-    @classmethod
-    def convert_value(cls, value: Optional[Any]) -> Optional[Any]:
+    def convert_value(self, value: Optional[Any]) -> Optional[Any]:
         """Convert value to BQ type."""
         if not value:
             return value
@@ -263,7 +273,10 @@ class CassandraToGCSOperator(BaseOperator):
         elif isinstance(value, bytes):
             return b64encode(value).decode('ascii')
         elif isinstance(value, UUID):
-            return b64encode(value.bytes).decode('ascii')
+            if self.encode_uuid:
+                return b64encode(value.bytes).decode('ascii')
+            else:
+                return str(value)
         elif isinstance(value, (datetime, Date)):
             return str(value)
         elif isinstance(value, Decimal):
@@ -271,51 +284,47 @@ class CassandraToGCSOperator(BaseOperator):
         elif isinstance(value, Time):
             return str(value).split('.')[0]
         elif isinstance(value, (list, SortedSet)):
-            return cls.convert_array_types(value)
+            return self.convert_array_types(value)
         elif hasattr(value, '_fields'):
-            return cls.convert_user_type(value)
+            return self.convert_user_type(value)
         elif isinstance(value, tuple):
-            return cls.convert_tuple_type(value)
+            return self.convert_tuple_type(value)
         elif isinstance(value, OrderedMapSerializedKey):
-            return cls.convert_map_type(value)
+            return self.convert_map_type(value)
         else:
             raise AirflowException('Unexpected value: ' + str(value))
 
-    @classmethod
-    def convert_array_types(cls, value: Union[List[Any], SortedSet]) -> List[Any]:
+    def convert_array_types(self, value: Union[List[Any], SortedSet]) -> List[Any]:
         """Maps convert_value over array."""
-        return [cls.convert_value(nested_value) for nested_value in value]
+        return [self.convert_value(nested_value) for nested_value in value]
 
-    @classmethod
-    def convert_user_type(cls, value: Any) -> Dict[str, Any]:
+    def convert_user_type(self, value: Any) -> Dict[str, Any]:
         """
         Converts a user type to RECORD that contains n fields, where n is the
         number of attributes. Each element in the user type class will be converted to its
         corresponding data type in BQ.
         """
         names = value._fields
-        values = [cls.convert_value(getattr(value, name)) for name in names]
-        return cls.generate_data_dict(names, values)
+        values = [self.convert_value(getattr(value, name)) for name in names]
+        return self.generate_data_dict(names, values)
 
-    @classmethod
-    def convert_tuple_type(cls, values: Tuple[Any]) -> Dict[str, Any]:
+    def convert_tuple_type(self, values: Tuple[Any]) -> Dict[str, Any]:
         """
         Converts a tuple to RECORD that contains n fields, each will be converted
         to its corresponding data type in bq and will be named 'field_<index>', where
         index is determined by the order of the tuple elements defined in cassandra.
         """
         names = ['field_' + str(i) for i in range(len(values))]
-        return cls.generate_data_dict(names, values)
+        return self.generate_data_dict(names, values)
 
-    @classmethod
-    def convert_map_type(cls, value: OrderedMapSerializedKey) -> List[Dict[str, Any]]:
+    def convert_map_type(self, value: OrderedMapSerializedKey) -> List[Dict[str, Any]]:
         """
         Converts a map to a repeated RECORD that contains two fields: 'key' and 'value',
         each will be converted to its corresponding data type in BQ.
         """
         converted_map = []
         for k, v in zip(value.keys(), value.values()):
-            converted_map.append({'key': cls.convert_value(k), 'value': cls.convert_value(v)})
+            converted_map.append({'key': self.convert_value(k), 'value': self.convert_value(v)})
         return converted_map
 
     @classmethod

@@ -15,37 +15,39 @@
     specific language governing permissions and limitations
     under the License.
 
+======================================
+Amazon Elastic Container Service (ECS)
+======================================
 
-Amazon Elastic Container Service (ECS) Operators
-================================================
-
-`Amazon Elastic Container Service (Amazon ECS) <https://aws.amazon.com/eks/>`__  is a fully
+`Amazon Elastic Container Service (Amazon ECS) <https://aws.amazon.com/ecs/>`__  is a fully
 managed container orchestration service that makes it easy for you to deploy, manage, and
 scale containerized applications.
 
 Airflow provides operators to run Task Definitions on an ECS cluster.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
-* You will need to have created your ECS Cluster, and have created a Task Definition before you can use this Operator. The Task Definition contains details of the containerized application you want to run.
-
-.. include::/operators/_partials/prerequisite_tasks.rst
+Operators
+---------
 
 .. _howto/operator:EcsOperator:
 
-Overview
-^^^^^^^^
+Run a task definition
+=====================
 
 To run a Task Definition defined in an Amazon ECS cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
 
-This Operator support running your containers in ECS Clusters that are either Serverless (FARGATE), via EC2, or via external resources (EXTERNAL). The parameters you need to configure for this Operator will depend upon which ``launch_type`` you want to use.
+You need to have created your ECS Cluster, and have created a Task Definition before you can use this Operator.
+The Task Definition contains details of the containerized application you want to run.
 
-Launch Types
-------------
+This Operator support running your containers in ECS Clusters that are either Serverless (FARGATE), via EC2,
+or via external resources (EXTERNAL).
+The parameters you need to configure for this Operator will depend upon which ``launch_type`` you want to use.
+
 .. code-block::
 
     launch_type="EC2|FARGATE|EXTERNAL"
@@ -54,32 +56,37 @@ Launch Types
 * If you are using EC2 as the compute resources in your ECS Cluster, set the parameter to EC2.
 * If you have integrated external resources in your ECS Cluster, for example using ECS Anywhere, and want to run your containers on those external resources, set the parameter to EXTERNAL.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_ec2.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
 
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_fargate.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_ecs]
     :end-before: [END howto_operator_ecs]
 
+Stream logs to AWS CloudWatch
+"""""""""""""""""""""""""""""
 
-CloudWatch Logging
-------------------
+To stream logs to AWS CloudWatch, you need to define the parameters below.
+Using the example above, we would add these additional parameters to enable logging to CloudWatch.
+You need to ensure that you have the appropriate level of permissions (see next section).
 
-To stream logs to AWS CloudWatch, you need to define these parameters. Using the example Operators above, we would add these additional parameters to enable logging to CloudWatch. You will need to ensure that you have the appropriate level of permissions (see next section)
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs_ec2.py
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_ecs.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_awslogs_ecs]
     :end-before: [END howto_awslogs_ecs]
 
 IAM Permissions
----------------
+"""""""""""""""
 
-You will need to ensure you have the following IAM permissions to run Tasks via this Operator. In this example, the Operator will have permissions to run Tasks on an ECS Cluster called "cluster a" in a specific AWS region and account.
+You need to ensure you have the following IAM permissions to run tasks via this operator.
+In this example, the operator will have permissions to run tasks on an ECS Cluster called "cluster a" in a specific AWS region and account.
 
 .. code-block::
 
@@ -92,7 +99,8 @@ You will need to ensure you have the following IAM permissions to run Tasks via 
             "Resource": : [ "arn:aws:ecs:{aws region}:{aws account number}:cluster/{custer a}"
         }
 
-If you use the "reattach=True" (the default is False), you will need to add further permissions. You will need to add the following additional Actions to the IAM policy.
+If you use the "reattach=True" (the default is False), you need to add further permissions.
+You need to add the following additional Actions to the IAM policy.
 
 .. code-block::
 
@@ -101,7 +109,7 @@ If you use the "reattach=True" (the default is False), you will need to add furt
 
 **CloudWatch Permissions**
 
-If you plan on streaming Apache Airflow logs into AWS CloudWatch, you will need to ensure that you have configured the appropriate permissions set.
+If you plan on streaming Apache Airflow logs into AWS CloudWatch, you need to ensure that you have configured the appropriate permissions set.
 
 .. code-block::
 
@@ -122,9 +130,7 @@ If you plan on streaming Apache Airflow logs into AWS CloudWatch, you will need 
                 )
 
 
-More information
-----------------
+Reference
+---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for ECS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html>`__
+* `AWS boto3 library documentation for ECS <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html>`__

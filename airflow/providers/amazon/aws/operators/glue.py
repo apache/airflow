@@ -34,6 +34,10 @@ class GlueJobOperator(BaseOperator):
     ETL service for running Spark Jobs on the AWS cloud.
     Language support: Python and Scala
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:GlueJobOperator`
+
     :param job_name: unique job name per AWS Account
     :param script_location: location of ETL script. Must be a local or S3 path
     :param job_desc: job description details
@@ -100,7 +104,9 @@ class GlueJobOperator(BaseOperator):
 
         :return: the id of the current glue job.
         """
-        if not self.script_location.startswith(self.s3_protocol):
+        if self.script_location is None:
+            s3_script_location = None
+        elif not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(

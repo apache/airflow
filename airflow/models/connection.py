@@ -208,8 +208,8 @@ class Connection(Base, LoggingMixin):
         """Return connection in URI format"""
         if '_' in self.conn_type:
             self.log.warning(
-                f"Connection schemes (type: {str(self.conn_type)}) "
-                f"shall not contain '_' according to RFC3986."
+                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
+                self.conn_type,
             )
 
         uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
@@ -297,9 +297,9 @@ class Connection(Base, LoggingMixin):
     def set_extra(self, value: str):
         """Encrypt extra-data and save in object attribute to object."""
         if value:
+            self._validate_extra(value, self.conn_id)
             fernet = get_fernet()
             self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
-            self._validate_extra(self._extra, self.conn_id)
             self.is_extra_encrypted = fernet.is_encrypted
         else:
             self._extra = value

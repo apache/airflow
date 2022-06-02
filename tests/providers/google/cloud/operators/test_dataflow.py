@@ -43,6 +43,7 @@ PARAMETERS = {
 PY_FILE = 'gs://my-bucket/my-object.py'
 PY_INTERPRETER = 'python3'
 JAR_FILE = 'gs://my-bucket/example/test.jar'
+LOCAL_JAR_FILE = '/mnt/dev/example/test.jar'
 JOB_CLASS = 'com.test.NotMain'
 PY_OPTIONS = ['-m']
 DEFAULT_OPTIONS_PYTHON = DEFAULT_OPTIONS_JAVA = {
@@ -377,6 +378,68 @@ class TestDataflowJavaOperator(unittest.TestCase):
             job_name=job_name,
             location=TEST_LOCATION,
             multiple_jobs=True,
+        )
+
+
+class TestDataflowJavaOperatorWithLocal(unittest.TestCase):
+    def setUp(self):
+        self.dataflow = DataflowCreateJavaJobOperator(
+            task_id=TASK_ID,
+            jar=LOCAL_JAR_FILE,
+            job_name=JOB_NAME,
+            job_class=JOB_CLASS,
+            dataflow_default_options=DEFAULT_OPTIONS_JAVA,
+            options=ADDITIONAL_OPTIONS,
+            poll_sleep=POLL_SLEEP,
+            location=TEST_LOCATION,
+        )
+        self.expected_airflow_version = 'v' + airflow.version.version.replace(".", "-").replace("+", "-")
+
+    def test_init(self):
+        """Test DataflowTemplateOperator instance is properly initialized."""
+        assert self.dataflow.jar == LOCAL_JAR_FILE
+
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.BeamHook')
+    @mock.patch('airflow.providers.google.cloud.operators.dataflow.DataflowHook')
+    def test_check_job_not_running_exec(self, dataflow_hook_mock, beam_hook_mock):
+        """Test DataflowHook is created and the right args are passed to
+        start_java_workflow with option to check if job is running
+        """
+        is_job_dataflow_running_variables = None
+
+        def set_is_job_dataflow_running_variables(*args, **kwargs):
+            nonlocal is_job_dataflow_running_variables
+            is_job_dataflow_running_variables = copy.deepcopy(kwargs.get("variables"))
+
+        dataflow_running = dataflow_hook_mock.return_value.is_job_dataflow_running
+        dataflow_running.side_effect = set_is_job_dataflow_running_variables
+        dataflow_running.return_value = False
+        start_java_mock = beam_hook_mock.return_value.start_java_pipeline
+        self.dataflow.check_if_running = True
+
+        self.dataflow.execute(None)
+        expected_variables = {
+            'project': dataflow_hook_mock.return_value.project_id,
+            'stagingLocation': 'gs://test/staging',
+            'jobName': JOB_NAME,
+            'region': TEST_LOCATION,
+            'output': 'gs://test/output',
+            'labels': {'foo': 'bar', 'airflow-version': self.expected_airflow_version},
+        }
+        self.assertEqual(expected_variables, is_job_dataflow_running_variables)
+        job_name = dataflow_hook_mock.return_value.build_dataflow_job_name.return_value
+        expected_variables["jobName"] = job_name
+        start_java_mock.assert_called_once_with(
+            variables=expected_variables,
+            jar=LOCAL_JAR_FILE,
+            job_class=JOB_CLASS,
+            process_line_callback=mock.ANY,
+        )
+        dataflow_hook_mock.return_value.wait_for_done.assert_called_once_with(
+            job_id=mock.ANY,
+            job_name=job_name,
+            location=TEST_LOCATION,
+            multiple_jobs=False,
         )
 
 

@@ -18,7 +18,6 @@
 """Base operator for SQL to GCS operators."""
 import abc
 import json
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
 
@@ -60,8 +59,6 @@ class BaseSQLToGCSOperator(BaseOperator):
         dict. Examples could be seen: https://cloud.google.com/bigquery/docs
         /schemas#specifying_a_json_schema_file
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -74,6 +71,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param exclude_columns: set of columns to exclude from transmission
     """
 
     template_fields: Sequence[str] = (
@@ -104,21 +102,14 @@ class BaseSQLToGCSOperator(BaseOperator):
         schema: Optional[Union[str, list]] = None,
         parameters: Optional[dict] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        exclude_columns=None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
+        if exclude_columns is None:
+            exclude_columns = set()
 
         self.sql = sql
         self.bucket = bucket
@@ -134,33 +125,43 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.exclude_columns = exclude_columns
 
     def execute(self, context: 'Context'):
         self.log.info("Executing query")
         cursor = self.query()
 
-        self.log.info("Writing local data files")
-        files_to_upload = self._write_local_data_files(cursor)
         # If a schema is set, create a BQ schema JSON file.
         if self.schema_filename:
-            self.log.info("Writing local schema file")
-            files_to_upload.append(self._write_local_schema_file(cursor))
+            self.log.info('Writing local schema file')
+            schema_file = self._write_local_schema_file(cursor)
 
-        # Flush all files before uploading
-        for tmp_file in files_to_upload:
-            tmp_file['file_handle'].flush()
+            # Flush file before uploading
+            schema_file['file_handle'].flush()
 
-        self.log.info("Uploading %d files to GCS.", len(files_to_upload))
-        self._upload_to_gcs(files_to_upload)
+            self.log.info('Uploading schema file to GCS.')
+            self._upload_to_gcs(schema_file)
+            schema_file['file_handle'].close()
 
-        self.log.info("Removing local files")
-        # Close all temp file handles.
-        for tmp_file in files_to_upload:
-            tmp_file['file_handle'].close()
+        counter = 0
+        self.log.info('Writing local data files')
+        for file_to_upload in self._write_local_data_files(cursor):
+            # Flush file before uploading
+            file_to_upload['file_handle'].flush()
 
-    def convert_types(self, schema, col_type_dict, row) -> list:
+            self.log.info('Uploading chunk file #%d to GCS.', counter)
+            self._upload_to_gcs(file_to_upload)
+
+            self.log.info('Removing local file')
+            file_to_upload['file_handle'].close()
+            counter += 1
+
+    def convert_types(self, schema, col_type_dict, row, stringify_dict=False) -> list:
         """Convert values from DBAPI to output-friendly formats."""
-        return [self.convert_type(value, col_type_dict.get(name)) for name, value in zip(schema, row)]
+        return [
+            self.convert_type(value, col_type_dict.get(name), stringify_dict=stringify_dict)
+            for name, value in zip(schema, row)
+        ]
 
     def _write_local_data_files(self, cursor):
         """
@@ -170,7 +171,9 @@ class BaseSQLToGCSOperator(BaseOperator):
             names in GCS, and values are file handles to local files that
             contain the data for the GCS objects.
         """
-        schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        org_schema = list(map(lambda schema_tuple: schema_tuple[0], cursor.description))
+        schema = [column for column in org_schema if column not in self.exclude_columns]
+
         col_type_dict = self._get_col_type_dict()
         file_no = 0
 
@@ -181,14 +184,11 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_mime_type = 'application/octet-stream'
         else:
             file_mime_type = 'application/json'
-        files_to_upload = [
-            {
-                'file_name': self.filename.format(file_no),
-                'file_handle': tmp_file_handle,
-                'file_mime_type': file_mime_type,
-            }
-        ]
-        self.log.info("Current file count: %d", len(files_to_upload))
+        file_to_upload = {
+            'file_name': self.filename.format(file_no),
+            'file_handle': tmp_file_handle,
+            'file_mime_type': file_mime_type,
+        }
 
         if self.export_format == 'csv':
             csv_writer = self._configure_csv_file(tmp_file_handle, schema)
@@ -197,21 +197,20 @@ class BaseSQLToGCSOperator(BaseOperator):
             parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
 
         for row in cursor:
-            # Convert datetime objects to utc seconds, and decimals to floats.
-            # Convert binary type object to string encoded with base64.
-            row = self.convert_types(schema, col_type_dict, row)
-
             if self.export_format == 'csv':
+                row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 csv_writer.writerow(row)
             elif self.export_format == 'parquet':
+                row = self.convert_types(schema, col_type_dict, row)
                 if self.null_marker is not None:
                     row = [value if value is not None else self.null_marker for value in row]
                 row_pydic = {col: [value] for col, value in zip(schema, row)}
                 tbl = pa.Table.from_pydict(row_pydic, parquet_schema)
                 parquet_writer.write_table(tbl)
             else:
+                row = self.convert_types(schema, col_type_dict, row, stringify_dict=False)
                 row_dict = dict(zip(schema, row))
 
                 tmp_file_handle.write(
@@ -225,20 +224,22 @@ class BaseSQLToGCSOperator(BaseOperator):
             if tmp_file_handle.tell() >= self.approx_max_file_size_bytes:
                 file_no += 1
 
+                if self.export_format == 'parquet':
+                    parquet_writer.close()
+                yield file_to_upload
                 tmp_file_handle = NamedTemporaryFile(delete=True)
-                files_to_upload.append(
-                    {
-                        'file_name': self.filename.format(file_no),
-                        'file_handle': tmp_file_handle,
-                        'file_mime_type': file_mime_type,
-                    }
-                )
-                self.log.info("Current file count: %d", len(files_to_upload))
+                file_to_upload = {
+                    'file_name': self.filename.format(file_no),
+                    'file_handle': tmp_file_handle,
+                    'file_mime_type': file_mime_type,
+                }
                 if self.export_format == 'csv':
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
                 if self.export_format == 'parquet':
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
-        return files_to_upload
+        if self.export_format == 'parquet':
+            parquet_writer.close()
+        yield file_to_upload
 
     def _configure_csv_file(self, file_handle, schema):
         """Configure a csv writer with the file_handle and write schema
@@ -282,7 +283,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         """Convert a DBAPI field to BigQuery schema format."""
 
     @abc.abstractmethod
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, **kwargs):
         """Convert a value from DBAPI to output-friendly formats."""
 
     def _get_col_type_dict(self):
@@ -321,7 +322,11 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema = self.schema
         else:
             self.log.info("Starts generating schema")
-            schema = [self.field_to_bigquery(field) for field in cursor.description]
+            schema = [
+                self.field_to_bigquery(field)
+                for field in cursor.description
+                if field[0] not in self.exclude_columns
+            ]
 
         if isinstance(schema, list):
             schema = json.dumps(schema, sort_keys=True)
@@ -338,21 +343,17 @@ class BaseSQLToGCSOperator(BaseOperator):
         }
         return schema_file_to_upload
 
-    def _upload_to_gcs(self, files_to_upload):
-        """
-        Upload all of the file splits (and optionally the schema .json file) to
-        Google Cloud Storage.
-        """
+    def _upload_to_gcs(self, file_to_upload):
+        """Upload a file (data split or schema .json file) to Google Cloud Storage."""
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
-        for tmp_file in files_to_upload:
-            hook.upload(
-                self.bucket,
-                tmp_file.get('file_name'),
-                tmp_file.get('file_handle').name,
-                mime_type=tmp_file.get('file_mime_type'),
-                gzip=self.gzip if tmp_file.get('file_name') != self.schema_filename else False,
-            )
+        hook.upload(
+            self.bucket,
+            file_to_upload.get('file_name'),
+            file_to_upload.get('file_handle').name,
+            mime_type=file_to_upload.get('file_mime_type'),
+            gzip=self.gzip if file_to_upload.get('file_name') != self.schema_filename else False,
+        )

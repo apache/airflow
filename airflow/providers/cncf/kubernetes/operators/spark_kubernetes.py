@@ -33,7 +33,7 @@ class SparkKubernetesOperator(BaseOperator):
         https://github.com/GoogleCloudPlatform/spark-on-k8s-operator/blob/v1beta2-1.1.0-2.4.5/docs/api-docs.md#sparkapplication
 
     :param application_file: Defines Kubernetes 'custom_resource_definition' of 'sparkApplication' as either a
-        path to a '.json' file or a JSON string.
+        path to a '.yaml' file, '.json' file, YAML string or JSON string.
     :param namespace: kubernetes namespace to put sparkApplication
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
         for the to Kubernetes cluster.
@@ -61,14 +61,15 @@ class SparkKubernetesOperator(BaseOperator):
         self.kubernetes_conn_id = kubernetes_conn_id
         self.api_group = api_group
         self.api_version = api_version
+        self.plural = "sparkapplications"
 
     def execute(self, context: 'Context'):
-        self.log.info("Creating sparkApplication")
         hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
+        self.log.info("Creating sparkApplication")
         response = hook.create_custom_object(
             group=self.api_group,
             version=self.api_version,
-            plural="sparkapplications",
+            plural=self.plural,
             body=self.application_file,
             namespace=self.namespace,
         )

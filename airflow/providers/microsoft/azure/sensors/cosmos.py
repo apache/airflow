@@ -31,12 +31,13 @@ class AzureCosmosDocumentSensor(BaseSensorOperator):
 
     .. code-block::
 
-    azure_cosmos_sensor = AzureCosmosDocumentSensor(
-        database_name="somedatabase_name",
-        collection_name="somecollection_name",
-        document_id="unique-doc-id",
-        azure_cosmos_conn_id="azure_cosmos_default",
-        task_id="azure_cosmos_sensor")
+        azure_cosmos_sensor = AzureCosmosDocumentSensor(
+            database_name="somedatabase_name",
+            collection_name="somecollection_name",
+            document_id="unique-doc-id",
+            azure_cosmos_conn_id="azure_cosmos_default",
+            task_id="azure_cosmos_sensor",
+        )
 
     :param database_name: Target CosmosDB database_name.
     :param collection_name: Target CosmosDB collection_name.

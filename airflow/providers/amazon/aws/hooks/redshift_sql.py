@@ -130,6 +130,4 @@ class RedshiftSQLHook(DbApiHook):
         conn_params = self._get_conn_params()
         conn_kwargs_dejson = self.conn.extra_dejson
         conn_kwargs: Dict = {**conn_params, **conn_kwargs_dejson}
-        conn: RedshiftConnection = redshift_connector.connect(**conn_kwargs)
-
-        return conn
+        return redshift_connector.connect(**conn_kwargs)

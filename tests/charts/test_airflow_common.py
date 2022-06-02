@@ -33,18 +33,45 @@ class TestAirflowCommon:
 
     @parameterized.expand(
         [
-            ({"gitSync": {"enabled": True}}, True),
-            ({"persistence": {"enabled": True}}, False),
+            (
+                {"gitSync": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": True,
+                },
+            ),
+            (
+                {"persistence": {"enabled": True}},
+                {
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": False,
+                },
+            ),
             (
                 {
                     "gitSync": {"enabled": True},
                     "persistence": {"enabled": True},
                 },
-                True,
+                {
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": True,
+                },
+            ),
+            (
+                {"persistence": {"enabled": True, "subPath": "test/dags"}},
+                {
+                    "subPath": "test/dags",
+                    "mountPath": "/opt/airflow/dags",
+                    "name": "dags",
+                    "readOnly": False,
+                },
             ),
         ]
     )
-    def test_dags_mount(self, dag_values, expected_read_only):
+    def test_dags_mount(self, dag_values, expected_mount):
         docs = render_chart(
             values={
                 "dags": dag_values,
@@ -59,11 +86,6 @@ class TestAirflowCommon:
 
         assert 3 == len(docs)
         for doc in docs:
-            expected_mount = {
-                "mountPath": "/opt/airflow/dags",
-                "name": "dags",
-                "readOnly": expected_read_only,
-            }
             assert expected_mount in jmespath.search("spec.template.spec.containers[0].volumeMounts", doc)
 
     def test_annotations(self):
@@ -77,6 +99,7 @@ class TestAirflowCommon:
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -99,13 +122,14 @@ class TestAirflowCommon:
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
-    def test_global_affinity_tolerations_and_node_selector(self):
+    def test_global_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
         """
-        Test affinity, tolerations, and node selector are correctly applied on all pods created
+        Test affinity, tolerations, etc are correctly applied on all pods created
         """
         k8s_objects = render_chart(
             values={
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
@@ -122,6 +146,14 @@ class TestAirflowCommon:
                 },
                 "tolerations": [
                     {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
                 ],
                 "nodeSelector": {"type": "user-node"},
             },
@@ -158,6 +190,7 @@ class TestAirflowCommon:
             )
             assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
             assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
+            assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
 
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
@@ -202,6 +235,7 @@ class TestAirflowCommon:
             values={
                 "enableBuiltInSecretEnvVars": {
                     "AIRFLOW__CORE__SQL_ALCHEMY_CONN": False,
+                    "AIRFLOW__DATABASE__SQL_ALCHEMY_CONN": False,
                     "AIRFLOW__WEBSERVER__SECRET_KEY": False,
                     "AIRFLOW__CELERY__RESULT_BACKEND": False,
                     "AIRFLOW__ELASTICSEARCH__HOST": False,
@@ -241,6 +275,7 @@ class TestAirflowCommon:
         expected_vars = [
             'AIRFLOW__CORE__FERNET_KEY',
             'AIRFLOW__CORE__SQL_ALCHEMY_CONN',
+            'AIRFLOW__DATABASE__SQL_ALCHEMY_CONN',
             'AIRFLOW_CONN_AIRFLOW_DB',
             'AIRFLOW__WEBSERVER__SECRET_KEY',
             'AIRFLOW__CELERY__CELERY_RESULT_BACKEND',
@@ -278,8 +313,8 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
-                "flower": {"priorityClassName": "low-priority-flower"},
-                "pgbouncer": {"priorityClassName": "low-priority-pgbouncer"},
+                "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
+                "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
@@ -297,6 +332,7 @@ class TestAirflowCommon:
             ],
         )
 
+        assert 7 == len(docs)
         for doc in docs:
             component = doc['metadata']['labels']['component']
             priority = doc['spec']['template']['spec']['priorityClassName']

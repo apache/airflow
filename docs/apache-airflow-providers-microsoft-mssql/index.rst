@@ -59,7 +59,7 @@ Package apache-airflow-providers-microsoft-mssql
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 
-Release: 2.1.2
+Release: 2.1.3
 
 Provider package
 ----------------

@@ -320,3 +320,10 @@ class RedisTest(unittest.TestCase):
         )
         annotations = jmespath.search("metadata.annotations", docs[0])
         assert annotations["helm.sh/hook-weight"] == "0"
+
+    def test_persistence_volume_annotations(self):
+        docs = render_chart(
+            values={"redis": {"persistence": {"annotations": {"foo": "bar"}}}},
+            show_only=["templates/redis/redis-statefulset.yaml"],
+        )
+        assert {"foo": "bar"} == jmespath.search("spec.volumeClaimTemplates[0].metadata.annotations", docs[0])

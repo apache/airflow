@@ -14,7 +14,7 @@
     "@emotion/styled": "^11.1.5",
     "@neutrinojs/copy": "^9.5.0",
     "@vvo/tzdb": "^6.7.0",
-    "axios": "^0.21.1",
+    "axios": "^0.21.2",
     "dayjs": "^1.10.4",
     "dotenv": "^8.2.0",
     "framer-motion": "^3.10.0",

@@ -181,7 +181,7 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %d", session_id)
-        response = self.run_method(endpoint=f'/batches/{session_id}')
+        response = self.run_method(endpoint=f'/batches/{session_id}', headers=self.extra_headers)
 
         try:
             response.raise_for_status()
@@ -208,7 +208,9 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.debug("Fetching info for batch session %d", session_id)
-        response = self.run_method(endpoint=f'/batches/{session_id}/state', retry_args=retry_args)
+        response = self.run_method(
+            endpoint=f'/batches/{session_id}/state', retry_args=retry_args, headers=self.extra_headers
+        )
 
         try:
             response.raise_for_status()
@@ -234,7 +236,9 @@ class LivyHook(HttpHook, LoggingMixin):
         self._validate_session_id(session_id)
 
         self.log.info("Deleting batch session %d", session_id)
-        response = self.run_method(method='DELETE', endpoint=f'/batches/{session_id}')
+        response = self.run_method(
+            method='DELETE', endpoint=f'/batches/{session_id}', headers=self.extra_headers
+        )
 
         try:
             response.raise_for_status()
@@ -258,7 +262,9 @@ class LivyHook(HttpHook, LoggingMixin):
         """
         self._validate_session_id(session_id)
         log_params = {'from': log_start_position, 'size': log_batch_size}
-        response = self.run_method(endpoint=f'/batches/{session_id}/log', data=log_params)
+        response = self.run_method(
+            endpoint=f'/batches/{session_id}/log', data=log_params, headers=self.extra_headers
+        )
         try:
             response.raise_for_status()
         except requests.exceptions.HTTPError as err:

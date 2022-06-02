@@ -58,7 +58,7 @@ to the stat name if necessary, and returns the transformed stat name. The functi
     def my_custom_stat_name_handler(stat_name: str) -> str:
         return stat_name.lower()[:32]
 
-If you want to use a custom Statsd client instead of the default one provided by Airflow, the following key must be added
+If you want to use a custom StatsD client instead of the default one provided by Airflow, the following key must be added
 to the configuration file alongside the module path of your custom StatsD client. This module must be available on
 your :envvar:`PYTHONPATH`.
 
@@ -92,6 +92,7 @@ Name                                        Description
 ``zombies_killed``                          Zombie tasks killed
 ``scheduler_heartbeat``                     Scheduler heartbeats
 ``dag_processing.processes``                Number of currently running DAG parsing processes
+``dag_processing.processor_timeouts``       Number of file processors that have been killed due to taking too long
 ``dag_processing.manager_stalls``           Number of stalled ``DagFileProcessorManager``
 ``dag_file_refresh_error``                  Number of failures loading any DAG files
 ``scheduler.tasks.killed_externally``       Number of tasks killed externally
@@ -129,7 +130,6 @@ Name                                                Description
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
-``dag_processing.processor_timeouts``               Number of file processors that have been killed due to taking too long
 ``scheduler.tasks.running``                         Number of tasks running in executor
 ``scheduler.tasks.starving``                        Number of tasks that cannot be scheduled because of no open slot in pool
 ``scheduler.tasks.executable``                      Number of tasks that are ready for execution (set to queued)

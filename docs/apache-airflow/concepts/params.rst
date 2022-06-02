@@ -132,7 +132,8 @@ JSON Schema Validation
             "int_param": Param(10, type="integer", minimum=0, maximum=20),
 
             # a required param which can be of multiple types
-            "dummy": Param(type=["null", "number", "string"]),
+            # a param must have a default value
+            "dummy": Param(5, type=["null", "number", "string"]),
 
             # an enum param, must be one of three values
             "enum_param": Param("foo", enum=["foo", "bar", 42]),

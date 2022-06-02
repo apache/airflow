@@ -43,7 +43,7 @@ def build_credentials_block(credentials: ReadOnlyCredentials) -> str:
 
     else:
         credentials_line = (
-            f"aws_access_key_id={credentials.access_key};" f"aws_secret_access_key={credentials.secret_key}"
+            f"aws_access_key_id={credentials.access_key};aws_secret_access_key={credentials.secret_key}"
         )
 
     return credentials_line

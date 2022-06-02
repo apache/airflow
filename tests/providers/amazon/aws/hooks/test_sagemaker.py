@@ -528,11 +528,8 @@ class TestSageMakerHook(unittest.TestCase):
     def test_secondary_training_status_message_status_changed(self):
         now = datetime.now(tzlocal())
         SECONDARY_STATUS_DESCRIPTION_1['LastModifiedTime'] = now
-        expected = '{} {} - {}'.format(
-            datetime.utcfromtimestamp(time.mktime(now.timetuple())).strftime('%Y-%m-%d %H:%M:%S'),
-            status,
-            message,
-        )
+        expected_time = datetime.utcfromtimestamp(time.mktime(now.timetuple())).strftime('%Y-%m-%d %H:%M:%S')
+        expected = f"{expected_time} {status} - {message}"
         assert (
             secondary_training_status_message(SECONDARY_STATUS_DESCRIPTION_1, SECONDARY_STATUS_DESCRIPTION_2)
             == expected
@@ -661,7 +658,7 @@ class TestSageMakerHook(unittest.TestCase):
     def test_find_processing_job_by_name_job_not_exists_should_return_false(self, mock_conn):
         error_resp = {"Error": {"Code": "ValidationException"}}
         mock_conn().describe_processing_job.side_effect = ClientError(
-            error_response=error_resp, operation_name="dummy"
+            error_response=error_resp, operation_name="empty"
         )
         hook = SageMakerHook(aws_conn_id='sagemaker_test_conn_id')
 

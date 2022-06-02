@@ -51,7 +51,11 @@ FILE_OPTIONS_MAP = {
 
 class SqlToS3Operator(BaseOperator):
     """
-    Saves data from an specific SQL query into a file in S3.
+    Saves data from a specific SQL query into a file in S3.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SqlToS3Operator`
 
     :param query: the sql query to be executed. If you want to execute a file, place the absolute path of it,
         ending with .sql extension. (templated)

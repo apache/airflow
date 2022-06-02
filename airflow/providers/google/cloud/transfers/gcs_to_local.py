@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import warnings
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
@@ -51,8 +50,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         the contents of the downloaded file to XCom with the key set in this
         parameter. If not set, the downloaded data will not be pushed to XCom. (templated)
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -86,7 +83,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
         filename: Optional[str] = None,
         store_to_xcom_key: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         file_encoding: str = 'utf-8',
@@ -104,15 +100,6 @@ class GCSToLocalFilesystemOperator(BaseOperator):
 
         if filename is not None and store_to_xcom_key is not None:
             raise ValueError("Either filename or store_to_xcom_key can be set")
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         super().__init__(**kwargs)
         self.bucket = bucket

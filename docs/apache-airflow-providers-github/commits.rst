@@ -20,13 +20,24 @@
 Package apache-airflow-providers-github
 ------------------------------------------------------
 
-`Github <https://www.github.com/>`__
+`GitHub <https://www.github.com/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``github``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
+
+1.0.2
+.....
+
+Latest change: 2022-03-14
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`16adc035b1 <https://github.com/apache/airflow/commit/16adc035b1ecdf533f44fbb3e32bea972127bb71>`_  2022-03-14   ``Add documentation for Classifier release for March 2022 (#22226)``
+=================================================================================================  ===========  ====================================================================
 
 1.0.1
 .....

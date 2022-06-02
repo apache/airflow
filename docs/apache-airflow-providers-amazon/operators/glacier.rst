@@ -15,58 +15,55 @@
     specific language governing permissions and limitations
     under the License.
 
+=================
+Amazon S3 Glacier
+=================
 
-Amazon Glacier Operator
-=======================
+`Amazon Glacier <https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html>`_ is a secure, durable,
+and extremely low-cost Amazon S3 cloud storage class for data archiving and long-term backup.
 
-Amazon Glacier is a secure, durable, and extremely low-cost Amazon S3 cloud storage classes for data archiving and long-term backup.
-For more information about the service visit `Amazon Glacier API documentation <https://docs.aws.amazon.com/code-samples/latest/catalog/code-catalog-python-example_code-glacier.html>`_
+Prerequisite Tasks
+------------------
+
+.. include:: _partials/prerequisite_tasks.rst
+
+Operators
+---------
 
 .. _howto/operator:GlacierCreateJobOperator:
 
-GlacierCreateJobOperator
-^^^^^^^^^^^^^^^^^^^^^^^^
+Create an Amazon Glacier job
+============================
 
-Operator task is to initiate an Amazon Glacier inventory-retrieval job.
-The operation returns dictionary of information related to the initiated job like *jobId* what is required for subsequent tasks.
+To initiate an Amazon Glacier inventory retrieval job
+use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierCreateJobOperator`
 
-To get more information about operator visit:
-:class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierCreateJobOperator`
-
-Example usage:
+This Operator returns a dictionary of information related to the initiated job such as *jobId*, which is required for subsequent tasks.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_glacier_create_job_operator]
-    :end-before: [END howto_glacier_create_job_operator]
+    :start-after: [START howto_operator_glacier_create_job]
+    :end-before: [END howto_operator_glacier_create_job]
 
-.. _howto/operator:GlacierJobOperationSensor:
+Sensors
+-------
 
-GlacierJobOperationSensor
-^^^^^^^^^^^^^^^^^^^^^^^^^
+.. _howto/sensor:GlacierJobOperationSensor:
 
-Operator task is to wait until task *create_glacier_job* will be completed.
-When sensor returns *true* then subsequent tasks can be executed.
-In this case subsequent tasks are: *GlacierDownloadArchive* and *GlacierTransferDataToGCS*.
+Wait on an Amazon Glacier job state
+===================================
 
-Job states:
-
-* *Succeeded* – job is finished and for example archives from the vault can be downloaded
-* *InProgress* – job is in progress and you have to wait until it's done (*Succeeded*)
-
-GlacierJobOperationSensor checks the job status.
-If response status code is *succeeded* then sensor returns *true* and subsequent tasks will be executed.
-If response code is *InProgress* then sensor returns *false* and reschedule task with *poke_interval=60 * 20*.
-Which means that every next request will be sent every 20 minutes.
-
-To get more information about operator visit:
-:class:`~airflow.providers.amazon.aws.sensors.glacier.GlacierJobOperationSensor`
-
-Example usage:
+To wait on the status of an Amazon Glacier Job to reach a terminal state
+use :class:`~airflow.providers.amazon.aws.sensors.glacier.GlacierJobOperationSensor`
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_glacier_transfer_data_to_gcs]
-    :end-before: [END howto_glacier_transfer_data_to_gcs]
+    :start-after: [START howto_sensor_glacier_job_operation]
+    :end-before: [END howto_sensor_glacier_job_operation]
+
+References
+----------
+
+* `AWS boto3 library documentation for Amazon Glacier <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html>`__

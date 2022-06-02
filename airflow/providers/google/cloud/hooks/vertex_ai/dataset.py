@@ -20,6 +20,8 @@
 
 from typing import Dict, Optional, Sequence, Tuple, Union
 
+from google.api_core.client_options import ClientOptions
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
 from google.api_core.retry import Retry
 from google.cloud.aiplatform_v1 import DatasetServiceClient
@@ -41,9 +43,10 @@ class DatasetHook(GoogleBaseHook):
 
     def get_dataset_service_client(self, region: Optional[str] = None) -> DatasetServiceClient:
         """Returns DatasetServiceClient."""
-        client_options = None
         if region and region != 'global':
-            client_options = {'api_endpoint': f'{region}-aiplatform.googleapis.com:443'}
+            client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
+        else:
+            client_options = ClientOptions()
 
         return DatasetServiceClient(
             credentials=self._get_credentials(), client_info=CLIENT_INFO, client_options=client_options
@@ -68,7 +71,7 @@ class DatasetHook(GoogleBaseHook):
         project_id: str,
         region: str,
         dataset: Union[Dataset, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -102,7 +105,7 @@ class DatasetHook(GoogleBaseHook):
         project_id: str,
         region: str,
         dataset: str,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -136,7 +139,7 @@ class DatasetHook(GoogleBaseHook):
         region: str,
         dataset: str,
         export_config: Union[ExportDataConfig, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -173,7 +176,7 @@ class DatasetHook(GoogleBaseHook):
         dataset: str,
         annotation_spec: str,
         read_mask: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnnotationSpec:
@@ -210,7 +213,7 @@ class DatasetHook(GoogleBaseHook):
         region: str,
         dataset: str,
         read_mask: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Dataset:
@@ -246,7 +249,7 @@ class DatasetHook(GoogleBaseHook):
         region: str,
         dataset: str,
         import_configs: Sequence[ImportDataConfig],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Operation:
@@ -288,7 +291,7 @@ class DatasetHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListAnnotationsPager:
@@ -338,7 +341,7 @@ class DatasetHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListDataItemsPager:
@@ -386,7 +389,7 @@ class DatasetHook(GoogleBaseHook):
         page_token: Optional[str] = None,
         read_mask: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> ListDatasetsPager:
@@ -430,7 +433,7 @@ class DatasetHook(GoogleBaseHook):
         dataset_id: str,
         dataset: Union[Dataset, Dict],
         update_mask: Union[FieldMask, Dict],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
         metadata: Sequence[Tuple[str, str]] = (),
     ) -> Dataset:

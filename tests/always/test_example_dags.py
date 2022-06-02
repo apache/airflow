@@ -16,8 +16,9 @@
 # under the License.
 
 import os
-import unittest
 from glob import glob
+
+import pytest
 
 from airflow.models import DagBag
 from tests.test_utils.asserts import assert_queries_count
@@ -29,33 +30,38 @@ ROOT_FOLDER = os.path.realpath(
 NO_DB_QUERY_EXCEPTION = ["/airflow/example_dags/example_subdag_operator.py"]
 
 
-class TestExampleDags(unittest.TestCase):
-    def test_should_be_importable(self):
-        example_dags = list(glob(f"{ROOT_FOLDER}/airflow/**/example_dags/example_*.py", recursive=True))
-        assert 0 != len(example_dags)
-        for filepath in example_dags:
-            relative_filepath = os.path.relpath(filepath, ROOT_FOLDER)
-            with self.subTest(f"File {relative_filepath} should contain dags"):
-                dagbag = DagBag(
-                    dag_folder=filepath,
-                    include_examples=False,
-                )
-                assert 0 == len(dagbag.import_errors), f"import_errors={str(dagbag.import_errors)}"
-                assert len(dagbag.dag_ids) >= 1
+def example_dags():
+    example_dirs = ["airflow/**/example_dags/example_*.py", "tests/system/providers/**/example_*.py"]
+    for example_dir in example_dirs:
+        yield from glob(f"{ROOT_FOLDER}/{example_dir}", recursive=True)
 
-    def test_should_not_do_database_queries(self):
-        example_dags = glob(f"{ROOT_FOLDER}/airflow/**/example_dags/example_*.py", recursive=True)
-        example_dags = [
-            dag_file
-            for dag_file in example_dags
-            if any(not dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
-        ]
-        assert 0 != len(example_dags)
-        for filepath in example_dags:
-            relative_filepath = os.path.relpath(filepath, ROOT_FOLDER)
-            with self.subTest(f"File {relative_filepath} shouldn't do database queries"):
-                with assert_queries_count(0):
-                    DagBag(
-                        dag_folder=filepath,
-                        include_examples=False,
-                    )
+
+def example_dags_except_db_exception():
+    return [
+        dag_file
+        for dag_file in example_dags()
+        if any(not dag_file.endswith(e) for e in NO_DB_QUERY_EXCEPTION)
+    ]
+
+
+def relative_path(path):
+    return os.path.relpath(path, ROOT_FOLDER)
+
+
+@pytest.mark.parametrize("example", example_dags(), ids=relative_path)
+def test_should_be_importable(example):
+    dagbag = DagBag(
+        dag_folder=example,
+        include_examples=False,
+    )
+    assert len(dagbag.import_errors) == 0, f"import_errors={str(dagbag.import_errors)}"
+    assert len(dagbag.dag_ids) >= 1
+
+
+@pytest.mark.parametrize("example", example_dags_except_db_exception(), ids=relative_path)
+def test_should_not_do_database_queries(example):
+    with assert_queries_count(0):
+        DagBag(
+            dag_folder=example,
+            include_examples=False,
+        )

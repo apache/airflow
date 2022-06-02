@@ -140,7 +140,7 @@ have limitations and we deliberately disallow using them in DAGs.
     import pendulum
 
     dag = DAG("my_tz_dag", start_date=pendulum.datetime(2016, 1, 1, tz="Europe/Amsterdam"))
-    op = DummyOperator(task_id="dummy", dag=dag)
+    op = EmptyOperator(task_id="empty", dag=dag)
     print(dag.timezone)  # <Timezone [Europe/Amsterdam]>
 
 Please note that while it is possible to set a ``start_date`` and ``end_date``

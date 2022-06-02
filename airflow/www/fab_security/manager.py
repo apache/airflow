@@ -82,7 +82,7 @@ def _oauth_tokengetter(token=None):
     from session cookie.
     """
     token = session.get("oauth")
-    log.debug(f"Token Get: {token}")
+    log.debug("Token Get: %s", token)
     return token
 
 
@@ -221,9 +221,7 @@ class BaseSecurityManager:
         # LDAP Config
         if self.auth_type == AUTH_LDAP:
             if "AUTH_LDAP_SERVER" not in app.config:
-                raise Exception(
-                    "No AUTH_LDAP_SERVER defined on config" " with AUTH_LDAP authentication type."
-                )
+                raise Exception("No AUTH_LDAP_SERVER defined on config with AUTH_LDAP authentication type.")
             app.config.setdefault("AUTH_LDAP_SEARCH", "")
             app.config.setdefault("AUTH_LDAP_SEARCH_FILTER", "")
             app.config.setdefault("AUTH_LDAP_APPEND_DOMAIN", "")
@@ -256,7 +254,7 @@ class BaseSecurityManager:
             self.oauth_remotes = {}
             for _provider in self.oauth_providers:
                 provider_name = _provider["name"]
-                log.debug(f"OAuth providers init {provider_name}")
+                log.debug("OAuth providers init %s", provider_name)
                 obj_provider = self.oauth.register(provider_name, **_provider["remote_app"])
                 obj_provider._tokengetter = self.oauth_tokengetter
                 if not self.oauth_user_info:
@@ -320,7 +318,7 @@ class BaseSecurityManager:
                     if fab_role:
                         _roles.add(fab_role)
                     else:
-                        log.warning(f"Can't find role specified in AUTH_ROLES_MAPPING: {fab_role_name}")
+                        log.warning("Can't find role specified in AUTH_ROLES_MAPPING: %s", fab_role_name)
         return _roles
 
     @property
@@ -538,7 +536,7 @@ class BaseSecurityManager:
             ret = f(self, provider, response=response)
             # Checks if decorator is well behaved and returns a dict as supposed.
             if not type(ret) == dict:
-                log.error(f"OAuth user info decorated function did not returned a dict, but: {type(ret)}")
+                log.error("OAuth user info decorated function did not returned a dict, but: %s", type(ret))
                 return {}
             return ret
 
@@ -586,13 +584,13 @@ class BaseSecurityManager:
         if provider == "github" or provider == "githublocal":
             me = self.appbuilder.sm.oauth_remotes[provider].get("user")
             data = me.json()
-            log.debug(f"User info from Github: {data}")
+            log.debug("User info from GitHub: %s", data)
             return {"username": "github_" + data.get("login")}
         # for twitter
         if provider == "twitter":
             me = self.appbuilder.sm.oauth_remotes[provider].get("account/settings.json")
             data = me.json()
-            log.debug(f"User info from Twitter: {data}")
+            log.debug("User info from Twitter: %s", data)
             return {"username": "twitter_" + data.get("screen_name", "")}
         # for linkedin
         if provider == "linkedin":
@@ -600,7 +598,7 @@ class BaseSecurityManager:
                 "people/~:(id,email-address,first-name,last-name)?format=json"
             )
             data = me.json()
-            log.debug(f"User info from Linkedin: {data}")
+            log.debug("User info from LinkedIn: %s", data)
             return {
                 "username": "linkedin_" + data.get("id", ""),
                 "email": data.get("email-address", ""),
@@ -611,7 +609,7 @@ class BaseSecurityManager:
         if provider == "google":
             me = self.appbuilder.sm.oauth_remotes[provider].get("userinfo")
             data = me.json()
-            log.debug(f"User info from Google: {data}")
+            log.debug("User info from Google: %s", data)
             return {
                 "username": "google_" + data.get("id", ""),
                 "first_name": data.get("given_name", ""),
@@ -624,11 +622,11 @@ class BaseSecurityManager:
         # https://docs.microsoft.com/en-us/azure/active-directory/develop/
         # active-directory-protocols-oauth-code
         if provider == "azure":
-            log.debug(f"Azure response received : {resp}")
+            log.debug("Azure response received : %s", resp)
             id_token = resp["id_token"]
             log.debug(str(id_token))
             me = self._azure_jwt_token_parse(id_token)
-            log.debug(f"Parse JWT token : {me}")
+            log.debug("Parse JWT token : %s", me)
             return {
                 "name": me.get("name", ""),
                 "email": me["upn"],
@@ -642,7 +640,7 @@ class BaseSecurityManager:
         if provider == "openshift":
             me = self.appbuilder.sm.oauth_remotes[provider].get("apis/user.openshift.io/v1/users/~")
             data = me.json()
-            log.debug(f"User info from OpenShift: {data}")
+            log.debug("User info from OpenShift: %s", data)
             return {"username": "openshift_" + data.get("metadata").get("name")}
         # for Okta
         if provider == "okta":
@@ -787,7 +785,7 @@ class BaseSecurityManager:
         if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
             self.appbuilder.add_view(
                 self.permissionmodelview,
-                "Permissions",
+                "Permission Pairs",
                 icon="fa-link",
                 label=_("Permissions"),
                 category="Security",
@@ -822,12 +820,15 @@ class BaseSecurityManager:
 
     def update_user_auth_stat(self, user, success=True):
         """
-        Update authentication successful to user.
-
+        Update user authentication stats upon successful/unsuccessful
+        authentication attempts.
         :param user:
-            The authenticated user model
+            The identified (but possibly not successfully authenticated) user
+            model
         :param success:
-            Default to true, if false increments fail_login_count on user model
+            Defaults to true, if true increments login_count, updates
+            last_login, and resets fail_login_count to 0, if false increments
+            fail_login_count on user model.
         """
         if not user.login_count:
             user.login_count = 0
@@ -835,10 +836,10 @@ class BaseSecurityManager:
             user.fail_login_count = 0
         if success:
             user.login_count += 1
+            user.last_login = datetime.datetime.now()
             user.fail_login_count = 0
         else:
             user.fail_login_count += 1
-        user.last_login = datetime.datetime.now()
         self.update_user(user)
 
     def auth_user_db(self, username, password):
@@ -901,12 +902,12 @@ class BaseSecurityManager:
 
         # perform the LDAP search
         log.debug(
-            f"LDAP search for '{filter_str}' with fields {request_fields} in scope '{self.auth_ldap_search}'"
+            "LDAP search for %r with fields %s in scope %r", filter_str, request_fields, self.auth_ldap_search
         )
         raw_search_result = con.search_s(
             self.auth_ldap_search, ldap.SCOPE_SUBTREE, filter_str, request_fields
         )
-        log.debug(f"LDAP search returned: {raw_search_result}")
+        log.debug("LDAP search returned: %s", raw_search_result)
 
         # Remove any search referrals from results
         search_result = [
@@ -916,8 +917,9 @@ class BaseSecurityManager:
         # only continue if 0 or 1 results were returned
         if len(search_result) > 1:
             log.error(
-                f"LDAP search for '{filter_str}' in scope "
-                f"'{self.auth_ldap_search!a}' returned multiple results"
+                "LDAP search for %r in scope '%a' returned multiple results",
+                self.auth_ldap_search,
+                filter_str,
             )
             return None, None
 
@@ -948,7 +950,7 @@ class BaseSecurityManager:
             if fab_role:
                 user_role_objects.add(fab_role)
             else:
-                log.warning(f"Can't find AUTH_USER_REGISTRATION role: {registration_role_name}")
+                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
 
         return list(user_role_objects)
 
@@ -963,22 +965,20 @@ class BaseSecurityManager:
         assert self.auth_ldap_bind_user, "AUTH_LDAP_BIND_USER must be set"
 
         try:
-            log.debug(f"LDAP bind indirect TRY with username: '{self.auth_ldap_bind_user}'")
+            log.debug("LDAP bind indirect TRY with username: %r", self.auth_ldap_bind_user)
             con.simple_bind_s(self.auth_ldap_bind_user, self.auth_ldap_bind_password)
-            log.debug(f"LDAP bind indirect SUCCESS with username: '{self.auth_ldap_bind_user}'")
+            log.debug("LDAP bind indirect SUCCESS with username: %r", self.auth_ldap_bind_user)
         except ldap.INVALID_CREDENTIALS as ex:
-            log.error(
-                "AUTH_LDAP_BIND_USER and AUTH_LDAP_BIND_PASSWORD are" " not valid LDAP bind credentials"
-            )
+            log.error("AUTH_LDAP_BIND_USER and AUTH_LDAP_BIND_PASSWORD are not valid LDAP bind credentials")
             raise ex
 
     @staticmethod
     def _ldap_bind(ldap, con, dn: str, password: str) -> bool:
         """Validates/binds the provided dn/password with the LDAP sever."""
         try:
-            log.debug(f"LDAP bind TRY with username: '{dn}'")
+            log.debug("LDAP bind TRY with username: %r", dn)
             con.simple_bind_s(dn, password)
-            log.debug(f"LDAP bind SUCCESS with username: '{dn}'")
+            log.debug("LDAP bind SUCCESS with username: %r", dn)
             return True
         except ldap.INVALID_CREDENTIALS:
             return False
@@ -1138,7 +1138,7 @@ class BaseSecurityManager:
             # Sync the user's roles
             if user and user_attributes and self.auth_roles_sync_at_login:
                 user.roles = self._ldap_calculate_user_roles(user_attributes)
-                log.debug(f"Calculated new roles for user='{user_dn}' as: {user.roles}")
+                log.debug("Calculated new roles for user=%r as: %s", user_dn, user.roles)
 
             # If the user is new, register them
             if (not user) and user_attributes and self.auth_user_registration:
@@ -1153,7 +1153,7 @@ class BaseSecurityManager:
                     ),
                     role=self._ldap_calculate_user_roles(user_attributes),
                 )
-                log.debug(f"New user registered: {user}")
+                log.debug("New user registered: %s", user)
 
                 # If user registration failed, go away
                 if not user:
@@ -1245,7 +1245,7 @@ class BaseSecurityManager:
             if fab_role:
                 user_role_objects.add(fab_role)
             else:
-                log.warning(f"Can't find AUTH_USER_REGISTRATION role: {registration_role_name}")
+                log.warning("Can't find AUTH_USER_REGISTRATION role: %s", registration_role_name)
 
         return list(user_role_objects)
 
@@ -1262,7 +1262,7 @@ class BaseSecurityManager:
         elif "email" in userinfo:
             username = userinfo["email"]
         else:
-            log.error(f"OAUTH userinfo does not have username or email {userinfo}")
+            log.error("OAUTH userinfo does not have username or email %s", userinfo)
             return None
 
         # If username is empty, go away
@@ -1283,7 +1283,7 @@ class BaseSecurityManager:
         # Sync the user's roles
         if user and self.auth_roles_sync_at_login:
             user.roles = self._oauth_calculate_user_roles(userinfo)
-            log.debug(f"Calculated new roles for user='{username}' as: {user.roles}")
+            log.debug("Calculated new roles for user=%r as: %s", username, user.roles)
 
         # If the user is new, register them
         if (not user) and self.auth_user_registration:
@@ -1294,11 +1294,11 @@ class BaseSecurityManager:
                 email=userinfo.get("email", "") or f"{username}@email.notfound",
                 role=self._oauth_calculate_user_roles(userinfo),
             )
-            log.debug(f"New user registered: {user}")
+            log.debug("New user registered: %s", user)
 
             # If user registration failed, go away
             if not user:
-                log.error(f"Error creating a new OAuth user {username}")
+                log.error("Error creating a new OAuth user %s", username)
                 return None
 
         # LOGIN SUCCESS (only if user is now registered)

@@ -24,7 +24,7 @@ import pytest
 import airflow
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SkippedStatePropagationOptions, SubDagOperator
 from airflow.utils.session import create_session
 from airflow.utils.state import State
@@ -93,7 +93,7 @@ class TestSubDagOperator:
         session.add(pool_10)
         session.commit()
 
-        DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_1')
+        EmptyOperator(task_id='dummy', dag=subdag, pool='test_pool_1')
 
         with pytest.raises(AirflowException):
             SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_1')
@@ -121,7 +121,7 @@ class TestSubDagOperator:
         session.add(pool_10)
         session.commit()
 
-        DummyOperator(task_id='dummy', dag=subdag, pool='test_pool_10')
+        EmptyOperator(task_id='dummy', dag=subdag, pool='test_pool_10')
 
         mock_session = Mock()
         SubDagOperator(task_id='child', dag=dag, subdag=subdag, pool='test_pool_1', session=mock_session)
@@ -261,7 +261,7 @@ class TestSubDagOperator:
         """
         with create_session() as session:
             with dag_maker('parent.test', default_args=default_args, session=session) as subdag:
-                dummy_task = DummyOperator(task_id='dummy')
+                dummy_task = EmptyOperator(task_id='dummy')
             sub_dagrun = dag_maker.create_dagrun(
                 run_type=DagRunType.SCHEDULED,
                 execution_date=DEFAULT_DATE,
@@ -311,7 +311,7 @@ class TestSubDagOperator:
         Note that the skipped state propagation only takes affect when the dagrun's state is SUCCESS.
         """
         with dag_maker('parent.test', default_args=default_args) as subdag:
-            dummy_subdag_tasks = [DummyOperator(task_id=f'dummy_subdag_{i}') for i in range(len(states))]
+            dummy_subdag_tasks = [EmptyOperator(task_id=f'dummy_subdag_{i}') for i in range(len(states))]
         dag_maker.create_dagrun(execution_date=DEFAULT_DATE)
 
         with dag_maker('parent', default_args=default_args):
@@ -321,7 +321,7 @@ class TestSubDagOperator:
                 poke_interval=1,
                 propagate_skipped_state=propagate_option,
             )
-            dummy_dag_task = DummyOperator(task_id='dummy_dag')
+            dummy_dag_task = EmptyOperator(task_id='dummy_dag')
             subdag_task >> dummy_dag_task
         dag_run = dag_maker.create_dagrun(execution_date=DEFAULT_DATE)
 

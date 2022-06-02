@@ -494,11 +494,12 @@ class DagBag(LoggingMixin):
 
         Note that if a ``.airflowignore`` file is found while processing
         the directory, it will behave much like a ``.gitignore``,
-        ignoring files that match any of the regex patterns specified
+        ignoring files that match any of the patterns specified
         in the file.
 
-        **Note**: The patterns in .airflowignore are treated as
-        un-anchored regexes, not shell-like glob patterns.
+        **Note**: The patterns in ``.airflowignore`` are interpreted as either
+        un-anchored regexes or gitignore-like glob expressions, depending on
+        the ``DAG_IGNORE_FILE_SYNTAX`` configuration parameter.
         """
         if self.read_dags_from_db:
             return

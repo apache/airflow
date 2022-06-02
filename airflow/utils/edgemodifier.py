@@ -14,9 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
-from airflow.models.taskmixin import DAGNode, DependencyMixin
+from airflow.models.taskmixin import DependencyMixin
+
+if TYPE_CHECKING:
+    from airflow.models.baseoperator import BaseOperator
 
 
 class EdgeModifier(DependencyMixin):
@@ -39,8 +42,8 @@ class EdgeModifier(DependencyMixin):
 
     def __init__(self, label: Optional[str] = None):
         self.label = label
-        self._upstream: List["DependencyMixin"] = []
-        self._downstream: List["DependencyMixin"] = []
+        self._upstream: List["BaseOperator"] = []
+        self._downstream: List["BaseOperator"] = []
 
     @property
     def roots(self):
@@ -50,38 +53,8 @@ class EdgeModifier(DependencyMixin):
     def leaves(self):
         return self._upstream
 
-    @staticmethod
-    def _make_list(item_or_list):
-        if not isinstance(item_or_list, Sequence):
-            return [item_or_list]
-        return item_or_list
-
-    def _save_nodes(
-        self,
-        nodes: Union["DependencyMixin", Sequence["DependencyMixin"]],
-        stream: List["DependencyMixin"],
-    ):
-        from airflow.models.xcom_arg import XComArg
-        from airflow.utils.task_group import TaskGroup
-
-        for node in self._make_list(nodes):
-            if isinstance(node, (TaskGroup, XComArg)):
-                stream.append(node)
-            elif isinstance(node, DAGNode):
-                if node.task_group and not node.task_group.is_root:
-                    stream.append(node.task_group)
-                else:
-                    stream.append(node)
-            else:
-                raise TypeError(
-                    f"Cannot use edge labels with {type(node).__name__}, "
-                    f"only tasks, XComArg or TaskGroups"
-                )
-
     def set_upstream(
-        self,
-        other: Union["DependencyMixin", Sequence["DependencyMixin"]],
-        edge_modifier: Optional["EdgeModifier"] = None,
+        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
     ):
         """
         Sets the given task/list onto the upstream attribute, and then checks if
@@ -89,14 +62,30 @@ class EdgeModifier(DependencyMixin):
 
         Providing this also provides << via DependencyMixin.
         """
-        self._save_nodes(other, self._upstream)
-        for node in self._downstream:
-            node.set_upstream(other, edge_modifier=self)
+        from airflow.models.baseoperator import BaseOperator
+
+        # Ensure we have a list, even if it's just one item
+        if isinstance(task_or_task_list, DependencyMixin):
+            task_or_task_list = [task_or_task_list]
+        # Unfurl it into actual operators
+        operators: List[BaseOperator] = []
+        for task in task_or_task_list:
+            for root in task.roots:
+                if not isinstance(root, BaseOperator):
+                    raise TypeError(f"Cannot use edge labels with {type(root).__name__}, only operators")
+                operators.append(root)
+        # For each already-declared downstream, pair off with each new upstream
+        # item and store the edge info.
+        for operator in operators:
+            for downstream in self._downstream:
+                self.add_edge_info(operator.dag, operator.task_id, downstream.task_id)
+                if chain:
+                    operator.set_downstream(downstream)
+        # Add the new tasks to our list of ones we've seen
+        self._upstream.extend(operators)
 
     def set_downstream(
-        self,
-        other: Union["DependencyMixin", Sequence["DependencyMixin"]],
-        edge_modifier: Optional["EdgeModifier"] = None,
+        self, task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]], chain: bool = True
     ):
         """
         Sets the given task/list onto the downstream attribute, and then checks if
@@ -104,24 +93,36 @@ class EdgeModifier(DependencyMixin):
 
         Providing this also provides >> via DependencyMixin.
         """
-        self._save_nodes(other, self._downstream)
-        for node in self._upstream:
-            node.set_downstream(other, edge_modifier=self)
+        from airflow.models.baseoperator import BaseOperator
 
-    def update_relative(
-        self,
-        other: "DependencyMixin",
-        upstream: bool = True,
-        edge_modifier: Optional["EdgeModifier"] = None,
-    ) -> None:
+        # Ensure we have a list, even if it's just one item
+        if isinstance(task_or_task_list, DependencyMixin):
+            task_or_task_list = [task_or_task_list]
+        # Unfurl it into actual operators
+        operators: List[BaseOperator] = []
+        for task in task_or_task_list:
+            for leaf in task.leaves:
+                if not isinstance(leaf, BaseOperator):
+                    raise TypeError(f"Cannot use edge labels with {type(leaf).__name__}, only operators")
+                operators.append(leaf)
+        # Pair them off with existing
+        for operator in operators:
+            for upstream in self._upstream:
+                self.add_edge_info(upstream.dag, upstream.task_id, operator.task_id)
+                if chain:
+                    upstream.set_downstream(operator)
+        # Add the new tasks to our list of ones we've seen
+        self._downstream.extend(operators)
+
+    def update_relative(self, other: DependencyMixin, upstream: bool = True) -> None:
         """
         Called if we're not the "main" side of a relationship; we still run the
         same logic, though.
         """
         if upstream:
-            self.set_upstream(other)
+            self.set_upstream(other, chain=False)
         else:
-            self.set_downstream(other)
+            self.set_downstream(other, chain=False)
 
     def add_edge_info(self, dag, upstream_id: str, downstream_id: str):
         """

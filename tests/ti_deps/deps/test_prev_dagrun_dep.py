@@ -26,7 +26,60 @@ from airflow.models.baseoperator import BaseOperator
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.deps.prev_dagrun_dep import PrevDagrunDep
 from airflow.utils.state import State
-from airflow.utils.timezone import datetime
+from airflow.utils.timezone import convert_to_utc, datetime
+from airflow.utils.types import DagRunType
+from tests.test_utils.db import clear_db_runs
+
+
+class TestPrevDagrunDep:
+    def teardown_method(self):
+        clear_db_runs()
+
+    def test_first_task_run_of_new_task(self):
+        """
+        The first task run of a new task in an old DAG should pass if the task has
+        ignore_first_depends_on_past set to True.
+        """
+        dag = DAG('test_dag')
+        old_task = BaseOperator(
+            task_id='test_task',
+            dag=dag,
+            depends_on_past=True,
+            start_date=convert_to_utc(datetime(2016, 1, 1)),
+            wait_for_downstream=False,
+        )
+        # Old DAG run will include only TaskInstance of old_task
+        dag.create_dagrun(
+            run_id='old_run',
+            state=State.SUCCESS,
+            execution_date=old_task.start_date,
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        new_task = BaseOperator(
+            task_id='new_task',
+            dag=dag,
+            depends_on_past=True,
+            ignore_first_depends_on_past=True,
+            start_date=old_task.start_date,
+        )
+
+        # New DAG run will include 1st TaskInstance of new_task
+        dr = dag.create_dagrun(
+            run_id='new_run',
+            state=State.RUNNING,
+            execution_date=convert_to_utc(datetime(2016, 1, 2)),
+            run_type=DagRunType.SCHEDULED,
+        )
+
+        ti = dr.get_task_instance(new_task.task_id)
+        ti.task = new_task
+
+        # this is important, we need to assert there is no previous_ti of this ti
+        assert ti.previous_ti is None
+
+        dep_context = DepContext(ignore_depends_on_past=False)
+        assert PrevDagrunDep().is_met(ti=ti, dep_context=dep_context)
 
 
 @pytest.mark.parametrize(

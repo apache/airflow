@@ -195,7 +195,7 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
 
         return {"name": field[0], "type": new_field_type}
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, **kwargs):
         """
         Do nothing. Trino uses JSON on the transport layer, so types are simple.
 

@@ -17,6 +17,8 @@
 
 """Objects relating to sourcing connections from Google Cloud Secrets Manager"""
 import logging
+import re
+import warnings
 from typing import Optional
 
 from google.auth.exceptions import DefaultCredentialsError
@@ -26,10 +28,16 @@ from airflow.providers.google.cloud._internal_client.secret_manager_client impor
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+from airflow.version import version as airflow_version
 
 log = logging.getLogger(__name__)
 
 SECRET_ID_PATTERN = r"^[a-zA-Z0-9-_]*$"
+
+
+def _parse_version(val):
+    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
+    return tuple(int(x) for x in val.split('.'))
 
 
 class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
@@ -121,9 +129,9 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
         prefix = self.connections_prefix + self.sep
         return _SecretManagerClient.is_valid_secret_name(prefix)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> Optional[str]:
         """
-        Get secret value from the SecretManager.
+        Get serialized representation of Connection
 
         :param conn_id: connection id
         """
@@ -131,6 +139,24 @@ class CloudSecretManagerBackend(BaseSecretsBackend, LoggingMixin):
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id.
+
+        As of Airflow version 2.3.0 this method is deprecated.
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        if _parse_version(airflow_version) >= (2, 3):
+            warnings.warn(
+                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+                "in a future release.  Please use method `get_conn_value` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """

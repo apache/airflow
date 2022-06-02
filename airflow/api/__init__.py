@@ -34,9 +34,9 @@ def load_auth():
         pass
 
     backends = []
-    for backend in auth_backends.split():
+    for backend in auth_backends.split(","):
         try:
-            auth = import_module(backend)
+            auth = import_module(backend.strip())
             log.info("Loaded API auth backend: %s", backend)
             backends.append(auth)
         except ImportError as err:

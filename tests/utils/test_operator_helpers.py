@@ -30,6 +30,7 @@ class TestOperatorHelpers(unittest.TestCase):
         super().setUp()
         self.dag_id = 'dag_id'
         self.task_id = 'task_id'
+        self.try_number = 1
         self.execution_date = '2017-05-21T00:00:00'
         self.dag_run_id = 'dag_run_id'
         self.owner = ['owner1', 'owner2']
@@ -44,6 +45,7 @@ class TestOperatorHelpers(unittest.TestCase):
                 name='task_instance',
                 task_id=self.task_id,
                 dag_id=self.dag_id,
+                try_number=self.try_number,
                 execution_date=datetime.strptime(self.execution_date, '%Y-%m-%dT%H:%M:%S'),
             ),
             'task': mock.MagicMock(name='task', owner=self.owner, email=self.email),
@@ -58,6 +60,7 @@ class TestOperatorHelpers(unittest.TestCase):
             'airflow.ctx.execution_date': self.execution_date,
             'airflow.ctx.task_id': self.task_id,
             'airflow.ctx.dag_run_id': self.dag_run_id,
+            'airflow.ctx.try_number': str(self.try_number),
             'airflow.ctx.dag_owner': 'owner1,owner2',
             'airflow.ctx.dag_email': 'email1@test.com',
         }
@@ -66,6 +69,7 @@ class TestOperatorHelpers(unittest.TestCase):
             'AIRFLOW_CTX_DAG_ID': self.dag_id,
             'AIRFLOW_CTX_EXECUTION_DATE': self.execution_date,
             'AIRFLOW_CTX_TASK_ID': self.task_id,
+            'AIRFLOW_CTX_TRY_NUMBER': str(self.try_number),
             'AIRFLOW_CTX_DAG_RUN_ID': self.dag_run_id,
             'AIRFLOW_CTX_DAG_OWNER': 'owner1,owner2',
             'AIRFLOW_CTX_DAG_EMAIL': 'email1@test.com',
@@ -99,7 +103,8 @@ def callable1(ds_nodash):
     return (ds_nodash,)
 
 
-callable2 = lambda ds_nodash, prev_ds_nodash: (ds_nodash, prev_ds_nodash)
+def callable2(ds_nodash, prev_ds_nodash):
+    return (ds_nodash, prev_ds_nodash)
 
 
 def callable3(ds_nodash, prev_ds_nodash, *args, **kwargs):

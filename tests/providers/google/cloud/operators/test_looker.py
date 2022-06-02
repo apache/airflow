@@ -19,6 +19,9 @@ import unittest
 from unittest import mock
 from unittest.mock import MagicMock
 
+import pytest
+
+from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagBag
 from airflow.providers.google.cloud.operators.looker import LookerStartPdtBuildOperator
 from airflow.utils.timezone import datetime
@@ -146,3 +149,23 @@ class TestLookerStartPdtBuildOperator(LookerTestBase):
         task.cancel_on_kill = True
         task.on_kill()
         mock_hook.return_value.stop_pdt_build.assert_called_once_with(materialization_id=TEST_JOB_ID)
+
+    @mock.patch(OPERATOR_PATH.format("LookerHook"))
+    def test_materialization_id_returned_as_empty_str(self, mock_hook):
+        # mock return vals from hook
+        mock_hook.return_value.start_pdt_build.return_value.materialization_id = ""
+        mock_hook.return_value.wait_for_job.return_value = None
+
+        # run task in mock context (asynchronous=False)
+        task = LookerStartPdtBuildOperator(
+            task_id=TASK_ID,
+            looker_conn_id=LOOKER_CONN_ID,
+            model=MODEL,
+            view=VIEW,
+        )
+
+        # check AirflowException is raised
+        with pytest.raises(
+            AirflowException, match=f'No `materialization_id` was returned for model: {MODEL}, view: {VIEW}.'
+        ):
+            task.execute(context=self.mock_context)

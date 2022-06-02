@@ -37,6 +37,10 @@ _DEPRECATION_MSG = (
 class MongoToS3Operator(BaseOperator):
     """Operator meant to move data from mongo via pymongo to s3 via boto.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:MongoToS3Operator`
+
     :param mongo_conn_id: reference to a specific mongo connection
     :param aws_conn_id: reference to a specific S3 connection
     :param mongo_collection: reference to a specific collection in your mongo db

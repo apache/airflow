@@ -495,8 +495,7 @@ class CloudDataTransferServiceHook(GoogleBaseHook):
 
         if len(NEGATIVE_STATUSES - current_statuses) != len(NEGATIVE_STATUSES):
             raise AirflowException(
-                'An unexpected operation status was encountered. Expected: {}'.format(
-                    ", ".join(expected_statuses_set)
-                )
+                f"An unexpected operation status was encountered. "
+                f"Expected: {', '.join(expected_statuses_set)}"
             )
         return False

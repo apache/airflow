@@ -139,20 +139,6 @@ class EksCreateClusterOperator(BaseOperator):
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        if compute:
-            if compute not in SUPPORTED_COMPUTE_VALUES:
-                raise ValueError("Provided compute type is not supported.")
-            elif (compute == 'nodegroup') and not nodegroup_role_arn:
-                raise ValueError(
-                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement='nodegroup_role_arn')
-                )
-            elif (compute == 'fargate') and not fargate_pod_execution_role_arn:
-                raise ValueError(
-                    MISSING_ARN_MSG.format(
-                        compute=FARGATE_FULL_NAME, requirement='fargate_pod_execution_role_arn'
-                    )
-                )
-
         self.compute = compute
         self.cluster_name = cluster_name
         self.cluster_role_arn = cluster_role_arn
@@ -170,6 +156,20 @@ class EksCreateClusterOperator(BaseOperator):
         super().__init__(**kwargs)
 
     def execute(self, context: 'Context'):
+        if self.compute:
+            if self.compute not in SUPPORTED_COMPUTE_VALUES:
+                raise ValueError("Provided compute type is not supported.")
+            elif (self.compute == 'nodegroup') and not self.nodegroup_role_arn:
+                raise ValueError(
+                    MISSING_ARN_MSG.format(compute=NODEGROUP_FULL_NAME, requirement='nodegroup_role_arn')
+                )
+            elif (self.compute == 'fargate') and not self.fargate_pod_execution_role_arn:
+                raise ValueError(
+                    MISSING_ARN_MSG.format(
+                        compute=FARGATE_FULL_NAME, requirement='fargate_pod_execution_role_arn'
+                    )
+                )
+
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -275,23 +275,23 @@ class EksCreateNodegroupOperator(BaseOperator):
         self.create_nodegroup_kwargs = create_nodegroup_kwargs or {}
         self.aws_conn_id = aws_conn_id
         self.region = region
-        nodegroup_subnets_list: List[str] = []
-        if isinstance(nodegroup_subnets, str):
-            if nodegroup_subnets != "":
+        self.nodegroup_subnets = nodegroup_subnets
+        super().__init__(**kwargs)
+
+    def execute(self, context: 'Context'):
+        if isinstance(self.nodegroup_subnets, str):
+            nodegroup_subnets_list: List[str] = []
+            if self.nodegroup_subnets != "":
                 try:
-                    nodegroup_subnets_list = cast(List, literal_eval(nodegroup_subnets))
+                    nodegroup_subnets_list = cast(List, literal_eval(self.nodegroup_subnets))
                 except ValueError:
                     self.log.warning(
                         "The nodegroup_subnets should be List or string representing "
                         "Python list and is %s. Defaulting to []",
-                        nodegroup_subnets,
+                        self.nodegroup_subnets,
                     )
-        else:
-            nodegroup_subnets_list = nodegroup_subnets
-        self.nodegroup_subnets = nodegroup_subnets_list
-        super().__init__(**kwargs)
+            self.nodegroup_subnets = nodegroup_subnets_list
 
-    def execute(self, context: 'Context'):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,

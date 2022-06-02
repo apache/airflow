@@ -31,7 +31,7 @@ from airflow.utils.timezone import utcnow
 class TestNotInReschedulePeriodDep(unittest.TestCase):
     def _get_task_instance(self, state):
         dag = DAG('test_dag')
-        task = Mock(dag=dag)
+        task = Mock(dag=dag, reschedule=True)
         ti = TaskInstance(task=task, state=state, run_id=None)
         return ti
 
@@ -51,6 +51,11 @@ class TestNotInReschedulePeriodDep(unittest.TestCase):
         ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
         dep_context = DepContext(ignore_in_reschedule_period=True)
         assert ReadyToRescheduleDep().is_met(ti=ti, dep_context=dep_context)
+
+    def test_should_pass_if_not_reschedule_mode(self):
+        ti = self._get_task_instance(State.UP_FOR_RESCHEDULE)
+        del ti.task.reschedule
+        assert ReadyToRescheduleDep().is_met(ti=ti)
 
     def test_should_pass_if_not_in_none_state(self):
         ti = self._get_task_instance(State.UP_FOR_RETRY)

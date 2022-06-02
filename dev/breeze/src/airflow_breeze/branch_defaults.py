@@ -14,6 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Default configuration for this branch. Those two variables below
+should be the only one that should be changed when we branch off
+different airflow branch.
+
+This file is different in every branch (`main`, `vX_Y_test' of airflow)
+The _stable branches have the same values as _test branches.
+
+Examples:
+
+    main:
+
+        AIRFLOW_BRANCH = "main"
+        DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"
+
+    v2-2-test:
+
+        AIRFLOW_BRANCH = "v2-2-test"
+        DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-2-2"
+
+"""
 
 AIRFLOW_BRANCH = "main"
 DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "constraints-main"

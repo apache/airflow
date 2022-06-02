@@ -22,6 +22,7 @@ from unittest import TestCase
 from unittest.mock import MagicMock, Mock, call, patch
 
 from parameterized import parameterized
+from pypsrp.host import PSHost
 from pypsrp.messages import MessageType
 from pypsrp.powershell import PSInvocationState
 from pytest import raises
@@ -180,8 +181,10 @@ class TestPsrpHook(TestCase):
         assert_log(INFO, DUMMY_STACKTRACE[1])
 
         assert call('Invocation state: %s', 'Completed') in logger.info.mock_calls
-
-        assert runspace_pool.call_args == call(ws_man.return_value, connection_name='foo')
+        args, kwargs = runspace_pool.call_args
+        assert args == (ws_man.return_value,)
+        assert kwargs["connection_name"] == "foo"
+        assert isinstance(kwargs["host"], PSHost)
 
     def test_invoke_cmdlet(self, *mocks):
         with PsrpHook(CONNECTION_ID) as hook:

@@ -19,9 +19,10 @@
 package-name: apache-airflow-providers-dbt-cloud
 name: dbt Cloud
 description: |
-    `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__).
+    `dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 versions:
+  - 1.0.2
   - 1.0.1
 
 additional-dependencies:

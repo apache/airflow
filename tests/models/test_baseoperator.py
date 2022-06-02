@@ -17,12 +17,11 @@
 # under the License.
 import logging
 import uuid
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from typing import Any, NamedTuple
 from unittest import mock
 
 import jinja2
-import pendulum
 import pytest
 
 from airflow.decorators import task as task_decorator
@@ -30,13 +29,8 @@ from airflow.exceptions import AirflowException
 from airflow.lineage.entities import File
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator, BaseOperatorMeta, chain, cross_downstream
-from airflow.models.mappedoperator import MappedOperator
-from airflow.models.taskinstance import TaskInstance
-from airflow.models.taskmap import TaskMap
-from airflow.models.xcom_arg import XComArg
 from airflow.utils.context import Context
 from airflow.utils.edgemodifier import Label
-from airflow.utils.state import TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.weight_rule import WeightRule
@@ -116,6 +110,17 @@ class TestBaseOperator:
 
         with pytest.raises(AirflowException, match="missing keyword argument 'test_sub_param'"):
             DummySubClass(default_args=default_args)
+
+    def test_execution_timeout_type(self):
+        with pytest.raises(
+            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'str'>"
+        ):
+            BaseOperator(task_id='test', execution_timeout="1")
+
+        with pytest.raises(
+            ValueError, match="execution_timeout must be timedelta object but passed as type: <class 'int'>"
+        ):
+            BaseOperator(task_id='test', execution_timeout=1)
 
     def test_incorrect_default_args(self):
         default_args = {'test_param': True, 'extra_param': True}
@@ -257,6 +262,46 @@ class TestBaseOperator:
 
         result = task.render_template(content, context)
         assert result == expected_output
+
+    def test_mapped_dag_slas_disabled_classic(self):
+        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+            with DAG(
+                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+            ) as dag:
+
+                @dag.task
+                def get_values():
+                    return [0, 1, 2]
+
+                task1 = get_values()
+
+                class MyOp(BaseOperator):
+                    def __init__(self, x, **kwargs):
+                        self.x = x
+                        super().__init__(**kwargs)
+
+                    def execute(self, context):
+                        print(self.x)
+
+                MyOp.partial(task_id='hi').expand(x=task1)
+
+    def test_mapped_dag_slas_disabled_taskflow(self):
+        with pytest.raises(AirflowException, match='SLAs are unsupported with mapped tasks'):
+            with DAG(
+                'test-dag', start_date=DEFAULT_DATE, default_args=dict(sla=timedelta(minutes=30))
+            ) as dag:
+
+                @dag.task
+                def get_values():
+                    return [0, 1, 2]
+
+                task1 = get_values()
+
+                @dag.task
+                def print_val(x):
+                    print(x)
+
+                print_val.expand(x=task1)
 
     def test_render_template_fields(self):
         """Verify if operator attributes are correctly templated."""
@@ -699,181 +744,24 @@ def test_operator_retries(caplog, dag_maker, retries, expected):
     assert caplog.record_tuples == expected
 
 
-def test_task_mapping_with_dag():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-        literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
-        finish = MockOperator(task_id="finish")
+def test_default_retry_delay(dag_maker):
+    with dag_maker(dag_id='test_default_retry_delay'):
+        task1 = BaseOperator(task_id='test_no_explicit_retry_delay')
 
-        task1 >> mapped >> finish
-
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    assert mapped.task_group == dag.task_group
-    # At parse time there should only be three tasks!
-    assert len(dag.tasks) == 3
-
-    assert finish.upstream_list == [mapped]
-    assert mapped.downstream_list == [finish]
+        assert task1.retry_delay == timedelta(seconds=300)
 
 
-def test_task_mapping_without_dag_context():
-    with DAG("test-dag", start_date=DEFAULT_DATE) as dag:
-        task1 = BaseOperator(task_id="op1")
-    literal = ['a', 'b', 'c']
-    mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
+def test_dag_level_retry_delay(dag_maker):
+    with dag_maker(dag_id='test_dag_level_retry_delay', default_args={'retry_delay': timedelta(seconds=100)}):
+        task1 = BaseOperator(task_id='test_no_explicit_retry_delay')
 
-    task1 >> mapped
-
-    assert isinstance(mapped, MappedOperator)
-    assert mapped in dag.tasks
-    assert task1.downstream_list == [mapped]
-    assert mapped in dag.tasks
-    # At parse time there should only be two tasks!
-    assert len(dag.tasks) == 2
+        assert task1.retry_delay == timedelta(seconds=100)
 
 
-def test_task_mapping_default_args():
-    default_args = {'start_date': DEFAULT_DATE.now(), 'owner': 'test'}
-    with DAG("test-dag", start_date=DEFAULT_DATE, default_args=default_args):
-        task1 = BaseOperator(task_id="op1")
-        literal = ['a', 'b', 'c']
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=literal)
+def test_task_level_retry_delay(dag_maker):
+    with dag_maker(
+        dag_id='test_task_level_retry_delay', default_args={'retry_delay': timedelta(seconds=100)}
+    ):
+        task1 = BaseOperator(task_id='test_no_explicit_retry_delay', retry_delay=timedelta(seconds=200))
 
-        task1 >> mapped
-
-    assert mapped.partial_kwargs['owner'] == 'test'
-    assert mapped.start_date == pendulum.instance(default_args['start_date'])
-
-
-def test_map_unknown_arg_raises():
-    with pytest.raises(TypeError, match=r"argument 'file'"):
-        BaseOperator.partial(task_id='a').expand(file=[1, 2, {'a': 'b'}])
-
-
-def test_map_xcom_arg():
-    """Test that dependencies are correct when mapping with an XComArg"""
-    with DAG("test-dag", start_date=DEFAULT_DATE):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
-        finish = MockOperator(task_id="finish")
-
-        mapped >> finish
-
-    assert task1.downstream_list == [mapped]
-
-
-def test_partial_on_instance() -> None:
-    """`.partial` on an instance should fail -- it's only designed to be called on classes"""
-    with pytest.raises(TypeError):
-        MockOperator(
-            task_id='a',
-        ).partial()
-
-
-def test_partial_on_class() -> None:
-    # Test that we accept args for superclasses too
-    op = MockOperator.partial(task_id='a', arg1="a", trigger_rule=TriggerRule.ONE_FAILED)
-    assert op.kwargs["arg1"] == "a"
-    assert op.kwargs["trigger_rule"] == TriggerRule.ONE_FAILED
-
-
-def test_partial_on_class_invalid_ctor_args() -> None:
-    """Test that when we pass invalid args to partial().
-
-    I.e. if an arg is not known on the class or any of its parent classes we error at parse time
-    """
-    with pytest.raises(TypeError, match=r"arguments 'foo', 'bar'"):
-        MockOperator.partial(task_id='a', foo='bar', bar=2)
-
-
-@pytest.mark.parametrize(
-    ["num_existing_tis", "expected"],
-    (
-        pytest.param(0, [(0, None), (1, None), (2, None)], id='only-unmapped-ti-exists'),
-        pytest.param(
-            3,
-            [(0, 'success'), (1, 'success'), (2, 'success')],
-            id='all-tis-exist',
-        ),
-        pytest.param(
-            5,
-            [
-                (0, 'success'),
-                (1, 'success'),
-                (2, 'success'),
-                (3, TaskInstanceState.REMOVED),
-                (4, TaskInstanceState.REMOVED),
-            ],
-            id="tis-to-be-removed",
-        ),
-    ),
-)
-def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
-    literal = [1, 2, {'a': 'b'}]
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
-
-    dr = dag_maker.create_dagrun()
-
-    session.add(
-        TaskMap(
-            dag_id=dr.dag_id,
-            task_id=task1.task_id,
-            run_id=dr.run_id,
-            map_index=-1,
-            length=len(literal),
-            keys=None,
-        )
-    )
-
-    if num_existing_tis:
-        # Remove the map_index=-1 TI when we're creating other TIs
-        session.query(TaskInstance).filter(
-            TaskInstance.dag_id == mapped.dag_id,
-            TaskInstance.task_id == mapped.task_id,
-            TaskInstance.run_id == dr.run_id,
-        ).delete()
-
-    for index in range(num_existing_tis):
-        # Give the existing TIs a state to make sure we don't change them
-        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
-        session.add(ti)
-    session.flush()
-
-    mapped.expand_mapped_task(dr.run_id, session=session)
-
-    indices = (
-        session.query(TaskInstance.map_index, TaskInstance.state)
-        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
-        .order_by(TaskInstance.map_index)
-        .all()
-    )
-
-    assert indices == expected
-
-
-def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
-    with dag_maker(session=session):
-        task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand(arg2=XComArg(task1))
-
-    dr = dag_maker.create_dagrun()
-
-    session.add(
-        TaskMap(dag_id=dr.dag_id, task_id=task1.task_id, run_id=dr.run_id, map_index=-1, length=0, keys=None)
-    )
-    session.flush()
-
-    mapped.expand_mapped_task(dr.run_id, session=session)
-
-    indices = (
-        session.query(TaskInstance.map_index, TaskInstance.state)
-        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
-        .order_by(TaskInstance.map_index)
-        .all()
-    )
-
-    assert indices == [(-1, TaskInstanceState.SKIPPED)]
+        assert task1.retry_delay == timedelta(seconds=200)

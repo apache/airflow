@@ -39,7 +39,7 @@ if [[ ${RES} == "139" ]]; then
 fi
 
 set +x
-if [[ "${RES}" == "0" && ${CI:="false"} == "true" ]]; then
+if [[ "${RES}" == "0" && ( ${CI:="false"} == "true" || ${CI} == "True" ) ]]; then
     echo "All tests successful"
     cp .coverage /files
 fi
@@ -61,7 +61,7 @@ if [[ ${TEST_TYPE:=} == "Quarantined" ]]; then
     fi
 fi
 
-if [[ ${CI:=} == "true" ]]; then
+if [[ ${CI:="false"} == "true" || ${CI} == "True" ]]; then
     if [[ ${RES} != "0" ]]; then
         echo
         echo "Dumping logs on error"

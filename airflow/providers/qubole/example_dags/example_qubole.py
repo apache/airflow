@@ -23,7 +23,11 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.operators.dummy import DummyOperator
+
+try:
+    from airflow.operators.empty import EmptyOperator
+except ModuleNotFoundError:
+    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.operators.python import BranchPythonOperator
 from airflow.providers.qubole.operators.qubole import QuboleOperator
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
@@ -100,7 +104,7 @@ with DAG(
 
     [hive_show_table, hive_s3_location] >> compare_result(hive_s3_location, hive_show_table) >> branching
 
-    join = DummyOperator(task_id='join', trigger_rule=TriggerRule.ONE_SUCCESS)
+    join = EmptyOperator(task_id='join', trigger_rule=TriggerRule.ONE_SUCCESS)
 
     # [START howto_operator_qubole_run_hadoop_jar]
     hadoop_jar_cmd = QuboleOperator(

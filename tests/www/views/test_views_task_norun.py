@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import datetime
 import urllib.parse
 
 import pytest
 
-from airflow.utils import dates
 from tests.test_utils.db import clear_db_runs
 
-DEFAULT_DATE = dates.days_ago(2)
+DEFAULT_DATE = datetime.datetime(2022, 1, 1)
 
 DEFAULT_VAL = urllib.parse.quote_plus(str(DEFAULT_DATE))
 

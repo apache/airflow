@@ -259,6 +259,38 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
             user = g.user
         return user.roles
 
+    def get_readable_dags(self, user):
+        """Gets the DAGs readable by authenticated user."""
+        warnings.warn(
+            "`get_readable_dags` has been deprecated. Please use `get_readable_dag_ids` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_READ], user)
+
+    def get_editable_dags(self, user):
+        """Gets the DAGs editable by authenticated user."""
+        warnings.warn(
+            "`get_editable_dags` has been deprecated. Please use `get_editable_dag_ids` instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", DeprecationWarning)
+            return self.get_accessible_dags([permissions.ACTION_CAN_EDIT], user)
+
+    @provide_session
+    def get_accessible_dags(self, user_actions, user, session=None):
+        warnings.warn(
+            "`get_accessible_dags` has been deprecated. Please use `get_accessible_dag_ids` instead.",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        dag_ids = self.get_accessible_dag_ids(user, user_actions, session)
+        return session.query(DagModel).filter(DagModel.dag_id.in_(dag_ids))
+
     def get_readable_dag_ids(self, user) -> Set[str]:
         """Gets the DAG IDs readable by authenticated user."""
         return self.get_accessible_dag_ids(user, [permissions.ACTION_CAN_READ])

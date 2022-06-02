@@ -132,6 +132,11 @@ class TestExasolHook(unittest.TestCase):
         self.conn.execute.assert_called_with(sql[1], None)
         self.conn.commit.assert_not_called()
 
+    def test_run_no_queries(self):
+        with pytest.raises(ValueError) as err:
+            self.db_hook.run(sql=[])
+        assert err.value.args[0] == "List of SQL statements is empty"
+
     def test_bulk_load(self):
         with pytest.raises(NotImplementedError):
             self.db_hook.bulk_load('table', '/tmp/file')

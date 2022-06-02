@@ -40,7 +40,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
                          default webhook endpoint in the extra field in the form of
                          {"webhook_endpoint": "webhooks/{webhook.id}/{webhook.token}"}
     :param webhook_endpoint: Discord webhook endpoint in the form of
-                             "webhooks/{webhook.id}/{webhook.token}"
+                             "webhooks/{webhook.id}/{webhook.token}" (templated)
     :param message: The message you want to send to your Discord channel
                     (max 2000 characters). (templated)
     :param username: Override the default username of the webhook. (templated)
@@ -49,7 +49,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
     :param proxy: Proxy to use to make the Discord webhook call
     """
 
-    template_fields: Sequence[str] = ('username', 'message')
+    template_fields: Sequence[str] = ('username', 'message', 'webhook_endpoint')
 
     def __init__(
         self,

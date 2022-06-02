@@ -156,7 +156,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
 
     def execute(self, context: "Context") -> None:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
-        self.log.info(f"Executing the {self.pipeline_name} pipeline.")
+        self.log.info("Executing the %s pipeline.", self.pipeline_name)
         response = self.hook.run_pipeline(
             pipeline_name=self.pipeline_name,
             resource_group_name=self.resource_group_name,
@@ -174,7 +174,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
         context["ti"].xcom_push(key="run_id", value=self.run_id)
 
         if self.wait_for_termination:
-            self.log.info(f"Waiting for pipeline run {self.run_id} to terminate.")
+            self.log.info("Waiting for pipeline run %s to terminate.", self.run_id)
 
             if self.hook.wait_for_pipeline_run_status(
                 run_id=self.run_id,
@@ -184,7 +184,7 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
             ):
-                self.log.info(f"Pipeline run {self.run_id} has completed successfully.")
+                self.log.info("Pipeline run %s has completed successfully.", self.run_id)
             else:
                 raise AzureDataFactoryPipelineRunException(
                     f"Pipeline run {self.run_id} has failed or has been cancelled."
@@ -207,6 +207,6 @@ class AzureDataFactoryRunPipelineOperator(BaseOperator):
                 resource_group_name=self.resource_group_name,
                 factory_name=self.factory_name,
             ):
-                self.log.info(f"Pipeline run {self.run_id} has been cancelled successfully.")
+                self.log.info("Pipeline run %s has been cancelled successfully.", self.run_id)
             else:
                 raise AzureDataFactoryPipelineRunException(f"Pipeline run {self.run_id} was not cancelled.")

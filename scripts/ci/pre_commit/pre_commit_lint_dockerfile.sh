@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-export FORCE_ANSWER_TO_QUESTIONS=${FORCE_ANSWER_TO_QUESTIONS:="no"}
+export ANSWER=${ANSWER:="no"}
 export PRINT_INFO_FROM_SCRIPTS="false"
 export SKIP_CHECK_REMOTE_IMAGE="true"
 
@@ -23,7 +23,7 @@ export SKIP_CHECK_REMOTE_IMAGE="true"
 . "$( dirname "${BASH_SOURCE[0]}" )/../libraries/_script_init.sh"
 
 function run_docker_lint() {
-    IMAGE_NAME="hadolint/hadolint:2.3.0-alpine"
+    IMAGE_NAME="hadolint/hadolint:2.10.0-beta-alpine"
     if [[ "${#@}" == "0" ]]; then
         echo
         echo "Running docker lint for all Dockerfiles"
@@ -52,9 +52,4 @@ function run_docker_lint() {
     fi
 }
 
-if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
-    # See https://github.com/hadolint/hadolint/issues/411
-    echo "Skip Hadolint check on ARM devices as they do not provide multiplatform images"
-else
-    run_docker_lint "$@"
-fi
+run_docker_lint "$@"

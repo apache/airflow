@@ -20,7 +20,6 @@
 
 
 import time
-import warnings
 from typing import Any, Dict, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
@@ -43,17 +42,8 @@ class DatastoreHook(GoogleBaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         api_version: str = 'v1',
-        datastore_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        if datastore_conn_id:
-            warnings.warn(
-                "The datastore_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = datastore_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,

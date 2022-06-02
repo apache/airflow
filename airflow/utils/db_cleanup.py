@@ -27,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
 from pendulum import DateTime
 from sqlalchemy import and_, false, func
-from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.jobs.base_job import BaseJob
@@ -260,7 +260,7 @@ class _warn_if_missing(AbstractContextManager):
         return self
 
     def __exit__(self, exctype, excinst, exctb):
-        caught_error = exctype is not None and issubclass(exctype, OperationalError)
+        caught_error = exctype is not None and issubclass(exctype, (OperationalError, ProgrammingError))
         if caught_error:
             logger.warning("Table %r not found.  Skipping.", self.table)
         return caught_error

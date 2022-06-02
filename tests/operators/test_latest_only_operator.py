@@ -23,7 +23,7 @@ from freezegun import freeze_time
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.latest_only import LatestOnlyOperator
 from airflow.utils import timezone
 from airflow.utils.state import State
@@ -76,9 +76,9 @@ class TestLatestOnlyOperator:
 
     def test_skipping_non_latest(self):
         latest_task = LatestOnlyOperator(task_id='latest', dag=self.dag)
-        downstream_task = DummyOperator(task_id='downstream', dag=self.dag)
-        downstream_task2 = DummyOperator(task_id='downstream_2', dag=self.dag)
-        downstream_task3 = DummyOperator(
+        downstream_task = EmptyOperator(task_id='downstream', dag=self.dag)
+        downstream_task2 = EmptyOperator(task_id='downstream_2', dag=self.dag)
+        downstream_task3 = EmptyOperator(
             task_id='downstream_3', trigger_rule=TriggerRule.NONE_FAILED, dag=self.dag
         )
 
@@ -146,8 +146,8 @@ class TestLatestOnlyOperator:
 
     def test_not_skipping_external(self):
         latest_task = LatestOnlyOperator(task_id='latest', dag=self.dag)
-        downstream_task = DummyOperator(task_id='downstream', dag=self.dag)
-        downstream_task2 = DummyOperator(task_id='downstream_2', dag=self.dag)
+        downstream_task = EmptyOperator(task_id='downstream', dag=self.dag)
+        downstream_task2 = EmptyOperator(task_id='downstream_2', dag=self.dag)
 
         downstream_task.set_upstream(latest_task)
         downstream_task2.set_upstream(downstream_task)

@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from typing import Union
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import _MethodDefault
 from google.api_core.retry import Retry
 from google.protobuf.field_mask_pb2 import FieldMask
 
@@ -44,7 +45,7 @@ TEST_SERVICE: dict = {"name": "test-service"}
 TEST_SERVICE_ID: str = "test-service-id"
 
 TEST_TIMEOUT = 120
-TEST_RETRY = mock.MagicMock(Retry)
+TEST_RETRY: Union[Retry, _MethodDefault] = mock.MagicMock(Retry)
 TEST_METADATA = [("key", "value")]
 TEST_REQUEST_ID = "request_id_uuid"
 

@@ -18,11 +18,13 @@
 #
 
 import unittest
+from unittest import mock
 
 from airflow.models.dag import DAG
 from airflow.providers.opsgenie.operators.opsgenie import (
     OpsgenieCloseAlertOperator,
     OpsgenieCreateAlertOperator,
+    OpsgenieDeleteAlertOperator,
 )
 from airflow.utils import timezone
 
@@ -141,3 +143,31 @@ class TestOpsgenieCloseAlertOperator(unittest.TestCase):
         assert self._config['user'] == operator.user
         assert self._config['note'] == operator.note
         assert self._config['source'] == operator.source
+
+
+class TestOpsgenieDeleteAlertOperator(unittest.TestCase):
+    def setUp(self):
+        args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
+        self.dag = DAG('test_dag_id', default_args=args)
+
+    @mock.patch('airflow.providers.opsgenie.operators.opsgenie.OpsgenieAlertHook')
+    def test_operator(self, mock_opsgenie_hook):
+        mock_opsgenie_hook.return_value = mock.Mock()
+        mock_opsgenie_hook.return_value.delete_alert.return_value = True
+
+        operator = OpsgenieDeleteAlertOperator(
+            task_id='opsgenie_test_delete_job',
+            dag=self.dag,
+            identifier="id",
+            identifier_type='id',
+            user="name",
+            source="source",
+        )
+        operator.execute(None)
+        mock_opsgenie_hook.assert_called_once_with('opsgenie_default')
+        mock_opsgenie_hook.return_value.delete_alert.assert_called_once_with(
+            identifier='id',
+            identifier_type='id',
+            source='source',
+            user='name',
+        )

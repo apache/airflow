@@ -131,7 +131,7 @@ class RBACTest(unittest.TestCase):
                 "statsd": {"serviceAccount": {"create": False}},
                 "createUserJob": {"serviceAccount": {"create": False}},
                 "migrateDatabaseJob": {"serviceAccount": {"create": False}},
-                "flower": {"serviceAccount": {"create": False}},
+                "flower": {"enabled": True, "serviceAccount": {"create": False}},
             },
         )
         list_of_kind_names_tuples = [
@@ -150,6 +150,7 @@ class RBACTest(unittest.TestCase):
                 "fullnameOverride": "TEST-RBAC",
                 "rbac": {"create": False},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
             },
         )
@@ -177,7 +178,7 @@ class RBACTest(unittest.TestCase):
                 "webserver": {"serviceAccount": {"create": False}},
                 "workers": {"serviceAccount": {"create": False}},
                 "triggerer": {"serviceAccount": {"create": False}},
-                "flower": {"serviceAccount": {"create": False}},
+                "flower": {"enabled": True, "serviceAccount": {"create": False}},
                 "statsd": {"serviceAccount": {"create": False}},
                 "redis": {"serviceAccount": {"create": False}},
                 "pgbouncer": {
@@ -205,6 +206,7 @@ class RBACTest(unittest.TestCase):
             values={
                 "fullnameOverride": "TEST-RBAC",
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
             },
         )
@@ -236,7 +238,7 @@ class RBACTest(unittest.TestCase):
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
-                "flower": {"serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
+                "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "pgbouncer": {
@@ -274,7 +276,7 @@ class RBACTest(unittest.TestCase):
                 "webserver": {"serviceAccount": {"name": CUSTOM_WEBSERVER_NAME}},
                 "workers": {"serviceAccount": {"name": CUSTOM_WORKER_NAME}},
                 "triggerer": {"serviceAccount": {"name": CUSTOM_TRIGGERER_NAME}},
-                "flower": {"serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
+                "flower": {"enabled": True, "serviceAccount": {"name": CUSTOM_FLOWER_NAME}},
                 "statsd": {"serviceAccount": {"name": CUSTOM_STATSD_NAME}},
                 "redis": {"serviceAccount": {"name": CUSTOM_REDIS_NAME}},
                 "pgbouncer": {

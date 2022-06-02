@@ -103,7 +103,7 @@ class OpsgenieAlertHook(BaseHook):
         identifier: str,
         identifier_type: Optional[str] = 'id',
         payload: Optional[dict] = None,
-        kwargs: Optional[dict] = None,
+        **kwargs: Optional[dict],
     ) -> SuccessResponse:
         """
         Close an alert in Opsgenie
@@ -126,9 +126,39 @@ class OpsgenieAlertHook(BaseHook):
                 identifier=identifier,
                 identifier_type=identifier_type,
                 close_alert_payload=close_alert_payload,
-                kwargs=kwargs,
+                **kwargs,
             )
             return api_response
         except OpenApiException as e:
             self.log.exception('Exception when closing alert in opsgenie with payload: %s', payload)
+            raise e
+
+    def delete_alert(
+        self,
+        identifier: str,
+        identifier_type: Optional[str] = None,
+        user: Optional[str] = None,
+        source: Optional[str] = None,
+    ) -> SuccessResponse:
+        """
+        Delete an alert in Opsgenie
+
+        :param identifier: Identifier of alert which could be alert id, tiny id or alert alias.
+        :param identifier_type: Type of the identifier that is provided as an in-line parameter.
+            Possible values are 'id', 'alias' or 'tiny'
+        :param user: Display name of the request owner.
+        :param source: Display name of the request source
+        :return: SuccessResponse
+        :rtype: opsgenie_sdk.SuccessResponse
+        """
+        try:
+            api_response = self.alert_api_instance.delete_alert(
+                identifier=identifier,
+                identifier_type=identifier_type,
+                user=user,
+                source=source,
+            )
+            return api_response
+        except OpenApiException as e:
+            self.log.exception('Exception when calling AlertApi->delete_alert: %s\n', e)
             raise e

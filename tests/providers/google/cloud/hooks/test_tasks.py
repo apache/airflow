@@ -20,6 +20,7 @@ import unittest
 from typing import Any, Dict
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.tasks_v2.types import Queue, Task
 
 from airflow.providers.google.cloud.hooks.tasks import CloudTasksHook
@@ -77,7 +78,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
         get_conn.return_value.create_queue.assert_called_once_with(
             request=dict(parent=FULL_LOCATION_PATH, queue=Queue(name=FULL_QUEUE_PATH)),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -98,7 +99,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
         get_conn.return_value.update_queue.assert_called_once_with(
             request=dict(queue=Queue(name=FULL_QUEUE_PATH, state=3), update_mask=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -113,7 +114,7 @@ class TestCloudTasksHook(unittest.TestCase):
         assert result is API_RESPONSE
 
         get_conn.return_value.get_queue.assert_called_once_with(
-            request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
+            request=dict(name=FULL_QUEUE_PATH), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -127,7 +128,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
         get_conn.return_value.list_queues.assert_called_once_with(
             request=dict(parent=FULL_LOCATION_PATH, filter=None, page_size=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -142,7 +143,7 @@ class TestCloudTasksHook(unittest.TestCase):
         assert result is None
 
         get_conn.return_value.delete_queue.assert_called_once_with(
-            request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
+            request=dict(name=FULL_QUEUE_PATH), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -155,7 +156,7 @@ class TestCloudTasksHook(unittest.TestCase):
         assert result == Queue(name=FULL_QUEUE_PATH)
 
         get_conn.return_value.purge_queue.assert_called_once_with(
-            request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
+            request=dict(name=FULL_QUEUE_PATH), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -168,7 +169,7 @@ class TestCloudTasksHook(unittest.TestCase):
         assert result == Queue(name=FULL_QUEUE_PATH)
 
         get_conn.return_value.pause_queue.assert_called_once_with(
-            request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
+            request=dict(name=FULL_QUEUE_PATH), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -181,7 +182,7 @@ class TestCloudTasksHook(unittest.TestCase):
         assert result == Queue(name=FULL_QUEUE_PATH)
 
         get_conn.return_value.resume_queue.assert_called_once_with(
-            request=dict(name=FULL_QUEUE_PATH), retry=None, timeout=None, metadata=()
+            request=dict(name=FULL_QUEUE_PATH), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -201,7 +202,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
         get_conn.return_value.create_task.assert_called_once_with(
             request=dict(parent=FULL_QUEUE_PATH, task=Task(name=FULL_TASK_PATH), response_view=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -222,7 +223,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
         get_conn.return_value.get_task.assert_called_once_with(
             request=dict(name=FULL_TASK_PATH, response_view=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -238,7 +239,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
         get_conn.return_value.list_tasks.assert_called_once_with(
             request=dict(parent=FULL_QUEUE_PATH, response_view=None, page_size=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -258,7 +259,7 @@ class TestCloudTasksHook(unittest.TestCase):
         assert result is None
 
         get_conn.return_value.delete_task.assert_called_once_with(
-            request=dict(name=FULL_TASK_PATH), retry=None, timeout=None, metadata=()
+            request=dict(name=FULL_TASK_PATH), retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch(
@@ -277,7 +278,7 @@ class TestCloudTasksHook(unittest.TestCase):
 
         get_conn.return_value.run_task.assert_called_once_with(
             request=dict(name=FULL_TASK_PATH, response_view=None),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

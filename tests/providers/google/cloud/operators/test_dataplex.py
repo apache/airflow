@@ -17,6 +17,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.operators.dataplex import (
     DataplexCreateTaskOperator,
     DataplexDeleteTaskOperator,
@@ -72,7 +74,7 @@ class TestDataplexCreateTaskOperator(TestCase):
             body=BODY,
             dataplex_task_id=DATAPLEX_TASK_ID,
             validate_only=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -104,7 +106,7 @@ class TestDataplexDeleteTaskOperator(TestCase):
             region=REGION,
             lake_id=LAKE_ID,
             dataplex_task_id=DATAPLEX_TASK_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -138,7 +140,7 @@ class TestDataplexListTasksOperator(TestCase):
             page_token=None,
             filter=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -173,7 +175,7 @@ class TestDataplexGetTaskOperator(TestCase):
             region=REGION,
             lake_id=LAKE_ID,
             dataplex_task_id=DATAPLEX_TASK_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

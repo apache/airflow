@@ -29,7 +29,7 @@ field (see connection `wasb_default` for an example).
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
-from azure.identity import ClientSecretCredential, ManagedIdentityCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
 
 from airflow.exceptions import AirflowException
@@ -46,7 +46,7 @@ class WasbHook(BaseHook):
     passed to the `BlockBlockService()` constructor. For example, authenticate
     using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
 
-    If no authentication configuration is provided, managed identity will be used (applicable
+    If no authentication configuration is provided, DefaultAzureCredential will be used (applicable
     when using Azure compute infrastructure).
 
     :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
@@ -151,8 +151,8 @@ class WasbHook(BaseHook):
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            credential = ManagedIdentityCredential()
-            self.log.info("Using managed identity as credential")
+            credential = DefaultAzureCredential()
+            self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
             account_url=f"https://{conn.login}.blob.core.windows.net/",
             credential=credential,

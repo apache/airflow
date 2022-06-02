@@ -102,4 +102,4 @@ class TestCloudFormationHook(unittest.TestCase):
 
         stacks = self.hook.get_conn().describe_stacks()['Stacks']
         matching_stacks = [x for x in stacks if x['StackName'] == stack_name]
-        assert len(matching_stacks) == 0, f'stack with name {stack_name} should not exist'
+        assert not matching_stacks, f'stack with name {stack_name} should not exist'

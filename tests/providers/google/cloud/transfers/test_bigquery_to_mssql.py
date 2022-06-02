@@ -38,7 +38,7 @@ class TestBigQueryToMsSqlOperator(unittest.TestCase):
             replace=False,
         )
 
-        operator.execute(None)
+        operator.execute(context=mock.MagicMock())
         # fmt: off
         mock_hook.return_value.list_rows.assert_called_once_with(
             dataset_id=TEST_DATASET,

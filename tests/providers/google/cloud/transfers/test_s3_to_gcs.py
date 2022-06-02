@@ -65,7 +65,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             bucket=S3_BUCKET,
             prefix=S3_PREFIX,
             delimiter=S3_DELIMITER,
-            dest_gcs_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX,
             google_impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -105,7 +105,7 @@ class TestS3ToGoogleCloudStorageOperator(unittest.TestCase):
             bucket=S3_BUCKET,
             prefix=S3_PREFIX,
             delimiter=S3_DELIMITER,
-            dest_gcs_conn_id=GCS_CONN_ID,
+            gcp_conn_id=GCS_CONN_ID,
             dest_gcs=GCS_PATH_PREFIX,
             gzip=True,
         )

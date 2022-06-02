@@ -33,15 +33,13 @@ sequenceDiagram
     activate Tests
     Tests -->> Build Images: Trigger 'pull_request_target'
     activate Build Images
-    Note over Build Images: Build info
-    par 3.6, [3.7, 3.8, 3.9]
-        activate GitHub Registry
-        GitHub Registry ->> Build Images: Pull CI Images from Cache
-        deactivate GitHub Registry
-        Note over Build Images: Build CI Images<br>[COMMIT_SHA]
-    end
-    par No CI image
-        Note over Tests: Build info<br>Which tests?<br>Which Python?
+    Note over Build Images: Build info<br>Decide which Python
+    Note over Tests: Build info<br>Decide on tests<br>Decide on Matrix (selective)
+    Note over Tests: Skip Build<br>(Runs in 'Build Images')<br>CI Images
+    Note over Tests: Skip Build<br>(Runs in 'Build Images')<br>PROD Images
+    par
+        GitHub Registry ->> Build Images: Pull CI Images<br>[latest]
+        Note over Build Images: Build CI Images<br>[COMMIT_SHA]<br>Use latest constraints<br>or upgrade if setup changed
     and
         Note over Tests: OpenAPI client gen
     and
@@ -49,76 +47,134 @@ sequenceDiagram
     and
         Note over Tests: Test examples<br>PROD image building
     end
-    par 3.6, [3.7, 3.8, 3.9]
-        activate GitHub Registry
-        Build Images ->> GitHub Registry: Push CI Images
-        Note over GitHub Registry: Tagged CI Images<br>[COMMIT_SHA]
-    end
-    par 3.6, [3.7, 3.8, 3.9]
-        GitHub Registry ->> Build Images: Pull PROD Images from Cache
-        Note over Build Images: Build PROD Images<br>[COMMIT_SHA]
-    end
+    Build Images ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
     loop Wait for CI images
-        par 3.6, [3.7, 3.8, 3.9]
-            Tests ->> Tests: Check CI Images
-            Note over Tests: Wait for<br>[COMMIT_SHA]
-        end
+        GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
     end
-    par 3.6, [3.7, 3.8, 3.9]
-        GitHub Registry ->> Tests: Pull CI Image
-        Note over Tests: Verify CI Image
-    end
-    deactivate GitHub Registry
-    par 3.6, [3.7, 3.8, 3.9]
-        opt Needed?
+    Note over Tests: Verify CI Images<br>[COMMIT_SHA]
+    par
+        GitHub Registry ->> Build Images: Pull PROD Images<br>[latest]
+        Note over Build Images: Build PROD Images<br>[COMMIT_SHA]
+    and
+        opt
             Note over Tests: Run static checks
         end
     and
-        opt Needed?
+        opt
             Note over Tests: Run basic <br>static checks
         end
     and
-        opt Needed?
+        opt
             Note over Tests: Build docs
         end
     and
-        opt Needed?
+        opt
             Note over Tests: Tests
         end
     and
-        opt Needed?
+        opt
             Note over Tests: Test provider <br>packages build
         end
     and
-        opt Needed?
+        opt
             Note over Tests: Helm tests
         end
     end
-    par 3.6, [3.7, 3.8, 3.9]
-        Build Images ->> GitHub Registry: Push PROD Images
-        activate GitHub Registry
-    end
+    Build Images ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
     deactivate Build Images
-    Note over GitHub Registry: Tagged PROD Images<br>[COMMIT_SHA]
     loop Wait for PROD images
-        par 3.6, [3.7, 3.8, 3.9]
-            Tests ->> Tests: Check PROD Images
-            Note over Tests: Wait for<br>[COMMIT_SHA]
+        GitHub Registry ->> Tests: Pull PROD Images<br>[COMMIT_SHA]
+    end
+    Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
+    par
+        opt
+            Note over Tests: Run Kubernetes<br>tests
+        end
+    and
+        opt
+            Note over Tests: Run Kubernetes<br>upgrade tests
         end
     end
-    par 3.6, [3.7, 3.8, 3.9]
-        GitHub Registry ->> Tests: Pull PROD Image
-        Note over Tests: Verify PROD Image
+    opt
+        Note over Tests: Generate constraints
     end
-    deactivate GitHub Registry
-    par 3.6, [3.7, 3.8, 3.9]
-        opt Needed?
+    Tests -->> Airflow Repo: Status update
+    deactivate Airflow Repo
+    deactivate Tests
+```
+
+## Pull request flow from "apache/airflow" repo
+
+```mermaid
+sequenceDiagram
+    Note over Airflow Repo: pull request
+    Note over Tests: pull_request<br>[Read Token]
+    Note over Build Images: pull_request_target<br>[Write Token]
+    activate Airflow Repo
+    Airflow Repo -->> Tests: Trigger 'pull_request'
+    activate Tests
+    Tests -->> Build Images: Trigger 'pull_request_target'
+    activate Build Images
+    Note over Build Images: Build info
+    Note over Build Images: Skip Build<br>(Runs in 'Tests')<br>CI Images
+    Note over Build Images: Skip Build<br>(Runs in 'Tests')<br>PROD Images
+    deactivate Build Images
+    Note over Tests: Build info<br>Decide on tests<br>Decide on Matrix (selective)
+    par
+        GitHub Registry ->> Tests: Pull CI Images<br>[latest]
+        Note over Tests: Build CI Images<br>[COMMIT_SHA]<br>Use latest constraints<br>or upgrade if setup changed
+    and
+        Note over Tests: OpenAPI client gen
+    and
+        Note over Tests: Test UI
+    and
+        Note over Tests: Test examples<br>PROD image building
+    end
+    Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
+    GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+    Note over Tests: Verify CI Image<br>[COMMIT_SHA]
+    par
+        GitHub Registry ->> Tests: Pull PROD Images<br>[latest]
+        Note over Tests: Build PROD Images<br>[COMMIT_SHA]
+    and
+        opt
+            Note over Tests: Run static checks
+        end
+    and
+        opt
+            Note over Tests: Run basic <br>static checks
+        end
+    and
+        opt
+            Note over Tests: Build docs
+        end
+    and
+        opt
+            Note over Tests: Tests
+        end
+    and
+        opt
+            Note over Tests: Test provider <br>packages build
+        end
+    and
+        opt
+            Note over Tests: Helm tests
+        end
+    end
+    Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
+    GitHub Registry ->> Tests: Pull PROD Image<br>[COMIT_SHA]
+    Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
+    par
+        opt
             Note over Tests: Run Kubernetes <br>tests
         end
     and
-        opt Needed?
+        opt
             Note over Tests: Run Kubernetes <br>upgrade tests
         end
+    end
+    opt
+        Note over Tests: Generate constraints
     end
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
@@ -129,23 +185,15 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-    Note over Airflow Repo: merge
+    Note over Airflow Repo: pull request
     Note over Tests: push<br>[Write Token]
-    Note over Build Images: push<br>[Write Token]
     activate Airflow Repo
     Airflow Repo -->> Tests: Trigger 'push'
     activate Tests
-    Airflow Repo -->> Build Images: Trigger 'push'
-    activate Build Images
-    Note over Build Images: Build info
-    par 3.6, 3.7, 3.8, 3.9
-        activate GitHub Registry
-        GitHub Registry ->> Build Images: Pull CI Images from Cache
-        deactivate GitHub Registry
-        Note over Build Images: Build CI Images<br>[COMMIT_SHA]
-    end
-    par No CI image
-        Note over Tests: Build info<br>All tests<br>All python
+    Note over Tests: Build info<br>All tests<br>Full matrix
+    par
+        GitHub Registry ->> Tests: Pull CI Images<br>[latest]
+        Note over Tests: Build CI Images<br>[COMMIT_SHA]<br>Always upgrade deps
     and
         Note over Tests: OpenAPI client gen
     and
@@ -153,72 +201,60 @@ sequenceDiagram
     and
         Note over Tests: Test examples<br>PROD image building
     end
-    par 3.6, 3.7, 3.8, 3.9
-        Build Images ->> GitHub Registry: Push CI Images
-        activate GitHub Registry
-        Note over GitHub Registry: Tagged CI Images<br>[COMMIT_SHA]
-    end
-    par 3.6, 3.7, 3.8, 3.9
-        GitHub Registry ->> Build Images: Pull PROD Images from Cache
-        Note over Build Images: Build PROD Images<br>[COMMIT_SHA]
-    end
-    loop Wait for CI images
-        par 3.6, 3.7, 3.8, 3.9
-            Tests ->> Tests: Check CI Images
-            Note over Tests: Wait for<br>[COMMIT_SHA]
+    Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
+    GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+    Note over Tests: Verify CI Image<br>[COMMIT_SHA]
+    par
+        GitHub Registry ->> Tests: Pull PROD Images<br>[latest]
+        Note over Tests: Build PROD Images<br>[COMMIT_SHA]
+    and
+        opt
+            Note over Tests: Run static checks
+        end
+    and
+        opt
+            Note over Tests: Run basic <br>static checks
+        end
+    and
+        opt
+            Note over Tests: Build docs
+        end
+    and
+        opt
+            Note over Tests: Tests
+        end
+    and
+        opt
+            Note over Tests: Test provider <br>packages build
+        end
+    and
+        opt
+            Note over Tests: Helm tests
         end
     end
-    par 3.6, 3.7, 3.8, 3.9
-        GitHub Registry ->> Tests: Pull CI Image [COMMIT_SHA]
-        Note over Tests: Verify CI Image
-    end
-    deactivate GitHub Registry
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Tests: Run static checks
+    Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
+    GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
+    Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
+    par
+        opt
+            Note over Tests: Run Kubernetes <br>tests
+        end
     and
-        Note over Tests: Build docs
-    and
-        Note over Tests: Tests
-    and
-        Note over Tests: Test provider <br>packages build
-    and
-        Note over Tests: Helm tests
-    end
-    par 3.6, 3.7, 3.8, 3.9
-        Build Images ->> GitHub Registry: Push PROD Images
-        Note over GitHub Registry: Tagged PROD Images<br>[COMMIT_SHA]
-        activate GitHub Registry
-    end
-    deactivate Build Images
-    loop Wait for PROD images
-        par 3.6, 3.7, 3.8, 3.9
-            Tests ->> Tests: Check PROD Images
-            Note over Tests: Wait for<br>[COMMIT_SHA]
+        opt
+            Note over Tests: Run Kubernetes <br>upgrade tests
         end
     end
-    par 3.6, 3.7, 3.8, 3.9
-        GitHub Registry ->> Tests: Pull PROD Image [COMMIT_SHA]
-        Note over Tests: Verify PROD Image
+    Note over Tests: Generate constraints
+    opt In merge run?
+        Tests ->> Airflow Repo: Push constraints if changed
     end
-    deactivate GitHub Registry
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Tests: Run Kubernetes <br>tests
-    and
-        Note over Tests: Run Kubernetes <br>upgrade tests
-    end
-    Note over Tests: Merge Coverage
-    Tests -->> Coverage.io: Upload Coverage
-    par 3.6, 3.7, 3.8, 3.9
-        Tests ->> GitHub Registry: Push CI Images to Cache
-        activate GitHub Registry
-    and
-        Tests ->> GitHub Registry: Push PROD Images to Cache
-    end
-    Note over GitHub Registry: Tagged Images<br>[latest]
-    deactivate GitHub Registry
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Tests: Generate constraints
-        Tests ->> Airflow Repo: Push constraints
+    opt In merge run?
+        GitHub Registry ->> Tests: Pull CI Image<br>[latest]
+        Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
+        Tests ->> GitHub Registry: Push CI Image<br>[latest]
+        GitHub Registry ->> Tests: Pull PROD Image<br>[latest]
+        Note over Tests: Build PROD Images<br>[latest]
+        Tests ->> GitHub Registry: Push PROD Image<br>[latest]
     end
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
@@ -230,19 +266,14 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     Note over Airflow Repo: scheduled
-    Note over Tests: schedule<br>[Write Token]
-    Note over Build Images: schedule<br>[Write Token]
+    Note over Tests: push<br>[Write Token]
     activate Airflow Repo
     Airflow Repo -->> Tests: Trigger 'schedule'
     activate Tests
-    Airflow Repo -->> Build Images: Trigger 'schedule'
-    activate Build Images
-    Note over Build Images: Build info
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Build Images: Build CI Images<br>Cache disabled<br>[COMMIT_SHA]
-    end
-    par No CI image
-        Note over Tests: Build info<br>All tests<br>All python
+    Note over Tests: Build info<br>All tests<br>Full matrix
+    par
+        GitHub Registry ->> Tests: Pull CI Images<br>[latest]
+        Note over Tests: Build CI Images<br>[COMMIT_SHA]<br>Always upgrade deps
     and
         Note over Tests: OpenAPI client gen
     and
@@ -250,62 +281,57 @@ sequenceDiagram
     and
         Note over Tests: Test examples<br>PROD image building
     end
-    par 3.6, 3.7, 3.8, 3.9
-        Build Images ->> GitHub Registry: Push CI Images
-        activate GitHub Registry
-        Note over GitHub Registry: Tagged CI Images<br>[COMMIT_SHA]
-    end
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Build Images: Build PROD Images<br>Cache disabled<br>[COMMIT_SHA]
-    end
-    loop Wait for CI images
-        par 3.6, 3.7, 3.8, 3.9
-            Tests ->> Tests: Check CI Images
-            Note over Tests: Wait for<br>[COMMIT_SHA]
+    Tests ->> GitHub Registry: Push CI Images<br>[COMMIT_SHA]
+    GitHub Registry ->> Tests: Pull CI Images<br>[COMMIT_SHA]
+    Note over Tests: Verify CI Image<br>[COMMIT_SHA]
+    par
+        GitHub Registry ->> Tests: Pull PROD Images<br>[latest]
+        Note over Tests: Build PROD Images<br>[COMMIT_SHA]
+    and
+        opt
+            Note over Tests: Run static checks
+        end
+    and
+        opt
+            Note over Tests: Run basic <br>static checks
+        end
+    and
+        opt
+            Note over Tests: Build docs
+        end
+    and
+        opt
+            Note over Tests: Tests
+        end
+    and
+        opt
+            Note over Tests: Test provider <br>packages build
+        end
+    and
+        opt
+            Note over Tests: Helm tests
         end
     end
-    par 3.6, 3.7, 3.8, 3.9
-        GitHub Registry ->> Tests: Pull CI Image [COMMIT_SHA]
-        Note over Tests: Verify CI Image
-    end
-    deactivate GitHub Registry
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Tests: Run static checks
+    Tests ->> GitHub Registry: Push PROD Images<br>[COMMIT_SHA]
+    GitHub Registry ->> Tests: Pull PROD Image<br>[COMMIT_SHA]
+    Note over Tests: Verify PROD Image<br>[COMMIT_SHA]
+    par
+        opt
+            Note over Tests: Run Kubernetes <br>tests
+        end
     and
-        Note over Tests: Build docs
-    and
-        Note over Tests: Tests
-    and
-        Note over Tests: Test provider <br>packages build
-    and
-        Note over Tests: Helm tests
-    end
-    par 3.6, 3.7, 3.8, 3.9
-        Build Images ->> GitHub Registry: Push PROD Images
-        activate GitHub Registry
-        Note over GitHub Registry: Tagged PROD Images<br>[COMMIT_SHA]
-    end
-    deactivate Build Images
-    loop Wait for PROD images
-        par 3.6, 3.7, 3.8, 3.9
-            Tests ->> Tests: Check PROD Images
-            Note over Tests: Wait for<br>[COMMIT_SHA]
+        opt
+            Note over Tests: Run Kubernetes <br>upgrade tests
         end
     end
-    par 3.6, 3.7, 3.8, 3.9
-        GitHub Registry ->> Tests: Pull PROD Image [COMMIT_SHA]
-        Note over Tests: Verify PROD Image
-    end
-    deactivate GitHub Registry
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Tests: Run Kubernetes <br>tests
-    and
-        Note over Tests: Run Kubernetes <br>upgrade tests
-    end
-    par 3.6, 3.7, 3.8, 3.9
-        Note over Tests: Generate constraints
-        Tests ->> Airflow Repo: Push constraints
-    end
+    Note over Tests: Generate constraints
+    Tests ->> Airflow Repo: Push constraints if changed
+    GitHub Registry ->> Tests: Pull CI Image<br>[latest]
+    Note over Tests: Build CI Images<br>[latest]<br>Use latest constraints
+    Tests ->> GitHub Registry: Push CI Image<br>[latest]
+    GitHub Registry ->> Tests: Pull PROD Image<br>[latest]
+    Note over Tests: Build PROD Images<br>[latest]
+    Tests ->> GitHub Registry: Push PROD Image<br>[latest]
     Tests -->> Airflow Repo: Status update
     deactivate Airflow Repo
     deactivate Tests

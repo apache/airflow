@@ -106,7 +106,7 @@ class SESHook(SesHook):
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This hook is deprecated. " "Please use :class:`airflow.providers.amazon.aws.hooks.ses.SesHook`.",
+            "This hook is deprecated. Please use :class:`airflow.providers.amazon.aws.hooks.ses.SesHook`.",
             DeprecationWarning,
             stacklevel=2,
         )

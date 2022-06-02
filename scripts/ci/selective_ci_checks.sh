@@ -44,13 +44,8 @@ fi
 
 function check_upgrade_to_newer_dependencies_needed() {
     if [[ ${GITHUB_EVENT_NAME=} == 'push' || ${GITHUB_EVENT_NAME=} == "scheduled" ]]; then
-        # Trigger upgrading to latest constraints when we are in push or schedule event. We use the
-        # random string so that it always triggers rebuilding layer in the docker image
-        # Each build that upgrades to latest constraints will get truly latest constraints, not those
-        # cached in the image because docker layer will get invalidated.
-        # This upgrade_to_newer_dependencies variable can later be overridden
-        # in case we find that any of the setup.* files changed (see below)
-        upgrade_to_newer_dependencies="${RANDOM}"
+        # Trigger upgrading to latest constraints when we are in push or schedule event
+        upgrade_to_newer_dependencies="true"
     fi
 }
 
@@ -127,7 +122,7 @@ function output_all_basic_variables() {
     if [[ ${FULL_TESTS_NEEDED_LABEL} == "true" ]]; then
         initialization::ga_output postgres-exclude '[{ "python-version": "3.7" }]'
         initialization::ga_output mssql-exclude '[{ "python-version": "3.8" }]'
-        initialization::ga_output mysql-exclude '[]'
+        initialization::ga_output mysql-exclude '[{ "python-version": "3.10" }]'
         initialization::ga_output sqlite-exclude '[{ "python-version": "3.9" }]'
     else
         initialization::ga_output postgres-exclude '[]'
@@ -358,9 +353,8 @@ function check_if_setup_files_changed() {
 
     if [[ $(count_changed_files) != "0" ]]; then
         # In case the setup files changed, we automatically force upgrading to newer dependencies
-        # no matter what was set before. We set it to random number to make sure that it will be
-        # always invalidating the layer in Docker that triggers installing the dependencies
-        upgrade_to_newer_dependencies="${RANDOM}"
+        # no matter what was set before.
+        upgrade_to_newer_dependencies="true"
     fi
     start_end::group_end
 }
@@ -596,8 +590,8 @@ function get_count_cli_files() {
 function get_count_providers_files() {
     start_end::group_start "Count providers files"
     local pattern_array=(
-        "^airflow/providers"
-        "^tests/providers"
+        "^airflow/providers/"
+        "^tests/providers/"
     )
     show_changed_files
     COUNT_PROVIDERS_CHANGED_FILES=$(count_changed_files)

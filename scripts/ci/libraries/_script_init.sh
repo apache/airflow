@@ -41,11 +41,9 @@ sanity_checks::basic_sanity_checks
 
 start_end::script_start
 
-build_images::determine_docker_cache_strategy
+initialization::get_docker_cache_image_names
 
 initialization::get_environment_for_builds_on_ci
-
-build_images::get_docker_cache_image_names
 
 initialization::make_constants_read_only
 

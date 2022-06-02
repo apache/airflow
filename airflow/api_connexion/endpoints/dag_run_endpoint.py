@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from http import HTTPStatus
 from typing import List, Optional, Tuple
 
 import pendulum
@@ -23,16 +24,25 @@ from marshmallow import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session
 
-from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
+from airflow.api.common.mark_tasks import (
+    set_dag_run_state_to_failed,
+    set_dag_run_state_to_queued,
+    set_dag_run_state_to_success,
+)
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
     DAGRunCollection,
+    clear_dagrun_form_schema,
     dagrun_collection_schema,
     dagrun_schema,
     dagruns_batch_form_schema,
     set_dagrun_state_form_schema,
+)
+from airflow.api_connexion.schemas.task_instance_schema import (
+    TaskInstanceReferenceCollection,
+    task_instance_reference_collection_schema,
 )
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
@@ -53,7 +63,7 @@ def delete_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSI
     """Delete a DAG Run"""
     if session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).delete() == 0:
         raise NotFound(detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found")
-    return NoContent, 204
+    return NoContent, HTTPStatus.NO_CONTENT
 
 
 @security.requires_access(
@@ -308,7 +318,60 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
     dag = current_app.dag_bag.get_dag(dag_id)
     if state == DagRunState.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
+    elif state == DagRunState.QUEUED:
+        set_dag_run_state_to_queued(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
         set_dag_run_state_to_failed(dag=dag, run_id=dag_run.run_id, commit=True)
     dag_run = session.query(DagRun).get(dag_run.id)
     return dagrun_schema.dump(dag_run)
+
+
+@security.requires_access(
+    [
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+        (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG_RUN),
+    ],
+)
+@provide_session
+def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION) -> APIResponse:
+    """Clear a dag run."""
+    dag_run: Optional[DagRun] = (
+        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+    )
+    if dag_run is None:
+        error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
+        raise NotFound(error_message)
+    try:
+        post_body = clear_dagrun_form_schema.load(request.json)
+    except ValidationError as err:
+        raise BadRequest(detail=str(err))
+
+    dry_run = post_body.get('dry_run', False)
+    dag = current_app.dag_bag.get_dag(dag_id)
+    start_date = dag_run.logical_date
+    end_date = dag_run.logical_date
+
+    if dry_run:
+        task_instances = dag.clear(
+            start_date=start_date,
+            end_date=end_date,
+            task_ids=None,
+            include_subdags=True,
+            include_parentdag=True,
+            only_failed=False,
+            dry_run=True,
+        )
+        return task_instance_reference_collection_schema.dump(
+            TaskInstanceReferenceCollection(task_instances=task_instances)
+        )
+    else:
+        dag.clear(
+            start_date=start_date,
+            end_date=end_date,
+            task_ids=None,
+            include_subdags=True,
+            include_parentdag=True,
+            only_failed=False,
+        )
+        dag_run.refresh_from_db()
+        return dagrun_schema.dump(dag_run)

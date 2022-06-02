@@ -45,7 +45,7 @@ class TimerProtocol(Protocol):
         ...
 
     def stop(self, send=True):
-        """Stop, and (by default) submit the timer to statsd"""
+        """Stop, and (by default) submit the timer to StatsD"""
         ...
 
 
@@ -75,7 +75,7 @@ class StatsLogger(Protocol):
 
 class Timer:
     """
-    Timer that records duration, and optional sends to statsd backend.
+    Timer that records duration, and optional sends to StatsD backend.
 
     This class lets us have an accurate timer with the logic in one place (so
     that we don't use datetime math for duration -- it is error prone).
@@ -182,7 +182,7 @@ ALLOWED_CHARACTERS = set(string.ascii_letters + string.digits + '_.-')
 
 
 def stat_name_default_handler(stat_name, max_length=250) -> str:
-    """A function that validate the statsd stat name, apply changes to the stat name
+    """A function that validate the StatsD stat name, apply changes to the stat name
     if necessary and return the transformed stat name.
     """
     if not isinstance(stat_name, str):
@@ -244,7 +244,7 @@ class AllowListValidator:
 
 
 class SafeStatsdLogger:
-    """Statsd Logger"""
+    """StatsD Logger"""
 
     def __init__(self, statsd_client, allow_list_validator=AllowListValidator()):
         self.statsd = statsd_client
@@ -362,7 +362,7 @@ class _Stats(type):
 
     @classmethod
     def get_statsd_logger(cls):
-        """Returns logger for statsd"""
+        """Returns logger for StatsD"""
         # no need to check for the scheduler/statsd_on -> this method is only called when it is set
         # and previously it would crash with None is callable if it was called without it.
         from statsd import StatsClient
@@ -372,11 +372,11 @@ class _Stats(type):
         if stats_class:
             if not issubclass(stats_class, StatsClient):
                 raise AirflowConfigException(
-                    "Your custom Statsd client must extend the statsd.StatsClient in order to ensure "
+                    "Your custom StatsD client must extend the statsd.StatsClient in order to ensure "
                     "backwards compatibility."
                 )
             else:
-                log.info("Successfully loaded custom Statsd client")
+                log.info("Successfully loaded custom StatsD client")
 
         else:
             stats_class = StatsClient
@@ -391,7 +391,7 @@ class _Stats(type):
 
     @classmethod
     def get_dogstatsd_logger(cls):
-        """Get DataDog statsd logger"""
+        """Get DataDog StatsD logger"""
         from datadog import DogStatsd
 
         dogstatsd = DogStatsd(

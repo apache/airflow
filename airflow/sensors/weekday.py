@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
 
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils import timezone
@@ -33,7 +34,7 @@ class DayOfWeekSensor(BaseSensorOperator):
         weekend_check = DayOfWeekSensor(
             task_id='weekend_check',
             week_day='Saturday',
-            use_task_execution_day=True,
+            use_task_logical_date=True,
             dag=dag)
 
     **Example** (with multiple day using set): ::
@@ -41,7 +42,7 @@ class DayOfWeekSensor(BaseSensorOperator):
         weekend_check = DayOfWeekSensor(
             task_id='weekend_check',
             week_day={'Saturday', 'Sunday'},
-            use_task_execution_day=True,
+            use_task_logical_date=True,
             dag=dag)
 
     **Example** (with :class:`~airflow.utils.weekday.WeekDay` enum): ::
@@ -52,7 +53,7 @@ class DayOfWeekSensor(BaseSensorOperator):
         weekend_check = DayOfWeekSensor(
             task_id='weekend_check',
             week_day={WeekDay.SATURDAY, WeekDay.SUNDAY},
-            use_task_execution_day=True,
+            use_task_logical_date=True,
             dag=dag)
 
     :param week_day: Day of the week to check (full name). Optionally, a set
@@ -64,16 +65,23 @@ class DayOfWeekSensor(BaseSensorOperator):
             * ``{WeekDay.TUESDAY}``
             * ``{WeekDay.SATURDAY, WeekDay.SUNDAY}``
 
-    :param use_task_execution_day: If ``True``, uses task's execution day to compare
+    :param use_task_logical_date: If ``True``, uses task's logical date to compare
         with week_day. Execution Date is Useful for backfilling.
         If ``False``, uses system's day of the week. Useful when you
         don't want to run anything on weekdays on the system.
     """
 
-    def __init__(self, *, week_day, use_task_execution_day=False, **kwargs):
+    def __init__(self, *, week_day, use_task_logical_date=False, use_task_execution_day=False, **kwargs):
         super().__init__(**kwargs)
         self.week_day = week_day
-        self.use_task_execution_day = use_task_execution_day
+        self.use_task_logical_date = use_task_logical_date
+        if use_task_execution_day:
+            self.use_task_logical_date = use_task_execution_day
+            warnings.warn(
+                "Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
         self._week_day_num = WeekDay.validate_week_day(week_day)
 
     def poke(self, context: Context):
@@ -82,7 +90,7 @@ class DayOfWeekSensor(BaseSensorOperator):
             self.week_day,
             WeekDay(timezone.utcnow().isoweekday()).name,
         )
-        if self.use_task_execution_day:
+        if self.use_task_logical_date:
             return context['logical_date'].isoweekday() in self._week_day_num
         else:
             return timezone.utcnow().isoweekday() in self._week_day_num

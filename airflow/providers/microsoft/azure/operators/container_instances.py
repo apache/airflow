@@ -212,7 +212,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         for conn_id, account_name, share_name, mount_path, read_only in self.volumes:
             hook = AzureContainerVolumeHook(conn_id)
 
-            mount_name = "mount-%d" % len(volumes)
+            mount_name = f"mount-{len(volumes)}"
             volumes.append(hook.get_file_volume(mount_name, share_name, account_name, read_only))
             volume_mounts.append(VolumeMount(name=mount_name, mount_path=mount_path, read_only=read_only))
 

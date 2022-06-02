@@ -19,6 +19,8 @@
 
 from unittest import TestCase, mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.vertex_ai.custom_job import CustomJobHook
 from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
@@ -57,7 +59,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.pipeline_job_path.assert_called_once_with(
@@ -77,7 +79,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -100,7 +102,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 pipeline_job_id=TEST_PIPELINE_JOB_ID,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -119,7 +121,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 training_pipeline=TEST_TRAINING_PIPELINE,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -137,7 +139,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.pipeline_job_path.assert_called_once_with(
@@ -157,7 +159,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -177,7 +179,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.pipeline_job_path.assert_called_once_with(
@@ -197,7 +199,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -220,7 +222,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -241,7 +243,7 @@ class TestCustomJobWithDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -267,7 +269,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.pipeline_job_path.assert_called_once_with(
@@ -287,7 +289,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -310,7 +312,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 pipeline_job_id=TEST_PIPELINE_JOB_ID,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -329,7 +331,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 training_pipeline=TEST_TRAINING_PIPELINE,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -347,7 +349,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.pipeline_job_path.assert_called_once_with(
@@ -367,7 +369,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -387,7 +389,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.pipeline_job_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.pipeline_job_path.assert_called_once_with(
@@ -407,7 +409,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 name=mock_client.return_value.training_pipeline_path.return_value,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.training_pipeline_path.assert_called_once_with(
@@ -430,7 +432,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 order_by=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)
@@ -451,7 +453,7 @@ class TestCustomJobWithoutDefaultProjectIdHook(TestCase):
                 read_mask=None,
             ),
             metadata=(),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_client.return_value.common_location_path.assert_called_once_with(TEST_PROJECT_ID, TEST_REGION)

@@ -18,7 +18,7 @@
 """Hook for Cloudant"""
 from typing import Any, Dict
 
-from cloudant import cloudant
+from cloudant import cloudant  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook

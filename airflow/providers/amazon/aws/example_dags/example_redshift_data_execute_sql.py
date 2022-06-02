@@ -57,7 +57,7 @@ with DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
-    # [START howto_redshift_data]
+    # [START howto_operator_redshift_data]
     task_query = RedshiftDataOperator(
         task_id='redshift_query',
         cluster_identifier=REDSHIFT_CLUSTER_IDENTIFIER,
@@ -67,6 +67,6 @@ with DAG(
         poll_interval=POLL_INTERVAL,
         await_result=True,
     )
-    # [END howto_redshift_data]
+    # [END howto_operator_redshift_data]
 
     task_output = output_query_results(task_query.output)

@@ -19,16 +19,14 @@
 Changelog
 ---------
 
-2.1.1
+2.3.0
 .....
-
-Breaking changes
-~~~~~~~~~~~~~~~~
-
 
 Features
 ~~~~~~~~
 
+* ``TrinoHook add authentication via JWT token and Impersonation  (#23116)``
+* ``Make presto and trino compatible with airflow 2.1 (#23061)``
 
 Bug Fixes
 ~~~~~~~~~
@@ -36,6 +34,32 @@ Bug Fixes
 
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+   * ``Fix new MyPy errors in main (#22884)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass X-Trino-Client-Info in trino hook (#22535)``
+
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
 
 2.1.0
 .....

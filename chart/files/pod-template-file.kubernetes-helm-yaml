@@ -18,6 +18,7 @@
 {{- $nodeSelector := or .Values.workers.nodeSelector .Values.nodeSelector }}
 {{- $affinity := or .Values.workers.affinity .Values.affinity }}
 {{- $tolerations := or .Values.workers.tolerations .Values.tolerations }}
+{{- $topologySpreadConstraints := or .Values.workers.topologySpreadConstraints .Values.topologySpreadConstraints }}
 {{- $securityContext := include "airflowSecurityContext" (list . .Values.workers) }}
 apiVersion: v1
 kind: Pod
@@ -88,6 +89,7 @@ spec:
   nodeSelector: {{ toYaml $nodeSelector | nindent 4 }}
   affinity: {{ toYaml $affinity | nindent 4 }}
   tolerations: {{ toYaml $tolerations | nindent 4 }}
+  topologySpreadConstraints: {{ toYaml $topologySpreadConstraints | nindent 4 }}
   serviceAccountName: {{ include "worker.serviceAccountName" . }}
   volumes:
   {{- if .Values.dags.persistence.enabled }}

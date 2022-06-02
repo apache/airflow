@@ -18,7 +18,7 @@
 ################################
 ## Airflow Webserver Ingress
 #################################
-{{- if .Values.ingress.enabled }}
+{{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
 {{- $apiIsStable := semverCompare ">= 1.19.x" (include "kubeVersion" .) -}}
 {{- if $apiIsStable }}
 apiVersion: networking.k8s.io/v1

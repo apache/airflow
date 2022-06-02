@@ -47,6 +47,7 @@ EXPECTED_ADDITIONAL_OPTIONS = {
     'output': 'gs://test/output',
     'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},
 }
+TEST_IMPERSONATION_ACCOUNT = "test@impersonation.com"
 
 
 class TestBeamRunPythonPipelineOperator(unittest.TestCase):
@@ -104,7 +105,7 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
         """Test DataflowHook is created and the right args are passed to
         start_python_dataflow.
         """
-        dataflow_config = DataflowConfiguration()
+        dataflow_config = DataflowConfiguration(impersonation_chain=TEST_IMPERSONATION_ACCOUNT)
         self.operator.runner = "DataflowRunner"
         self.operator.dataflow_config = dataflow_config
         gcs_provide_file = gcs_hook.return_value.provide_file
@@ -126,6 +127,7 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
             'output': 'gs://test/output',
             'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},
             'region': 'us-central1',
+            'impersonate_service_account': TEST_IMPERSONATION_ACCOUNT,
         }
         gcs_provide_file.assert_called_once_with(object_url=PY_FILE)
         persist_link_mock.assert_called_once_with(
@@ -149,6 +151,7 @@ class TestBeamRunPythonPipelineOperator(unittest.TestCase):
             job_name=job_name,
             location='us-central1',
             multiple_jobs=False,
+            project_id=dataflow_config.project_id,
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 
@@ -222,7 +225,7 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
         """Test DataflowHook is created and the right args are passed to
         start_java_dataflow.
         """
-        dataflow_config = DataflowConfiguration()
+        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
         self.operator.runner = "DataflowRunner"
         self.operator.dataflow_config = dataflow_config
         gcs_provide_file = gcs_hook.return_value.provide_file
@@ -247,6 +250,7 @@ class TestBeamRunJavaPipelineOperator(unittest.TestCase):
             'region': 'us-central1',
             'labels': {'foo': 'bar', 'airflow-version': TEST_VERSION},
             'output': 'gs://test/output',
+            'impersonateServiceAccount': TEST_IMPERSONATION_ACCOUNT,
         }
         persist_link_mock.assert_called_once_with(
             self.operator,
@@ -373,7 +377,7 @@ class TestBeamRunGoPipelineOperator(unittest.TestCase):
         """Test DataflowHook is created and the right args are passed to
         start_go_dataflow.
         """
-        dataflow_config = DataflowConfiguration()
+        dataflow_config = DataflowConfiguration(impersonation_chain="test@impersonation.com")
         self.operator.runner = "DataflowRunner"
         self.operator.dataflow_config = dataflow_config
         gcs_provide_file = gcs_hook.return_value.provide_file
@@ -415,6 +419,7 @@ class TestBeamRunGoPipelineOperator(unittest.TestCase):
             job_name=job_name,
             location='us-central1',
             multiple_jobs=False,
+            project_id=dataflow_config.project_id,
         )
         dataflow_hook_mock.return_value.provide_authorized_gcloud.assert_called_once_with()
 

@@ -27,6 +27,9 @@ from airflow.models.baseoperator import BaseOperator
 
 # [START example_cluster_policy_rule]
 def task_must_have_owners(task: BaseOperator):
+    if task.owner and not isinstance(task.owner, str):
+        raise AirflowClusterPolicyViolation(f'''owner should be a string. Current value: {task.owner!r}''')
+
     if not task.owner or task.owner.lower() == conf.get('operators', 'default_owner'):
         raise AirflowClusterPolicyViolation(
             f'''Task must have non-None non-default owner. Current value: {task.owner}'''
@@ -59,7 +62,7 @@ def _check_task_rules(current_task: BaseOperator):
         )
 
 
-def cluster_policy(task: BaseOperator):
+def example_task_policy(task: BaseOperator):
     """Ensure Tasks have non-default owners."""
     _check_task_rules(task)
 
@@ -78,11 +81,11 @@ def dag_policy(dag: DAG):
 # [END example_dag_cluster_policy]
 
 
+# [START example_task_cluster_policy]
 class TimedOperator(BaseOperator, ABC):
     timeout: timedelta
 
 
-# [START example_task_cluster_policy]
 def task_policy(task: TimedOperator):
     if task.task_type == 'HivePartitionSensor':
         task.queue = "sensor_queue"

@@ -28,7 +28,7 @@ from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Union
 
 import lazy_object_proxy
 
-from airflow import PY37, settings
+from airflow import settings
 from airflow.cli.commands.legacy_commands import check_legacy_command
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
@@ -97,9 +97,6 @@ class DefaultHelpParser(argparse.ArgumentParser):
                     "To do it, run: pip install 'apache-airflow[cncf.kubernetes]'"
                 )
                 raise ArgumentError(action, message)
-        if action.dest == 'subcommand' and value == 'triggerer':
-            if not PY37:
-                raise ArgumentError(action, 'triggerer subcommand only works with Python 3.7+')
 
         if action.choices is not None and value not in action.choices:
             check_legacy_command(action, value)
@@ -337,6 +334,11 @@ ARG_RERUN_FAILED_TASKS = Arg(
     ),
     action="store_true",
 )
+ARG_CONTINUE_ON_FAILURES = Arg(
+    ("--continue-on-failures",),
+    help=("if set, the backfill will keep going even if some of the tasks failed"),
+    action="store_true",
+)
 ARG_RUN_BACKWARDS = Arg(
     (
         "-B",
@@ -510,7 +512,6 @@ ARG_SHIP_DAG = Arg(
     ("--ship-dag",), help="Pickles (serializes) the DAG and ships it to the worker", action="store_true"
 )
 ARG_PICKLE = Arg(("-p", "--pickle"), help="Serialized pickle object of the entire dag (used internally)")
-ARG_ERROR_FILE = Arg(("--error-file",), help="File to store task failure error")
 ARG_JOB_ID = Arg(("-j", "--job-id"), help=argparse.SUPPRESS)
 ARG_CFG_PATH = Arg(("--cfg-path",), help="Path to config file to use instead of airflow.cfg")
 ARG_MAP_INDEX = Arg(('--map-index',), type=int, default=-1, help="Mapped task index")
@@ -524,18 +525,18 @@ ARG_MIGRATION_TIMEOUT = Arg(
     default=60,
 )
 ARG_DB_VERSION__UPGRADE = Arg(
-    ("-n", "--version"),
+    ("-n", "--to-version"),
     help=(
         "(Optional) The airflow version to upgrade to. Note: must provide either "
-        "`--revision` or `--version`."
+        "`--to-revision` or `--to-version`."
     ),
 )
 ARG_DB_REVISION__UPGRADE = Arg(
-    ("-r", "--revision"),
-    help="(Optional) If provided, only run migrations up to and including this revision.",
+    ("-r", "--to-revision"),
+    help="(Optional) If provided, only run migrations up to and including this Alembic revision.",
 )
 ARG_DB_VERSION__DOWNGRADE = Arg(
-    ("-n", "--version"),
+    ("-n", "--to-version"),
     help="(Optional) If provided, only run migrations up to this version.",
 )
 ARG_DB_FROM_VERSION = Arg(
@@ -543,17 +544,23 @@ ARG_DB_FROM_VERSION = Arg(
     help="(Optional) If generating sql, may supply a *from* version",
 )
 ARG_DB_REVISION__DOWNGRADE = Arg(
-    ("-r", "--revision"),
-    help="The airflow revision to downgrade to. Note: must provide either `--revision` or `--version`.",
+    ("-r", "--to-revision"),
+    help="The Alembic revision to downgrade to. Note: must provide either `--to-revision` or `--to-version`.",
 )
 ARG_DB_FROM_REVISION = Arg(
     ("--from-revision",),
-    help="(Optional) If generating sql, may supply a *from* revision",
+    help="(Optional) If generating sql, may supply a *from* Alembic revision",
 )
 ARG_DB_SQL_ONLY = Arg(
     ("-s", "--show-sql-only"),
     help="Don't actually run migrations; just print out sql scripts for offline migration. "
     "Required if using either `--from-version` or `--from-version`.",
+    action="store_true",
+    default=False,
+)
+ARG_DB_SKIP_INIT = Arg(
+    ("-s", "--skip-init"),
+    help="Only remove tables; do not perform db init.",
     action="store_true",
     default=False,
 )
@@ -1111,6 +1118,7 @@ DAGS_COMMANDS = (
             ARG_LOCAL,
             ARG_DONOT_PICKLE,
             ARG_YES,
+            ARG_CONTINUE_ON_FAILURES,
             ARG_BF_IGNORE_DEPENDENCIES,
             ARG_BF_IGNORE_FIRST_DEPENDS_ON_PAST,
             ARG_SUBDIR,
@@ -1255,7 +1263,6 @@ TASKS_COMMANDS = (
             ARG_PICKLE,
             ARG_JOB_ID,
             ARG_INTERACTIVE,
-            ARG_ERROR_FILE,
             ARG_SHUT_DOWN_LOGGING,
             ARG_MAP_INDEX,
         ),
@@ -1381,7 +1388,7 @@ DB_COMMANDS = (
         name='reset',
         help="Burn down and rebuild the metadata database",
         func=lazy_load_command('airflow.cli.commands.db_command.resetdb'),
-        args=(ARG_YES,),
+        args=(ARG_YES, ARG_DB_SKIP_INIT),
     ),
     ActionCommand(
         name='upgrade',
@@ -1391,7 +1398,7 @@ DB_COMMANDS = (
             "To print but not execute commands, use option ``--show-sql-only``. "
             "If using options ``--from-revision`` or ``--from-version``, you must also use "
             "``--show-sql-only``, because if actually *running* migrations, we should only "
-            "migrate from the *current* revision."
+            "migrate from the *current* Alembic revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.upgradedb'),
         args=(
@@ -1407,10 +1414,11 @@ DB_COMMANDS = (
         help="Downgrade the schema of the metadata database.",
         description=(
             "Downgrade the schema of the metadata database. "
-            "You must provide either `--revision` or `--version`. "
+            "You must provide either `--to-revision` or `--to-version`. "
             "To print but not execute commands, use option `--show-sql-only`. "
             "If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`, "
-            "because if actually *running* migrations, we should only migrate from the *current* revision."
+            "because if actually *running* migrations, we should only migrate from the *current* Alembic "
+            "revision."
         ),
         func=lazy_load_command('airflow.cli.commands.db_command.downgrade'),
         args=(
@@ -1861,6 +1869,21 @@ airflow_commands: List[CLICommand] = [
             ARG_STDERR,
             ARG_LOG_FILE,
             ARG_CAPACITY,
+        ),
+    ),
+    ActionCommand(
+        name='dag-processor',
+        help="Start a standalone Dag Processor instance",
+        func=lazy_load_command('airflow.cli.commands.dag_processor_command.dag_processor'),
+        args=(
+            ARG_PID,
+            ARG_DAEMON,
+            ARG_SUBDIR,
+            ARG_NUM_RUNS,
+            ARG_DO_PICKLE,
+            ARG_STDOUT,
+            ARG_STDERR,
+            ARG_LOG_FILE,
         ),
     ),
     ActionCommand(

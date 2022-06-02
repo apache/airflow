@@ -100,7 +100,7 @@ class AwsSnsHook(SnsHook):
 
     def __init__(self, *args, **kwargs):
         warnings.warn(
-            "This hook is deprecated. " "Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.",
+            "This hook is deprecated. Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.",
             DeprecationWarning,
             stacklevel=2,
         )

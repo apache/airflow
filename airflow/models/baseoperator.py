@@ -18,6 +18,7 @@
 """Base operator for all operators."""
 import abc
 import collections
+import collections.abc
 import contextlib
 import copy
 import functools
@@ -58,12 +59,14 @@ from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.lineage import apply_lineage, prepare_lineage
 from airflow.models.abstractoperator import (
+    DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
     DEFAULT_QUEUE,
     DEFAULT_RETRIES,
     DEFAULT_RETRY_DELAY,
+    DEFAULT_TASK_EXECUTION_TIMEOUT,
     DEFAULT_TRIGGER_RULE,
     DEFAULT_WEIGHT_RULE,
     AbstractOperator,
@@ -118,11 +121,11 @@ def parse_retries(retries: Any) -> Optional[int]:
     return parsed_retries
 
 
-def coerce_retry_delay(retry_delay: Union[float, timedelta]) -> timedelta:
-    if isinstance(retry_delay, timedelta):
-        return retry_delay
-    logger.debug("retry_delay isn't a timedelta object, assuming secs")
-    return timedelta(seconds=retry_delay)
+def coerce_timedelta(value: Union[float, timedelta], *, key: str) -> timedelta:
+    if isinstance(value, timedelta):
+        return value
+    logger.debug("%s isn't a timedelta object, assuming secs", key)
+    return timedelta(seconds=value)
 
 
 def coerce_resources(resources: Optional[Dict[str, Any]]) -> Optional[Resources]:
@@ -131,7 +134,7 @@ def coerce_resources(resources: Optional[Dict[str, Any]]) -> Optional[Resources]
     return Resources(**resources)
 
 
-def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
+def _get_parent_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -> Tuple[dict, ParamsDict]:
     if not dag:
         return {}, ParamsDict()
     dag_args = copy.copy(dag.default_args)
@@ -143,20 +146,24 @@ def _get_dag_defaults(dag: Optional["DAG"], task_group: Optional["TaskGroup"]) -
     return dag_args, dag_params
 
 
-def _merge_defaults(
-    dag_args: dict,
-    dag_params: ParamsDict,
+def get_merged_defaults(
+    dag: Optional["DAG"],
+    task_group: Optional["TaskGroup"],
     task_params: Optional[dict],
-    task_default_args: dict,
+    task_default_args: Optional[dict],
 ) -> Tuple[dict, ParamsDict]:
+    args, params = _get_parent_defaults(dag, task_group)
     if task_params:
-        dag_params.update(task_params)
-    if task_default_args and not isinstance(task_default_args, collections.abc.Mapping):
-        raise TypeError("default_args must be a mapping")
-    dag_args.update(task_default_args)
-    with contextlib.suppress(KeyError):
-        dag_params.update(task_default_args.pop("params"))
-    return dag_args, dag_params
+        if not isinstance(task_params, collections.abc.Mapping):
+            raise TypeError("params must be a mapping")
+        params.update(task_params)
+    if task_default_args:
+        if not isinstance(task_default_args, collections.abc.Mapping):
+            raise TypeError("default_args must be a mapping")
+        args.update(task_default_args)
+        with contextlib.suppress(KeyError):
+            params.update(task_default_args["params"] or {})
+    return args, params
 
 
 class _PartialDescriptor:
@@ -191,12 +198,14 @@ def partial(
     resources: Optional[Dict[str, Any]] = None,
     trigger_rule: str = DEFAULT_TRIGGER_RULE,
     depends_on_past: bool = False,
+    ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     wait_for_downstream: bool = False,
     retries: Optional[int] = DEFAULT_RETRIES,
     queue: str = DEFAULT_QUEUE,
     pool: Optional[str] = None,
     pool_slots: int = DEFAULT_POOL_SLOTS,
-    execution_timeout: Optional[timedelta] = None,
+    execution_timeout: Optional[timedelta] = DEFAULT_TASK_EXECUTION_TIMEOUT,
+    max_retry_delay: Union[None, timedelta, float] = None,
     retry_delay: Union[timedelta, float] = DEFAULT_RETRY_DELAY,
     retry_exponential_backoff: bool = False,
     priority_weight: int = DEFAULT_PRIORITY_WEIGHT,
@@ -211,6 +220,11 @@ def partial(
     executor_config: Optional[Dict] = None,
     inlets: Optional[Any] = None,
     outlets: Optional[Any] = None,
+    doc: Optional[str] = None,
+    doc_md: Optional[str] = None,
+    doc_json: Optional[str] = None,
+    doc_yaml: Optional[str] = None,
+    doc_rst: Optional[str] = None,
     **kwargs,
 ) -> OperatorPartial:
     from airflow.models.dag import DagContext
@@ -225,12 +239,11 @@ def partial(
         task_id = task_group.child_id(task_id)
 
     # Merge DAG and task group level defaults into user-supplied values.
-    dag_args, dag_params = _get_dag_defaults(dag, task_group)
-    partial_kwargs, default_params = _merge_defaults(
-        dag_args=dag_args,
-        dag_params=dag_params,
+    partial_kwargs, default_params = get_merged_defaults(
+        dag=dag,
+        task_group=task_group,
         task_params=params,
-        task_default_args=kwargs.pop("default_args", {}),
+        task_default_args=kwargs.pop("default_args", None),
     )
     partial_kwargs.update(kwargs)
 
@@ -245,12 +258,14 @@ def partial(
     partial_kwargs.setdefault("params", default_params)
     partial_kwargs.setdefault("trigger_rule", trigger_rule)
     partial_kwargs.setdefault("depends_on_past", depends_on_past)
+    partial_kwargs.setdefault("ignore_first_depends_on_past", ignore_first_depends_on_past)
     partial_kwargs.setdefault("wait_for_downstream", wait_for_downstream)
     partial_kwargs.setdefault("retries", retries)
     partial_kwargs.setdefault("queue", queue)
     partial_kwargs.setdefault("pool", pool)
     partial_kwargs.setdefault("pool_slots", pool_slots)
     partial_kwargs.setdefault("execution_timeout", execution_timeout)
+    partial_kwargs.setdefault("max_retry_delay", max_retry_delay)
     partial_kwargs.setdefault("retry_delay", retry_delay)
     partial_kwargs.setdefault("retry_exponential_backoff", retry_exponential_backoff)
     partial_kwargs.setdefault("priority_weight", priority_weight)
@@ -266,6 +281,11 @@ def partial(
     partial_kwargs.setdefault("inlets", inlets)
     partial_kwargs.setdefault("outlets", outlets)
     partial_kwargs.setdefault("resources", resources)
+    partial_kwargs.setdefault("doc", doc)
+    partial_kwargs.setdefault("doc_json", doc_json)
+    partial_kwargs.setdefault("doc_md", doc_md)
+    partial_kwargs.setdefault("doc_rst", doc_rst)
+    partial_kwargs.setdefault("doc_yaml", doc_yaml)
 
     # Post-process arguments. Should be kept in sync with _TaskDecorator.expand().
     if "task_concurrency" in kwargs:  # Reject deprecated option.
@@ -277,7 +297,12 @@ def partial(
     if partial_kwargs["pool"] is None:
         partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
     partial_kwargs["retries"] = parse_retries(partial_kwargs["retries"])
-    partial_kwargs["retry_delay"] = coerce_retry_delay(partial_kwargs["retry_delay"])
+    partial_kwargs["retry_delay"] = coerce_timedelta(partial_kwargs["retry_delay"], key="retry_delay")
+    if partial_kwargs["max_retry_delay"] is not None:
+        partial_kwargs["max_retry_delay"] = coerce_timedelta(
+            partial_kwargs["max_retry_delay"],
+            key="max_retry_delay",
+        )
     partial_kwargs["executor_config"] = partial_kwargs["executor_config"] or {}
     partial_kwargs["resources"] = coerce_resources(partial_kwargs["resources"])
 
@@ -342,9 +367,9 @@ class BaseOperatorMeta(abc.ABCMeta):
             if len(args) > 0:
                 raise AirflowException("Use keyword arguments when initializing operators")
 
-            mapped_validation_only = kwargs.pop(
-                "_airflow_mapped_validation_only",
-                getattr(self, "_BaseOperator__mapped_validation", False),
+            instantiated_from_mapped = kwargs.pop(
+                "_airflow_from_mapped",
+                getattr(self, "_BaseOperator__from_mapped", False),
             )
 
             dag: Optional[DAG] = kwargs.get('dag') or DagContext.get_current_dag()
@@ -352,12 +377,11 @@ class BaseOperatorMeta(abc.ABCMeta):
             if dag and not task_group:
                 task_group = TaskGroupContext.get_current_task_group(dag)
 
-            dag_args, dag_params = _get_dag_defaults(dag, task_group)
-            default_args, merged_params = _merge_defaults(
-                dag_args=dag_args,
-                dag_params=dag_params,
+            default_args, merged_params = get_merged_defaults(
+                dag=dag,
+                task_group=task_group,
                 task_params=kwargs.pop("params", None),
-                task_default_args=kwargs.pop("default_args", {}),
+                task_default_args=kwargs.pop("default_args", None),
             )
 
             for arg in sig_cache.parameters:
@@ -381,14 +405,14 @@ class BaseOperatorMeta(abc.ABCMeta):
 
             if not hasattr(self, '_BaseOperator__init_kwargs'):
                 self._BaseOperator__init_kwargs = {}
-            self._BaseOperator__mapped_validation = mapped_validation_only
+            self._BaseOperator__from_mapped = instantiated_from_mapped
 
             result = func(self, **kwargs, default_args=default_args)
 
             # Store the args passed to init -- we need them to support task.map serialzation!
             self._BaseOperator__init_kwargs.update(kwargs)  # type: ignore
 
-            if not mapped_validation_only:
+            if not instantiated_from_mapped:
                 # Set upstream task defined by XComArgs passed to template fields of the operator.
                 self.set_xcomargs_dependencies()
                 # Mark instance as instantiated.
@@ -593,8 +617,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     """
 
     # Implementing Operator.
-    template_fields: Collection[str] = ()
-    template_ext: Collection[str] = ()
+    template_fields: Sequence[str] = ()
+    template_ext: Sequence[str] = ()
 
     template_fields_renderers: Dict[str, str] = {}
 
@@ -673,27 +697,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     # logic (default implementation is 'pass' i.e. no validation whatsoever).
     mapped_arguments_validated_by_init: ClassVar[bool] = False
 
-    # Set to True for an operator instantiated only for mapping validation.
-    __mapped_validation = False
-
-    def __new__(
-        cls,
-        dag: Optional['DAG'] = None,
-        task_group: Optional["TaskGroup"] = None,
-        _airflow_mapped_validation_only: bool = False,  # Whether called to validate a MappedOperator.
-        **kwargs,
-    ):
-        # If we are creating a new Task _and_ we are in the context of a MappedTaskGroup, then we should only
-        # create mapped operators.
-        from airflow.models.dag import DagContext
-        from airflow.utils.task_group import MappedTaskGroup, TaskGroupContext
-
-        dag = dag or DagContext.get_current_dag()
-        task_group = task_group or TaskGroupContext.get_current_task_group(dag)
-
-        if not _airflow_mapped_validation_only and isinstance(task_group, MappedTaskGroup):
-            return cls.partial(dag=dag, task_group=task_group, **kwargs).expand()
-        return super().__new__(cls)
+    # Set to True for an operator instantiated by a mapped operator.
+    __from_mapped = False
 
     def __init__(
         self,
@@ -709,6 +714,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         depends_on_past: bool = False,
+        ignore_first_depends_on_past: bool = DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
         wait_for_downstream: bool = False,
         dag: Optional['DAG'] = None,
         params: Optional[Dict] = None,
@@ -719,7 +725,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         pool: Optional[str] = None,
         pool_slots: int = DEFAULT_POOL_SLOTS,
         sla: Optional[timedelta] = None,
-        execution_timeout: Optional[timedelta] = None,
+        execution_timeout: Optional[timedelta] = DEFAULT_TASK_EXECUTION_TIMEOUT,
         on_execute_callback: Optional[TaskStateChangeCallback] = None,
         on_failure_callback: Optional[TaskStateChangeCallback] = None,
         on_success_callback: Optional[TaskStateChangeCallback] = None,
@@ -768,18 +774,21 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         dag = dag or DagContext.get_current_dag()
         task_group = task_group or TaskGroupContext.get_current_task_group(dag)
 
-        if task_group:
-            self.task_id = task_group.child_id(task_id)
-        else:
-            self.task_id = task_id
-        if not self.__mapped_validation and task_group:
+        self.task_id = task_group.child_id(task_id) if task_group else task_id
+        if not self.__from_mapped and task_group:
             task_group.add(self)
 
         self.owner = owner
         self.email = email
         self.email_on_retry = email_on_retry
         self.email_on_failure = email_on_failure
+
+        if execution_timeout is not None and not isinstance(execution_timeout, timedelta):
+            raise ValueError(
+                f'execution_timeout must be timedelta object but passed as type: {type(execution_timeout)}'
+            )
         self.execution_timeout = execution_timeout
+
         self.on_execute_callback = on_execute_callback
         self.on_failure_callback = on_failure_callback
         self.on_success_callback = on_success_callback
@@ -829,21 +838,20 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                 f"'{dag.dag_id if dag else ''}.{task_id}'; received '{trigger_rule}'."
             )
 
-        self.trigger_rule = trigger_rule
+        self.trigger_rule = TriggerRule(trigger_rule)
         self.depends_on_past: bool = depends_on_past
-        self.wait_for_downstream = wait_for_downstream
+        self.ignore_first_depends_on_past: bool = ignore_first_depends_on_past
+        self.wait_for_downstream: bool = wait_for_downstream
         if wait_for_downstream:
             self.depends_on_past = True
 
-        self.retry_delay = coerce_retry_delay(retry_delay)
+        self.retry_delay = coerce_timedelta(retry_delay, key="retry_delay")
         self.retry_exponential_backoff = retry_exponential_backoff
-        self.max_retry_delay = max_retry_delay
-        if max_retry_delay:
-            if isinstance(max_retry_delay, timedelta):
-                self.max_retry_delay = max_retry_delay
-            else:
-                self.log.debug("max_retry_delay isn't a timedelta object, assuming secs")
-                self.max_retry_delay = timedelta(seconds=max_retry_delay)
+        self.max_retry_delay = (
+            max_retry_delay
+            if max_retry_delay is None
+            else coerce_timedelta(max_retry_delay, key="max_retry_delay")
+        )
 
         # At execution_time this becomes a normal dict
         self.params: Union[ParamsDict, dict] = ParamsDict(params)
@@ -993,7 +1001,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
     def __setattr__(self, key, value):
         super().__setattr__(key, value)
-        if self.__mapped_validation or self._lock_for_execution:
+        if self.__from_mapped or self._lock_for_execution:
             return  # Skip any custom behavior for validation and during execute.
         if key in self.__init_kwargs:
             self.__init_kwargs[key] = value
@@ -1047,8 +1055,8 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         elif self.has_dag() and self.dag is not dag:
             raise AirflowException(f"The DAG assigned to {self} can not be changed.")
 
-        if self.__mapped_validation:
-            pass  # Don't add task to DAG for validation.
+        if self.__from_mapped:
+            pass  # Don't add to DAG -- the mapped task takes the place.
         elif self.task_id not in dag.task_dict:
             dag.add_task(self)
         elif self.task_id in dag.task_dict and dag.task_dict[self.task_id] is not self:
@@ -1440,7 +1448,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
                     'label',
                     '_BaseOperator__instantiated',
                     '_BaseOperator__init_kwargs',
-                    '_BaseOperator__mapped_validation',
+                    '_BaseOperator__from_mapped',
                 }
                 | {  # Class level defaults need to be added to this list
                     'start_date',
@@ -1470,12 +1478,12 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     is_mapped: ClassVar[bool] = False
 
     @property
-    def inherits_from_dummy_operator(self):
-        """Used to determine if an Operator is inherited from DummyOperator"""
-        # This looks like `isinstance(self, DummyOperator) would work, but this also
-        # needs to cope when `self` is a Serialized instance of a DummyOperator or one
+    def inherits_from_empty_operator(self):
+        """Used to determine if an Operator is inherited from EmptyOperator"""
+        # This looks like `isinstance(self, EmptyOperator) would work, but this also
+        # needs to cope when `self` is a Serialized instance of a EmptyOperator or one
         # of its sub-classes (which don't inherit from anything but BaseOperator).
-        return getattr(self, '_is_dummy', False)
+        return getattr(self, '_is_empty', False)
 
     def defer(
         self,
@@ -1498,7 +1506,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def validate_mapped_arguments(cls, **kwargs: Any) -> None:
         """Validate arguments when this operator is being mapped."""
         if cls.mapped_arguments_validated_by_init:
-            cls(**kwargs, _airflow_mapped_validation_only=True)
+            cls(**kwargs, _airflow_from_mapped=True)
 
     def unmap(self) -> "BaseOperator":
         """:meta private:"""

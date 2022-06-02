@@ -144,7 +144,8 @@ class DockerSwarmOperator(DockerOperator):
             labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
             mode=self.mode,
         )
-
+        if self.service is None:
+            raise Exception("Service should be set here")
         self.log.info('Service started: %s', str(self.service))
 
         # wait for the service to start the task
@@ -171,6 +172,8 @@ class DockerSwarmOperator(DockerOperator):
     def _service_status(self) -> Optional[str]:
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
+        if not self.service:
+            raise Exception("The 'service' should be initialized before!")
         return self.cli.tasks(filters={'service': self.service['ID']})[0]['Status']['State']
 
     def _has_service_terminated(self) -> bool:
@@ -207,6 +210,6 @@ class DockerSwarmOperator(DockerOperator):
             self.log.info(line)
 
     def on_kill(self) -> None:
-        if self.cli is not None:
+        if self.cli is not None and self.service is not None:
             self.log.info('Removing docker service: %s', self.service['ID'])
             self.cli.remove_service(self.service['ID'])

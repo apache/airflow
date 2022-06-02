@@ -17,13 +17,13 @@
 import contextlib
 from functools import wraps
 from inspect import signature
-from typing import Callable, Iterator, TypeVar, cast
+from typing import Callable, Generator, TypeVar, cast
 
 from airflow import settings
 
 
 @contextlib.contextmanager
-def create_session() -> Iterator[settings.SASession]:
+def create_session() -> Generator[settings.SASession, None, None]:
     """Contextmanager that will create and teardown a session."""
     if not settings.Session:
         raise RuntimeError("Session must be set before!")

@@ -23,7 +23,7 @@ from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.configuration import conf
 
-SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
+SQL_ALCHEMY_SCHEMA = conf.get("database", "SQL_ALCHEMY_SCHEMA")
 
 metadata = (
     None if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace() else MetaData(schema=SQL_ALCHEMY_SCHEMA)
@@ -35,7 +35,7 @@ ID_LEN = 250
 
 def get_id_collation_args():
     """Get SQLAlchemy args to use for COLLATION"""
-    collation = conf.get('core', 'sql_engine_collation_for_ids', fallback=None)
+    collation = conf.get('database', 'sql_engine_collation_for_ids', fallback=None)
     if collation:
         return {'collation': collation}
     else:
@@ -49,7 +49,7 @@ def get_id_collation_args():
         #
         # We cannot use session/dialect as at this point we are trying to determine the right connection
         # parameters, so we use the connection
-        conn = conf.get('core', 'sql_alchemy_conn', fallback='')
+        conn = conf.get('database', 'sql_alchemy_conn', fallback='')
         if conn.startswith('mysql') or conn.startswith("mariadb"):
             return {'collation': 'utf8mb3_bin'}
         return {}

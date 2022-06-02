@@ -21,7 +21,7 @@ import pendulum
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.utils.trigger_rule import TriggerRule
 
@@ -42,8 +42,8 @@ with DAG(
         python_callable=lambda: False,
     )
 
-    ds_true = [DummyOperator(task_id='true_' + str(i)) for i in [1, 2]]
-    ds_false = [DummyOperator(task_id='false_' + str(i)) for i in [1, 2]]
+    ds_true = [EmptyOperator(task_id='true_' + str(i)) for i in [1, 2]]
+    ds_false = [EmptyOperator(task_id='false_' + str(i)) for i in [1, 2]]
 
     chain(cond_true, *ds_true)
     chain(cond_false, *ds_false)
@@ -51,10 +51,10 @@ with DAG(
 
     # [START howto_operator_short_circuit_trigger_rules]
     [task_1, task_2, task_3, task_4, task_5, task_6] = [
-        DummyOperator(task_id=f"task_{i}") for i in range(1, 7)
+        EmptyOperator(task_id=f"task_{i}") for i in range(1, 7)
     ]
 
-    task_7 = DummyOperator(task_id="task_7", trigger_rule=TriggerRule.ALL_DONE)
+    task_7 = EmptyOperator(task_id="task_7", trigger_rule=TriggerRule.ALL_DONE)
 
     short_circuit = ShortCircuitOperator(
         task_id="short_circuit", ignore_downstream_trigger_rules=False, python_callable=lambda: False

@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 from typing import TYPE_CHECKING, Dict, Optional, Sequence
 
 from airflow.models import BaseOperator
@@ -154,6 +152,10 @@ class DmsDescribeTasksOperator(BaseOperator):
     """
     Describes AWS DMS replication tasks.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsDescribeTasksOperator`
+
     :param describe_tasks_kwargs: Describe tasks command arguments
     :param aws_conn_id: The Airflow connection used for AWS credentials.
         If this is None or empty then the default boto3 behaviour is used. If
@@ -249,6 +251,10 @@ class DmsStartTaskOperator(BaseOperator):
 class DmsStopTaskOperator(BaseOperator):
     """
     Stops AWS DMS replication task.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:DmsStopTaskOperator`
 
     :param replication_task_arn: Replication task ARN
     :param aws_conn_id: The Airflow connection used for AWS credentials.

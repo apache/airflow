@@ -100,7 +100,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(None)
+        op.execute(context={'ti': mock.MagicMock()})
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -120,7 +120,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(None)
+        op.execute(context={'ti': mock.MagicMock()})
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -163,8 +163,6 @@ class TestBigtableInstanceCreate:
             main_cluster_zone=CLUSTER_ZONE,
             project_id=PROJECT_ID,
             replica_clusters=None,
-            replica_cluster_id=None,
-            replica_cluster_zone=None,
             timeout=None,
         )
 
@@ -180,7 +178,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(None)
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -196,8 +194,6 @@ class TestBigtableInstanceCreate:
             main_cluster_zone=CLUSTER_ZONE,
             project_id=PROJECT_ID,
             replica_clusters=None,
-            replica_cluster_id=None,
-            replica_cluster_zone=None,
             timeout=None,
         )
 
@@ -214,7 +210,7 @@ class TestBigtableInstanceCreate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(None)
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -230,8 +226,6 @@ class TestBigtableInstanceCreate:
             main_cluster_zone=CLUSTER_ZONE,
             project_id=PROJECT_ID,
             replica_clusters=REPLICATE_CLUSTERS,
-            replica_cluster_id=None,
-            replica_cluster_zone=None,
             timeout=None,
         )
 
@@ -249,7 +243,7 @@ class TestBigtableInstanceUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(None)
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -274,7 +268,7 @@ class TestBigtableInstanceUpdate:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        op.execute(None)
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
@@ -809,7 +803,7 @@ class TestBigtableTableCreate:
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         instance = mock_hook.return_value.get_instance.return_value = mock.Mock(Instance)
-        op.execute(None)
+        op.execute(context={'ti': mock.MagicMock()})
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,

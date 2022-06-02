@@ -123,7 +123,7 @@ class _VaultClient(LoggingMixin):
             )
         if auth_type not in VALID_AUTH_TYPES:
             raise VaultError(
-                f"The auth_type is not supported: {auth_type}. " f"It should be one of {VALID_AUTH_TYPES}"
+                f"The auth_type is not supported: {auth_type}. It should be one of {VALID_AUTH_TYPES}"
             )
         if auth_type == "token" and not token and not token_path:
             raise VaultError("The 'token' authentication type requires 'token' or 'token_path'")

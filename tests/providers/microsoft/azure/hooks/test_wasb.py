@@ -22,7 +22,7 @@ import json
 from unittest import mock
 
 import pytest
-from azure.identity import ManagedIdentityCredential
+from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
 from airflow.exceptions import AirflowException
@@ -140,7 +140,7 @@ class TestWasbHook:
     def test_managed_identity(self):
         hook = WasbHook(wasb_conn_id=self.managed_identity_conn_id)
         assert isinstance(hook.get_conn(), BlobServiceClient)
-        assert isinstance(hook.get_conn().credential, ManagedIdentityCredential)
+        assert isinstance(hook.get_conn().credential, DefaultAzureCredential)
 
     @pytest.mark.parametrize(
         argnames="conn_id_str, extra_key",

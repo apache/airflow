@@ -19,6 +19,26 @@
 Changelog
 ---------
 
+2.1.8
+.....
+
+Misc
+~~~~
+
+* ``Organize Tableau classes (#23353)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.7
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
 2.1.6
 .....
 

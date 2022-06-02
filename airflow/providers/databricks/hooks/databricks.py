@@ -25,7 +25,10 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
+import json
 from typing import Any, Dict, List, Optional
+
+from requests import exceptions as requests_exceptions
 
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
@@ -89,6 +92,13 @@ class RunState:
 
     def __repr__(self) -> str:
         return str(self.__dict__)
+
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def from_json(cls, data: str) -> 'RunState':
+        return RunState(**json.loads(data))
 
 
 class DatabricksHook(BaseDatabricksHook):
@@ -196,6 +206,16 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
 
+    async def a_get_run_page_url(self, run_id: int) -> str:
+        """
+        Async version of `get_run_page_url()`.
+        :param run_id: id of the run
+        :return: URL of the run page
+        """
+        json = {'run_id': run_id}
+        response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
+        return response['run_page_url']
+
     def get_job_id(self, run_id: int) -> int:
         """
         Retrieves job_id from run_id.
@@ -224,6 +244,17 @@ class DatabricksHook(BaseDatabricksHook):
         """
         json = {'run_id': run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        state = response['state']
+        return RunState(**state)
+
+    async def a_get_run_state(self, run_id: int) -> RunState:
+        """
+        Async version of `get_run_state()`.
+        :param run_id: id of the run
+        :return: state of the run
+        """
+        json = {'run_id': run_id}
+        response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
         state = response['state']
         return RunState(**state)
 
@@ -333,22 +364,47 @@ class DatabricksHook(BaseDatabricksHook):
 
     def update_repo(self, repo_id: str, json: Dict[str, Any]) -> dict:
         """
+        Updates given Databricks Repos
 
-        :param repo_id:
-        :param json:
-        :return:
+        :param repo_id: ID of Databricks Repos
+        :param json: payload
+        :return: metadata from update
         """
         repos_endpoint = ('PATCH', f'api/2.0/repos/{repo_id}')
         return self._do_api_call(repos_endpoint, json)
 
-    def get_repo_by_path(self, path: str) -> Optional[str]:
+    def delete_repo(self, repo_id: str):
         """
+        Deletes given Databricks Repos
 
-        :param path:
+        :param repo_id: ID of Databricks Repos
         :return:
         """
-        result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {'path': path})
-        if result.get('object_type', '') == 'REPO':
-            return str(result['object_id'])
+        repos_endpoint = ('DELETE', f'api/2.0/repos/{repo_id}')
+        self._do_api_call(repos_endpoint)
+
+    def create_repo(self, json: Dict[str, Any]) -> dict:
+        """
+        Creates a Databricks Repos
+
+        :param json: payload
+        :return:
+        """
+        repos_endpoint = ('POST', 'api/2.0/repos')
+        return self._do_api_call(repos_endpoint, json)
+
+    def get_repo_by_path(self, path: str) -> Optional[str]:
+        """
+        Obtains Repos ID by path
+        :param path: path to a repository
+        :return: Repos ID if it exists, None if doesn't.
+        """
+        try:
+            result = self._do_api_call(WORKSPACE_GET_STATUS_ENDPOINT, {'path': path}, wrap_http_errors=False)
+            if result.get('object_type', '') == 'REPO':
+                return str(result['object_id'])
+        except requests_exceptions.HTTPError as e:
+            if e.response.status_code != 404:
+                raise e
 
         return None

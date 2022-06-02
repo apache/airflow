@@ -17,8 +17,12 @@
 
 from datetime import datetime
 
-from airflow.models import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.models import DAG, BaseOperator
+
+try:
+    from airflow.operators.empty import EmptyOperator
+except ModuleNotFoundError:
+    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.dbt.cloud.operators.dbt import (
     DbtCloudGetJobRunArtifactOperator,
     DbtCloudRunJobOperator,
@@ -33,8 +37,8 @@ with DAG(
     schedule_interval=None,
     catchup=False,
 ) as dag:
-    begin = DummyOperator(task_id="begin")
-    end = DummyOperator(task_id="end")
+    begin = EmptyOperator(task_id="begin")
+    end = EmptyOperator(task_id="end")
 
     # [START howto_operator_dbt_cloud_run_job]
     trigger_job_run1 = DbtCloudRunJobOperator(
@@ -46,7 +50,7 @@ with DAG(
     # [END howto_operator_dbt_cloud_run_job]
 
     # [START howto_operator_dbt_cloud_get_artifact]
-    get_run_results_artifact = DbtCloudGetJobRunArtifactOperator(
+    get_run_results_artifact: BaseOperator = DbtCloudGetJobRunArtifactOperator(
         task_id="get_run_results_artifact", run_id=trigger_job_run1.output, path="run_results.json"
     )
     # [END howto_operator_dbt_cloud_get_artifact]
@@ -61,7 +65,7 @@ with DAG(
     # [END howto_operator_dbt_cloud_run_job_async]
 
     # [START howto_operator_dbt_cloud_run_job_sensor]
-    job_run_sensor = DbtCloudJobRunSensor(
+    job_run_sensor: BaseOperator = DbtCloudJobRunSensor(
         task_id="job_run_sensor", run_id=trigger_job_run2.output, timeout=20
     )
     # [END howto_operator_dbt_cloud_run_job_sensor]

@@ -31,6 +31,10 @@ class GlueJobSensor(BaseSensorOperator):
     Waits for an AWS Glue Job to reach any of the status below
     'FAILED', 'STOPPED', 'SUCCEEDED'
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:GlueJobSensor`
+
     :param job_name: The AWS Glue Job unique name
     :param run_id: The AWS Glue current running job identifier
     """
@@ -53,7 +57,7 @@ class GlueJobSensor(BaseSensorOperator):
             self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)
             return True
         elif job_state in self.errored_states:
-            job_error_message = "Exiting Job " + self.run_id + " Run State: " + job_state
+            job_error_message = f"Exiting Job {self.run_id} Run State: {job_state}"
             raise AirflowException(job_error_message)
         else:
             return False

@@ -58,6 +58,7 @@ class TaskSchema(Schema):
     sub_dag = fields.Nested(DAGSchema, dump_only=True)
     downstream_task_ids = fields.List(fields.String(), dump_only=True)
     params = fields.Method('get_params', dump_only=True)
+    is_mapped = fields.Boolean(dump_only=True)
 
     def _get_class_reference(self, obj):
         result = ClassReferenceSchema().dump(obj)

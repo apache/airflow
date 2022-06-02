@@ -92,3 +92,22 @@ class TestFileToS3Operator(unittest.TestCase):
         assert len(objects_in_dest_bucket['Contents']) == 1
         # the object found should be consistent with dest_key specified earlier
         assert objects_in_dest_bucket['Contents'][0]['Key'] == self.dest_key
+
+    @mock_s3
+    def test_execute_with_only_key(self):
+        conn = boto3.client('s3')
+        conn.create_bucket(Bucket=self.dest_bucket)
+        operator = LocalFilesystemToS3Operator(
+            task_id='s3_to_file_sensor',
+            dag=self.dag,
+            filename=self.testfile1,
+            dest_key=f's3://dummy/{self.dest_key}',
+            **self._config,
+        )
+        operator.execute(None)
+
+        objects_in_dest_bucket = conn.list_objects(Bucket=self.dest_bucket, Prefix=self.dest_key)
+        # there should be object found, and there should only be one object found
+        assert len(objects_in_dest_bucket['Contents']) == 1
+        # the object found should be consistent with dest_key specified earlier
+        assert objects_in_dest_bucket['Contents'][0]['Key'] == self.dest_key

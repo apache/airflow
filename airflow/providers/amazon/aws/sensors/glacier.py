@@ -39,7 +39,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GlacierJobOperationSensor`
+        :ref:`howto/sensor:GlacierJobOperationSensor`
 
     :param aws_conn_id: The reference to the AWS connection details
     :param vault_name: name of Glacier vault on which job is executed

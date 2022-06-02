@@ -137,10 +137,6 @@ function run_all_test_types_in_parallel() {
 
 testing::skip_tests_if_requested
 
-build_images::prepare_ci_build
-
-build_images::rebuild_ci_image_if_needed_with_group
-
 parallel::make_sure_gnu_parallel_is_installed
 
 testing::get_maximum_parallel_test_jobs
