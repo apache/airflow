@@ -42,14 +42,19 @@ const myCache = createCache({
 const mainElement = document.getElementById('react-container');
 shadowRoot.appendChild(mainElement);
 
+const now = new Date();
+const minAgo = now.setMinutes(now.getMinutes() - 6);
+
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      notifyOnChangeProps: 'tracked',
       refetchOnWindowFocus: false,
       retry: 1,
       retryDelay: 500,
-      staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnMount: true, // Refetches stale queries, not "always"
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      initialDataUpdatedAt: minAgo, // make sure initial data is already expired
     },
     mutations: {
       retry: 1,
