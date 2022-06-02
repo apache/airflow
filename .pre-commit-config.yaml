@@ -28,7 +28,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
       - id: doctoc
         name: Add TOC for md and rst files
@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.13
+    rev: v1.2.0
     hooks:
       - id: forbid-tabs
         name: Fail if tabs are used in the project
@@ -204,7 +204,7 @@ repos:
         pass_filenames: true
   # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.32.0
+    rev: v2.32.1
     hooks:
       - id: pyupgrade
         name: Upgrade Python code automatically
