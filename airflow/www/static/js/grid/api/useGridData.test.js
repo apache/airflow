@@ -19,7 +19,7 @@
 
 /* global describe, test, expect */
 
-import { areActiveRuns } from './gridData';
+import { areActiveRuns } from './useGridData';
 
 describe('Test areActiveRuns()', () => {
   test('Correctly detects active runs', () => {
