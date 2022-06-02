@@ -509,6 +509,8 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
         af_client = self.hook.conn
         task_instance = kwargs["task_instance"]
         execution_id = task_instance.xcom_pull(task_ids=appflow_task_id, key="execution_id")  # type: ignore
+        if not execution_id:
+            raise AirflowException(f"No execution_id found from task_id {appflow_task_id}!")
         self.log.info("execution_id: %s", execution_id)
         args = {"flowName": flow_name, "maxResults": 100}
         response: "DescribeFlowExecutionRecordsResponseTypeDef" = cast(
