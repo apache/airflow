@@ -168,6 +168,10 @@ class ExternalTaskSensor(BaseSensorOperator):
             serialized_dttm_filter,
         )
 
+        # manually trigger and not wait task
+        if context.run_id[:8] == "manual__" and not self.wait_task:
+            return True
+
         # In poke mode this will check dag existence only once
         if self.check_existence and not self._has_checked_existence:
             self._check_for_existence(session=session)
