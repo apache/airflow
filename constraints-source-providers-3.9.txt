@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-01T20:02:45Z
+# This constraints file was automatically generated on 2022-06-02T15:47:08Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -74,7 +74,7 @@ attrs==20.3.0
 aws-xray-sdk==2.9.0
 azure-batch==12.0.0
 azure-common==1.1.28
-azure-core==1.24.0
+azure-core==1.24.1
 azure-cosmos==4.3.0
 azure-datalake-store==0.0.52
 azure-identity==1.10.0
@@ -126,7 +126,7 @@ colorama==0.4.4
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.13.1
-coverage==6.4
+coverage==6.4.1
 crcmod==1.7
 cron-descriptor==1.2.24
 croniter==1.3.5
@@ -255,7 +255,7 @@ jmespath==0.10.0
 json-merge-patch==0.2
 jsondiff==2.0.0
 jsonpath-ng==1.5.3
-jsonschema==4.5.1
+jsonschema==4.6.0
 jupyter-client==7.3.1
 jupyter-core==4.10.0
 jwcrypto==1.3.1
@@ -392,7 +392,7 @@ pytz-deprecation-shim==0.1.0.post0
 pytz==2022.1
 pytzdata==2020.1
 pywinrm==0.4.3
-pyzmq==23.0.0
+pyzmq==23.1.0
 qds-sdk==1.16.1
 readme-renderer==35.0
 redis==3.5.3
@@ -488,7 +488,7 @@ types-python-dateutil==2.8.17
 types-python-slugify==5.0.4
 types-pytz==2021.3.8
 types-redis==4.2.6
-types-requests==2.27.29
+types-requests==2.27.30
 types-setuptools==57.4.17
 types-six==1.16.15
 types-tabulate==0.8.9
