@@ -18,6 +18,7 @@
 
 """Example DAG demonstrating the usage of the JdbcOperator."""
 
+import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
@@ -28,8 +29,11 @@ except ModuleNotFoundError:
     from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.jdbc.operators.jdbc import JdbcOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_jdbc_operator"
+
 with DAG(
-    dag_id='example_jdbc_operator',
+    dag_id=DAG_ID,
     schedule_interval='0 0 * * *',
     start_date=datetime(2021, 1, 1),
     dagrun_timeout=timedelta(minutes=60),
@@ -58,3 +62,14 @@ with DAG(
     # [END howto_operator_jdbc]
 
     delete_data >> insert_data >> run_this_last
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
