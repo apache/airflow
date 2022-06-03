@@ -54,13 +54,13 @@ DAG_ID = "example_snowflake"
 # [START howto_operator_snowflake]
 
 with DAG(
-    ENV_ID,
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     default_args={'snowflake_conn_id': SNOWFLAKE_CONN_ID},
     tags=['example'],
     catchup=False,
 ) as dag:
-
+    # [START snowflake_example_dag]
     snowflake_op_sql_str = SnowflakeOperator(
         task_id='snowflake_op_sql_str',
         sql=CREATE_TABLE_SQL_STRING,
@@ -79,6 +79,8 @@ with DAG(
         schema=SNOWFLAKE_SCHEMA,
         role=SNOWFLAKE_ROLE,
     )
+
+    snowflake_op_sql_list = SnowflakeOperator(task_id='snowflake_op_sql_list', sql=SQL_LIST)
 
     snowflake_op_sql_multiple_stmts = SnowflakeOperator(
         task_id='snowflake_op_sql_multiple_stmts',
@@ -127,3 +129,10 @@ with DAG(
         ]
         >> slack_report
     )
+    # [END snowflake_example_dag]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
