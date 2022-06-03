@@ -19,6 +19,7 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from airflow.compat.functools import cached_property
+from airflow.providers.amazon.aws.utils.utils import trim_none_values
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 
@@ -115,8 +116,7 @@ class RedshiftDataOperator(BaseOperator):
             "StatementName": self.statement_name,
         }
 
-        filter_values = {key: val for key, val in kwargs.items() if val is not None}
-        resp = self.hook.conn.execute_statement(**filter_values)
+        resp = self.hook.conn.execute_statement(**trim_none_values(kwargs))
         return resp['Id']
 
     def wait_for_results(self, statement_id):

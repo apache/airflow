@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from unittest import TestCase
+
+from airflow.providers.amazon.aws.utils.utils import trim_none_values
 from datetime import datetime
 
 from airflow.providers.amazon.aws.utils import (
@@ -26,6 +29,18 @@ from airflow.providers.amazon.aws.utils import (
 
 DT = datetime(2000, 1, 1)
 EPOCH = 946_684_800
+
+
+class TestUtils(TestCase):
+    def test_trim_none_values(self):
+        input_object = {
+            "test": "test",
+            "empty": None,
+        }
+        expected_output_object = {
+            "test": "test",
+        }
+        assert trim_none_values(input_object) == expected_output_object
 
 
 def test_datetime_to_epoch():
