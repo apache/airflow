@@ -28,9 +28,11 @@ from airflow.providers.presto.transfers.gcs_to_presto import GCSToPrestoOperator
 BUCKET = os.environ.get("GCP_GCS_BUCKET", "test28397yeo")
 PATH_TO_FILE = os.environ.get("GCP_PATH", "path/to/file")
 PRESTO_TABLE = os.environ.get("PRESTO_TABLE", "test_table")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_gcs_to_presto"
 
 with models.DAG(
-    dag_id="example_gcs_to_presto",
+    dag_id=DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2022, 1, 1),
     catchup=False,
@@ -44,3 +46,9 @@ with models.DAG(
         presto_table=PRESTO_TABLE,
     )
     # [END gcs_csv_to_presto_table]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
