@@ -19,7 +19,7 @@ import os
 
 import pytest
 
-from airflow.providers.microsoft.azure.example_dags.example_local_to_adls import LOCAL_FILE_PATH
+from tests.system.providers.microsoft.azure.example_local_to_adls import LOCAL_FILE_PATH
 from tests.test_utils.azure_system_helpers import (
     AZURE_DAG_FOLDER,
     AzureSystemTest,
