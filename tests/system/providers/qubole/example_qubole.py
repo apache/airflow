@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 import filecmp
 import random
 import textwrap
@@ -35,8 +36,12 @@ from airflow.utils.trigger_rule import TriggerRule
 
 START_DATE = datetime(2021, 1, 1)
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_qubole_operator"
+DAG2_ID = "example_qubole_sensor"
+
 with DAG(
-    dag_id='example_qubole_operator',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=START_DATE,
     tags=['example'],
@@ -218,8 +223,14 @@ with DAG(
 
     branching >> db_import >> spark_cmd >> join
 
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
 with DAG(
-    dag_id='example_qubole_sensor',
+    dag_id=DAG2_ID,
     schedule_interval=None,
     start_date=START_DATE,
     tags=['example'],
@@ -268,3 +279,16 @@ with DAG(
     # [END howto_sensor_qubole_run_partition_sensor]
 
     check_s3_file >> check_hive_partition
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
+test_run_2 = get_test_run(dag2)
