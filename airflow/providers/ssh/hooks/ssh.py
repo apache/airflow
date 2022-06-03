@@ -22,7 +22,7 @@ import warnings
 from base64 import decodebytes
 from io import StringIO
 from select import select
-from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
@@ -71,6 +71,7 @@ class SSHHook(BaseHook):
     :param disabled_algorithms: dictionary mapping algorithm type to an
         iterable of algorithm identifiers, which will be disabled for the
         lifetime of the transport
+    :param ciphers: list of ciphers to use in order of preference
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -116,6 +117,7 @@ class SSHHook(BaseHook):
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
         disabled_algorithms: Optional[dict] = None,
+        ciphers: Optional[List[str]] = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -130,6 +132,7 @@ class SSHHook(BaseHook):
         self.keepalive_interval = keepalive_interval
         self.banner_timeout = banner_timeout
         self.disabled_algorithms = disabled_algorithms
+        self.ciphers = ciphers
         self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
@@ -204,6 +207,9 @@ class SSHHook(BaseHook):
 
                 if "disabled_algorithms" in extra_options:
                     self.disabled_algorithms = extra_options.get("disabled_algorithms")
+
+                if "ciphers" in extra_options:
+                    self.ciphers = extra_options.get("ciphers")
 
                 if host_key is not None:
                     if host_key.startswith("ssh-"):
@@ -341,6 +347,11 @@ class SSHHook(BaseHook):
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
             # type "Optional[Transport]" and item "None" has no attribute "set_keepalive".
             client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
+
+        if self.ciphers:
+            # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
+            # type "Optional[Transport]" and item "None" has no method `get_security_options`".
+            client.get_transport().get_security_options().ciphers = self.ciphers  # type: ignore[union-attr]
 
         self.client = client
         return client
