@@ -121,31 +121,41 @@ class WasbHook(BaseHook):
             # Here we use anonymous public read
             # more info
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            return BlobServiceClient(account_url=conn.host)
+            return BlobServiceClient(account_url=conn.host, **extra)
 
-        if extra.get('connection_string') or extra.get('extra__wasb__connection_string'):
+        def pop_keys(*keys):
+            res = None
+            for key in keys:
+                value = extra.pop(key, None)
+                res = res or value
+
+            return res
+
+        connection_string = pop_keys('connection_string', 'extra__wasb__connection_string')
+        if connection_string:
             # connection_string auth takes priority
-            connection_string = extra.get('connection_string') or extra.get('extra__wasb__connection_string')
-            return BlobServiceClient.from_connection_string(connection_string)
-        if extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key'):
-            shared_access_key = extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key')
+            return BlobServiceClient.from_connection_string(connection_string, **extra)
+
+        shared_access_key = pop_keys('shared_access_key', 'extra__wasb__shared_access_key')
+        if shared_access_key:
             # using shared access key
-            return BlobServiceClient(account_url=conn.host, credential=shared_access_key)
-        if extra.get('tenant_id') or extra.get('extra__wasb__tenant_id'):
+            return BlobServiceClient(account_url=conn.host, credential=shared_access_key, **extra)
+
+        tenant = pop_keys('tenant_id', 'extra__wasb__tenant_id')
+        if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            tenant = extra.get('tenant_id', extra.get('extra__wasb__tenant_id'))
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
-            return BlobServiceClient(account_url=conn.host, credential=token_credential)
+            return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
 
-        sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
+        sas_token = pop_keys('sas_token', 'extra__wasb__sas_token')
         if sas_token:
             if sas_token.startswith('https'):
-                return BlobServiceClient(account_url=sas_token)
+                return BlobServiceClient(account_url=sas_token, **extra)
             else:
                 return BlobServiceClient(
-                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}'
+                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}', **extra
                 )
 
         # Fall back to old auth (password) or use managed identity if not provided.
