@@ -523,9 +523,9 @@ Tests
 Kubernetes tests
 ----------------
 
-* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``./breeze-legacy kind-cluster`` commands
-* Run Kubernetes tests  specified with ``./breeze-legacy kind-cluster tests`` command
-* Enter the interactive kubernetes test environment with ``./breeze-legacy kind-cluster shell`` command
+* Manage KinD Kubernetes cluster and deploy Airflow to KinD cluster ``./breeze kind-cluster`` commands
+* Run Kubernetes tests  specified with ``./breeze kind-cluster start`` command
+* Enter the interactive kubernetes test environment with ``./breeze kind-cluster stop`` command
 
 CI Image tasks
 --------------
@@ -1394,6 +1394,23 @@ after ``--`` as extra arguments.
 .. code-block:: bash
 
      ./breeze-legacy docker-compose pull -- --ignore-pull-failures
+
+Running "Kind Cluster" commands
+---------------------------------
+
+To run Kind Cluster commands (such as ``help``, ``pull``, etc), use the
+``kind-cluster`` command. To add extra arguments, specify them
+after ``--`` as extra arguments.
+
+.. code-block:: bash
+
+     ./breeze kind-cluster start
+
+Those are all available flags of ``kind-cluster`` command:
+
+.. image:: ./images/breeze/output-kind-cluster.svg
+  :width: 100%
+  :alt: Breeze kind-cluster
 
 Setting default answers for user interaction
 --------------------------------------------

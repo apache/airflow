@@ -74,3 +74,15 @@ def run_docker_compose_tests(
         check=False,
     )
     return command_result.returncode, f"Testing docker-compose python with {image_name}"
+
+
+def run_kind_cluster_tests(
+    start: str, stop: str, dry_run: bool, verbose: bool, extra_pytest_args: Tuple
+) -> Tuple[int, str]:
+    command_result = run_command(
+        ["kind", start], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
+    )
+    if command_result.returncode != 0:
+        get_console().print(f"[error]Error when inspecting PROD image: {command_result.returncode}[/]")
+        return command_result.returncode, f"Testing kind-cluster python with {start}"
+    return (0, "None")

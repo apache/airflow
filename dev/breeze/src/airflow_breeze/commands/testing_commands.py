@@ -46,7 +46,7 @@ from airflow_breeze.utils.run_utils import run_command
 
 TESTING_COMMANDS = {
     "name": "Testing",
-    "commands": ["docker-compose-tests", "tests"],
+    "commands": ["docker-compose-tests", "tests", "kind-cluster"],
 }
 
 TESTING_PARAMETERS = {
@@ -67,6 +67,15 @@ TESTING_PARAMETERS = {
                 "--integration",
                 "--test-type",
                 "--db-reset",
+            ],
+        }
+    ],
+    "breeze kind-cluster": [
+        {
+            "name": "Basic flag for tests command",
+            "options": [
+                "--start",
+                "--stop",
             ],
         }
     ],
@@ -155,5 +164,29 @@ def tests(
     perform_environment_checks(verbose=verbose)
     cmd = ['docker-compose', 'run', '--service-ports', '--rm', 'airflow']
     cmd.extend(list(extra_pytest_args))
+<<<<<<< HEAD
     result = run_command(cmd, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
     sys.exit(result.returncode)
+=======
+    run_command(
+        cmd,
+        verbose=verbose,
+        dry_run=dry_run,
+        env=env_variables,
+    )
+
+
+@main.group("kind-cluster")
+def kind_cluster():
+    """Run kind-cluster with Airflow, use: start, stop, restart ..."""
+
+
+@kind_cluster.command()
+def start():
+    """kind-cluster start"""
+
+
+@kind_cluster.command()
+def stop():
+    """kind-cluster stop"""
+>>>>>>> 5849ae86a (kind cluster main options for testing)
