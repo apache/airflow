@@ -33,6 +33,6 @@ An example usage of the PrestoToSlackOperator is as follows:
 
 .. exampleinclude:: /../../tests/system/providers/presto/example_presto_to_slack.py
     :language: python
-    :indent: 4
+    :dedent: 4
     :start-after: [START howto_operator_presto_to_slack]
     :end-before: [END howto_operator_presto_to_slack]
