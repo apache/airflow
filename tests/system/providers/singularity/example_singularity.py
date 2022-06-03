@@ -16,14 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.providers.singularity.operators.singularity import SingularityOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "singularity_sample"
+
 with DAG(
-    'singularity_sample',
+    DAG_ID,
     default_args={'retries': 1},
     schedule_interval=timedelta(minutes=10),
     start_date=datetime(2021, 1, 1),
@@ -44,3 +48,9 @@ with DAG(
 
     t1 >> [t2, t3]
     t3 >> t4
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
