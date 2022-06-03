@@ -153,7 +153,7 @@ File or directory existence
 
 To wait for file or directory existence in cluster use
 
-.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_qubole_run_file_sensor]
@@ -173,7 +173,7 @@ Partition existence
 
 To wait for table partition existence in cluster use
 
-.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_qubole_run_partition_sensor]
