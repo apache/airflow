@@ -22,7 +22,7 @@ from airflow.hooks.base import BaseHook
 
 class BaseAzureServiceBusHook(BaseHook):
     """
-    BaseAzureServiceBusHook class to session creation and  connection creation. Client ID and
+    BaseAzureServiceBusHook class to create session and create connection. Client ID and
     Secrete IDs are optional.
 
     :param azure_service_bus_conn_id: Reference to the
@@ -43,7 +43,7 @@ class BaseAzureServiceBusHook(BaseHook):
 
         return {
             "extra__azure_service_bus__connection_string": StringField(
-                lazy_gettext('Service Bus Connection String'), widget=BS3TextFieldWidget()
+                lazy_gettext('Azure Service Bus Connection String'), widget=BS3TextFieldWidget()
             ),
         }
 
@@ -59,7 +59,7 @@ class BaseAzureServiceBusHook(BaseHook):
             "placeholders": {
                 'login': 'Client ID (Optional)',
                 'password': 'Client Secret (Optional)',
-                'extra__azure_service_bus__connection_string': 'Service Bus Connection String',
+                'extra__azure_service_bus__connection_string': 'Azure Service Bus Connection String',
             },
         }
 

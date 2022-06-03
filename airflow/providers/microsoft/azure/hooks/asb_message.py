@@ -17,7 +17,6 @@
 from typing import List, Optional, Union
 
 from azure.servicebus import ServiceBusClient, ServiceBusMessage, ServiceBusSender
-from azure.servicebus.exceptions import MessageSizeExceededError
 
 from airflow.exceptions import AirflowBadRequest, AirflowException
 from airflow.providers.microsoft.azure.hooks.base_asb import BaseAzureServiceBusHook
@@ -55,27 +54,24 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
         :param batch_message_flag: bool flag, can be set to True if message needs to be sent as batch message.
         """
         if queue_name is None:
-            raise AirflowBadRequest("Queue name cannot be None.")
+            raise TypeError("Queue name cannot be None.")
         if not messages:
-            raise AirflowException("Message is empty.")
-        service_bus_client = self.get_conn()
-        try:
-            with service_bus_client:
-                sender = service_bus_client.get_queue_sender(queue_name=queue_name)
-                with sender:
-                    if isinstance(messages, str):
-                        if not batch_message_flag:
-                            msg = ServiceBusMessage(messages)
-                            sender.send_messages(msg)
-                        else:
-                            self.send_batch_message(sender, [messages])
+            raise ValueError("Messages list cannot be empty.")
+        with self.get_conn() as service_bus_client, service_bus_client.get_queue_sender(
+            queue_name=queue_name
+        ) as sender:
+            with sender:
+                if isinstance(messages, str):
+                    if not batch_message_flag:
+                        msg = ServiceBusMessage(messages)
+                        sender.send_messages(msg)
                     else:
-                        if not batch_message_flag:
-                            self.send_list_messages(sender, messages)
-                        else:
-                            self.send_batch_message(sender, messages)
-        except Exception as e:
-            raise AirflowException(e)
+                        self.send_batch_message(sender, [messages])
+                else:
+                    if not batch_message_flag:
+                        self.send_list_messages(sender, messages)
+                    else:
+                        self.send_batch_message(sender, messages)
 
     @staticmethod
     def send_list_messages(sender: ServiceBusSender, messages: List[str]):
@@ -86,12 +82,7 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
     def send_batch_message(sender: ServiceBusSender, messages: List[str]):
         batch_message = sender.create_message_batch()
         for message in messages:
-            try:
-                batch_message.add_message(ServiceBusMessage(message))
-            except MessageSizeExceededError as e:
-                # ServiceBusMessageBatch object reaches max_size.
-                # New ServiceBusMessageBatch object can be created here to send more data.
-                raise AirflowException(e)
+            batch_message.add_message(ServiceBusMessage(message))
         sender.send_messages(batch_message)
 
     def receive_message(
@@ -105,21 +96,18 @@ class ServiceBusMessageHook(BaseAzureServiceBusHook):
         :param max_wait_time: Maximum time to wait in seconds for the first message to arrive.
         """
         if queue_name is None:
-            raise AirflowBadRequest("Queue name cannot be None.")
+            raise ValueError("Queue name cannot be None.")
 
-        service_bus_client = self.get_conn()
-        try:
-            with service_bus_client:
-                receiver = service_bus_client.get_queue_receiver(queue_name=queue_name)
-                with receiver:
-                    received_msgs = receiver.receive_messages(
-                        max_message_count=max_message_count, max_wait_time=max_wait_time
-                    )
-                    for msg in received_msgs:
-                        self.log.info(msg)
-                        receiver.complete_message(msg)
-        except Exception as e:
-            raise AirflowException(e)
+        with self.get_conn() as service_bus_client, service_bus_client.get_queue_receiver(
+            queue_name=queue_name
+        ) as receiver:
+            with receiver:
+                received_msgs = receiver.receive_messages(
+                    max_message_count=max_message_count, max_wait_time=max_wait_time
+                )
+                for msg in received_msgs:
+                    self.log.info(msg)
+                    receiver.complete_message(msg)
 
     def receive_subscription_message(
         self,

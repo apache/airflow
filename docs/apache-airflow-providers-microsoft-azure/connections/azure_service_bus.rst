@@ -22,7 +22,7 @@
 Microsoft Azure Service Bus
 =======================================
 
-The Microsoft Azure Service Bus connection type enables the Azure Service Bus Integrations.
+The Microsoft Azure Service Bus connection type enables the Azure Service Bus Integration.
 
 Authenticating to Azure Service Bus
 ------------------------------------

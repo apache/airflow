@@ -55,8 +55,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
     def execute(self, context: "Context") -> None:
-        """Creates Queue in Service Bus namespace, by connecting to Service Bus Admin client"""
-        # Create the hook testing
+        """Creates Queue in Azure Service Bus namespace, by connecting to Service Bus Admin client in hook"""
         hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
         # create queue with name
@@ -66,8 +65,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
             self.dead_lettering_on_message_expiration,
             self.enable_batched_operations,
         )
-        self.log.info("Created Queue %s", queue.name)
-        self.log.info(queue)
+        self.log.info("Created Queue ", queue)
 
 
 class AzureServiceBusSendMessageOperator(BaseOperator):
@@ -81,7 +79,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         :ref: `Azure Service Bus connection<howto/connection:azure_service_bus>`.
     """
 
-    template_fields: Sequence[str] = ("queue_name", "message")
+    template_fields: Sequence[str] = ("queue_name",)
     ui_color = "#e4f0e8"
 
     def __init__(

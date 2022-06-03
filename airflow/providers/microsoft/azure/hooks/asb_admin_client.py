@@ -14,7 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import datetime
 from typing import Optional, Union
 
@@ -25,7 +24,7 @@ from azure.servicebus.management import (
     SubscriptionProperties,
 )
 
-from airflow.exceptions import AirflowBadRequest, AirflowException
+from airflow.exceptions import AirflowBadRequest
 from airflow.providers.microsoft.azure.hooks.base_asb import BaseAzureServiceBusHook
 
 
@@ -68,19 +67,16 @@ class AzureServiceBusAdminClientHook(BaseAzureServiceBusHook):
             operations are enabled.
         """
         if queue_name is None:
-            raise AirflowBadRequest("Queue name cannot be None.")
+            raise ValueError("Queue name cannot be None.")
 
-        try:
-            with self.get_conn() as service_mgmt_conn:
-                queue = service_mgmt_conn.create_queue(
-                    queue_name,
-                    max_delivery_count=max_delivery_count,
-                    dead_lettering_on_message_expiration=dead_lettering_on_message_expiration,
-                    enable_batched_operations=enable_batched_operations,
-                )
-                return queue
-        except Exception as e:
-            raise AirflowException(e)
+        with self.get_conn() as service_mgmt_conn:
+            queue = service_mgmt_conn.create_queue(
+                queue_name,
+                max_delivery_count=max_delivery_count,
+                dead_lettering_on_message_expiration=dead_lettering_on_message_expiration,
+                enable_batched_operations=enable_batched_operations,
+            )
+            return queue
 
     def delete_queue(self, queue_name: str) -> None:
         """
@@ -89,13 +85,10 @@ class AzureServiceBusAdminClientHook(BaseAzureServiceBusHook):
         :param queue_name: The name of the queue or a QueueProperties with name.
         """
         if queue_name is None:
-            raise AirflowBadRequest("Queue name cannot be None.")
+            raise ValueError("Queue name cannot be None.")
 
-        try:
-            with self.get_conn() as service_mgmt_conn:
-                service_mgmt_conn.delete_queue(queue_name)
-        except Exception as e:
-            raise AirflowException(e)
+        with self.get_conn() as service_mgmt_conn:
+            service_mgmt_conn.delete_queue(queue_name)
 
     def create_subscription(
         self,
@@ -115,7 +108,6 @@ class AzureServiceBusAdminClientHook(BaseAzureServiceBusHook):
     ) -> SubscriptionProperties:
         """
         Create a topic subscription entities under a ServiceBus Namespace.
-
         :param subscription_name: The subscription that will own the to-be-created rule.
         :param topic_name: The topic that will own the to-be-created subscription rule.
         :param lock_duration: ISO 8601 timespan duration of a peek-lock; that is, the amount of time
@@ -176,7 +168,6 @@ class AzureServiceBusAdminClientHook(BaseAzureServiceBusHook):
     def delete_subscription(self, subscription_name: str, topic_name: str) -> None:
         """
         Delete a topic subscription entities under a ServiceBus Namespace
-
         :param subscription_name: The subscription name that will own the rule in topic
         :param topic_name: The topic that will own the subscription rule.
         """

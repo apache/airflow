@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import json
 from unittest import mock
 
 import pytest
@@ -41,7 +40,7 @@ class TestAzureServiceBusAdminClientHook:
             conn_type='azure_service_bus',
             login=self.client_id,
             password=self.secret_key,
-            extra=json.dumps({"connection_string": self.connection_string}),
+            extra={"connection_string": self.connection_string},
         )
 
     @mock.patch(
@@ -72,12 +71,9 @@ class TestAzureServiceBusAdminClientHook:
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.asb_admin_client.ServiceBusAdministrationClient')
     def test_create_queue_exception(self, mock_sb_admin_client):
-        """
-        Test `create_queue` functionality to raise AirflowException
-        by passing queue name as None and pytest raise Airflow Exception
-        """
+        """Test `create_queue` functionality to raise ValueError by passing queue name as None"""
         hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             hook.create_queue(None)
 
     @mock.patch(
@@ -95,12 +91,9 @@ class TestAzureServiceBusAdminClientHook:
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.asb_admin_client.ServiceBusAdministrationClient')
     def test_delete_queue_exception(self, mock_sb_admin_client):
-        """
-        Test `delete_queue` functionality to raise AirflowException,
-         by passing queue name as None and pytest raise Airflow Exception
-        """
+        """Test `delete_queue` functionality to raise ValueError, by passing queue name as None"""
         hook = AzureServiceBusAdminClientHook(azure_service_bus_conn_id=self.conn_id)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             hook.delete_queue(None)
 
     @pytest.mark.parametrize(

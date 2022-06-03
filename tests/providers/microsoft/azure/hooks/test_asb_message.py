@@ -25,6 +25,9 @@ from airflow import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.asb_message import ServiceBusMessageHook
 
+MESSAGE = "Test Message"
+MESSAGE_LIST = [MESSAGE + " " + str(n) for n in range(0, 10)]
+
 
 class TestServiceBusMessageHook:
     def setup_class(self) -> None:
@@ -46,12 +49,17 @@ class TestServiceBusMessageHook:
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_connection")
     def test_get_service_bus_message_conn(self, mock_connection):
+        """
+        Test get_conn() function and check whether the get_conn() function returns value
+        is instance of ServiceBusClient
+        """
         mock_connection.return_value = self.conn
         hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.conn_id)
         assert isinstance(hook.get_conn(), ServiceBusClient)
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_connection")
     def test_get_conn_value_error(self, mock_connection):
+        """Test get_conn() function and check whether the get_conn() raise Value error"""
         mock_connection.return_value = Connection(
             conn_id='azure_service_bus_default',
             conn_type='azure_service_bus',
@@ -66,10 +74,10 @@ class TestServiceBusMessageHook:
     @pytest.mark.parametrize(
         "mock_message, mock_batch_flag",
         [
-            ("Test message", True),
-            ("Test message", False),
-            (["Test message 1", "Test message 2"], True),
-            (["Test message 1", "Test message 2"], False),
+            (MESSAGE, True),
+            (MESSAGE, False),
+            (MESSAGE_LIST, True),
+            (MESSAGE_LIST, False),
         ],
     )
     @mock.patch(
@@ -115,10 +123,10 @@ class TestServiceBusMessageHook:
     def test_send_message_exception(self, mock_sb_client):
         """
         Test `send_message` functionality to raise AirflowException in Azure ServiceBusMessageHook
-         by passing queue name as None
+        by passing queue name as None
         """
         hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.conn_id)
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError):
             hook.send_message(queue_name=None, messages="", batch_message_flag=False)
 
     @mock.patch('azure.servicebus.ServiceBusMessage')
@@ -150,10 +158,10 @@ class TestServiceBusMessageHook:
     def test_receive_message_exception(self, mock_sb_client):
         """
         Test `receive_message` functionality to raise AirflowException in Azure ServiceBusMessageHook
-         by passing queue name as None
+        by passing queue name as None
         """
         hook = ServiceBusMessageHook(azure_service_bus_conn_id=self.conn_id)
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             hook.receive_message(None)
 
     @mock.patch('airflow.providers.microsoft.azure.hooks.asb_message.ServiceBusMessageHook.get_conn')
