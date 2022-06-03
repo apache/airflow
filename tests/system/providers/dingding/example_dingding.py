@@ -27,6 +27,7 @@ from airflow.providers.dingding.operators.dingding import DingdingOperator
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_dingding_operator"
 
+
 # [START howto_operator_dingding_failure_callback]
 def failure_callback(context):
     """
