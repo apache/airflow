@@ -20,6 +20,13 @@
  */
 
 import '@testing-library/jest-dom';
+import axios from 'axios';
+
+axios.defaults.adapter = require('axios/lib/adapters/http');
+
+axios.interceptors.response.use(
+  (res) => res.data || res,
+);
 
 // Mock global objects we use across the app
 global.stateColors = {
