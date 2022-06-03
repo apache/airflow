@@ -18,34 +18,45 @@
 """
 Example use of MySql related operators.
 """
-
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.mysql.operators.mysql import MySqlOperator
 
-dag = DAG(
-    'example_mysql',
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_mysql"
+
+with DAG(
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     default_args={'mysql_conn_id': 'mysql_conn_id'},
     tags=['example'],
     catchup=False,
-)
+) as dag:
 
-# [START howto_operator_mysql]
+    # [START howto_operator_mysql]
 
-drop_table_mysql_task = MySqlOperator(task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag)
+    drop_table_mysql_task = MySqlOperator(
+        task_id='drop_table_mysql', sql=r"""DROP TABLE table_name;""", dag=dag
+    )
 
-# [END howto_operator_mysql]
+    # [END howto_operator_mysql]
 
-# [START howto_operator_mysql_external_file]
+    # [START howto_operator_mysql_external_file]
 
-mysql_task = MySqlOperator(
-    task_id='drop_table_mysql_external_file',
-    sql='/scripts/drop_table.sql',
-    dag=dag,
-)
+    mysql_task = MySqlOperator(
+        task_id='drop_table_mysql_external_file',
+        sql='/scripts/drop_table.sql',
+        dag=dag,
+    )
 
-# [END howto_operator_mysql_external_file]
+    # [END howto_operator_mysql_external_file]
 
-drop_table_mysql_task >> mysql_task
+    drop_table_mysql_task >> mysql_task
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
