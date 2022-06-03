@@ -33,9 +33,11 @@ from airflow.providers.papermill.operators.papermill import PapermillOperator
 START_DATE = datetime(2021, 1, 1)
 SCHEDULE_INTERVAL = '0 0 * * *'
 DAGRUN_TIMEOUT = timedelta(minutes=60)
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_papermill_operator"
 
 with DAG(
-    dag_id='example_papermill_operator',
+    dag_id=DAG_ID,
     schedule_interval=SCHEDULE_INTERVAL,
     start_date=START_DATE,
     dagrun_timeout=DAGRUN_TIMEOUT,
@@ -83,3 +85,9 @@ with DAG(
     )
 
     run_this >> check_notebook(inlets=AUTO, execution_date="{{ execution_date }}")
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
