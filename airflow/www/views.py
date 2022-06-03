@@ -3832,8 +3832,6 @@ class AirflowModelView(ModelView):
     def __getattribute__(self, attr):
         attribute = object.__getattribute__(self, attr)
         if callable(attribute) and attr in [
-            "list",
-            "show",
             "add",
             "edit",
             "delete",
