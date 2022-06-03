@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-# [START postgres_operator_howto_guide]
-import os
 import datetime
+import os
 
 from airflow import DAG
 from airflow.providers.postgres.operators.postgres import PostgresOperator
+
+# [START postgres_operator_howto_guide]
+
 
 # create_pet_table, populate_pet_table, get_all_pets, and get_birth_date are examples of tasks created by
 # instantiating the Postgres Operator
