@@ -391,11 +391,11 @@ class TestColumnCheckOperator(unittest.TestCase):
 
     valid_column_mapping = {
         "X": {
-            "null_check": {"pass_value": 0},
-            "distinct_check": {"pass_value": 10, "tolerance": 0.1},
-            "unique_check": {"pass_value": 10},
-            "min": {"pass_value": 1},
-            "max": {"pass_value": 20},
+            "null_check": {"equal_to": 0},
+            "distinct_check": {"equal_to": 10, "tolerance": 0.1},
+            "unique_check": {"geq_than": 10},
+            "min": {"leq_than": 1},
+            "max": {"less_than": 20, "greater_than": 10},
         }
     }
 
@@ -410,9 +410,17 @@ class TestColumnCheckOperator(unittest.TestCase):
             self._construct_operator(self.invalid_column_mapping)
 
     @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
-    def test_pass_all_checks_check(self, mock_get_db_hook):
+    def test_pass_all_checks_exact_check(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.return_value = (0, 10, 10, 1, 20)
+        mock_hook.get_first.return_value = (0, 10, 10, 1, 19)
+        mock_get_db_hook.return_value = mock_hook
+        operator = self._construct_operator(self.valid_column_mapping)
+        operator.execute()
+
+    @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
+    def test_pass_all_checks_inexact_check(self, mock_get_db_hook):
+        mock_hook = mock.Mock()
+        mock_hook.get_first.return_value = (0, 9, 12, 0, 15)
         mock_get_db_hook.return_value = mock_hook
         operator = self._construct_operator(self.valid_column_mapping)
         operator.execute()
@@ -420,7 +428,7 @@ class TestColumnCheckOperator(unittest.TestCase):
     @mock.patch.object(SQLColumnCheckOperator, "get_db_hook")
     def test_fail_all_checks_check(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.return_value = (1, 12, 11, -1, 50)
+        mock_hook.get_first.return_value = (1, 12, 11, -1, 20)
         mock_get_db_hook.return_value = mock_hook
         operator = self._construct_operator(self.valid_column_mapping)
         with pytest.raises(AirflowException):

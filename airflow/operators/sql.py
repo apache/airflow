@@ -469,9 +469,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
 def _get_failed_tests(checks):
     return [
-        f"\tCheck: {check}, "
-        f"Pass Value: {check_values['pass_value']}, "
-        f"Result: {check_values['result']}\n"
+        f"\tCheck: {check}, " f"Check Values: {check_values}\n"
         for check, check_values in checks.items()
         if not check_values["success"]
     ]
@@ -487,11 +485,17 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     {
         'col_name': {
             'null_check': {
-                'pass_value': 0,
+                'equal_to': 0,
             },
             'min': {
-                'pass_value': 5,
+                'greater_than': 5,
+                'leq_than': 10,
                 'tolerance': 0.2,
+            },
+            'max': {
+                'less_than': 1000,
+                'geq_than': 10,
+                'tolerance': 0.01
             }
         }
     }
@@ -523,9 +527,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         for checks in column_mapping.values():
-            for check in checks:
-                if check not in self.column_checks:
-                    raise AirflowException(f"Invalid column check: {check}.")
+            for check, check_values in checks.items():
+                self._column_mapping_validation(check, check_values)
 
         self.table = table
         self.column_mapping = column_mapping
@@ -546,10 +549,6 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 raise AirflowException("The query returned None")
 
             for idx, result in enumerate(records):
-                pass_value_conv = _convert_to_float_if_possible(
-                    self.column_mapping[column][checks[idx]]["pass_value"]
-                )
-                is_numeric_value_check = isinstance(pass_value_conv, float)
                 tolerance = (
                     self.column_mapping[column][checks[idx]]["tolerance"]
                     if "tolerance" in self.column_mapping[column][checks[idx]]
@@ -557,12 +556,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 )
 
                 self.column_mapping[column][checks[idx]]["result"] = result
-                self.column_mapping[column][checks[idx]]["success"] = (
-                    self._get_numeric_match(
-                        checks[idx], result, self.column_mapping[column][checks[idx]]["pass_value"], tolerance
-                    )
-                    if is_numeric_value_check
-                    else (result == self.column_mapping[column][checks[idx]]["pass_value"])
+                self.column_mapping[column][checks[idx]]["success"] = self._get_match(
+                    self.column_mapping[column][checks[idx]], result, tolerance
                 )
 
             failed_tests.extend(_get_failed_tests(self.column_mapping[column]))
@@ -575,23 +570,93 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.log.info("All tests have passed")
 
-    def _get_numeric_match(self, check, numeric_record, numeric_pass_value, tolerance=None) -> bool:
-        if check in "min":
+    def _get_match(self, check_values, record, tolerance=None) -> bool:
+        # check if record is str or numeric
+        # if record is str, do pattern matching
+        # numeric record checks
+        if "geq_than" in check_values:
             if tolerance is not None:
-                return numeric_record >= numeric_pass_value * (1 - tolerance)
-            return numeric_record >= numeric_pass_value
-        if check in "max":
+                return record >= check_values["geq_than"] * (1 - tolerance)
+            return record >= check_values["geq_than"]
+        elif "greater_than" in check_values:
             if tolerance is not None:
-                return numeric_record <= numeric_pass_value * (1 + tolerance)
-            return numeric_record <= numeric_pass_value
-        if check in ["null_check", "distinct_check", "unique_check"]:
+                return record > check_values["greater_than"] * (1 - tolerance)
+            return record > check_values["greater_than"]
+        if "leq_than" in check_values:
+            if tolerance is not None:
+                return record <= check_values["leq_than"] * (1 + tolerance)
+            return record <= check_values["leq_than"]
+        elif "less_than" in check_values:
+            if tolerance is not None:
+                return record < check_values["less_than"] * (1 + tolerance)
+            return record < check_values["less_than"]
+        if "equal_to" in check_values:
             if tolerance is not None:
                 return (
-                    numeric_pass_value * (1 - tolerance)
-                    <= numeric_record
-                    <= numeric_pass_value * (1 + tolerance)
+                    check_values["equal_to"] * (1 - tolerance)
+                    <= record
+                    <= check_values["equal_to"] * (1 + tolerance)
                 )
-        return numeric_record == numeric_pass_value
+        return record == check_values["equal_to"]
+
+    def _column_mapping_validation(self, check, check_values):
+        if check not in self.column_checks:
+            raise AirflowException(f"Invalid column check: {check}.")
+        if (
+            "greater_than" not in check_values
+            and "geq_than" not in check_values
+            and "less_than" not in check_values
+            and "leq_than" not in check_values
+            and "equal_to" not in check_values
+        ):
+            raise ValueError(
+                "Please provide one or more of: less_than, leq_than, "
+                "greater_than, geq_than, or equal_to in the check's dict."
+            )
+
+        if "greater_than" in check_values and "less_than" in check_values:
+            if check_values["greater_than"] >= check_values["less_than"]:
+                raise ValueError(
+                    "greater_than should be strictly less than to "
+                    "less_than. Use geq_than or leq_than for "
+                    "overlapping equality."
+                )
+
+        if "greater_than" in check_values and "leq_than" in check_values:
+            if check_values["greater_than"] >= check_values["leq_than"]:
+                raise ValueError(
+                    "greater_than must be strictly less than leq_than. "
+                    "Use geq_than with leq_than for overlapping equality."
+                )
+
+        if "geq_than" in check_values and "less_than" in check_values:
+            if check_values["geq_than"] >= check_values["less_than"]:
+                raise ValueError(
+                    "geq_than should be strictly less than less_than. "
+                    "Use leq_than with geq_than for overlapping equality."
+                )
+
+        if "geq_than" in check_values and "leq_than" in check_values:
+            if check_values["geq_than"] > check_values["leq_than"]:
+                raise ValueError("geq_than should be less than or equal to leq_than.")
+
+        if "greater_than" in check_values and "geq_than" in check_values:
+            raise ValueError("Only supply one of greater_than or geq_than.")
+
+        if "less_than" in check_values and "leq_than" in check_values:
+            raise ValueError("Only supply one of less_than or leq_than.")
+
+        if (
+            "greater_than" in check_values
+            or "geq_than" in check_values
+            or "less_than" in check_values
+            or "leq_than" in check_values
+        ) and "equal_to" in check_values:
+            raise ValueError(
+                "equal_to cannot be passed with a greater or less than "
+                "function. To specify 'greater than or equal to' or "
+                "'less than or equal to', use geq_than or leq_than."
+            )
 
 
 class SQLTableCheckOperator(BaseSQLOperator):
