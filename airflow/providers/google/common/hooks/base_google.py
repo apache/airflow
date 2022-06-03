@@ -34,8 +34,10 @@ import google_auth_httplib2
 import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
-from google.auth import _cloud_sdk
+from google.auth import _cloud_sdk, compute_engine
 from google.auth.environment_vars import CLOUD_SDK_CONFIG_DIR, CREDENTIALS
+from google.auth.exceptions import RefreshError
+from google.auth.transport import _http_client
 from googleapiclient import discovery
 from googleapiclient.errors import HttpError
 from googleapiclient.http import MediaIoBaseDownload, build_http, set_user_agent
@@ -274,6 +276,17 @@ class GoogleBaseHook(BaseHook):
         If user authentication (e.g. gcloud auth) is used, it returns the e-mail account of that user.
         """
         credentials = self._get_credentials()
+
+        if isinstance(credentials, compute_engine.Credentials):
+            try:
+                credentials.refresh(_http_client.Request())
+            except RefreshError as msg:
+                """
+                If the Compute Engine metadata service can't be reached in this case the instance has not
+                credentials.
+                """
+                self.log.debug(msg)
+
         service_account_email = getattr(credentials, 'service_account_email', None)
         if service_account_email:
             return service_account_email
