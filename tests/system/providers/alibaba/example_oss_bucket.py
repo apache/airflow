@@ -17,7 +17,7 @@
 
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
-
+import os
 from datetime import datetime
 
 from airflow.models.dag import DAG

@@ -16,7 +16,7 @@
 # under the License.
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
-
+import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -61,6 +61,8 @@ with DAG(
     )
 
     create_object >> download_object >> delete_object >> delete_batch_object
+
+    from tests.system.utils.watcher import watcher
 
     # This test needs watcher in order to properly mark success/failure
     # when "tearDown" task with trigger rule is part of the DAG
