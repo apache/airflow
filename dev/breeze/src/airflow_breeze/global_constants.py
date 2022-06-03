@@ -17,7 +17,7 @@
 """
 Global constants that are used by all other Breeze components.
 """
-import os
+import platform
 from typing import List
 
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -137,8 +137,15 @@ def get_available_packages(short_version=False) -> List[str]:
     return package_list
 
 
+def get_default_platform_machine() -> str:
+    machine = platform.uname().machine
+    # Some additional conversion for various platforms...
+    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    return machine
+
+
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{os.uname().machine}"
+DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
 DOCKER_BUILDKIT = 1
 
 SSH_PORT = "12322"

@@ -222,7 +222,7 @@ class ShellParams:
         if len(integrations) > 0:
             for integration in integrations:
                 compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/integration-{integration}.yml")
-        return ':'.join(compose_ci_file)
+        return os.pathsep.join(compose_ci_file)
 
     @property
     def command_passed(self):
