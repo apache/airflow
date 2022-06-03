@@ -14,10 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.salesforce.operators.salesforce_apex_rest import SalesforceApexRestOperator
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_gcs_to_trino"
+
 
 with DAG(
     dag_id="salesforce_apex_rest_operator_dag",
@@ -33,3 +38,9 @@ with DAG(
         task_id="apex_task", method='POST', endpoint='User/Activity', payload=payload
     )
     # [END howto_salesforce_apex_rest_operator]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
