@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from datetime import datetime
 
 from airflow import DAG
@@ -23,8 +24,11 @@ from airflow.providers.opsgenie.operators.opsgenie import (
     OpsgenieDeleteAlertOperator,
 )
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "opsgenie_alert_operator_dag"
+
 with DAG(
-    dag_id="opsgenie_alert_operator_dag",
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -45,3 +49,8 @@ with DAG(
         task_id="opsgenie_delete_task", identifier="identifier_example"
     )
     # [END howto_opsgenie_delete_alert_operator]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
