@@ -123,21 +123,17 @@ class WasbHook(BaseHook):
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
             return BlobServiceClient(account_url=conn.host, **extra)
 
-        connection_string = extra.pop('connection_string', None) or extra.pop(
-            'extra__wasb__connection_string', None
-        )
+        connection_string = extra.pop('connection_string', extra.pop('extra__wasb__connection_string', None))
         if connection_string:
             # connection_string auth takes priority
             return BlobServiceClient.from_connection_string(connection_string, **extra)
 
-        shared_access_key = extra.pop('shared_access_key', None) or extra.pop(
-            'extra__wasb__shared_access_key', None
-        )
+        shared_access_key = extra.pop('shared_access_key', extra.pop('extra__wasb__shared_access_key', None))
         if shared_access_key:
             # using shared access key
             return BlobServiceClient(account_url=conn.host, credential=shared_access_key, **extra)
 
-        tenant = extra.pop('tenant_id', None) or extra.pop('extra__wasb__tenant_id', None)
+        tenant = extra.pop('tenant_id', extra.pop('extra__wasb__tenant_id', None))
         if tenant:
             # use Active Directory auth
             app_id = conn.login
@@ -145,7 +141,7 @@ class WasbHook(BaseHook):
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
             return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
 
-        sas_token = extra.pop('sas_token', None) or extra.pop('extra__wasb__sas_token', None)
+        sas_token = extra.pop('sas_token', extra.pop('extra__wasb__sas_token', None))
         if sas_token:
             if sas_token.startswith('https'):
                 return BlobServiceClient(account_url=sas_token, **extra)
