@@ -55,7 +55,7 @@ class PrestoToSlackOperator(BaseOperator):
     :param slack_channel: The channel to send message. Override default from Slack connection.
     """
 
-    template_fields: Sequence[str] = ('sql', 'slack_message')
+    template_fields: Sequence[str] = ('sql', 'slack_message', 'slack_channel')
     template_ext: Sequence[str] = ('.sql', '.jinja', '.j2')
     template_fields_renderers = {"sql": "sql", "slack_message": "jinja"}
     times_rendered = 0

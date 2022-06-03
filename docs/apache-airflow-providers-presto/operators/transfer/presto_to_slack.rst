@@ -26,12 +26,13 @@ channels.
 Using the Operator
 ^^^^^^^^^^^^^^^^^^
 
-This operator will execute a custom query on a selected Presto table and publish a Slack message that can be formatted
+This operator will execute a custom query in Presto and publish a Slack message that can be formatted
 and contain the resulting dataset (e.g. ASCII formatted dataframe).
 
 An example usage of the PrestoToSlackOperator is as follows:
 
 .. exampleinclude:: /../../tests/system/providers/presto/example_presto_to_slack.py
     :language: python
+    :indent: 4
     :start-after: [START howto_operator_presto_to_slack]
     :end-before: [END howto_operator_presto_to_slack]
