@@ -31,6 +31,7 @@ An example of Listing all Repositories owned by a user, **client.get_user().get_
 
 .. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_list_repos_github]
     :end-before: [END howto_operator_list_repos_github]
 
@@ -40,6 +41,7 @@ An example of Listing Tags in a Repository, **client.get_repo(full_name_or_id='a
 
 .. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_operator_list_tags_github]
     :end-before: [END howto_operator_list_tags_github]
 
@@ -60,6 +62,7 @@ An example for tag **v1.0**:
 
 .. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_tag_sensor_github]
     :end-before: [END howto_tag_sensor_github]
 
@@ -67,5 +70,6 @@ Similar Functionality can be achieved by directly using :class:`~airflow.provide
 
 .. exampleinclude:: /../../tests/system/providers/github/example_github.py
     :language: python
+    :dedent: 4
     :start-after: [START howto_sensor_github]
     :end-before: [END howto_sensor_github]

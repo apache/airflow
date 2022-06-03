@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
+
 import logging
+import os
 from datetime import datetime
 from typing import Any, Optional
 
@@ -28,6 +29,7 @@ from airflow.providers.github.sensors.github import GithubSensor, GithubTagSenso
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_github_operator"
+
 
 with DAG(
     DAG_ID,
@@ -44,7 +46,6 @@ with DAG(
         repository_name="apache/airflow",
         timeout=60,
         poke_interval=10,
-        dag=dag,
     )
 
     # [END howto_tag_sensor_github]
@@ -71,7 +72,6 @@ with DAG(
         result_processor=lambda repo: tag_checker(repo, 'v1.0'),
         timeout=60,
         poke_interval=10,
-        dag=dag,
     )
 
     # [END howto_sensor_github]
@@ -83,7 +83,6 @@ with DAG(
         github_method="get_user",
         github_method_args={},
         result_processor=lambda user: logging.info(list(user.get_repos())),
-        dag=dag,
     )
 
     # [END howto_operator_list_repos_github]
@@ -95,7 +94,6 @@ with DAG(
         github_method="get_repo",
         github_method_args={'full_name_or_id': 'apache/airflow'},
         result_processor=lambda repo: logging.info(list(repo.get_tags())),
-        dag=dag,
     )
 
     # [END howto_operator_list_tags_github]
