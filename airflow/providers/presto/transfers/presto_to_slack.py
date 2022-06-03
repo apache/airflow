@@ -129,11 +129,9 @@ class PrestoToSlackOperator(BaseOperator):
         self.times_rendered += 1
 
     def execute(self, context: 'Context') -> None:
-        if not isinstance(self.sql, str):
-            raise AirflowException("Expected 'sql' parameter should be a string.")
-        if self.sql is None or self.sql.strip() == "":
+        if not self.sql.strip():
             raise AirflowException("Expected 'sql' parameter is missing.")
-        if self.slack_message is None or self.slack_message.strip() == "":
+        if not self.slack_message.strip():
             raise AirflowException("Expected 'slack_message' parameter is missing.")
 
         df = self._get_query_results()
