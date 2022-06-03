@@ -35,9 +35,9 @@ try:
     from airflow.operators.empty import EmptyOperator
 except ModuleNotFoundError:
     from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
+
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 from airflow.providers.microsoft.winrm.operators.winrm import WinRMOperator
-
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "POC_winrm_parallel"
