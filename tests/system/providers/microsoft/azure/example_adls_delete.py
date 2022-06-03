@@ -25,9 +25,11 @@ from airflow.providers.microsoft.azure.transfers.local_to_adls import LocalFiles
 LOCAL_FILE_PATH = os.environ.get("LOCAL_FILE_PATH", 'localfile.txt')
 REMOTE_FILE_PATH = os.environ.get("REMOTE_LOCAL_PATH", 'remote.txt')
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_adls_delete"
 
 with models.DAG(
-    "example_adls_delete",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     tags=['example'],
@@ -43,3 +45,14 @@ with models.DAG(
     # [END howto_operator_adls_delete]
 
     upload_file >> remove_file
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

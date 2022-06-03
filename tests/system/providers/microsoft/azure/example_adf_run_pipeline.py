@@ -14,21 +14,25 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 from datetime import datetime, timedelta
 
-from airflow.models import DAG, BaseOperator
+from airflow.models import DAG
 
 try:
     from airflow.operators.empty import EmptyOperator
 except ModuleNotFoundError:
     from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
+
 from airflow.providers.microsoft.azure.operators.data_factory import AzureDataFactoryRunPipelineOperator
 from airflow.providers.microsoft.azure.sensors.data_factory import AzureDataFactoryPipelineRunStatusSensor
 from airflow.utils.edgemodifier import Label
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_adf_run_pipeline"
+
 with DAG(
-    dag_id="example_adf_run_pipeline",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 8, 13),
     schedule_interval="@daily",
     catchup=False,
@@ -45,7 +49,7 @@ with DAG(
     end = EmptyOperator(task_id="end")
 
     # [START howto_operator_adf_run_pipeline]
-    run_pipeline1: BaseOperator = AzureDataFactoryRunPipelineOperator(
+    run_pipeline1 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline1",
         pipeline_name="pipeline1",
         parameters={"myParam": "value"},
@@ -53,13 +57,13 @@ with DAG(
     # [END howto_operator_adf_run_pipeline]
 
     # [START howto_operator_adf_run_pipeline_async]
-    run_pipeline2: BaseOperator = AzureDataFactoryRunPipelineOperator(
+    run_pipeline2 = AzureDataFactoryRunPipelineOperator(
         task_id="run_pipeline2",
         pipeline_name="pipeline2",
         wait_for_termination=False,
     )
 
-    pipeline_run_sensor: BaseOperator = AzureDataFactoryPipelineRunStatusSensor(
+    pipeline_run_sensor = AzureDataFactoryPipelineRunStatusSensor(
         task_id="pipeline_run_sensor",
         run_id=run_pipeline2.output["run_id"],
     )
@@ -71,3 +75,14 @@ with DAG(
 
     # Task dependency created via `XComArgs`:
     #   run_pipeline2 >> pipeline_run_sensor
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

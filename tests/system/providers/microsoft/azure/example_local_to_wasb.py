@@ -26,9 +26,11 @@ from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDel
 from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator
 
 PATH_TO_UPLOAD_FILE = os.environ.get('AZURE_PATH_TO_UPLOAD_FILE', 'example-text.txt')
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_local_to_wasb"
 
 with DAG(
-    "example_local_to_wasb",
+    DAG_ID,
     schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -38,3 +40,14 @@ with DAG(
     delete = WasbDeleteBlobOperator(task_id="delete_file")
 
     upload >> delete
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

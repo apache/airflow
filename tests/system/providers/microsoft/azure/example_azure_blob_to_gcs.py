@@ -31,10 +31,12 @@ AZURE_CONTAINER_NAME = os.environ.get("AZURE_CONTAINER_NAME", "airflow")
 GCP_BUCKET_FILE_PATH = os.environ.get("GCP_BUCKET_FILE_PATH", "file.txt")
 GCP_BUCKET_NAME = os.environ.get("GCP_BUCKET_NAME", "INVALID BUCKET NAME")
 GCP_OBJECT_NAME = os.environ.get("GCP_OBJECT_NAME", "file.txt")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_azure_blob_to_gcs"
 
 # [START how_to_azure_blob_to_gcs]
 with DAG(
-    "example_azure_blob_to_gcs",
+    DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     default_args={"container_name": AZURE_CONTAINER_NAME, "blob_name": BLOB_NAME},
@@ -57,3 +59,14 @@ with DAG(
     # [END how_to_azure_blob_to_gcs]
 
     wait_for_blob >> transfer_files_to_gcs
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

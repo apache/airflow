@@ -19,9 +19,7 @@ import os
 
 import pytest
 
-from airflow.providers.microsoft.azure.example_dags.example_local_to_wasb import (  # type: ignore
-    PATH_TO_UPLOAD_FILE,
-)
+from tests.system.providers.microsoft.azure.example_local_to_wasb import PATH_TO_UPLOAD_FILE  # type: ignore
 from tests.test_utils.azure_system_helpers import (
     AZURE_DAG_FOLDER,
     AzureSystemTest,

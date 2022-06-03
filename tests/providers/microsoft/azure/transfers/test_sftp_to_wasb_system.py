@@ -20,7 +20,7 @@ import os
 
 import pytest
 
-from airflow.providers.microsoft.azure.example_dags.example_sftp_to_wasb import (
+from tests.system.providers.microsoft.azure.example_sftp_to_wasb import (
     FILE_COMPLETE_PATH,
     LOCAL_FILE_PATH,
     SAMPLE_FILENAME,
