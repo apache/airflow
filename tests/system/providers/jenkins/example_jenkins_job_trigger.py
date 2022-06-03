@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
 from datetime import datetime
 
 from requests import Request
@@ -25,9 +26,11 @@ from airflow.providers.jenkins.hooks.jenkins import JenkinsHook
 from airflow.providers.jenkins.operators.jenkins_job_trigger import JenkinsJobTriggerOperator
 
 JENKINS_CONNECTION_ID = "your_jenkins_connection"
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "test_jenkins"
 
 with DAG(
-    "test_jenkins",
+    DAG_ID,
     default_args={
         "retries": 1,
         "concurrency": 8,
@@ -65,3 +68,9 @@ with DAG(
 
     # Task dependency created via `XComArgs`:
     #   job_trigger >> grab_artifact_from_jenkins()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
