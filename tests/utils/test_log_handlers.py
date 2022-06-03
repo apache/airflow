@@ -21,12 +21,8 @@ import logging.config
 import os
 import re
 
-import pytest
-
-from airflow import settings
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
-from airflow.models.tasklog import LogTemplate
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.logging_mixin import set_context
@@ -218,24 +214,6 @@ class TestFileTaskLogHandler:
 
         # Remove the generated tmp log file.
         os.remove(log_filename)
-
-
-@pytest.fixture()
-def create_log_template(request):
-    session = settings.Session()
-
-    def _create_log_template(filename_template):
-        log_template = LogTemplate(filename=filename_template, elasticsearch_id="")
-        session.add(log_template)
-        session.commit()
-
-        def _delete_log_template():
-            session.delete(log_template)
-            session.commit()
-
-        request.addfinalizer(_delete_log_template)
-
-    return _create_log_template
 
 
 class TestFilenameRendering:
