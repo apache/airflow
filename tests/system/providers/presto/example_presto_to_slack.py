@@ -26,9 +26,11 @@ from airflow import models
 from airflow.providers.presto.transfers.presto_to_slack import PrestoToSlackOperator
 
 PRESTO_TABLE = os.environ.get("PRESTO_TABLE", "test_table")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_presto_to_slack"
 
 with models.DAG(
-    dag_id="example_presto_to_slack",
+    dag_id=DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2022, 1, 1),
     catchup=False,
@@ -42,3 +44,9 @@ with models.DAG(
         slack_message="message: {{ ds }}, {{ results_df }}",
     )
     # [END howto_operator_presto_to_slack]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

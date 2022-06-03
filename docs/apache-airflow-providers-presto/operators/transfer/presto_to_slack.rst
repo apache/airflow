@@ -31,7 +31,7 @@ and contain the resulting dataset (e.g. ASCII formatted dataframe).
 
 An example usage of the PrestoToSlackOperator is as follows:
 
-.. exampleinclude:: /../../airflow/providers/presto/example_dags/example_presto_to_slack.py
+.. exampleinclude:: /../../tests/system/providers/presto/example_presto_to_slack.py
     :language: python
     :start-after: [START howto_operator_presto_to_slack]
     :end-before: [END howto_operator_presto_to_slack]
