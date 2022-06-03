@@ -1065,11 +1065,11 @@ class DagRun(Base, LoggingMixin):
         return count
 
     @provide_session
-    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
+    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
         if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
-            template = session.query(LogTemplate.filename).order_by(LogTemplate.id).limit(1).scalar()
+            template = session.query(LogTemplate).order_by(LogTemplate.id).first()
         else:
-            template = session.query(LogTemplate.filename).filter_by(id=self.log_template_id).scalar()
+            template = session.query(LogTemplate).filter_by(id=self.log_template_id).one_or_none()
         if template is None:
             raise AirflowException(
                 f"No log_template entry found for ID {self.log_template_id!r}. "

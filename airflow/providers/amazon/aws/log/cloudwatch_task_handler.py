@@ -17,6 +17,7 @@
 # under the License.
 import sys
 from datetime import datetime
+from typing import Optional
 
 import watchtower
 
@@ -42,7 +43,7 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     :param filename_template: template for file name (local storage) or log stream name (remote)
     """
 
-    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):
+    def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: Optional[str] = None):
         super().__init__(base_log_folder, filename_template)
         split_arn = log_group_arn.split(':')
 
