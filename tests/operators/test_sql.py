@@ -437,46 +437,28 @@ class TestColumnCheckOperator(unittest.TestCase):
 
 class TestTableCheckOperator(unittest.TestCase):
 
-    valid_checks = {
-        "row_count_check": {"pass_value": 10},
+    checks = {
+        "row_count_check": {"check_statement": "COUNT(*) == 1000"},
+        "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
     }
-
-    valid_checks_tolerance = {
-        "row_count_check": {"pass_value": 10, "tolerance": 0.2},
-    }
-
-    invalid_checks = {"invalid_check_name": {"pass_value": 5}}
 
     def _construct_operator(self, checks):
         return SQLTableCheckOperator(task_id="test_task", table="test_table", checks=checks)
 
     @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
-    def test_check_not_in_checks(self, mock_get_db_hook):
-        with pytest.raises(AirflowException, match="Invalid table check: invalid_check_name."):
-            self._construct_operator(self.invalid_checks)
-
-    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
     def test_pass_all_checks_check(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.return_value = (10,)
+        mock_hook.get_first.return_value = (1000, 1)
         mock_get_db_hook.return_value = mock_hook
-        operator = self._construct_operator(self.valid_checks)
-        operator.execute()
-
-    @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
-    def test_pass_all_checks_with_tolerance_check(self, mock_get_db_hook):
-        mock_hook = mock.Mock()
-        mock_hook.get_first.return_value = (11,)
-        mock_get_db_hook.return_value = mock_hook
-        operator = self._construct_operator(self.valid_checks_tolerance)
+        operator = self._construct_operator(self.checks)
         operator.execute()
 
     @mock.patch.object(SQLTableCheckOperator, "get_db_hook")
     def test_fail_all_checks_check(self, mock_get_db_hook):
         mock_hook = mock.Mock()
-        mock_hook.get_first.return_value = (1,)
+        mock_hook.get_first.return_value = (998, 0)
         mock_get_db_hook.return_value = mock_hook
-        operator = self._construct_operator(self.valid_checks)
+        operator = self._construct_operator(self.checks)
         with pytest.raises(AirflowException):
             operator.execute()
 

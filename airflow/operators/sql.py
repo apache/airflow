@@ -661,24 +661,24 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
 class SQLTableCheckOperator(BaseSQLOperator):
     """
-    Performs one or more of the templated checks in the table_checks dictionary.
-    Checks are performed on the table as aggregates.
+    Performs one or more of the checks provided in the checks dictionary.
+    Checks should be written to return a boolean result.
 
     :param table: the table to run checks on.
     :param checks: the dictionary of checks, e.g.:
     {
         'row_count_check': {
-            'pass_value': 100,
-            'tolerance': .05
+            'check_statement': 'COUNT(*) == 1000'
+        },
+        'column_sum_check': {
+            'check_statement': 'col_a + col_b < col_c'
         }
     }
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
     """
 
-    table_checks = {
-        "row_count_check": "COUNT(*) AS row_count_check",
-    }
+    sql_check_template = "MIN(CASE WHEN check_statement THEN 1 ELSE 0 END AS check_name)"
 
     def __init__(
         self,
@@ -690,9 +690,6 @@ class SQLTableCheckOperator(BaseSQLOperator):
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
-        for check in checks.keys():
-            if check not in self.table_checks:
-                raise AirflowException(f"Invalid table check: {check}.")
 
         self.table = table
         self.checks = checks
@@ -701,7 +698,14 @@ class SQLTableCheckOperator(BaseSQLOperator):
     def execute(self, context=None):
         hook = self.get_db_hook()
 
-        checks_sql = ",".join([self.table_checks[check] for check in self.checks.keys()])
+        checks_sql = ",".join(
+            [
+                self.sql_check_template.replace("check_statment", value["check_statement"]).replace(
+                    "check_name", check_name
+                )
+                for check_name, value in self.checks.items()
+            ]
+        )
 
         self.sql = f"SELECT {checks_sql} FROM {self.table};"
         records = hook.get_first(self.sql)
@@ -713,16 +717,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         for check in self.checks.keys():
             for result in records:
-                pass_value_conv = _convert_to_float_if_possible(self.checks[check]["pass_value"])
-                is_numeric_value_check = isinstance(pass_value_conv, float)
-                tolerance = self.checks[check]["tolerance"] if "tolerance" in self.checks[check] else None
-
-                self.checks[check]["result"] = result
-                self.checks[check]["success"] = (
-                    self._get_numeric_match(result, self.checks[check]["pass_value"], tolerance)
-                    if is_numeric_value_check
-                    else (result == self.checks[check]["pass_value"])
-                )
+                self.checks[check]["success"] = bool(result)
 
         failed_tests = _get_failed_tests(self.checks)
         if failed_tests:
@@ -733,13 +728,6 @@ class SQLTableCheckOperator(BaseSQLOperator):
             )
 
         self.log.info("All tests have passed")
-
-    def _get_numeric_match(self, numeric_record, numeric_pass_value, tolerance=None):
-        if tolerance is not None:
-            return (
-                numeric_pass_value * (1 - tolerance) <= numeric_record <= numeric_pass_value * (1 + tolerance)
-            )
-        return numeric_record == numeric_pass_value
 
 
 class BranchSQLOperator(BaseSQLOperator, SkipMixin):
