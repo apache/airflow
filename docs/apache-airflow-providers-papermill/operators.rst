@@ -55,3 +55,10 @@ to execute a jupyter notebook:
     :dedent: 4
     :start-after: [START howto_operator_papermill]
     :end-before: [END howto_operator_papermill]
+
+Example DAG to Verify the message in the notebook:
+
+.. exampleinclude:: /../../tests/system/providers/papermill/example_papermill_verify.py
+    :language: python
+    :start-after: [START howto_verify_operator_papermill]
+    :end-before: [END howto_verify_operator_papermill]
