@@ -16,7 +16,7 @@
 # under the License.
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
-
+import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
@@ -27,8 +27,10 @@ from airflow.providers.alibaba.cloud.operators.oss import (
     OSSUploadObjectOperator,
 )
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "oss_object_dag"
 with DAG(
-    dag_id='oss_object_dag',
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     default_args={'bucket_name': 'your bucket', 'region': 'your region'},
     max_active_runs=1,
@@ -59,3 +61,15 @@ with DAG(
     )
 
     create_object >> download_object >> delete_object >> delete_batch_object
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
