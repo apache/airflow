@@ -2167,14 +2167,17 @@ class BigQueryInsertJobOperator(BaseOperator):
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
-        table = job.to_api_repr()["configuration"]["query"]["destinationTable"]
-        BigQueryTableLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=table["datasetId"],
-            project_id=table["projectId"],
-            table_id=table["tableId"],
-        )
+        if "query" in job.to_api_repr()["configuration"]:
+            if "destinationTable" in job.to_api_repr()["configuration"]["query"]:
+                table = job.to_api_repr()["configuration"]["query"]["destinationTable"]
+                BigQueryTableLink.persist(
+                    context=context,
+                    task_instance=self,
+                    dataset_id=table["datasetId"],
+                    project_id=table["projectId"],
+                    table_id=table["tableId"],
+                )
+
         self.job_id = job.job_id
         return job.job_id
 
