@@ -21,7 +21,6 @@ from datetime import datetime
 from airflow.models.dag import DAG
 from airflow.providers.influxdb.operators.influxdb import InfluxDBOperator
 
-
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_influxdb_operator"
 
