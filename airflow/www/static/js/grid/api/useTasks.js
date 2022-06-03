@@ -23,9 +23,9 @@ import { getMetaValue } from '../../utils';
 
 const tasksUrl = getMetaValue('tasks_api');
 
-export default function useTasks(dagId) {
+export default function useTasks() {
   return useQuery(
-    ['tasks', dagId],
+    'tasks',
     () => axios.get(tasksUrl),
     {
       placeholderData: { tasks: [] },

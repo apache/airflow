@@ -165,24 +165,14 @@ def client_ti_without_dag_edit(app):
             id='graph',
         ),
         pytest.param(
-            'tree?dag_id=example_bash_operator',
+            'object/grid_data?dag_id=example_bash_operator',
             ['runme_1'],
-            id='tree',
+            id='grid-data',
         ),
         pytest.param(
-            'dags/example_bash_operator/grid',
-            ['runme_1'],
-            id='grid',
-        ),
-        pytest.param(
-            'tree?dag_id=example_subdag_operator.section-1',
+            'object/grid_data?dag_id=example_subdag_operator.section-1',
             ['section-1-task-1'],
-            id="tree-subdag-url-param",
-        ),
-        pytest.param(
-            'dags/example_subdag_operator.section-1/grid',
-            ['section-1-task-1'],
-            id="grid-subdag",
+            id="grid-data-subdag",
         ),
         pytest.param(
             'duration?days=30&dag_id=example_bash_operator',
