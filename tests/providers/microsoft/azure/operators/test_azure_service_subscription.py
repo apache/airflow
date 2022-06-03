@@ -215,7 +215,7 @@ class TestASBSubscriptionReceiveMessageOperator(unittest.TestCase):
             .get_subscription_receiver(SUBSCRIPTION_NAME, TOPIC_NAME)
             .__enter__()
             .receive_messages(max_message_count=10, max_wait_time=5)
-            .get_queue_receiver(self.queue_name)
+            .get_subscription_receiver(SUBSCRIPTION_NAME, TOPIC_NAME)
             .__exit__()
             .mock_call()
             .__exit__

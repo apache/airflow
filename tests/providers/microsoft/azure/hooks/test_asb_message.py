@@ -174,7 +174,7 @@ class TestServiceBusMessageHook:
             .get_subscription_receiver(subscription_name, topic_name)
             .__enter__()
             .receive_messages(max_message_count=max_message_count, max_wait_time=max_wait_time)
-            .get_queue_receiver(self.queue_name)
+            .get_subscription_receiver(subscription_name, topic_name)
             .__exit__()
             .mock_call()
             .__exit__

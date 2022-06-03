@@ -145,9 +145,8 @@ class AzureServiceBusAdminClientHook(BaseAzureServiceBusHook):
         :param forward_dead_lettered_messages_to: The name of the recipient entity to which all the
          messages sent to the subscription are forwarded to.
         :param auto_delete_on_idle: ISO 8601 timeSpan idle interval after which the subscription is
-         automatically deleted. The minimum duration is 5 minutes.
-         Input value of either type ~datetime.timedelta or string in ISO 8601 duration format like
-          "PT300S" is accepted.
+         automatically deleted. The minimum duration is 5 minutes. Input value of either
+         type ~datetime.timedelta or string in ISO 8601 duration format like "PT300S" is accepted.
         """
         if subscription_name is None:
             raise AirflowBadRequest("Subscription name cannot be None.")
