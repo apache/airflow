@@ -68,6 +68,9 @@ class SSHHook(BaseHook):
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :param banner_timeout: timeout to wait for banner from the server in seconds
+    :param disabled_algorithms: dictionary mapping algorithm type to an
+        iterable of algorithm identifiers, which will be disabled for the
+        lifetime of the transport
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -112,6 +115,7 @@ class SSHHook(BaseHook):
         conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
+        disabled_algorithms: Optional[dict] = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -125,6 +129,7 @@ class SSHHook(BaseHook):
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
         self.banner_timeout = banner_timeout
+        self.disabled_algorithms = disabled_algorithms
         self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
@@ -196,6 +201,9 @@ class SSHHook(BaseHook):
                     and str(extra_options["look_for_keys"]).lower() == 'false'
                 ):
                     self.look_for_keys = False
+
+                if "disabled_algorithms" in extra_options:
+                    self.disabled_algorithms = extra_options.get("disabled_algorithms")
 
                 if host_key is not None:
                     if host_key.startswith("ssh-"):
@@ -312,6 +320,9 @@ class SSHHook(BaseHook):
 
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
+
+        if self.disabled_algorithms:
+            connect_kwargs.update(disabled_algorithms=self.disabled_algorithms)
 
         log_before_sleep = lambda retry_state: self.log.info(
             "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
