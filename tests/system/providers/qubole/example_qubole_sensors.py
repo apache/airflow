@@ -21,11 +21,6 @@ import textwrap
 from datetime import datetime
 
 from airflow import DAG
-
-try:
-    from airflow.operators.empty import EmptyOperator
-except ModuleNotFoundError:
-    from airflow.operators.dummy import DummyOperator as EmptyOperator  # type: ignore
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 
 START_DATE = datetime(2021, 1, 1)
