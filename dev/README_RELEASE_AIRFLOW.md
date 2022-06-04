@@ -41,6 +41,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
+  - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -973,6 +974,18 @@ marked as "latest".
 
 In case we are releasing (which almost never happens so far) a critical bugfix release in one of
 the older branches, you should set the "skip" field to true.
+
+## Verify production images
+
+```shell script
+for PYTHON in 3.7 3.8 3.9 3.10
+do
+    docker pull apache/airflow:${VERSION}-python${PYTHON}
+    breeze verify-prod-image --image-name apache/airflow:${VERSION}-python${PYTHON}
+done
+docker pull apache/airflow:${VERSION}
+breeze verify-prod-image --image-name apache/airflow:${VERSION}
+```
 
 
 ## Publish documentation
