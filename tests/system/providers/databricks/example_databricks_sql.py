@@ -31,6 +31,7 @@ For more information about the state of a run refer to
 https://docs.databricks.com/api/latest/jobs.html#runstate
 """
 
+import os
 from datetime import datetime
 
 from airflow import DAG
@@ -39,8 +40,11 @@ from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksSqlOperator,
 )
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_databricks_sql_operator"
+
 with DAG(
-    dag_id='example_databricks_sql_operator',
+    dag_id=DAG_ID,
     schedule_interval='@daily',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -111,3 +115,14 @@ with DAG(
     # [END howto_operator_databricks_copy_into]
 
     (create >> create_file >> import_csv >> select >> select_into_file)
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
