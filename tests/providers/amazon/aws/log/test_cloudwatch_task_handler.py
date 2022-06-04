@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 import time
-import unittest
 from datetime import datetime as dt
 from unittest import mock
 from unittest.mock import ANY, call
 
+import pytest
 from watchtower import CloudWatchLogHandler
 
 from airflow.models import DAG, DagRun, TaskInstance
@@ -45,14 +45,21 @@ def get_time_str(time_in_milliseconds):
     return dt_time.strftime("%Y-%m-%d %H:%M:%S,000")
 
 
-@unittest.skipIf(mock_logs is None, "Skipping test because moto.mock_logs is not available")
-@mock_logs
-class TestCloudwatchTaskHandler(unittest.TestCase):
+@pytest.fixture(autouse=True, scope="module")
+def logmock():
+    with mock_logs():
+        yield
+
+
+@pytest.mark.skipif(mock_logs is None, reason="Skipping test because moto.mock_logs is not available")
+class TestCloudwatchTaskHandler:
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
-    def setUp(self):
+    @pytest.fixture(autouse=True)
+    def setup(self, create_log_template):
         self.remote_log_group = 'log_group_name'
         self.region_name = 'us-west-2'
         self.local_log_location = 'local/log/location'
+        create_log_template('{dag_id}/{task_id}/{execution_date}/{try_number}.log')
         self.cloudwatch_task_handler = CloudwatchTaskHandler(
             self.local_log_location,
             f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
@@ -65,22 +72,28 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.dag = DAG(dag_id=dag_id, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
         dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+        with create_session() as session:
+            session.add(dag_run)
+            session.commit()
+            session.refresh(dag_run)
+
         self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
 
-        with create_session() as session:
-            session.merge(dag_run)
-
-        self.remote_log_stream = (
-            f'dag_id={dag_id}/run_id={dag_run.run_id}/task_id={task_id}/attempt={self.ti.try_number}.log'
-        ).replace(':', '_')
+        self.remote_log_stream = (f'{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log').replace(
+            ':', '_'
+        )
 
         moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn = boto3.client('logs', region_name=self.region_name)
 
-    def tearDown(self):
+        yield
+
+        with create_session() as session:
+            session.query(DagRun).delete()
+
         self.cloudwatch_task_handler.handler = None
         with create_session() as session:
             session.query(DagRun).delete()
