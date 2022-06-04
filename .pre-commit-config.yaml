@@ -324,7 +324,7 @@ repos:
         files: ^setup\.cfg$|^setup\.py$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_order_setup.py
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: check-extra-packages-references
         name: Checks setup extra packages
         description: Checks if all the libraries in setup.py are listed in extra-packages-ref.rst file
@@ -332,7 +332,7 @@ repos:
         files: ^setup\.py$|^docs/apache-airflow/extra-packages-ref\.rst$
         pass_filenames: false
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
         # This check might be removed when min-airflow-version in providers is 2.2
       - id: check-airflow-2-1-compatibility
         name: Check that providers are 2.1 compatible.
@@ -340,21 +340,21 @@ repos:
         language: python
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-breeze-file
         name: Update output of breeze commands in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
         files: ^BREEZE\.rst$|^dev/breeze/.*$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.1', 'rich-click']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
         language: python
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
         entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh
@@ -380,7 +380,7 @@ repos:
         language: python
         files: ^Dockerfile$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-supported-versions
         name: Updates supported versions in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_supported_versions.py
@@ -602,7 +602,7 @@ repos:
           - 'jsonschema>=3.2.0,<5.0.0'
           - 'tabulate==0.8.8'
           - 'jsonpath-ng==1.5.3'
-          - 'rich>=12.4.1'
+          - 'rich>=12.4.4'
       - id: check-pre-commit-information-consistent
         name: Update information re pre-commit hooks and verify ids and names
         entry: ./scripts/ci/pre_commit/pre_commit_check_pre_commit_hooks.py
@@ -610,7 +610,7 @@ repos:
           - --max-length=64
         language: python
         files: ^\.pre-commit-config\.yaml$|^scripts/ci/pre_commit/pre_commit_check_pre_commit_hook_names\.py$
-        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.1']
+        additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
       - id: check-airflow-providers-have-extras
@@ -620,7 +620,7 @@ repos:
         files: ^setup\.py$|^airflow/providers/.*\.py$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-breeze-readme-config-hash
         name: Update Breeze README.md with config files hash
         language: python
@@ -635,7 +635,7 @@ repos:
         files: ^dev/breeze/.*$
         pass_filenames: false
         require_serial: true
-        additional_dependencies: ['click', 'rich>=12.4.1']
+        additional_dependencies: ['click', 'rich>=12.4.4']
       - id: check-system-tests-present
         name: Check if system tests have required segments of code
         entry: ./scripts/ci/pre_commit/pre_commit_check_system_tests.py
@@ -643,7 +643,7 @@ repos:
         files: ^tests/system/.*/example_[^/]*.py$
         exclude: ^tests/system/providers/google/bigquery/example_bigquery_queries\.py$
         pass_filenames: true
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: lint-markdown
         name: Run markdownlint
         description: Checks the style of Markdown files.
@@ -734,7 +734,7 @@ repos:
         language: python
         pass_filenames: true
         files: ^\.github/workflows/.*\.yml$
-        additional_dependencies: ['PyYAML', 'rich>=12.4.1']
+        additional_dependencies: ['PyYAML', 'rich>=12.4.4']
       - id: check-docstring-param-types
         name: Check that docstrings do not specify param types
         entry: ./scripts/ci/pre_commit/pre_commit_docstring_param_type.py
@@ -742,7 +742,7 @@ repos:
         pass_filenames: true
         files: \.py$
         exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: lint-chart-schema
         name: Lint chart/values.schema.json file
         entry: ./scripts/ci/pre_commit/pre_commit_chart_schema.py
@@ -777,7 +777,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: run-mypy
         name: Run mypy for core
         language: python
@@ -785,14 +785,14 @@ repos:
         files: \.py$
         exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
         require_serial: true
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: run-mypy
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: ^airflow/providers/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: run-mypy
         name: Run mypy for /docs/ folder
         language: python
@@ -800,7 +800,7 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: run-flake8
         name: Run flake8
         language: python
@@ -808,7 +808,7 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: lint-javascript
         name: ESLint against airflow/ui
         language: python
@@ -816,7 +816,7 @@ repos:
         files: ^airflow/ui/
         entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: lint-javascript
         name: ESLint against current UI JavaScript files
         language: python
@@ -824,12 +824,12 @@ repos:
         files: ^airflow/www/static/js/
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
       - id: update-migration-references
         name: Update migration ref doc
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.1']
+        additional_dependencies: ['rich>=12.4.4']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
