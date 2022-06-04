@@ -85,22 +85,22 @@ class SFTPHook(SSHHook):
             )
             ssh_conn_id = ftp_conn_id
         kwargs['ssh_conn_id'] = ssh_conn_id
+
+        # Default to fail for unverified hosts, unless this is explicitly allowed
+        # SSHHook init will override this if it is set
+        self.no_host_key_check = False
+
         super().__init__(*args, **kwargs)
 
         self.conn = None
-        self.private_key_pass = None
-        self.ciphers = None
+        self.private_key_passphrase = None
 
-        # Fail for unverified hosts, unless this is explicitly allowed
-        self.no_host_key_check = False
-
+        # For backward compatibility
+        # TODO: remove in the next major provider release.
         if self.ssh_conn_id is not None:
             conn = self.get_connection(self.ssh_conn_id)
             if conn.extra is not None:
                 extra_options = conn.extra_dejson
-
-                # For backward compatibility
-                # TODO: remove in the next major provider release.
 
                 if 'private_key_pass' in extra_options:
                     warnings.warn(
@@ -111,9 +111,14 @@ class SFTPHook(SSHHook):
                         DeprecationWarning,
                         stacklevel=2,
                     )
-                self.private_key_pass = extra_options.get(
+                self.private_key_passphrase = extra_options.get(
                     'private_key_passphrase', extra_options.get('private_key_pass')
                 )
+                private_key = extra_options.get('private_key')
+                if private_key:
+                    self.pkey = self._pkey_from_private_key(
+                        private_key, passphrase=self.private_key_passphrase
+                    )
 
                 if 'ignore_hostkey_verification' in extra_options:
                     warnings.warn(
@@ -126,12 +131,6 @@ class SFTPHook(SSHHook):
                     self.no_host_key_check = (
                         str(extra_options['ignore_hostkey_verification']).lower() == 'true'
                     )
-
-                if 'no_host_key_check' in extra_options:
-                    self.no_host_key_check = str(extra_options['no_host_key_check']).lower() == 'true'
-
-                if 'ciphers' in extra_options:
-                    self.ciphers = extra_options['ciphers']
 
     @tenacity.retry(
         stop=tenacity.stop_after_delay(10),
@@ -165,8 +164,8 @@ class SFTPHook(SSHHook):
                 conn_params['private_key'] = self.pkey
             elif self.key_file:
                 conn_params['private_key'] = self.key_file
-            if self.private_key_pass:
-                conn_params['private_key_pass'] = self.private_key_pass
+            if self.private_key_passphrase:
+                conn_params['private_key_pass'] = self.private_key_passphrase
 
             self.conn = pysftp.Connection(**conn_params)
         return self.conn
