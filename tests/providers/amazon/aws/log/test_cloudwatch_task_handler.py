@@ -27,6 +27,7 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.providers.amazon.aws.log.cloudwatch_task_handler import CloudwatchTaskHandler
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -52,11 +53,9 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         self.remote_log_group = 'log_group_name'
         self.region_name = 'us-west-2'
         self.local_log_location = 'local/log/location'
-        self.filename_template = '{dag_id}/{task_id}/{execution_date}/{try_number}.log'
         self.cloudwatch_task_handler = CloudwatchTaskHandler(
             self.local_log_location,
             f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
-            self.filename_template,
         )
         self.cloudwatch_task_handler.hook
 
@@ -65,21 +64,26 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         task_id = 'task_for_testing_cloudwatch_log_handler'
         self.dag = DAG(dag_id=dag_id, start_date=date)
         task = EmptyOperator(task_id=task_id, dag=self.dag)
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test")
-        self.ti = TaskInstance(task=task)
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="scheduled")
+        self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
 
-        self.remote_log_stream = f'{dag_id}/{task_id}/{date.isoformat()}/{self.ti.try_number}.log'.replace(
-            ':', '_'
-        )
+        with create_session() as session:
+            session.merge(dag_run)
+
+        self.remote_log_stream = (
+            f'dag_id={dag_id}/run_id={dag_run.run_id}/task_id={task_id}/attempt={self.ti.try_number}.log'
+        ).replace(':', '_')
 
         moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn = boto3.client('logs', region_name=self.region_name)
 
     def tearDown(self):
         self.cloudwatch_task_handler.handler = None
+        with create_session() as session:
+            session.query(DagRun).delete()
 
     def test_hook(self):
         assert isinstance(self.cloudwatch_task_handler.hook, AwsLogsHook)
@@ -89,7 +93,6 @@ class TestCloudwatchTaskHandler(unittest.TestCase):
         handler = CloudwatchTaskHandler(
             self.local_log_location,
             f"arn:aws:logs:{self.region_name}:11111111:log-group:{self.remote_log_group}",
-            self.filename_template,
         )
 
         with mock.patch.object(handler.log, 'error') as mock_error:
