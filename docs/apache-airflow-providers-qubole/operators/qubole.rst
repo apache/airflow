@@ -43,7 +43,7 @@ Run Hive command
 
 To run query that shows all tables you can use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_hive_query]
@@ -51,7 +51,7 @@ To run query that shows all tables you can use
 
 Also you can run script that locates in the bucket by passing path to query file
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_hive_script]
@@ -62,7 +62,7 @@ Run Hadoop command
 
 To run jar file in your Hadoop cluster use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_hadoop_jar]
@@ -73,7 +73,7 @@ Run Pig command
 
 To run script script in *Pig Latin* in your Hadoop cluster use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_pig_script]
@@ -84,7 +84,7 @@ Run Shell command
 
 To run Shell-script script use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_shell_script]
@@ -95,7 +95,7 @@ Run Presto command
 
 To run query using Presto use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_presto_query]
@@ -106,7 +106,7 @@ Run DB commands
 
 To run query as `DbTap <https://docs.qubole.com/en/latest/rest-api/dbtap_api/index.html>`_ use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_db_tap_query]
@@ -114,7 +114,7 @@ To run query as `DbTap <https://docs.qubole.com/en/latest/rest-api/dbtap_api/ind
 
 To run DB export command use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_db_export]
@@ -122,7 +122,7 @@ To run DB export command use
 
 To run DB import command use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_db_import]
@@ -133,7 +133,7 @@ Run Spark commands
 
 To run Scala script as a Spark job use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_qubole_run_spark_scala]
@@ -153,7 +153,7 @@ File or directory existence
 
 To wait for file or directory existence in cluster use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_qubole_run_file_sensor]
@@ -173,7 +173,7 @@ Partition existence
 
 To wait for table partition existence in cluster use
 
-.. exampleinclude:: /../../airflow/providers/qubole/example_dags/example_qubole.py
+.. exampleinclude:: /../../tests/system/providers/qubole/example_qubole_sensors.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_qubole_run_partition_sensor]

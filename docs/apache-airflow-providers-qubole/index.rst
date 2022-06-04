@@ -38,7 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/qubole/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/qubole>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-qubole/>
     Installing from sources <installing-providers-from-sources>
 
