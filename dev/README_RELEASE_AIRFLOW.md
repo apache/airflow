@@ -1050,6 +1050,8 @@ do
     docker pull apache/airflow:${VERSION}-python${PYTHON}
     breeze verify-prod-image --image-name apache/airflow:${VERSION}-python${PYTHON}
 done
+docker pull apache/airflow:${VERSION}
+breeze verify-prod-image --image-name apache/airflow:${VERSION}
 ```
 
 
