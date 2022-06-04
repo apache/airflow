@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow_breeze.configure_rich_click import click  # isort: skip # noqa
-from airflow_breeze.commands.main_command import main
-from airflow_breeze.utils.path_utils import (
-    create_directories_and_files,
-    find_airflow_sources_root_to_operate_on,
-)
-
-find_airflow_sources_root_to_operate_on()
-create_directories_and_files()
-
-if __name__ == '__main__':
-    main()
+---
+version: "3.7"
+services:
+  airflow:
+    volumes:
+      - type: volume
+        source: mypy-cache-volume
+        target: /opt/airflow/.mypy_cache/
+volumes:
+  mypy-cache-volume:
+    external: true
