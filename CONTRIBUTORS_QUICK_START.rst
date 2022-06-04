@@ -224,7 +224,7 @@ Setting up Breeze
 
 .. code-block:: bash
 
-  $ breeze --python 3.7 --backend mysql
+  $ breeze --python 3.7 --backend postgres
 
 .. note::
    If you encounter an error like "docker.credentials.errors.InitializationError:
@@ -272,7 +272,7 @@ Using Breeze
 ------------
 
 1. Starting breeze environment using ``breeze start-airflow`` starts Breeze environment with last configuration run(
-   In this case python and backend will be picked up from last execution ``breeze --python 3.8 --backend mysql``)
+   In this case python and backend will be picked up from last execution ``breeze --python 3.8 --backend postgres``)
    It also automatically starts webserver, backend and scheduler. It drops you in tmux with scheduler in bottom left
    and webserver in bottom right. Use ``[Ctrl + B] and Arrow keys`` to navigate.
 
@@ -324,7 +324,7 @@ Using Breeze
 
   .. code-block:: bash
 
-    $ breeze --python 3.8 --backend mysql
+    $ breeze --python 3.8 --backend postgres
 
   2. Open tmux
 
@@ -515,7 +515,7 @@ To avoid burden on CI infrastructure and to save time, Pre-commit hooks can be r
 
   $ pre-commit run black --files airflow/decorators.py tests/utils/test_task_group.py
     black...............................................................Passed
-  $ pre-commit run flake8 --files airflow/decorators.py tests/utils/test_task_group.py
+  $ pre-commit run run-flake8 --files airflow/decorators.py tests/utils/test_task_group.py
     Run flake8..........................................................Passed
 
 
@@ -612,8 +612,7 @@ All Tests are inside ./tests directory.
 
 .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All  tests
-
+   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset --test-type All  tests
 
 - Running specific type of test
 
@@ -623,7 +622,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-    $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type Core
+    $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset --test-type Core
 
 
 - Running Integration test for specific test type
@@ -632,7 +631,7 @@ All Tests are inside ./tests directory.
 
   .. code-block:: bash
 
-   $ breeze --backend mysql --mysql-version 5.7 --python 3.8 --db-reset --test-type All --integration mongo
+   $ breeze --backend postgres --postgres-version 10 --python 3.8 --db-reset --test-type All --integration mongo
 
 
 - For more information on Testing visit : |TESTING.rst|
