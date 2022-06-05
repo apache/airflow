@@ -17,19 +17,18 @@
 """Various utils to prepare docker and docker compose commands."""
 import os
 import re
-import subprocess
 import sys
 from copy import deepcopy
 from random import randint
 from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
 from typing import Dict, List, Union
 
-from airflow_breeze.params._common_build_params import _CommonBuildParams
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_DATA_VOLUME
 
 try:
     from packaging import version
@@ -58,54 +57,43 @@ from airflow_breeze.global_constants import (
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import (
     RunCommandResult,
+    check_if_buildx_plugin_installed,
     commit_sha,
-    prepare_base_build_command,
-    prepare_build_cache_command,
     run_command,
 )
 
 NECESSARY_HOST_VOLUMES = [
-    "/.bash_aliases:/root/.bash_aliases:cached",
-    "/.bash_history:/root/.bash_history:cached",
-    "/.coveragerc:/opt/airflow/.coveragerc:cached",
-    "/.dockerignore:/opt/airflow/.dockerignore:cached",
-    "/.flake8:/opt/airflow/.flake8:cached",
-    "/.github:/opt/airflow/.github:cached",
-    "/.inputrc:/root/.inputrc:cached",
-    "/.rat-excludes:/opt/airflow/.rat-excludes:cached",
-    "/RELEASE_NOTES.rst:/opt/airflow/RELEASE_NOTES.rst:cached",
-    "/LICENSE:/opt/airflow/LICENSE:cached",
-    "/MANIFEST.in:/opt/airflow/MANIFEST.in:cached",
-    "/NOTICE:/opt/airflow/NOTICE:cached",
-    "/airflow:/opt/airflow/airflow:cached",
-    "/provider_packages:/opt/airflow/provider_packages:cached",
-    "/dags:/opt/airflow/dags:cached",
-    "/dev:/opt/airflow/dev:cached",
-    "/docs:/opt/airflow/docs:cached",
-    "/hooks:/opt/airflow/hooks:cached",
-    "/logs:/root/airflow/logs:cached",
-    "/pyproject.toml:/opt/airflow/pyproject.toml:cached",
-    "/pytest.ini:/opt/airflow/pytest.ini:cached",
-    "/scripts:/opt/airflow/scripts:cached",
-    "/scripts/docker/entrypoint_ci.sh:/entrypoint:cached",
-    "/setup.cfg:/opt/airflow/setup.cfg:cached",
-    "/setup.py:/opt/airflow/setup.py:cached",
-    "/tests:/opt/airflow/tests:cached",
-    "/kubernetes_tests:/opt/airflow/kubernetes_tests:cached",
-    "/docker_tests:/opt/airflow/docker_tests:cached",
-    "/chart:/opt/airflow/chart:cached",
-    "/metastore_browser:/opt/airflow/metastore_browser:cached",
+    (".bash_aliases", "/root/.bash_aliases"),
+    (".bash_history", "/root/.bash_history"),
+    (".coveragerc", "/opt/airflow/.coveragerc"),
+    (".dockerignore", "/opt/airflow/.dockerignore"),
+    (".flake8", "/opt/airflow/.flake8"),
+    (".github", "/opt/airflow/.github"),
+    (".inputrc", "/root/.inputrc"),
+    (".rat-excludes", "/opt/airflow/.rat-excludes"),
+    ("RELEASE_NOTES.rst", "/opt/airflow/RELEASE_NOTES.rst"),
+    ("LICENSE", "/opt/airflow/LICENSE"),
+    ("MANIFEST.in", "/opt/airflow/MANIFEST.in"),
+    ("NOTICE", "/opt/airflow/NOTICE"),
+    ("airflow", "/opt/airflow/airflow"),
+    ("provider_packages", "/opt/airflow/provider_packages"),
+    ("dags", "/opt/airflow/dags"),
+    ("dev", "/opt/airflow/dev"),
+    ("docs", "/opt/airflow/docs"),
+    ("hooks", "/opt/airflow/hooks"),
+    ("logs", "/root/airflow/logs"),
+    ("pyproject.toml", "/opt/airflow/pyproject.toml"),
+    ("pytest.ini", "/opt/airflow/pytest.ini"),
+    ("scripts", "/opt/airflow/scripts"),
+    ("scripts/docker/entrypoint_ci.sh", "/entrypoint"),
+    ("setup.cfg", "/opt/airflow/setup.cfg"),
+    ("setup.py", "/opt/airflow/setup.py"),
+    ("tests", "/opt/airflow/tests"),
+    ("kubernetes_tests", "/opt/airflow/kubernetes_tests"),
+    ("docker_tests", "/opt/airflow/docker_tests"),
+    ("chart", "/opt/airflow/chart"),
+    ("metastore_browser", "/opt/airflow/metastore_browser"),
 ]
-
-
-def create_volume_if_missing(volume_name: str):
-    res_inspect = run_command(cmd=["docker", "inspect", volume_name], stdout=subprocess.DEVNULL, check=False)
-    if res_inspect.returncode != 0:
-        run_command(cmd=["docker", "volume", "create", volume_name], check=True)
-
-
-def create_static_check_volumes():
-    create_volume_if_missing("docker-compose_mypy-cache-volume")
 
 
 def get_extra_docker_flags(mount_sources: str) -> List[str]:
@@ -117,17 +105,26 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
     """
     extra_docker_flags = []
     if mount_sources == MOUNT_ALL:
-        extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}:/opt/airflow/:cached"])
+        extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT},dst=/opt/airflow/"])
     elif mount_sources == MOUNT_SELECTED:
-        for flag in NECESSARY_HOST_VOLUMES:
-            extra_docker_flags.extend(["-v", str(AIRFLOW_SOURCES_ROOT) + flag])
-        extra_docker_flags.extend(['-v', "docker-compose_mypy-cache-volume:/opt/airflow/.mypy_cache/"])
+        for (src, dst) in NECESSARY_HOST_VOLUMES:
+            if (AIRFLOW_SOURCES_ROOT / src).exists():
+                extra_docker_flags.extend(
+                    ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
+                )
+        extra_docker_flags.extend(
+            ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
+        )
     else:  # none
-        extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT / 'empty'}:/opt/airflow/airflow"])
-    extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/files:/files"])
-    extra_docker_flags.extend(["-v", f"{AIRFLOW_SOURCES_ROOT}/dist:/dist"])
+        extra_docker_flags.extend(
+            ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'empty'},dst=/opt/airflow/airflow"]
+        )
+    extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'files'},dst=/files"])
+    extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'dist'},dst=/dist"])
     extra_docker_flags.extend(["--rm"])
-    extra_docker_flags.extend(["--env-file", f"{AIRFLOW_SOURCES_ROOT}/scripts/ci/docker-compose/_docker.env"])
+    extra_docker_flags.extend(
+        ["--env-file", f"{AIRFLOW_SOURCES_ROOT / 'scripts' / 'ci' / 'docker-compose' / '_docker.env' }"]
+    )
     return extra_docker_flags
 
 
@@ -304,7 +301,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
-def get_env_variable_value(arg_name: str, params: Union[BuildCiParams, BuildProdParams, ShellParams]):
+def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ''
     value = "true" if raw_value is True else value
@@ -314,7 +311,7 @@ def get_env_variable_value(arg_name: str, params: Union[BuildCiParams, BuildProd
     return value
 
 
-def prepare_arguments_for_docker_build_command(image_params: _CommonBuildParams) -> List[str]:
+def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> List[str]:
     """
     Constructs docker compose command arguments list based on parameters passed. Maps arguments to
     argument values.
@@ -344,9 +341,7 @@ def prepare_arguments_for_docker_build_command(image_params: _CommonBuildParams)
 
 
 def prepare_docker_build_cache_command(
-    image_params: _CommonBuildParams,
-    dry_run: bool,
-    verbose: bool,
+    image_params: CommonBuildParams,
 ) -> List[str]:
     """
     Constructs docker build_cache command based on the parameters passed.
@@ -356,11 +351,10 @@ def prepare_docker_build_cache_command(
     :return: Command to run as list of string
     """
     arguments = prepare_arguments_for_docker_build_command(image_params)
-    build_command = prepare_build_cache_command()
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(build_command)
+    final_command.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -370,18 +364,44 @@ def prepare_docker_build_cache_command(
     )
     final_command.extend(["--platform", image_params.platform])
     final_command.extend(
-        [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)}," f"mode=max"]
+        [f"--cache-to=type=registry,ref={image_params.get_cache(image_params.platform)},mode=max"]
     )
-    cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-    buildx_command_result = run_command(cmd, verbose=verbose, dry_run=dry_run, text=True)
-    if buildx_command_result and buildx_command_result.returncode != 0:
-        next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-        run_command(next_cmd, verbose=verbose, text=True, check=False)
     return final_command
 
 
+def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> List[str]:
+    """
+    Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
+    and whether we run cache preparation, there might be different results:
+
+    * if buildx plugin is installed - `docker buildx` command is returned - using regular or cache builder
+      depending on whether we build regular image or cache
+    * if no buildx plugin is installed, and we do not prepare cache, regular docker `build` command is used.
+    * if no buildx plugin is installed, and we prepare cache - we fail. Cache can only be done with buildx
+    :param image_params: parameters of the image
+    :param verbose: print commands when running
+    :return: command to use as docker build command
+    """
+    build_command_param = []
+    is_buildx_available = check_if_buildx_plugin_installed(verbose=verbose)
+    if is_buildx_available:
+        build_command_param.extend(
+            [
+                "buildx",
+                "build",
+                "--builder",
+                "default",
+                "--progress=tty",
+                "--push" if image_params.push_image else "--load",
+            ]
+        )
+    else:
+        build_command_param.append("build")
+    return build_command_param
+
+
 def prepare_docker_build_command(
-    image_params: _CommonBuildParams,
+    image_params: CommonBuildParams,
     verbose: bool,
 ) -> List[str]:
     """
@@ -408,7 +428,7 @@ def prepare_docker_build_command(
 
 
 def construct_docker_push_command(
-    image_params: _CommonBuildParams,
+    image_params: CommonBuildParams,
 ) -> List[str]:
     """
     Constructs docker push command based on the parameters passed.
@@ -418,8 +438,8 @@ def construct_docker_push_command(
     return ["docker", "push", image_params.airflow_image_name_with_tag]
 
 
-def prepare_empty_docker_build_command(
-    image_params: _CommonBuildParams,
+def prepare_docker_build_from_input(
+    image_params: CommonBuildParams,
 ) -> List[str]:
     """
     Constructs docker build empty image command based on the parameters passed.
@@ -429,20 +449,33 @@ def prepare_empty_docker_build_command(
     return ["docker", "build", "-t", image_params.airflow_image_name_with_tag, "-"]
 
 
-def build_cache(image_params: _CommonBuildParams, dry_run: bool, verbose: bool) -> RunCommandResult:
+def build_cache(
+    image_params: CommonBuildParams, dry_run: bool, verbose: bool, parallel: bool
+) -> RunCommandResult:
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
     )
+    cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
+    buildx_command_result = run_command(
+        cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
+    )
+    if buildx_command_result and buildx_command_result.returncode != 0:
+        next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
+        run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
         # as a workaround to https://github.com/docker/buildx/issues/1044
         platform_image_params.platform = platform
-        cmd = prepare_docker_build_cache_command(
-            image_params=platform_image_params, dry_run=dry_run, verbose=verbose
-        )
+        cmd = prepare_docker_build_cache_command(image_params=platform_image_params)
         build_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, check=False, text=True
+            cmd,
+            verbose=verbose,
+            dry_run=dry_run,
+            cwd=AIRFLOW_SOURCES_ROOT,
+            check=False,
+            text=True,
+            enabled_output_group=not parallel,
         )
         if build_command_result.returncode != 0:
             break
@@ -468,6 +501,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     :param env: environment variables to update with missing values if not set.
     """
     set_value_to_default_if_not_set(env, 'AIRFLOW_CONSTRAINTS_MODE', "constraints-source-providers")
+    set_value_to_default_if_not_set(env, 'AIRFLOW_CONSTRAINTS_REFERENCE', "constraints-source-providers")
     set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
     set_value_to_default_if_not_set(env, 'ANSWER', "")
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
@@ -493,6 +527,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'LIST_OF_INTEGRATION_TESTS_TO_RUN', "")
     set_value_to_default_if_not_set(env, 'LOAD_DEFAULT_CONNECTIONS', "false")
     set_value_to_default_if_not_set(env, 'LOAD_EXAMPLES', "false")
+    set_value_to_default_if_not_set(env, 'MSSQL_DATA_VOLUME', str(MSSQL_DATA_VOLUME))
     set_value_to_default_if_not_set(env, 'PACKAGE_FORMAT', ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, 'PRINT_INFO_FROM_SCRIPTS', "true")
     set_value_to_default_if_not_set(env, 'PYTHONDONTWRITEBYTECODE', "true")
@@ -513,7 +548,9 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_EXTRAS": "airflow_extras",
+    "DEFAULT_CONSTRAINTS_BRANCH": "default-constraints-branch",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
+    "AIRFLOW_CONSTRAINTS_REFERENCE": "airflow_constraints_reference",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",

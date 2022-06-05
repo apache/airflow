@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import contextlib
 import os
 import unittest
 from unittest import mock
@@ -75,10 +76,8 @@ class TestS3TaskHandler(unittest.TestCase):
 
     def tearDown(self):
         if self.s3_task_handler.handler:
-            try:
+            with contextlib.suppress(Exception):
                 os.remove(self.s3_task_handler.handler.baseFilename)
-            except Exception:
-                pass
 
     def test_hook(self):
         assert isinstance(self.s3_task_handler.hook, S3Hook)

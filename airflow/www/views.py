@@ -258,7 +258,7 @@ def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
     if isinstance(task_item_or_group, AbstractOperator):
         return {
             'id': task_item_or_group.task_id,
-            'instances': [wwwutils.get_task_summary(dr, task_item_or_group, session) for dr in dag_runs],
+            'instances': wwwutils.get_task_summaries(task_item_or_group, dag_runs, session),
             'label': task_item_or_group.label,
             'extra_links': task_item_or_group.extra_links,
             'is_mapped': task_item_or_group.is_mapped,
@@ -1144,7 +1144,7 @@ class Airflow(AirflowBaseView):
         except Exception as e:
             all_errors += (
                 "Exception encountered during "
-                + f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
+                f"dag_id retrieval/dag retrieval fallback/code highlighting:\n\n{e}\n"
             )
             html_code = Markup('<p>Failed to load DAG file Code.</p><p>Details: {}</p>').format(
                 escape(all_errors)
@@ -2611,8 +2611,6 @@ class Airflow(AirflowBaseView):
             .limit(num_runs)
             .all()
         )
-        dag_runs.reverse()
-        encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
         dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         max_date = max(dag_run_dates, default=None)
@@ -2632,14 +2630,6 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
-        data = {
-            'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
-            'dag_runs': encoded_runs,
-        }
-
-        # avoid spaces to reduce payload size
-        data = htmlsafe_json_dumps(data, separators=(',', ':'))
-
         default_dag_run_display_number = conf.getint('webserver', 'default_dag_run_display_number')
 
         num_runs_options = [5, 25, 50, 100, 365]
@@ -2654,7 +2644,6 @@ class Airflow(AirflowBaseView):
             form=form,
             dag=dag,
             doc_md=doc_md,
-            data=data,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
@@ -5113,12 +5102,18 @@ class AutocompleteView(AirflowBaseView):
             return wwwutils.json_response([])
 
         # Provide suggestions of dag_ids and owners
-        dag_ids_query = session.query(DagModel.dag_id.label('item')).filter(
-            ~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike('%' + query + '%')
-        )
+        dag_ids_query = session.query(
+            sqla.literal('dag').label('type'),
+            DagModel.dag_id.label('name'),
+        ).filter(~DagModel.is_subdag, DagModel.is_active, DagModel.dag_id.ilike('%' + query + '%'))
 
-        owners_query = session.query(func.distinct(DagModel.owners).label('item')).filter(
-            ~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike('%' + query + '%')
+        owners_query = (
+            session.query(
+                sqla.literal('owner').label('type'),
+                DagModel.owners.label('name'),
+            )
+            .distinct()
+            .filter(~DagModel.is_subdag, DagModel.is_active, DagModel.owners.ilike('%' + query + '%'))
         )
 
         # Hide DAGs if not showing status: "all"
@@ -5135,8 +5130,9 @@ class AutocompleteView(AirflowBaseView):
         dag_ids_query = dag_ids_query.filter(DagModel.dag_id.in_(filter_dag_ids))
         owners_query = owners_query.filter(DagModel.dag_id.in_(filter_dag_ids))
 
-        payload = [row[0] for row in dag_ids_query.union(owners_query).limit(10).all()]
-
+        payload = [
+            row._asdict() for row in dag_ids_query.union(owners_query).order_by('name').limit(10).all()
+        ]
         return wwwutils.json_response(payload)
 
 

@@ -24,8 +24,6 @@ from airflow import settings
 from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
-    from airflow.typing_compat import RePatternType
-
     RedactableItem = Union[str, Dict[Any, Any], Tuple[Any, ...], List[Any]]
 
 
@@ -115,7 +113,7 @@ def _secrets_masker() -> "SecretsMasker":
 class SecretsMasker(logging.Filter):
     """Redact secrets from logs"""
 
-    replacer: Optional["RePatternType"] = None
+    replacer: Optional[re.Pattern] = None
     patterns: Set[str]
 
     ALREADY_FILTERED_FLAG = "__SecretsMasker_filtered"

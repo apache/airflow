@@ -44,6 +44,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
+  - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -224,11 +225,16 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 
 - Update the `REVISION_HEADS_MAP` at airflow/utils/db.py to include the revision head of the release even if there are no migrations.
 - Commit the version change.
-- PR from the 'test' branch to the 'stable' branch, and manually merge it once approved.
 - Check out the 'stable' branch
 
     ```shell script
     git checkout v${VERSION_BRANCH}-stable
+    ```
+
+- PR from the 'test' branch to the 'stable' branch, and manually merge it once approved. Here's how to manually merge the PR:
+
+    ```shell script
+    git merge --ff-only v${VERSION_BRANCH}-test
     ```
 
 - Tag your release
@@ -1034,6 +1040,18 @@ Preparing a release that is not in the latest branch:
 
 ```shell script
 breeze release-prod-images --airflow-version "${VERSION}" --slim-images --skip-latest
+```
+
+## Verify production images
+
+```shell script
+for PYTHON in 3.7 3.8 3.9 3.10
+do
+    docker pull apache/airflow:${VERSION}-python${PYTHON}
+    breeze verify-prod-image --image-name apache/airflow:${VERSION}-python${PYTHON}
+done
+docker pull apache/airflow:${VERSION}
+breeze verify-prod-image --image-name apache/airflow:${VERSION}
 ```
 
 

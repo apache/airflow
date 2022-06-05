@@ -215,27 +215,16 @@ also have support for popular remote development environments: GitHub Codespaces
 You can see the differences between the various environments
 `here <https://github.com/apache/airflow/blob/main/CONTRIBUTING.rst#development-environments>`__.
 
-The local env instructions can be found in full in the `LOCAL_VIRTUALENV.rst`_ file.
-
-.. _LOCAL_VIRTUALENV.rst:
-https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst
+The local env instructions can be found in full in the `LOCAL_VIRTUALENV.rst <https://github.com/apache/airflow/blob/main/LOCAL_VIRTUALENV.rst>`_ file.
 
 The Breeze Docker Compose env is to maintain a consistent and common development environment so that you
 can replicate CI failures locally and work on solving them locally rather by pushing to CI.
 
-The Breeze instructions can be found in full in the `BREEZE.rst`_ file.
-
-.. _BREEZE.rst:
-https://github.com/apache/airflow/blob/main/BREEZE.rst
+The Breeze instructions can be found in full in the `BREEZE.rst <https://github.com/apache/airflow/blob/main/BREEZE.rst>`_ file.
 
 You can configure the Docker-based Breeze development environment as follows:
 
-1. Install the latest versions of the `Docker Community Edition`_ and `Docker Compose`_ and add them to the PATH.
-
-.. _Docker Community Edition:
-https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-community-edition
-
-.. _Docker Compose: https://github.com/apache/airflow/blob/main/BREEZE.rst#docker-compose
+1. Install the latest versions of the `Docker Community Edition <https://docs.docker.com/get-docker/>`_ and `Docker Compose <https://docs.docker.com/compose/install/#install-compose>`_ and add them to the PATH.
 
 2. Install `jq`_ on your machine. The exact command depends on the operating system (or Linux distribution) you use.
 
@@ -503,10 +492,10 @@ Development Environments
 There are two environments, available on Linux and macOS, that you can use to
 develop Apache Airflow:
 
--   `Local virtualenv development environment <#local-virtualenv-development-environment>`_
+-   `Local virtualenv development environment <LOCAL_VIRTUALENV.rst>`_
     that supports running unit tests and can be used in your IDE.
 
--   `Breeze Docker-based development environment <#breeze-development-environment>`_ that provides
+-   `Breeze Docker-based development environment <BREEZE.rst>`_ that provides
     an end-to-end CI solution with all software dependencies covered.
 
 The table below summarizes differences between the environments:
@@ -564,7 +553,7 @@ Limitations:
     real unit tests. Technically, to run integration tests, you can configure
     and install the dependencies on your own, but it is usually complex.
     Instead, you are recommended to use
-    `Breeze development environment <#breeze-development-environment>`__ with all required packages
+    `Breeze development environment <BREEZE.rst>`__ with all required packages
     pre-installed.
 
 -   You need to make sure that your local environment is consistent with other
@@ -685,7 +674,7 @@ and not packaged together with the core, unless you set ``INSTALL_PROVIDERS_FROM
 variable to ``true``.
 
 In Breeze - which is a development environment, ``INSTALL_PROVIDERS_FROM_SOURCES`` variable is set to true,
-but you can add ``--install-providers-from-sources=true`` flag to Breeze to skip installing providers when
+but you can add ``--install-providers-from-sources=false`` flag to Breeze to install providers from PyPI instead of source files when
 building the images.
 
 One watch-out - providers are still always installed (or rather available) if you install airflow from
@@ -1264,6 +1253,7 @@ commands:
     yarn run prod
 
     # Starts a web server that manages and updates your assets as you modify them
+    # You'll need to run the webserver in debug mode too: `airflow webserver -d`
     yarn run dev
 
 

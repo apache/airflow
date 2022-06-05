@@ -34,7 +34,7 @@ Content
     Python API <_api/airflow/providers/apache/druid/index>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-druid/>
     Installing from sources <installing-providers-from-sources>
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/druid/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/apache/druid>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 

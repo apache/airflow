@@ -134,14 +134,14 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
 
     @freeze_time("2021-01-25")  # Monday
     def test_branch_follow_true_with_execution_date(self):
-        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_execution_day"""
+        """Checks if BranchDayOfWeekOperator follows true branch when set use_task_logical_date"""
 
         branch_op = BranchDayOfWeekOperator(
             task_id="make_choice",
             follow_task_ids_if_true="branch_1",
             follow_task_ids_if_false="branch_2",
             week_day="Wednesday",
-            use_task_execution_day=True,  # We compare to DEFAULT_DATE which is Wednesday
+            use_task_logical_date=True,  # We compare to DEFAULT_DATE which is Wednesday
             dag=self.dag,
         )
 
@@ -274,3 +274,18 @@ class TestBranchDayOfWeekOperator(unittest.TestCase):
         for ti in tis:
             if ti.task_id == 'make_choice':
                 assert ti.xcom_pull(task_ids='make_choice') == 'branch_1'
+
+    def test_deprecation_warning(self):
+        warning_message = (
+            """Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``."""
+        )
+        with pytest.warns(DeprecationWarning) as warnings:
+            BranchDayOfWeekOperator(
+                task_id="week_day_warn",
+                follow_task_ids_if_true="branch_1",
+                follow_task_ids_if_false="branch_2",
+                week_day="Monday",
+                use_task_execution_day=True,
+                dag=self.dag,
+            )
+        assert warning_message == str(warnings[0].message)
