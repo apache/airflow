@@ -38,7 +38,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/papermill/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/papermill>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-papermill/>
     Installing from sources <installing-providers-from-sources>
 
