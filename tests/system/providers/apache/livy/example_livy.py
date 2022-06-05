@@ -20,13 +20,18 @@ This is an example DAG which uses the LivyOperator.
 The tasks below trigger the computation of pi on the Spark instance
 using the Java and Python executables provided in the example library.
 """
+
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_livy_operator"
+
 with DAG(
-    dag_id='example_livy_operator',
+    dag_id=DAG_ID,
     default_args={'args': [10]},
     schedule_interval='@daily',
     start_date=datetime(2021, 1, 1),
@@ -48,3 +53,14 @@ with DAG(
 
     livy_java_task >> livy_python_task
     # [END create_livy]
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
