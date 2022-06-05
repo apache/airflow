@@ -52,7 +52,7 @@ Package apache-airflow-providers-imap
 `Internet Message Access Protocol (IMAP) <https://tools.ietf.org/html/rfc3501>`__
 
 
-Release: 2.2.3
+Release: 3.0.0
 
 Provider package
 ----------------

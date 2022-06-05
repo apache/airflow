@@ -58,7 +58,7 @@ Package apache-airflow-providers-opsgenie
 `Opsgenie <https://www.opsgenie.com/>`__
 
 
-Release: 3.1.0
+Release: 4.0.0
 
 Provider package
 ----------------
@@ -78,7 +78,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``opsgenie-sdk``    ``>=2.1.5``
 ==================  ==================
 

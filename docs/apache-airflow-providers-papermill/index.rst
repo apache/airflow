@@ -58,7 +58,7 @@ Package apache-airflow-providers-papermill
 `Papermill <https://github.com/nteract/papermill>`__
 
 
-Release: 2.2.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -78,7 +78,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``papermill[all]``  ``>=1.2.1``
 ``scrapbook[all]``
 ==================  ==================

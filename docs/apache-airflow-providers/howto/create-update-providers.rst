@@ -303,11 +303,11 @@ missing in provider dependencies.
 In Airflow 2.3, new exception :class:`~airflow.exceptions.OptionalProviderFeatureException` has been
 introduced and Providers can use the exception to signal that the ImportError (or any other error) should
 be ignored by Airflow ProvidersManager. However this Exception is only available in Airflow 2.3 so if
-providers would like to remain compatible with Airflow 2.1 and 2.2, they should continue throwing
+providers would like to remain compatible with 2.2, they should continue throwing
 the ImportError exception.
 
 Example code (from Plyvel Hook, part of the Google Provider) explains how such conditional error handling
-should be implemented to keep compatibility with Airflow 2.1 and 2.2
+should be implemented to keep compatibility with 2.2
 
   .. code-block:: python
 

@@ -20,7 +20,12 @@ package-name: apache-airflow-providers-arangodb
 name: ArangoDB
 description: |
     `ArangoDB <https://www.arangodb.com/>`__
+
+additional-dependencies:
+  - apache-airflow>=2.2.0
+
 versions:
+  - 2.0.0
   - 1.0.0
 
 integrations:

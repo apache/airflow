@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+.. Review and move the new changes to one of the sections above:
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare provider documentation 2022.05.11 (#23631)``
+
 2.2.0
 .....
 
@@ -36,6 +49,7 @@ Features
    * ``Prepare mid-April provider documentation. (#22819)``
    * ``Clean up in-line f-string concatenation (#23591)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
 
 2.1.4
 .....

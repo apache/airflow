@@ -22,6 +22,7 @@ description: |
     `Presto <https://prestodb.github.io/>`__
 
 versions:
+  - 3.0.0
   - 2.2.1
   - 2.2.0
   - 2.1.2
@@ -34,7 +35,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Presto

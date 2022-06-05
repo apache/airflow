@@ -53,7 +53,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 2.7.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -73,20 +73,8 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``docker``          ``>=5.0.3``
 ==================  ==================
 
 .. include:: ../../airflow/providers/docker/CHANGELOG.rst
-
-DockerOperator
---------------
-Use the
-:class:`~airflow.providers.docker.operators.docker.DockerOperator`
-to execute command in Docker container.
-
-.. exampleinclude:: /../../tests/system/providers/docker/example_docker.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_docker]
-    :end-before: [END howto_operator_docker]

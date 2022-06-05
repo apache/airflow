@@ -24,6 +24,25 @@
 Changelog
 ---------
 
+2.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``AIP-47 - Migrate drill DAGs to new design #22439 (#24206)``
+   * ``Prepare provider documentation 2022.05.11 (#23631)``
+   * ``Clean up in-line f-string concatenation (#23591)``
+
+.. Review and move the new changes to one of the sections above:
+   * ``chore: Refactoring and Cleaning Apache Providers (#24219)``
+
 1.0.4
 .....
 
