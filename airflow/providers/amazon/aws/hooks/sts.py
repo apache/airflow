@@ -33,7 +33,6 @@ class StsHook(AwsBaseHook):
 
     def get_account_number(self) -> str:
         """Get the account Number"""
-
         try:
             return self.get_conn().get_caller_identity()['Account']
         except Exception as general_error:

@@ -253,7 +253,6 @@ def dag_state(args, session=NEW_SESSION):
     >>> airflow dags state a_dag_with_conf_passed 2015-01-01T00:00:00.000000
     failed, {"name": "bob", "age": "42"}
     """
-
     dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
     if not dag:

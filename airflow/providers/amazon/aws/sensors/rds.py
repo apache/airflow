@@ -56,7 +56,6 @@ class RdsBaseSensor(BaseSensorOperator):
 
     def _check_item(self, item_type: str, item_name: str) -> bool:
         """Get certain item from `_describe_item()` and check its status"""
-
         try:
             items = self._describe_item(item_type, item_name)
         except ClientError:
