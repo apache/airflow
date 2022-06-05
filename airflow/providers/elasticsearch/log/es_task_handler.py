@@ -32,7 +32,8 @@ import pendulum
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
@@ -41,6 +42,11 @@ from airflow.utils.session import create_session
 
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
+
+# Compatibility: Airflow 2.3.2 uses this method, which accesses the LogTemplate
+# model to record the log ID template used. If this function does not exist, the
+# task handler should use the log_id_template attribute instead.
+USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -91,13 +97,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)  # type: ignore[attr-defined]
 
-        if log_id_template is not None:
+        if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
                 "Passing log_id_template to the log handler is deprecated and has not effect",
                 DeprecationWarning,
             )
 
-        self.log_id_template = log_id_template
+        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
@@ -114,7 +120,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
             dag_run = ti.get_dagrun(session=session)
-            log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+            if USE_PER_RUN_LOG_ID:
+                log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+            else:
+                log_id_template = self.log_id_template
 
         dag = ti.task.dag
         assert dag is not None  # For Mypy.
