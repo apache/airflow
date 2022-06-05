@@ -23,15 +23,19 @@
 Example Airflow DAG to check if a Cassandra Table and a Records exists
 or not using `CassandraTableSensor` and `CassandraRecordSensor`.
 """
+
+import os
 from datetime import datetime
 
 from airflow.models import DAG
 from airflow.providers.apache.cassandra.sensors.record import CassandraRecordSensor
 from airflow.providers.apache.cassandra.sensors.table import CassandraTableSensor
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_cassandra_operator"
 # [START howto_operator_cassandra_sensors]
 with DAG(
-    dag_id='example_cassandra_operator',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     default_args={'table': 'keyspace_name.table_name'},
@@ -42,3 +46,8 @@ with DAG(
 
     record_sensor = CassandraRecordSensor(task_id="cassandra_record_sensor", keys={"p1": "v1", "p2": "v2"})
 # [END howto_operator_cassandra_sensors]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
