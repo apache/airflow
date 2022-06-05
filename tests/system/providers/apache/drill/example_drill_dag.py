@@ -19,13 +19,18 @@
 """
 Example Airflow DAG to execute SQL in an Apache Drill environment using the `DrillOperator`.
 """
+
+import os
 from datetime import datetime
 
 from airflow.models import DAG
 from airflow.providers.apache.drill.operators.drill import DrillOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_drill_dag"
+
 with DAG(
-    dag_id='example_drill_dag',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -40,3 +45,8 @@ with DAG(
         ''',
     )
     # [END howto_operator_drill]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
