@@ -17,24 +17,34 @@
 # under the License.
 
 """Example DAG demonstrating the usage of the PigOperator."""
+
+import os
 from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.apache.pig.operators.pig import PigOperator
 
-dag = DAG(
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_adf_run_pipeline"
+
+with DAG(
     dag_id='example_pig_operator',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
     tags=['example'],
-)
+) as dag:
 
-# [START create_pig]
-run_this = PigOperator(
-    task_id="run_example_pig_script",
-    pig="ls /;",
-    pig_opts="-x local",
-    dag=dag,
-)
-# [END create_pig]
+    # [START create_pig]
+    run_this = PigOperator(
+        task_id="run_example_pig_script",
+        pig="ls /;",
+        pig_opts="-x local",
+    )
+    # [END create_pig]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
