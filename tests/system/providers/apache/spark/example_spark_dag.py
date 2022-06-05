@@ -20,6 +20,8 @@
 Example Airflow DAG to submit Apache Spark applications using
 `SparkSubmitOperator`, `SparkJDBCOperator` and `SparkSqlOperator`.
 """
+
+import os
 from datetime import datetime
 
 from airflow.models import DAG
@@ -27,8 +29,11 @@ from airflow.providers.apache.spark.operators.spark_jdbc import SparkJDBCOperato
 from airflow.providers.apache.spark.operators.spark_sql import SparkSqlOperator
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_spark_operator"
+
 with DAG(
-    dag_id='example_spark_operator',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -64,5 +69,12 @@ with DAG(
     # [END howto_operator_spark_jdbc]
 
     # [START howto_operator_spark_sql]
-    sql_job = SparkSqlOperator(sql="SELECT * FROM bar", master="local", task_id="sql_job")
+    spark_sql_job = SparkSqlOperator(
+        sql="SELECT COUNT(1) as cnt FROM temp_table", master="local", task_id="spark_sql_job"
+    )
     # [END howto_operator_spark_sql]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
