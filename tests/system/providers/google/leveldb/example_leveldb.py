@@ -19,13 +19,18 @@
 Example use of LevelDB operators.
 """
 
+import os
 from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.leveldb.operators.leveldb import LevelDBOperator
+from airflow.utils.trigger_rule import TriggerRule
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_leveldb"
 
 with models.DAG(
-    'example_leveldb',
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval='@once',
     catchup=False,
@@ -40,6 +45,19 @@ with models.DAG(
         command='put',
         key=b'another_key',
         value=b'another_value',
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_leveldb_put_key]
     get_key_leveldb_task >> put_key_leveldb_task
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
