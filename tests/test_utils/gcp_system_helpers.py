@@ -40,9 +40,7 @@ MARKETING_DAG_FOLDER = os.path.join(
 GSUITE_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "suite", "example_dags"
 )
-FIREBASE_DAG_FOLDER = os.path.join(
-    AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "firebase", "example_dags"
-)
+FIREBASE_DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "tests", "system", "providers", "google", "firebase")
 LEVELDB_DAG_FOLDER = os.path.join(
     AIRFLOW_MAIN_FOLDER, "airflow", "providers", "google", "leveldb", "example_dags"
 )

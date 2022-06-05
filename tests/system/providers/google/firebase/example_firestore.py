@@ -56,6 +56,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.firebase.operators.firestore import CloudFirestoreExportDatabaseOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-gcp-project")
 FIRESTORE_PROJECT_ID = os.environ.get("G_FIRESTORE_PROJECT_ID", "example-firebase-project")
@@ -67,12 +68,14 @@ EXPORT_PREFIX = urlparse(EXPORT_DESTINATION_URL).path
 EXPORT_COLLECTION_ID = os.environ.get("GCP_FIRESTORE_COLLECTION_ID", "firestore_collection_id")
 DATASET_NAME = os.environ.get("GCP_FIRESTORE_DATASET_NAME", "test_firestore_export")
 DATASET_LOCATION = os.environ.get("GCP_FIRESTORE_DATASET_LOCATION", "EU")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_google_firestore"
 
 if BUCKET_NAME is None:
     raise ValueError("Bucket name is required. Please set GCP_FIRESTORE_ARCHIVE_URL env variable.")
 
 with models.DAG(
-    "example_google_firestore",
+    DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval='@once',
     catchup=False,
@@ -94,7 +97,11 @@ with models.DAG(
     )
 
     delete_dataset = BigQueryDeleteDatasetOperator(
-        task_id="delete_dataset", dataset_id=DATASET_NAME, project_id=GCP_PROJECT_ID, delete_contents=True
+        task_id="delete_dataset",
+        dataset_id=DATASET_NAME,
+        project_id=GCP_PROJECT_ID,
+        delete_contents=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     # [START howto_operator_create_external_table_multiple_types]
@@ -141,3 +148,15 @@ with models.DAG(
         read_data_from_gcs_multiple_types,
         delete_dataset,
     )
+    # [END howto_operator_leveldb_put_key]
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
