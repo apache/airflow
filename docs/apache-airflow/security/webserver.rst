@@ -70,7 +70,7 @@ It is however possible to switch on authentication by either using one of the su
 backends or creating your own.
 
 To deactivate the authentication and allow users to be identified as Anonymous, the following entry
-in ``$AIRFLOW_HOME/webserver_config.py`` needs to be set with the desired role that the Anonymous
+in ``$AIRFLOW__WEBSERVER__CONFIG`` needs to be set with the desired role that the Anonymous
 user will have by default:
 
 .. code-block:: ini
@@ -96,19 +96,22 @@ Please use command line interface ``airflow users create`` to create accounts, o
 Other Methods
 '''''''''''''
 
-Since Airflow 2.0, the default UI is the Flask App Builder RBAC. A ``webserver_config.py`` configuration file
-is automatically generated and can be used to configure the Airflow to support authentication
+Since Airflow 2.0, the default UI is the Flask App Builder RBAC. A default
+configuration file ``webserver_config.py`` is automatically generated and can
+be used to configure the Airflow to support authentication
 methods like OAuth, OpenID, LDAP, REMOTE_USER.
+This configuration file can be overseeded by setting
+``$AIRFLOW__WEBSERVER__CONFIG``.
 
 The default authentication option described in the :ref:`Web Authentication <web-authentication>` section is related
-with the following entry in the ``$AIRFLOW_HOME/webserver_config.py``.
+with the following entry in ``$AIRFLOW__WEBSERVER__CONFIG``.
 
 .. code-block:: ini
 
     AUTH_TYPE = AUTH_DB
 
 Another way to create users is in the UI login page, allowing user self registration through a "Register" button.
-The following entries in the ``$AIRFLOW_HOME/webserver_config.py`` can be edited to make it possible:
+The following entries in ``$AIRFLOW__WEBSERVER__CONFIG`` can be edited to make it possible:
 
 .. code-block:: ini
 
@@ -128,7 +131,7 @@ feature provided by the framework Flask-AppBuilder.
 
 To support authentication through a third-party provider, the ``AUTH_TYPE`` entry needs to be updated with the
 desired option like OAuth, OpenID, LDAP, and the lines with references for the chosen option need to have
-the comments removed and configured in the ``$AIRFLOW_HOME/webserver_config.py``.
+the comments removed and configured in ``$AIRFLOW__WEBSERVER__CONFIG``.
 
 For more details, please refer to
 `Security section of FAB documentation <https://flask-appbuilder.readthedocs.io/en/latest/security.html>`_.

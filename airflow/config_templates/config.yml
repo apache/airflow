@@ -1026,6 +1026,15 @@
       type: string
       example: ~
       default: "http://localhost:8080"
+    - name: config
+      description: |
+        Since Airflow 2.0, the default UI is the Flask App Builder RBAC. This
+        sets the ``webserver_config.py`` configuration file location. It is
+        automatically generated if not present on the system.
+      version_added: ~
+      type: string
+      example: "/opt/airflow/webserver_config.py"
+      default: "{AIRFLOW_HOME}/webserver_config.py"
     - name: default_ui_timezone
       description: |
         Default timezone to display all dates in the UI, can be UTC, system, or

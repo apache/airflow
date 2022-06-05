@@ -1356,7 +1356,7 @@ def initialize_config() -> AirflowConfigParser:
 
     # Make it no longer a proxy variable, just set it to an actual string
     global WEBSERVER_CONFIG
-    WEBSERVER_CONFIG = AIRFLOW_HOME + '/webserver_config.py'
+    WEBSERVER_CONFIG = local_conf.get('webserver', 'config')  # type: ignore[assignment]
 
     if not os.path.isfile(WEBSERVER_CONFIG):
         import shutil
