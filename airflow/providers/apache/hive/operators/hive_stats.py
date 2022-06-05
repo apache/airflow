@@ -100,7 +100,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         if col in self.excluded_columns:
             return {}
         exp = {(col, 'non_null'): f"COUNT({col})"}
-        if col_type in ['double', 'int', 'bigint', 'float']:
+        if col_type in {'double', 'int', 'bigint', 'float'}:
             exp[(col, 'sum')] = f'SUM({col})'
             exp[(col, 'min')] = f'MIN({col})'
             exp[(col, 'max')] = f'MAX({col})'
@@ -108,7 +108,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         elif col_type == 'boolean':
             exp[(col, 'true')] = f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)'
             exp[(col, 'false')] = f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)'
-        elif col_type in ['string']:
+        elif col_type in {'string'}:
             exp[(col, 'len')] = f'SUM(CAST(LENGTH({col}) AS BIGINT))'
             exp[(col, 'approx_distinct')] = f'APPROX_DISTINCT({col})'
 
@@ -130,7 +130,7 @@ class HiveStatsCollectionOperator(BaseOperator):
             exprs.update(assign_exprs)
         exprs.update(self.extra_exprs)
         exprs = OrderedDict(exprs)
-        exprs_str = ",\n        ".join(v + " AS " + k[0] + '__' + k[1] for k, v in exprs.items())
+        exprs_str = ",\n        ".join(f"{v} AS {k[0]}__{k[1]}" for k, v in exprs.items())
 
         where_clause_ = [f"{k} = '{v}'" for k, v in self.partition.items()]
         where_clause = " AND\n        ".join(where_clause_)
