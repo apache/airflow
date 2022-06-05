@@ -51,8 +51,11 @@ def _find_clazzes(directory, base_class):
         full_module_name = package_name + "." + name
         try:
             mod = import_module(full_module_name)
-        except ModuleNotFoundError:
-            print(f"Module {full_module_name} can not be loaded.", file=sys.stderr)
+        except Exception:
+            print(
+                f"{package_name[package_name.rindex('.') + 1:]} {full_module_name} can not be loaded.",
+                file=sys.stderr,
+            )
             continue
 
         clazzes = inspect.getmembers(mod, inspect.isclass)
@@ -63,7 +66,10 @@ def _find_clazzes(directory, base_class):
         ]
 
         for found_clazz in integration_clazzes:
-            found_classes.add(f"{found_clazz.__module__}.{found_clazz.__name__}")
+            class_name = f"{found_clazz.__module__}.{found_clazz.__name__}"
+            template_fields = ",".join(getattr(found_clazz, 'template_fields', []))
+            init_params = ",".join(getattr(found_clazz.__init__, '_BaseOperatorMeta__param_names', []))
+            found_classes.add(";".join([class_name, template_fields, init_params]))
 
     return found_classes
 
@@ -79,18 +85,19 @@ Examples:
 
 If you want to display only sensors, you can execute the following command.
 
-    {program} | grep sensors
+    {program} 2>&1 | grep ^sensors
 
 If you want to display only secrets backend, you can execute the following command.
 
-    {program} | grep secrets
+    {program} 2>&1 | grep ^secrets
 
 If you want to count the operators/sensors in each providers package, you can use the following command.
 
-    {program} | \\
-        grep providers | \\
-        grep 'sensors\\|operators' | \\
+    {program} 2>&1 | \\
+        grep airflow.providers | \\
+        grep '^sensors\\|^operators' | \\
         cut -d "." -f 3 | \\
+        sort | \\
         uniq -c | \\
         sort -n -r
 """
@@ -116,4 +123,4 @@ for integration_base_directory, integration_class in RESOURCE_TYPES.items():
             continue
 
         for clazz_to_print in sorted(_find_clazzes(integration_directory, integration_class)):
-            print(clazz_to_print)
+            print(f'{integration_base_directory} {clazz_to_print}')
