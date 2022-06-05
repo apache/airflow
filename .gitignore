@@ -225,3 +225,7 @@ licenses/LICENSES-ui.txt
 
 # Packaged breeze on Windows
 /breeze.exe
+
+# Generated out dir
+
+/out
