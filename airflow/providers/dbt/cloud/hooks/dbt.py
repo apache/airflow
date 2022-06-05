@@ -168,28 +168,22 @@ class DbtCloudHook(HttpHook):
         return session
 
     def _paginate(self, endpoint: str, payload: Optional[Dict[str, Any]] = None) -> List[Response]:
-        results = []
         response = self.run(endpoint=endpoint, data=payload)
         resp_json = response.json()
         limit = resp_json["extra"]["filters"]["limit"]
         num_total_results = resp_json["extra"]["pagination"]["total_count"]
         num_current_results = resp_json["extra"]["pagination"]["count"]
-        results.append(response)
-
-        if not num_current_results == num_total_results:
+        results = [response]
+        if num_current_results != num_total_results:
             _paginate_payload = payload.copy() if payload else {}
             _paginate_payload["offset"] = limit
 
-            while True:
-                if num_current_results < num_total_results:
-                    response = self.run(endpoint=endpoint, data=_paginate_payload)
-                    resp_json = response.json()
-                    results.append(response)
-                    num_current_results += resp_json["extra"]["pagination"]["count"]
-                    _paginate_payload["offset"] += limit
-                else:
-                    break
-
+            while not num_current_results >= num_total_results:
+                response = self.run(endpoint=endpoint, data=_paginate_payload)
+                resp_json = response.json()
+                results.append(response)
+                num_current_results += resp_json["extra"]["pagination"]["count"]
+                _paginate_payload["offset"] += limit
         return results
 
     def _run_and_get_response(
