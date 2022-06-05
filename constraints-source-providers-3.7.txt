@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-04T08:49:14Z
+# This constraints file was automatically generated on 2022-06-05T21:09:02Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -70,6 +70,7 @@ async-timeout==4.0.2
 asynctest==0.13.0
 atlasclient==1.0.0
 attrs==20.3.0
+aws-sam-translator==1.45.0
 aws-xray-sdk==2.9.0
 azure-batch==12.0.0
 azure-common==1.1.28
@@ -112,6 +113,7 @@ celery==5.2.7
 certifi==2022.5.18.1
 cffi==1.15.0
 cfgv==3.3.1
+cfn-lint==0.61.0
 cgroupspy==0.2.2
 charset-normalizer==2.0.12
 click-default-group==1.2.2
@@ -218,6 +220,7 @@ google-cloud-workflows==1.6.2
 google-crc32c==1.3.0
 google-resumable-media==2.3.3
 googleapis-common-protos==1.56.2
+graphql-core==3.2.1
 graphviz==0.20
 greenlet==1.1.2
 grpc-google-iam-v1==0.12.4
@@ -252,10 +255,15 @@ jedi==0.18.1
 jeepney==0.8.0
 jira==3.2.0
 jmespath==0.10.0
+jschema-to-python==1.2.3
 json-merge-patch==0.2
 jsondiff==2.0.0
+jsonpatch==1.32
 jsonpath-ng==1.5.3
-jsonschema==4.6.0
+jsonpickle==2.2.0
+jsonpointer==2.3
+jsonschema==3.2.0
+junit-xml==1.9
 jupyter-client==7.3.1
 jupyter-core==4.10.0
 jwcrypto==1.3.1
@@ -280,7 +288,7 @@ mongomock==4.0.0
 monotonic==1.6
 more-itertools==8.13.0
 moreorless==0.4.0
-moto==3.1.9
+moto==3.1.12
 msal-extensions==1.0.0
 msal==1.18.0
 msgpack==1.0.4
@@ -298,10 +306,13 @@ nbclient==0.6.4
 nbformat==5.4.0
 neo4j==4.4.4
 nest-asyncio==1.5.5
+networkx==2.6.3
 nodeenv==1.6.0
 ntlm-auth==1.5.0
 numpy==1.21.6
 oauthlib==3.2.0
+openapi-schema-validator==0.2.3
+openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
 orjson==3.7.1
 oscrypto==1.3.0
@@ -409,6 +420,7 @@ rich-click==1.4
 rich==12.4.4
 rsa==4.8
 s3transfer==0.6.0
+sarif-om==1.0.4
 sasl==0.3.1
 scramp==1.4.1
 scrapbook==0.5.0
@@ -448,6 +460,7 @@ sqlalchemy-bigquery==1.4.3
 sqlalchemy-drill==1.1.2
 sqlalchemy-redshift==0.8.9
 sqlparse==0.4.2
+sshpubkeys==3.3.1
 sshtunnel==0.4.0
 starkbank-ecdsa==2.0.3
 statsd==3.3.0
