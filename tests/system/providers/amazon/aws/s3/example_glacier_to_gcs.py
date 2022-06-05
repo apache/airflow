@@ -21,13 +21,17 @@ from airflow import DAG
 from airflow.providers.amazon.aws.operators.glacier import GlacierCreateJobOperator
 from airflow.providers.amazon.aws.sensors.glacier import GlacierJobOperationSensor
 from airflow.providers.amazon.aws.transfers.glacier_to_gcs import GlacierToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_glacier_to_gcs'
 VAULT_NAME = "airflow"
 BUCKET_NAME = os.environ.get("GLACIER_GCS_BUCKET_NAME", "gs://INVALID BUCKET NAME")
 OBJECT_NAME = os.environ.get("GLACIER_OBJECT", "example-text.txt")
 
 with DAG(
-    "example_glacier_to_gcs",
+    DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),  # Override to match your needs
     catchup=False,
@@ -56,7 +60,20 @@ with DAG(
         # If chunk size is bigger than actual file size
         # then whole file will be downloaded
         chunk_size=1024,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_transfer_glacier_to_gcs]
 
     create_glacier_job >> wait_for_operation_complete >> transfer_archive_to_gcs
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

@@ -20,13 +20,16 @@ from os import environ
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_dynamodb_to_s3'
 TABLE_NAME = environ.get('DYNAMO_TABLE_NAME', 'ExistingDynamoDbTableName')
 BUCKET_NAME = environ.get('S3_BUCKET_NAME', 'ExistingS3BucketName')
 
 
 with DAG(
-    dag_id='example_dynamodb_to_s3',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -70,3 +73,8 @@ with DAG(
     # [END howto_transfer_dynamodb_to_s3_segmented]
 
     chain(backup_db, [backup_db_segment_1, backup_db_segment_2])
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

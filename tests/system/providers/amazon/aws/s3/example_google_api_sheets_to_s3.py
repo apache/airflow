@@ -24,13 +24,16 @@ from os import getenv
 
 from airflow import DAG
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_google_api_sheets_to_s3'
 GOOGLE_SHEET_ID = getenv("GOOGLE_SHEET_ID", "test-google-sheet-id")
 GOOGLE_SHEET_RANGE = getenv("GOOGLE_SHEET_RANGE", "test-google-sheet-range")
 S3_DESTINATION_KEY = getenv("S3_DESTINATION_KEY", "s3://test-bucket/key.json")
 
 with DAG(
-    dag_id="example_google_api_sheets_to_s3",
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -46,3 +49,9 @@ with DAG(
         s3_destination_key=S3_DESTINATION_KEY,
     )
     # [END howto_transfer_google_api_sheets_to_s3]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

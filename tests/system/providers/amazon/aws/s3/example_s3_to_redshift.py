@@ -24,7 +24,11 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.operators.redshift_sql import RedshiftSQLOperator
 from airflow.providers.amazon.aws.transfers.s3_to_redshift import S3ToRedshiftOperator
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_s3_to_redshift'
 S3_BUCKET_NAME = getenv("S3_BUCKET_NAME", "s3_bucket_name")
 S3_KEY = getenv("S3_KEY", "s3_filename")
 REDSHIFT_TABLE = getenv("REDSHIFT_TABLE", "redshift_table")
@@ -36,7 +40,10 @@ def task_add_sample_data_to_s3():
     s3_hook.load_string("0,Airflow", f'{S3_KEY}/{REDSHIFT_TABLE}', S3_BUCKET_NAME, replace=True)
 
 
-@task(task_id='teardown__remove_sample_data_from_s3')
+@task(
+    task_id='teardown__remove_sample_data_from_s3',
+    trigger_rule=TriggerRule.ALL_DONE,
+)
 def task_remove_sample_data_from_s3():
     s3_hook = S3Hook()
     if s3_hook.check_for_key(f'{S3_KEY}/{REDSHIFT_TABLE}', S3_BUCKET_NAME):
@@ -44,7 +51,7 @@ def task_remove_sample_data_from_s3():
 
 
 with DAG(
-    dag_id="example_s3_to_redshift",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     catchup=False,
@@ -69,6 +76,7 @@ with DAG(
     teardown__task_drop_table = RedshiftSQLOperator(
         sql=f'DROP TABLE IF EXISTS {REDSHIFT_TABLE}',
         task_id='teardown__drop_table',
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     remove_sample_data_from_s3 = task_remove_sample_data_from_s3()
@@ -78,3 +86,15 @@ with DAG(
         task_transfer_s3_to_redshift,
         [teardown__task_drop_table, remove_sample_data_from_s3],
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

@@ -35,7 +35,11 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3PutBucketTaggingOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
+from airflow.utils.trigger_rule import TriggerRule
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_s3'
 BUCKET_NAME = os.environ.get('BUCKET_NAME', 'test-airflow-12345')
 BUCKET_NAME_2 = os.environ.get('BUCKET_NAME_2', 'test-airflow-123456')
 KEY = os.environ.get('KEY', 'key')
@@ -56,7 +60,7 @@ bread,4.0
 )
 
 with DAG(
-    dag_id='example_s3',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -105,6 +109,7 @@ with DAG(
     delete_tagging = S3DeleteBucketTaggingOperator(
         task_id='s3_delete_bucket_tagging',
         bucket_name=BUCKET_NAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_s3_delete_bucket_tagging]
 
@@ -198,12 +203,16 @@ with DAG(
         task_id="s3_delete_objects",
         bucket=BUCKET_NAME_2,
         keys=KEY_2,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_s3_delete_objects]
 
     # [START howto_operator_s3_delete_bucket]
     delete_bucket = S3DeleteBucketOperator(
-        task_id='s3_delete_bucket', bucket_name=BUCKET_NAME, force_delete=True
+        task_id='s3_delete_bucket',
+        bucket_name=BUCKET_NAME,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_s3_delete_bucket]
 
@@ -222,3 +231,14 @@ with DAG(
         delete_objects,
         delete_bucket,
     )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

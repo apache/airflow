@@ -15,26 +15,37 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
+from airflow.providers.amazon.aws.transfers.ftp_to_s3 import FTPToS3Operator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_ftp_to_s3'
 S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
 S3_KEY = os.environ.get("S3_KEY", "key")
 
 with models.DAG(
-    "example_s3_to_sftp",
+    DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
 ) as dag:
-    # [START howto_transfer_s3_to_sftp]
-    create_s3_to_sftp_job = S3ToSFTPOperator(
-        task_id="create_s3_to_sftp_job",
-        sftp_path="sftp_path",
+    # [START howto_transfer_ftp_to_s3]
+    ftp_to_s3_task = FTPToS3Operator(
+        task_id="ftp_to_s3_task",
+        ftp_path="/tmp/ftp_path",
         s3_bucket=S3_BUCKET,
         s3_key=S3_KEY,
+        replace=True,
     )
-    # [END howto_transfer_s3_to_sftp]
+    # [END howto_transfer_ftp_to_s3]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

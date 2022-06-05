@@ -25,13 +25,16 @@ from os import getenv
 
 from airflow import DAG
 from airflow.providers.amazon.aws.transfers.salesforce_to_s3 import SalesforceToS3Operator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_salesforce_to_s3'
 S3_BUCKET_NAME = getenv("S3_BUCKET_NAME", "s3_bucket_name")
 S3_KEY = getenv("S3_KEY", "s3_filename")
 
 
 with DAG(
-    dag_id="example_salesforce_to_s3",
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 7, 8),
     catchup=False,
@@ -47,3 +50,9 @@ with DAG(
         replace=True,
     )
     # [END howto_transfer_salesforce_to_s3]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

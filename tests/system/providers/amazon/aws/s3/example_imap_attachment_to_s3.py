@@ -25,7 +25,10 @@ from os import getenv
 
 from airflow import DAG
 from airflow.providers.amazon.aws.transfers.imap_attachment_to_s3 import ImapAttachmentToS3Operator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_imap_attachment_to_s3'
 IMAP_ATTACHMENT_NAME = getenv("IMAP_ATTACHMENT_NAME", "test.txt")
 IMAP_MAIL_FOLDER = getenv("IMAP_MAIL_FOLDER", "INBOX")
 IMAP_MAIL_FILTER = getenv("IMAP_MAIL_FILTER", "All")
@@ -33,7 +36,7 @@ S3_BUCKET = getenv("S3_BUCKET", "test-bucket")
 S3_KEY = getenv("S3_KEY", "key")
 
 with DAG(
-    dag_id="example_imap_attachment_to_s3",
+    dag_id=DAG_ID,
     start_date=datetime(2021, 1, 1),
     schedule_interval=None,
     catchup=False,
@@ -49,3 +52,9 @@ with DAG(
         imap_mail_filter=IMAP_MAIL_FILTER,
     )
     # [END howto_transfer_imap_attachment_to_s3]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

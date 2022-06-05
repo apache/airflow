@@ -15,27 +15,36 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import os
 from datetime import datetime
 
-from airflow import DAG
-from airflow.providers.amazon.aws.transfers.gcs_to_s3 import GCSToS3Operator
+from airflow import models
+from airflow.providers.amazon.aws.transfers.s3_to_ftp import S3ToFTPOperator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
-BUCKET = os.getenv("BUCKET", "bucket")
-S3_KEY = os.getenv("S3_KEY", "s3://<bucket>/<prefix>")
+ENV_ID = set_env_id()
+DAG_ID = 'example_s3_to_ftp'
+S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
+S3_KEY = os.environ.get("S3_KEY", "key")
 
-with DAG(
-    dag_id="example_gcs_to_s3",
+with models.DAG(
+    DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
-    tags=["example"],
     catchup=False,
 ) as dag:
-    # [START howto_transfer_gcs_to_s3]
-    gcs_to_s3 = GCSToS3Operator(
-        task_id="gcs_to_s3",
-        bucket=BUCKET,
-        dest_s3_key=S3_KEY,
-        replace=True,
+    # [START howto_transfer_s3_to_ftp]
+    s3_to_ftp_task = S3ToFTPOperator(
+        task_id="ftp_to_s3_task",
+        ftp_path="/tmp/ftp_path",
+        s3_bucket=S3_BUCKET,
+        s3_key=S3_KEY,
     )
-    # [END howto_transfer_gcs_to_s3]
+    # [END howto_transfer_s3_to_ftp]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

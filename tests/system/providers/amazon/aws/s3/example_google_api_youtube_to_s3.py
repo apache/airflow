@@ -40,7 +40,10 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.transfers.google_api_to_s3 import GoogleApiToS3Operator
+from tests.system.providers.amazon.aws.utils import set_env_id
 
+ENV_ID = set_env_id()
+DAG_ID = 'example_google_api_youtube_to_s3'
 YOUTUBE_CHANNEL_ID = getenv(
     "YOUTUBE_CHANNEL_ID", "UCSXwxpWZQ7XZ1WL3wqevChA"
 )  # Youtube channel "Apache Airflow"
@@ -64,7 +67,7 @@ def transform_video_ids(**kwargs):
 
 
 with DAG(
-    dag_id="example_google_api_youtube_to_s3",
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -111,3 +114,9 @@ with DAG(
     # [END howto_transfer_google_api_youtube_list_to_s3]
 
     chain(task_video_ids_to_s3, task_transform_video_ids, task_video_data_to_s3)
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
