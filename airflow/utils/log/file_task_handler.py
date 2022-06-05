@@ -52,7 +52,7 @@ class FileTaskHandler(logging.Handler):
         self.local_base = base_log_folder
         if filename_template is not None:
             warnings.warn(
-                "Passing filename_template to FileTaskHandler is deprecated and has not effect",
+                "Passing filename_template to FileTaskHandler is deprecated and has no effect",
                 DeprecationWarning,
             )
 

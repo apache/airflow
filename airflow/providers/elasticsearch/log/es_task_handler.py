@@ -99,7 +99,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         if USE_PER_RUN_LOG_ID and log_id_template is not None:
             warnings.warn(
-                "Passing log_id_template to the log handler is deprecated and has not effect",
+                "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
                 DeprecationWarning,
             )
 
