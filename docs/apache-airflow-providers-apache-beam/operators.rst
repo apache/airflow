@@ -140,7 +140,7 @@ Go Pipelines with DirectRunner
 Go Pipelines with DataflowRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../tests/system/providers/apache/beam/example_go_dataflow.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_go.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
