@@ -48,6 +48,7 @@ class ShellParams:
     """
 
     airflow_branch: str = AIRFLOW_BRANCH
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = ""
     answer: Optional[str] = None
@@ -64,6 +65,7 @@ class ShellParams:
     github_repository: str = "apache/airflow"
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     image_tag: str = "latest"
+    include_mypy_volume: bool = False
     install_airflow_version: str = ""
     install_providers_from_sources: bool = True
     integration: Tuple[str, ...] = ()
@@ -189,6 +191,7 @@ class ShellParams:
         local_all_sources_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/local-all-sources.yml"
         files_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/files.yml"
         remove_sources_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/remove-sources.yml"
+        mypy_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/mypy.yml"
         forward_credentials_docker_compose_file = (
             f"{str(SCRIPTS_CI_DIR)}/docker-compose/forward-credentials.yml"
         )
@@ -213,6 +216,8 @@ class ShellParams:
             compose_ci_file.append(forward_credentials_docker_compose_file)
         if self.use_airflow_version is not None:
             compose_ci_file.append(remove_sources_docker_compose_file)
+        if self.include_mypy_volume:
+            compose_ci_file.append(mypy_docker_compose_file)
         if "all" in self.integration:
             integrations = AVAILABLE_INTEGRATIONS
         else:

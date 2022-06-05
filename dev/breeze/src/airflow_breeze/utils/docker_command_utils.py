@@ -17,7 +17,6 @@
 """Various utils to prepare docker and docker compose commands."""
 import os
 import re
-import subprocess
 import sys
 from copy import deepcopy
 from random import randint
@@ -97,16 +96,6 @@ NECESSARY_HOST_VOLUMES = [
 ]
 
 
-def create_volume_if_missing(volume_name: str):
-    res_inspect = run_command(cmd=["docker", "inspect", volume_name], stdout=subprocess.DEVNULL, check=False)
-    if res_inspect.returncode != 0:
-        run_command(cmd=["docker", "volume", "create", volume_name], check=True)
-
-
-def create_static_check_volumes():
-    create_volume_if_missing("docker-compose_mypy-cache-volume")
-
-
 def get_extra_docker_flags(mount_sources: str) -> List[str]:
     """
     Returns extra docker flags based on the type of mounting we want to do for sources.
@@ -124,7 +113,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
                     ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
                 )
         extra_docker_flags.extend(
-            ['--mount', "type=volume,src=docker-compose_mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
+            ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
         )
     else:  # none
         extra_docker_flags.extend(
@@ -512,6 +501,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     :param env: environment variables to update with missing values if not set.
     """
     set_value_to_default_if_not_set(env, 'AIRFLOW_CONSTRAINTS_MODE', "constraints-source-providers")
+    set_value_to_default_if_not_set(env, 'AIRFLOW_CONSTRAINTS_REFERENCE', "constraints-source-providers")
     set_value_to_default_if_not_set(env, 'AIRFLOW_EXTRAS', "")
     set_value_to_default_if_not_set(env, 'ANSWER', "")
     set_value_to_default_if_not_set(env, 'BREEZE', "true")
@@ -557,7 +547,9 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "AIRFLOW_CI_IMAGE": "airflow_image_name",
     "AIRFLOW_CI_IMAGE_WITH_TAG": "airflow_image_name_with_tag",
     "AIRFLOW_EXTRAS": "airflow_extras",
+    "DEFAULT_CONSTRAINTS_BRANCH": "default-constraints-branch",
     "AIRFLOW_CONSTRAINTS_MODE": "airflow_constraints_mode",
+    "AIRFLOW_CONSTRAINTS_REFERENCE": "airflow_constraints_reference",
     "AIRFLOW_IMAGE_KUBERNETES": "airflow_image_kubernetes",
     "AIRFLOW_PROD_IMAGE": "airflow_image_name",
     "AIRFLOW_SOURCES": "airflow_sources",

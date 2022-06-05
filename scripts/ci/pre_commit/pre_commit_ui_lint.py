@@ -33,7 +33,8 @@ DRY_RUN = os.environ.get('DRY_RUN', "false")[0].lower() == "t"
 if __name__ == '__main__':
     sys.path.insert(0, str(AIRFLOW_SOURCES / "dev" / "breeze" / "src"))
     from airflow_breeze.global_constants import MOUNT_SELECTED
-    from airflow_breeze.utils.docker_command_utils import create_static_check_volumes, get_extra_docker_flags
+    from airflow_breeze.utils.docker_command_utils import get_extra_docker_flags
+    from airflow_breeze.utils.path_utils import create_static_check_volumes
     from airflow_breeze.utils.run_utils import get_runnable_ci_image, run_command
 
     airflow_image = get_runnable_ci_image(verbose=VERBOSE, dry_run=DRY_RUN)

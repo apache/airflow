@@ -26,10 +26,7 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
-      - type: volume
-        source: mypy-cache-volume
-        target: /opt/airflow/.mypy_cache/
-        # START automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
+      # START automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
       - type: bind
         source: ../../../.bash_aliases
         target: /root/.bash_aliases
@@ -121,5 +118,3 @@ services:
         source: ../../../metastore_browser
         target: /opt/airflow/metastore_browser
         # END automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
-volumes:
-  mypy-cache-volume:
