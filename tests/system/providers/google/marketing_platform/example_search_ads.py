@@ -27,8 +27,11 @@ from airflow.providers.google.marketing_platform.operators.search_ads import (
     GoogleSearchAdsInsertReportOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.search_ads import GoogleSearchAdsReportSensor
+from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_search_ads_env_variables]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_search_ads"
 AGENCY_ID = os.environ.get("GMP_AGENCY_ID")
 ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID")
 GCS_BUCKET = os.environ.get("GMP_GCS_BUCKET", "test-cm-bucket")
@@ -45,7 +48,7 @@ REPORT = {
 # [END howto_search_ads_env_variables]
 
 with models.DAG(
-    "example_search_ads",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -64,7 +67,10 @@ with models.DAG(
 
     # [START howto_search_ads_getfile_report_operator]
     download_report = GoogleSearchAdsDownloadReportOperator(
-        report_id=report_id, bucket_name=GCS_BUCKET, task_id="download_report"
+        report_id=report_id,
+        bucket_name=GCS_BUCKET,
+        task_id="download_report",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_search_ads_getfile_report_operator]
 
@@ -73,3 +79,15 @@ with models.DAG(
     # Task dependencies created via `XComArgs`:
     #   generate_report >> wait_for_report
     #   generate_report >> download_report
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

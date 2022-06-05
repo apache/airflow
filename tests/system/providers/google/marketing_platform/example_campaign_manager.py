@@ -34,7 +34,10 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_campaign_manager"
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
 FLOODLIGHT_ACTIVITY_ID = int(os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345))
 FLOODLIGHT_CONFIGURATION_ID = int(os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345))
@@ -84,7 +87,7 @@ CONVERSION_UPDATE = {
 }
 
 with models.DAG(
-    "example_campaign_manager",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -158,12 +161,25 @@ with models.DAG(
         encryption_entity_type="DCM_ADVERTISER",
         encryption_entity_id=ENCRYPTION_ENTITY_ID,
         max_failed_updates=1,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_campaign_manager_update_conversions]
 
     insert_conversion >> update_conversion
 
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
 
 if __name__ == "__main__":
     dag.clear()
     dag.run()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

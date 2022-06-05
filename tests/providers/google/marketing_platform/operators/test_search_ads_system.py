@@ -17,8 +17,8 @@
 # under the License.
 import pytest
 
-from airflow.providers.google.marketing_platform.example_dags.example_search_ads import GCS_BUCKET
 from tests.providers.google.cloud.utils.gcp_authenticator import GMP_KEY
+from tests.system.providers.google.marketing_platform.example_search_ads import GCS_BUCKET
 from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 # Requires the following scope:

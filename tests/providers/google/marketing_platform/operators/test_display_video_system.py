@@ -17,8 +17,8 @@
 import pytest
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
-from airflow.providers.google.marketing_platform.example_dags.example_display_video import BUCKET
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY, GMP_KEY
+from tests.system.providers.google.marketing_platform.example_display_video import BUCKET
 from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 # Requires the following scope:

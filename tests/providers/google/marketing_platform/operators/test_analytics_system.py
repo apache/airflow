@@ -17,8 +17,8 @@
 
 import pytest
 
-from airflow.providers.google.marketing_platform.example_dags.example_analytics import BUCKET, BUCKET_FILENAME
 from tests.providers.google.cloud.utils.gcp_authenticator import GMP_KEY
+from tests.system.providers.google.marketing_platform.example_analytics import BUCKET, BUCKET_FILENAME
 from tests.test_utils.gcp_system_helpers import MARKETING_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 DATA = """pagePath,dimension1

@@ -23,24 +23,21 @@ from datetime import datetime
 from typing import Dict
 
 from airflow import models
-from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.marketing_platform.hooks.display_video import GoogleDisplayVideo360Hook
 from airflow.providers.google.marketing_platform.operators.display_video import (
     GoogleDisplayVideo360CreateReportOperator,
-    GoogleDisplayVideo360CreateSDFDownloadTaskOperator,
     GoogleDisplayVideo360DeleteReportOperator,
-    GoogleDisplayVideo360DownloadLineItemsOperator,
     GoogleDisplayVideo360DownloadReportOperator,
     GoogleDisplayVideo360RunReportOperator,
-    GoogleDisplayVideo360SDFtoGCSOperator,
-    GoogleDisplayVideo360UploadLineItemsOperator,
 )
 from airflow.providers.google.marketing_platform.sensors.display_video import (
-    GoogleDisplayVideo360GetSDFDownloadOperationSensor,
     GoogleDisplayVideo360ReportSensor,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_display_video_env_variables]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_display_video"
 BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://INVALID BUCKET NAME")
 ADVERTISER_ID = os.environ.get("GMP_ADVERTISER_ID", 1234567)
 OBJECT_NAME = os.environ.get("GMP_OBJECT_NAME", "files/report.csv")
@@ -85,11 +82,11 @@ DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {"filterType": ADVERTISER_ID, "format": "CSV
 START_DATE = datetime(2021, 1, 1)
 
 with models.DAG(
-    "example_display_video",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs,
     start_date=START_DATE,
     catchup=False,
-) as dag1:
+) as dag:
     # [START howto_google_display_video_createquery_report_operator]
     create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
     report_id = create_report.output["report_id"]
@@ -115,7 +112,11 @@ with models.DAG(
     # [END howto_google_display_video_getquery_report_operator]
 
     # [START howto_google_display_video_deletequery_report_operator]
-    delete_report = GoogleDisplayVideo360DeleteReportOperator(report_id=report_id, task_id="delete_report")
+    delete_report = GoogleDisplayVideo360DeleteReportOperator(
+        report_id=report_id,
+        task_id="delete_report",
+        trigger_rule=TriggerRule.ALL_DONE,
+    )
     # [END howto_google_display_video_deletequery_report_operator]
 
     run_report >> wait_for_report >> get_report >> delete_report
@@ -126,86 +127,14 @@ with models.DAG(
     #   create_report >> get_report
     #   create_report >> delete_report
 
+    from tests.system.utils.watcher import watcher
 
-with models.DAG(
-    "example_display_video_misc",
-    schedule_interval='@once',  # Override to match your needs,
-    start_date=START_DATE,
-    catchup=False,
-) as dag2:
-    # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
-    upload_erf_to_bq = GCSToBigQueryOperator(
-        task_id='upload_erf_to_bq',
-        bucket=BUCKET,
-        source_objects=ERF_SOURCE_OBJECT,
-        destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
-        write_disposition='WRITE_TRUNCATE',
-    )
-    # [END howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
-    # [START howto_google_display_video_download_line_items_operator]
-    download_line_items = GoogleDisplayVideo360DownloadLineItemsOperator(
-        task_id="download_line_items",
-        request_body=DOWNLOAD_LINE_ITEMS_REQUEST,
-        bucket_name=BUCKET,
-        object_name=OBJECT_NAME,
-        gzip=False,
-    )
-    # [END howto_google_display_video_download_line_items_operator]
 
-    # [START howto_google_display_video_upload_line_items_operator]
-    upload_line_items = GoogleDisplayVideo360UploadLineItemsOperator(
-        task_id="upload_line_items",
-        bucket_name=BUCKET,
-        object_name=BUCKET_FILE_LOCATION,
-    )
-    # [END howto_google_display_video_upload_line_items_operator]
+from tests.system.utils import get_test_run  # noqa: E402
 
-with models.DAG(
-    "example_display_video_sdf",
-    schedule_interval='@once',  # Override to match your needs,
-    start_date=START_DATE,
-    catchup=False,
-) as dag3:
-    # [START howto_google_display_video_create_sdf_download_task_operator]
-    create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(
-        task_id="create_sdf_download_task", body_request=CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST
-    )
-    operation_name = '{{ task_instance.xcom_pull("create_sdf_download_task")["name"] }}'
-    # [END howto_google_display_video_create_sdf_download_task_operator]
-
-    # [START howto_google_display_video_wait_for_operation_sensor]
-    wait_for_operation = GoogleDisplayVideo360GetSDFDownloadOperationSensor(
-        task_id="wait_for_operation",
-        operation_name=operation_name,
-    )
-    # [END howto_google_display_video_wait_for_operation_sensor]
-
-    # [START howto_google_display_video_save_sdf_in_gcs_operator]
-    save_sdf_in_gcs = GoogleDisplayVideo360SDFtoGCSOperator(
-        task_id="save_sdf_in_gcs",
-        operation_name=operation_name,
-        bucket_name=BUCKET,
-        object_name=BUCKET_FILE_LOCATION,
-        gzip=False,
-    )
-    # [END howto_google_display_video_save_sdf_in_gcs_operator]
-
-    # [START howto_google_display_video_gcs_to_big_query_operator]
-    upload_sdf_to_big_query = GCSToBigQueryOperator(
-        task_id="upload_sdf_to_big_query",
-        bucket=BUCKET,
-        source_objects=[save_sdf_in_gcs.output],
-        destination_project_dataset_table=f"{BQ_DATA_SET}.gcs_to_bq_table",
-        schema_fields=[
-            {"name": "name", "type": "STRING", "mode": "NULLABLE"},
-            {"name": "post_abbr", "type": "STRING", "mode": "NULLABLE"},
-        ],
-        write_disposition="WRITE_TRUNCATE",
-    )
-    # [END howto_google_display_video_gcs_to_big_query_operator]
-
-    create_sdf_download_task >> wait_for_operation >> save_sdf_in_gcs
-
-    # Task dependency created via `XComArgs`:
-    #   save_sdf_in_gcs >> upload_sdf_to_big_query
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

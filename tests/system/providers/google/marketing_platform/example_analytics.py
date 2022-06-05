@@ -29,7 +29,10 @@ from airflow.providers.google.marketing_platform.operators.analytics import (
     GoogleAnalyticsModifyFileHeadersDataImportOperator,
     GoogleAnalyticsRetrieveAdsLinksListOperator,
 )
+from airflow.utils.trigger_rule import TriggerRule
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_google_analytics"
 ACCOUNT_ID = os.environ.get("GA_ACCOUNT_ID", "123456789")
 
 BUCKET = os.environ.get("GMP_ANALYTICS_BUCKET", "test-airflow-analytics-bucket")
@@ -39,7 +42,7 @@ WEB_PROPERTY_AD_WORDS_LINK_ID = os.environ.get("GA_WEB_PROPERTY_AD_WORDS_LINK_ID
 DATA_ID = "kjdDu3_tQa6n8Q1kXFtSmg"
 
 with models.DAG(
-    "example_google_analytics",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -77,12 +80,26 @@ with models.DAG(
         account_id=ACCOUNT_ID,
         web_property_id=WEB_PROPERTY_ID,
         custom_data_source_id=DATA_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     transform = GoogleAnalyticsModifyFileHeadersDataImportOperator(
         task_id="transform",
         storage_bucket=BUCKET,
         storage_name_object=BUCKET_FILENAME,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
 
     upload >> [delete, transform]
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
