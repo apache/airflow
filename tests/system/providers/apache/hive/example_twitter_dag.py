@@ -26,12 +26,17 @@
 """
 This is an example dag for managing twitter data.
 """
+
+import os
 from datetime import date, datetime, timedelta
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_twitter_dag"
 
 
 @task
@@ -68,7 +73,7 @@ def transfer_to_db():
 
 
 with DAG(
-    dag_id='example_twitter_dag',
+    dag_id=DAG_ID,
     default_args={
         'owner': 'Ekhtiar',
         'retries': 1,
@@ -145,3 +150,14 @@ with DAG(
         )
 
         analyze >> load_to_hdfs >> load_to_hive >> hive_to_mysql
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
