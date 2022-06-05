@@ -478,7 +478,7 @@ snakebite-py3==3.0.5
 sniffio==1.2.0
 snowballstemmer==2.1.0
 snowflake-connector-python==2.6.2
-snowflake-sqlalchemy==1.2.5
+snowflake-sqlalchemy==1.2.4
 sortedcontainers==2.4.0
 soupsieve==2.2.1
 sphinx-airflow-theme==0.0.6
