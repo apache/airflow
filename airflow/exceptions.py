@@ -185,6 +185,23 @@ class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG."""
 
 
+class TaskAlreadyInTaskGroup(AirflowException):
+    """Raise when a Task cannot be added to a TaskGroup since it already belongs to another TaskGroup."""
+
+    def __init__(self, task_id: str, existing_group_id: Optional[str], new_group_id: str) -> None:
+        super().__init__(task_id, new_group_id)
+        self.task_id = task_id
+        self.existing_group_id = existing_group_id
+        self.new_group_id = new_group_id
+
+    def __str__(self) -> str:
+        if self.existing_group_id is None:
+            existing_group = "the DAG's root group"
+        else:
+            existing_group = f"group {self.existing_group_id!r}"
+        return f"cannot add {self.task_id!r} to {self.new_group_id!r} (already in {existing_group})"
+
+
 class SerializationError(AirflowException):
     """A problem occurred when trying to serialize a DAG."""
 
