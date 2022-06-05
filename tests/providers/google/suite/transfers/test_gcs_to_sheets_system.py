@@ -17,8 +17,8 @@
 
 import pytest
 
-from airflow.providers.google.suite.example_dags.example_gcs_to_sheets import BUCKET
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_GCS_KEY
+from tests.system.providers.google.suite.example_gcs_to_sheets import BUCKET
 from tests.test_utils.gcp_system_helpers import GSUITE_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
 
 # Required scopes

@@ -24,7 +24,10 @@ from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
 from airflow.providers.google.suite.operators.sheets import GoogleSheetsCreateSpreadsheetOperator
 from airflow.providers.google.suite.transfers.gcs_to_sheets import GCSToGoogleSheetsOperator
+from airflow.utils.trigger_rule import TriggerRule
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_sheets_gcs"
 GCS_BUCKET = os.environ.get("SHEETS_GCS_BUCKET", "test28397ye")
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1234567890qwerty")
 NEW_SPREADSHEET_ID = os.environ.get("NEW_SPREADSHEET_ID", "1234567890qwerty")
@@ -35,7 +38,7 @@ SPREADSHEET = {
 }
 
 with models.DAG(
-    "example_sheets_gcs",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -59,6 +62,7 @@ with models.DAG(
     print_spreadsheet_url = BashOperator(
         task_id="print_spreadsheet_url",
         bash_command=f"echo {create_spreadsheet.output['spreadsheet_url']}",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END print_spreadsheet_url]
 
@@ -68,8 +72,21 @@ with models.DAG(
         bucket_name=GCS_BUCKET,
         object_name="{{ task_instance.xcom_pull('upload_sheet_to_gcs')[0] }}",
         spreadsheet_id=NEW_SPREADSHEET_ID,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END upload_gcs_to_sheet]
 
     create_spreadsheet >> print_spreadsheet_url
     upload_sheet_to_gcs >> upload_gcs_to_sheet
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

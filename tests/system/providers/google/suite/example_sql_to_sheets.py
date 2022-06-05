@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_sql_to_sheets"
 SQL = "select 1 as my_col"
 NEW_SPREADSHEET_ID = "123"
 
@@ -40,3 +43,8 @@ with models.DAG(
         spreadsheet_id=NEW_SPREADSHEET_ID,
     )
     # [END upload_sql_to_sheets]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

@@ -19,18 +19,22 @@
 Example DAG using LocalFilesystemToGoogleDriveOperator.
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 
 from airflow import models
 from airflow.providers.google.suite.transfers.local_to_drive import LocalFilesystemToGoogleDriveOperator
+from airflow.utils.trigger_rule import TriggerRule
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_local_to_drive"
 SINGLE_FILE_LOCAL_PATHS = [Path("test1")]
 MULTIPLE_FILES_LOCAL_PATHS = [Path("test1"), Path("test2")]
 DRIVE_FOLDER = Path("test-folder")
 
 with models.DAG(
-    "example_local_to_drive",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -50,7 +54,20 @@ with models.DAG(
         local_paths=MULTIPLE_FILES_LOCAL_PATHS,
         drive_folder=DRIVE_FOLDER,
         ignore_if_missing=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_operator_local_to_drive_upload_multiple_files]
 
     upload_single_file >> upload_multiple_files
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
