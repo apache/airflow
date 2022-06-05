@@ -19,13 +19,18 @@
 """
 Example Airflow DAG to submit Apache Druid json index file using `DruidOperator`
 """
+
+import os
 from datetime import datetime
 
 from airflow.models import DAG
 from airflow.providers.apache.druid.operators.druid import DruidOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_druid_operator"
+
 with DAG(
-    dag_id='example_druid_operator',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     catchup=False,
@@ -48,3 +53,8 @@ with DAG(
         }
     """
     # [END howto_operator_druid_submit]
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
