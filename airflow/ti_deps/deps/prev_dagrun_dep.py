@@ -34,7 +34,7 @@ class PrevDagrunDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(self, ti: TI, session, dep_context):
         if dep_context.ignore_depends_on_past:
             reason = "The context specified that the state of past DAGs could be ignored."
             yield self._passing_status(reason=reason)
@@ -50,7 +50,7 @@ class PrevDagrunDep(BaseTIDep):
             return
 
         # Don't depend on the previous task instance if we are the first task.
-        catchup = ti.task.dag.catchup
+        catchup = ti.task.dag and ti.task.dag.catchup
         if catchup:
             last_dagrun = dr.get_previous_scheduled_dagrun(session)
         else:

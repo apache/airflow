@@ -35,7 +35,13 @@ keywords:
 dependencies:
   - name: postgresql
     version: 10.5.3
-    repository: "https://charts.bitnami.com/bitnami"
+    # In order to react to a sudden, totally breaking change by bitnami in
+    # https://github.com/bitnami/charts/issues/10539
+    # we need to use the version of index from just before the change. However we hope
+    # it is only temporary change as it breaks all our charts we released so far
+    # see comment here https://github.com/bitnami/charts/issues/10539#issuecomment-1144869092
+    repository: >-
+      https://raw.githubusercontent.com/bitnami/charts/eb5f9a9513d987b519f0ecd732e7031241c50328/bitnami
     condition: postgresql.enabled
 maintainers:
   - email: dev@airflow.apache.org

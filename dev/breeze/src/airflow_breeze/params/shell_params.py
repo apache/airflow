@@ -185,6 +185,8 @@ class ShellParams:
             backend_files = []
             for backend in ALLOWED_BACKENDS:
                 backend_files.extend(self.get_backend_compose_files(backend))
+            compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-mssql-bind-volume.yml")
+            compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-mssql-docker-volume.yml")
         local_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/local.yml"
         local_all_sources_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/local-all-sources.yml"
         files_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/files.yml"
@@ -220,7 +222,7 @@ class ShellParams:
         if len(integrations) > 0:
             for integration in integrations:
                 compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/integration-{integration}.yml")
-        return ':'.join(compose_ci_file)
+        return os.pathsep.join(compose_ci_file)
 
     @property
     def command_passed(self):

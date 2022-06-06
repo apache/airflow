@@ -37,11 +37,10 @@ import { useTasks, useGridData } from '../../api';
 import Time from '../../components/Time';
 import { SimpleStatus } from '../../components/StatusBox';
 
-const dagId = getMetaValue('dag_id');
 const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
-  const { data: taskData } = useTasks(dagId);
+  const { data: taskData } = useTasks();
   const { data: { dagRuns } } = useGridData();
   if (!taskData) return null;
   const { tasks = [], totalEntries = '' } = taskData;

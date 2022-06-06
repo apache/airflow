@@ -29,7 +29,7 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_DATA_VOLUME
 
 try:
     from packaging import version
@@ -537,6 +537,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'LIST_OF_INTEGRATION_TESTS_TO_RUN', "")
     set_value_to_default_if_not_set(env, 'LOAD_DEFAULT_CONNECTIONS', "false")
     set_value_to_default_if_not_set(env, 'LOAD_EXAMPLES', "false")
+    set_value_to_default_if_not_set(env, 'MSSQL_DATA_VOLUME', str(MSSQL_DATA_VOLUME))
     set_value_to_default_if_not_set(env, 'PACKAGE_FORMAT', ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, 'PRINT_INFO_FROM_SCRIPTS', "true")
     set_value_to_default_if_not_set(env, 'PYTHONDONTWRITEBYTECODE', "true")
