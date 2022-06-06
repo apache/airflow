@@ -543,10 +543,11 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
             self.sql = f"SELECT {checks_sql} FROM {self.table};"
             records = hook.get_first(self.sql)
-            self.log.info(f"Record: {records}")
 
             if not records:
-                raise AirflowException("The query returned None")
+                raise AirflowException(f"The following query returned zero rows: {self.sql}")
+
+            self.log.info(f"Record: {records}")
 
             for idx, result in enumerate(records):
                 tolerance = (
@@ -710,10 +711,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self.sql = f"SELECT {checks_sql} FROM {self.table};"
         records = hook.get_first(self.sql)
 
-        self.log.info(f"Record: {records}")
-
         if not records:
-            raise AirflowException("The query returned None")
+            raise AirflowException(f"The following query returned zero rows: {self.sql}")
+
+        self.log.info(f"Record: {records}")
 
         for check in self.checks.keys():
             for result in records:
