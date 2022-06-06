@@ -91,9 +91,6 @@ class TestCloudwatchTaskHandler:
 
         yield
 
-        with create_session() as session:
-            session.query(DagRun).delete()
-
         self.cloudwatch_task_handler.handler = None
         with create_session() as session:
             session.query(DagRun).delete()
