@@ -469,7 +469,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
 def _get_failed_tests(checks):
     return [
-        f"\tCheck: {check}, " f"Check Values: {check_values}\n"
+        f"\tCheck: {check},\nCheck Values: {check_values}\n"
         for check, check_values in checks.items()
         if not check_values["success"]
     ]
@@ -480,26 +480,26 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     Performs one or more of the templated checks in the column_checks dictionary.
     Checks are performed on a per-column basis specified by the column_mapping.
 
-    :param table: the table to run checks on.
-    :param column_mapping: the dictionary of columns and their associated checks, e.g.:
-    {
-        'col_name': {
-            'null_check': {
-                'equal_to': 0,
-            },
-            'min': {
-                'greater_than': 5,
-                'leq_than': 10,
-                'tolerance': 0.2,
-            },
-            'max': {
-                'less_than': 1000,
-                'geq_than': 10,
-                'tolerance': 0.01
+    :param table: the table to run checks on
+    :param column_mapping: the dictionary of columns and their associated checks, e.g.
+
+    .. code-block:: python
+
+        {
+            "col_name": {
+                "null_check": {
+                    "equal_to": 0,
+                },
+                "min": {
+                    "greater_than": 5,
+                    "leq_than": 10,
+                    "tolerance": 0.2,
+                },
+                "max": {"less_than": 1000, "geq_than": 10, "tolerance": 0.01},
             }
         }
-    }
-    :param conn_id: the connection ID used to connect to the database.
+
+    :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
     """
 
@@ -666,14 +666,14 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     :param table: the table to run checks on.
     :param checks: the dictionary of checks, e.g.:
-    {
-        'row_count_check': {
-            'check_statement': 'COUNT(*) == 1000'
-        },
-        'column_sum_check': {
-            'check_statement': 'col_a + col_b < col_c'
+
+    .. code-block:: python
+
+        {
+            "row_count_check": {"check_statement": "COUNT(*) == 1000"},
+            "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
         }
-    }
+
     :param conn_id: the connection ID used to connect to the database.
     :param database: name of database which overwrite the defined one in connection
     """
