@@ -160,7 +160,7 @@ def test_action_logging_variables_post(session, admin_client):
     admin_client.post("/variable/add", data=form)
     session.flush()
     session.commit()
-    _check_last_log(session, dag_id=None, event="variable.add", execution_date=None)
+    _check_last_log(session, dag_id=None, event="variables.add", execution_date=None)
     delete_variable(session, key="random")
 
 

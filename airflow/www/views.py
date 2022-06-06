@@ -3831,15 +3831,10 @@ class AirflowModelView(ModelView):
 
     def __getattribute__(self, attr):
         attribute = object.__getattribute__(self, attr)
-        if callable(attribute) and attr in [
-            "add",
-            "edit",
-            "delete",
-            "download",
-            "action",
-            "action_post",
-        ]:
-            return action_logging(event=f"{self.route_base.strip('/')}.{attr}")(attribute)
+        if callable(attribute) and hasattr(attribute, "_permission_name"):
+            permission_str = attribute._permission_name
+            if permission_str not in ["show", "list"]:
+                return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
         return attribute
 
 
@@ -4633,7 +4628,7 @@ class VariableModelView(AirflowModelView):
 
     @expose("/varimport", methods=["POST"])
     @auth.has_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
-    @action_logging
+    @action_logging(event=f"{permissions.RESOURCE_VARIABLE.lower()}.varimport")
     def varimport(self):
         """Import variables"""
         try:
