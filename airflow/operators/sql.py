@@ -479,6 +479,13 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     """
     Performs one or more of the templated checks in the column_checks dictionary.
     Checks are performed on a per-column basis specified by the column_mapping.
+    Each check can take one or more of the following options:
+        - equal_to: an exact value to equal, cannot be used with other comparison options
+        - greater_than: value that result should be strictly greater than
+        - less_than: value that results should be strictly less than
+        - geq_than: value that results should be greater than or equal to
+        - leq_than: value that results should be less than or equal to
+        - tolerance: the percentage that the result may be off from the expected value
 
     :param table: the table to run checks on
     :param column_mapping: the dictionary of columns and their associated checks, e.g.
