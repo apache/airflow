@@ -43,9 +43,9 @@ from airflow.utils.session import create_session
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
 
-# Compatibility: Airflow 2.3.2 uses this method, which accesses the LogTemplate
-# model to record the log ID template used. If this function does not exist, the
-# task handler should use the log_id_template attribute instead.
+# Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
+# LogTemplate model to record the log ID template used. If this function does
+# not exist, the task handler should use the log_id_template attribute instead.
 USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 
