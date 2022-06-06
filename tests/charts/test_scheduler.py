@@ -30,13 +30,15 @@ class SchedulerTest(unittest.TestCase):
             ("CeleryExecutor", True, "Deployment"),
             ("CeleryKubernetesExecutor", True, "Deployment"),
             ("KubernetesExecutor", True, "Deployment"),
+            ("LocalKubernetesExecutor", False, "Deployment"),
+            ("LocalKubernetesExecutor", True, "StatefulSet"),
             ("LocalExecutor", True, "StatefulSet"),
             ("LocalExecutor", False, "Deployment"),
         ]
     )
     def test_scheduler_kind(self, executor, persistence, kind):
         """
-        Test scheduler kind is StatefulSet only when using LocalExecutor &
+        Test scheduler kind is StatefulSet only when using a local executor &
         worker persistence is enabled.
         """
         docs = render_chart(
@@ -347,6 +349,13 @@ class SchedulerTest(unittest.TestCase):
         [
             ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalKubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            (
+                "LocalKubernetesExecutor",
+                True,
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
             ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
             ("LocalExecutor", True, None, None),
@@ -355,7 +364,7 @@ class SchedulerTest(unittest.TestCase):
     def test_scheduler_update_strategy(
         self, executor, persistence, update_strategy, expected_update_strategy
     ):
-        """updateStrategy should only be used when we have LocalExecutor and workers.persistence"""
+        """updateStrategy should only be used when we have a local executor and workers.persistence"""
         docs = render_chart(
             values={
                 "executor": executor,
@@ -372,6 +381,8 @@ class SchedulerTest(unittest.TestCase):
             ("LocalExecutor", False, None, None),
             ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
             ("LocalExecutor", True, {"type": "Recreate"}, None),
+            ("LocalKubernetesExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
+            ("LocalKubernetesExecutor", True, {"type": "Recreate"}, None),
             ("CeleryExecutor", True, None, None),
             ("CeleryExecutor", False, None, None),
             ("CeleryExecutor", True, {"type": "Recreate"}, {"type": "Recreate"}),
@@ -384,7 +395,7 @@ class SchedulerTest(unittest.TestCase):
         ]
     )
     def test_scheduler_strategy(self, executor, persistence, strategy, expected_strategy):
-        """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
+        """strategy should be used when we aren't using both a local executor and workers.persistence"""
         docs = render_chart(
             values={
                 "executor": executor,
