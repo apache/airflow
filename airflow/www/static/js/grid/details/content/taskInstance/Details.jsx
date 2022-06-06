@@ -85,7 +85,7 @@ const Details = ({ instance, group, operator }) => {
 
   return (
     <Flex flexWrap="wrap" justifyContent="space-between">
-      <Box>
+      <Box mb={2}>
         {tooltip && (
           <>
             <Text>{tooltip}</Text>
@@ -111,45 +111,50 @@ const Details = ({ instance, group, operator }) => {
         {summary.length > 0 && (
           summary
         )}
-        <br />
-        <Text>
-          {taskIdTitle}
-          <ClipboardText value={taskId} />
-        </Text>
-        <Text whiteSpace="nowrap">
-          Run Id:
-          {' '}
-          <ClipboardText value={runId} />
-        </Text>
-        {operator && (
-          <Text>
-            Operator:
-            {' '}
-            {operator}
-          </Text>
-        )}
-        <br />
-        <Text>
-          {isOverall}
-          Duration:
-          {' '}
-          {formatDuration(getDuration(startDate, endDate))}
-        </Text>
-        {startDate && (
-        <Text>
-          Started:
-          {' '}
-          <Time dateTime={startDate} />
-        </Text>
-        )}
-        {endDate && isStateFinal && (
-        <Text>
-          Ended:
-          {' '}
-          <Time dateTime={endDate} />
-        </Text>
-        )}
       </Box>
+      <Flex direction="row" justifyContent="space-between" width="100%">
+        <div>
+          <Text>
+            {taskIdTitle}
+            <ClipboardText value={taskId} />
+          </Text>
+          <Text whiteSpace="nowrap">
+            Run Id:
+            {' '}
+            <ClipboardText value={runId} />
+          </Text>
+          {operator && (
+            <Text>
+              Operator:
+              {' '}
+              {operator}
+            </Text>
+          )}
+        </div>
+        <div>
+          <Text>
+            {isOverall}
+            Duration:
+            {' '}
+            {formatDuration(getDuration(startDate, endDate))}
+          </Text>
+          {startDate && (
+            <Text>
+              Started:
+              {' '}
+              <Time dateTime={startDate} />
+            </Text>
+          )}
+          {endDate && isStateFinal && (
+            <Text>
+              Ended:
+              {' '}
+              <Time dateTime={endDate} />
+            </Text>
+          )}
+        </div>
+      </Flex>
+
     </Flex>
   );
 };

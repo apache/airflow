@@ -41,7 +41,6 @@ const LogLink = ({
   }
   return (
     <LinkButton
-        // eslint-disable-next-line react/no-array-index-key
       key={index}
       href={fullMetadataUrl}
       target={isInternal ? undefined : '_blank'}
