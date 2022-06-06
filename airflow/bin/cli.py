@@ -2431,7 +2431,7 @@ def sync_perm(args): # noqa
         appbuilder.sm.sync_roles()
         appbuilder.add_permissions(update_perms=True)
         print('Updating permission on all DAG views')
-        dags = DagBag(store_serialized_dags=settings.STORE_SERIALIZED_DAGS).dags.values()
+        dags = DagBag().dags.values()
         for dag in dags:
             appbuilder.sm.sync_perm_for_dag(
                 dag.dag_id,
