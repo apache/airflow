@@ -34,7 +34,7 @@ class SFTPSensor(BaseSensorOperator):
     Waits for a file or directory to be present on SFTP.
 
     :param path: Remote file or directory path
-    :param file_pattern: The regex pattern that will be used to match the file (fnmatch format)
+    :param file_pattern: The pattern that will be used to match the file (fnmatch format)
     :param sftp_conn_id: The connection to run the sensor against
     :param newer_than: DateTime for which the file or file path should be newer than, comparison is inclusive
     """
