@@ -57,11 +57,7 @@ class UtcDateTime(TypeDecorator):
 
     """
 
-    impl = (
-        TIMESTAMP(timezone=True)
-        .with_variant(mssql.DATETIME2(precision=6), 'mssql')
-        .with_variant(mysql.TIMESTAMP(fsp=6), 'mysql')
-    )
+    impl = TIMESTAMP(timezone=True)
 
     def process_bind_param(self, value, dialect):
         if value is not None:
@@ -96,6 +92,13 @@ class UtcDateTime(TypeDecorator):
                 value = value.astimezone(utc)
 
         return value
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'mssql':
+            return mssql.DATETIME2(precision=6)
+        elif dialect.name == 'mysql':
+            return mysql.TIMESTAMP(fsp=6)
+        return super().load_dialect_impl(dialect)
 
 
 class ExtendedJSON(TypeDecorator):
