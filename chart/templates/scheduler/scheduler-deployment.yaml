@@ -202,7 +202,7 @@ spec:
               subPath: airflow_local_settings.py
               readOnly: true
             {{- end }}
-{{- if and (not .Values.dagProcessor.enabled) (or .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
+{{- if and (not .Values.dagProcessor.enabled) (or $local .Values.dags.persistence.enabled .Values.dags.gitSync.enabled) }}
 {{- include "airflow_dags_mount" . | nindent 12 }}
 {{- end }}
 {{- if .Values.scheduler.extraVolumeMounts }}
