@@ -97,6 +97,7 @@ class TestMappedTaskInstanceEndpoint:
 
             session.add(
                 TaskMap(
+                    dag_run_id=dr.id,
                     dag_id=dr.dag_id,
                     task_id=task1.task_id,
                     run_id=dr.run_id,

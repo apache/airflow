@@ -1673,6 +1673,7 @@ class TestBackfillJob:
             if key.task_id == 'make_arg_lists':
                 session.add(
                     TaskMap(
+                        dag_run_id=dr.id,
                         length=len(list_result),
                         keys=None,
                         dag_id=key.dag_id,

@@ -15,24 +15,27 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING
+from sqlalchemy.orm import Session
 
+from airflow.models.dagrun import DagRun
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmap import TaskMap
-
-if TYPE_CHECKING:
-    from sqlalchemy.orm import Session
-
-    from airflow.models.mappedoperator import MappedOperator
 
 
 def expand_mapped_task(
-    mapped: "MappedOperator", run_id: str, upstream_task_id: str, length: int, session: "Session"
+    mapped: MappedOperator,
+    dagrun: DagRun,
+    upstream_task_id: str,
+    length: int,
+    *,
+    session: Session,
 ):
     session.add(
         TaskMap(
+            dag_run_id=dagrun.id,
             dag_id=mapped.dag_id,
             task_id=upstream_task_id,
-            run_id=run_id,
+            run_id=dagrun.run_id,
             map_index=-1,
             item="",
             length=length,
@@ -41,5 +44,5 @@ def expand_mapped_task(
     )
     session.flush()
 
-    mapped.expand_mapped_task(run_id, session=session)
+    mapped.expand_mapped_task(dagrun.run_id, session=session)
     mapped.run_time_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]

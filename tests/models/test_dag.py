@@ -1445,7 +1445,7 @@ class TestDag(unittest.TestCase):
             execution_date=DEFAULT_DATE,
             session=session,
         )
-        expand_mapped_task(mapped, dagrun_1.run_id, "make_arg_lists", length=2, session=session)
+        expand_mapped_task(mapped, dagrun_1, "make_arg_lists", length=2, session=session)
 
         upstream_ti = dagrun_1.get_task_instance("make_arg_lists", session=session)
         ti = dagrun_1.get_task_instance(task_id, map_index=0, session=session)
@@ -2333,7 +2333,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         run_type=DagRunType.SCHEDULED,
         state=DagRunState.FAILED,
     )
-    expand_mapped_task(mapped, dr1.run_id, "make_arg_lists", length=2, session=session)
+    expand_mapped_task(mapped, dr1, "make_arg_lists", length=2, session=session)
 
     # set_state(future=True) only applies to scheduled runs
     dr2 = dag_maker.create_dagrun(
@@ -2341,7 +2341,7 @@ def test_set_task_instance_state_mapped(dag_maker, session):
         state=DagRunState.FAILED,
         execution_date=DEFAULT_DATE + datetime.timedelta(days=1),
     )
-    expand_mapped_task(mapped, dr2.run_id, "make_arg_lists", length=2, session=session)
+    expand_mapped_task(mapped, dr2, "make_arg_lists", length=2, session=session)
 
     session.query(TI).filter_by(dag_id=dag.dag_id).update({'state': TaskInstanceState.FAILED})
 

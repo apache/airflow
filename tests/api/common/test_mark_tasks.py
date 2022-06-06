@@ -438,7 +438,7 @@ class TestMarkTasks:
         mapped = self.dag4.get_task("consumer")
         tasks = [(mapped, 0), (mapped, 1)]
         dr = DagRun.find(dag_id=self.dag4.dag_id, execution_date=self.execution_dates[0], session=session)[0]
-        expand_mapped_task(mapped, dr.run_id, "make_arg_lists", length=3, session=session)
+        expand_mapped_task(mapped, dr, "make_arg_lists", length=3, session=session)
         snapshot = TestMarkTasks.snapshot_state(self.dag4, self.execution_dates)
         altered = set_state(
             tasks=tasks,

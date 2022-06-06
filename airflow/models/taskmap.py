@@ -20,13 +20,14 @@
 
 import collections.abc
 import enum
-from typing import TYPE_CHECKING, Any, Iterator, List, Optional
+from typing import TYPE_CHECKING, Any, Iterator
 
-from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String, Text
+from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Index, Integer
+from sqlalchemy.orm import relationship
 
 from airflow.configuration import conf
 from airflow.exceptions import UnmappableXComLengthPushed, UnmappableXComTypePushed, XComForMappingNotPushed
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 if TYPE_CHECKING:
@@ -54,21 +55,28 @@ class TaskMap(Base):
     __tablename__ = "task_map"
 
     # Link to upstream TaskInstance creating this dynamic mapping information.
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True)
-    map_index = Column(Integer, primary_key=True)
+    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
+    task_id = Column(StringID(), nullable=False, primary_key=True)
+    map_index = Column(Integer(), nullable=False, primary_key=True)
 
     # If the upstream XCom is used for expand_kwargs(), we use this to store
     # lengths of each item in the dict, i.e. {"a": [1, 2]} generates a TaskMap
     # with item set to "a". This is an empty string for normal expand() calls.
-    item = Column(Text(), nullable=False, server_default="", primary_key=True)
+    item = Column(StringID(), nullable=False, primary_key=True)
+
+    # Denormalized for easier lookup.
+    dag_id = Column(StringID(), nullable=False)
+    run_id = Column(StringID(), nullable=False)
 
     length = Column(Integer, nullable=False)
-    keys = Column(ExtendedJSON, nullable=True)
+    keys = Column(ExtendedJSON, nullable=True)  # Set if the value is a dict.
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),
+        # Ideally we should create a unique index over (dag_id, task_id, run_id, item),
+        # but it goes over MySQL's index length limit. So we instead index 'item'
+        # separately, and enforce uniqueness with DagRun.id instead.
+        Index("idx_task_map_item", item),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [
@@ -82,23 +90,13 @@ class TaskMap(Base):
         ),
     )
 
-    def __init__(
-        self,
-        dag_id: str,
-        task_id: str,
-        run_id: str,
-        map_index: int,
-        item: str,
-        length: int,
-        keys: Optional[List[Any]],
-    ) -> None:
-        self.dag_id = dag_id
-        self.task_id = task_id
-        self.run_id = run_id
-        self.map_index = map_index
-        self.item = item
-        self.length = length
-        self.keys = keys
+    dag_run = relationship(
+        "DagRun",
+        primaryjoin="TaskMap.dag_run_id == foreign(DagRun.id)",
+        uselist=False,
+        lazy="joined",
+        passive_deletes="all",
+    )
 
     @classmethod
     def from_task_instance_xcom(cls, ti: "TaskInstance", value: Any, *, item: str) -> "TaskMap":
@@ -111,6 +109,7 @@ class TaskMap(Base):
         if len(value) > max_map_length:
             raise UnmappableXComLengthPushed(value, max_map_length)
         return cls(
+            dag_run_id=ti.dag_run.id,
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=ti.run_id,

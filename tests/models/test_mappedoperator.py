@@ -155,6 +155,7 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
 
     session.add(
         TaskMap(
+            dag_run_id=dr.id,
             dag_id=dr.dag_id,
             task_id=task1.task_id,
             run_id=dr.run_id,
@@ -198,7 +199,7 @@ def test_expand_mapped_task_instance_skipped_on_zero(dag_maker, session):
 
     dr = dag_maker.create_dagrun()
 
-    expand_mapped_task(mapped, dr.run_id, task1.task_id, length=0, session=session)
+    expand_mapped_task(mapped, dr, task1.task_id, length=0, session=session)
 
     indices = (
         session.query(TaskInstance.map_index, TaskInstance.state)
@@ -259,6 +260,7 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
 
     session.add(
         TaskMap(
+            dag_run_id=dr.id,
             dag_id=dr.dag_id,
             task_id=task1.task_id,
             run_id=dr.run_id,
