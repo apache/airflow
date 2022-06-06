@@ -19,16 +19,22 @@
 
 import axios from 'axios';
 import { useQuery } from 'react-query';
+import { getMetaValue } from '../../utils';
 
-const useTaskLogs = ({
+const taskLogApi = getMetaValue('task_log_api');
+
+const useTaskLog = ({
   dagId, dagRunId, taskId, taskTryNumber, enabled,
-}) => useQuery(
-  ['taskLogs', dagId, dagRunId, taskId, taskTryNumber],
-  () => axios.get(`/api/v1/dags/${dagId}/dagRuns/${dagRunId}/taskInstances/${taskId}/logs/${taskTryNumber}`, { headers: { Accept: 'text/plain' } }),
-  {
-    placeholderData: '',
-    enabled,
-  },
-);
+}) => {
+  const url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace('-1', taskTryNumber);
 
-export default useTaskLogs;
+  return useQuery(
+    ['taskLogs', dagId, dagRunId, taskId, taskTryNumber],
+    () => axios.get(url, { headers: { Accept: 'text/plain' } }),
+    {
+      placeholderData: '',
+      enabled,
+    },
+  );
+};
+export default useTaskLog;

@@ -29,7 +29,7 @@ import {
 
 import { getMetaValue } from '../../../../../utils';
 import LogLink from './LogLink';
-import useTaskLogs from '../../../../api/useTaskLogs';
+import useTaskLog from '../../../../api/useTaskLog';
 import LinkButton from '../../../../components/LinkButton';
 
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
@@ -63,7 +63,7 @@ const Logs = ({
 }) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
-  const { data, isSuccess } = useTaskLogs({
+  const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
