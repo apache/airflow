@@ -123,15 +123,18 @@ const TaskInstance = ({ taskId, runId }) => {
           <Divider my={2} />
         </Box>
       )}
+      <Details instance={instance} group={group} operator={operator} />
+      <Divider my={2} />
       {!isMapped && (
         <Logs
           dagId={dagId}
+          dagRunId={runId}
           taskId={taskId}
           executionDate={executionDate}
           tryNumber={instance.tryNumber}
+          isGroup={isGroup}
         />
       )}
-      <Details instance={instance} group={group} operator={operator} />
       <ExtraLinks
         taskId={taskId}
         dagId={dagId}

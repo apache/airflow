@@ -25,40 +25,30 @@ import LinkButton from '../../../../components/LinkButton';
 const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 
-export const LogInternalLink = ({
-  index, dagId, taskId, executionDate,
+const LogLink = ({
+  index, dagId, taskId, executionDate, isInternal,
 }) => {
-  const fullExternalUrl = `${externalLogUrl
+  let fullMetadataUrl = `${isInternal ? logsWithMetadataUrl : externalLogUrl
   }?dag_id=${encodeURIComponent(dagId)
   }&task_id=${encodeURIComponent(taskId)
   }&execution_date=${encodeURIComponent(executionDate)
-  }&try_number=${index}`;
-  return (
-    <LinkButton // eslint-disable-next-line react/no-array-index-key
-      key={index}
-      href={fullExternalUrl}
-      target="_blank"
-    >
-      {index}
-    </LinkButton>
-  );
-};
+  }`;
 
-export const LogExternalLink = ({
-  index, dagId, taskId, executionDate,
-}) => {
-  const fullMetadataUrl = `${logsWithMetadataUrl
-  }?dag_id=${encodeURIComponent(dagId)
-  }&task_id=${encodeURIComponent(taskId)
-  }&execution_date=${encodeURIComponent(executionDate)
-  }&format=file${index > 0 && `&try_number=${index}`}`;
+  if (isInternal) {
+    fullMetadataUrl += `&format=file${index > 0 && `&try_number=${index}`}`;
+  } else {
+    fullMetadataUrl += `&try_number=${index}`;
+  }
   return (
     <LinkButton
         // eslint-disable-next-line react/no-array-index-key
       key={index}
       href={fullMetadataUrl}
+      target={isInternal ? undefined : '_blank'}
     >
-      {index === 0 ? 'All' : index}
+      {isInternal ? 'Download' : index}
     </LinkButton>
   );
 };
+
+export default LogLink;

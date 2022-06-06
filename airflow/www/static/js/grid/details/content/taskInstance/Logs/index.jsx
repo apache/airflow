@@ -17,19 +17,24 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import {
   Text,
   Box,
   Flex,
   Divider,
+  Textarea,
+  Button,
 } from '@chakra-ui/react';
 
 import { getMetaValue } from '../../../../../utils';
-import { LogInternalLink, LogExternalLink } from './LogLinks';
+import LogLink from './LogLink';
+import useTaskLogs from '../../../../api/useTaskLogs';
+import LinkButton from '../../../../components/LinkButton';
 
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 const externalLogName = getMetaValue('external_log_name');
+const logUrl = getMetaValue('log_url');
 
 const getLinkIndexes = (tryNumber) => {
   const internalIndexes = [];
@@ -50,35 +55,68 @@ const getLinkIndexes = (tryNumber) => {
 
 const Logs = ({
   dagId,
+  dagRunId,
   taskId,
   executionDate,
   tryNumber,
+  isGroup,
 }) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
+  const [selectedAttempt, setSelectedAttempt] = useState(1);
+  const { data, isSuccess } = useTaskLogs({
+    dagId,
+    dagRunId,
+    taskId,
+    taskTryNumber: selectedAttempt,
+    enabled: (!isGroup),
+  });
+
+  const params = new URLSearchParams({
+    task_id: taskId,
+    execution_date: executionDate,
+  }).toString();
 
   return (
     <>
       {tryNumber > 0 && (
       <>
+        <Text as="strong">Logs</Text>
+        <Text as="span"> (by attempts)</Text>
         <Box>
-          <Text>Download Log (by attempts):</Text>
-          <Flex flexWrap="wrap">
-            {
-              internalIndexes.map(
-                (index) => (
-                  <LogInternalLink
-                    key={index}
-                    index={index}
-                    dagId={dagId}
-                    taskId={taskId}
-                    executionDate={executionDate}
-                  />
-                ),
-              )
-            }
+          <Flex my={1} justifyContent="space-between">
+            <Flex flexWrap="wrap">
+              {internalIndexes.map((index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  colorScheme="blue"
+                  onClick={() => setSelectedAttempt(index)}
+                >
+                  {index}
+                </Button>
+              ))}
+            </Flex>
+            <Flex>
+              <LogLink
+                index={selectedAttempt}
+                dagId={dagId}
+                taskId={taskId}
+                executionDate={executionDate}
+                isInternal
+              />
+              <LinkButton
+                href={`${logUrl}&${params}`}
+              >
+                See More
+              </LinkButton>
+            </Flex>
           </Flex>
         </Box>
-        <Divider my={2} />
+        {
+          isSuccess && (
+          <Textarea readOnly defaultValue={data} height={200} />
+          )
+        }
       </>
       )}
       {externalLogName && externalIndexes.length > 0 && (
@@ -95,7 +133,7 @@ const Logs = ({
             {
               externalIndexes.map(
                 (index) => (
-                  <LogExternalLink
+                  <LogLink
                     key={index}
                     index={index}
                     dagId={dagId}
