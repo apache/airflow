@@ -37,7 +37,7 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from S3 remote storage.
     """
 
-    def __init__(self, base_log_folder: str, s3_log_folder: str, *, filename_template: Optional[str] = None):
+    def __init__(self, base_log_folder: str, s3_log_folder: str, filename_template: Optional[str] = None):
         super().__init__(base_log_folder, filename_template)
         self.remote_base = s3_log_folder
         self.log_relative_path = ''

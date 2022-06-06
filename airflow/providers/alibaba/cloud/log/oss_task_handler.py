@@ -38,7 +38,7 @@ class OSSTaskHandler(FileTaskHandler, LoggingMixin):
     uploads to and reads from OSS remote storage.
     """
 
-    def __init__(self, base_log_folder, oss_log_folder, *, filename_template=None):
+    def __init__(self, base_log_folder, oss_log_folder, filename_template=None):
         self.log.info("Using oss_task_handler for remote logging...")
         super().__init__(base_log_folder, filename_template)
         (self.bucket_name, self.base_folder) = OSSHook.parse_oss_url(oss_log_folder)
