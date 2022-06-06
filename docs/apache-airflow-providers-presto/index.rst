@@ -30,6 +30,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    PrestoToSlackOperator types <operators/transfer/presto_to_slack>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/presto/index>
@@ -100,6 +106,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                     Extra
 ====================================================================================================  ==========
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
+`apache-airflow-providers-slack <https://airflow.apache.org/docs/apache-airflow-providers-slack>`_    ``slack``
 ====================================================================================================  ==========
 
 Downloading official packages
