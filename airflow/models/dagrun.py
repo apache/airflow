@@ -1076,3 +1076,12 @@ class DagRun(Base, LoggingMixin):
                 f"Please make sure you set up the metadatabase correctly."
             )
         return template
+
+    @provide_session
+    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
+        warnings.warn(
+            "This method is deprecated. Please use get_log_template instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_log_template(session=session).filename
