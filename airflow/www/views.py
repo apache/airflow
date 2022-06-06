@@ -28,7 +28,7 @@ import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
@@ -39,6 +39,7 @@ import lazy_object_proxy
 import markupsafe
 import nvd3
 import sqlalchemy as sqla
+from croniter import croniter
 from flask import (
     Response,
     abort,
@@ -117,6 +118,7 @@ from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -2740,18 +2742,28 @@ class Airflow(AirflowBaseView):
             restriction = TimeRestriction(dag.start_date, dag.end_date, False)
             dates = collections.Counter()
 
-            while True:
-                info = dag.timetable.next_dagrun_info(
-                    last_automated_data_interval=last_automated_data_interval, restriction=restriction
-                )
-                if info is None:
-                    break
-
-                if info.logical_date.year != year:
-                    break
-
-                last_automated_data_interval = info.data_interval
-                dates[info.logical_date] += 1
+            if isinstance(dag.timetable, CronDataIntervalTimetable):
+                for next in croniter(
+                    dag.timetable.summary, start_time=last_automated_data_interval.end, ret_type=datetime
+                ):
+                    if next is None:
+                        break
+                    if next.year != year:
+                        break
+                    if dag.end_date and next > dag.end_date:
+                        break
+                    dates[next.date()] += 1
+            else:
+                while True:
+                    info = dag.timetable.next_dagrun_info(
+                        last_automated_data_interval=last_automated_data_interval, restriction=restriction
+                    )
+                    if info is None:
+                        break
+                    if info.logical_date.year != year:
+                        break
+                    last_automated_data_interval = info.data_interval
+                    dates[info.logical_date] += 1
 
             data_dag_states.extend(
                 {'date': date.isoformat(), 'state': 'planned', 'count': count}
