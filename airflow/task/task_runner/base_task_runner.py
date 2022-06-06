@@ -174,7 +174,7 @@ class BaseTaskRunner(LoggingMixin):
         """Start running the task instance in a subprocess."""
         raise NotImplementedError()
 
-    def return_code(self) -> Optional[int]:
+    def return_code(self, timeout: int = 0) -> Optional[int]:
         """
         :return: The return code associated with running the task instance or
             None if the task is not yet done.
