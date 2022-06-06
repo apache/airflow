@@ -30,6 +30,12 @@ Content
 
 .. toctree::
     :maxdepth: 1
+    :caption: Guides
+
+    PrestoToSlackOperator types <operators/transfer/presto_to_slack>
+
+.. toctree::
+    :maxdepth: 1
     :caption: References
 
     Python API <_api/airflow/providers/presto/index>
@@ -38,7 +44,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/presto/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/presto>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-presto/>
     Installing from sources <installing-providers-from-sources>
 
@@ -100,6 +106,7 @@ You can install such cross-provider dependencies when installing from PyPI. For 
 Dependent package                                                                                     Extra
 ====================================================================================================  ==========
 `apache-airflow-providers-google <https://airflow.apache.org/docs/apache-airflow-providers-google>`_  ``google``
+`apache-airflow-providers-slack <https://airflow.apache.org/docs/apache-airflow-providers-slack>`_    ``slack``
 ====================================================================================================  ==========
 
 Downloading official packages

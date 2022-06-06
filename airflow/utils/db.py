@@ -92,6 +92,7 @@ REVISION_HEADS_MAP = {
     "2.2.5": "587bdf053233",
     "2.3.0": "b1b348e02d07",
     "2.3.1": "1de7bc13c950",
+    "2.3.2": "3c94c427fdf6",
 }
 
 
@@ -691,6 +692,7 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
+    timeout = timeout or 1  # run the loop at least 1
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None

@@ -788,7 +788,7 @@ class TestBigQueryUpsertTableOperator(unittest.TestCase):
 class TestBigQueryInsertJobOperator:
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_success(self, mock_hook, mock_md5):
+    def test_execute_query_success(self, mock_hook, mock_md5):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
@@ -804,6 +804,48 @@ class TestBigQueryInsertJobOperator:
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+        )
+        result = op.execute(context=MagicMock())
+
+        mock_hook.return_value.insert_job.assert_called_once_with(
+            configuration=configuration,
+            location=TEST_DATASET_LOCATION,
+            job_id=real_job_id,
+            project_id=TEST_GCP_PROJECT_ID,
+            retry=DEFAULT_RETRY,
+            timeout=None,
+        )
+
+        assert result == real_job_id
+
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
+    @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
+    def test_execute_copy_success(self, mock_hook, mock_md5):
+        job_id = "123456"
+        hash_ = "hash"
+        real_job_id = f"{job_id}_{hash_}"
+        mock_md5.return_value.hexdigest.return_value = hash_
+
+        configuration = {
+            "copy": {
+                "sourceTable": "aaa",
+                "destinationTable": "bbb",
+            }
+        }
+        mock_configuration = {
+            "configuration": configuration,
+            "jobReference": "a",
+        }
+        mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+
+        mock_hook.return_value.insert_job.return_value.to_api_repr.return_value = mock_configuration
+
+        op = BigQueryInsertJobOperator(
+            task_id="copy_query_job",
             configuration=configuration,
             location=TEST_DATASET_LOCATION,
             job_id=job_id,
@@ -1020,7 +1062,7 @@ class TestBigQueryInsertJobOperator:
     def test_job_id_validity(self, mock_md5, test_dag_id, expected_job_id):
         hash_ = "hash"
         mock_md5.return_value.hexdigest.return_value = hash_
-        context = {"execution_date": datetime(2020, 1, 23)}
+        context = {"logical_date": datetime(2020, 1, 23)}
         configuration = {
             "query": {
                 "query": "SELECT * FROM any",

@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -41,6 +41,7 @@ class BuildProdParams(CommonBuildParams):
     """
 
     airflow_constraints_mode: str = "constraints"
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints_reference: str = ""
     airflow_is_in_context: bool = False
     cleanup_context: bool = False

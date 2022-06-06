@@ -19,6 +19,11 @@ The version of MySQL server has to be 5.6.4+. The exact version upper bound depe
 on the version of ``mysqlclient`` package. For example, ``mysqlclient`` 1.3.12 can only be
 used with MySQL server 5.6.4 through 5.7.
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
 

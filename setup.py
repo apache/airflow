@@ -367,6 +367,9 @@ google = [
     'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
+    # A transient dependency of google-cloud-bigquery-datatransfer, but we
+    # further constrain it since older versions are buggy.
+    'proto-plus>=1.19.6',
 ]
 grpc = [
     # Google has very clear rules on what dependencies should be used. All the limits below
@@ -632,9 +635,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    # Version 3.1.10 is breaking main bump to 3.1.11 when released.
-    # Fix already merged but was not released https://github.com/spulec/moto/pull/5165
-    'moto[glue]>=3.1.6, <3.1.10',
+    'moto[cloudformation, glue]>=3.1.12',
     'parameterized',
     'paramiko',
     'pipdeptree',
