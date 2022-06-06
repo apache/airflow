@@ -79,8 +79,8 @@ class OracleHook(DbApiHook):
                )
            }
 
-        see more param detail in
-        `oracledb.connect <https://python-oracledb.readthedocs.io/en/latest/api_manual/module.html#oracledb.connect>`_
+        see more param detail in `oracledb.connect
+        <https://python-oracledb.readthedocs.io/en/latest/api_manual/module.html#oracledb.connect>`_
 
 
         """
