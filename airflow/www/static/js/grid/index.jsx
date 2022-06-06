@@ -45,11 +45,13 @@ shadowRoot.appendChild(mainElement);
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      notifyOnChangeProps: 'tracked',
       refetchOnWindowFocus: false,
       retry: 1,
       retryDelay: 500,
-      staleTime: 5 * 60 * 1000, // 5 minutes
       refetchOnMount: true, // Refetches stale queries, not "always"
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      initialDataUpdatedAt: new Date().setMinutes(-6), // make sure initial data is already expired
     },
     mutations: {
       retry: 1,
