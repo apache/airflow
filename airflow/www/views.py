@@ -23,7 +23,6 @@ import json
 import logging
 import math
 import re
-import socket
 import sys
 import traceback
 import warnings
@@ -126,6 +125,7 @@ from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
+from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
@@ -641,7 +641,7 @@ def not_found(error):
     return (
         render_template(
             'airflow/not_found.html',
-            hostname=socket.getfqdn()
+            hostname=get_hostname()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
         ),
@@ -656,7 +656,7 @@ def show_traceback(error):
             'airflow/traceback.html',
             python_version=sys.version.split(" ")[0],
             airflow_version=version,
-            hostname=socket.getfqdn()
+            hostname=get_hostname()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
             info=traceback.format_exc()
