@@ -550,11 +550,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             self.log.info(f"Record: {records}")
 
             for idx, result in enumerate(records):
-                tolerance = (
-                    self.column_mapping[column][checks[idx]]["tolerance"]
-                    if "tolerance" in self.column_mapping[column][checks[idx]]
-                    else None
-                )
+                tolerance = self.column_mapping[column][checks[idx]].get("tolerance")
 
                 self.column_mapping[column][checks[idx]]["result"] = result
                 self.column_mapping[column][checks[idx]]["success"] = self._get_match(
@@ -618,7 +614,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         if "greater_than" in check_values and "less_than" in check_values:
             if check_values["greater_than"] >= check_values["less_than"]:
                 raise ValueError(
-                    "greater_than should be strictly less than to "
+                    "greater_than should be strictly less than "
                     "less_than. Use geq_than or leq_than for "
                     "overlapping equality."
                 )
