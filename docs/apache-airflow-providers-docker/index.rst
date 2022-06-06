@@ -33,7 +33,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/docker/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/docker>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
     Installing from sources <installing-providers-from-sources>
 
@@ -78,3 +78,15 @@ PIP package         Version required
 ==================  ==================
 
 .. include:: ../../airflow/providers/docker/CHANGELOG.rst
+
+DockerOperator
+--------------
+Use the
+:class:`~airflow.providers.docker.operators.docker.DockerOperator`
+to execute command in Docker container.
+
+.. exampleinclude:: /../../tests/system/providers/docker/example_docker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_docker]
+    :end-before: [END howto_operator_docker]
