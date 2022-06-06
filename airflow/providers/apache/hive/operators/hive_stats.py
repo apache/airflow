@@ -108,7 +108,7 @@ class HiveStatsCollectionOperator(BaseOperator):
         elif col_type == 'boolean':
             exp[(col, 'true')] = f'SUM(CASE WHEN {col} THEN 1 ELSE 0 END)'
             exp[(col, 'false')] = f'SUM(CASE WHEN NOT {col} THEN 1 ELSE 0 END)'
-        elif col_type in {'string'}:
+        elif col_type == 'string':
             exp[(col, 'len')] = f'SUM(CAST(LENGTH({col}) AS BIGINT))'
             exp[(col, 'approx_distinct')] = f'APPROX_DISTINCT({col})'
 
