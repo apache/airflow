@@ -22,7 +22,7 @@ from unittest import mock
 
 import pytest
 
-from airflow.models import DagBag, DagRun, Log, TaskInstance, Variable
+from airflow.models import DagBag, DagRun, TaskInstance, Variable
 from airflow.utils import timezone
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType

@@ -72,4 +72,5 @@ def _check_last_log(session, dag_id, event, execution_date):
     )
     assert len(logs) >= 1
     assert logs[0].extra
+    print(logs[0].event)
     session.query(Log).delete()
