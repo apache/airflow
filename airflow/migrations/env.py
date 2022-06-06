@@ -19,11 +19,10 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import TIMESTAMP, String
+from sqlalchemy import String
 from sqlalchemy.dialects import mysql
 
 from airflow import models, settings
-from airflow.utils.sqlalchemy import UtcDateTime
 
 
 def include_object(_, name, type_, *args):
@@ -60,11 +59,7 @@ def compare_type(context, inspected_column, metadata_column, inspected_type, met
     # or None to allow the default implementation to compare these
     # types. a return value of True means the two types do not
     # match and should result in a type change operation.
-    dialect_name = context.dialect.name
-    if dialect_name == 'sqlite':
-        if isinstance(inspected_type, TIMESTAMP) and isinstance(metadata_type, UtcDateTime):
-            return False
-    if dialect_name == 'mysql':
+    if context.dialect.name == 'mysql':
         if isinstance(inspected_type, mysql.VARCHAR) and isinstance(metadata_type, String):
             # This is a hack to get around MySQL VARCHAR collation
             # not being possible to change from utf8_bin to utf8mb3_bin
