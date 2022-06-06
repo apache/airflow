@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-06T16:11:06Z
+# This constraints file was automatically generated on 2022-06-06T22:06:43Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -101,9 +101,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.24.2
+boto3==1.24.3
 boto==2.49.0
-botocore==1.27.2
+botocore==1.27.3
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
