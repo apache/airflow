@@ -62,6 +62,7 @@ def _run_scheduler_job(subdir, num_runs, do_pickle, skip_serve_logs):
 
 
 @airflow_cmd.command('scheduler')
+@click.pass_context
 @click_daemon
 @click.option(
     "-p",
@@ -92,7 +93,7 @@ def _run_scheduler_job(subdir, num_runs, do_pickle, skip_serve_logs):
 @click_stderr
 @click_stdout
 @click_subdir
-@cli_utils.action_cli
+@cli_utils.action_cli(check_cli_args=False)
 def scheduler(ctx, daemon_, do_pickle, log_file, num_runs, pid, skip_serve_logs, stderr, stdout, subdir):
     """Starts Airflow Scheduler"""
     console = Console()
@@ -102,13 +103,13 @@ def scheduler(ctx, daemon_, do_pickle, log_file, num_runs, pid, skip_serve_logs,
         pid, stdout, stderr, log_file = setup_locations("scheduler", pid, stdout, stderr, log_file)
         handle = setup_logging(log_file)
         with open(stdout, 'w+') as stdout_handle, open(stderr, 'w+') as stderr_handle:
-            ctx = daemon.DaemonContext(
+            daemon_ctx = daemon.DaemonContext(
                 pidfile=TimeoutPIDLockFile(pid, -1),
                 files_preserve=[handle],
                 stdout=stdout_handle,
                 stderr=stderr_handle,
             )
-            with ctx:
+            with daemon_ctx:
                 _run_scheduler_job(subdir, num_runs, do_pickle, skip_serve_logs)
     else:
         signal.signal(signal.SIGINT, sigint_handler)

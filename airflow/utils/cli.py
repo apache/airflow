@@ -46,10 +46,10 @@ if TYPE_CHECKING:
 
 def _check_cli_args(args):
     if not args:
-        raise ValueError("Args should be set")
+        raise ValueError(f"Args should be set: {args} [{type(args)}]")
 
 
-def action_cli(func=None, check_db=True):
+def action_cli(func=None, check_db=True, check_cli_args=True):
     def action_logging(f: T) -> T:
         """
         Decorates function to execute function at the same time submitting action_logging
@@ -80,7 +80,8 @@ def action_cli(func=None, check_db=True):
             :param args: Positional argument.
             :param kwargs: A passthrough keyword argument
             """
-            _check_cli_args(args)
+            if check_cli_args:
+                _check_cli_args(args)
             metrics = _build_metrics(f.__name__, args, kwargs)
             cli_action_loggers.on_pre_execution(**metrics)
             try:
@@ -141,7 +142,7 @@ def _build_metrics(func_name, args, kwargs):
         'user': getuser(),
     }
 
-    tmp_dic = vars(args[0]) if isinstance(args[0], Namespace) else kwargs
+    tmp_dic = vars(args[0]) if (args and isinstance(args[0], Namespace)) else kwargs
     metrics['dag_id'] = tmp_dic.get('dag_id')
     metrics['task_id'] = tmp_dic.get('task_id')
     metrics['execution_date'] = tmp_dic.get('execution_date')
