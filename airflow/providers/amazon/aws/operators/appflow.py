@@ -510,7 +510,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
 
     def _has_new_records_func(self, **kwargs) -> bool:
         appflow_task_id = kwargs["appflow_run_task_id"]
-        self.log.info("appflow_task_id: ", appflow_task_id)
+        self.log.info("appflow_task_id: %s", appflow_task_id)
         flow_name = kwargs["flow_name"]
         self.log.info("flow_name: %s", flow_name)
         af_client = self.hook.conn
