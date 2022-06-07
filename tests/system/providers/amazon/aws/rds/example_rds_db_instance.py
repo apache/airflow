@@ -25,6 +25,10 @@ from airflow.providers.amazon.aws.operators.rds import (
     RdsCreateDbInstanceOperator,
     RdsDeleteDbInstanceOperator,
 )
+from tests.system.providers.amazon.aws.utils import set_env_id
+
+ENV_ID = set_env_id()
+DAG_ID = "example_rds_instance"
 
 RDS_DB_IDENTIFIER = getenv("RDS_DB_IDENTIFIER", "database-identifier")
 RDS_USERNAME = getenv("RDS_USERNAME", "database_username")
@@ -33,7 +37,7 @@ RDS_USERNAME = getenv("RDS_USERNAME", "database_username")
 RDS_PASSWORD = getenv("RDS_PASSWORD", "database_password")
 
 with DAG(
-    dag_id='example_rds_instance',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
@@ -64,3 +68,8 @@ with DAG(
     # [END howto_operator_rds_delete_db_instance]
 
     chain(create_db_instance, delete_db_instance)
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
