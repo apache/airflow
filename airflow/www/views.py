@@ -18,6 +18,7 @@
 #
 import collections
 import copy
+import itertools
 import json
 import logging
 import math
@@ -252,64 +253,104 @@ def _safe_parse_datetime(v):
         abort(400, f"Invalid datetime: {v!r}")
 
 
-def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
+def dag_to_grid(dag, dag_runs, session):
     """
-    Create a nested dict representation of this TaskGroup and its children used to construct
-    the Graph.
+    Create a nested dict representation of the DAG's TaskGroup and its children
+    used to construct the Graph and Grid views.
     """
-    if isinstance(task_item_or_group, AbstractOperator):
-        return {
-            'id': task_item_or_group.task_id,
-            'instances': wwwutils.get_task_summaries(task_item_or_group, dag_runs, session),
-            'label': task_item_or_group.label,
-            'extra_links': task_item_or_group.extra_links,
-            'is_mapped': task_item_or_group.is_mapped,
-        }
+    query = (
+        session.query(
+            TaskInstance.task_id,
+            TaskInstance.run_id,
+            TaskInstance.map_index,
+            TaskInstance.state,
+            TaskInstance.start_date,
+            TaskInstance.end_date,
+            TaskInstance._try_number,
+        )
+        .filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
+            # Only get normal task instances or the first mapped task
+            TaskInstance.map_index <= 0,
+        )
+        .order_by(TaskInstance.task_id)
+    )
 
-    # Task Group
-    task_group = task_item_or_group
+    grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
 
-    children = [task_group_to_grid(child, dag, dag_runs, session) for child in task_group.topological_sort()]
+    def task_group_to_grid(item, dag_runs, grouped_tis):
+        if isinstance(item, AbstractOperator):
 
-    def get_summary(dag_run, children):
-        child_instances = [child['instances'] for child in children if 'instances' in child]
-        child_instances = [
-            item for sublist in child_instances for item in sublist if item['run_id'] == dag_run.run_id
+            def _get_summary(task_instance):
+                try_count = (
+                    task_instance._try_number
+                    if task_instance._try_number != 0 or task_instance.state in State.running
+                    else task_instance._try_number + 1
+                )
+
+                return {
+                    'task_id': task_instance.task_id,
+                    'run_id': task_instance.run_id,
+                    'map_index': task_instance.map_index,
+                    'state': task_instance.state,
+                    'start_date': task_instance.start_date,
+                    'end_date': task_instance.end_date,
+                    'try_number': try_count,
+                }
+
+            return {
+                'id': item.task_id,
+                'instances': list(map(_get_summary, grouped_tis.get(item.task_id, []))),
+                'label': item.label,
+                'extra_links': item.extra_links,
+                'is_mapped': item.is_mapped,
+            }
+
+        # Task Group
+        task_group = item
+
+        children = [
+            task_group_to_grid(child, dag_runs, grouped_tis) for child in task_group.topological_sort()
         ]
 
-        children_start_dates = [item['start_date'] for item in child_instances if item]
-        children_end_dates = [item['end_date'] for item in child_instances if item]
-        children_states = [item['state'] for item in child_instances if item]
+        def get_summary(dag_run, children):
+            child_instances = [child['instances'] for child in children if 'instances' in child]
+            child_instances = [
+                item for sublist in child_instances for item in sublist if item['run_id'] == dag_run.run_id
+            ]
 
-        group_state = None
-        for state in wwwutils.priority:
-            if state in children_states:
-                group_state = state
-                break
-        group_start_date = wwwutils.datetime_to_string(
-            min((timezone.parse(date) for date in children_start_dates if date), default=None)
-        )
-        group_end_date = wwwutils.datetime_to_string(
-            max((timezone.parse(date) for date in children_end_dates if date), default=None)
-        )
+            children_start_dates = (item['start_date'] for item in child_instances if item)
+            children_end_dates = (item['end_date'] for item in child_instances if item)
+            children_states = {item['state'] for item in child_instances if item}
+
+            group_state = None
+            for state in wwwutils.priority:
+                if state in children_states:
+                    group_state = state
+                    break
+            group_start_date = min(filter(None, children_start_dates), default=None)
+            group_end_date = max(filter(None, children_end_dates), default=None)
+
+            return {
+                'task_id': task_group.group_id,
+                'run_id': dag_run.run_id,
+                'state': group_state,
+                'start_date': group_start_date,
+                'end_date': group_end_date,
+            }
+
+        group_summaries = [get_summary(dr, children) for dr in dag_runs]
 
         return {
-            'task_id': task_group.group_id,
-            'run_id': dag_run.run_id,
-            'state': group_state,
-            'start_date': group_start_date,
-            'end_date': group_end_date,
+            'id': task_group.group_id,
+            'label': task_group.label,
+            'children': children,
+            'tooltip': task_group.tooltip,
+            'instances': group_summaries,
         }
 
-    group_summaries = [get_summary(dr, children) for dr in dag_runs]
-
-    return {
-        'id': task_group.group_id,
-        'label': task_group.label,
-        'children': children,
-        'tooltip': task_group.tooltip,
-        'instances': group_summaries,
-    }
+    return task_group_to_grid(dag.task_group, dag_runs, grouped_tis)
 
 
 def task_group_to_dict(task_item_or_group):
@@ -3535,12 +3576,12 @@ class Airflow(AirflowBaseView):
             dag_runs.reverse()
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
-                'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
+                'groups': dag_to_grid(dag, dag_runs, session),
                 'dag_runs': encoded_runs,
             }
         # avoid spaces to reduce payload size
         return (
-            htmlsafe_json_dumps(data, separators=(',', ':')),
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
             {'Content-Type': 'application/json; charset=utf-8'},
         )
 
