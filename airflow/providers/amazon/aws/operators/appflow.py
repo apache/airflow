@@ -198,7 +198,7 @@ class AppflowRunOperator(AppflowBaseOperator):
         source: str,
         name: str,
         poll_interval: int = 20,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
