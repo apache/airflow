@@ -45,6 +45,7 @@ click_debug = click.option(
 click_dry_run = click.option(
     '-n',
     '--dry-run',
+    is_flag=True,
     default=False,
     help="Perform a dry run for each task. Only renders Template Fields for each task, nothing else",
 )

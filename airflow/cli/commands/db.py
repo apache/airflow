@@ -29,20 +29,24 @@ from airflow.cli import airflow_cmd, click_dry_run, click_verbose, click_yes
 from airflow.exceptions import AirflowException
 from airflow.utils import cli as cli_utils
 from airflow.utils.process_utils import execute_interactive
+from airflow.utils.timezone import parse as parsedate
 
-click_revision = click.option(
+click_to_revision = click.option(
     '-r',
-    '--revision',
+    '--to-revision',
     default=None,
-    help="(Optional) If provided, only run migrations up to and including this revision.",
+    help=(
+        "(Optional) If provided, only run migrations up to and including this revision. Note: must "
+        "provide either `--to-revision` or `--to-version`."
+    ),
 )
-click_version = click.option(
+click_to_version = click.option(
     '-n',
-    '--version',
+    '--to-version',
     default=None,
     help=(
         "(Optional) The airflow version to upgrade to. Note: must provide either "
-        "`--revision` or `--version`."
+        "`--to-revision` or `--to-version`."
     ),
 )
 click_from_revision = click.option(
@@ -53,6 +57,7 @@ click_show_sql_only = click.option(
     '-s',
     '--show-sql-only',
     is_flag=True,
+    default=False,
     help=(
         "Don't actually run migrations; just print out sql scripts for offline migration. "
         "Required if using either `--from-version` or `--from-version`."
@@ -97,8 +102,15 @@ def check_migrations(ctx, migration_wait_timeout):
 
 @db.command('reset')
 @click.pass_context
+@click.option(
+    '-s',
+    '--skip-init',
+    help="Only remove tables; do not perform db init.",
+    is_flag=True,
+    default=False,
+)
 @click_yes
-def db_reset(ctx, yes=False):
+def db_reset(ctx, skip_init, yes):
     """Burn down and rebuild the metadata database"""
 
     console = Console()
@@ -106,26 +118,27 @@ def db_reset(ctx, yes=False):
     if yes or click.confirm("This will drop existing tables if they exist. Proceed? (y/n)"):
         from airflow.utils import db as db_utils
 
-        db_utils.resetdb()
+        db_utils.resetdb(skip_init=skip_init)
     else:
         console.print("Cancelled")
 
 
 @wrapt.decorator
 def check_revision_and_version_options(wrapped, instance, args, kwargs):
-    """A decorator that defines upgrade/downgrade option checks in a single place"""
+    # Get the progressive aspect of the name of the wrapped function
+    # upgrade -> upgrading
+    # downgrade -> downgrading
+    verb = f'{wrapped.__name__[:-1]}ing'
 
-    def wrapper(ctx, revision, version, from_revision, from_version, *_args, show_sql_only=False, **_kwargs):
-        if revision is not None and version is not None:
-            raise SystemExit("Cannot supply both `--revision` and `--version`.")
+    def wrapper(ctx, to_revision, to_version, from_revision, from_version, show_sql_only, *_args, **_kwargs):
+        if to_revision is not None and to_version is not None:
+            raise SystemExit("Cannot supply both `--to-revision` and `--to-version`.")
         if from_revision is not None and from_version is not None:
             raise SystemExit("Cannot supply both `--from-revision` and `--from-version`")
         if (from_revision is not None or from_version is not None) and not show_sql_only:
             raise SystemExit(
                 "Args `--from-revision` and `--from-version` may only be used with `--show-sql-only`"
             )
-        if version is None and revision is None:
-            raise SystemExit("Must provide either --revision or --version.")
 
         if from_version is not None:
             if parse_version(from_version) < parse_version('2.0.0'):
@@ -136,13 +149,15 @@ def check_revision_and_version_options(wrapped, instance, args, kwargs):
             if not from_revision:
                 raise SystemExit(f"Unknown version {from_version!r} supplied as `--from-version`.")
 
-        if version is not None:
-            revision = REVISION_HEADS_MAP.get(version)
-            if not revision:
-                raise SystemExit(f"Upgrading to version {version} is not supported.")
+        if to_version is not None:
+            from airflow.utils.db import REVISION_HEADS_MAP
+
+            to_revision = REVISION_HEADS_MAP.get(to_version)
+            if not to_revision:
+                raise SystemExit(f"{verb.capitalize()} to version {to_version} is not supported.")
 
         return wrapped(
-            ctx, revision, version, from_revision, from_version, *_args, show_sql_only=False, **_kwargs
+            ctx, to_revision, to_version, from_revision, from_version, show_sql_only, *_args, **_kwargs
         )
 
     return wrapper(*args, **kwargs)
@@ -150,14 +165,14 @@ def check_revision_and_version_options(wrapped, instance, args, kwargs):
 
 @db.command('upgrade')
 @click.pass_context
-@click_revision
-@click_version
+@click_to_revision
+@click_to_version
 @click_from_revision
 @click_from_version
 @click_show_sql_only
 @click_yes
 @check_revision_and_version_options
-def upgrade(ctx, revision, version, from_revision, from_version, show_sql_only=False, yes=False):
+def upgrade(ctx, to_revision, to_version, from_revision, from_version, show_sql_only, yes):
     """
     Upgrade the metadata database to latest version
 
@@ -180,33 +195,32 @@ def upgrade(ctx, revision, version, from_revision, from_version, show_sql_only=F
         or click.confirm(
             "\nWarning: About to run schema migrations for the airflow metastore. "
             "Please ensure you have backed up your database before any migration "
-            "operation. Proceed? (y/n)\n"
+            "operation. Proceed?\n"
         )
     ):
         from airflow.utils import db as db_utils
 
-        db_utils.upgradedb(to_revision=revision, from_revision=from_revision, show_sql_only=show_sql_only)
+        db_utils.upgradedb(to_revision=to_revision, from_revision=from_revision, show_sql_only=show_sql_only)
         if not show_sql_only:
             console.print("Upgrades done")
     else:
-        SystemExit("Cancelled")
+        raise SystemExit("Cancelled")
 
 
 @db.command('downgrade')
 @click.pass_context
-@click_revision
-@click_version
+@click_to_revision
+@click_to_version
 @click_from_revision
 @click_from_version
 @click_show_sql_only
 @click_yes
 @check_revision_and_version_options
-def downgrade(ctx, revision, version, from_revision, from_version, show_sql_only=False, yes=False):
+def downgrade(ctx, to_revision, to_version, from_revision, from_version, show_sql_only, yes):
     """
     Downgrade the schema of the metadata database
 
-    Downgrade the schema of the metadata database.
-    You must provide either `--revision` or `--version`.
+    You must provide either `--to-revision` or `--to-version`.
     To print but not execute commands, use option `--show-sql-only`.
     If using options `--from-revision` or `--from-version`, you must also use `--show-sql-only`,
     because if actually *running* migrations, we should only migrate from the *current* revision.
@@ -214,26 +228,27 @@ def downgrade(ctx, revision, version, from_revision, from_version, show_sql_only
     console = Console()
     console.print(f"Using DB (engine: {settings.engine.url})")
 
+    if not (to_version or to_revision):
+        raise SystemExit("Must provide either --to-revision or --to-version.")
+
     if not show_sql_only:
         console.print(f"Performing downgrade with database {settings.engine.url}")
     else:
         console.print("Generating SQL for downgrade -- downgrade commands will *not* be submitted.")
 
-    if show_sql_only or (
-        yes
-        or click.confirm(
+    if not (show_sql_only or yes):
+        click.confirm(
             "\nWarning: About to reverse schema migrations for the airflow metastore. "
             "Please ensure you have backed up your database before any migration "
-            "operation. Proceed? (y/n)\n"
+            "operation. Proceed?\n",
+            abort=True,
         )
-    ):
-        from airflow.utils import db as db_utils
 
-        db_utils.downgrade(to_revision=revision, from_revision=from_revision, show_sql_only=show_sql_only)
-        if not show_sql_only:
-            console.print("Downgrades done")
-    else:
-        SystemExit("Cancelled")
+    from airflow.utils import db as db_utils
+
+    db_utils.downgrade(to_revision=to_revision, from_revision=from_revision, show_sql_only=show_sql_only)
+    if not show_sql_only:
+        console.print("Downgrades done")
 
 
 @db.command('shell')
@@ -311,7 +326,7 @@ class _CleanTableDefault:
     def __str__(self):
         from airflow.utils.db_cleanup import config_dict
 
-        return str(sorted(config_dict))
+        return ','.join(sorted(config_dict))
 
 
 @db.command('clean')
@@ -323,17 +338,22 @@ class _CleanTableDefault:
     default=_CleanTableDefault(),
     show_default=True,
     help=(
-        "Table names to perform maintenance on (use comma-separated list).\n"
-        "Can be specified multiple times, all tables names will be used.\n"
+        "Table names to perform maintenance on.\n"
+        "Can be specified multiple times or use a comma-separated list.\n"
+        "If not specified, all tables names will be cleaned.\n"
     ),
 )
 @click.option(
     '--clean-before-timestamp',
-    type=str,
-    default=None,
-    help="The date or timestamp before which data should be purged.\n"
-    "If no timezone info is supplied then dates are assumed to be in airflow default timezone.\n"
-    "Example: '2022-01-01 00:00:00+01:00'",
+    required=True,
+    metavar='TIMESTAMP',
+    type=parsedate,
+    help=(
+        "The date or timestamp before which data should be purged.\n"
+        "If no timezone info is supplied then dates are assumed to be in airflow default timezone.\n"
+        "\n"
+        "Example: '2022-01-01 00:00:00+01:00'\n"
+    ),
 )
 @click_dry_run
 @click_verbose
@@ -343,11 +363,8 @@ def cleanup_tables(ctx, tables, clean_before_timestamp, dry_run, verbose, yes):
     """Purge old records in metastore tables"""
     from airflow.utils.db_cleanup import run_cleanup
 
-    split_tables = []
-    for table in tables:
-        split_tables.extend(table.split(','))
     run_cleanup(
-        table_names=split_tables,
+        table_names=[t.strip() for table in tables for t in table.split(',')] or None,
         dry_run=dry_run,
         clean_before_timestamp=clean_before_timestamp,
         verbose=verbose,
