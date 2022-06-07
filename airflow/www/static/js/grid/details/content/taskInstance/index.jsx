@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import React, {
-  useCallback, useEffect, useState,
-} from 'react';
+/* global localStorage */
+
+import React, { useState } from 'react';
 import {
   Box,
   VStack,
@@ -46,6 +46,8 @@ import { useGridData, useTasks } from '../../../api';
 import MappedInstances from './MappedInstances';
 import { getMetaValue } from '../../../../utils';
 
+const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
+
 const dagId = getMetaValue('dag_id');
 
 const getTask = ({ taskId, runId, task }) => {
@@ -66,26 +68,36 @@ const TaskInstance = ({ taskId, runId }) => {
   const { data: { groups, dagRuns } } = useGridData();
   const { data: { tasks } } = useTasks(dagId);
 
-  const [tabIndex, setTabIndex] = useState(0);
+  const preferedTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
+  const [tabIndex, setTabIndex] = useState(preferedTabIndex);
 
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
 
-  const handleTabsChange = useCallback((index) => {
+  const handleTabsChange = (index) => {
+    localStorage.setItem(detailsPanelActiveTabIndex, index);
     setTabIndex(index);
-  }, [setTabIndex]);
+  };
 
   const { isMapped, extraLinks } = group;
   const isGroup = !!group.children;
 
   const showLogsTab = !isMapped && !isGroup;
 
-  // Automatically select the first tab if the "Logs" tab is not displayed.
-  useEffect(() => {
-    if (!showLogsTab) {
-      handleTabsChange(0);
-    }
-  }, [showLogsTab, handleTabsChange]);
+  let isPreferedTabDisplayed = false;
+
+  switch (preferedTabIndex) {
+    case 0:
+      isPreferedTabDisplayed = true;
+      break;
+    case 1:
+      isPreferedTabDisplayed = showLogsTab;
+      break;
+    default:
+      isPreferedTabDisplayed = false;
+  }
+
+  const selectedTabIndex = isPreferedTabDisplayed ? preferedTabIndex : tabIndex;
 
   if (!group || !run) return null;
 
@@ -101,7 +113,7 @@ const TaskInstance = ({ taskId, runId }) => {
   }
 
   return (
-    <>
+    <Box py="4px">
       {!isGroup && (
         <TaskNav
           taskId={taskId}
@@ -111,7 +123,7 @@ const TaskInstance = ({ taskId, runId }) => {
           operator={operator}
         />
       )}
-      <Tabs size="lg" index={tabIndex} onChange={handleTabsChange}>
+      <Tabs size="lg" index={selectedTabIndex} onChange={handleTabsChange}>
         <TabList>
           <Tab>
             <Text as="strong">Details</Text>
@@ -194,7 +206,7 @@ const TaskInstance = ({ taskId, runId }) => {
           </TabPanel>
         </TabPanels>
       </Tabs>
-    </>
+    </Box>
   );
 };
 

@@ -111,6 +111,7 @@ const Details = ({ instance, group, operator }) => {
         {summary.length > 0 && (
           summary
         )}
+        <br />
         <Text>
           {taskIdTitle}
           <ClipboardText value={taskId} />
@@ -121,11 +122,11 @@ const Details = ({ instance, group, operator }) => {
           <ClipboardText value={runId} />
         </Text>
         {operator && (
-        <Text>
-          Operator:
-          {' '}
-          {operator}
-        </Text>
+          <Text>
+            Operator:
+            {' '}
+            {operator}
+          </Text>
         )}
         <br />
         <Text>

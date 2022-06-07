@@ -64,13 +64,13 @@ const Logs = ({
 }) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
-  const [shouldRequetsFullContent, setShouldRequetsFullContent] = useState(false);
+  const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
     taskTryNumber: selectedAttempt,
-    fullContent: shouldRequetsFullContent,
+    fullContent: shouldRequestFullContent,
     enabled: (!isGroup),
   });
 
@@ -100,7 +100,7 @@ const Logs = ({
             </Flex>
             <Flex>
               <Checkbox
-                onChange={() => setShouldRequetsFullContent((previousState) => !previousState)}
+                onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
                 px={4}
               >
                 <Text as="strong">Full Logs</Text>
