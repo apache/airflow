@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.0.0
 .....
 
-Latest change: 2022-06-05
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `f8223348c5 <https://github.com/apache/airflow/commit/f8223348c562c4419f58ab3180f945743d734bb6>`_  2022-06-03   ``Migrate Opsgenie example DAGs to new design #22455 (#24144)``
 =================================================================================================  ===========  ===========================================================================

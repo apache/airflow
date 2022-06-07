@@ -37,6 +37,7 @@ Breaking changes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``AIP-47 - Migrate livy DAGs to new design #22439 (#24208)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.2.3
 .....

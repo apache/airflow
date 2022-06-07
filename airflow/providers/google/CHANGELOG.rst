@@ -71,6 +71,8 @@ Misc
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
    * ``Clean up f-strings in logging calls (#23597)``
+   * ``pydocstyle D202 added (#24221)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 7.0.0
 .....
@@ -226,7 +228,6 @@ Misc
 * ``migrate system test gcs_to_bigquery into new design (#22753)``
 * ``Add example DAG for demonstrating usage of GCS sensors (#22808)``
 
-.. Review and move the new changes to one of the sections above:
    * ``Clean up in-line f-string concatenation (#23591)``
    * ``Bump pre-commit hook versions (#22887)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``

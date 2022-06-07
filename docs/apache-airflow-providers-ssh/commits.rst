@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-06-05
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ==============================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==============================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `fb1187dbec <https://github.com/apache/airflow/commit/fb1187dbec19377d2a8b7dbc35813b2aaa56506f>`_  2022-06-03   ``Add disabled_algorithms as an extra parameter for SSH connections (#24090)``
 `ddb2a4f47b <https://github.com/apache/airflow/commit/ddb2a4f47b9aec14e1b16498f6c0a372a3f8b6c3>`_  2022-06-02   ``fixing SSHHook bug when using allow_host_key_change param (#24116)``

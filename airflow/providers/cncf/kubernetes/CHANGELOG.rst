@@ -64,6 +64,8 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``pydocstyle D202 added (#24221)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 4.0.2
 .....
@@ -79,7 +81,6 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add YANKED to yanked releases of the cncf.kubernetes (#23378)``
 
-.. Review and move the new changes to one of the sections above:
    * ``Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)``
    * ``Revert "Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)" (#23656)``
 

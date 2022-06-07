@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-06-06
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `06856337a5 <https://github.com/apache/airflow/commit/06856337a51139d66b1a39544e276e477c6b5ea1>`_  2022-06-06   ``docker new system test (#23167)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `97b443aa59 <https://github.com/apache/airflow/commit/97b443aa5931fccc0482f2a286574f4dc672d486>`_  2022-05-28   ``Remove 'xcom_push' from 'DockerOperator' (#23981)``

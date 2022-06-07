@@ -37,7 +37,7 @@ Breaking changes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Clean up f-strings in logging calls (#23597)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
-
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 1.0.0
 .....

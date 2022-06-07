@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 5.0.0
 .....
 
-Latest change: 2022-06-06
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `98b4e48fbc <https://github.com/apache/airflow/commit/98b4e48fbc1262f1381e7a4ca6cce31d96e6f5e9>`_  2022-06-06   ``Add param docs to KubernetesHook and KubernetesPodOperator (#23955) (#24054)``
 `42abbf0d61 <https://github.com/apache/airflow/commit/42abbf0d61f94ec50026af0c0f95eb378e403042>`_  2022-06-06   ``Fix await_container_completion condition (#23883)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``

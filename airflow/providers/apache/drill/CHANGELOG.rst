@@ -40,8 +40,8 @@ Breaking changes
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Clean up in-line f-string concatenation (#23591)``
 
-.. Review and move the new changes to one of the sections above:
    * ``chore: Refactoring and Cleaning Apache Providers (#24219)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 1.0.4
 .....

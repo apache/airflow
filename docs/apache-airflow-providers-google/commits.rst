@@ -43,6 +43,8 @@ Latest change: 2022-06-07
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `c3a9ef1ada <https://github.com/apache/airflow/commit/c3a9ef1adadc1e39536f60db46017870860fc633>`_  2022-06-07   ``AIP-47 - Migrate google leveldb DAGs to new design ##22447 (#24233)``
 `c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
 `80c1ce76e1 <https://github.com/apache/airflow/commit/80c1ce76e19d363916f2253cdd536372f6a43aee>`_  2022-06-06   ``Cloud Storage assets & StorageLink update (#23865)``

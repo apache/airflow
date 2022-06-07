@@ -68,7 +68,8 @@ are in ``airflow.providers.apache.pig`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-pig``
 
 .. include:: ../../airflow/providers/apache/pig/CHANGELOG.rst
