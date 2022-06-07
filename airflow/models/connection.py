@@ -231,13 +231,9 @@ class Connection(Base, LoggingMixin):
             host_block += quote(self.host, safe='')
 
         if self.port:
-            if host_block > '':
-                host_block += f':{self.port}'
-            else:
-                host_block += f'@:{self.port}'
+            host_block += f':{self.port}'
 
-        if self.schema:
-            host_block += f"/{quote(self.schema, safe='')}"
+        host_block += f"/{quote(self.schema, safe='')}" if self.schema else '/'
 
         uri += host_block
 
