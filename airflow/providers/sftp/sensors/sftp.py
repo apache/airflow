@@ -34,6 +34,7 @@ class SFTPSensor(BaseSensorOperator):
     Waits for a file or directory to be present on SFTP.
 
     :param path: Remote file or directory path
+    :param file_pattern: The pattern that will be used to match the file (fnmatch format)
     :param sftp_conn_id: The connection to run the sensor against
     :param newer_than: DateTime for which the file or file path should be newer than, comparison is inclusive
     """
@@ -47,22 +48,33 @@ class SFTPSensor(BaseSensorOperator):
         self,
         *,
         path: str,
+        file_pattern: str = "",
         newer_than: Optional[datetime] = None,
         sftp_conn_id: str = 'sftp_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.path = path
+        self.file_pattern = file_pattern
         self.hook: Optional[SFTPHook] = None
         self.sftp_conn_id = sftp_conn_id
         self.newer_than: Optional[datetime] = newer_than
+        self.actual_file_to_check = self.path
 
     def poke(self, context: 'Context') -> bool:
         self.hook = SFTPHook(self.sftp_conn_id)
-        self.log.info('Poking for %s', self.path)
+        self.log.info(f"Poking for {self.path}, with pattern {self.file_pattern}")
+
+        if self.file_pattern:
+            file_from_pattern = self.hook.get_file_by_pattern(self.path, self.file_pattern)
+            if file_from_pattern:
+                self.actual_file_to_check = file_from_pattern
+            else:
+                return False
+
         try:
-            mod_time = self.hook.get_mod_time(self.path)
-            self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
+            mod_time = self.hook.get_mod_time(self.actual_file_to_check)
+            self.log.info('Found File %s last modified: %s', str(self.actual_file_to_check), str(mod_time))
         except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e

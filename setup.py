@@ -638,9 +638,7 @@ devel_only = [
     'markdown-it-py',
     'mdit-py-plugins',
     'mongomock',
-    # Version 3.1.10 is breaking main bump to 3.1.11 when released.
-    # Fix already merged but was not released https://github.com/spulec/moto/pull/5165
-    'moto[glue]>=3.1.6, <3.1.10',
+    'moto[cloudformation, glue]>=3.1.12',
     'parameterized',
     'paramiko',
     'pipdeptree',

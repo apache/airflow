@@ -28,9 +28,12 @@ from airflow.providers.yandex.operators.yandexcloud_dataproc import (
     DataprocDeleteClusterOperator,
 )
 
+# Name of the datacenter where Dataproc cluster will be created
+from airflow.utils.trigger_rule import TriggerRule
+
 # should be filled with appropriate ids
 
-# Name of the datacenter where Dataproc cluster will be created
+
 AVAILABILITY_ZONE_ID = 'ru-central1-c'
 
 # Dataproc cluster jobs will produce logs in specified s3 bucket
@@ -151,11 +154,17 @@ with DAG(
     )
 
     delete_cluster = DataprocDeleteClusterOperator(
-        task_id='delete_cluster',
+        task_id='delete_cluster', trigger_rule=TriggerRule.ALL_DONE
     )
 
     create_cluster >> create_mapreduce_job >> create_hive_query >> create_hive_query_from_file
     create_hive_query_from_file >> create_spark_job >> create_pyspark_job >> delete_cluster
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "teardown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
 
 from tests.system.utils import get_test_run  # noqa: E402
 
