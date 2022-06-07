@@ -42,6 +42,9 @@ integrations:
     logo: /integration-logos/oracle/Oracle.png
     tags: [software]
 
+additional-extras:
+  numpy: numpy
+
 operators:
   - integration-name: Oracle
     python-modules:
