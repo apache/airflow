@@ -70,7 +70,7 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
     Waits for RDS snapshot with a specific status.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:RdsSnapshotExistenceSensor`
 
     :param db_type: Type of the DB - either "instance" or "cluster"
@@ -112,7 +112,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
     Waits for RDS export task with a specific status.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:RdsExportTaskExistenceSensor`
 
     :param export_task_identifier: A unique identifier for the snapshot export task.
