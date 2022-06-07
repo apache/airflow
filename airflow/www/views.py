@@ -308,7 +308,7 @@ def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
     }
 
 
-def task_group_to_dict(task_item_or_group):
+def task_group_to_graph(task_item_or_group, legends):
     """
     Create a nested dict representation of this TaskGroup and its children used to construct
     the Graph.
@@ -318,15 +318,14 @@ def task_group_to_dict(task_item_or_group):
             'id': task_item_or_group.task_id,
             'value': {
                 'label': task_item_or_group.label,
-                'labelStyle': f"fill:{task_item_or_group.ui_fgcolor};",
-                'style': f"fill:{task_item_or_group.ui_color};",
+                'style': f"fill:{legends[task_item_or_group.task_type]};",
                 'rx': 5,
                 'ry': 5,
             },
         }
     task_group = task_item_or_group
     children = [
-        task_group_to_dict(child) for child in sorted(task_group.children.values(), key=lambda t: t.label)
+        task_group_to_graph(child, legends) for child in sorted(task_group.children.values(), key=lambda t: t.label)
     ]
 
     if task_group.upstream_group_ids or task_group.upstream_task_ids:
@@ -369,6 +368,23 @@ def task_group_to_dict(task_item_or_group):
         },
         'children': children,
     }
+
+
+def graph_legends(operators):
+    """Create a Graph view legends."""
+    colors = [
+        '#E2EEC4', '#BDDFC3', '#BBE2DF', '#B9E3F9', '#BBCDEA',
+        '#BCB3D8', '#DBBEDB', '#F7C8DD', '#F8C7C6', '#F8C5AC',
+        '#FDE2BA', '#FFFBC6', '#CECECE',
+    ]
+
+    legends = {}
+    for i, op in enumerate(operators):
+        if i < len(colors):
+            legends[op] = colors[i]
+        else:
+            legends[op] = '#FFFFFF'
+    return legends
 
 
 def get_key_paths(input_dict):
@@ -2819,7 +2835,8 @@ class Airflow(AirflowBaseView):
             dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
         arrange = request.args.get('arrange', dag.orientation)
 
-        nodes = task_group_to_dict(dag.task_group)
+        legends = graph_legends(sorted(set([op.task_type for op in dag.tasks])))
+        nodes = task_group_to_graph(dag.task_group, legends)
         edges = dag_edges(dag)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
@@ -2880,7 +2897,7 @@ class Airflow(AirflowBaseView):
             state_token=wwwutils.state_token(dt_nr_dr_data['dr_state']),
             doc_md=doc_md,
             arrange=arrange,
-            operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
+            operators=legends,
             root=root or '',
             task_instances=task_instances,
             tasks=tasks,
