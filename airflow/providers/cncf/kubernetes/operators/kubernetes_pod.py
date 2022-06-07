@@ -102,6 +102,7 @@ class KubernetesPodOperator(BaseOperator):
     :param volume_mounts: volumeMounts for the launched pod.
     :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes.
     :param env_vars: Environment variables initialized in the container. (templated)
+    :param env_from: (Optional) List of sources to populate environment variables in the container.
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
@@ -120,6 +121,8 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param node_selectors: (Deprecated) A dict containing a group of scheduling rules.
+        Please use node_selector instead.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -141,8 +144,14 @@ class KubernetesPodOperator(BaseOperator):
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
     :param priority_class_name: priority class name for the launched Pod
+    :param pod_runtime_info_envs: (Optional) A list of environment variables,
+        to be set in the container.
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
+    :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
+        to populate the environment variables with. The contents of the target
+        ConfigMap's Data field will represent the key-value pairs as environment variables.
+        Extends env_from.
     :param: kubernetes_conn_id: To retrieve credentials for your k8s cluster from an Airflow connection
     """
 

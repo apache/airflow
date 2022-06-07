@@ -144,14 +144,17 @@ class DbtCloudHook(HttpHook):
     def get_ui_field_behaviour() -> Dict[str, Any]:
         """Builds custom field behavior for the dbt Cloud connection form in the Airflow UI."""
         return {
-            "hidden_fields": ["host", "port", "schema", "extra"],
-            "relabeling": {"login": "Account ID", "password": "API Token"},
+            "hidden_fields": ["host", "port", "extra"],
+            "relabeling": {"login": "Account ID", "password": "API Token", "schema": "Tenant"},
+            "placeholders": {"schema": "Defaults to 'cloud'."},
         }
 
     def __init__(self, dbt_cloud_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(auth_type=TokenAuth)
         self.dbt_cloud_conn_id = dbt_cloud_conn_id
-        self.base_url = "https://cloud.getdbt.com/api/v2/accounts/"
+        tenant = self.connection.schema if self.connection.schema else 'cloud'
+
+        self.base_url = f"https://{tenant}.getdbt.com/api/v2/accounts/"
 
     @cached_property
     def connection(self) -> Connection:
