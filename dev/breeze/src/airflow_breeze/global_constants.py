@@ -102,18 +102,6 @@ PARAM_NAME_DESCRIPTION = {
     "MSSQL_VERSION": "MSSql version",
 }
 
-PARAM_NAME_FLAG = {
-    "BACKEND": "--backend",
-    "MYSQL_VERSION": "--mysql-version",
-    "KUBERNETES_MODE": "--kubernetes-mode",
-    "KUBERNETES_VERSION": "--kubernetes-version",
-    "KIND_VERSION": "--kind-version",
-    "HELM_VERSION": "--helm-version",
-    "EXECUTOR": "--executor",
-    "POSTGRES_VERSION": "--postgres-version",
-    "MSSQL_VERSION": "--mssql-version",
-}
-
 EXCLUDE_DOCS_PACKAGE_FOLDER = [
     'exts',
     'integration-logos',
@@ -158,9 +146,6 @@ CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
 CURRENT_MYSQL_VERSIONS = ['5.7', '8']
 CURRENT_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
-POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
-MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
-MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
 DB_RESET = False
 START_AIRFLOW = "false"
 LOAD_EXAMPLES = False
