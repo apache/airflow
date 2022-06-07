@@ -25,6 +25,7 @@ import {
   Divider,
   Textarea,
   Button,
+  Checkbox,
 } from '@chakra-ui/react';
 
 import { getMetaValue } from '../../../../../utils';
@@ -63,11 +64,13 @@ const Logs = ({
 }) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
+  const [shouldRequetsFullContent, setShouldRequetsFullContent] = useState(false);
   const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
     taskId,
     taskTryNumber: selectedAttempt,
+    fullContent: shouldRequetsFullContent,
     enabled: (!isGroup),
   });
 
@@ -80,7 +83,6 @@ const Logs = ({
     <>
       {tryNumber > 0 && (
       <>
-        <Text as="strong">Logs</Text>
         <Text as="span"> (by attempts)</Text>
         <Box>
           <Flex my={1} justifyContent="space-between">
@@ -97,6 +99,12 @@ const Logs = ({
               ))}
             </Flex>
             <Flex>
+              <Checkbox
+                onChange={() => setShouldRequetsFullContent((previousState) => !previousState)}
+                px={4}
+              >
+                <Text as="strong">Full Logs</Text>
+              </Checkbox>
               <LogLink
                 index={selectedAttempt}
                 dagId={dagId}
@@ -114,7 +122,7 @@ const Logs = ({
         </Box>
         {
           isSuccess && (
-          <Textarea readOnly defaultValue={data} height={200} />
+          <Textarea readOnly defaultValue={data} height={350} />
           )
         }
       </>

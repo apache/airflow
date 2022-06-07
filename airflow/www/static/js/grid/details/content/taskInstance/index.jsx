@@ -17,13 +17,20 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
+import React, {
+  useCallback, useEffect, useState,
+} from 'react';
 import {
   Box,
   VStack,
   Divider,
   StackDivider,
   Text,
+  Tabs,
+  TabList,
+  Tab,
+  TabPanels,
+  TabPanel,
 } from '@chakra-ui/react';
 
 import RunAction from './taskActions/Run';
@@ -59,17 +66,32 @@ const TaskInstance = ({ taskId, runId }) => {
   const { data: { groups, dagRuns } } = useGridData();
   const { data: { tasks } } = useTasks(dagId);
 
+  const [tabIndex, setTabIndex] = useState(0);
+
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
+
+  const handleTabsChange = useCallback((index) => {
+    setTabIndex(index);
+  }, [setTabIndex]);
+
+  const { isMapped, extraLinks } = group;
+  const isGroup = !!group.children;
+
+  const showLogsTab = !isMapped && !isGroup;
+
+  // Automatically select the first tab if the "Logs" tab is not displayed.
+  useEffect(() => {
+    if (!showLogsTab) {
+      handleTabsChange(0);
+    }
+  }, [showLogsTab, handleTabsChange]);
 
   if (!group || !run) return null;
 
   const { executionDate } = run;
   const task = tasks.find((t) => t.taskId === taskId);
   const operator = task && task.classRef && task.classRef.className ? task.classRef.className : '';
-
-  const isGroup = !!group.children;
-  const { isMapped, extraLinks } = group;
 
   const instance = group.instances.find((ti) => ti.runId === runId);
 
@@ -79,7 +101,7 @@ const TaskInstance = ({ taskId, runId }) => {
   }
 
   return (
-    <Box py="4px">
+    <>
       {!isGroup && (
         <TaskNav
           taskId={taskId}
@@ -89,67 +111,90 @@ const TaskInstance = ({ taskId, runId }) => {
           operator={operator}
         />
       )}
-      {!isGroup && (
-        <Box my={3}>
-          <Text as="strong">{taskActionsTitle}</Text>
-          <Divider my={2} />
-          <VStack justifyContent="center" divider={<StackDivider my={3} />}>
-            <RunAction
-              runId={runId}
-              taskId={taskId}
+      <Tabs size="lg" index={tabIndex} onChange={handleTabsChange}>
+        <TabList>
+          <Tab>
+            <Text as="strong">Details</Text>
+          </Tab>
+
+          { showLogsTab && (
+            <Tab>
+              <Text as="strong">Logs</Text>
+            </Tab>
+          )}
+        </TabList>
+
+        <TabPanels>
+
+          {/* Details Tab */}
+          <TabPanel>
+            <Box py="4px">
+              {!isGroup && (
+                <Box my={3}>
+                  <Text as="strong">{taskActionsTitle}</Text>
+                  <Divider my={2} />
+                  <VStack justifyContent="center" divider={<StackDivider my={3} />}>
+                    <RunAction
+                      runId={runId}
+                      taskId={taskId}
+                      dagId={dagId}
+                      mapIndexes={selectedRows}
+                    />
+                    <ClearAction
+                      runId={runId}
+                      taskId={taskId}
+                      dagId={dagId}
+                      executionDate={executionDate}
+                      mapIndexes={selectedRows}
+                    />
+                    <MarkFailedAction
+                      runId={runId}
+                      taskId={taskId}
+                      dagId={dagId}
+                      mapIndexes={selectedRows}
+                    />
+                    <MarkSuccessAction
+                      runId={runId}
+                      taskId={taskId}
+                      dagId={dagId}
+                      mapIndexes={selectedRows}
+                    />
+                  </VStack>
+                  <Divider my={2} />
+                </Box>
+              )}
+              <Details instance={instance} group={group} operator={operator} />
+              <ExtraLinks
+                taskId={taskId}
+                dagId={dagId}
+                executionDate={executionDate}
+                extraLinks={extraLinks}
+              />
+              {isMapped && (
+                <MappedInstances
+                  dagId={dagId}
+                  runId={runId}
+                  taskId={taskId}
+                  selectRows={setSelectedRows}
+                />
+              )}
+            </Box>
+          </TabPanel>
+
+          {/* Logs Tab */}
+          <TabPanel>
+            <Logs
               dagId={dagId}
-              mapIndexes={selectedRows}
-            />
-            <ClearAction
-              runId={runId}
+              dagRunId={runId}
               taskId={taskId}
-              dagId={dagId}
               executionDate={executionDate}
-              mapIndexes={selectedRows}
+              tryNumber={instance.tryNumber}
+              isGroup={isGroup}
             />
-            <MarkFailedAction
-              runId={runId}
-              taskId={taskId}
-              dagId={dagId}
-              mapIndexes={selectedRows}
-            />
-            <MarkSuccessAction
-              runId={runId}
-              taskId={taskId}
-              dagId={dagId}
-              mapIndexes={selectedRows}
-            />
-          </VStack>
-          <Divider my={2} />
-        </Box>
-      )}
-      <Details instance={instance} group={group} operator={operator} />
-      <Divider my={2} />
-      {!isMapped && (
-        <Logs
-          dagId={dagId}
-          dagRunId={runId}
-          taskId={taskId}
-          executionDate={executionDate}
-          tryNumber={instance.tryNumber}
-          isGroup={isGroup}
-        />
-      )}
-      <ExtraLinks
-        taskId={taskId}
-        dagId={dagId}
-        executionDate={executionDate}
-        extraLinks={extraLinks}
-      />
-      {isMapped && (
-        <MappedInstances
-          dagId={dagId}
-          runId={runId}
-          taskId={taskId}
-          selectRows={setSelectedRows}
-        />
-      )}
-    </Box>
+          </TabPanel>
+        </TabPanels>
+      </Tabs>
+    </>
   );
 };
 
