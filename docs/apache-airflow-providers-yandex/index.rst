@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/yandex/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/yandex/example_yandexcloud_dataproc.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-yandex/>
     Installing from sources <installing-providers-from-sources>
 
