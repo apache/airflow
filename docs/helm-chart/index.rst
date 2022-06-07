@@ -120,7 +120,7 @@ To uninstall/delete the ``airflow`` deployment:
 The command removes all the Kubernetes components associated with the chart and deletes the release.
 
 Installing the Chart with ArgoCD or FluxCD
---------------------------------
+------------------------------------------
 
 When installing the chart using ArgoCD or FluxCD, you MUST set the two following values, or your application
 will not start as the migrations will not be run:
