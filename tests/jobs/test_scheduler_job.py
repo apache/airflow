@@ -401,6 +401,20 @@ class TestSchedulerJob:
         self.scheduler_job.id = 1
         self.scheduler_job.processor_agent = mock.MagicMock()
 
+        # ti is queued with another try number - do not fail it
+        ti1.state = State.QUEUED
+        ti1.queued_by_job_id = 1
+        ti1.try_number = 2
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key.with_try_number(1)] = State.SUCCESS, None
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.QUEUED
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
+
         # ti is queued by another scheduler - do not fail it
         ti1.state = State.QUEUED
         ti1.queued_by_job_id = 2
