@@ -58,7 +58,7 @@ Package apache-airflow-providers-microsoft-winrm
 `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-us/windows/win32/winrm/portal>`__
 
 
-Release: 2.0.5
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -78,7 +78,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``pywinrm``         ``>=0.4``
 ==================  ==================
 

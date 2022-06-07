@@ -24,6 +24,28 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Bug Fix for 'apache-airflow-providers-jenkins' 'JenkinsJobTriggerOperator' (#22802)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Migrate Jenkins example DAGs to new design #22451 (#24138)``
+   * ``Prepare provider documentation 2022.05.11 (#23631)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
 2.1.0
 .....
 

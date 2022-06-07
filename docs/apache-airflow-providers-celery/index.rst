@@ -46,7 +46,7 @@ Package apache-airflow-providers-celery
 `Celery <http://www.celeryproject.org/>`__
 
 
-Release: 2.1.4
+Release: 3.0.0
 
 Provider package
 ----------------

@@ -58,7 +58,7 @@ Package apache-airflow-providers-apache-drill
 `Apache Drill <https://drill.apache.org/>`__.
 
 
-Release: 1.0.4
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -78,7 +78,7 @@ PIP requirements
 ====================  ==================
 PIP package           Version required
 ====================  ==================
-``apache-airflow``    ``>=2.1.0``
+``apache-airflow``    ``>=2.2.0``
 ``sqlalchemy-drill``  ``>=1.1.0``
 ``sqlparse``          ``>=0.4.1``
 ====================  ==================

@@ -66,10 +66,10 @@ Google services including:
   - `Google Firebase <https://firebase.google.com/>`__
   - `Google LevelDB <https://github.com/google/leveldb/>`__
   - `Google Marketing Platform <https://marketingplatform.google.com/>`__
-  - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
+  - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 
-Release: 7.0.0
+Release: 8.0.0
 
 Provider package
 ----------------
@@ -89,7 +89,7 @@ PIP requirements
 ======================================  ===================
 PIP package                             Version required
 ======================================  ===================
-``apache-airflow``                      ``>=2.1.0``
+``apache-airflow``                      ``>=2.2.0``
 ``PyOpenSSL``
 ``google-ads``                          ``>=15.1.1``
 ``google-api-core``                     ``>=2.7.0,<3.0.0``
@@ -132,6 +132,7 @@ PIP package                             Version required
 ``looker-sdk``                          ``>=22.2.0``
 ``pandas-gbq``
 ``pandas``                              ``>=0.17.1``
+``proto-plus``                          ``>=1.19.6``
 ``sqlalchemy-bigquery``                 ``>=1.2.1``
 ======================================  ===================
 
@@ -174,7 +175,7 @@ Downloading official packages
 You can download officially released packages and verify their checksums and signatures from the
 `Official Apache Download site <https://downloads.apache.org/airflow/providers/>`_
 
-* `The apache-airflow-providers-google 7.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-7.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-7.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-7.0.0.tar.gz.sha512>`__)
-* `The apache-airflow-providers-google 7.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-7.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-7.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-7.0.0-py3-none-any.whl.sha512>`__)
+* `The apache-airflow-providers-google 8.0.0 sdist package <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.0.0.tar.gz>`_ (`asc <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.0.0.tar.gz.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache-airflow-providers-google-8.0.0.tar.gz.sha512>`__)
+* `The apache-airflow-providers-google 8.0.0 wheel package <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.0.0-py3-none-any.whl>`_ (`asc <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.0.0-py3-none-any.whl.asc>`__, `sha512 <https://downloads.apache.org/airflow/providers/apache_airflow_providers_google-8.0.0-py3-none-any.whl.sha512>`__)
 
 .. include:: ../../airflow/providers/google/CHANGELOG.rst

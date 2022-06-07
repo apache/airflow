@@ -24,18 +24,46 @@
 Changelog
 ---------
 
-main
-....
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+* Previously, KubernetesPodOperator relied on core Airflow configuration (namely setting for kubernetes
+  executor) for certain settings used in client generation.  Now KubernetesPodOperator
+  uses KubernetesHook, and the consideration of core k8s settings is officially deprecated.
+
+* If you are using the Airflow configuration settings (e.g. as opposed to operator params) to
+  configure the kubernetes client, then prior to the next major release you will need to
+  add an Airflow connection and set your KPO tasks to use that connection.
 
 Features
 ~~~~~~~~
 
-KubernetesPodOperator now uses KubernetesHook
-`````````````````````````````````````````````
+* ``Use KubernetesHook to create api client in KubernetesPodOperator (#20578)``
+* ``[FEATURE] KPO use K8S hook (#22086)``
+* ``Add param docs to KubernetesHook and KubernetesPodOperator (#23955) (#24054)``
 
-Previously, KubernetesPodOperator relied on core Airflow configuration (namely setting for kubernetes executor) for certain settings used in client generation.  Now KubernetesPodOperator uses KubernetesHook, and the consideration of core k8s settings is officially deprecated.
+Bug Fixes
+~~~~~~~~~
 
-If you are using the Airflow configuration settings (e.g. as opposed to operator params) to configure the kubernetes client, then prior to the next major release you will need to add an Airflow connection and set your KPO tasks to use that connection.
+* ``Use "remote" pod when patching KPO pod as "checked" (#23676)``
+* ``Don't use the root logger in KPO _suppress function (#23835)``
+* ``Fix await_container_completion condition (#23883)``
+
+Misc
+~~~~
+
+* ``Migrate Cncf.Kubernetes example DAGs to new design #22441 (#24132)``
+* ``Clean up f-strings in logging calls (#23597)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
 
 4.0.2
 .....

@@ -24,6 +24,23 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Support host_name on Datadog provider (#23784)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Prepare provider documentation 2022.05.11 (#23631)``
+   * ``Use new Breeze for building, pulling and verifying the images. (#23104)``
+
 2.0.4
 .....
 

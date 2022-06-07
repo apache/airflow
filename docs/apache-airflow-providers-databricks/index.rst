@@ -59,7 +59,7 @@ Package apache-airflow-providers-databricks
 `Databricks <https://databricks.com/>`__
 
 
-Release: 2.7.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -79,9 +79,10 @@ PIP requirements
 ============================  ===================
 PIP package                   Version required
 ============================  ===================
-``apache-airflow``            ``>=2.1.0``
+``apache-airflow``            ``>=2.2.0``
+``aiohttp``                   ``>=3.6.3, <4``
 ``databricks-sql-connector``  ``>=2.0.0, <3.0.0``
-``requests``                  ``>=2.26.0, <3``
+``requests``                  ``>=2.27,<3``
 ============================  ===================
 
 .. include:: ../../airflow/providers/databricks/CHANGELOG.rst
