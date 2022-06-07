@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/trino/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-trino/3.0.0/tests/system/providers/trino>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-trino/>
     Installing from sources <installing-providers-from-sources>
 

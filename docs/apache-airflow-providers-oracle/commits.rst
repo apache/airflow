@@ -33,16 +33,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 Latest change: 2022-06-07
 
-=================================================================================================  ===========  ==============================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ==============================================================================
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `fd2cd25094 <https://github.com/apache/airflow/commit/fd2cd25094c9390a00e77526945e2a35b5e2783d>`_  2022-06-07   ``Make numpy effectively an optional dependency for Oracle provider (#24272)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
 `8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
 `4147aa1bdf <https://github.com/apache/airflow/commit/4147aa1bdf1fdeddd86697d712151d56d54ecfac>`_  2022-04-12   ``Add 'parameters' to templated fields in 'OracleOperator' (#22857)``
-=================================================================================================  ===========  ==============================================================================
+=================================================================================================  ===========  ==================================================================================
 
 2.2.3
 .....

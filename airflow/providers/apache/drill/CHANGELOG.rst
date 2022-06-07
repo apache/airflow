@@ -39,9 +39,9 @@ Breaking changes
    * ``AIP-47 - Migrate drill DAGs to new design #22439 (#24206)``
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Clean up in-line f-string concatenation (#23591)``
-
    * ``chore: Refactoring and Cleaning Apache Providers (#24219)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 1.0.4
 .....

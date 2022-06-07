@@ -28,14 +28,15 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-5.0.0
+4.1.0
 .....
 
 Latest change: 2022-06-07
 
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `98b4e48fbc <https://github.com/apache/airflow/commit/98b4e48fbc1262f1381e7a4ca6cce31d96e6f5e9>`_  2022-06-06   ``Add param docs to KubernetesHook and KubernetesPodOperator (#23955) (#24054)``
@@ -47,7 +48,7 @@ Commit                                                                          
 `6bbe015905 <https://github.com/apache/airflow/commit/6bbe015905bd2709e621455d9f71a78b374d1337>`_  2022-05-26   ``Use "remote" pod when patching KPO pod as "checked" (#23676)``
 `ec6761a5c0 <https://github.com/apache/airflow/commit/ec6761a5c0d031221d53ce213c0e42813606c55d>`_  2022-05-23   ``Clean up f-strings in logging calls (#23597)``
 `064c41afda <https://github.com/apache/airflow/commit/064c41afdadc4cc44ac6f879556387db2c050bf8>`_  2022-05-20   ``Don't use the root logger in KPO _suppress function (#23835)``
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 
 4.0.2
 .....

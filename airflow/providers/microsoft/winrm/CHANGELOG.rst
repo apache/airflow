@@ -41,6 +41,7 @@ Breaking changes
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
    * ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.0.5
 .....

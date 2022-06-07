@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/influxdb>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/2.0.0/tests/system/providers/influxdb>
 
 .. toctree::
     :maxdepth: 1
