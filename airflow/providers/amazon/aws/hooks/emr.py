@@ -20,7 +20,7 @@ from typing import Any, Dict, List, Optional
 
 from botocore.exceptions import ClientError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
@@ -41,10 +41,24 @@ class EmrHook(AwsBaseHook):
     conn_type = 'emr'
     hook_name = 'Amazon Elastic MapReduce'
 
-    def __init__(self, emr_conn_id: Optional[str] = default_conn_name, *args, **kwargs) -> None:
-        self.emr_conn_id = emr_conn_id
+    def __init__(self, emr_conn_id: str = default_conn_name, *args, **kwargs) -> None:
+        self.emr_conn_id: str = emr_conn_id
+        self.aws_conn_id: str = kwargs["aws_conn_id"]
+        kwargs["aws_conn_id"] = self.get_conn_id()
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
+
+    def get_conn_id(self) -> str:
+        """
+        A helper method to return appropriate connection ID
+        If emr_conn_id exist then return it or return aws_conn_id
+        """
+        try:
+            self.get_connection(self.emr_conn_id)
+            return self.emr_conn_id
+        except AirflowNotFoundException:
+            # use aws_conn_id
+            return self.aws_conn_id
 
     def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: List[str]) -> Optional[str]:
         """
@@ -78,17 +92,7 @@ class EmrHook(AwsBaseHook):
         run_job_flow method.
         Overrides for this config may be passed as the job_flow_overrides.
         """
-        if not self.emr_conn_id:
-            raise AirflowException('emr_conn_id must be present to use create_job_flow')
-
-        emr_conn = self.get_connection(self.emr_conn_id)
-
-        config = emr_conn.extra_dejson.copy()
-        config.update(job_flow_overrides)
-
-        response = self.get_conn().run_job_flow(**config)
-
-        return response
+        return self.get_conn().run_job_flow(**job_flow_overrides)
 
 
 class EmrContainerHook(AwsBaseHook):
