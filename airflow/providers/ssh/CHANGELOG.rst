@@ -46,6 +46,7 @@ Bug Fixes
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.4.4
 .....

@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-06-05
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `c2f10a4ee9 <https://github.com/apache/airflow/commit/c2f10a4ee9c2404e545d78281bf742a199895817>`_  2022-06-03   ``Migrate Snowflake system tests to new design #22434 (#24151)``
 `86cfd1244a <https://github.com/apache/airflow/commit/86cfd1244a641a8f17c9b33a34399d9be264f556>`_  2022-05-20   ``Fix error when SnowflakeHook take empty list in 'sql' param (#23767)``

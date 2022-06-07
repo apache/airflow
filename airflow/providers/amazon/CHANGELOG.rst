@@ -68,6 +68,8 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
+   * ``pydocstyle D202 added (#24221)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 3.4.0
 .....
@@ -116,7 +118,6 @@ Misc
    * ``Bump pre-commit hook versions (#22887)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
 
-.. Review and move the new changes to one of the sections above:
 
 3.3.0
 .....

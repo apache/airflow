@@ -37,6 +37,7 @@ Breaking changes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Migrate Salesforce example DAGs to new design #22463 (#24127)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 3.4.4
 .....

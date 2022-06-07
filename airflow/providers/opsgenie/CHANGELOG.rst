@@ -37,6 +37,7 @@ Breaking changes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Migrate Opsgenie example DAGs to new design #22455 (#24144)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 3.1.0
 .....

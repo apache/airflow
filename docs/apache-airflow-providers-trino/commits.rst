@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-06-05
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `7489962e75 <https://github.com/apache/airflow/commit/7489962e75a23071620a30c1e070fb7c9e107179>`_  2022-06-02   ``AIP-47 | Migrate Trino example DAGs to new design (#24118)``
 =================================================================================================  ===========  ===========================================================================

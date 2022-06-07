@@ -43,6 +43,7 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``AIP-47 - Migrate druid DAGs to new design #22439 (#24207)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.3.3
 .....

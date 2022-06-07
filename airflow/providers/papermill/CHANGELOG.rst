@@ -42,6 +42,7 @@ Features
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Migrate Papermill example DAGs to new design #22456 (#24146)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.2.3
 .....

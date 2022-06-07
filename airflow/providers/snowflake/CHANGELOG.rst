@@ -42,6 +42,7 @@ Bug Fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Migrate Snowflake system tests to new design #22434 (#24151)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.7.0
 .....

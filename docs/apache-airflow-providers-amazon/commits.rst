@@ -36,6 +36,8 @@ Latest change: 2022-06-07
 =================================================================================================  ===========  ====================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================================================
+`b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b88ce95188 <https://github.com/apache/airflow/commit/b88ce951881914e51058ad71858874fdc00a3cbe>`_  2022-06-07   ``Update doc and sample dag for EMR Containers (#24087)``
 `c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
 `41898d8922 <https://github.com/apache/airflow/commit/41898d89220c8525d941367a875b4806e618b0d0>`_  2022-06-06   ``Refactor GlueJobHook get_or_create_glue_job method. (#24215)``

@@ -38,6 +38,7 @@ Breaking changes
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Bump pre-commit hook versions (#22887)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.3.3
 .....

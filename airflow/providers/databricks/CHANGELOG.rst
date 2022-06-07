@@ -50,6 +50,7 @@ Bug Fixes
    * ``AIP-47 - Migrate databricks DAGs to new design #22442 (#24203)``
    * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.7.0
 .....
@@ -94,7 +95,6 @@ Misc
    * ``Fix new MyPy errors in main (#22884)``
    * ``Prepare mid-April provider documentation. (#22819)``
 
-.. Review and move the new changes to one of the sections above:
    * ``Prepare for RC2 release of March Databricks provider (#22979)``
 
 2.5.0

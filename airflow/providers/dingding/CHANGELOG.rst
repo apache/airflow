@@ -41,6 +41,7 @@ Breaking changes
    * ``Bump pre-commit hook versions (#22887)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
    * ``Update tree doc references to grid (#22966)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.0.4
 .....

@@ -39,6 +39,7 @@ Breaking changes
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
    * ``Fix new MyPy errors in main (#22884)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.0.4
 .....

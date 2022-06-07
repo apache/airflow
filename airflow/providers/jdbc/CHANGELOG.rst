@@ -45,6 +45,7 @@ Features
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
    * ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.1.3
 .....

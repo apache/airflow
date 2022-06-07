@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-06-05
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `ddf9013098 <https://github.com/apache/airflow/commit/ddf9013098b09176d7b34861b2357ded50b9fe26>`_  2022-06-05   ``AIP-47 - Migrate databricks DAGs to new design #22442 (#24203)``
 `acf89510cd <https://github.com/apache/airflow/commit/acf89510cd5a18d15c1a45e674ba0bcae9293097>`_  2022-06-04   ``fix: DatabricksSubmitRunOperator and DatabricksRunNowOperator cannot define .json as template_ext (#23622) (#23641)``

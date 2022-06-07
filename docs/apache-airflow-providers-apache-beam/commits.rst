@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.0.0
 .....
 
-Latest change: 2022-06-06
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ================================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `34e0ab9b23 <https://github.com/apache/airflow/commit/34e0ab9b23e0dcf416169777240b97f4de08f772>`_  2022-06-05   ``AIP-47 - Migrate beam DAGs to new design #22439 (#24211)``

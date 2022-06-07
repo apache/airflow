@@ -31,11 +31,12 @@ For high-level changelog, see :doc:`package information including changelog <ind
 3.0.0
 .....
 
-Latest change: 2022-06-05
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ===========================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ===========================================================================
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `9f7ab0dd0a <https://github.com/apache/airflow/commit/9f7ab0dd0a074831448b33a3cbc0de1cd6c3d997>`_  2022-06-03   ``Migrate JDBC example DAGs to new design #22450 (#24137)``
 `b205a67afe <https://github.com/apache/airflow/commit/b205a67afe6b23d2863bdf5f657dd235d9a901d8>`_  2022-05-22   ``Handler parameter from 'JdbcOperator' to 'JdbcHook.run' (#23817)``

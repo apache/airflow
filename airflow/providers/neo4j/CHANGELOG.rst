@@ -40,6 +40,7 @@ Breaking changes
    * ``Migrate Neo4j example DAGs to new design #22454 (#24143)``
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Bump pre-commit hook versions (#22887)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
 
 2.1.3
 .....
