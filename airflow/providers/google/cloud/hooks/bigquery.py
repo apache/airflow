@@ -361,7 +361,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
         :return: Created table
         """
-
         _table_resource: Dict[str, Any] = {}
 
         if self.location:

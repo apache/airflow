@@ -185,7 +185,6 @@ class LookerHook(BaseHook):
 
     def get_looker_sdk(self):
         """Returns Looker SDK client for Looker API 4.0."""
-
         conn = self.get_connection(self.looker_conn_id)
         settings = LookerApiSettings(conn)
 
@@ -214,7 +213,6 @@ class LookerApiSettings(api_settings.ApiSettings):
         Overrides the default logic of getting connection settings. Fetches
         the connection settings from Airflow's connection object.
         """
-
         config = {}
 
         if self.conn.host is None:
