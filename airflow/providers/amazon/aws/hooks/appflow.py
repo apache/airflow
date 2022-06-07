@@ -38,7 +38,6 @@ class AppflowHook(AwsBaseHook):
     .. seealso::
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
 
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
     def __init__(self, *args, **kwargs) -> None:
