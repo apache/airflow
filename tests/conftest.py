@@ -34,6 +34,9 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys"
 
+from airflow import settings  # noqa: E402
+from airflow.models.tasklog import LogTemplate  # noqa: E402
+
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
@@ -751,3 +754,21 @@ def session():
     with create_session() as session:
         yield session
         session.rollback()
+
+
+@pytest.fixture()
+def create_log_template(request):
+    session = settings.Session()
+
+    def _create_log_template(filename_template, elasticsearch_id=""):
+        log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
+        session.add(log_template)
+        session.commit()
+
+        def _delete_log_template():
+            session.delete(log_template)
+            session.commit()
+
+        request.addfinalizer(_delete_log_template)
+
+    return _create_log_template

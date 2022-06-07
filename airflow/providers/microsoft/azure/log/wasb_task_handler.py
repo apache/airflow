@@ -44,8 +44,9 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         base_log_folder: str,
         wasb_log_folder: str,
         wasb_container: str,
-        filename_template: str,
         delete_local_copy: str,
+        *,
+        filename_template: Optional[str] = None,
     ) -> None:
         super().__init__(base_log_folder, filename_template)
         self.wasb_container = wasb_container

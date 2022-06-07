@@ -82,7 +82,6 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
             'class': 'airflow.utils.log.file_task_handler.FileTaskHandler',
             'formatter': 'airflow',
             'base_log_folder': os.path.expanduser(BASE_LOG_FOLDER),
-            'filename_template': FILENAME_TEMPLATE,
             'filters': ['mask_secrets'],
         },
         'processor': {
