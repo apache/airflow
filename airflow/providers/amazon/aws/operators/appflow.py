@@ -46,16 +46,19 @@ if TYPE_CHECKING:
 EVENTUAL_CONSISTENCY_OFFSET: int = 15  # seconds
 EVENTUAL_CONSISTENCY_POLLING: int = 10  # seconds
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
+MANDATORY_FILTER_DATE_MSG = "The filter_date argument is mandatory for {entity}!"
+NOT_SUPPORTED_SOURCE_MSG = "Source {source} is not supported for {entity}!"
 
 
 class AppflowBaseOperator(BaseOperator):
     """
     Amazon Appflow Base Operator class (not supposed to be used directly in DAGs).
 
-    :param source: The source name (e.g. salesforce)
+    :param source: The source name (Supported: salesforce, zendesk)
     :param name: The flow name
+    :param flow_update: A boolean to enable/disable the a flow update before the run
     :param source_field: The field name to apply filters
-    :param dt: The date value (or template) to be used in filters.
+    :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
@@ -70,7 +73,7 @@ class AppflowBaseOperator(BaseOperator):
         name: str,
         flow_update: bool,
         source_field: Optional[str] = None,
-        dt: Optional[str] = None,
+        filter_date: Optional[str] = None,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
@@ -78,8 +81,8 @@ class AppflowBaseOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         if source not in SUPPORTED_SOURCES:
-            raise AirflowException(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
-        self.dt = dt
+            raise ValueError(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
+        self.filter_date = filter_date
         self.name = name
         self.source = source
         self.source_field = source_field
@@ -94,7 +97,9 @@ class AppflowBaseOperator(BaseOperator):
         return AppflowHook(aws_conn_id=self.aws_conn_id, region_name=self.region)
 
     def execute(self, context: "Context") -> None:
-        self.dt_parsed: Optional[datetime] = datetime.fromisoformat(self.dt) if self.dt else None
+        self.filter_date_parsed: Optional[datetime] = (
+            datetime.fromisoformat(self.filter_date) if self.filter_date else None
+        )
         if self.flow_update:
             self._update_flow()
         self._run_flow(context)
@@ -102,9 +107,7 @@ class AppflowBaseOperator(BaseOperator):
     def _get_connector_type(self, response: "DescribeFlowResponseTypeDef") -> str:
         connector_type = response["sourceFlowConfig"]["connectorType"]
         if self.source != connector_type.lower():
-            raise AirflowException(
-                f"Incompatible source ({self.source} and connector type ({connector_type})!"
-            )
+            raise ValueError(f"Incompatible source ({self.source} and connector type ({connector_type})!")
         return connector_type
 
     def _update_flow(self) -> None:
@@ -186,7 +189,7 @@ class AppflowRunOperator(AppflowBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunOperator`
 
-    :param source: The source name (e.g. salesforce, zendesk)
+    :param source: The source name (Supported: salesforce, zendesk)
     :param name: The flow name
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
@@ -203,13 +206,13 @@ class AppflowRunOperator(AppflowBaseOperator):
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
-            raise AirflowException(f"Source {source} is not supported for AppflowRunOperator!")
+            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunOperator"))
         super().__init__(
             source=source,
             name=name,
             flow_update=False,
             source_field=None,
-            dt=None,
+            filter_date=None,
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
@@ -225,7 +228,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunFullOperator`
 
-    :param source: The source name (e.g. salesforce, zendesk)
+    :param source: The source name (Supported: salesforce, zendesk)
     :param name: The flow name
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
@@ -237,18 +240,18 @@ class AppflowRunFullOperator(AppflowBaseOperator):
         source: str,
         name: str,
         poll_interval: int = 20,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
         if source not in {"salesforce", "zendesk"}:
-            raise AirflowException(f"Source {source} is not supported for AppflowRunFullOperator!")
+            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunFullOperator"))
         super().__init__(
             source=source,
             name=name,
             flow_update=True,
             source_field=None,
-            dt=None,
+            filter_date=None,
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
@@ -264,38 +267,40 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunBeforeOperator`
 
-    :param source: The source name (e.g. salesforce)
+    :param source: The source name (Supported: salesforce)
     :param name: The flow name
     :param source_field: The field name to apply filters
-    :param dt: The date value (or template) to be used in filters.
+    :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     """
 
-    template_fields = ("dt",)
+    template_fields = ("filter_date",)
 
     def __init__(
         self,
         source: str,
         name: str,
         source_field: str,
-        dt: str,
+        filter_date: str,
         poll_interval: int = 20,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        if not dt:
-            raise AirflowException("The dt argument is mandatory for AppflowRunBeforeOperator!")
-        if source not in {"salesforce"}:
-            raise AirflowException(f"Source {source} is not supported for AppflowRunBeforeOperator!")
+        if not filter_date:
+            raise ValueError(MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunBeforeOperator"))
+        if source != "salesforce":
+            raise ValueError(
+                NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunBeforeOperator")
+            )
         super().__init__(
             source=source,
             name=name,
             flow_update=True,
             source_field=source_field,
-            dt=dt,
+            filter_date=filter_date,
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
@@ -303,17 +308,17 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
         )
 
     def _add_filter(self, connector_type: str, tasks: List["TaskTypeDef"]) -> None:
-        if not self.dt_parsed:
-            raise AirflowException(f"Invalid dt argument parser value: {self.dt_parsed}")
+        if not self.filter_date_parsed:
+            raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
-            raise AirflowException(f"Invalid source_field argument value: {self.source_field}")
+            raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
             "connectorOperator": {connector_type: "LESS_THAN"},  # type: ignore
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
-                "VALUE": str(datetime_to_epoch_ms(self.dt_parsed)),
+                "VALUE": str(datetime_to_epoch_ms(self.filter_date_parsed)),
             },  # NOT inclusive
         }
         tasks.append(filter_task)
@@ -327,38 +332,38 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunAfterOperator`
 
-    :param source: The source name (e.g. salesforce, zendesk)
+    :param source: The source name (Supported: salesforce, zendesk)
     :param name: The flow name
     :param source_field: The field name to apply filters
-    :param dt: The date value (or template) to be used in filters.
+    :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     """
 
-    template_fields = ("dt",)
+    template_fields = ("filter_date",)
 
     def __init__(
         self,
         source: str,
         name: str,
         source_field: str,
-        dt: str,
+        filter_date: str,
         poll_interval: int = 20,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        if not dt:
-            raise AirflowException("The dt argument is mandatory for AppflowRunAfterOperator!")
+        if not filter_date:
+            raise ValueError(MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunAfterOperator"))
         if source not in {"salesforce", "zendesk"}:
-            raise AirflowException(f"Source {source} is not supported for AppflowRunAfterOperator!")
+            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunAfterOperator"))
         super().__init__(
             source=source,
             name=name,
             flow_update=True,
             source_field=source_field,
-            dt=dt,
+            filter_date=filter_date,
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
@@ -366,17 +371,17 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
         )
 
     def _add_filter(self, connector_type: str, tasks: List["TaskTypeDef"]) -> None:
-        if not self.dt_parsed:
-            raise AirflowException(f"Invalid dt argument parser value: {self.dt_parsed}")
+        if not self.filter_date_parsed:
+            raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
-            raise AirflowException(f"Invalid source_field argument value: {self.source_field}")
+            raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
             "connectorOperator": {connector_type: "GREATER_THAN"},  # type: ignore
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
-                "VALUE": str(datetime_to_epoch_ms(self.dt_parsed)),
+                "VALUE": str(datetime_to_epoch_ms(self.filter_date_parsed)),
             },  # NOT inclusive
         }
         tasks.append(filter_task)
@@ -390,38 +395,38 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:AppflowRunDailyOperator`
 
-    :param source: The source name (e.g. salesforce)
+    :param source: The source name (Supported: salesforce)
     :param name: The flow name
     :param source_field: The field name to apply filters
-    :param dt: The date value (or template) to be used in filters.
+    :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
     """
 
-    template_fields = ("dt",)
+    template_fields = ("filter_date",)
 
     def __init__(
         self,
         source: str,
         name: str,
         source_field: str,
-        dt: str,
+        filter_date: str,
         poll_interval: int = 20,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
         **kwargs,
     ) -> None:
-        if not dt:
-            raise AirflowException("The dt argument is mandatory for AppflowRunDailyOperator!")
-        if source not in {"salesforce"}:
-            raise AirflowException(f"Source {source} is not supported for AppflowRunDailyOperator!")
+        if not filter_date:
+            raise ValueError(MANDATORY_FILTER_DATE_MSG.format(entity="AppflowRunDailyOperator"))
+        if source != "salesforce":
+            raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunDailyOperator"))
         super().__init__(
             source=source,
             name=name,
             flow_update=True,
             source_field=source_field,
-            dt=dt,
+            filter_date=filter_date,
             poll_interval=poll_interval,
             aws_conn_id=aws_conn_id,
             region=region,
@@ -429,20 +434,20 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
         )
 
     def _add_filter(self, connector_type: str, tasks: List["TaskTypeDef"]) -> None:
-        if not self.dt_parsed:
-            raise AirflowException(f"Invalid dt argument parser value: {self.dt_parsed}")
+        if not self.filter_date_parsed:
+            raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
-            raise AirflowException(f"Invalid source_field argument value: {self.source_field}")
-        start_dt = self.dt_parsed - timedelta(milliseconds=1)
-        end_dt = self.dt_parsed + timedelta(days=1)
+            raise ValueError(f"Invalid source_field argument value: {self.source_field}")
+        start_filter_date = self.filter_date_parsed - timedelta(milliseconds=1)
+        end_filter_date = self.filter_date_parsed + timedelta(days=1)
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
             "connectorOperator": {connector_type: "BETWEEN"},  # type: ignore
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
-                "LOWER_BOUND": str(datetime_to_epoch_ms(start_dt)),  # NOT inclusive
-                "UPPER_BOUND": str(datetime_to_epoch_ms(end_dt)),  # NOT inclusive
+                "LOWER_BOUND": str(datetime_to_epoch_ms(start_filter_date)),  # NOT inclusive
+                "UPPER_BOUND": str(datetime_to_epoch_ms(end_filter_date)),  # NOT inclusive
             },
         }
         tasks.append(filter_task)
@@ -472,7 +477,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
         flow_name: str,
         appflow_run_task_id: str,
         ignore_downstream_trigger_rules: bool = True,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
         **kwargs,
     ) -> None:

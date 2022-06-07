@@ -62,7 +62,7 @@ with DAG(
         source=SOURCE_NAME,
         name=FLOW_NAME,
         source_field="LastModifiedDate",
-        dt="{{ ds }}",
+        filter_date="{{ ds }}",
     )
     # [END howto_operator_appflow_run_daily]
 
@@ -72,7 +72,7 @@ with DAG(
         source=SOURCE_NAME,
         name=FLOW_NAME,
         source_field="LastModifiedDate",
-        dt="{{ ds }}",
+        filter_date="{{ ds }}",
     )
     # [END howto_operator_appflow_run_before]
 
@@ -82,7 +82,7 @@ with DAG(
         source=SOURCE_NAME,
         name=FLOW_NAME,
         source_field="LastModifiedDate",
-        dt="3000-01-01",  # Future date, so no records to dump
+        filter_date="3000-01-01",  # Future date, so no records to dump
     )
     # [END howto_operator_appflow_run_after]
 
