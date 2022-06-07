@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-06T22:06:43Z
+# This constraints file was automatically generated on 2022-06-07T07:34:31Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -100,9 +100,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.24.2
+boto3==1.24.3
 boto==2.49.0
-botocore==1.27.2
+botocore==1.27.3
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.7.0
@@ -182,7 +182,7 @@ google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.1
 google-auth==2.6.6
 google-cloud-aiplatform==1.13.1
-google-cloud-appengine-logging==1.1.1
+google-cloud-appengine-logging==1.1.2
 google-cloud-audit-log==0.2.2
 google-cloud-automl==2.7.2
 google-cloud-bigquery-datatransfer==3.6.1
@@ -199,24 +199,24 @@ google-cloud-dataproc==4.0.2
 google-cloud-dlp==1.0.1
 google-cloud-kms==2.11.1
 google-cloud-language==1.3.1
-google-cloud-logging==3.1.1
+google-cloud-logging==3.1.2
 google-cloud-memcache==1.3.1
 google-cloud-monitoring==2.9.1
-google-cloud-orchestration-airflow==1.3.1
-google-cloud-os-login==2.6.1
-google-cloud-pubsub==2.12.1
-google-cloud-redis==2.8.0
-google-cloud-resource-manager==1.5.0
+google-cloud-orchestration-airflow==1.3.2
+google-cloud-os-login==2.6.2
+google-cloud-pubsub==2.13.0
+google-cloud-redis==2.8.1
+google-cloud-resource-manager==1.5.1
 google-cloud-secret-manager==1.0.1
 google-cloud-spanner==1.19.2
 google-cloud-speech==1.3.3
 google-cloud-storage==1.44.0
-google-cloud-tasks==2.9.0
+google-cloud-tasks==2.9.1
 google-cloud-texttospeech==1.0.2
 google-cloud-translate==1.7.1
 google-cloud-videointelligence==1.16.2
 google-cloud-vision==1.0.1
-google-cloud-workflows==1.6.2
+google-cloud-workflows==1.6.3
 google-crc32c==1.3.0
 google-resumable-media==2.3.3
 googleapis-common-protos==1.56.2
@@ -264,7 +264,7 @@ jsonpickle==2.2.0
 jsonpointer==2.3
 jsonschema==3.2.0
 junit-xml==1.9
-jupyter-client==7.3.2
+jupyter-client==7.3.3
 jupyter-core==4.10.0
 jwcrypto==1.3.1
 keyring==23.5.1
@@ -465,7 +465,7 @@ sshtunnel==0.4.0
 starkbank-ecdsa==2.0.3
 statsd==3.3.0
 swagger-ui-bundle==0.0.9
-tableauserverclient==0.18.0
+tableauserverclient==0.19.0
 tabulate==0.8.9
 tblib==1.7.0
 tenacity==8.0.1
