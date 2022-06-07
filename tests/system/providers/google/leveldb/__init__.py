@@ -15,17 +15,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import os
-
-import pytest
-
-from tests.test_utils import AIRFLOW_MAIN_FOLDER
-from tests.test_utils.system_tests_class import SystemTest
-
-DAG_FOLDER = os.path.join(AIRFLOW_MAIN_FOLDER, "airflow", "providers", "asana", "example_dags")
-
-
-@pytest.mark.system("asana")
-class AsanaExampleDagsSystemTest(SystemTest):
-    def test_run_example_dag_asana(self):
-        self.run_dag("example_asana", DAG_FOLDER)
