@@ -29,9 +29,12 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.types import DagRunType
 from tests.test_utils import db
+from tests.test_utils.config import conf_vars
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1, 1, 0, 0)
 KPO_MODULE = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod"
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
 
 
 @pytest.fixture(scope='function', autouse=True)
@@ -66,28 +69,22 @@ def create_context(task, persist_to_db=False):
     }
 
 
-POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
-
-
 class TestKubernetesPodOperator:
     @pytest.fixture(autouse=True)
     def setup(self, dag_maker):
         self.create_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
         self.await_pod_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_start")
         self.await_pod_completion_patch = mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
-        self.client_patch = mock.patch("airflow.kubernetes.kube_client.get_kube_client")
+        self.hook_patch = mock.patch(HOOK_CLASS)
         self.create_mock = self.create_pod_patch.start()
         self.await_start_mock = self.await_pod_patch.start()
         self.await_pod_mock = self.await_pod_completion_patch.start()
-        self.client_mock = self.client_patch.start()
+        self.hook_mock = self.hook_patch.start()
         self.dag_maker = dag_maker
 
         yield
 
-        self.create_pod_patch.stop()
-        self.await_pod_patch.stop()
-        self.await_pod_completion_patch.stop()
-        self.client_patch.stop()
+        mock.patch.stopall()
 
     def test_template_fields(self):
         assert 9 == KubernetesPodOperator.template_fields.__len__()
@@ -219,9 +216,9 @@ class TestKubernetesPodOperator:
         remote_pod_mock = MagicMock()
         remote_pod_mock.status.phase = 'Succeeded'
         self.await_pod_mock.return_value = remote_pod_mock
-        self.client_mock.list_namespaced_pod.return_value = []
         self.run_pod(k)
-        self.client_mock.assert_called_once_with(
+        self.hook_mock.assert_called_once_with(
+            conn_id=None,
             in_cluster=False,
             cluster_context="default",
             config_file=file_path,
@@ -318,8 +315,7 @@ class TestKubernetesPodOperator:
             do_xcom_push=False,
         )
         self.run_pod(k)
-        self.client_mock.return_value.list_namespaced_pod.assert_called_once()
-        _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
+        _, kwargs = k.client.list_namespaced_pod.call_args
         assert kwargs['label_selector'] == (
             'dag_id=dag,kubernetes_pod_operator=True,run_id=test,task_id=task,'
             'already_checked!=True,!airflow-worker'
@@ -668,7 +664,7 @@ class TestKubernetesPodOperator:
             context = create_context(k)
             k.execute(context=context)
 
-        assert not self.client_mock.return_value.read_namespaced_pod.called
+        assert k.client.read_namespaced_pod.called is False
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.fetch_container_logs")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_container_completion")
@@ -886,8 +882,8 @@ class TestKubernetesPodOperator:
             task_id="task",
         )
         self.run_pod(k)
-        self.client_mock.return_value.list_namespaced_pod.assert_called_once()
-        _, kwargs = self.client_mock.return_value.list_namespaced_pod.call_args
+        k.client.list_namespaced_pod.assert_called_once()
+        _, kwargs = k.client.list_namespaced_pod.call_args
         assert 'already_checked!=True' in kwargs['label_selector']
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
@@ -933,6 +929,29 @@ class TestKubernetesPodOperator:
             k.execute(context=context)
         mock_patch_already_checked.assert_called_once()
         mock_delete_pod.assert_not_called()
+
+    @pytest.mark.parametrize(
+        'key, value, attr, patched_value',
+        [
+            ('verify_ssl', 'False', '_deprecated_core_disable_verify_ssl', True),
+            ('in_cluster', 'False', '_deprecated_core_in_cluster', False),
+            ('cluster_context', 'hi', '_deprecated_core_cluster_context', 'hi'),
+            ('config_file', '/path/to/file.txt', '_deprecated_core_config_file', '/path/to/file.txt'),
+            ('enable_tcp_keepalive', 'False', '_deprecated_core_disable_tcp_keepalive', True),
+        ],
+    )
+    def test_patch_core_settings(self, key, value, attr, patched_value):
+        # first verify the behavior for the default value
+        # the hook attr should be None
+        op = KubernetesPodOperator(task_id='abc', name='hi')
+        self.hook_patch.stop()
+        hook = op.get_hook()
+        assert getattr(hook, attr) is None
+        # now check behavior with a non-default value
+        with conf_vars({('kubernetes', key): value}):
+            op = KubernetesPodOperator(task_id='abc', name='hi')
+            hook = op.get_hook()
+            assert getattr(hook, attr) == patched_value
 
 
 def test__suppress():

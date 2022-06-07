@@ -134,7 +134,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.profile_name = profile_name
         self.sep = sep
         self.full_url_mode = full_url_mode
-        self.extra_conn_words = extra_conn_words if extra_conn_words else {}
+        self.extra_conn_words = extra_conn_words or {}
         self.kwargs = kwargs
 
     @cached_property
@@ -178,9 +178,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         conn_string = "{conn_type}://{user}:{password}@{host}:{port}/{schema}".format(**conn_d)
 
-        connection = self._format_uri_with_extra(secret, conn_string)
-
-        return connection
+        return self._format_uri_with_extra(secret, conn_string)
 
     def get_conn_value(self, conn_id: str):
         """
@@ -193,20 +191,19 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         if self.full_url_mode:
             return self._get_secret(self.connections_prefix, conn_id)
-        else:
-            try:
-                secret_string = self._get_secret(self.connections_prefix, conn_id)
-                # json.loads gives error
-                secret = ast.literal_eval(secret_string) if secret_string else None
-            except ValueError:  # 'malformed node or string: ' error, for empty conns
-                connection = None
-                secret = None
+        try:
+            secret_string = self._get_secret(self.connections_prefix, conn_id)
+            # json.loads gives error
+            secret = ast.literal_eval(secret_string) if secret_string else None
+        except ValueError:  # 'malformed node or string: ' error, for empty conns
+            connection = None
+            secret = None
 
-            # These lines will check if we have with some denomination stored an username, password and host
-            if secret:
-                connection = self.get_uri_from_secret(secret)
+        # These lines will check if we have with some denomination stored an username, password and host
+        if secret:
+            connection = self.get_uri_from_secret(secret)
 
-            return connection
+        return connection
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """

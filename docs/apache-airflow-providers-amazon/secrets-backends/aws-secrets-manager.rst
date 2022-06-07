@@ -31,7 +31,7 @@ Here is a sample configuration:
     backend_kwargs = {"connections_prefix": "airflow/connections", "variables_prefix": "airflow/variables", "profile_name": "default", "full_url_mode": false}
 
 To authenticate you can either supply a profile name to reference aws profile, e.g. defined in ``~/.aws/config`` or set
-environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``.
+environment variables like ``AWS_ACCESS_KEY_ID``, ``AWS_SECRET_ACCESS_KEY``, ``AWS_DEFAULT_REGION``.
 
 
 Storing and Retrieving Connections

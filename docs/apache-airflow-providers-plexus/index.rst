@@ -32,7 +32,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/plexus/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/plexus>
 
 .. toctree::
     :maxdepth: 1
@@ -57,7 +57,7 @@ Package apache-airflow-providers-plexus
 `Plexus <https://plexus.corescientific.com/>`__
 
 
-Release: 2.0.4
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -77,7 +77,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``arrow``           ``>=0.16.0``
 ==================  ==================
 

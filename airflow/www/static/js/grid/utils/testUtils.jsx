@@ -56,6 +56,12 @@ export const Wrapper = ({ children }) => {
   );
 };
 
+export const ChakraWrapper = ({ children }) => (
+  <ChakraProvider>
+    {children}
+  </ChakraProvider>
+);
+
 export const TableWrapper = ({ children }) => (
   <Wrapper>
     <Table>
@@ -64,4 +70,10 @@ export const TableWrapper = ({ children }) => (
       </Tbody>
     </Table>
   </Wrapper>
+);
+
+export const RouterWrapper = ({ children }) => (
+  <MemoryRouter>
+    {children}
+  </MemoryRouter>
 );

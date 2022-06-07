@@ -25,12 +25,14 @@ import {
   Link,
   Divider,
 } from '@chakra-ui/react';
-import { MdPlayArrow, MdOutlineAccountTree } from 'react-icons/md';
 
-import { SimpleStatus } from '../../../StatusBox';
-import { ClipboardText } from '../../../Clipboard';
+import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
+import { RiArrowGoBackFill } from 'react-icons/ri';
+
+import { SimpleStatus } from '../../../components/StatusBox';
+import { ClipboardText } from '../../../components/Clipboard';
 import { formatDuration, getDuration } from '../../../../datetime_utils';
-import Time from '../../../Time';
+import Time from '../../../components/Time';
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
@@ -97,6 +99,8 @@ const DagRun = ({ runId }) => {
         Run Type:
         {' '}
         {runType === 'manual' && <MdPlayArrow style={{ display: 'inline' }} />}
+        {runType === 'backfill' && <RiArrowGoBackFill style={{ display: 'inline' }} />}
+        {runType === 'scheduled' && <MdOutlineSchedule style={{ display: 'inline' }} />}
         {runType}
       </Text>
       <Text>

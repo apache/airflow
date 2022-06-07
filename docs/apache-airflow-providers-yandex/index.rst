@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/yandex/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/yandex/example_yandexcloud_dataproc.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-yandex/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +59,7 @@ Package apache-airflow-providers-yandex
 Yandex including `Yandex.Cloud <https://cloud.yandex.com/>`__
 
 
-Release: 2.2.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -79,7 +79,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``yandexcloud``     ``>=0.146.0``
 ==================  ==================
 

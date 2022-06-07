@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/jdbc/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/jdbc>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +59,7 @@ Package apache-airflow-providers-jdbc
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 
-Release: 2.1.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -79,7 +79,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``jaydebeapi``      ``>=1.1.1``
 ==================  ==================
 

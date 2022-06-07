@@ -52,20 +52,20 @@ with DAG(
 
     create_queue = create_queue_fn()
 
-    # [START howto_sqs_operator]
+    # [START howto_operator_sqs]
     publish_to_queue = SqsPublishOperator(
         task_id='publish_to_queue',
         sqs_queue=create_queue,
         message_content="{{ task_instance }}-{{ execution_date }}",
     )
-    # [END howto_sqs_operator]
+    # [END howto_operator_sqs]
 
-    # [START howto_sqs_sensor]
+    # [START howto_sensor_sqs]
     read_from_queue = SqsSensor(
         task_id='read_from_queue',
         sqs_queue=create_queue,
     )
-    # [END howto_sqs_sensor]
+    # [END howto_sensor_sqs]
 
     delete_queue = delete_queue_fn(create_queue)
 

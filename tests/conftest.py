@@ -34,6 +34,9 @@ os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys"
 
+from airflow import settings  # noqa: E402
+from airflow.models.tasklog import LogTemplate  # noqa: E402
+
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
     trace_queries,
@@ -82,7 +85,7 @@ def trace_sql(request):
 
     terminal_reporter = request.config.pluginmanager.getplugin("terminalreporter")
     # if no terminal reporter plugin is present, nothing we can do here;
-    # this can happen when this function executes in a slave node
+    # this can happen when this function executes in a worker node
     # when using pytest-xdist, for example
     if terminal_reporter is None:
         yield
@@ -751,3 +754,39 @@ def session():
     with create_session() as session:
         yield session
         session.rollback()
+
+
+@pytest.fixture()
+def get_test_dag():
+    def _get(dag_id):
+        from airflow.models.dagbag import DagBag
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag_file = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'dags', f'{dag_id}.py')
+        dagbag = DagBag(dag_folder=dag_file, include_examples=False)
+
+        dag = dagbag.get_dag(dag_id)
+        dag.sync_to_db()
+        SerializedDagModel.write_dag(dag)
+
+        return dag
+
+    return _get
+
+
+@pytest.fixture()
+def create_log_template(request):
+    session = settings.Session()
+
+    def _create_log_template(filename_template, elasticsearch_id=""):
+        log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
+        session.add(log_template)
+        session.commit()
+
+        def _delete_log_template():
+            session.delete(log_template)
+            session.commit()
+
+        request.addfinalizer(_delete_log_template)
+
+    return _create_log_template

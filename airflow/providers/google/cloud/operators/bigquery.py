@@ -2130,7 +2130,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         if self.job_id:
             return f"{self.job_id}_{uniqueness_suffix}"
 
-        exec_date = context['execution_date'].isoformat()
+        exec_date = context['logical_date'].isoformat()
         job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
         return re.sub(r"[:\-+.]", "_", job_id)
 
@@ -2145,6 +2145,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         job_id = self._job_id(context)
 
         try:
+            self.log.info(f"Executing: {self.configuration}")
             job = self._submit_job(hook, job_id)
             self._handle_job_error(job)
         except Conflict:
@@ -2166,14 +2167,17 @@ class BigQueryInsertJobOperator(BaseOperator):
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
-        table = job.to_api_repr()["configuration"]["query"]["destinationTable"]
-        BigQueryTableLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=table["datasetId"],
-            project_id=table["projectId"],
-            table_id=table["tableId"],
-        )
+        if "query" in job.to_api_repr()["configuration"]:
+            if "destinationTable" in job.to_api_repr()["configuration"]["query"]:
+                table = job.to_api_repr()["configuration"]["query"]["destinationTable"]
+                BigQueryTableLink.persist(
+                    context=context,
+                    task_instance=self,
+                    dataset_id=table["datasetId"],
+                    project_id=table["projectId"],
+                    table_id=table["tableId"],
+                )
+
         self.job_id = job.job_id
         return job.job_id
 

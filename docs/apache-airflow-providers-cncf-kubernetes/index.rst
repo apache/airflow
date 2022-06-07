@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/cncf/kubernetes/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/cncf/kubernetes>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +59,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 4.0.1
+Release: 5.0.0
 
 Provider package
 ----------------

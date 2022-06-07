@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/neo4j/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/neo4j>
 
 .. toctree::
     :maxdepth: 1
@@ -64,7 +64,7 @@ Package apache-airflow-providers-neo4j
 `Neo4j <https://neo4j.com/>`__
 
 
-Release: 2.1.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -84,7 +84,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``neo4j``           ``>=4.2.1``
 ==================  ==================
 

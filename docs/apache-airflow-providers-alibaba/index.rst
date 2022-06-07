@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/alibaba/cloud/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/alibaba>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-alibaba/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +59,7 @@ Package apache-airflow-providers-alibaba
 Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
 
 
-Release: 1.1.1
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -79,7 +79,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``oss2``            ``>=2.14.0``
 ==================  ==================
 

@@ -22,7 +22,6 @@ from datetime import timedelta
 import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
-from airflow import settings
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorManager
 from airflow.utils import cli as cli_utils
@@ -36,7 +35,7 @@ def _create_dag_processor_manager(args) -> DagFileProcessorManager:
     processor_timeout_seconds: int = conf.getint('core', 'dag_file_processor_timeout')
     processor_timeout = timedelta(seconds=processor_timeout_seconds)
     return DagFileProcessorManager(
-        dag_directory=settings.DAGS_FOLDER,
+        dag_directory=args.subdir,
         max_runs=args.num_runs,
         processor_timeout=processor_timeout,
         dag_ids=[],
@@ -50,7 +49,7 @@ def dag_processor(args):
     if not conf.getboolean("scheduler", "standalone_dag_processor"):
         raise SystemExit('The option [scheduler/standalone_dag_processor] must be True.')
 
-    sql_conn: str = conf.get('core', 'sql_alchemy_conn').lower()
+    sql_conn: str = conf.get('database', 'sql_alchemy_conn').lower()
     if sql_conn.startswith('sqlite'):
         raise SystemExit('Standalone DagProcessor is not supported when using sqlite.')
 
@@ -70,11 +69,9 @@ def dag_processor(args):
             )
             with ctx:
                 try:
-                    manager.register_exit_signals()
                     manager.start()
                 finally:
                     manager.terminate()
                     manager.end()
     else:
-        manager.register_exit_signals()
         manager.start()

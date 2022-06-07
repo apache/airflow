@@ -27,7 +27,7 @@ import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
-import Grid from './Grid';
+import Main from './Main';
 import { ContainerRefProvider } from './context/containerRef';
 import { TimezoneProvider } from './context/timezone';
 import { AutoRefreshProvider } from './context/autorefresh';
@@ -45,11 +45,13 @@ shadowRoot.appendChild(mainElement);
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      notifyOnChangeProps: 'tracked',
       refetchOnWindowFocus: false,
       retry: 1,
       retryDelay: 500,
-      staleTime: 60 * 1000, // one minute
       refetchOnMount: true, // Refetches stale queries, not "always"
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      initialDataUpdatedAt: new Date().setMinutes(-6), // make sure initial data is already expired
     },
     mutations: {
       retry: 1,
@@ -78,7 +80,7 @@ function App() {
               <TimezoneProvider>
                 <AutoRefreshProvider>
                   <BrowserRouter>
-                    <Grid />
+                    <Main />
                   </BrowserRouter>
                 </AutoRefreshProvider>
               </TimezoneProvider>

@@ -143,7 +143,7 @@ class TestConnection(unittest.TestCase):
             description='with extras',
         ),
         UriTestCaseConfig(
-            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?' '__extra__=single+value',
+            test_conn_uri='scheme://user:password@host%2Flocation:1234/schema?__extra__=single+value',
             test_conn_attributes=dict(
                 conn_type='scheme',
                 host='host/location',
@@ -643,13 +643,12 @@ class TestConnection(unittest.TestCase):
         },
     )
     def test_get_connections_env_var(self):
-        conns = SqliteHook.get_connections(conn_id='test_uri')
-        assert len(conns) == 1
-        assert conns[0].host == 'ec2.compute.com'
-        assert conns[0].schema == 'the_database'
-        assert conns[0].login == 'username'
-        assert conns[0].password == 'password'
-        assert conns[0].port == 5432
+        conns = SqliteHook.get_connection(conn_id='test_uri')
+        assert conns.host == 'ec2.compute.com'
+        assert conns.schema == 'the_database'
+        assert conns.login == 'username'
+        assert conns.password == 'password'
+        assert conns.port == 5432
 
     def test_connection_mixed(self):
         with pytest.raises(

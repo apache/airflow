@@ -34,17 +34,14 @@ import { mean } from 'lodash';
 import { getDuration, formatDuration } from '../../../datetime_utils';
 import { finalStatesMap, getMetaValue } from '../../../utils';
 import { useTasks, useGridData } from '../../api';
-import Time from '../../Time';
-import { SimpleStatus } from '../../StatusBox';
+import Time from '../../components/Time';
+import { SimpleStatus } from '../../components/StatusBox';
 
-const dagId = getMetaValue('dag_id');
 const dagDetailsUrl = getMetaValue('dag_details_url');
 
 const Dag = () => {
-  const { data: taskData } = useTasks(dagId);
+  const { data: { tasks, totalEntries } } = useTasks();
   const { data: { dagRuns } } = useGridData();
-  if (!taskData) return null;
-  const { tasks = [], totalEntries = '' } = taskData;
 
   // Build a key/value object of operator counts, the name is hidden inside of t.classRef.className
   const operators = {};

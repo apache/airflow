@@ -22,7 +22,7 @@ import json
 from unittest import mock
 
 import pytest
-from azure.identity import ManagedIdentityCredential
+from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 
 from airflow.exceptions import AirflowException
@@ -52,11 +52,14 @@ class TestWasbHook:
         self.public_read_conn_id = 'pub_read_id'
         self.managed_identity_conn_id = 'managed_identity'
 
+        self.proxies = {'http': 'http_proxy_uri', 'https': 'https_proxy_uri'}
+
         db.merge_conn(
             Connection(
                 conn_id=self.public_read_conn_id,
                 conn_type=self.connection_type,
                 host='https://accountname.blob.core.windows.net',
+                extra=json.dumps({'proxies': self.proxies}),
             )
         )
 
@@ -64,7 +67,7 @@ class TestWasbHook:
             Connection(
                 conn_id=self.connection_string_id,
                 conn_type=self.connection_type,
-                extra=json.dumps({'connection_string': CONN_STRING}),
+                extra=json.dumps({'connection_string': CONN_STRING, 'proxies': self.proxies}),
             )
         )
         db.merge_conn(
@@ -72,50 +75,59 @@ class TestWasbHook:
                 conn_id=self.shared_key_conn_id,
                 conn_type=self.connection_type,
                 host='https://accountname.blob.core.windows.net',
-                extra=json.dumps({'shared_access_key': 'token'}),
+                extra=json.dumps({'shared_access_key': 'token', 'proxies': self.proxies}),
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=self.ad_conn_id,
                 conn_type=self.connection_type,
-                extra=json.dumps(
-                    {'tenant_id': 'token', 'application_id': 'appID', 'application_secret': "appsecret"}
-                ),
+                host='conn_host',
+                login='appID',
+                password='appsecret',
+                extra=json.dumps({'tenant_id': 'token', 'proxies': self.proxies}),
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=self.managed_identity_conn_id,
                 conn_type=self.connection_type,
+                extra=json.dumps({'proxies': self.proxies}),
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=self.sas_conn_id,
                 conn_type=self.connection_type,
-                extra=json.dumps({'sas_token': 'token'}),
+                extra=json.dumps({'sas_token': 'token', 'proxies': self.proxies}),
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=self.extra__wasb__sas_conn_id,
                 conn_type=self.connection_type,
-                extra=json.dumps({'extra__wasb__sas_token': 'token'}),
+                extra=json.dumps({'extra__wasb__sas_token': 'token', 'proxies': self.proxies}),
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=self.http_sas_conn_id,
                 conn_type=self.connection_type,
-                extra=json.dumps({'sas_token': 'https://login.blob.core.windows.net/token'}),
+                extra=json.dumps(
+                    {'sas_token': 'https://login.blob.core.windows.net/token', 'proxies': self.proxies}
+                ),
             )
         )
         db.merge_conn(
             Connection(
                 conn_id=self.extra__wasb__http_sas_conn_id,
                 conn_type=self.connection_type,
-                extra=json.dumps({'extra__wasb__sas_token': 'https://login.blob.core.windows.net/token'}),
+                extra=json.dumps(
+                    {
+                        'extra__wasb__sas_token': 'https://login.blob.core.windows.net/token',
+                        'proxies': self.proxies,
+                    }
+                ),
             )
         )
 
@@ -140,7 +152,7 @@ class TestWasbHook:
     def test_managed_identity(self):
         hook = WasbHook(wasb_conn_id=self.managed_identity_conn_id)
         assert isinstance(hook.get_conn(), BlobServiceClient)
-        assert isinstance(hook.get_conn().credential, ManagedIdentityCredential)
+        assert isinstance(hook.get_conn().credential, DefaultAzureCredential)
 
     @pytest.mark.parametrize(
         argnames="conn_id_str, extra_key",
@@ -159,6 +171,31 @@ class TestWasbHook:
         sas_token = hook_conn.extra_dejson[extra_key]
         assert isinstance(conn, BlobServiceClient)
         assert conn.url.endswith(sas_token + '/')
+
+    @pytest.mark.parametrize(
+        argnames="conn_id_str",
+        argvalues=[
+            'connection_string_id',
+            'shared_key_conn_id',
+            'ad_conn_id',
+            'managed_identity_conn_id',
+            'sas_conn_id',
+            'extra__wasb__sas_conn_id',
+            'http_sas_conn_id',
+            'extra__wasb__http_sas_conn_id',
+        ],
+    )
+    def test_connection_extra_arguments(self, conn_id_str):
+        conn_id = self.__getattribute__(conn_id_str)
+        hook = WasbHook(wasb_conn_id=conn_id)
+        conn = hook.get_conn()
+        assert conn._config.proxy_policy.proxies == self.proxies
+
+    def test_connection_extra_arguments_public_read(self):
+        conn_id = self.public_read_conn_id
+        hook = WasbHook(wasb_conn_id=conn_id, public_read=True)
+        conn = hook.get_conn()
+        assert conn._config.proxy_policy.proxies == self.proxies
 
     @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
     def test_check_for_blob(self, mock_service):

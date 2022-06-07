@@ -21,11 +21,14 @@ rm -rf docker-context-files/*.whl
 rm -rf docker-context-files/*.tgz
 export ANSWER="yes"
 export CI="true"
+export GITHUB_TOKEN=""
+
+breeze self-upgrade --force
 
 breeze build-image \
      --build-multiple-images \
-     --push-image \
      --prepare-buildx-cache \
+     --force-build \
      --platform linux/amd64,linux/arm64 \
      --verbose
 

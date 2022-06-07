@@ -28,6 +28,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+5.0.0
+.....
+
+Latest change: 2022-06-06
+
+=================================================================================================  ===========  ================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ================================================================================
+`98b4e48fbc <https://github.com/apache/airflow/commit/98b4e48fbc1262f1381e7a4ca6cce31d96e6f5e9>`_  2022-06-06   ``Add param docs to KubernetesHook and KubernetesPodOperator (#23955) (#24054)``
+`42abbf0d61 <https://github.com/apache/airflow/commit/42abbf0d61f94ec50026af0c0f95eb378e403042>`_  2022-06-06   ``Fix await_container_completion condition (#23883)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`7ad4e67c1a <https://github.com/apache/airflow/commit/7ad4e67c1ad504f6338c1f616fa4245685cf1abd>`_  2022-06-03   ``Migrate Cncf.Kubernetes example DAGs to new design #22441 (#24132)``
+`60eb9e106f <https://github.com/apache/airflow/commit/60eb9e106f5915398eafd6aa339ec710c102dc09>`_  2022-05-31   ``Use KubernetesHook to create api client in KubernetesPodOperator (#20578)``
+`e240132934 <https://github.com/apache/airflow/commit/e2401329345dcc5effa933b92ca969b8779755e4>`_  2022-05-27   ``[FEATURE] KPO use K8S hook (#22086)``
+`6bbe015905 <https://github.com/apache/airflow/commit/6bbe015905bd2709e621455d9f71a78b374d1337>`_  2022-05-26   ``Use "remote" pod when patching KPO pod as "checked" (#23676)``
+`ec6761a5c0 <https://github.com/apache/airflow/commit/ec6761a5c0d031221d53ce213c0e42813606c55d>`_  2022-05-23   ``Clean up f-strings in logging calls (#23597)``
+`064c41afda <https://github.com/apache/airflow/commit/064c41afdadc4cc44ac6f879556387db2c050bf8>`_  2022-05-20   ``Don't use the root logger in KPO _suppress function (#23835)``
+=================================================================================================  ===========  ================================================================================
+
+4.0.2
+.....
+
+Latest change: 2022-05-12
+
+=================================================================================================  ===========  ===========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`2eeb120bf4 <https://github.com/apache/airflow/commit/2eeb120bf4da8b42eab8685979d5452b1b9b79a1>`_  2022-05-12   ``Revert "Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)" (#23656)``
+`ee342b85b9 <https://github.com/apache/airflow/commit/ee342b85b97649e2e29fcf83f439279b68f1b4d4>`_  2022-05-11   ``Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)``
+`863b257642 <https://github.com/apache/airflow/commit/863b2576423e1a7933750b297a9b4518ae598db9>`_  2022-05-10   ``Fix: Exception when parsing log #20966 (#23301)``
+`faae9faae3 <https://github.com/apache/airflow/commit/faae9faae396610086d5ea18d61c356a78a3d365>`_  2022-05-10   ``Fixed Kubernetes Operator large xcom content Defect  (#23490)``
+`dbdcd0fd1d <https://github.com/apache/airflow/commit/dbdcd0fd1de102f5edf77b9ef2a485860b05001b>`_  2022-04-30   ``Clarify 'reattach_on_restart' behavior (#23377)``
+`a914ec22c1 <https://github.com/apache/airflow/commit/a914ec22c1a807596786d3e785bda9dd263b2400>`_  2022-04-30   ``Add YANKED to yanked releases of the cncf.kubernetes (#23378)``
+=================================================================================================  ===========  ===========================================================================================================
+
 4.0.1
 .....
 

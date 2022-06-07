@@ -17,35 +17,28 @@
  * under the License.
  */
 
-/* global localStorage, document */
-
-import React, { useCallback, useEffect } from 'react';
+import React, { useCallback } from 'react';
 import {
   Tr,
   Td,
   Box,
   Flex,
-  useDisclosure,
   Collapse,
   useTheme,
 } from '@chakra-ui/react';
 
-import StatusBox, { boxSize, boxSizePx } from './StatusBox';
-import TaskName from './TaskName';
+import StatusBox, { boxSize, boxSizePx } from './components/StatusBox';
+import TaskName from './components/TaskName';
 
-import { getMetaValue } from '../utils';
 import useSelection from './utils/useSelection';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
 const columnWidth = boxSize + 2 * boxPadding;
 
-// dagId comes from dag.html
-const dagId = getMetaValue('dag_id');
-
 const renderTaskRows = ({
   task, level = 0, ...rest
-}) => task.children.map((t) => (
+}) => task.children && task.children.map((t) => (
   <Row
     {...rest}
     key={t.id}
@@ -55,12 +48,12 @@ const renderTaskRows = ({
 ));
 
 const TaskInstances = ({
-  task, dagRunIds, selectedRunId, onSelect,
+  task, dagRunIds, selectedRunId, onSelect, activeTaskState,
 }) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId) => {
       // Check if an instance exists for the run, or return an empty box
-      const instance = task.instances.find((gi) => gi.runId === runId);
+      const instance = task.instances.find((gi) => gi && gi.runId === runId);
       const isSelected = selectedRunId === runId;
       return (
         <Box
@@ -78,6 +71,7 @@ const TaskInstances = ({
                 instance={instance}
                 group={task}
                 onSelect={onSelect}
+                isActive={activeTaskState === undefined || activeTaskState === instance.state}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
@@ -87,14 +81,15 @@ const TaskInstances = ({
   </Flex>
 );
 
-const openGroupsKey = `${dagId}/open-groups`;
-
 const Row = (props) => {
   const {
     task,
     level,
-    isParentOpen = true,
     dagRunIds,
+    openParentCount = 0,
+    openGroupIds = [],
+    onToggleGroups = () => {},
+    hoveredTaskState,
   } = props;
   const { colors } = useTheme();
   const { selected, onSelect } = useSelection();
@@ -103,49 +98,25 @@ const Row = (props) => {
   const isGroup = !!task.children;
   const isSelected = selected.taskId === task.id;
 
-  const openGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
-  const defaultIsOpen = openGroups.some((g) => g === task.label);
-
-  const {
-    isOpen, onToggle, onOpen, onClose,
-  } = useDisclosure({ defaultIsOpen });
-
-  // Listen to changes from ToggleGroups
-  useEffect(() => {
-    const handleChange = ({ detail }) => {
-      if (detail.dagId === dagId) {
-        if (detail.closeGroups) onClose();
-        else if (detail.openGroups) onOpen();
-      }
-    };
-    if (isGroup) document.addEventListener('toggleGroups', handleChange);
-    return () => {
-      if (isGroup) document.removeEventListener('toggleGroups', handleChange);
-    };
-  });
+  const isOpen = openGroupIds.some((g) => g === task.label);
 
   // assure the function is the same across renders
   const memoizedToggle = useCallback(
     () => {
       if (isGroup) {
+        let newGroupIds = [];
         if (!isOpen) {
-          localStorage.setItem(openGroupsKey, JSON.stringify([...openGroups, task.label]));
+          newGroupIds = [...openGroupIds, task.label];
         } else {
-          localStorage.setItem(
-            openGroupsKey,
-            JSON.stringify(openGroups.filter((g) => g !== task.label)),
-          );
+          newGroupIds = openGroupIds.filter((g) => g !== task.label);
         }
-        onToggle();
+        onToggleGroups(newGroupIds);
       }
     },
-    [onToggle, isGroup, isOpen, openGroups, task.label],
+    [isGroup, isOpen, task.label, openGroupIds, onToggleGroups],
   );
 
-  const parentTasks = task.id.split('.');
-  parentTasks.splice(-1);
-
-  const isFullyOpen = isParentOpen && parentTasks.every((p) => openGroups.some((g) => g === p));
+  const isFullyOpen = level === openParentCount;
 
   return (
     <>
@@ -193,13 +164,14 @@ const Row = (props) => {
               task={task}
               selectedRunId={selected.runId}
               onSelect={onSelect}
+              activeTaskState={hoveredTaskState}
             />
           </Collapse>
         </Td>
       </Tr>
       {isGroup && (
         renderTaskRows({
-          ...props, level: level + 1, isParentOpen: isOpen,
+          ...props, level: level + 1, openParentCount: openParentCount + (isOpen ? 1 : 0),
         })
       )}
     </>

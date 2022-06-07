@@ -28,6 +28,20 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-06-05
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`428a439953 <https://github.com/apache/airflow/commit/428a43995390b3623a51aa7bac7e21da69a8db22>`_  2022-05-09   ``Clean up in-line f-string concatenation (#23591)``
+`8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+=================================================================================================  ===========  ===========================================================================
+
 2.2.0
 .....
 

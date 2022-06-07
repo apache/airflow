@@ -99,6 +99,7 @@ class TestAirflowCommon:
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -128,6 +129,7 @@ class TestAirflowCommon:
         k8s_objects = render_chart(
             values={
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
@@ -311,8 +313,8 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
-                "flower": {"priorityClassName": "low-priority-flower"},
-                "pgbouncer": {"priorityClassName": "low-priority-pgbouncer"},
+                "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
+                "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
@@ -330,6 +332,7 @@ class TestAirflowCommon:
             ],
         )
 
+        assert 7 == len(docs)
         for doc in docs:
             component = doc['metadata']['labels']['component']
             priority = doc['spec']['template']['spec']['priorityClassName']

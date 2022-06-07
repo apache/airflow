@@ -109,6 +109,8 @@ class KubernetesJobWatcher(multiprocessing.Process, LoggingMixin):
                 time.sleep(1)
             except Exception:
                 self.log.exception('Unknown error in KubernetesJobWatcher. Failing')
+                self.resource_version = "0"
+                ResourceVersion().resource_version = "0"
                 raise
             else:
                 self.log.warning(
@@ -288,6 +290,7 @@ class AirflowKubernetesScheduler(LoggingMixin):
             self.log.error(
                 'Error while health checking kube watcher process. Process died for unknown reasons'
             )
+            ResourceVersion().resource_version = "0"
             self.kube_watcher = self._make_kube_watcher()
 
     def run_next(self, next_job: KubernetesJobType) -> None:

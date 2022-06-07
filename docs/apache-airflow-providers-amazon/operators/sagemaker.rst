@@ -15,52 +15,198 @@
     specific language governing permissions and limitations
     under the License.
 
+================
+Amazon SageMaker
+================
 
-Amazon SageMaker Operators
-========================================
+`Amazon SageMaker <https://docs.aws.amazon.com/sagemaker>`__ is a fully managed
+machine learning service. With Amazon SageMaker, data scientists and developers
+can quickly build and train machine learning models, and then deploy them into a
+production-ready hosted environment.
+
+Airflow provides operators to create and interact with SageMaker Jobs.
 
 Prerequisite Tasks
 ------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
-Overview
---------
+Operators
+---------
 
-Airflow to Amazon SageMaker integration provides several operators to create and interact with
-SageMaker Jobs.
+.. _howto/operator:SageMakerProcessingOperator:
 
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerDeleteModelOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator`
-  - :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator`
+Create an Amazon SageMaker processing job
+=========================================
 
-Purpose
-"""""""
-
-This example DAG ``example_sagemaker.py`` uses ``SageMakerProcessingOperator``, ``SageMakerTrainingOperator``,
-``SageMakerModelOperator``, ``SageMakerDeleteModelOperator`` and ``SageMakerTransformOperator`` to
-create SageMaker processing job, run the training job,
-generate the models artifact in s3, create the model,
-, run SageMaker Batch inference and delete the model from SageMaker.
-
-Defining tasks
-""""""""""""""
-
-In the following code we create a SageMaker processing,
-training, Sagemaker Model, batch transform job and
-then delete the model.
+To create an Amazon Sagemaker processing job to sanitize your dataset you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerProcessingOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
     :language: python
-    :start-after: [START howto_operator_sagemaker]
-    :end-before: [END howto_operator_sagemaker]
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_processing]
+    :end-before: [END howto_operator_sagemaker_processing]
+
+.. _howto/operator:SageMakerTrainingOperator:
+
+Create an Amazon SageMaker training job
+=======================================
+
+To create an Amazon Sagemaker training job you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTrainingOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_training]
+    :end-before: [END howto_operator_sagemaker_training]
+
+.. _howto/operator:SageMakerModelOperator:
+
+Create an Amazon SageMaker model
+================================
+
+To create an Amazon Sagemaker model you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_model]
+    :end-before: [END howto_operator_sagemaker_model]
+
+.. _howto/operator:SageMakerTuningOperator:
+
+Start a hyperparameter tuning job
+=================================
+
+To start a hyperparameter tuning job for an Amazon Sagemaker model you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTuningOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_tuning]
+    :end-before: [END howto_operator_sagemaker_tuning]
+
+.. _howto/operator:SageMakerDeleteModelOperator:
+
+Delete an Amazon SageMaker model
+================================
+
+To delete an Amazon Sagemaker model you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerDeleteModelOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_delete_model]
+    :end-before: [END howto_operator_sagemaker_delete_model]
+
+.. _howto/operator:SageMakerTransformOperator:
+
+Create an Amazon SageMaker transform job
+========================================
+
+To create an Amazon Sagemaker transform job you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_transform]
+    :end-before: [END howto_operator_sagemaker_transform]
+
+.. _howto/operator:SageMakerEndpointConfigOperator:
+
+Create an Amazon SageMaker endpoint config job
+==============================================
+
+To create an Amazon Sagemaker endpoint config job you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointConfigOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_endpoint_config]
+    :end-before: [END howto_operator_sagemaker_endpoint_config]
+
+.. _howto/operator:SageMakerEndpointOperator:
+
+Create an Amazon SageMaker endpoint job
+=======================================
+
+To create an Amazon Sagemaker endpoint you can use
+:class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerEndpointOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_sagemaker_endpoint]
+    :end-before: [END howto_operator_sagemaker_endpoint]
+
+Sensors
+-------
+
+.. _howto/sensor:SageMakerTrainingSensor:
+
+Wait on an Amazon SageMaker training job state
+==============================================
+
+To check the state of an Amazon Sagemaker training job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTrainingSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sagemaker_training]
+    :end-before: [END howto_sensor_sagemaker_training]
+
+.. _howto/sensor:SageMakerTransformSensor:
+
+Wait on an Amazon SageMaker transform job state
+===============================================
+
+To check the state of an Amazon Sagemaker transform job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.operators.sagemaker.SageMakerTransformOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sagemaker_transform]
+    :end-before: [END howto_sensor_sagemaker_transform]
+
+.. _howto/sensor:SageMakerTuningSensor:
+
+Wait on an Amazon SageMaker tuning job state
+============================================
+
+To check the state of an Amazon Sagemaker hyperparameter tuning job until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerTuningSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sagemaker_tuning]
+    :end-before: [END howto_sensor_sagemaker_tuning]
+
+.. _howto/sensor:SageMakerEndpointSensor:
+
+Wait on an Amazon SageMaker endpoint state
+==========================================
+
+To check the state of an Amazon Sagemaker endpoint until it reaches a terminal state
+you can use :class:`~airflow.providers.amazon.aws.sensors.sagemaker.SageMakerEndpointSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_sagemaker_endpoint.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_sagemaker_endpoint]
+    :end-before: [END howto_sensor_sagemaker_endpoint]
 
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for Sagemaker <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html>`__
+* `AWS boto3 library documentation for Sagemaker <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sagemaker.html>`__
+* `Amazon SageMaker Developer Guide <https://docs.aws.amazon.com/sagemaker/latest/dg/whatis.html>`__

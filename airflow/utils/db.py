@@ -24,9 +24,9 @@ import time
 import warnings
 from dataclasses import dataclass
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Generator, Iterable, List, Optional, Tuple, Union
 
-from sqlalchemy import Table, and_, column, exc, func, inspect, or_, select, table, text
+from sqlalchemy import Table, and_, column, exc, func, inspect, or_, select, table, text, tuple_
 from sqlalchemy.orm.session import Session
 
 import airflow
@@ -68,6 +68,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session  
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.orm import Query
 
@@ -90,6 +91,8 @@ REVISION_HEADS_MAP = {
     "2.2.4": "587bdf053233",
     "2.2.5": "587bdf053233",
     "2.3.0": "b1b348e02d07",
+    "2.3.1": "1de7bc13c950",
+    "2.3.2": "3c94c427fdf6",
 }
 
 
@@ -689,6 +692,7 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
+    timeout = timeout or 1  # run the loop at least 1
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
@@ -707,7 +711,7 @@ def check_migrations(timeout):
 
 
 @contextlib.contextmanager
-def _configured_alembic_environment():
+def _configured_alembic_environment() -> Generator["EnvironmentContext", None, None]:
     from alembic.runtime.environment import EnvironmentContext
 
     config = _get_alembic_config()
@@ -984,7 +988,7 @@ def check_run_id_null(session: Session) -> Iterable[str]:
         dagrun_table.c.run_id.is_(None),
         dagrun_table.c.execution_date.is_(None),
     )
-    invalid_dagrun_count = session.query(dagrun_table.c.id).filter(invalid_dagrun_filter).count()
+    invalid_dagrun_count = session.query(func.count(dagrun_table.c.id)).filter(invalid_dagrun_filter).scalar()
     if invalid_dagrun_count > 0:
         dagrun_dangling_table_name = _format_airflow_moved_table_name(dagrun_table.name, '2.2', 'dangling')
         if dagrun_dangling_table_name in inspect(session.get_bind()).get_table_names():
@@ -1047,7 +1051,7 @@ def _create_table_as(
 
 
 def _move_dangling_data_to_new_table(
-    session, source_table: "Table", source_query: "Query", exists_subquery, target_table_name: str
+    session, source_table: "Table", source_query: "Query", target_table_name: str
 ):
 
     bind = session.get_bind()
@@ -1072,11 +1076,16 @@ def _move_dangling_data_to_new_table(
 
     if not first_moved_row:
         log.debug("no rows moved; dropping %s", target_table_name)
+        # no bad rows were found; drop moved rows table.
         target_table.drop(bind=session.get_bind(), checkfirst=True)
     else:
         log.debug("rows moved; purging from %s", source_table.name)
         if dialect_name == 'sqlite':
-            delete = source_table.delete().where(~exists_subquery.exists())
+            pk_cols = source_table.primary_key.columns
+
+            delete = source_table.delete().where(
+                tuple_(*pk_cols).in_(session.query(*target_table.primary_key.columns).subquery())
+            )
         else:
             delete = source_table.delete().where(
                 and_(col == target_table.c[col.name] for col in source_table.primary_key.columns)
@@ -1088,7 +1097,7 @@ def _move_dangling_data_to_new_table(
     log.debug("exiting move function")
 
 
-def _dag_run_exists(session, source_table, dag_run):
+def _dangling_against_dag_run(session, source_table, dag_run):
     """
     Given a source table, we generate a subquery that will return 1 for every row that
     has a dagrun.
@@ -1097,11 +1106,14 @@ def _dag_run_exists(session, source_table, dag_run):
         source_table.c.dag_id == dag_run.c.dag_id,
         source_table.c.execution_date == dag_run.c.execution_date,
     )
-    exists_subquery = session.query(text('1')).select_from(dag_run).filter(source_to_dag_run_join_cond)
-    return exists_subquery
+    return (
+        session.query(*[c.label(c.name) for c in source_table.c])
+        .join(dag_run, source_to_dag_run_join_cond, isouter=True)
+        .filter(dag_run.c.dag_id.is_(None))
+    )
 
 
-def _task_instance_exists(session, source_table, dag_run, task_instance):
+def _dangling_against_task_instance(session, source_table, dag_run, task_instance):
     """
     Given a source table, we generate a subquery that will return 1 for every row that
     has a valid task instance (and associated dagrun).
@@ -1114,32 +1126,33 @@ def _task_instance_exists(session, source_table, dag_run, task_instance):
     """
     if 'run_id' not in task_instance.c:
         # db is < 2.2.0
-        where_clause = and_(
-            source_table.c.dag_id == task_instance.c.dag_id,
-            source_table.c.task_id == task_instance.c.task_id,
-            source_table.c.execution_date == task_instance.c.execution_date,
+        dr_join_cond = and_(
+            source_table.c.dag_id == dag_run.c.dag_id,
+            source_table.c.execution_date == dag_run.c.execution_date,
         )
-        ti_to_dr_join_cond = and_(
+        ti_join_cond = and_(
             dag_run.c.dag_id == task_instance.c.dag_id,
             dag_run.c.execution_date == task_instance.c.execution_date,
+            source_table.c.task_id == task_instance.c.task_id,
         )
     else:
         # db is 2.2.0 <= version < 2.3.0
-        where_clause = and_(
-            source_table.c.dag_id == task_instance.c.dag_id,
-            source_table.c.task_id == task_instance.c.task_id,
+        dr_join_cond = and_(
+            source_table.c.dag_id == dag_run.c.dag_id,
             source_table.c.execution_date == dag_run.c.execution_date,
         )
-        ti_to_dr_join_cond = and_(
+        ti_join_cond = and_(
             dag_run.c.dag_id == task_instance.c.dag_id,
             dag_run.c.run_id == task_instance.c.run_id,
+            source_table.c.task_id == task_instance.c.task_id,
         )
-    exists_subquery = (
-        session.query(text('1'))
-        .select_from(task_instance.join(dag_run, onclause=ti_to_dr_join_cond))
-        .filter(where_clause)
+
+    return (
+        session.query(*[c.label(c.name) for c in source_table.c])
+        .join(dag_run, dr_join_cond, isouter=True)
+        .join(task_instance, ti_join_cond, isouter=True)
+        .filter(or_(task_instance.c.dag_id.is_(None), dag_run.c.dag_id.is_(None)))
     )
-    return exists_subquery
 
 
 def _move_duplicate_data_to_new_table(
@@ -1207,23 +1220,23 @@ def check_bad_references(session: Session) -> Iterable[str]:
     @dataclass
     class BadReferenceConfig:
         """
-        :param exists_func: function that returns subquery which determines whether bad rows exist
+        :param bad_rows_func: function that returns subquery which determines whether bad rows exist
         :param join_tables: table objects referenced in subquery
         :param ref_table: information-only identifier for categorizing the missing ref
         """
 
-        exists_func: Callable
+        bad_rows_func: Callable
         join_tables: List[str]
         ref_table: str
 
     missing_dag_run_config = BadReferenceConfig(
-        exists_func=_dag_run_exists,
+        bad_rows_func=_dangling_against_dag_run,
         join_tables=['dag_run'],
         ref_table='dag_run',
     )
 
     missing_ti_config = BadReferenceConfig(
-        exists_func=_task_instance_exists,
+        bad_rows_func=_dangling_against_task_instance,
         join_tables=['dag_run', 'task_instance'],
         ref_table='task_instance',
     )
@@ -1238,7 +1251,8 @@ def check_bad_references(session: Session) -> Iterable[str]:
     metadata = reflect_tables([*[x[0] for x in models_list], DagRun, TaskInstance], session)
 
     if (
-        metadata.tables.get(DagRun.__tablename__) is None
+        not metadata.tables
+        or metadata.tables.get(DagRun.__tablename__) is None
         or metadata.tables.get(TaskInstance.__tablename__) is None
     ):
         # Key table doesn't exist -- likely empty DB.
@@ -1251,7 +1265,6 @@ def check_bad_references(session: Session) -> Iterable[str]:
         log.debug("checking model %s", model.__tablename__)
         # We can't use the model here since it may differ from the db state due to
         # this function is run prior to migration. Use the reflected table instead.
-        exists_func_kwargs = {x: metadata.tables[x] for x in bad_ref_cfg.join_tables}
         source_table = metadata.tables.get(model.__tablename__)  # type: ignore
         if source_table is None:
             continue
@@ -1260,13 +1273,12 @@ def check_bad_references(session: Session) -> Iterable[str]:
         if "run_id" in source_table.columns:
             continue
 
-        bad_rows_subquery = bad_ref_cfg.exists_func(session, source_table, **exists_func_kwargs)
-        select_list = [x.label(x.name) for x in source_table.c]
-        invalid_rows_query = session.query(*select_list).filter(~bad_rows_subquery.exists())
+        func_kwargs = {x: metadata.tables[x] for x in bad_ref_cfg.join_tables}
+        bad_rows_query = bad_ref_cfg.bad_rows_func(session, source_table, **func_kwargs)
 
         dangling_table_name = _format_airflow_moved_table_name(source_table.name, change_version, 'dangling')
         if dangling_table_name in existing_table_names:
-            invalid_row_count = invalid_rows_query.count()
+            invalid_row_count = bad_rows_query.count()
             if invalid_row_count <= 0:
                 continue
             else:
@@ -1283,8 +1295,7 @@ def check_bad_references(session: Session) -> Iterable[str]:
         _move_dangling_data_to_new_table(
             session,
             source_table,
-            invalid_rows_query,
-            bad_rows_subquery,
+            bad_rows_query,
             dangling_table_name,
         )
 
@@ -1497,16 +1508,6 @@ def downgrade(*, to_revision, from_revision=None, show_sql_only=False, session: 
     log.info("Attempting downgrade to revision %s", to_revision)
     config = _get_alembic_config()
 
-    errors_seen = False
-    for err in _check_migration_errors(session=session):
-        if not errors_seen:
-            log.error("Automatic migration failed.  You may need to apply downgrades manually.  ")
-            errors_seen = True
-        log.error("%s", err)
-
-    if errors_seen:
-        exit(1)
-
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         if show_sql_only:
             log.warning("Generating sql scripts for manual migration.")
@@ -1607,7 +1608,11 @@ class DBLocks(enum.IntEnum):
 
 
 @contextlib.contextmanager
-def create_global_lock(session: Session, lock: DBLocks, lock_timeout=1800):
+def create_global_lock(
+    session: Session,
+    lock: DBLocks,
+    lock_timeout: int = 1800,
+) -> Generator[None, None, None]:
     """Contextmanager that will create and teardown a global db lock."""
     conn = session.get_bind().connect()
     dialect = conn.dialect

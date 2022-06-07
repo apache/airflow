@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/microsoft/mssql/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/microsoft/mssql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-mssql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +59,7 @@ Package apache-airflow-providers-microsoft-mssql
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 
-Release: 2.1.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -79,7 +79,7 @@ PIP requirements
 ==================  ==========================================
 PIP package         Version required
 ==================  ==========================================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``pymssql``         ``>=2.1.5; platform_machine != "aarch64"``
 ==================  ==========================================
 

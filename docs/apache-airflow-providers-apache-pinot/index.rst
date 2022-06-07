@@ -45,7 +45,7 @@ Package apache-airflow-providers-apache-pinot
 `Apache Pinot <https://pinot.apache.org/>`__
 
 
-Release: 2.0.4
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -65,7 +65,7 @@ PIP requirements
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``pinotdb``         ``>0.1.2``
 ==================  ==================
 
