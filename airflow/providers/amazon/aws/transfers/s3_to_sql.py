@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union, TYPE_CHECKING
 
 import numpy
 import pandas
@@ -25,7 +25,9 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.utils.context import Context
+from airflow.providers.amazon.aws.utils.s3 import fix_int_dtypes
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToSqlOperator(BaseOperator):
@@ -33,6 +35,9 @@ class S3ToSqlOperator(BaseOperator):
 
     Moves data from s3 to sql.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToSqlOperator `
     :param s3_key: path to s3 file
     :param destination_table: target table on sql
     :param file_format: input file format. CSV, JSON or Parquet
@@ -75,19 +80,7 @@ class S3ToSqlOperator(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
 
-    @staticmethod
-    def fix_int_dtypes(df: pandas.DataFrame) -> None:
-        for col in df:
-            if "float" in df[col].dtype.name and df[col].hasnans:
-                notna_series = df[col].dropna().values
-                if numpy.equal(notna_series, notna_series.astype(int)).all():
-                    df[col] = numpy.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype('Int64')
-                elif numpy.isclose(notna_series, notna_series.astype(int)).all():
-                    df[col] = numpy.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype('float64')
-
-    def execute(self, context: Context):
+    def execute(self, context: "Context"):
         source_hook = S3Hook(aws_conn_id=self.source_conn_id)
         destination_hook = BaseHook.get_hook(self.destination_conn_id)
 
@@ -110,6 +103,6 @@ class S3ToSqlOperator(BaseOperator):
             self.log.info("Running pre-operator")
             self.log.info(self.preoperator)
             run(self.preoperator)
-        self.fix_int_dtypes(df)
+        fix_int_dtypes(df)
         self.log.info("Inserting rows into %s", self.destination_conn_id)
         df.to_sql(self.destination_table, destination_hook.get_conn(), **self.insert_args)

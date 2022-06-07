@@ -37,7 +37,7 @@ Operators
 Amazon S3 to SQL transfer operator
 ====================================
 
-This example loads data from an Amazon S3 file to a MySQL server.
+This example loads data from an Amazon S3 file to a SQL server.
 
 To get more information about this operator visit:
 :class:`~airflow.providers.amazon.aws.transfers.s3_to_sql.S3ToSqlOperator`
