@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -16,17 +15,24 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Sync permission command"""
+import click
+from rich import print
 
 from airflow.cli import airflow_cmd
-from airflow.cli.commands import celery  # noqa: F401
-from airflow.cli.commands import cheat_sheet  # noqa: F401
-from airflow.cli.commands import db  # noqa: F401
-from airflow.cli.commands import info  # noqa: F401
-from airflow.cli.commands import scheduler  # noqa: F401
-from airflow.cli.commands import standalone  # noqa: F401
-from airflow.cli.commands import sync_perm  # noqa: F401
-from airflow.cli.commands import triggerer  # noqa: F401
-from airflow.cli.commands import webserver  # noqa: F401
 
-if __name__ == '__main__':
-    airflow_cmd(obj={})
+
+@airflow_cmd.command("sync-perm")
+@click.option("--include-dags", is_flag=True, help="If passed, DAG specific permissions will also be synced.")
+def sync_perm(include_dags):
+    """Update permissions for existing roles and optionally DAGs"""
+    from airflow.www.app import cached_app
+
+    appbuilder = cached_app().appbuilder
+    print('Updating actions and resources for all existing roles')
+    # Add missing permissions for all the Base Views _before_ syncing/creating roles
+    appbuilder.add_permissions(update_perms=True)
+    appbuilder.sm.sync_roles()
+    if include_dags:
+        print('Updating permission on all DAG views')
+        appbuilder.sm.create_dag_specific_permissions()
