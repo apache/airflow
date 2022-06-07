@@ -341,7 +341,7 @@ ply==3.11
 plyvel==1.4.0
 portalocker==2.4.0
 pre-commit==2.19.0
-presto-python-client==0.7.0
+presto-python-client==0.8.2
 prison==0.2.1
 prometheus-client==0.14.1
 prompt-toolkit==3.0.29
