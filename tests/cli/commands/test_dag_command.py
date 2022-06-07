@@ -199,18 +199,9 @@ class TestCliDags(unittest.TestCase):
             f"Dry run of DAG example_branch_python_operator_decorator on "
             f"{DEFAULT_DATE.isoformat()}\n" in output
         )
-        assert (
-            "Task run_this_first located in DAG "
-            "example_branch_python_operator_decorator\n" in output
-        )
-        assert (
-            f"Dry run of DAG example_branch_operator on "
-            f"{DEFAULT_DATE.isoformat()}\n" in output
-        )
-        assert (
-            "Task run_this_first located in DAG "
-            "example_branch_operator\n" in output
-        )
+        assert "Task run_this_first located in DAG example_branch_python_operator_decorator\n" in output
+        assert f"Dry run of DAG example_branch_operator on {DEFAULT_DATE.isoformat()}\n" in output
+        assert "Task run_this_first located in DAG example_branch_operator\n" in output
 
     @mock.patch("airflow.cli.commands.dag_command.get_dag")
     def test_backfill_fails_without_loading_dags(self, mock_get_dag):
