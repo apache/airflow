@@ -151,7 +151,7 @@ class AppflowBaseOperator(BaseOperator):
         response = self.hook.conn.describe_flow(flowName=self.name)
 
         # Wait Appflow eventual consistence
-        self.log.info("Waiting Appflow eventual consistence...")
+        self.log.info("Waiting for Appflow eventual consistence...")
         while (
             response.get("lastRunExecutionDetails", {}).get(
                 "mostRecentExecutionTime", datetime(1970, 1, 1, tzinfo=timezone.utc)
