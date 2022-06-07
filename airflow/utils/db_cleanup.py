@@ -296,10 +296,14 @@ def _print_config(*, configs: Dict[str, _TableConfig]):
     AirflowConsole().print_as_table(data=data)
 
 
-class _warn_if_missing(AbstractContextManager):
-    def __init__(self, table, suppress):
+class _suppress_with_logging(AbstractContextManager):
+    """
+    Suppresses errors but logs them.
+    Also stores the exception instance so it can be referred to after exiting context.
+    """
+
+    def __init__(self, table):
         self.table = table
-        self.suppress = suppress
         self.excinst = None
 
     def __enter__(self):
@@ -307,8 +311,9 @@ class _warn_if_missing(AbstractContextManager):
 
     def __exit__(self, exctype, excinst, exctb):
         caught_error = exctype is not None and issubclass(exctype, (OperationalError, ProgrammingError))
-        if caught_error and self.table in getattr(excinst, 'message', ''):
-            logger.warning("Table %s not found.  Skipping. %s", self.table, excinst)
+        if caught_error:
+            logger.warning("Encountered error when attempting to clean table '%s'. ", self.table)
+            logger.debug("Traceback for table '%s'", self.table, exc_info=True)
             self.excinst = excinst
         return caught_error
 
@@ -355,8 +360,12 @@ def run_cleanup(
         _print_config(configs=effective_config_dict)
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
+    existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
-        with _warn_if_missing(table_name, table_config.warn_if_missing) as suppress_ctx:
+        if table_name not in existing_tables:
+            logger.warning("Table %s not found.  Skipping.", table_name)
+            continue
+        with _suppress_with_logging(table_name) as suppress_ctx:
             _cleanup_table(
                 clean_before_timestamp=clean_before_timestamp,
                 dry_run=dry_run,
@@ -367,4 +376,5 @@ def run_cleanup(
             )
             session.commit()
         if suppress_ctx.excinst is not None:
+            logger.debug('Rolling back transaction')
             session.rollback()

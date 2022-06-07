@@ -879,7 +879,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
-def reflect_tables(tables: List[Union[Base, str]], session):
+def reflect_tables(tables: Optional[List[Union[Base, str]]], session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
     database.
