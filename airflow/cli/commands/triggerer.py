@@ -30,6 +30,7 @@ from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, si
 
 
 @airflow_cmd.command('triggerer')
+@click.pass_context
 @click.option(
     "--capacity",
     type=click.IntRange(min=1),
@@ -40,7 +41,7 @@ from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, si
 @click_pid
 @click_stderr
 @click_stdout
-@cli_utils.action_cli
+@cli_utils.action_cli(check_cli_args=False)
 def triggerer(ctx, capacity, daemon_, log_file, pid, stderr, stdout):
     """Starts Airflow Triggerer"""
     from airflow.jobs.triggerer_job import TriggererJob
