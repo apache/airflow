@@ -85,9 +85,6 @@ def log_app(backup_modules):
     logging_config['handlers']['task']['base_log_folder'] = str(
         pathlib.Path(__file__, "..", "..", "test_logs").resolve(),
     )
-    logging_config['handlers']['task'][
-        'filename_template'
-    ] = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
 
     with tempfile.TemporaryDirectory() as settings_dir:
         local_settings = pathlib.Path(settings_dir, "airflow_local_settings.py")

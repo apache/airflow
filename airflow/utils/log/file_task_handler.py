@@ -18,6 +18,7 @@
 """File logging handler for tasks."""
 import logging
 import os
+import warnings
 from datetime import datetime
 from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Tuple
@@ -27,6 +28,7 @@ from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
+from airflow.utils.session import create_session
 
 if TYPE_CHECKING:
     from airflow.models import TaskInstance
@@ -43,11 +45,15 @@ class FileTaskHandler(logging.Handler):
     :param filename_template: template filename string
     """
 
-    def __init__(self, base_log_folder: str, filename_template: str):
+    def __init__(self, base_log_folder: str, filename_template: Optional[str] = None):
         super().__init__()
         self.handler: Optional[logging.FileHandler] = None
         self.local_base = base_log_folder
-        self.filename_template, self.filename_jinja_template = parse_template_string(filename_template)
+        if filename_template is not None:
+            warnings.warn(
+                "Passing filename_template to FileTaskHandler is deprecated and has no effect",
+                DeprecationWarning,
+            )
 
     def set_context(self, ti: "TaskInstance"):
         """
@@ -74,15 +80,19 @@ class FileTaskHandler(logging.Handler):
             self.handler.close()
 
     def _render_filename(self, ti: "TaskInstance", try_number: int) -> str:
-        if self.filename_jinja_template:
+        with create_session() as session:
+            dag_run = ti.get_dagrun(session=session)
+            template = dag_run.get_log_template(session=session).filename
+        str_tpl, jinja_tpl = parse_template_string(template)
+
+        if jinja_tpl:
             if hasattr(ti, "task"):
                 context = ti.get_template_context()
             else:
-                context = Context(ti=ti, ts=ti.get_dagrun().logical_date.isoformat())
+                context = Context(ti=ti, ts=dag_run.logical_date.isoformat())
             context["try_number"] = try_number
-            return render_template_to_string(self.filename_jinja_template, context)
-        elif self.filename_template:
-            dag_run = ti.get_dagrun()
+            return render_template_to_string(jinja_tpl, context)
+        elif str_tpl:
             dag = ti.task.dag
             assert dag is not None  # For Mypy.
             try:
@@ -97,7 +107,7 @@ class FileTaskHandler(logging.Handler):
                 data_interval_end = data_interval[1].isoformat()
             else:
                 data_interval_end = ""
-            return self.filename_template.format(
+            return str_tpl.format(
                 dag_id=ti.dag_id,
                 task_id=ti.task_id,
                 run_id=ti.run_id,

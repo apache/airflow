@@ -17,7 +17,6 @@
 # under the License.
 
 import os
-import unittest
 from unittest import mock
 from unittest.mock import ANY
 
@@ -28,6 +27,7 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler
+from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.timezone import datetime
 from tests.test_utils.config import conf_vars
@@ -40,32 +40,39 @@ except ImportError:
     mock_s3 = None
 
 
-@unittest.skipIf(mock_s3 is None, "Skipping test because moto.mock_s3 is not available")
-@mock_s3
-class TestS3TaskHandler(unittest.TestCase):
+@pytest.fixture(autouse=True, scope="module")
+def s3mock():
+    with mock_s3():
+        yield
+
+
+@pytest.mark.skipif(mock_s3 is None, reason="Skipping test because moto.mock_s3 is not available")
+class TestS3TaskHandler:
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
-    def setUp(self):
-        super().setUp()
+    @pytest.fixture(autouse=True)
+    def setup(self, create_log_template):
         self.remote_log_base = 's3://bucket/remote/log/location'
         self.remote_log_location = 's3://bucket/remote/log/location/1.log'
         self.remote_log_key = 'remote/log/location/1.log'
         self.local_log_location = 'local/log/location'
-        self.filename_template = '{try_number}.log'
-        self.s3_task_handler = S3TaskHandler(
-            self.local_log_location, self.remote_log_base, self.filename_template
-        )
+        create_log_template('{try_number}.log')
+        self.s3_task_handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
         # Vivfy the hook now with the config override
         assert self.s3_task_handler.hook is not None
 
         date = datetime(2016, 1, 1)
         self.dag = DAG('dag_for_testing_s3_task_handler', start_date=date)
         task = EmptyOperator(task_id='task_for_testing_s3_log_handler', dag=self.dag)
-        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test")
-        self.ti = TaskInstance(task=task)
+        dag_run = DagRun(dag_id=self.dag.dag_id, execution_date=date, run_id="test", run_type="manual")
+        with create_session() as session:
+            session.add(dag_run)
+            session.commit()
+            session.refresh(dag_run)
+
+        self.ti = TaskInstance(task=task, run_id=dag_run.run_id)
         self.ti.dag_run = dag_run
         self.ti.try_number = 1
         self.ti.state = State.RUNNING
-        self.addCleanup(self.dag.clear)
 
         self.conn = boto3.client('s3')
         # We need to create the bucket since this is all in Moto's 'virtual'
@@ -73,7 +80,13 @@ class TestS3TaskHandler(unittest.TestCase):
         moto.moto_api._internal.models.moto_api_backend.reset()
         self.conn.create_bucket(Bucket="bucket")
 
-    def tearDown(self):
+        yield
+
+        self.dag.clear()
+
+        with create_session() as session:
+            session.query(DagRun).delete()
+
         if self.s3_task_handler.handler:
             try:
                 os.remove(self.s3_task_handler.handler.baseFilename)
@@ -86,7 +99,7 @@ class TestS3TaskHandler(unittest.TestCase):
 
     @conf_vars({('logging', 'remote_log_conn_id'): 'aws_default'})
     def test_hook_raises(self):
-        handler = S3TaskHandler(self.local_log_location, self.remote_log_base, self.filename_template)
+        handler = S3TaskHandler(self.local_log_location, self.remote_log_base)
         with mock.patch.object(handler.log, 'error') as mock_error:
             with mock.patch("airflow.providers.amazon.aws.hooks.s3.S3Hook") as mock_hook:
                 mock_hook.side_effect = Exception('Failed to connect')
