@@ -162,7 +162,7 @@ class AppflowBaseOperator(BaseOperator):
             response = self.hook.conn.describe_flow(flowName=self.name)
 
         # Wait flow stops
-        self.log.info("Waiting flow run...")
+        self.log.info("Waiting for flow run...")
         while (
             "mostRecentExecutionStatus" not in response["lastRunExecutionDetails"]
             or response["lastRunExecutionDetails"]["mostRecentExecutionStatus"] == "InProgress"
