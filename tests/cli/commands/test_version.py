@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,17 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow.cli import airflow_cmd
-from airflow.cli.commands import celery  # noqa: F401
-from airflow.cli.commands import cheat_sheet  # noqa: F401
-from airflow.cli.commands import db  # noqa: F401
-from airflow.cli.commands import info  # noqa: F401
-from airflow.cli.commands import scheduler  # noqa: F401
-from airflow.cli.commands import standalone  # noqa: F401
-from airflow.cli.commands import sync_perm  # noqa: F401
-from airflow.cli.commands import triggerer  # noqa: F401
-from airflow.cli.commands import version  # noqa: F401
-from airflow.cli.commands import webserver  # noqa: F401
+import unittest
 
-if __name__ == '__main__':
-    airflow_cmd(obj={})
+from click.testing import CliRunner
+
+import airflow
+from airflow.cli.commands.version import version
+
+
+class TestCliVersion(unittest.TestCase):
+    def test_cli_version(self):
+        runner = CliRunner()
+        response = runner.invoke(version)
+
+        assert response.exit_code == 0
+        assert airflow.__version__ in response.output
