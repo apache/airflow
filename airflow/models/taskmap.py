@@ -20,7 +20,7 @@
 
 import collections.abc
 import enum
-from typing import TYPE_CHECKING, Any, Collection, List, Optional
+from typing import TYPE_CHECKING, Any, Collection, List, Optional, Tuple
 
 from sqlalchemy import CheckConstraint, Column, ForeignKeyConstraint, Integer, String
 
@@ -42,6 +42,17 @@ class TaskMapVariant(enum.Enum):
     LIST = "list"
 
 
+def _calculate_zip_lengths(value: Collection) -> Tuple[Optional[int], Optional[int]]:
+    if not isinstance(value, collections.abc.Mapping):
+        return None, None
+    if not value:
+        return None, None
+    if not all(isinstance(k, str) and isinstance(v, collections.abc.Collection) for k, v in value.items()):
+        return None, None
+    lengths = sorted(len(v) for v in value.values())
+    return lengths[0], lengths[-1]
+
+
 class TaskMap(Base):
     """Model to track dynamic task-mapping information.
 
@@ -58,7 +69,14 @@ class TaskMap(Base):
     map_index = Column(Integer, primary_key=True)
 
     length = Column(Integer, nullable=False)
-    keys = Column(ExtendedJSON, nullable=True)
+    keys = Column(ExtendedJSON, nullable=True)  # Set if the value is a dict.
+
+    # Extra metadata for expand_kwargs(). This requires a "kwargs-expandable"
+    # value, i.e. a dict[str, Collection[Any]]. zip_length is the shortest
+    # length of all values, while zip_longest_length is the longest. Both fields
+    # are NULL if the XCom value is not kwargs-expandable.
+    zip_length = Column(Integer, nullable=True)
+    zip_longest_length = Column(Integer, nullable=True)
 
     __table_args__ = (
         CheckConstraint(length >= 0, name="task_map_length_not_negative"),
@@ -77,12 +95,15 @@ class TaskMap(Base):
 
     def __init__(
         self,
+        *,
         dag_id: str,
         task_id: str,
         run_id: str,
         map_index: int,
         length: int,
         keys: Optional[List[Any]],
+        zip_length: Optional[int],
+        zip_longest_length: Optional[int],
     ) -> None:
         self.dag_id = dag_id
         self.task_id = task_id
@@ -90,11 +111,14 @@ class TaskMap(Base):
         self.map_index = map_index
         self.length = length
         self.keys = keys
+        self.zip_length = zip_length
+        self.zip_longest_length = zip_longest_length
 
     @classmethod
     def from_task_instance_xcom(cls, ti: "TaskInstance", value: Collection) -> "TaskMap":
         if ti.run_id is None:
             raise ValueError("cannot record task map for unrun task instance")
+        zip_length, zip_longest_length = _calculate_zip_lengths(value)
         return cls(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
@@ -102,6 +126,8 @@ class TaskMap(Base):
             map_index=ti.map_index,
             length=len(value),
             keys=(list(value) if isinstance(value, collections.abc.Mapping) else None),
+            zip_length=zip_length,
+            zip_longest_length=zip_longest_length,
         )
 
     @property

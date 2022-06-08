@@ -36,6 +36,8 @@ def expand_mapped_task(
             map_index=-1,
             length=length,
             keys=None,
+            zip_length=None,
+            zip_longest_length=None,
         )
     )
     session.flush()

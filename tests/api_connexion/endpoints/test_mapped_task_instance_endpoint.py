@@ -103,6 +103,8 @@ class TestMappedTaskInstanceEndpoint:
                     map_index=-1,
                     length=count,
                     keys=None,
+                    zip_length=None,
+                    zip_longest_length=None,
                 )
             )
 

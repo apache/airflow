@@ -161,6 +161,8 @@ def test_expand_mapped_task_instance(dag_maker, session, num_existing_tis, expec
             map_index=-1,
             length=len(literal),
             keys=None,
+            zip_length=None,
+            zip_longest_length=None,
         )
     )
 
@@ -264,6 +266,8 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
             map_index=-1,
             length=1,
             keys=None,
+            zip_length=None,
+            zip_longest_length=None,
         )
     )
     session.flush()

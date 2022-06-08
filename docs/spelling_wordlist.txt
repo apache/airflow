@@ -398,6 +398,7 @@ TaskGroup
 TaskGroups
 TaskInstance
 TaskInstanceKey
+TaskMap
 Taskfail
 Templated
 Templating

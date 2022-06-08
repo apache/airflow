@@ -727,6 +727,8 @@ def test_mapped_render_template_fields(dag_maker, session):
             map_index=-1,
             length=1,
             keys=None,
+            zip_length=None,
+            zip_longest_length=None,
         )
     )
     session.flush()
