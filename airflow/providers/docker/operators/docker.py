@@ -19,6 +19,7 @@
 import ast
 import io
 import pickle
+import warnings
 import tarfile
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
@@ -189,6 +190,11 @@ class DockerOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.api_version = api_version
+        if type(auto_remove) == bool:
+            warnings.warn(
+                "bool value is deprecated, please use 'never', 'success', or 'force' instead",
+                DeprecationWarning, stacklevel=2
+            )
         if str(auto_remove) == "False":
             self.auto_remove = "never"
         elif str(auto_remove) == "True":
