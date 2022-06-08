@@ -31,8 +31,7 @@ const Time: React.FC<Props> = ({ dateTime, format = defaultFormatWithTZ }) => {
   const { timezone } = useTimezone();
   const time = moment(dateTime);
 
-  // eslint-disable-next-line no-underscore-dangle
-  if (!dateTime || !time.isValid) return null;
+  if (!dateTime || !time.isValid()) return null;
 
   const formattedTime = time.tz(timezone).format(format);
   const utcTime = time.tz('UTC').format(defaultFormatWithTZ);
