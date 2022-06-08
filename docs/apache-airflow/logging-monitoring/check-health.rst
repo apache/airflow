@@ -32,8 +32,8 @@ For an example for a Docker Compose environment, see the ``docker-compose.yaml``
 
 .. _check-health/http-endpoint:
 
-Health Check Endpoint
----------------------
+Webserver Health Check Endpoint
+-------------------------------
 
 To check the health status of your Airflow instance, you can simply access the endpoint
 ``/health``. It will return a JSON object in which a high-level glance is provided.
@@ -77,7 +77,7 @@ Served by the web server, this health check endpoint is independent of the newer
 .. _check-health/scheduler-health-check-server:
 
 Scheduler Health Check Server
--------------------------
+-----------------------------
 
 In order to check scheduler health independent of the web server, Airflow optionally starts a small HTTP server
 in each scheduler to serve a scheduler ``\health`` endpoint. It returns status code ``200`` when the scheduler
