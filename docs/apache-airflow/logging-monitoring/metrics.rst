@@ -91,7 +91,6 @@ Name                                        Description
 ``previously_succeeded``                    Number of previously succeeded task instances
 ``zombies_killed``                          Zombie tasks killed
 ``scheduler_heartbeat``                     Scheduler heartbeats
-``dag_processing.processes``                Number of currently running DAG parsing processes
 ``dag_processing.processor_timeouts``       Number of file processors that have been killed due to taking too long
 ``dag_processing.manager_stalls``           Number of stalled ``DagFileProcessorManager``
 ``dag_file_refresh_error``                  Number of failures loading any DAG files
@@ -128,6 +127,7 @@ Name                                                Description
 ``dagbag_size``                                     Number of DAGs found when the scheduler ran a scan based on it's
                                                     configuration
 ``dag_processing.import_errors``                    Number of errors from trying to parse DAG files
+``dag_processing.processes``                        Number of currently running DAG parsing processes
 ``dag_processing.total_parse_time``                 Seconds taken to scan and import all DAG files once
 ``dag_processing.last_run.seconds_ago.<dag_file>``  Seconds since ``<dag_file>`` was last processed
 ``scheduler.tasks.running``                         Number of tasks running in executor
