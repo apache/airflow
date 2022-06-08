@@ -28,7 +28,6 @@
     "target": "esnext",
     "module": "esnext",
     "moduleResolution": "node",
-    "noEmit": true,
     "isolatedModules": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,

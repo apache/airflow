@@ -24,7 +24,7 @@ import { defaultFormatWithTZ } from '../../datetime_utils';
 
 interface Props {
   dateTime: string;
-  format: string;
+  format?: string;
 }
 
 const Time: React.FC<Props> = ({ dateTime, format = defaultFormatWithTZ }) => {
