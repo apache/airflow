@@ -344,7 +344,7 @@ class TestCLIDBClean:
 
     @pytest.mark.parametrize('extra_arg, expected', [(['--skip-archive'], True), ([], False)])
     @patch('airflow.cli.commands.db_command.run_cleanup')
-    def test_confirm(self, run_cleanup_mock, extra_arg, expected):
+    def test_skip_archive(self, run_cleanup_mock, extra_arg, expected):
         """
         When ``--skip-archive`` provided, ``skip_archive`` should be True (False otherwise).
         """

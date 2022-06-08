@@ -28,7 +28,9 @@ from typing import Any, Dict, List, Optional
 from pendulum import DateTime
 from sqlalchemy import and_, column, false, func, table, text
 from sqlalchemy.exc import OperationalError, ProgrammingError
+from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.orm import Query, Session, aliased
+from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.models import Base
@@ -58,7 +60,7 @@ class _TableConfig:
 
     table_name: str
     recency_column_name: str
-    extra_columns: List[str] = None
+    extra_columns: Optional[List[str]] = None
     keep_last: bool = False
     keep_last_filters: Optional[Any] = None
     keep_last_group_by: Optional[Any] = None
@@ -181,10 +183,6 @@ def _subquery_keep_last(*, recency_column, keep_last_filters, group_by_columns, 
     return subquery.subquery(name='latest')
 
 
-from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.sql.expression import ClauseElement, Executable, tuple_
-
-
 class CreateTableAs(Executable, ClauseElement):
     """Custom sqlalchemy clause element for CTAS operations."""
 
@@ -194,12 +192,12 @@ class CreateTableAs(Executable, ClauseElement):
 
 
 @compiles(CreateTableAs)
-def _compile_create_table_as(element, compiler, **kw):
+def _compile_create_table_as__other(element, compiler, **kw):
     return f"CREATE TABLE {element.name} AS {compiler.process(element.query)}"
 
 
 @compiles(CreateTableAs, 'mssql')
-def _compile_create_table_as(element, compiler, **kw):
+def _compile_create_table_as__mssql(element, compiler, **kw):
     return f"WITH cte AS ( {compiler.process(element.query)} ) SELECT * INTO {element.name} FROM cte"
 
 
