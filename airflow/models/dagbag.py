@@ -39,6 +39,7 @@ from airflow.exceptions import (
     AirflowClusterPolicyViolation,
     AirflowDagCycleException,
     AirflowDagDuplicatedIdException,
+    AirflowDagInconsistent,
     AirflowTimetableInvalid,
     ParamValidationError,
 )
@@ -402,25 +403,25 @@ class DagBag(LoggingMixin):
         for (dag, mod) in top_level_dags:
             dag.fileloc = mod.__file__
             try:
-                dag.timetable.validate()
-                # validate dag params
-                dag.params.validate()
+                dag.validate()
                 self.bag_dag(dag=dag, root_dag=dag)
-                found_dags.append(dag)
-                found_dags += dag.subdags
             except AirflowTimetableInvalid as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = f"Invalid timetable expression: {exception}"
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
             except (
+                AirflowClusterPolicyViolation,
                 AirflowDagCycleException,
                 AirflowDagDuplicatedIdException,
-                AirflowClusterPolicyViolation,
+                AirflowDagInconsistent,
                 ParamValidationError,
             ) as exception:
                 self.log.exception("Failed to bag_dag: %s", dag.fileloc)
                 self.import_errors[dag.fileloc] = str(exception)
                 self.file_last_changed[dag.fileloc] = file_last_changed_on_disk
+            else:
+                found_dags.append(dag)
+                found_dags += dag.subdags
         return found_dags
 
     def bag_dag(self, dag, root_dag):
