@@ -39,7 +39,7 @@ from os.path import dirname, relpath
 from pathlib import Path
 from random import choice
 from shutil import copyfile
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
 
 import jsonschema
 import rich_click as click
@@ -196,7 +196,7 @@ argument_package_ids = click.argument('package_ids', nargs=-1)
 
 
 @contextmanager
-def with_group(title):
+def with_group(title: str) -> Generator[None, None, None]:
     """
     If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, display simple text groups.

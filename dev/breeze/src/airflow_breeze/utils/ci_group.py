@@ -37,6 +37,6 @@ def ci_group(title: str, enabled: bool = True):
         get_console().print(f"[info]{title}[/]")
         yield
         return
-    get_console().print(f"::group::<EXPAND>: [info]{title}[/]")
+    get_console().print(f"::group::<CLICK_TO_EXPAND>: [info]{title}[/]")
     yield
     get_console().print("::endgroup::")

@@ -20,6 +20,7 @@ import datetime
 import unittest
 
 import freezegun
+import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG, DagRun, TaskInstance as TI
@@ -225,10 +226,10 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                 )
 
     @freezegun.freeze_time("2020-12-01 09:00:00")
-    def test_branch_datetime_operator_use_task_execution_date(self):
+    def test_branch_datetime_operator_use_task_logical_date(self):
         """Check if BranchDateTimeOperator uses task execution date"""
         in_between_date = timezone.datetime(2020, 7, 7, 10, 30, 0)
-        self.branch_op.use_task_execution_date = True
+        self.branch_op.use_task_logical_date = True
         self.dr = self.dag.create_dagrun(
             run_id='manual_exec_date__',
             start_date=in_between_date,
@@ -249,3 +250,19 @@ class TestBranchDateTimeOperator(unittest.TestCase):
                         'branch_2': State.SKIPPED,
                     }
                 )
+
+    def test_deprecation_warning(self):
+        warning_message = (
+            """Parameter ``use_task_execution_date`` is deprecated. Use ``use_task_logical_date``."""
+        )
+        with pytest.warns(DeprecationWarning) as warnings:
+            BranchDateTimeOperator(
+                task_id='warning',
+                follow_task_ids_if_true='branch_1',
+                follow_task_ids_if_false='branch_2',
+                target_upper=timezone.datetime(2020, 7, 7, 10, 30, 0),
+                target_lower=timezone.datetime(2020, 7, 7, 10, 30, 0),
+                use_task_execution_date=True,
+                dag=self.dag,
+            )
+        assert warning_message == str(warnings[0].message)

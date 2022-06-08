@@ -134,7 +134,7 @@ class ExasolHook(DbApiHook):
 
     def run(
         self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None, handler=None
-    ) -> None:
+    ) -> Optional[list]:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -150,6 +150,11 @@ class ExasolHook(DbApiHook):
         if isinstance(sql, str):
             sql = [sql]
 
+        if sql:
+            self.log.debug("Executing %d statements against Exasol DB", len(sql))
+        else:
+            raise ValueError("List of SQL statements is empty")
+
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, autocommit)
@@ -157,11 +162,22 @@ class ExasolHook(DbApiHook):
             for query in sql:
                 self.log.info(query)
                 with closing(conn.execute(query, parameters)) as cur:
+                    results = []
+
+                    if handler is not None:
+                        cur = handler(cur)
+
+                    for row in cur:
+                        self.log.info("Statement execution info - %s", row)
+                        results.append(row)
+
                     self.log.info(cur.row_count)
             # If autocommit was set to False for db that supports autocommit,
-            # or if db does not supports autocommit, we do a manual commit.
+            # or if db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
+
+        return results
 
     def set_autocommit(self, conn, autocommit: bool) -> None:
         """

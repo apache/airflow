@@ -17,6 +17,7 @@
 
 .. image:: /img/helm-logo.svg
     :width: 100
+    :class: no-scaled-link
 
 Helm Chart for Apache Airflow
 =============================

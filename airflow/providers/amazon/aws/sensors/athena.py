@@ -37,7 +37,7 @@ class AthenaSensor(BaseSensorOperator):
     If the query fails, the task will fail.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:AthenaSensor`
 
 

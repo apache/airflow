@@ -22,6 +22,7 @@ description: |
   `PostgreSQL <https://www.postgresql.org/>`__
 
 versions:
+  - 5.0.0
   - 4.1.0
   - 4.0.1
   - 4.0.0
@@ -36,7 +37,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: PostgreSQL

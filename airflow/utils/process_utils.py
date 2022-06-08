@@ -34,7 +34,7 @@ if not IS_WINDOWS:
     import pty
 
 from contextlib import contextmanager
-from typing import Dict, List, Optional
+from typing import Dict, Generator, List, Optional
 
 import psutil
 from lockfile.pidlockfile import PIDLockFile
@@ -268,7 +268,7 @@ def kill_child_processes_by_pids(pids_to_kill: List[int], timeout: int = 5) -> N
 
 
 @contextmanager
-def patch_environ(new_env_variables: Dict[str, str]):
+def patch_environ(new_env_variables: Dict[str, str]) -> Generator[None, None, None]:
     """
     Sets environment variables in context. After leaving the context, it restores its original state.
 
@@ -311,3 +311,17 @@ def check_if_pidfile_process_is_running(pid_file: str, process_name: str):
         except psutil.NoSuchProcess:
             # If process is dead remove the pidfile
             pid_lock_file.break_lock()
+
+
+def set_new_process_group() -> None:
+    """
+    Tries to set current process to a new process group
+    That makes it easy to kill all sub-process of this at the OS-level,
+    rather than having to iterate the child processes.
+    If current process spawn by system call ``exec()`` than keep current process group
+    """
+    if os.getpid() == os.getsid(0):
+        # If PID = SID than process a session leader, and it is not possible to change process group
+        return
+
+    os.setpgid(0, 0)

@@ -24,25 +24,28 @@ import {
   Box,
   Flex,
   useDisclosure,
-  Button,
   Divider,
+  Spinner,
 } from '@chakra-ui/react';
+import { isEmpty } from 'lodash';
 
 import Details from './details';
 import useSelection from './utils/useSelection';
 import Grid from './Grid';
 import FilterBar from './FilterBar';
 import LegendRow from './LegendRow';
+import { useGridData } from './api';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
 const Main = () => {
+  const { data: { groups }, isLoading } = useGridData();
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
   const [hoveredTaskState, setHoveredTaskState] = useState();
 
-  const toggleDetailsPanel = () => {
+  const onPanelToggle = () => {
     if (!isOpen) {
       localStorage.setItem(detailsPanelKey, false);
     } else {
@@ -57,22 +60,21 @@ const Main = () => {
       <FilterBar />
       <LegendRow setHoveredTaskState={setHoveredTaskState} />
       <Divider mb={5} borderBottomWidth={2} />
-      <Flex flexDirection="row" justifyContent="space-between">
-        <Grid isPanelOpen={isOpen} hoveredTaskState={hoveredTaskState} />
-        <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
-          <Button
-            position="absolute"
-            top={0}
-            right={0}
-            onClick={toggleDetailsPanel}
-            aria-label={isOpen ? 'Show Details' : 'Hide Details'}
-            variant={isOpen ? 'solid' : 'outline'}
-          >
-            {isOpen ? 'Hide ' : 'Show '}
-            Details Panel
-          </Button>
-          {isOpen && (<Details />)}
-        </Box>
+      <Flex justifyContent="space-between">
+        {isLoading || isEmpty(groups)
+          ? (<Spinner />)
+          : (
+            <>
+              <Grid
+                isPanelOpen={isOpen}
+                onPanelToggle={onPanelToggle}
+                hoveredTaskState={hoveredTaskState}
+              />
+              <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
+                {isOpen && (<Details />)}
+              </Box>
+            </>
+          )}
       </Flex>
     </Box>
   );

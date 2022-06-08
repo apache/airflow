@@ -30,7 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import mssql
 
-from airflow.migrations.db_types import MSSQL_USE_DATE_TIME2, TIMESTAMP
+from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
 revision = '83f031fd9f1c'
@@ -135,21 +135,12 @@ def recreate_mssql_ts_column(conn, op, table_name, column_name):
 
 def alter_mssql_datetime_column(conn, op, table_name, column_name, nullable):
     """Update the datetime column to datetime2(6)"""
-    if MSSQL_USE_DATE_TIME2:
-        op.alter_column(
-            table_name=table_name,
-            column_name=column_name,
-            type_=mssql.DATETIME2(precision=6),
-            nullable=nullable,
-        )
-
-
-def alter_mssql_datetime2_column(conn, op, table_name, column_name, nullable):
-    """Update the datetime2(6) column to datetime"""
-    if MSSQL_USE_DATE_TIME2:
-        op.alter_column(
-            table_name=table_name, column_name=column_name, type_=mssql.DATETIME, nullable=nullable
-        )
+    op.alter_column(
+        table_name=table_name,
+        column_name=column_name,
+        type_=mssql.DATETIME2(precision=6),
+        nullable=nullable,
+    )
 
 
 def upgrade():
@@ -199,7 +190,6 @@ def downgrade():
     conn = op.get_bind()
     if conn.dialect.name != 'mssql':
         return
-    alter_mssql_datetime2_column(conn, op, 'serialized_dag', 'last_updated', False)
     op.alter_column(table_name="xcom", column_name="timestamp", type_=TIMESTAMP, nullable=True)
     with op.batch_alter_table('task_reschedule') as task_reschedule_batch_op:
         task_reschedule_batch_op.alter_column(column_name='end_date', type_=TIMESTAMP, nullable=True)

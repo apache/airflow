@@ -128,6 +128,24 @@ class DbApiHook(BaseHook):
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
 
+    def get_pandas_df_by_chunks(self, sql, parameters=None, *, chunksize, **kwargs):
+        """
+        Executes the sql and returns a generator
+
+        :param sql: the sql statement to be executed (str) or a list of
+            sql statements to execute
+        :param parameters: The parameters to render the SQL query with
+        :param chunksize: number of rows to include in  each chunk
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise Exception("pandas library not installed, run: pip install 'apache-airflow[pandas]'.")
+
+        with closing(self.get_conn()) as conn:
+            yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
+
     def get_records(self, sql, parameters=None):
         """
         Executes the sql and returns a set of records.
