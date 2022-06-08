@@ -6,7 +6,6 @@
     "no-param-reassign": 1,
     "react/prop-types": 0,
     "react/jsx-props-no-spreading": 0,
-    "react/jsx-filename-extension": [1, { "extensions": [".jsx", ".tsx"] }],
     "import/extensions": [
       "error",
       "ignorePackages",
@@ -32,5 +31,23 @@
         "extensions": [".js", ".jsx", ".ts", ".tsx"]
       }
     }
-  }
+  },
+  // eslint that apply only to typescript files
+  "overrides": [
+    {
+      "files": ["*.ts", "*.tsx"],
+      "extends": [
+        "airbnb-typescript"
+      ],
+      "parser": "@typescript-eslint/parser",
+      "plugins": [ "@typescript-eslint" ],
+      "parserOptions": {
+        "project": "./tsconfig.json"
+      },
+      "rules": {
+        "react/require-default-props": 0,
+        "@typescript-eslint/no-explicit-any": 1
+      }
+    }
+  ]
 }
