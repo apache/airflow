@@ -273,7 +273,9 @@ def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
 
     def get_summary(dag_run, children):
         child_instances = [child['instances'] for child in children if 'instances' in child]
-        child_instances = [item for sublist in child_instances for item in sublist]
+        child_instances = [
+            item for sublist in child_instances for item in sublist if item['run_id'] == dag_run.run_id
+        ]
 
         children_start_dates = [item['start_date'] for item in child_instances if item]
         children_end_dates = [item['end_date'] for item in child_instances if item]
