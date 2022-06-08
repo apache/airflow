@@ -28,9 +28,11 @@ from airflow.models import Connection
 from airflow.providers.oracle.hooks.oracle import OracleHook
 
 try:
-    import oracledb
+    import oracledb as _oracledb
 except ImportError:
     oracledb = None
+else:
+    oracledb = _oracledb
 
 
 @unittest.skipIf(oracledb is None, 'oracledb package not present')
