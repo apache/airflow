@@ -17,14 +17,13 @@
  * under the License.
  */
 
-/* global autoRefreshInterval, gridData */
+/* global autoRefreshInterval */
 
 import { useQuery } from 'react-query';
 import axios from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
-import { areActiveRuns, formatData } from '../utils/gridData';
 import useErrorToast from '../utils/useErrorToast';
 import useFilters, {
   BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
@@ -42,8 +41,9 @@ const emptyData = {
   groups: {},
 };
 
+export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
+
 const useGridData = () => {
-  const initialData = formatData(gridData, emptyData);
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
   const errorToast = useErrorToast();
   const {
@@ -75,7 +75,6 @@ const useGridData = () => {
       throw (error);
     }
   }, {
-    initialData,
     placeholderData: emptyData,
     // only refetch if the refresh switch is on
     refetchInterval: isRefreshOn && autoRefreshInterval * 1000,

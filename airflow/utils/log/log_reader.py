@@ -121,6 +121,6 @@ class TaskLogReader:
         attachment_filename = render_log_filename(
             ti=ti,
             try_number="all" if try_number is None else try_number,
-            filename_template=dagrun.get_log_filename_template(session=session),
+            filename_template=dagrun.get_log_template(session=session).filename,
         )
         return attachment_filename

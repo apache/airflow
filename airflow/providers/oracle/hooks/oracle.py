@@ -16,12 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import math
 import warnings
 from datetime import datetime
 from typing import Dict, List, Optional, Union
 
-import numpy
 import oracledb
+
+try:
+    import numpy
+except ImportError:
+    numpy = None  # type: ignore
 
 from airflow.hooks.dbapi import DbApiHook
 
@@ -213,9 +218,9 @@ class OracleHook(DbApiHook):
                     lst.append("'" + str(cell).replace("'", "''") + "'")
                 elif cell is None:
                     lst.append('NULL')
-                elif isinstance(cell, float) and numpy.isnan(cell):  # coerce numpy NaN to NULL
+                elif isinstance(cell, float) and math.isnan(cell):  # coerce numpy NaN to NULL
                     lst.append('NULL')
-                elif isinstance(cell, numpy.datetime64):
+                elif numpy and isinstance(cell, numpy.datetime64):
                     lst.append("'" + str(cell) + "'")
                 elif isinstance(cell, datetime):
                     lst.append(

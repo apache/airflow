@@ -44,6 +44,7 @@
   - [Publish release to SVN](#publish-release-to-svn)
   - [Prepare PyPI "release" packages](#prepare-pypi-release-packages)
   - [Manually prepare production Docker Image](#manually-prepare-production-docker-image)
+  - [Verify production images](#verify-production-images)
   - [Publish documentation](#publish-documentation)
   - [Notify developers of release](#notify-developers-of-release)
   - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
@@ -1039,6 +1040,18 @@ Preparing a release that is not in the latest branch:
 
 ```shell script
 breeze release-prod-images --airflow-version "${VERSION}" --slim-images --skip-latest
+```
+
+## Verify production images
+
+```shell script
+for PYTHON in 3.7 3.8 3.9 3.10
+do
+    docker pull apache/airflow:${VERSION}-python${PYTHON}
+    breeze verify-prod-image --image-name apache/airflow:${VERSION}-python${PYTHON}
+done
+docker pull apache/airflow:${VERSION}
+breeze verify-prod-image --image-name apache/airflow:${VERSION}
 ```
 
 

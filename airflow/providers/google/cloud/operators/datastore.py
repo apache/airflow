@@ -140,6 +140,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
             context=context,
             task_instance=self,
             uri=f"{self.bucket}/{result['response']['outputUrl'].split('/')[3]}",
+            project_id=self.project_id or ds_hook.project_id,
         )
         return result
 

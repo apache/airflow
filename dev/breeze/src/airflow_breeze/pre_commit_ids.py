@@ -29,6 +29,7 @@ PRE_COMMIT_LIST = [
     'check-airflow-config-yaml-consistent',
     'check-airflow-providers-have-extras',
     'check-apache-license-rat',
+    'check-base-operator-partial-arguments',
     'check-base-operator-usage',
     'check-boring-cyborg-configuration',
     'check-breeze-top-dependencies-limited',

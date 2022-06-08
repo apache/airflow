@@ -29,31 +29,14 @@ from lazy_object_proxy import Proxy
 ######################################
 
 
-def _mssql_use_date_time2():
-    conn = context.get_bind()
-    result = conn.execute(
-        """SELECT CASE WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '8%' THEN '2000' WHEN CONVERT(VARCHAR(128), SERVERPROPERTY ('productversion'))
-        like '9%' THEN '2005' ELSE '2005Plus' END AS MajorVersion"""
-    ).fetchone()
-    mssql_version = result[0]
-    return mssql_version not in ("2000", "2005")
-
-
-MSSQL_USE_DATE_TIME2 = Proxy(_mssql_use_date_time2)
-
-
 def _mssql_TIMESTAMP():
     from sqlalchemy.dialects import mssql
 
-    if MSSQL_USE_DATE_TIME2:
+    class DATETIME2(mssql.DATETIME2):
+        def __init__(self, *args, precision=6, **kwargs):
+            super().__init__(*args, precision=precision, **kwargs)
 
-        class DATETIME2(mssql.DATETIME2):
-            def __init__(self, *args, precision=6, **kwargs):
-                super().__init__(*args, precision=precision, **kwargs)
-
-        return DATETIME2
-    return mssql.DATETIME
+    return DATETIME2
 
 
 def _mysql_TIMESTAMP():
