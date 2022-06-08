@@ -80,8 +80,8 @@ class GunicornMonitor(LoggingMixin):
 
     :param gunicorn_master_pid: PID for the main Gunicorn process
     :param num_workers_expected: Number of workers to run the Gunicorn web server
-    :param master_timeout: Number of seconds the webserver waits before killing gunicorn master that
-        doesn't respond
+    :param master_timeout: Number of seconds the webserver waits before terminating gunicorn master
+        that doesn't respond
     :param worker_refresh_interval: Number of seconds to wait before refreshing a batch of workers.
     :param worker_refresh_batch_size: Number of workers to refresh at a time. When set to 0, worker
         refresh is disabled. When nonzero, airflow periodically refreshes webserver workers by
@@ -324,6 +324,7 @@ class GunicornMonitor(LoggingMixin):
 
 
 @airflow_cmd.command('webserver')
+@click.pass_context
 @click.option(
     '-p',
     '--port',
@@ -385,18 +386,18 @@ class GunicornMonitor(LoggingMixin):
 @click_log_file
 @click.option(
     "--ssl-cert",
-    type=click.Path(exists=True, dir_okay=False, writable=True),
+    type=click.Path(exists=False, dir_okay=False, writable=True),
     default=conf.get('webserver', 'WEB_SERVER_SSL_CERT'),
     help="Path to the SSL certificate for the webserver",
 )
 @click.option(
     "--ssl-key",
-    type=click.Path(exists=True, dir_okay=False, writable=True),
+    type=click.Path(exists=False, dir_okay=False, writable=True),
     default=conf.get('webserver', 'WEB_SERVER_SSL_KEY'),
     help="Path to the key to use with the SSL certificate",
 )
 @click_debug
-@cli_utils.action_cli
+@cli_utils.action_cli(check_cli_args=False)
 def webserver(
     ctx,
     port,
