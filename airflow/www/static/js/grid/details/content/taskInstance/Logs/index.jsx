@@ -17,13 +17,13 @@
  * under the License.
  */
 
-import React, { useState } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import {
   Text,
   Box,
   Flex,
   Divider,
-  Textarea,
+  Code,
   Button,
   Checkbox,
 } from '@chakra-ui/react';
@@ -74,6 +74,14 @@ const Logs = ({
     enabled: (!isGroup),
   });
 
+  const codeBlockBottomDiv = useRef(null);
+
+  useEffect(() => {
+    if (codeBlockBottomDiv.current) {
+      codeBlockBottomDiv.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  });
+
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,
@@ -122,7 +130,20 @@ const Logs = ({
         </Box>
         {
           isSuccess && (
-          <Textarea readOnly defaultValue={data} height={350} />
+            <Code
+              height={350}
+              overflowY="scroll"
+              p={3}
+              pb={0}
+              display="block"
+              whiteSpace="pre-wrap"
+              border="1px solid"
+              borderRadius={3}
+              borderColor="blue.500"
+            >
+              {data}
+              <div ref={codeBlockBottomDiv} />
+            </Code>
           )
         }
       </>
