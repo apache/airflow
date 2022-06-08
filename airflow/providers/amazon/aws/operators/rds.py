@@ -563,7 +563,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         contain from 1 to 63 letters, numbers, or hyphens
     :param db_instance_class: The compute and memory capacity of the DB instance, for example db.m5.large
     :param engine: The name of the database engine to be used for this instance
-    :rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
+    :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -609,7 +609,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         :ref:`howto/operator:RdsDeleteDbInstanceOperator`
 
     :param db_instance_identifier: The DB instance identifier for the DB instance to be deleted
-    :rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
+    :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
