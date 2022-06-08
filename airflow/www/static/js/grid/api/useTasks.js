@@ -21,14 +21,15 @@ import axios from 'axios';
 import { useQuery } from 'react-query';
 import { getMetaValue } from '../../utils';
 
-const tasksUrl = getMetaValue('tasks_api');
-
 export default function useTasks() {
   return useQuery(
     'tasks',
-    () => axios.get(tasksUrl),
+    () => {
+      const tasksUrl = getMetaValue('tasks_api');
+      return axios.get(tasksUrl);
+    },
     {
-      placeholderData: { tasks: [] },
+      initialData: { tasks: [], totalEntries: 0 },
     },
   );
 }

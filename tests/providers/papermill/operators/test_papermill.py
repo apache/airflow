@@ -52,7 +52,7 @@ class TestPapermillOperator(unittest.TestCase):
             out_nb,
             parameters=parameters,
             kernel_name=kernel_name,
-            language_name=language_name,
+            language=language_name,
             progress_bar=False,
             report_mode=True,
         )

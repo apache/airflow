@@ -27,9 +27,9 @@ COLOR_YELLOW=$'\e[33m'
 
 function manual_instructions() {
     echo
-    echo "${COLOR_BLUE}Please run those commands manually (you might need to restart shell between them):i${COLOR_RESET}"
+    echo "${COLOR_BLUE}Please run those commands manually (you might need to restart shell between them)${COLOR_RESET}"
     echo
-    echo "    pip -m install pipx"
+    echo "    python -m pip install pipx"
     echo "    pipx ensurepath"
     echo "    pipx install -e '${MY_DIR}/dev/breeze/'"
     echo "    breeze setup-autocomplete --force"

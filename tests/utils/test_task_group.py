@@ -20,6 +20,7 @@ import pendulum
 import pytest
 
 from airflow.decorators import dag, task_group as task_group_decorator
+from airflow.exceptions import TaskAlreadyInTaskGroup
 from airflow.models import DAG
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.bash import BashOperator
@@ -1200,3 +1201,24 @@ def test_topological_group_dep():
         ],
         task6,
     ]
+
+
+def test_add_to_sub_group():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")):
+        tg = TaskGroup("section")
+        task = EmptyOperator(task_id="task")
+        with pytest.raises(TaskAlreadyInTaskGroup) as ctx:
+            tg.add(task)
+
+    assert str(ctx.value) == "cannot add 'task' to 'section' (already in the DAG's root group)"
+
+
+def test_add_to_another_group():
+    with DAG("test_dag", start_date=pendulum.parse("20200101")):
+        tg = TaskGroup("section_1")
+        with TaskGroup("section_2"):
+            task = EmptyOperator(task_id="task")
+        with pytest.raises(TaskAlreadyInTaskGroup) as ctx:
+            tg.add(task)
+
+    assert str(ctx.value) == "cannot add 'section_2.task' to 'section_1' (already in group 'section_2')"
