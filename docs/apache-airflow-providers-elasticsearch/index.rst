@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/elasticsearch/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-elasticsearch/4.0.0/system/tests/elasticsearch/>
 
 .. toctree::
     :maxdepth: 1

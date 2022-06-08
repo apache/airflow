@@ -779,6 +779,13 @@ repos:
         # We sometimes won't have newsfragments in the repo, so always run it so `check-hooks-apply` passes
         # This is fast, so not too much downside
         always_run: true
+      - id: check-example-dags-urls
+        name: Check that example dags url include provider versions
+        entry: ./scripts/ci/pre_commit/pre_commit_update_example_dags_paths.py
+        language: python
+        pass_filenames: true
+        files: ^docs/.*index\.rst$|^docs/.*example-dags\.rst$
+        additional_dependencies: ['rich>=12.4.4', 'pyyaml']
         ## ADD MOST PRE-COMMITS ABOVE THAT LINE
         # The below pre-commits are those requiring CI image to be built
       - id: run-mypy

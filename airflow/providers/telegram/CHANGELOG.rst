@@ -38,6 +38,7 @@ Breaking changes
    * ``Migrate Telegram example DAGs to new design #22468 (#24126)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.0.4
 .....

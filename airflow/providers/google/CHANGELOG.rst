@@ -56,6 +56,7 @@ Bug Fixes
 * ``Fix DataprocJobBaseOperator not being compatible with dotted names (#23439). (#23791)``
 * ``Remove hack from BigQuery DTS hook (#23887)``
 * ``Fix GCSToGCSOperator cannot copy a single file/folder without copying other files/folders with that prefix (#24039)``
+* ``Workaround job race bug on biguery to gcs transfer (#24330)``
 
 Misc
 ~~~~
@@ -73,6 +74,7 @@ Misc
    * ``Clean up f-strings in logging calls (#23597)``
    * ``pydocstyle D202 added (#24221)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 7.0.0
 .....
