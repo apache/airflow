@@ -19,10 +19,9 @@
 from logging.config import fileConfig
 
 from alembic import context
-from sqlalchemy import String
-from sqlalchemy.dialects import mysql
 
 from airflow import models, settings
+from airflow.utils.db import compare_server_default, compare_type
 
 
 def include_object(_, name, type_, *args):
@@ -52,37 +51,6 @@ target_metadata = models.base.Base.metadata
 # can be acquired:
 # my_important_option = config.get_main_option("my_important_option")
 # ... etc.
-
-
-def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
-    # return False if the metadata_type is the same as the inspected_type
-    # or None to allow the default implementation to compare these
-    # types. a return value of True means the two types do not
-    # match and should result in a type change operation.
-    if context.dialect.name == 'mysql':
-        if isinstance(inspected_type, mysql.VARCHAR) and isinstance(metadata_type, String):
-            # This is a hack to get around MySQL VARCHAR collation
-            # not being possible to change from utf8_bin to utf8mb3_bin
-            return False
-    return None
-
-
-def compare_server_default(
-    context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default
-):
-    # return True if the defaults are different,
-    # False if not, or None to allow the default implementation
-    # to compare these defaults
-    if context.connection.dialect.name in ['mssql', 'sqlite']:
-        # autogenerate doesn't work when comparing server_default in MSSQL
-        # e.g inspected_default != metadata_default
-        # TODO: Make this work
-        # SQLite: task_instance.map_index & task_reschedule.map_index
-        # are not comparing well(flaky).
-        # Note that this feature have varied accuracy
-        # depending on backends(check doc).
-        return False
-    return None
 
 
 def run_migrations_offline():
