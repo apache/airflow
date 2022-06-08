@@ -137,6 +137,8 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     SUCCESS_STATES = {'SUCCESS'}
     TERMINAL_STATES = SUCCESS_STATES.union(FAILURE_STATES)
 
+    template_fields: Sequence[str] = ('application_id','job_run_id',)
+
     def __init__(
         self,
         *,
@@ -152,14 +154,15 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         self.target_states = target_states
         self.application_id = application_id
         self.job_run_id = job_run_id
+        self.log.info(f"From sensor: application Id is {application_id}")
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
         state = None
 
         try:
-            state = self.hook.get_conn().get_job_run_status(
-                applicationId=self.application_id, jobRunId=self.job_run_id
+            state = self.hook.get_serverless_job_status(
+                application_id=self.application_id, job_run_id=self.job_run_id
             )
         except Exception:
             raise AirflowException(f'Unable to get job state: {state}')
@@ -169,7 +172,7 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     @cached_property
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
-        return EmrServerlessHook(emr_conn_id=self.emr_conn_id)
+        return EmrServerlessHook()
 
 
 class EmrServerlessApplicationSensor(BaseSensorOperator):
@@ -192,6 +195,8 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     FAILURE_STATES = {'STOPPED', 'TERMINATED'}
     SUCCESS_STATES = {'CREATED', 'STARTED'}
 
+    template_fields: Sequence[str] = ('application_id',)
+
     def __init__(
         self,
         *,
@@ -211,7 +216,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         state = None
 
         try:
-            state = self.hook.get_conn().get_application_status(applicationId=self.application_id)
+            state = self.hook.get_application_status(application_id=self.application_id)
         except Exception:
             raise AirflowException(f'Unable to get application state: {state}')
 
@@ -220,7 +225,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     @cached_property
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
-        return EmrServerlessHook(emr_conn_id=self.emr_conn_id)
+        return EmrServerlessHook()
 
 
 class EmrContainerSensor(BaseSensorOperator):

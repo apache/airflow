@@ -26,21 +26,30 @@ data analytics frameworks without configuring, managing, and scaling clusters or
 You get all the features and benefits of Amazon EMR without the need for experts to plan
 and manage clusters.
 
+ - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
+ - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessApplicationSensor`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessCreateApplicationOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessDeleteApplicationOperator`
+ - :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartJobOperator`
+
 Prerequisite Tasks
 ------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
-Operators
----------
-
 .. _howto/operator:EmrServerlessCreateApplicationOperator:
 
 Create an EMR Serverless Application
-====================================
+------------------------------------
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessCreateApplicationOperator` to
 create a new EMR Serverless Application.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_serverless.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_create_application]
+   :end-before: [END howto_operator_emr_serverless_create_application]
 
 .. _howto/operator:EmrServerlessStartJobOperator:
 
@@ -50,6 +59,12 @@ Start an EMR Serverless Job
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartJobOperator` to
 start an EMR Serverless Job.
 
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_serverless.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_start_job]
+   :end-before: [END howto_operator_emr_serverless_start_job]
+
 .. _howto/operator:EmrServerlessDeleteApplicationOperator:
 
 Delete an EMR Serverless Application
@@ -57,6 +72,12 @@ Delete an EMR Serverless Application
 
 You can use :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessDeleteApplicationOperator` to
 delete an EMR Serverless Application.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_serverless.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_operator_emr_serverless_delete_application]
+   :end-before: [END howto_operator_emr_serverless_delete_application]
 
 Sensors
 -------
@@ -69,6 +90,12 @@ Wait on an EMR Serverless Job state
 To monitor the state of an EMR Serverless Job you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`.
 
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_serverless.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_sensor_emr_serverless_job]
+   :end-before: [END howto_sensor_emr_serverless_job]
+
 .. _howto/sensor:EmrServerlessApplicationSensor:
 
 Wait on an EMR Serverless Application state
@@ -76,6 +103,12 @@ Wait on an EMR Serverless Application state
 
 To monitor the state of an EMR Serverless Application you can use
 :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessApplicationSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_emr_serverless.py
+   :language: python
+   :dedent: 4
+   :start-after: [START howto_sensor_emr_serverless_application]
+   :end-before: [END howto_sensor_emr_serverless_application]
 
 Reference
 ---------

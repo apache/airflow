@@ -437,8 +437,6 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
     :param aws_conn_id: AWS connection to use
     """
 
-    template_fields: Sequence[str] = ('application_id',)
-
     def __init__(
         self,
         release_label: str,
@@ -571,7 +569,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
                 object_type='job',
                 action='run',
             )
-        return response
+        return response['jobRunId']
 
 
 class EmrServerlessDeleteApplicationOperator(BaseOperator):
