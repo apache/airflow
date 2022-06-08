@@ -564,6 +564,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param db_instance_class: The compute and memory capacity of the DB instance, for example db.m5.large
     :param engine: The name of the database engine to be used for this instance
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
@@ -610,6 +611,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
 
     :param db_instance_identifier: The DB instance identifier for the DB instance to be deleted
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
+        https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.delete_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
 
