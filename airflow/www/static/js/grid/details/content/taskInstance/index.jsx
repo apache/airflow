@@ -68,15 +68,15 @@ const TaskInstance = ({ taskId, runId }) => {
   const { data: { groups, dagRuns } } = useGridData();
   const { data: { tasks } } = useTasks(dagId);
 
-  const preferedTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
-  const [tabIndex, setTabIndex] = useState(preferedTabIndex);
+  const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
+  const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
 
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
 
   const handleTabsChange = (index) => {
     localStorage.setItem(detailsPanelActiveTabIndex, index);
-    setTabIndex(index);
+    setPreferedTabIndex(index);
   };
 
   const { isMapped, extraLinks } = group;
@@ -97,7 +97,7 @@ const TaskInstance = ({ taskId, runId }) => {
       isPreferedTabDisplayed = false;
   }
 
-  const selectedTabIndex = isPreferedTabDisplayed ? preferedTabIndex : tabIndex;
+  const selectedTabIndex = isPreferedTabDisplayed ? preferedTabIndex : 0;
 
   if (!group || !run) return null;
 
