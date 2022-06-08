@@ -102,6 +102,7 @@ class TestGlueJobHook(unittest.TestCase):
             script_location="s3://bucket",
             s3_bucket="bucket",
             region_name=self.some_aws_region,
+            create_job_kwargs={"Command": {}},
         )
 
         result = hook.get_or_create_glue_job()
