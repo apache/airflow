@@ -20,6 +20,21 @@
  */
 
 import '@testing-library/jest-dom';
+import axios from 'axios';
+import { setLogger } from 'react-query';
+
+axios.defaults.adapter = require('axios/lib/adapters/http');
+
+axios.interceptors.response.use(
+  (res) => res.data || res,
+);
+
+setLogger({
+  log: console.log,
+  warn: console.warn,
+  // ✅ no more errors on the console
+  error: () => {},
+});
 
 // Mock global objects we use across the app
 global.stateColors = {

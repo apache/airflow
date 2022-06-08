@@ -728,7 +728,7 @@ hashicorp                  google
 microsoft.azure            google,oracle,sftp
 mysql                      amazon,presto,trino,vertica
 postgres                   amazon
-presto                     google
+presto                     google,slack
 salesforce                 tableau
 sftp                       ssh
 slack                      http
@@ -1253,6 +1253,7 @@ commands:
     yarn run prod
 
     # Starts a web server that manages and updates your assets as you modify them
+    # You'll need to run the webserver in debug mode too: `airflow webserver -d`
     yarn run dev
 
 

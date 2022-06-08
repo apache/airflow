@@ -164,7 +164,8 @@ class TestSparkJDBCScrip:
         # Given
         arguments = _parse_arguments(self.jdbc_arguments)
         spark_session = _create_spark_session(arguments)
-        spark_session.sql("CREATE TABLE IF NOT EXISTS " + arguments.metastore_table + " (key INT)")
+        spark_session.sql(f"CREATE TABLE IF NOT EXISTS {arguments.metastore_table} (key INT)")
+
         # When
 
         spark_write_to_jdbc(
@@ -191,7 +192,7 @@ class TestSparkJDBCScrip:
         # Given
         arguments = _parse_arguments(self.jdbc_arguments)
         spark_session = _create_spark_session(arguments)
-        spark_session.sql("CREATE TABLE IF NOT EXISTS " + arguments.metastore_table + " (key INT)")
+        spark_session.sql(f"CREATE TABLE IF NOT EXISTS {arguments.metastore_table} (key INT)")
 
         # When
         spark_read_from_jdbc(

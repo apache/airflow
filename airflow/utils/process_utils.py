@@ -320,7 +320,6 @@ def set_new_process_group() -> None:
     rather than having to iterate the child processes.
     If current process spawn by system call ``exec()`` than keep current process group
     """
-
     if os.getpid() == os.getsid(0):
         # If PID = SID than process a session leader, and it is not possible to change process group
         return

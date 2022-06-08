@@ -43,6 +43,8 @@ TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'
 SUB_DIR = "sub_dir"
 TMP_FILE_FOR_TESTS = 'test_file.txt'
+ANOTHER_FILE_FOR_TESTS = 'test_file_1.txt'
+LOG_FILE_FOR_TESTS = 'test_log.log'
 
 SFTP_CONNECTION_USER = "root"
 
@@ -60,13 +62,18 @@ class TestSFTPHook(unittest.TestCase):
         session.commit()
         return old_login
 
+    def _create_additional_test_file(self, file_name):
+        with open(os.path.join(TMP_PATH, file_name), 'a') as file:
+            file.write('Test file')
+
     def setUp(self):
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR))
 
-        with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as file:
-            file.write('Test file')
+        for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
+            with open(os.path.join(TMP_PATH, file_name), 'a') as file:
+                file.write('Test file')
         with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), 'a') as file:
             file.write('Test file')
 
@@ -353,7 +360,32 @@ class TestSFTPHook(unittest.TestCase):
         # Default is 'sftp_default
         assert SFTPHook().ssh_conn_id == 'sftp_default'
 
+    def test_get_suffix_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*.txt")
+        self.assertTrue(output, TMP_FILE_FOR_TESTS)
+
+    def test_get_prefix_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "test*")
+        self.assertTrue(output, TMP_FILE_FOR_TESTS)
+
+    def test_get_pattern_not_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*.text")
+        self.assertFalse(output)
+
+    def test_get_several_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*.log")
+        self.assertEqual(LOG_FILE_FOR_TESTS, output)
+
+    def test_get_first_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "test_*.txt")
+        self.assertEqual(TMP_FILE_FOR_TESTS, output)
+
+    def test_get_middle_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*_file_*.txt")
+        self.assertEqual(ANOTHER_FILE_FOR_TESTS, output)
+
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        os.remove(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS))
+        for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
+            os.remove(os.path.join(TMP_PATH, file_name))
         self.update_connection(self.old_login)

@@ -69,7 +69,7 @@ commands against a database (or data storage) accessible via a JDBC driver.
 The :doc:`JDBC Connection <connections/jdbc>` must be passed as
 ``jdbc_conn_id``.
 
-.. exampleinclude:: /../../airflow/providers/jdbc/example_dags/example_jdbc_queries.py
+.. exampleinclude:: /../../tests/system/providers/jdbc/example_jdbc_queries.py
     :language: python
     :start-after: [START howto_operator_jdbc]
     :end-before: [END howto_operator_jdbc]
@@ -87,7 +87,7 @@ Templating
 You can use :ref:`Jinja templates <concepts:jinja-templating>` to parameterize
 ``sql``.
 
-.. exampleinclude:: /../../airflow/providers/jdbc/example_dags/example_jdbc_queries.py
+.. exampleinclude:: /../../tests/system/providers/jdbc/example_jdbc_queries.py
     :language: python
     :start-after: [START howto_operator_jdbc_template]
     :end-before: [END howto_operator_jdbc_template]
