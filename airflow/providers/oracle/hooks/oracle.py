@@ -50,8 +50,6 @@ class OracleHook(DbApiHook):
         used for Oracle credentials.
     """
 
-    print(oracledb.DEFAULT_AUTH)
-
     conn_name_attr = 'oracle_conn_id'
     default_conn_name = 'oracle_default'
     conn_type = 'oracle'
