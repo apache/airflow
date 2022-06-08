@@ -43,22 +43,8 @@ class EmrHook(AwsBaseHook):
 
     def __init__(self, emr_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         self.emr_conn_id: str = emr_conn_id
-        self.aws_conn_id: str = kwargs["aws_conn_id"]
-        kwargs["aws_conn_id"] = self.get_conn_id()
         kwargs["client_type"] = "emr"
         super().__init__(*args, **kwargs)
-
-    def get_conn_id(self) -> str:
-        """
-        A helper method to return appropriate connection ID
-        If aws_conn_id exist then return it or return emr_conn_id
-        """
-        try:
-            self.get_connection(self.aws_conn_id)
-            return self.aws_conn_id
-        except AirflowNotFoundException:
-            # use emr_conn_id
-            return self.emr_conn_id
 
     def get_cluster_id_by_name(self, emr_cluster_name: str, cluster_states: List[str]) -> Optional[str]:
         """
@@ -97,12 +83,10 @@ class EmrHook(AwsBaseHook):
             config = emr_conn.extra_dejson.copy()
         except AirflowNotFoundException:
             config = {}
-        # config contain credentials then do not pass it in request body
-        if "aws_access_key_id" in config:
-            config = {}
         config.update(job_flow_overrides)
 
         response = self.get_conn().run_job_flow(**config)
+
         return response
 
 
