@@ -65,6 +65,7 @@ const Logs = ({
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
+  const [wrap, setWrap] = useState(false);
   const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
@@ -80,7 +81,7 @@ const Logs = ({
     if (codeBlockBottomDiv.current) {
       codeBlockBottomDiv.current.scrollIntoView({ behavior: 'smooth' });
     }
-  });
+  }, [data]);
 
   const params = new URLSearchParams({
     task_id: taskId,
@@ -107,6 +108,12 @@ const Logs = ({
               ))}
             </Flex>
             <Flex>
+              <Checkbox
+                onChange={() => setWrap((previousState) => !previousState)}
+                px={4}
+              >
+                <Text as="strong">Wrap</Text>
+              </Checkbox>
               <Checkbox
                 onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
                 px={4}
@@ -136,7 +143,7 @@ const Logs = ({
               p={3}
               pb={0}
               display="block"
-              whiteSpace="pre-wrap"
+              whiteSpace={wrap ? 'pre-wrap' : 'pre'}
               border="1px solid"
               borderRadius={3}
               borderColor="blue.500"
