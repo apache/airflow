@@ -22,7 +22,7 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { TimezoneEvent } from '../../datetime_utils';
 
-const TimezoneContext = React.createContext(null);
+const TimezoneContext = React.createContext({ timezone: 'UTC' });
 
 export const TimezoneProvider = ({ children }) => {
   const [timezone, setTimezone] = useState((moment.defaultZone && moment.defaultZone.name) || 'UTC');

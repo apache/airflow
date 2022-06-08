@@ -18,14 +18,9 @@
  */
 
 import React from 'react';
-<<<<<<< HEAD:airflow/www/static/js/grid/components/Time.jsx
+import moment from 'moment-timezone';
 import { useTimezone } from '../context/timezone';
 import { defaultFormatWithTZ } from '../../datetime_utils';
-=======
-import moment from 'moment-timezone';
-import { useTimezone } from './context/timezone';
-import { defaultFormatWithTZ } from '../datetime_utils';
->>>>>>> 1469a3009 (add ts support and change time to tsx):airflow/www/static/js/grid/Time.tsx
 
 interface Props {
   dateTime: string;
