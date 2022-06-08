@@ -26,6 +26,7 @@ from airflow.cli.commands import scheduler  # noqa: F401
 from airflow.cli.commands import standalone  # noqa: F401
 from airflow.cli.commands import sync_perm  # noqa: F401
 from airflow.cli.commands import triggerer  # noqa: F401
+from airflow.cli.commands import users  # noqa: F401
 from airflow.cli.commands import version  # noqa: F401
 from airflow.cli.commands import webserver  # noqa: F401
 
