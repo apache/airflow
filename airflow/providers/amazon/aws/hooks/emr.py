@@ -133,6 +133,7 @@ class EmrContainerHook(AwsBaseHook):
         job_driver: dict,
         configuration_overrides: Optional[dict] = None,
         client_request_token: Optional[str] = None,
+        tags: Optional[dict] = None,
     ) -> str:
         """
         Submit a job to the EMR Containers API and return the job ID.
@@ -148,6 +149,7 @@ class EmrContainerHook(AwsBaseHook):
             specifically either application configuration or monitoring configuration.
         :param client_request_token: The client idempotency token of the job run request.
             Use this if you want to specify a unique ID to prevent two jobs from getting started.
+        :param tags: The tags assigned to job runs.
         :return: Job ID
         """
         params = {
@@ -157,6 +159,7 @@ class EmrContainerHook(AwsBaseHook):
             "releaseLabel": release_label,
             "jobDriver": job_driver,
             "configurationOverrides": configuration_overrides or {},
+            "tags": tags or {},
         }
         if client_request_token:
             params["clientToken"] = client_request_token

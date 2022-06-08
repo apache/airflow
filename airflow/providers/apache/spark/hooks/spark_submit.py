@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import contextlib
 import os
 import re
 import subprocess
@@ -28,10 +29,8 @@ from airflow.hooks.base import BaseHook
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-try:
+with contextlib.suppress(ImportError, NameError):
     from airflow.kubernetes import kube_client
-except (ImportError, NameError):
-    pass
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -355,9 +354,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self.log.info(connection_cmd)
 
             # The driver id so we can poll for its status
-            if self._driver_id:
-                pass
-            else:
+            if not self._driver_id:
                 raise AirflowException(
                     "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
@@ -607,17 +604,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """Kill Spark submit command"""
         self.log.debug("Kill Command is being called")
 
-        if self._should_track_driver_status:
-            if self._driver_id:
-                self.log.info('Killing driver %s on cluster', self._driver_id)
+        if self._should_track_driver_status and self._driver_id:
+            self.log.info('Killing driver %s on cluster', self._driver_id)
 
-                kill_cmd = self._build_spark_driver_kill_command()
-                with subprocess.Popen(
-                    kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                ) as driver_kill:
-                    self.log.info(
-                        "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
-                    )
+            kill_cmd = self._build_spark_driver_kill_command()
+            with subprocess.Popen(kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as driver_kill:
+                self.log.info(
+                    "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
+                )
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
@@ -632,7 +626,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     # we still attempt to kill the yarn application
                     renew_from_kt(self._principal, self._keytab, exit_on_fail=False)
                     env = os.environ.copy()
-                    env["KRB5CCNAME"] = airflow_conf.get('kerberos', 'ccache')
+                    ccacche = airflow_conf.get('kerberos', 'ccache')
+                    if ccacche is None:
+                        raise ValueError("The kerberos/ccache config should be set here!")
+                    env["KRB5CCNAME"] = ccacche
 
                 with subprocess.Popen(
                     kill_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE

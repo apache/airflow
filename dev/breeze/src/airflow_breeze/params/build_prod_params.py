@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -30,17 +30,19 @@ from airflow_breeze.global_constants import (
     get_airflow_extras,
     get_airflow_version,
 )
-from airflow_breeze.params._common_build_params import _CommonBuildParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
 
 
 @dataclass
-class BuildProdParams(_CommonBuildParams):
+class BuildProdParams(CommonBuildParams):
     """
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
     airflow_constraints_mode: str = "constraints"
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
+    airflow_constraints_reference: str = ""
     airflow_is_in_context: bool = False
     cleanup_context: bool = False
     disable_airflow_repo_cache: bool = False
@@ -79,20 +81,16 @@ class BuildProdParams(_CommonBuildParams):
                 "AIRFLOW_SOURCES_TO=/empty",
             ]
         )
-        if len(self.airflow_constraints_reference) > 0:
+        if re.match('v?2.*', self.airflow_version):
+            build_args.extend(
+                ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
+            )
+        else:
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}"]
             )
-        else:
-            if re.match('v?2.*', self.airflow_version):
-                build_args.extend(
-                    ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE=constraints-{self.airflow_version}"]
-                )
-            else:
-                build_args.extend(
-                    ["--build-arg", f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}"]
-                )
-        if len(self.airflow_constraints_location) > 0:
+        if self.airflow_constraints_location:
+            # override location if specified
             build_args.extend(
                 ["--build-arg", f"AIRFLOW_CONSTRAINTS_LOCATION={self.airflow_constraints_location}"]
             )
@@ -165,7 +163,7 @@ class BuildProdParams(_CommonBuildParams):
                     "--build-arg",
                     f"AIRFLOW_INSTALLATION_METHOD={self.installation_method}",
                     "--build-arg",
-                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.default_constraints_branch}",
+                    f"AIRFLOW_CONSTRAINTS_REFERENCE={self.airflow_constraints_reference}",
                 ]
             )
 

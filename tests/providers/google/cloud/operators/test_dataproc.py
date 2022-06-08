@@ -1204,8 +1204,9 @@ class TestDataProcHiveOperator(unittest.TestCase):
     query = "define sin HiveUDF('sin');"
     variables = {"key": "value"}
     job_id = "uuid_id"
+    job_name = "simple"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hive_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -1226,6 +1227,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitHiveJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1249,6 +1251,7 @@ class TestDataProcHiveOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitHiveJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1263,8 +1266,9 @@ class TestDataProcPigOperator(unittest.TestCase):
     query = "define sin HiveUDF('sin');"
     variables = {"key": "value"}
     job_id = "uuid_id"
+    job_name = "simple"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pig_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -1285,6 +1289,7 @@ class TestDataProcPigOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitPigJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1308,6 +1313,7 @@ class TestDataProcPigOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitPigJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1321,15 +1327,16 @@ class TestDataProcPigOperator(unittest.TestCase):
 class TestDataProcSparkSqlOperator(unittest.TestCase):
     query = "SHOW DATABASES;"
     variables = {"key": "value"}
+    job_name = "simple"
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
     }
     other_project_job = {
-        "reference": {"project_id": "other-project", "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": "other-project", "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "spark_sql_job": {"query_list": {"queries": [query]}, "script_variables": variables},
@@ -1350,6 +1357,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitSparkSqlJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1375,6 +1383,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         mock_hook.return_value.submit_job.return_value.reference.job_id = self.job_id
 
         op = DataprocSubmitSparkSqlJobOperator(
+            job_name=self.job_name,
             project_id="other-project",
             task_id=TASK_ID,
             region=GCP_LOCATION,
@@ -1399,6 +1408,7 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitSparkSqlJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1412,10 +1422,11 @@ class TestDataProcSparkSqlOperator(unittest.TestCase):
 class TestDataProcSparkOperator(DataprocJobTestBase):
     main_class = "org.apache.spark.examples.SparkPi"
     jars = ["file:///usr/lib/spark/examples/jars/spark-examples.jar"]
+    job_name = "simple"
     job = {
         "reference": {
             "project_id": GCP_PROJECT,
-            "job_id": "{{task.task_id}}_{{ds_nodash}}_" + TEST_JOB_ID,
+            "job_id": f"{job_name}_{TEST_JOB_ID}",
         },
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
@@ -1440,6 +1451,7 @@ class TestDataProcSparkOperator(DataprocJobTestBase):
         self.extra_links_manager_mock.attach_mock(mock_hook, 'hook')
 
         op = DataprocSubmitSparkJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1505,9 +1517,10 @@ def test_submit_spark_job_operator_extra_links(mock_hook, dag_maker, create_task
 class TestDataProcHadoopOperator(unittest.TestCase):
     args = ["wordcount", "gs://pub/shakespeare/rose.txt"]
     jar = "file:///usr/lib/spark/examples/jars/spark-examples.jar"
+    job_name = "simple"
     job_id = "uuid_id"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "hadoop_job": {"main_jar_file_uri": jar, "args": args},
@@ -1529,6 +1542,7 @@ class TestDataProcHadoopOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitHadoopJobOperator(
+            job_name=self.job_name,
             task_id=TASK_ID,
             region=GCP_LOCATION,
             gcp_conn_id=GCP_CONN_ID,
@@ -1542,8 +1556,9 @@ class TestDataProcHadoopOperator(unittest.TestCase):
 class TestDataProcPySparkOperator(unittest.TestCase):
     uri = "gs://{}/{}"
     job_id = "uuid_id"
+    job_name = "simple"
     job = {
-        "reference": {"project_id": GCP_PROJECT, "job_id": "{{task.task_id}}_{{ds_nodash}}_" + job_id},
+        "reference": {"project_id": GCP_PROJECT, "job_id": f"{job_name}_{job_id}"},
         "placement": {"cluster_name": "cluster-1"},
         "labels": {"airflow-version": AIRFLOW_VERSION},
         "pyspark_job": {"main_python_file_uri": uri},
@@ -1562,7 +1577,11 @@ class TestDataProcPySparkOperator(unittest.TestCase):
         mock_uuid.return_value = self.job_id
 
         op = DataprocSubmitPySparkJobOperator(
-            task_id=TASK_ID, region=GCP_LOCATION, gcp_conn_id=GCP_CONN_ID, main=self.uri
+            job_name=self.job_name,
+            task_id=TASK_ID,
+            region=GCP_LOCATION,
+            gcp_conn_id=GCP_CONN_ID,
+            main=self.uri,
         )
         job = op.generate_job()
         assert self.job == job

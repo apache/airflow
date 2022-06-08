@@ -63,7 +63,7 @@ class DruidHook(BaseHook):
         conn = self.get_connection(self.druid_ingest_conn_id)
         host = conn.host
         port = conn.port
-        conn_type = 'http' if not conn.conn_type else conn.conn_type
+        conn_type = conn.conn_type or 'http'
         endpoint = conn.extra_dejson.get('endpoint', '')
         return f"{conn_type}://{host}:{port}/{endpoint}"
 
@@ -163,7 +163,7 @@ class DruidDbApiHook(DbApiHook):
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'
-        conn_type = 'druid' if not conn.conn_type else conn.conn_type
+        conn_type = conn.conn_type or 'druid'
         endpoint = conn.extra_dejson.get('endpoint', 'druid/v2/sql')
         return f'{conn_type}://{host}/{endpoint}'
 

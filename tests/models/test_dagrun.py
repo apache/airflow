@@ -37,7 +37,6 @@ from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
@@ -191,6 +190,29 @@ class TestDagRun:
             'test_short_circuit_false': TaskInstanceState.SUCCESS,
             'test_state_skipped1': TaskInstanceState.SKIPPED,
             'test_state_skipped2': TaskInstanceState.SKIPPED,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.update_state()
+        assert DagRunState.SUCCESS == dag_run.state
+
+    def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, session):
+        """
+        Tests that a DAG run succeeds when all tasks are removed
+        """
+        dag = DAG(dag_id='test_dagrun_success_when_all_skipped', start_date=timezone.datetime(2017, 1, 1))
+        dag_task1 = ShortCircuitOperator(
+            task_id='test_short_circuit_false', dag=dag, python_callable=lambda: False
+        )
+        dag_task2 = EmptyOperator(task_id='test_state_skipped1', dag=dag)
+        dag_task3 = EmptyOperator(task_id='test_state_skipped2', dag=dag)
+        dag_task1.set_downstream(dag_task2)
+        dag_task2.set_downstream(dag_task3)
+
+        initial_task_states = {
+            'test_short_circuit_false': TaskInstanceState.REMOVED,
+            'test_state_skipped1': TaskInstanceState.REMOVED,
+            'test_state_skipped2': TaskInstanceState.REMOVED,
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -785,7 +807,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
         """
-        dag = DAG(dag_id='test_dagrun_stats', start_date=days_ago(1))
+        dag = DAG(dag_id='test_dagrun_stats', start_date=DEFAULT_DATE)
         dag_task = EmptyOperator(task_id='dummy', dag=dag)
 
         initial_task_states = {
@@ -809,7 +831,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1), schedule_interval=schedule_interval)
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule_interval=schedule_interval)
         dag_task = EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         try:
@@ -860,7 +882,7 @@ class TestDagRun:
         """
         Tests that adding State.failed_states and State.success_states work as expected.
         """
-        dag = DAG(dag_id='test_dagrun_states', start_date=days_ago(1))
+        dag = DAG(dag_id='test_dagrun_states', start_date=DEFAULT_DATE)
         dag_task_success = EmptyOperator(task_id='dummy', dag=dag)
         dag_task_failed = EmptyOperator(task_id='dummy2', dag=dag)
 

@@ -37,7 +37,7 @@ log = logging.getLogger(__name__)
 
 utc = pendulum.tz.timezone('UTC')
 
-using_mysql = conf.get('database', 'sql_alchemy_conn').lower().startswith('mysql')
+using_mysql = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower().startswith('mysql')
 
 
 class UtcDateTime(TypeDecorator):

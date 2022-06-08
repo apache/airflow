@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 #
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -56,7 +56,7 @@ def get_errors_and_hooks(content: Any, max_length: int) -> Tuple[List[str], Dict
             else:
                 errors.append(f"The id is missing in {hook}")
                 continue
-            if hook_id == 'mypy':
+            if hook_id == 'run-mypy':
                 needs_image = True
             if 'name' not in hook:
                 errors.append(

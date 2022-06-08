@@ -256,7 +256,7 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
-        while not self.container_is_running(pod=pod, container_name=container_name):
+        while self.container_is_running(pod=pod, container_name=container_name):
             time.sleep(1)
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:
@@ -285,8 +285,9 @@ class PodManager(LoggingMixin):
         split_at = line.find(' ')
         if split_at == -1:
             self.log.error(
-                f"Error parsing timestamp (no timestamp in message '${line}'). "
-                "Will continue execution but won't update timestamp"
+                "Error parsing timestamp (no timestamp in message %r). "
+                "Will continue execution but won't update timestamp",
+                line,
             )
             return None, line
         timestamp = line[:split_at]

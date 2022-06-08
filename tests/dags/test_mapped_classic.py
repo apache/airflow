@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
+
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.python import PythonOperator
-from airflow.utils.dates import days_ago
 
 
 @task
@@ -30,7 +31,7 @@ def consumer(value):
     print(repr(value))
 
 
-with DAG(dag_id='test_mapped_classic', start_date=days_ago(2)) as dag:
+with DAG(dag_id='test_mapped_classic', start_date=datetime.datetime(2022, 1, 1)) as dag:
     PythonOperator.partial(task_id='consumer', python_callable=consumer).expand(op_args=make_arg_lists())
     PythonOperator.partial(task_id='consumer_literal', python_callable=consumer).expand(
         op_args=[[1], [2], [3]],

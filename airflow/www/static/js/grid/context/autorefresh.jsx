@@ -17,11 +17,10 @@
  * under the License.
  */
 
-/* global localStorage, gridData, document */
+/* global localStorage, document */
 
 import React, { useContext, useState, useEffect } from 'react';
 import { getMetaValue } from '../../utils';
-import { formatData, areActiveRuns } from '../utils/gridData';
 
 const autoRefreshKey = 'disabledAutoRefresh';
 
@@ -31,17 +30,9 @@ const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
 const AutoRefreshContext = React.createContext(null);
 
 export const AutoRefreshProvider = ({ children }) => {
-  let dagRuns = [];
-  try {
-    const data = JSON.parse(gridData);
-    if (data.dag_runs) dagRuns = formatData(data.dag_runs);
-  } catch {
-    dagRuns = [];
-  }
   const [isPaused, setIsPaused] = useState(initialIsPaused);
-  const isActive = areActiveRuns(dagRuns);
   const isRefreshAllowed = !(isPaused || isRefreshDisabled);
-  const initialState = isRefreshAllowed && isActive;
+  const initialState = isRefreshAllowed;
 
   const [isRefreshOn, setRefresh] = useState(initialState);
 
@@ -67,8 +58,6 @@ export const AutoRefreshProvider = ({ children }) => {
       setIsPaused(!e.value);
       if (!e.value) {
         stopRefresh();
-      } else if (isActive) {
-        setRefresh(true);
       }
     };
 

@@ -17,7 +17,7 @@
 """
 Global constants that are used by all other Breeze components.
 """
-import os
+import platform
 from typing import List
 
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
@@ -51,7 +51,7 @@ ALLOWED_INTEGRATIONS = [
 ]
 ALLOWED_KUBERNETES_MODES = ['image']
 ALLOWED_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
-ALLOWED_KIND_VERSIONS = ['v0.13.0']
+ALLOWED_KIND_VERSIONS = ['v0.14.0']
 ALLOWED_HELM_VERSIONS = ['v3.6.3']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
@@ -102,18 +102,6 @@ PARAM_NAME_DESCRIPTION = {
     "MSSQL_VERSION": "MSSql version",
 }
 
-PARAM_NAME_FLAG = {
-    "BACKEND": "--backend",
-    "MYSQL_VERSION": "--mysql-version",
-    "KUBERNETES_MODE": "--kubernetes-mode",
-    "KUBERNETES_VERSION": "--kubernetes-version",
-    "KIND_VERSION": "--kind-version",
-    "HELM_VERSION": "--helm-version",
-    "EXECUTOR": "--executor",
-    "POSTGRES_VERSION": "--postgres-version",
-    "MSSQL_VERSION": "--mssql-version",
-}
-
 EXCLUDE_DOCS_PACKAGE_FOLDER = [
     'exts',
     'integration-logos',
@@ -137,8 +125,15 @@ def get_available_packages(short_version=False) -> List[str]:
     return package_list
 
 
+def get_default_platform_machine() -> str:
+    machine = platform.uname().machine
+    # Some additional conversion for various platforms...
+    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    return machine
+
+
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{os.uname().machine}"
+DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
 DOCKER_BUILDKIT = 1
 
 SSH_PORT = "12322"
@@ -158,9 +153,6 @@ CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
 CURRENT_MYSQL_VERSIONS = ['5.7', '8']
 CURRENT_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
-POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
-MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
-MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
 DB_RESET = False
 START_AIRFLOW = "false"
 LOAD_EXAMPLES = False
@@ -227,7 +219,7 @@ ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_MODES = ['image']
 CURRENT_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
-CURRENT_KIND_VERSIONS = ['v0.13.0']
+CURRENT_KIND_VERSIONS = ['v0.14.0']
 CURRENT_HELM_VERSIONS = ['v3.6.3']
 CURRENT_EXECUTORS = ['KubernetesExecutor']
 

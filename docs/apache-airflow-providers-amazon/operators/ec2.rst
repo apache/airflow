@@ -27,10 +27,10 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
-.. _howto/operator:EC2StartInstanceOperator:
-
 Operators
 ---------
+
+.. _howto/operator:EC2StartInstanceOperator:
 
 Start an Amazon EC2 instance
 ============================
@@ -63,8 +63,8 @@ Sensors
 
 .. _howto/sensor:EC2InstanceStateSensor:
 
-Amazon EC2 instance state sensor
-================================
+Wait on an Amazon EC2 instance state
+====================================
 
 To check the state of an Amazon EC2 instance and wait until it reaches the target state you can use
 :class:`~airflow.providers.amazon.aws.sensors.ec2.EC2InstanceStateSensor`.
@@ -77,7 +77,5 @@ To check the state of an Amazon EC2 instance and wait until it reaches the targe
 
 Reference
 ---------
-
-For further information, look at:
 
 * `Boto3 Library Documentation for EC2 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ec2.html>`__

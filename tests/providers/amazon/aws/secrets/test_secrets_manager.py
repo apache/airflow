@@ -24,10 +24,9 @@ from airflow.providers.amazon.aws.secrets.secrets_manager import SecretsManagerB
 
 class TestSecretsManagerBackend(TestCase):
     @mock.patch("airflow.providers.amazon.aws.secrets.secrets_manager.SecretsManagerBackend.get_conn_value")
-    def test_aws_secrets_manager_get_connections(self, mock_get_value):
+    def test_aws_secrets_manager_get_connection(self, mock_get_value):
         mock_get_value.return_value = "scheme://user:pass@host:100"
-        conn_list = SecretsManagerBackend().get_connections("fake_conn")
-        conn = conn_list[0]
+        conn = SecretsManagerBackend().get_connection("fake_conn")
         assert conn.host == 'host'
 
     @mock_secretsmanager
@@ -105,7 +104,7 @@ class TestSecretsManagerBackend(TestCase):
     def test_get_conn_uri_non_existent_key(self):
         """
         Test that if the key with connection ID is not present,
-        SecretsManagerBackend.get_connections should return None
+        SecretsManagerBackend.get_connection should return None
         """
         conn_id = "test_mysql"
 
@@ -124,7 +123,7 @@ class TestSecretsManagerBackend(TestCase):
         secrets_manager_backend.client.put_secret_value(**param)
 
         assert secrets_manager_backend.get_conn_uri(conn_id=conn_id) is None
-        assert [] == secrets_manager_backend.get_connections(conn_id=conn_id)
+        assert secrets_manager_backend.get_connection(conn_id=conn_id) is None
 
     @mock_secretsmanager
     def test_get_variable(self):

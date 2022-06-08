@@ -194,6 +194,70 @@ The following settings may be used within the ``assume_role_with_saml`` containe
     https://pypi.org/project/requests-gssapi/
 
 
+Avoid Throttling exceptions
+---------------------------
+
+Amazon Web Services have quota limits for simultaneous API call as result with frequent calls
+``apache-airflow-providers-amazon`` components might fail during execution with a
+throttling exception, e.g. *ThrottlingException*, *ProvisionedThroughputExceededException*.
+
+``botocore.config.Config`` supports different exponential backoff modes out of the box:
+``legacy``, ``standard``, ``adaptive``
+
+By default, ``botocore.config.Config`` uses ``legacy`` mode with 5 maximum retry attempts,
+which may not be enough in some cases.
+
+If you encounter throttling exceptions, you may change the mode to ``standard`` with more retry attempts.
+
+
+.. seealso::
+    https://boto3.amazonaws.com/v1/documentation/api/latest/guide/retries.html#retries
+
+Set in Connection
+^^^^^^^^^^^^^^^^^
+
+**Connection extra field**:
+  .. code-block:: json
+
+    {
+      "config_kwargs": {
+        "retries": {
+          "mode": "standard",
+          "max_attempts": 10
+        }
+      }
+    }
+
+Set in AWS Config File
+^^^^^^^^^^^^^^^^^^^^^^
+
+**~/.aws/config**:
+  .. code-block:: ini
+
+    [awesome_aws_profile]
+    retry_mode = standard
+    max_attempts = 10
+
+**Connection extra field**:
+  .. code-block:: json
+
+    {
+      "session_kwargs": {
+        "profile_name": "awesome_aws_profile"
+      }
+    }
+
+Set by Environment Variables
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  .. note:: This sets the retry mode on all connections,
+    unless another retry config is explicitly set on a specific connection.
+
+  .. code-block:: bash
+
+    export AWS_RETRY_MODE=standard
+    export AWS_MAX_ATTEMPTS=10
+
+
 .. _howto/connection:aws:session-factory:
 
 Session Factory

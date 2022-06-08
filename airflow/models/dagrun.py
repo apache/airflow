@@ -540,7 +540,7 @@ class DagRun(Base, LoggingMixin):
                 )
 
         leaf_task_ids = {t.task_id for t in dag.leaves}
-        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids]
+        leaf_tis = [ti for ti in tis if ti.task_id in leaf_task_ids if ti.state != TaskInstanceState.REMOVED]
 
         # if all roots finished and at least one failed, the run failed
         if not unfinished_tis and any(leaf_ti.state in State.failed_states for leaf_ti in leaf_tis):
@@ -789,8 +789,8 @@ class DagRun(Base, LoggingMixin):
                 true_delay = first_start_date - data_interval_end
                 if true_delay.total_seconds() > 0:
                     Stats.timing(f'dagrun.{dag.dag_id}.first_task_scheduling_delay', true_delay)
-        except Exception as e:
-            self.log.warning(f'Failed to record first_task_scheduling_delay metric:\n{e}')
+        except Exception:
+            self.log.warning('Failed to record first_task_scheduling_delay metric:', exc_info=True)
 
     def _emit_duration_stats_for_finished_state(self):
         if self.state == State.RUNNING:
@@ -1065,14 +1065,23 @@ class DagRun(Base, LoggingMixin):
         return count
 
     @provide_session
-    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
+    def get_log_template(self, *, session: Session = NEW_SESSION) -> LogTemplate:
         if self.log_template_id is None:  # DagRun created before LogTemplate introduction.
-            template = session.query(LogTemplate.filename).order_by(LogTemplate.id).limit(1).scalar()
+            template = session.query(LogTemplate).order_by(LogTemplate.id).first()
         else:
-            template = session.query(LogTemplate.filename).filter_by(id=self.log_template_id).scalar()
+            template = session.query(LogTemplate).get(self.log_template_id)
         if template is None:
             raise AirflowException(
                 f"No log_template entry found for ID {self.log_template_id!r}. "
                 f"Please make sure you set up the metadatabase correctly."
             )
         return template
+
+    @provide_session
+    def get_log_filename_template(self, *, session: Session = NEW_SESSION) -> str:
+        warnings.warn(
+            "This method is deprecated. Please use get_log_template instead.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        return self.get_log_template(session=session).filename

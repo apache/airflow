@@ -18,12 +18,11 @@
 
 """Example DAG demonstrating the usage of the BashOperator."""
 
-from datetime import timedelta
+import datetime
 
 from airflow import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.dates import days_ago
 
 args = {
     'owner': 'airflow',
@@ -33,8 +32,8 @@ dag = DAG(
     dag_id='miscellaneous_test_dag',
     default_args=args,
     schedule_interval='0 0 * * *',
-    start_date=days_ago(2),
-    dagrun_timeout=timedelta(minutes=60),
+    start_date=datetime.datetime(2022, 1, 1),
+    dagrun_timeout=datetime.timedelta(minutes=60),
     tags=['example', 'example2'],
     params={"example_key": "example_value"},
 )

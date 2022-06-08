@@ -25,33 +25,16 @@ import { render } from '@testing-library/react';
 import renderTaskRows from './renderTaskRows';
 import { TableWrapper } from './utils/testUtils';
 
-const mockGroup = {
-  id: null,
-  label: null,
-  children: [
-    {
-      extraLinks: [],
-      id: 'group_1',
-      label: 'group_1',
-      instances: [
-        {
-          dagId: 'dagId',
-          duration: 0,
-          endDate: '2021-10-26T15:42:03.391939+00:00',
-          executionDate: '2021-10-25T15:41:09.726436+00:00',
-          operator: 'DummyOperator',
-          runId: 'run1',
-          startDate: '2021-10-26T15:42:03.391917+00:00',
-          state: 'success',
-          taskId: 'group_1',
-          tryNumber: 1,
-        },
-      ],
+describe('Test renderTaskRows', () => {
+  test('Renders name and task instance', () => {
+    const task = {
+      id: null,
+      label: null,
       children: [
         {
-          id: 'group_1.task_1',
-          label: 'group_1.task_1',
           extraLinks: [],
+          id: 'group_1',
+          label: 'group_1',
           instances: [
             {
               dagId: 'dagId',
@@ -62,44 +45,60 @@ const mockGroup = {
               runId: 'run1',
               startDate: '2021-10-26T15:42:03.391917+00:00',
               state: 'success',
-              taskId: 'group_1.task_1',
+              taskId: 'group_1',
               tryNumber: 1,
+            },
+          ],
+          children: [
+            {
+              id: 'group_1.task_1',
+              label: 'group_1.task_1',
+              extraLinks: [],
+              instances: [
+                {
+                  dagId: 'dagId',
+                  duration: 0,
+                  endDate: '2021-10-26T15:42:03.391939+00:00',
+                  executionDate: '2021-10-25T15:41:09.726436+00:00',
+                  operator: 'DummyOperator',
+                  runId: 'run1',
+                  startDate: '2021-10-26T15:42:03.391917+00:00',
+                  state: 'success',
+                  taskId: 'group_1.task_1',
+                  tryNumber: 1,
+                },
+              ],
             },
           ],
         },
       ],
-    },
-  ],
-  instances: [],
-};
-
-describe('Test renderTaskRows', () => {
-  test('Still renders names if there are no instances', () => {
-    global.gridData = {
-      groups: {
-        id: null,
-        label: null,
-        children: [
-          {
-            extraLinks: [],
-            id: 'group_1',
-            label: 'group_1',
-            instances: [],
-            children: [
-              {
-                id: 'group_1.task_1',
-                label: 'group_1.task_1',
-                extraLinks: [],
-                instances: [],
-              },
-            ],
-          },
-        ],
-        instances: [],
-      },
-      dagRuns: [],
+      instances: [],
     };
-    const task = mockGroup;
+
+    const { queryByTestId, getByText } = render(
+      <>{renderTaskRows({ task, dagRunIds: ['run1'] })}</>,
+      { wrapper: TableWrapper },
+    );
+
+    expect(getByText('group_1')).toBeInTheDocument();
+    expect(queryByTestId('task-instance')).toBeDefined();
+    expect(queryByTestId('blank-task')).toBeNull();
+  });
+
+  test('Still renders names if there are no instances', () => {
+    const task = {
+      id: null,
+      label: null,
+      children: [
+        {
+          extraLinks: [],
+          id: 'group_1',
+          label: 'group_1',
+          instances: [],
+        },
+      ],
+      instances: [],
+    };
 
     const { queryByTestId, getByText } = render(
       <>{renderTaskRows({ task, dagRunIds: [] })}</>,
@@ -108,5 +107,38 @@ describe('Test renderTaskRows', () => {
 
     expect(getByText('group_1')).toBeInTheDocument();
     expect(queryByTestId('task-instance')).toBeNull();
+  });
+
+  test('Still renders correctly if task instance is null', () => {
+    const task = {
+      id: null,
+      label: null,
+      children: [
+        {
+          extraLinks: [],
+          id: 'group_1',
+          label: 'group_1',
+          instances: [null],
+          children: [
+            {
+              id: 'group_1.task_1',
+              label: 'group_1.task_1',
+              extraLinks: [],
+              instances: [null],
+            },
+          ],
+        },
+      ],
+      instances: [null],
+    };
+
+    const { queryByTestId, getByText } = render(
+      <>{renderTaskRows({ task, dagRunIds: ['run1'] })}</>,
+      { wrapper: TableWrapper },
+    );
+
+    expect(getByText('group_1')).toBeInTheDocument();
+    expect(queryByTestId('task-instance')).toBeNull();
+    expect(queryByTestId('blank-task')).toBeInTheDocument();
   });
 });

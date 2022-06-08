@@ -78,7 +78,7 @@ from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.typing_compat import Literal, RePatternType
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -326,8 +326,8 @@ class DAG(LoggingMixin):
         sla_miss_callback: Optional[
             Callable[["DAG", str, str, List["SlaMiss"], List[TaskInstance]], None]
         ] = None,
-        default_view: str = conf.get('webserver', 'dag_default_view').lower(),
-        orientation: str = conf.get('webserver', 'dag_orientation'),
+        default_view: str = conf.get_mandatory_value('webserver', 'dag_default_view').lower(),
+        orientation: str = conf.get_mandatory_value('webserver', 'dag_orientation'),
         catchup: bool = conf.getboolean('scheduler', 'catchup_by_default'),
         on_success_callback: Optional[DagStateChangeCallback] = None,
         on_failure_callback: Optional[DagStateChangeCallback] = None,
@@ -1957,7 +1957,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: Union[str, RePatternType, Iterable[str]],
+        task_ids_or_regex: Union[str, re.Pattern, Iterable[str]],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -1976,7 +1976,6 @@ class DAG(LoggingMixin):
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
 
@@ -1985,7 +1984,7 @@ class DAG(LoggingMixin):
         memo = {id(self.task_dict): None, id(self._task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, RePatternType)):
+        if isinstance(task_ids_or_regex, (str, re.Pattern)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
@@ -2638,7 +2637,11 @@ class DagTag(Base):
 
     __tablename__ = "dag_tag"
     name = Column(String(100), primary_key=True)
-    dag_id = Column(String(ID_LEN), ForeignKey('dag.dag_id'), primary_key=True)
+    dag_id = Column(
+        String(ID_LEN),
+        ForeignKey('dag.dag_id', name='dag_tag_dag_id_fkey', ondelete='CASCADE'),
+        primary_key=True,
+    )
 
     def __repr__(self):
         return self.name
@@ -2689,7 +2692,7 @@ class DagModel(Base):
     timetable_description = Column(String(1000), nullable=True)
 
     # Tags for view filter
-    tags = relationship('DagTag', cascade='all,delete-orphan', backref=backref('dag'))
+    tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'))
 
     max_active_tasks = Column(Integer, nullable=False)
     max_active_runs = Column(Integer, nullable=True)
@@ -2815,7 +2818,7 @@ class DagModel(Base):
         have a value
         """
         # This is for backwards-compatibility with old dags that don't have None as default_view
-        return self.default_view or conf.get('webserver', 'dag_default_view').lower()
+        return self.default_view or conf.get_mandatory_value('webserver', 'dag_default_view').lower()
 
     @property
     def safe_dag_id(self):
