@@ -1894,7 +1894,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         field_delimiter: str = ',',
         print_header: bool = True,
         labels: Optional[Dict] = None,
-    ) -> str:
+        return_full_job: bool = False,
+    ) -> Union[str, BigQueryJob]:
         """
         Executes a BigQuery extract command to copy data from BigQuery to
         Google Cloud Storage. See here:
@@ -1915,6 +1916,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param print_header: Whether to print a header for a CSV file extract.
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
+        :param return_full_job: return full job instead of job id only
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
@@ -1953,6 +1955,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
+        if return_full_job:
+            return job
         return job.job_id
 
     def run_query(
