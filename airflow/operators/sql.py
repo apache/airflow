@@ -516,7 +516,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         # pass value should be number of acceptable distinct values
         "distinct_check": "COUNT(DISTINCT(column)) AS column_distinct_check",
         # pass value is implicit in the query, it does not need to be passed
-        "unique_check": "COUNT(DISTINCT(column)) = COUNT(column)",
+        "unique_check": "COUNT(DISTINCT(column)) = COUNT(column) AS column_unique_check",
         # pass value should be the minimum acceptable numeric value
         "min": "MIN(column) AS column_min",
         # pass value should be the maximum acceptable numeric value
@@ -575,9 +575,6 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _get_match(self, check_values, record, tolerance=None) -> bool:
-        # check if record is str or numeric
-        # if record is str, do pattern matching
-        # numeric record checks
         if "geq_than" in check_values:
             if tolerance is not None:
                 return record >= check_values["geq_than"] * (1 - tolerance)
