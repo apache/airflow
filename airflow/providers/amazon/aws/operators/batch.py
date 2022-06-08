@@ -30,7 +30,7 @@ from typing import TYPE_CHECKING, Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
-from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

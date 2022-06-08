@@ -20,7 +20,7 @@ import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.athena import AthenaHook
-from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

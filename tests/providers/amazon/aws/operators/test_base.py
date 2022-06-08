@@ -21,7 +21,7 @@ from unittest.mock import MagicMock
 import pytest
 
 from airflow import AirflowException
-from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

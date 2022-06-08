@@ -23,7 +23,7 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, ca
 
 from airflow import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import ClusterStates, EksHook, FargateProfileStates
-from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 
 if TYPE_CHECKING:

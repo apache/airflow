@@ -20,7 +20,7 @@ import json
 from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
-from airflow.providers.amazon.aws.operators.base import AwsBaseOperator
+from airflow.providers.amazon.aws.operators.base_aws import AwsBaseOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
