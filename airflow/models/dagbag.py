@@ -641,6 +641,8 @@ class DagBag(LoggingMixin):
         from airflow.security.permissions import DAG_ACTIONS, resource_name_for_dag
         from airflow.www.fab_security.sqla.models import Action, Permission, Resource
 
+        root_dag_id = dag.parent_dag.dag_id if dag.parent_dag else dag.dag_id
+
         def needs_perms(dag_id: str) -> bool:
             dag_resource_name = resource_name_for_dag(dag_id)
             for permission_name in DAG_ACTIONS:
@@ -655,9 +657,9 @@ class DagBag(LoggingMixin):
                     return True
             return False
 
-        if dag.access_control or needs_perms(dag.dag_id):
-            self.log.debug("Syncing DAG permissions: %s to the DB", dag.dag_id)
+        if dag.access_control or needs_perms(root_dag_id):
+            self.log.debug("Syncing DAG permissions: %s to the DB", root_dag_id)
             from airflow.www.security import ApplessAirflowSecurityManager
 
             security_manager = ApplessAirflowSecurityManager(session=session)
-            security_manager.sync_perm_for_dag(dag.dag_id, dag.access_control)
+            security_manager.sync_perm_for_dag(root_dag_id, dag.access_control)
