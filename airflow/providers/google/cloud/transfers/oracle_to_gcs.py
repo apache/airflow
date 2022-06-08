@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Dict
 
-import oracledb.base_impl as oracledbbase
+import oracledb
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
@@ -45,15 +45,15 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
     ui_color = '#a0e08c'
 
     type_map = {
-        oracledbbase.DB_TYPE_BINARY_DOUBLE: 'DECIMAL',
-        oracledbbase.DB_TYPE_BINARY_FLOAT: 'DECIMAL',
-        oracledbbase.DB_TYPE_BINARY_INTEGER: 'INTEGER',
-        oracledbbase.DB_TYPE_BOOLEAN: 'BOOLEAN',
-        oracledbbase.DB_TYPE_DATE: 'TIMESTAMP',
-        oracledbbase.DB_TYPE_NUMBER: 'NUMERIC',
-        oracledbbase.DB_TYPE_TIMESTAMP: 'TIMESTAMP',
-        oracledbbase.DB_TYPE_TIMESTAMP_LTZ: 'TIMESTAMP',
-        oracledbbase.DB_TYPE_TIMESTAMP_TZ: 'TIMESTAMP',
+        oracledb.DB_TYPE_BINARY_DOUBLE: 'DECIMAL',  # type: ignore
+        oracledb.DB_TYPE_BINARY_FLOAT: 'DECIMAL',  # type: ignore
+        oracledb.DB_TYPE_BINARY_INTEGER: 'INTEGER',  # type: ignore
+        oracledb.DB_TYPE_BOOLEAN: 'BOOLEAN',  # type: ignore
+        oracledb.DB_TYPE_DATE: 'TIMESTAMP',  # type: ignore
+        oracledb.DB_TYPE_NUMBER: 'NUMERIC',  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP: 'TIMESTAMP',  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP_LTZ: 'TIMESTAMP',  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP_TZ: 'TIMESTAMP',  # type: ignore
     }
 
     def __init__(self, *, oracle_conn_id='oracle_default', ensure_utc=False, **kwargs):

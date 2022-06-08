@@ -57,7 +57,7 @@ class OracleHook(DbApiHook):
 
     supports_autocommit = True
 
-    def get_conn(self) -> 'OracleHook':
+    def get_conn(self) -> oracledb.Connection:
         """
         Returns a oracle connection object
         Optional parameters for using a custom DSN connection
@@ -119,43 +119,32 @@ class OracleHook(DbApiHook):
                     dsn += "/" + conn.schema
             conn_config['dsn'] = dsn
 
-        if 'encoding' in conn.extra_dejson:
-            conn_config['encoding'] = conn.extra_dejson.get('encoding')
-            # if `encoding` is specific but `nencoding` is not
-            # `nencoding` should use same values as `encoding` to set encoding, inspired by
-            # https://github.com/oracle/python-oracledb/issues/157#issuecomment-371877993
-            if 'nencoding' not in conn.extra_dejson:
-                conn_config['nencoding'] = conn.extra_dejson.get('encoding')
-        if 'nencoding' in conn.extra_dejson:
-            conn_config['nencoding'] = conn.extra_dejson.get('nencoding')
-        if 'threaded' in conn.extra_dejson:
-            conn_config['threaded'] = conn.extra_dejson.get('threaded')
         if 'events' in conn.extra_dejson:
             conn_config['events'] = conn.extra_dejson.get('events')
 
         mode = conn.extra_dejson.get('mode', '').lower()
         if mode == 'sysdba':
-            conn_config['mode'] = oracledb.SYSDBA
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSDBA
         elif mode == 'sysasm':
-            conn_config['mode'] = oracledb.SYSASM
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSASM
         elif mode == 'sysoper':
-            conn_config['mode'] = oracledb.SYSOPER
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSOPER
         elif mode == 'sysbkp':
-            conn_config['mode'] = oracledb.SYSBKP
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSBKP
         elif mode == 'sysdgd':
-            conn_config['mode'] = oracledb.SYSDGD
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSDGD
         elif mode == 'syskmt':
-            conn_config['mode'] = oracledb.SYSKMT
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSKMT
         elif mode == 'sysrac':
-            conn_config['mode'] = oracledb.SYSRAC
+            conn_config['mode'] = oracledb.AUTH_MODE_SYSRAC
 
         purity = conn.extra_dejson.get('purity', '').lower()
         if purity == 'new':
-            conn_config['purity'] = oracledb.ATTR_PURITY_NEW
+            conn_config['purity'] = oracledb.PURITY_NEW
         elif purity == 'self':
-            conn_config['purity'] = oracledb.ATTR_PURITY_SELF
+            conn_config['purity'] = oracledb.PURITY_SELF
         elif purity == 'default':
-            conn_config['purity'] = oracledb.ATTR_PURITY_DEFAULT
+            conn_config['purity'] = oracledb.PURITY_DEFAULT
 
         conn = oracledb.connect(**conn_config)
         if mod is not None:
