@@ -200,12 +200,9 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
-    # XML to dict 0.13.0 breaks some EMR tests
-    # It should be removed once we solve https://github.com/apache/airflow/issues/23576
-    'xmltodict<0.13.0',
 ]
 apache_beam = [
-    'apache-beam>=2.33.0',
+    'apache-beam>=2.39.0',
 ]
 arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
@@ -370,6 +367,9 @@ google = [
     'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
+    # A transient dependency of google-cloud-bigquery-datatransfer, but we
+    # further constrain it since older versions are buggy.
+    'proto-plus>=1.19.6',
 ]
 grpc = [
     # Google has very clear rules on what dependencies should be used. All the limits below
@@ -491,9 +491,7 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = [
-    # The limit to Presto 0.8 for unknown reason
-    # TODO: Remove the limit
-    'presto-python-client>=0.7.0,<0.8',
+    'presto-python-client>=0.8.2',
     pandas_requirement,
 ]
 psrp = [
@@ -635,9 +633,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    # Version 3.1.10 is breaking main bump to 3.1.11 when released.
-    # Fix already merged but was not released https://github.com/spulec/moto/pull/5165
-    'moto[glue]>=3.1.6, <3.1.10',
+    'moto[cloudformation, glue]>=3.1.12',
     'parameterized',
     'paramiko',
     'pipdeptree',

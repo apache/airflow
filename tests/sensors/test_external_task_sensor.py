@@ -27,7 +27,7 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.session import provide_session
@@ -977,3 +977,11 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
         )
         == 30
     )
+
+
+class TestExternalTaskSensorLink:
+    def test_deprecation_warning(self):
+        with pytest.warns(DeprecationWarning) as warnings:
+            ExternalTaskSensorLink()
+            assert len(warnings) == 1
+            assert warnings[0].filename == __file__

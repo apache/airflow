@@ -312,7 +312,7 @@ class TestApiExperimental(TestBase):
 
 
 class TestLineageApiExperimental(TestBase):
-    PAPERMILL_EXAMPLE_DAGS = os.path.join(ROOT_FOLDER, "airflow", "providers", "papermill", "example_dags")
+    PAPERMILL_EXAMPLE_DAGS = os.path.join(ROOT_FOLDER, "tests", "system", "providers", "papermill")
 
     @pytest.fixture(scope="class", autouse=True)
     def _populate_db(self):

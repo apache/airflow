@@ -20,18 +20,18 @@ from typing import List
 
 from airflow_breeze.branch_defaults import DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import get_airflow_version
-from airflow_breeze.params._common_build_params import _CommonBuildParams
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.path_utils import BUILD_CACHE_DIR
 
 
 @dataclass
-class BuildCiParams(_CommonBuildParams):
+class BuildCiParams(CommonBuildParams):
     """
     CI build parameters. Those parameters are used to determine command issued to build CI image.
     """
 
     airflow_constraints_mode: str = "constraints-source-providers"
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints_reference: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_extras: str = "devel_ci"
     airflow_pre_cached_pip_packages: bool = True
@@ -96,6 +96,4 @@ class BuildCiParams(_CommonBuildParams):
         ]
 
     def __post_init__(self):
-        if self.prepare_buildx_cache:
-            get_console().print("[info]Forcing --push-image since we are preparing buildx cache[/]")
-            self.push_image = True
+        pass

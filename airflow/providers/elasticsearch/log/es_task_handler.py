@@ -18,6 +18,7 @@
 
 import logging
 import sys
+import warnings
 from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
@@ -31,14 +32,21 @@ import pendulum
 from elasticsearch_dsl import Search
 
 from airflow.configuration import conf
-from airflow.models import TaskInstance
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.log.file_task_handler import FileTaskHandler
 from airflow.utils.log.json_formatter import JSONFormatter
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin, LoggingMixin
+from airflow.utils.session import create_session
 
 # Elasticsearch hosted log type
 EsLogMsgType = List[Tuple[str, str]]
+
+# Compatibility: Airflow 2.3.3 and up uses this method, which accesses the
+# LogTemplate model to record the log ID template used. If this function does
+# not exist, the task handler should use the log_id_template attribute instead.
+USE_PER_RUN_LOG_ID = hasattr(DagRun, "get_log_template")
 
 
 class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMixin):
@@ -65,8 +73,6 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
     def __init__(
         self,
         base_log_folder: str,
-        filename_template: str,
-        log_id_template: str,
         end_of_log_mark: str,
         write_stdout: bool,
         json_format: bool,
@@ -76,6 +82,9 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         host: str = "localhost:9200",
         frontend: str = "localhost:5601",
         es_kwargs: Optional[dict] = conf.getsection("elasticsearch_configs"),
+        *,
+        filename_template: Optional[str] = None,
+        log_id_template: Optional[str] = None,
     ):
         """
         :param base_log_folder: base folder to store logs locally
@@ -88,7 +97,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
 
         self.client = elasticsearch.Elasticsearch([host], **es_kwargs)  # type: ignore[attr-defined]
 
-        self.log_id_template = log_id_template
+        if USE_PER_RUN_LOG_ID and log_id_template is not None:
+            warnings.warn(
+                "Passing log_id_template to ElasticsearchTaskHandler is deprecated and has no effect",
+                DeprecationWarning,
+            )
+
+        self.log_id_template = log_id_template  # Only used on Airflow < 2.3.2.
         self.frontend = frontend
         self.mark_end_on_close = True
         self.end_of_log_mark = end_of_log_mark
@@ -103,7 +118,13 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
-        dag_run = ti.get_dagrun()
+        with create_session() as session:
+            dag_run = ti.get_dagrun(session=session)
+            if USE_PER_RUN_LOG_ID:
+                log_id_template = dag_run.get_log_template(session=session).elasticsearch_id
+            else:
+                log_id_template = self.log_id_template
+
         dag = ti.task.dag
         assert dag is not None  # For Mypy.
         try:
@@ -126,7 +147,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
                 data_interval_end = ""
             execution_date = dag_run.execution_date.isoformat()
 
-        return self.log_id_template.format(
+        return log_id_template.format(
             dag_id=ti.dag_id,
             task_id=ti.task_id,
             run_id=getattr(ti, "run_id", ""),

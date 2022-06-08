@@ -18,13 +18,13 @@
 import os
 from typing import Tuple
 
-from airflow_breeze.params._common_build_params import _CommonBuildParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.run_utils import run_command
 
 
 def login_to_github_docker_registry(
-    image_params: _CommonBuildParams, dry_run: bool, verbose: bool
+    image_params: CommonBuildParams, dry_run: bool, verbose: bool
 ) -> Tuple[int, str]:
     """
     In case of CI environment, we need to login to GitHub Registry.

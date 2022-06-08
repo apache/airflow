@@ -37,7 +37,6 @@ from airflow_breeze.utils.common_options import (
     option_use_packages_from_dist,
     option_verbose,
 )
-from airflow_breeze.utils.path_utils import create_directories
 
 
 @click.group(invoke_without_command=True, context_settings={'help_option_names': ['-h', '--help']})
@@ -64,6 +63,5 @@ from airflow_breeze.utils.path_utils import create_directories
 def main(ctx: click.Context, **kwargs):
     from airflow_breeze.commands.developer_commands import shell
 
-    create_directories()
     if not ctx.invoked_subcommand:
         ctx.forward(shell, extra_args={})
