@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global document, window, Event, $ */
+/* global document, window, CustomEvent, $ */
 
 import { getMetaValue } from './utils';
 import { approxTimeFromNow, formatDateTime } from './datetime_utils';
@@ -367,9 +367,7 @@ $('#pause_resume').on('change', function onChange() {
   $input.removeClass('switch-input--error');
 
   // dispatch an event that React can listen for
-  const event = new Event('paused');
-  event.value = isPaused;
-  event.key = 'isPaused';
+  const event = new CustomEvent('paused', { detail: isPaused });
   document.dispatchEvent(event);
 
   $.post(url).fail(() => {
