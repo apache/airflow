@@ -511,15 +511,10 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     """
 
     column_checks = {
-        # pass value should be number of acceptable nulls
-        "null_check": "SUM(CASE WHEN 'column' IS NULL THEN 1 ELSE 0 END) AS column_null_check",
-        # pass value should be number of acceptable distinct values
+        "null_check": "SUM(CASE WHEN column IS NULL THEN 1 ELSE 0 END) AS column_null_check",
         "distinct_check": "COUNT(DISTINCT(column)) AS column_distinct_check",
-        # pass value is implicit in the query, it does not need to be passed
         "unique_check": "COUNT(DISTINCT(column)) = COUNT(column) AS column_unique_check",
-        # pass value should be the minimum acceptable numeric value
         "min": "MIN(column) AS column_min",
-        # pass value should be the maximum acceptable numeric value
         "max": "MAX(column) AS column_max",
     }
 
