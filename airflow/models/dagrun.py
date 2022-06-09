@@ -934,9 +934,9 @@ class DagRun(Base, LoggingMixin):
 
         This function also updates the created_counts dictionary with the number of tasks created.
 
-        :created_counts: Dictionary of task_type -> count of created TIs
-        :ti_mutation_hook: task_instance_mutation_hook function
-        :hook_is_noop: Whether the task_instance_mutation_hook is a noop
+        :param created_counts: Dictionary of task_type -> count of created TIs
+        :param ti_mutation_hook: task_instance_mutation_hook function
+        :param hook_is_noop: Whether the task_instance_mutation_hook is a noop
 
         """
         if hook_is_noop:
