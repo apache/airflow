@@ -21,7 +21,7 @@ This module took inspiration from the community maintenance dag
 """
 
 import logging
-from contextlib import AbstractContextManager
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Union
 
@@ -251,19 +251,17 @@ def _print_config(*, configs: Dict[str, _TableConfig]):
     AirflowConsole().print_as_table(data=data)
 
 
-class _warn_if_missing(AbstractContextManager):
-    def __init__(self, table, suppress):
-        self.table = table
-        self.suppress = suppress
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exctype, excinst, exctb):
-        caught_error = exctype is not None and issubclass(exctype, (OperationalError, ProgrammingError))
-        if caught_error:
-            logger.warning("Table %r not found.  Skipping.", self.table)
-        return caught_error
+@contextmanager
+def _warn_if_missing(table, suppress, session):
+    try:
+        yield
+    except (OperationalError, ProgrammingError):
+        if suppress:
+            logger.warning("Table %r not found.  Skipping.", table)
+            if session.is_active:
+                session.rollback()
+        else:
+            raise
 
 
 @provide_session
@@ -307,7 +305,7 @@ def run_cleanup(
     if not dry_run and confirm:
         _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
     for table_name, table_config in effective_config_dict.items():
-        with _warn_if_missing(table_name, table_config.warn_if_missing):
+        with _warn_if_missing(table_name, table_config.warn_if_missing, session):
             _cleanup_table(
                 clean_before_timestamp=clean_before_timestamp,
                 dry_run=dry_run,
