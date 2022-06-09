@@ -239,8 +239,8 @@ class TestExternalTaskSensor(unittest.TestCase):
             task_id='test_external_dag_sensor_check',
             external_dag_id='other_dag',
             external_task_id=None,
-            allowed_states=[State.Failed],
-            failed_states=[State.Success],
+            allowed_states=[State.FAILED],
+            failed_states=[State.SUCCESS],
             soft_fail=True,
             dag=self.dag,
         )
