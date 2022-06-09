@@ -21,7 +21,7 @@ This module took inspiration from the community maintenance dag
 """
 
 import logging
-from contextlib import AbstractContextManager
+from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -290,26 +290,20 @@ def _print_config(*, configs: Dict[str, _TableConfig]):
     AirflowConsole().print_as_table(data=data)
 
 
-class _suppress_with_logging(AbstractContextManager):
+@contextmanager
+def _suppress_with_logging(table, session):
     """
     Suppresses errors but logs them.
     Also stores the exception instance so it can be referred to after exiting context.
     """
-
-    def __init__(self, table):
-        self.table = table
-        self.excinst = None
-
-    def __enter__(self):
-        return self
-
-    def __exit__(self, exctype, excinst, exctb):
-        caught_error = exctype is not None and issubclass(exctype, (OperationalError, ProgrammingError))
-        if caught_error:
-            logger.warning("Encountered error when attempting to clean table '%s'. ", self.table)
-            logger.debug("Traceback for table '%s'", self.table, exc_info=True)
-            self.excinst = excinst
-        return caught_error
+    try:
+        yield
+    except (OperationalError, ProgrammingError):
+        logger.warning("Encountered error when attempting to clean table '%s'. ", table)
+        logger.debug("Traceback for table '%s'", table, exc_info=True)
+        if session.is_active:
+            logger.debug('Rolling back transaction')
+            session.rollback()
 
 
 @provide_session
@@ -359,7 +353,7 @@ def run_cleanup(
         if table_name not in existing_tables:
             logger.warning("Table %s not found.  Skipping.", table_name)
             continue
-        with _suppress_with_logging(table_name) as suppress_ctx:
+        with _suppress_with_logging(table_name, session):
             _cleanup_table(
                 clean_before_timestamp=clean_before_timestamp,
                 dry_run=dry_run,
@@ -369,6 +363,3 @@ def run_cleanup(
                 session=session,
             )
             session.commit()
-        if suppress_ctx.excinst is not None:
-            logger.debug('Rolling back transaction')
-            session.rollback()
