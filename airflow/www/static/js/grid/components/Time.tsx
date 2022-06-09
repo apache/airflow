@@ -17,18 +17,21 @@
  * under the License.
  */
 
-/* global moment */
-
 import React from 'react';
+import moment from 'moment-timezone';
 import { useTimezone } from '../context/timezone';
 import { defaultFormatWithTZ } from '../../datetime_utils';
 
-const Time = ({ dateTime, format = defaultFormatWithTZ }) => {
+interface Props {
+  dateTime: string;
+  format?: string;
+}
+
+const Time: React.FC<Props> = ({ dateTime, format = defaultFormatWithTZ }) => {
   const { timezone } = useTimezone();
   const time = moment(dateTime);
 
-  // eslint-disable-next-line no-underscore-dangle
-  if (!dateTime || !time._isValid) return null;
+  if (!dateTime || !time.isValid()) return null;
 
   const formattedTime = time.tz(timezone).format(format);
   const utcTime = time.tz('UTC').format(defaultFormatWithTZ);

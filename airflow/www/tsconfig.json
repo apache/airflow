@@ -17,13 +17,26 @@
  * under the License.
  */
 
-const config = {
-  verbose: true,
-  transform: {
-    '^.+\\.[jt]sx?$': 'babel-jest',
+/*
+*  TypeScript config
+*/
+{
+  "compilerOptions": {
+    "strict": true,
+    "allowJs": true,
+    "importsNotUsedAsValues": "error",
+    "target": "esnext",
+    "module": "esnext",
+    "moduleResolution": "node",
+    "isolatedModules": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "skipLibCheck": true,
+    "jsx": "preserve",
+    "types": ["node", "jest"],
   },
-  testEnvironment: 'jsdom',
-  setupFilesAfterEnv: ['./jest-setup.js'],
-};
-
-module.exports = config;
+  "include": [
+    "static/js",
+  ],
+  "exclude": ["node_modules", "static/dist"]
+}
