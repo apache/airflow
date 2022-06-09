@@ -1676,10 +1676,14 @@ def create_global_lock(
 
 
 def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
-    # return False if the metadata_type is the same as the inspected_type
-    # or None to allow the default implementation to compare these
-    # types. a return value of True means the two types do not
-    # match and should result in a type change operation.
+    """
+    Compare types between ORM and DB .
+
+    return False if the metadata_type is the same as the inspected_type
+    or None to allow the default implementation to compare these
+    types. a return value of True means the two types do not
+    match and should result in a type change operation.
+    """
     if context.dialect.name == 'mysql':
         from sqlalchemy import String
         from sqlalchemy.dialects import mysql
@@ -1694,9 +1698,12 @@ def compare_type(context, inspected_column, metadata_column, inspected_type, met
 def compare_server_default(
     context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default
 ):
-    # return True if the defaults are different,
-    # False if not, or None to allow the default implementation
-    # to compare these defaults
+    """
+    Compare server defaults between ORM and DB .
+
+    return True if the defaults are different, False if not, or None to allow the default implementation
+    to compare these defaults
+    """
     if context.connection.dialect.name in ['mssql', 'sqlite']:
         # autogenerate doesn't work when comparing server_default in MSSQL
         # e.g inspected_default != metadata_default

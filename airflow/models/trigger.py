@@ -52,7 +52,7 @@ class Trigger(Base):
     id = Column(Integer, primary_key=True)
     classpath = Column(String(1000), nullable=False)
     kwargs = Column(ExtendedJSON, nullable=False)
-    created_date = Column(DateTime, nullable=False)  # DateTime without timezone
+    created_date = Column(DateTime, nullable=False)  # DateTime in UTC without timezone
     triggerer_id = Column(Integer, nullable=True)
 
     def __init__(

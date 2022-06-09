@@ -40,6 +40,13 @@ airflow_version = '2.4.0'
 def upgrade():
     """Apply compare types between ORM and DB"""
     conn = op.get_bind()
+    with op.batch_alter_table('connection', schema=None) as batch_op:
+        batch_op.alter_column(
+            'extra',
+            existing_type=sa.TEXT(),
+            type_=sa.Text(),
+            existing_nullable=True,
+        )
     with op.batch_alter_table('log_template', schema=None) as batch_op:
         batch_op.alter_column(
             'created_at', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
@@ -67,6 +74,8 @@ def upgrade():
 
     if conn.dialect.name != 'sqlite':
         return
+    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
+        batch_op.alter_column('fileloc_hash', existing_type=sa.Integer, type_=sa.BigInteger())
     # Some sqlite date are not in db_types.TIMESTAMP. Convert these to TIMESTAMP.
     with op.batch_alter_table('dag', schema=None) as batch_op:
         batch_op.alter_column(
@@ -149,6 +158,13 @@ def upgrade():
 
 def downgrade():
     """Unapply compare types between ORM and DB"""
+    with op.batch_alter_table('connection', schema=None) as batch_op:
+        batch_op.alter_column(
+            'extra',
+            existing_type=sa.Text(),
+            type_=sa.TEXT(),
+            existing_nullable=True,
+        )
     with op.batch_alter_table('log_template', schema=None) as batch_op:
         batch_op.alter_column(
             'created_at', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
@@ -161,6 +177,8 @@ def downgrade():
 
     if conn.dialect.name != 'sqlite':
         return
+    with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
+        batch_op.alter_column('fileloc_hash', existing_type=sa.BigInteger, type_=sa.Integer())
     # Change these column back to sa.DATETIME()
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         batch_op.alter_column(
