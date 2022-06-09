@@ -305,7 +305,7 @@ class GCSDeleteObjectsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-        if not objects and not prefix:
+        if objects is None and prefix is None:
             raise ValueError("Either object or prefix should be set. Both are None")
 
         super().__init__(**kwargs)
