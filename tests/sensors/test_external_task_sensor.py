@@ -493,7 +493,9 @@ exit 0
 def test_external_task_sensor_templated(dag_maker, app):
     with dag_maker():
         ExternalTaskSensor(
-            task_id='templated_task', external_dag_id='dag_{{ ds }}', external_task_id='task_{{ ds }}',
+            task_id='templated_task',
+            external_dag_id='dag_{{ ds }}',
+            external_task_id='task_{{ ds }}',
         )
 
     dagrun = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED, execution_date=DEFAULT_DATE)
@@ -684,14 +686,24 @@ def assert_ti_state_equal(task_instance, state):
 
 @provide_session
 def clear_tasks(
-    dag_bag, dag, task, session, start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, dry_run=False,
+    dag_bag,
+    dag,
+    task,
+    session,
+    start_date=DEFAULT_DATE,
+    end_date=DEFAULT_DATE,
+    dry_run=False,
 ):
     """
     Clear the task and its downstream tasks recursively for the dag in the given dagbag.
     """
     partial: DAG = dag.partial_subset(task_ids_or_regex=[task.task_id], include_downstream=True)
     return partial.clear(
-        start_date=start_date, end_date=end_date, dag_bag=dag_bag, dry_run=dry_run, session=session,
+        start_date=start_date,
+        end_date=end_date,
+        dag_bag=dag_bag,
+        dry_run=dry_run,
+        session=session,
     )
 
 
@@ -817,7 +829,9 @@ def dag_bag_cyclic():
             with DAG(f"dag_{n}", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
                 dags.append(dag)
                 task_a = ExternalTaskSensor(
-                    task_id=f"task_a_{n}", external_dag_id=f"dag_{n-1}", external_task_id=f"task_b_{n-1}",
+                    task_id=f"task_a_{n}",
+                    external_dag_id=f"dag_{n-1}",
+                    external_task_id=f"task_b_{n-1}",
                 )
                 task_b = ExternalTaskMarker(
                     task_id=f"task_b_{n}",
@@ -997,7 +1011,10 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
     assert dag.clear(start_date=DEFAULT_DATE, dag_bag=dag_bag_head_tail, session=session) == 30
     assert (
         dag.clear(
-            start_date=DEFAULT_DATE, end_date=execution_date, dag_bag=dag_bag_head_tail, session=session,
+            start_date=DEFAULT_DATE,
+            end_date=execution_date,
+            dag_bag=dag_bag_head_tail,
+            session=session,
         )
         == 30
     )

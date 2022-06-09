@@ -24,8 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable
 import attr
 from sqlalchemy import func
 
-from airflow.exceptions import AirflowException
-from airflow.exceptions import AirflowSkipException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
