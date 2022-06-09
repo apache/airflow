@@ -23,7 +23,7 @@ from typing import Any, Dict, Iterable, Tuple
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import TIMESTAMP, and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
@@ -33,6 +33,7 @@ from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.serialization.enums import Encoding
 
 log = logging.getLogger(__name__)
 
@@ -144,6 +145,46 @@ class ExtendedJSON(TypeDecorator):
             value = json.loads(value)
 
         return BaseSerialization._deserialize(value)
+
+
+class ExecutorConfigType(PickleType):
+    """
+    Adds special handling for K8s executor config. If we unpickle a k8s object that was
+    pickled under an earlier k8s library version, then the unpickled object may throw an error
+    when to_dict is called.  To be more tolerant of version changes we convert to JSON using
+    Airflow's serializer before pickling.
+    """
+
+    def bind_processor(self, dialect):
+
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        super_process = super().bind_processor(dialect)
+
+        def process(value):
+            if isinstance(value, dict) and 'pod_override' in value:
+                value['pod_override'] = BaseSerialization()._serialize(value['pod_override'])
+            return super_process(value)
+
+        return process
+
+    def result_processor(self, dialect, coltype):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        super_process = super().result_processor(dialect, coltype)
+
+        def process(value):
+            value = super_process(value)  # unpickle
+
+            if isinstance(value, dict) and 'pod_override' in value:
+                pod_override = value['pod_override']
+
+                # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
+                if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+                    value['pod_override'] = BaseSerialization()._deserialize(pod_override)
+            return value
+
+        return process
 
 
 class Interval(TypeDecorator):

@@ -58,7 +58,6 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
-    PickleType,
     String,
     and_,
     false,
@@ -120,7 +119,13 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import (
+    ExecutorConfigType,
+    ExtendedJSON,
+    UtcDateTime,
+    tuple_in_condition,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
@@ -456,7 +461,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
-    executor_config = Column(PickleType(pickler=dill, comparator=_executor_config_comparator))
+    executor_config = Column(ExecutorConfigType(pickler=dill))
 
     external_executor_id = Column(StringID())
 
