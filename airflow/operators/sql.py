@@ -539,7 +539,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.column_mapping = column_mapping
-        self.sql = f"SELECT * FROM {self.table};"
+        self.sql = None
 
     def execute(self, context=None):
         hook = self.get_db_hook()
@@ -671,7 +671,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
     .. code-block:: python
 
         {
-            "row_count_check": {"check_statement": "COUNT(*) == 1000"},
+            "row_count_check": {"check_statement": "COUNT(*) = 1000"},
             "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
         }
 
@@ -679,7 +679,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
     :param database: name of database which overwrite the defined one in connection
     """
 
-    sql_check_template = "MIN(CASE WHEN check_statement THEN 1 ELSE 0 END AS check_name)"
+    sql_check_template = "CASE WHEN check_statement THEN 1 ELSE 0 END AS check_name"
+    sql_min_template = "MIN(check_name)"
 
     def __init__(
         self,
@@ -699,16 +700,20 @@ class SQLTableCheckOperator(BaseSQLOperator):
     def execute(self, context=None):
         hook = self.get_db_hook()
 
+        check_names = [*self.checks]
+        check_mins_sql = ",".join(
+            self.sql_min_template.replace("check_name", check_name) for check_name in check_names
+        )
         checks_sql = ",".join(
             [
-                self.sql_check_template.replace("check_statment", value["check_statement"]).replace(
+                self.sql_check_template.replace("check_statement", value["check_statement"]).replace(
                     "check_name", check_name
                 )
                 for check_name, value in self.checks.items()
             ]
         )
 
-        self.sql = f"SELECT {checks_sql} FROM {self.table};"
+        self.sql = f"SELECT {check_mins_sql} FROM (SELECT {checks_sql} FROM {self.table});"
         records = hook.get_first(self.sql)
 
         if not records:
