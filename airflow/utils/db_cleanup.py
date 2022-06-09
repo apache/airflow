@@ -54,8 +54,6 @@ class _TableConfig:
         in the table.  to ignore certain records even if they are the latest in the table, you can
         supply additional filters here (e.g. externally triggered dag runs)
     :param keep_last_group_by: if keeping the last record, can keep the last record for each group
-    :param warn_if_missing: If True, then we'll suppress "table missing" exception and log a warning.
-        If False then the exception will go uncaught.
     """
 
     table_name: str
@@ -64,7 +62,6 @@ class _TableConfig:
     keep_last: bool = False
     keep_last_filters: Optional[Any] = None
     keep_last_group_by: Optional[Any] = None
-    warn_if_missing: bool = False
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
@@ -83,7 +80,6 @@ class _TableConfig:
             keep_last=self.keep_last,
             keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             keep_last_group_by=str(self.keep_last_group_by),
-            warn_if_missing=str(self.warn_if_missing),
         )
 
 
@@ -108,8 +104,8 @@ config_list: List[_TableConfig] = [
     _TableConfig(table_name='task_reschedule', recency_column_name='start_date'),
     _TableConfig(table_name='xcom', recency_column_name='timestamp'),
     _TableConfig(table_name='callback_request', recency_column_name='created_at'),
-    _TableConfig(table_name='celery_taskmeta', recency_column_name='date_done', warn_if_missing=True),
-    _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done', warn_if_missing=True),
+    _TableConfig(table_name='celery_taskmeta', recency_column_name='date_done'),
+    _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done'),
 ]
 
 config_dict: Dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
