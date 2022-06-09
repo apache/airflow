@@ -215,7 +215,7 @@ class ExternalTaskSensor(BaseSensorOperator):
             else:
                 if self.soft_fail:
                     raise AirflowSkipException(
-                        f'The external DAG {self.external_dag_id} failed. ' 'Skipping due to soft_fail'
+                        f'The external DAG {self.external_dag_id} failed. Skipping due to soft_fail.'
                     )
                 raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
 

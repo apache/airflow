@@ -163,7 +163,7 @@ class TestExternalTaskSensor(unittest.TestCase):
             task_id='test_external_task_sensor_check',
             external_dag_id='{{ params.dag_id }}',
             external_task_id='{{ params.task_id }}',
-            params={'dag_id': TEST_DAG_ID, 'task_id': TEST_TASK_ID,},
+            params={'dag_id': TEST_DAG_ID, 'task_id': TEST_TASK_ID},
             dag=self.dag,
         )
 
@@ -181,7 +181,7 @@ class TestExternalTaskSensor(unittest.TestCase):
             task_id='test_external_task_sensor_check',
             external_dag_id='{{ params.dag_id }}',
             external_task_ids=['{{ params.task_id }}'],
-            params={'dag_id': TEST_DAG_ID, 'task_id': TEST_TASK_ID,},
+            params={'dag_id': TEST_DAG_ID, 'task_id': TEST_TASK_ID},
             dag=self.dag,
         )
 
@@ -239,8 +239,8 @@ class TestExternalTaskSensor(unittest.TestCase):
             task_id='test_external_dag_sensor_check',
             external_dag_id='other_dag',
             external_task_id=None,
-            allowed_states=["failed"],
-            failed_states=["success"],
+            allowed_states=[State.Failed],
+            failed_states=[State.Success],
             soft_fail=True,
             dag=self.dag,
         )
