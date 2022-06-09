@@ -3834,9 +3834,13 @@ class AirflowModelView(ModelView):
 
     def __getattribute__(self, attr):
         attribute = object.__getattribute__(self, attr)
-        if callable(attribute) and hasattr(attribute, "_permission_name"):
-            permission_str = attribute._permission_name
-            if permission_str not in ["show", "list"]:
+        if (
+            callable(attribute)
+            and hasattr(attribute, "_permission_name")
+            and attribute._permission_name in self.method_permission_name
+        ):
+            permission_str = self.method_permission_name[attribute._permission_name]
+            if permission_str not in ["show", "list", "read", "get", "get_list"]:
                 return action_logging(event=f"{self.route_base.strip('/')}.{permission_str}")(attribute)
         return attribute
 
