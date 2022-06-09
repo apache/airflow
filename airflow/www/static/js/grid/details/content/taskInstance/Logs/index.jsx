@@ -60,7 +60,6 @@ const Logs = ({
   taskId,
   executionDate,
   tryNumber,
-  isGroup,
 }) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
@@ -72,16 +71,15 @@ const Logs = ({
     taskId,
     taskTryNumber: selectedAttempt,
     fullContent: shouldRequestFullContent,
-    enabled: (!isGroup),
   });
 
   const codeBlockBottomDiv = useRef(null);
 
   useEffect(() => {
     if (codeBlockBottomDiv.current) {
-      codeBlockBottomDiv.current.scrollIntoView({ behavior: 'smooth' });
+      codeBlockBottomDiv.current.scrollIntoView();
     }
-  }, [data]);
+  }, [wrap, data]);
 
   const params = new URLSearchParams({
     task_id: taskId,

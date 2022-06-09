@@ -82,7 +82,7 @@ const TaskInstance = ({ taskId, runId }) => {
   const { isMapped, extraLinks } = group;
   const isGroup = !!group.children;
 
-  const showLogsTab = !isMapped && !isGroup;
+  const isSimpleTask = !isMapped && !isGroup;
 
   let isPreferedTabDisplayed = false;
 
@@ -91,7 +91,7 @@ const TaskInstance = ({ taskId, runId }) => {
       isPreferedTabDisplayed = true;
       break;
     case 1:
-      isPreferedTabDisplayed = showLogsTab;
+      isPreferedTabDisplayed = isSimpleTask;
       break;
     default:
       isPreferedTabDisplayed = false;
@@ -129,7 +129,7 @@ const TaskInstance = ({ taskId, runId }) => {
             <Text as="strong">Details</Text>
           </Tab>
 
-          { showLogsTab && (
+          { isSimpleTask && (
             <Tab>
               <Text as="strong">Logs</Text>
             </Tab>
@@ -194,6 +194,7 @@ const TaskInstance = ({ taskId, runId }) => {
           </TabPanel>
 
           {/* Logs Tab */}
+          { isSimpleTask && (
           <TabPanel>
             <Logs
               dagId={dagId}
@@ -201,9 +202,10 @@ const TaskInstance = ({ taskId, runId }) => {
               taskId={taskId}
               executionDate={executionDate}
               tryNumber={instance.tryNumber}
-              isGroup={isGroup}
             />
+
           </TabPanel>
+          )}
         </TabPanels>
       </Tabs>
     </Box>
