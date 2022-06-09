@@ -51,7 +51,7 @@ def test_create_connection(admin_client, session):
     init_views.init_connection_form()
     resp = admin_client.post('/connection/add', data=CONNECTION, follow_redirects=True)
     check_content_in_response('Added Row', resp)
-    _check_last_log(session, dag_id=None, event="connections.add", execution_date=None)
+    _check_last_log(session, dag_id=None, event="connection.create", execution_date=None)
 
 
 def test_prefill_form_null_extra():

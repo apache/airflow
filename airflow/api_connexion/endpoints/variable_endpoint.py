@@ -36,9 +36,7 @@ from airflow.www.decorators import action_logging
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_VARIABLE)])
-@action_logging(
-    event=f"{permissions.RESOURCE_VARIABLE.lower()}.{permissions.ACTION_CAN_DELETE.replace('can_','')}"
-)
+@action_logging(event=f"variable.{permissions.ACTION_CAN_DELETE.replace('can_','')}")
 def delete_variable(*, variable_key: str) -> Response:
     """Delete variable"""
     if Variable.delete(variable_key) == 0:
@@ -82,9 +80,7 @@ def get_variables(
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_VARIABLE)])
-@action_logging(
-    event=f"{permissions.RESOURCE_VARIABLE.lower()}.{permissions.ACTION_CAN_EDIT.replace('can_','')}"
-)
+@action_logging(event=f"variable.{permissions.ACTION_CAN_EDIT.replace('can_','')}")
 def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Response:
     """Update a variable by key"""
     try:
@@ -106,12 +102,9 @@ def patch_variable(*, variable_key: str, update_mask: UpdateMask = None) -> Resp
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_VARIABLE)])
-@action_logging(
-    event=f"{permissions.RESOURCE_VARIABLE.lower()}.{permissions.ACTION_CAN_CREATE.replace('can_','')}"
-)
+@action_logging(event=f"variable.{permissions.ACTION_CAN_CREATE.replace('can_','')}")
 def post_variables() -> Response:
     """Create a variable"""
-
     try:
         data = variable_schema.load(get_json_request_dict())
 
