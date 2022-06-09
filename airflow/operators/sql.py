@@ -469,7 +469,7 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
 
 def _get_failed_tests(checks):
     return [
-        f"\tCheck: {check},\nCheck Values: {check_values}\n"
+        f"\tCheck: {check},\n\tCheck Values: {check_values}\n"
         for check, check_values in checks.items()
         if not check_values["success"]
     ]
@@ -539,7 +539,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.column_mapping = column_mapping
-        self.sql = None
+        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
+        self.sql = f"SELECT * FROM {self.table};"
 
     def execute(self, context=None):
         hook = self.get_db_hook()
@@ -695,6 +696,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.checks = checks
+        # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
     def execute(self, context=None):
