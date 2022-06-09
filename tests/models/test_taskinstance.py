@@ -1308,7 +1308,11 @@ class TestTaskInstance:
         assert 1 == ti3.get_num_running_task_instances(session=session)
 
     def test_log_url(self, create_task_instance):
-        ti = create_task_instance(dag_id='dag', task_id='op', execution_date=timezone.datetime(2018, 1, 1), )
+        ti = create_task_instance(
+            dag_id='dag',
+            task_id='op',
+            execution_date=timezone.datetime(2018, 1, 1)
+        )
 
         expected_url = (
             'http://localhost:8080/log?'
