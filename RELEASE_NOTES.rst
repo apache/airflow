@@ -1249,7 +1249,7 @@ Logical date of a DAG run triggered from the web UI now have its sub-second comp
 
 Due to a change in how the logical date (``execution_date``) is generated for a manual DAG run, a manual DAG run’s logical date may not match its time-of-trigger, but have its sub-second part zero-ed out. For example, a DAG run triggered on ``2021-10-11T12:34:56.78901`` would have its logical date set to ``2021-10-11T12:34:56.00000``.
 
-This may affect some logic that expects on this quirk to detect whether a run is triggered manually or not. Note that ``dag_run.run_type`` is a more authoritative value for this purpose. Also, if you need this distinction between automated and manually-triggered rus for “next execution date” calculation, please also consider using the new data interval variables instead, which provide a more consistent behavior between the two run types.
+This may affect some logic that expects on this quirk to detect whether a run is triggered manually or not. Note that ``dag_run.run_type`` is a more authoritative value for this purpose. Also, if you need this distinction between automated and manually-triggered run for “next execution date” calculation, please also consider using the new data interval variables instead, which provide a more consistent behavior between the two run types.
 
 New Features
 ^^^^^^^^^^^^

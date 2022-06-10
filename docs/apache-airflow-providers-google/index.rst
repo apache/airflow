@@ -39,6 +39,12 @@ Content
     Configuration <configurations-ref>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/google/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
