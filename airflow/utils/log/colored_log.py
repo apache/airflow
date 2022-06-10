@@ -42,6 +42,8 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
     by adding attributes to message arguments and coloring error
     traceback.
     """
+    default_time_format = '%Y-%m-%d %H:%M:%S%z'
+    default_msec_format = None
 
     def __init__(self, *args, **kwargs):
         kwargs["stream"] = sys.stdout or kwargs.get("stream")

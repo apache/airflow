@@ -31,7 +31,6 @@ from airflow.exceptions import AirflowException
 # settings.py and cli.py. Please see AIRFLOW-1455.
 LOG_LEVEL: str = conf.get_mandatory_value('logging', 'LOGGING_LEVEL').upper()
 
-
 # Flask appbuilder's info level log is very verbose,
 # so it's set to 'WARN' by default.
 FAB_LOG_LEVEL: str = conf.get_mandatory_value('logging', 'FAB_LOGGING_LEVEL').upper()
@@ -60,10 +59,13 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
-        'airflow': {'format': LOG_FORMAT},
+        'airflow': {
+            'format': LOG_FORMAT,
+            'class': 'airflow.utils.log.timezone_aware.TimezoneAware',
+        },
         'airflow_coloured': {
             'format': COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
-            'class': COLORED_FORMATTER_CLASS if COLORED_LOG else 'logging.Formatter',
+            'class': COLORED_FORMATTER_CLASS if COLORED_LOG else 'airflow.utils.log.timezone_aware.TimezoneAware',
         },
     },
     'filters': {
