@@ -28,29 +28,11 @@ import useMappedInstances from './useMappedInstances';
 import { AutoRefreshProvider } from '../context/autorefresh';
 import * as metaUtils from '../../utils';
 
-const pendingGridData = {
-  groups: {},
-  dag_runs: [
-    {
-      dag_id: 'example_python_operator',
-      run_id: 'manual__2021-11-08T21:14:17.170046+00:00',
-      start_date: null,
-      end_date: null,
-      state: 'queued',
-      execution_date: '2021-11-08T21:14:17.170046+00:00',
-      data_interval_start: '2021-11-08T21:14:17.170046+00:00',
-      data_interval_end: '2021-11-08T21:14:17.170046+00:00',
-      run_type: 'manual',
-    },
-  ],
-};
-
 const Wrapper = ({ children }) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
-        cacheTime: Infinity,
-        staleTime: Infinity,
+        initialDataUpdatedAt: new Date().setMinutes(-1),
       },
     },
   });
@@ -68,7 +50,7 @@ const fakeUrl = 'http://fake.api';
 describe('Test useMappedInstances hook', () => {
   let spy;
   beforeEach(() => {
-    global.autoRefreshInterval = 0.5;
+    global.autoRefreshInterval = 0.1;
     spy = jest.spyOn(metaUtils, 'getMetaValue').mockReturnValue(`${fakeUrl}/_DAG_RUN_ID_/_TASK_ID_`);
   });
 
@@ -78,8 +60,6 @@ describe('Test useMappedInstances hook', () => {
   });
 
   test('autorefresh works normally', async () => {
-    global.gridData = JSON.stringify(pendingGridData);
-
     const scope = nock(fakeUrl)
       .get('/run_id/task_id')
       .query(true)
@@ -89,24 +69,24 @@ describe('Test useMappedInstances hook', () => {
       runId: 'run_id',
       taskId: 'task_id',
     }), { wrapper: Wrapper });
+
+    await new Promise((r) => setTimeout(r, 10));
     await waitFor(() => result.current.isSuccess);
+    scope.done();
     expect(result.current.data.taskInstances[0].state).toBe('queued');
 
     const scope2 = nock(fakeUrl)
       .get('/run_id/task_id')
       .query(true)
       .reply(200, { totalEntries: 2, taskInstances: [{ taskId: 'task_id', state: 'failed' }] });
-    await new Promise((r) => setTimeout(r, 600));
-    await waitFor(() => result.current.isSuccess);
-    scope.done();
-    scope2.done();
 
+    await new Promise((_) => setTimeout(_, 300));
+    await waitFor(() => result.current.isSuccess);
+    scope2.done();
     expect(result.current.data.taskInstances[0].state).toBe('failed');
   });
 
   test('autorefresh stops if all states are final', async () => {
-    global.gridData = JSON.stringify(pendingGridData);
-
     const scope = nock(fakeUrl)
       .get('/run_id/task_id')
       .query(true)
@@ -116,18 +96,21 @@ describe('Test useMappedInstances hook', () => {
       runId: 'run_id',
       taskId: 'task_id',
     }), { wrapper: Wrapper });
+
+    await new Promise((r) => setTimeout(r, 10));
     await waitFor(() => result.current.isSuccess);
+    scope.done();
     expect(result.current.data.taskInstances[0].state).toBe('success');
 
     const scope2 = nock(fakeUrl)
       .get('/run_id/task_id')
       .query(true)
       .reply(200, { totalEntries: 2, taskInstances: [{ taskId: 'task_id', state: 'failed' }] });
-    await new Promise((r) => setTimeout(r, 600));
+
+    await new Promise((r) => setTimeout(r, 300));
     await waitFor(() => result.current.isSuccess);
     expect(result.current.data.taskInstances[0].state).toBe('success');
 
-    scope.done();
     scope2.pendingMocks();
   });
 });

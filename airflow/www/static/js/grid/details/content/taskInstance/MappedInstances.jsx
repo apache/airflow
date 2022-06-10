@@ -59,7 +59,7 @@ const MappedInstances = ({
   const order = sort && (sort.id === 'state' || sort.id === 'mapIndex') ? `${sort.desc ? '-' : ''}${snakeCase(sort.id)}` : '';
 
   const {
-    data: { taskInstances, totalEntries } = { taskInstances: [], totalEntries: 0 },
+    data: { taskInstances, totalEntries },
     isLoading,
   } = useMappedInstances({
     dagId, runId, taskId, limit, offset, order,
