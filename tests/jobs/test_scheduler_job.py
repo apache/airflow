@@ -1476,7 +1476,6 @@ class TestSchedulerJob:
 
         session = settings.Session()
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock()
 
         self.scheduler_job.dagbag = dag_maker.dagbag
@@ -1554,7 +1553,6 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag = dag_maker.dagbag
-        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job._callback_sink = mock.MagicMock()
 
         session = settings.Session()
@@ -1622,7 +1620,6 @@ class TestSchedulerJob:
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag = dag_maker.dagbag
-        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job._callback_sink = mock.MagicMock()
 
         # Mock that processor_agent is started
@@ -1665,7 +1662,6 @@ class TestSchedulerJob:
         dag_maker.dag_model.next_dagrun == dr.execution_date
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
         self.scheduler_job.dagbag = dag_maker.dagbag
-        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job._callback_sink = mock.Mock()
 
         # Mock that processor_agent is started
@@ -1698,7 +1694,6 @@ class TestSchedulerJob:
             EmptyOperator(task_id='dummy')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.dagbag = dag_maker.dagbag
         self.scheduler_job.processor_agent = mock.Mock()
         self.scheduler_job._callback_sink = mock.MagicMock()
@@ -2891,7 +2886,6 @@ class TestSchedulerJob:
 
         with patch.object(settings, "CHECK_SLAS", False):
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
-            self.scheduler_job.executor = MockExecutor()
             self.scheduler_job._callback_sink = mock.MagicMock()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
@@ -2905,7 +2899,6 @@ class TestSchedulerJob:
 
         with patch.object(settings, "CHECK_SLAS", True):
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
-            self.scheduler_job.executor = MockExecutor()
             self.scheduler_job._callback_sink = mock.MagicMock()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
@@ -2919,7 +2912,6 @@ class TestSchedulerJob:
 
         with patch.object(settings, "CHECK_SLAS", True):
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
-            self.scheduler_job.executor = MockExecutor()
             self.scheduler_job._callback_sink = mock.MagicMock()
 
             self.scheduler_job._send_sla_callbacks_to_processor(dag)
@@ -3181,7 +3173,6 @@ class TestSchedulerJob:
         )
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
         self.scheduler_job._callback_sink = mock.MagicMock()
 
@@ -3826,7 +3817,6 @@ class TestSchedulerJob:
             session.flush()
 
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
-            self.scheduler_job.executor = MockExecutor()
             self.scheduler_job.processor_agent = mock.MagicMock()
             self.scheduler_job._callback_sink = mock.MagicMock()
 
@@ -4077,7 +4067,6 @@ class TestSchedulerJob:
             EmptyOperator(task_id='dummy')
 
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
-        self.scheduler_job.executor = MockExecutor()
         self.scheduler_job.processor_agent = mock.MagicMock(spec=DagFileProcessorAgent)
 
         self.scheduler_job._create_dag_runs([dag_maker.dag_model], session)
