@@ -194,7 +194,7 @@ class DockerOperator(BaseOperator):
             warnings.warn(
                 "bool value is deprecated, please use 'never', 'success', or 'force' instead",
                 DeprecationWarning,
-                stacklevel=2
+                stacklevel=2,
             )
         if str(auto_remove) == "False":
             self.auto_remove = "never"
