@@ -34,6 +34,7 @@ from airflow_breeze.utils.common_options import (
     option_additional_runtime_apt_deps,
     option_additional_runtime_apt_env,
     option_airflow_constraints_mode_prod,
+    option_airflow_constraints_reference_build,
     option_answer,
     option_build_multiple_images,
     option_debian_version,
@@ -69,10 +70,10 @@ from airflow_breeze.utils.docker_command_utils import (
     build_cache,
     perform_environment_checks,
     prepare_docker_build_command,
-    prepare_empty_docker_build_command,
+    prepare_docker_build_from_input,
 )
+from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, DOCKER_CONTEXT_DIR
-from airflow_breeze.utils.pulll_image import run_pull_image, run_pull_in_parallel
 from airflow_breeze.utils.python_versions import get_python_version_list
 from airflow_breeze.utils.registry import login_to_github_docker_registry
 from airflow_breeze.utils.run_tests import verify_an_image
@@ -96,6 +97,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--upgrade-to-newer-dependencies",
                 "--debian-version",
                 "--image-tag",
+                "--tag-as-latest",
                 "--docker-cache",
             ],
         },
@@ -112,6 +114,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--install-providers-from-sources",
                 "--airflow-extras",
                 "--airflow-constraints-mode",
+                "--airflow-constraints-reference",
                 "--additional-python-deps",
                 "--additional-extras",
                 "--additional-runtime-apt-deps",
@@ -145,11 +148,11 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
             "options": [
                 "--github-token",
                 "--github-username",
+                "--platform",
                 "--login-to-github-registry",
                 "--push-image",
-                "--prepare-buildx-cache",
-                "--platform",
                 "--empty-image",
+                "--prepare-buildx-cache",
             ],
         },
     ],
@@ -246,6 +249,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
     '--install-airflow-reference',
     help="Install Airflow using GitHub tag or branch.",
 )
+@option_airflow_constraints_reference_build
 @click.option('-V', '--install-airflow-version', help="Install version of Airflow from PyPI.")
 @option_additional_extras
 @option_additional_dev_apt_deps
@@ -259,6 +263,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 @option_dev_apt_deps
 @option_runtime_apt_command
 @option_runtime_apt_deps
+@option_tag_as_latest
 def build_prod_image(
     verbose: bool,
     dry_run: bool,
@@ -357,6 +362,7 @@ def pull_prod_image(
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
             poll_time=10.0,
+            parallel=False,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when pulling PROD image: {info}[/]")
@@ -475,9 +481,14 @@ def build_production_image(
     :param dry_run: do not execute "write" commands - just print what would happen
     :param prod_image_params: PROD image parameters
     """
-    if not prod_image_params.push_image and prod_image_params.is_multi_platform():
+    if (
+        prod_image_params.is_multi_platform()
+        and not prod_image_params.push_image
+        and not prod_image_params.prepare_buildx_cache
+    ):
         get_console().print(
-            "\n[red]You cannot use multi-platform build without using --push-image flag![/]\n"
+            "\n[red]You cannot use multi-platform build without using --push-image flag"
+            " or preparing buildx cache![/]\n"
         )
         return 1, "Error: building multi-platform image without --push-image."
     fix_group_permissions(verbose=verbose)
@@ -492,33 +503,39 @@ def build_production_image(
     if prod_image_params.prepare_buildx_cache or prod_image_params.push_image:
         login_to_github_docker_registry(image_params=prod_image_params, dry_run=dry_run, verbose=verbose)
     get_console().print(f"\n[info]Building PROD Image for Python {prod_image_params.python}\n")
-    if prod_image_params.empty_image:
-        env = os.environ.copy()
-        env['DOCKER_BUILDKIT'] = "1"
-        get_console().print(f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n")
-        cmd = prepare_empty_docker_build_command(image_params=prod_image_params)
-        build_command_result = run_command(
-            cmd,
-            input="FROM scratch\n",
-            verbose=verbose,
-            dry_run=dry_run,
-            cwd=AIRFLOW_SOURCES_ROOT,
-            check=False,
-            text=True,
-            env=env,
+    if prod_image_params.prepare_buildx_cache:
+        build_command_result = build_cache(
+            image_params=prod_image_params, dry_run=dry_run, verbose=verbose, parallel=False
         )
     else:
-        cmd = prepare_docker_build_command(
-            image_params=prod_image_params,
-            verbose=verbose,
-        )
-        build_command_result = run_command(
-            cmd, verbose=verbose, dry_run=dry_run, cwd=AIRFLOW_SOURCES_ROOT, check=False, text=True
-        )
-        if build_command_result.returncode == 0:
-            if prod_image_params.prepare_buildx_cache:
-                build_command_result = build_cache(
-                    image_params=prod_image_params, dry_run=dry_run, verbose=verbose
-                )
-
+        if prod_image_params.empty_image:
+            env = os.environ.copy()
+            env['DOCKER_BUILDKIT'] = "1"
+            get_console().print(f"\n[info]Building empty PROD Image for Python {prod_image_params.python}\n")
+            build_command_result = run_command(
+                prepare_docker_build_from_input(image_params=prod_image_params),
+                input="FROM scratch\n",
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
+                text=True,
+                env=env,
+            )
+        else:
+            build_command_result = run_command(
+                prepare_docker_build_command(
+                    image_params=prod_image_params,
+                    verbose=verbose,
+                ),
+                verbose=verbose,
+                dry_run=dry_run,
+                cwd=AIRFLOW_SOURCES_ROOT,
+                check=False,
+                text=True,
+                enabled_output_group=True,
+            )
+            if build_command_result.returncode == 0:
+                if prod_image_params.tag_as_latest:
+                    build_command_result = tag_image_as_latest(prod_image_params, dry_run, verbose)
     return build_command_result.returncode, f"Image build: {prod_image_params.python}"

@@ -33,9 +33,9 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client
 from airflow.kubernetes.secret import Secret
 from airflow.models import DAG, XCOM_RETURN_KEY, DagRun, TaskInstance
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
@@ -43,6 +43,9 @@ from airflow.utils import timezone
 from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
 from kubernetes_tests.kubernetes_test_utils import SharedLogger
+
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
+POD_MANAGER_CLASS = "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager"
 
 
 def create_context(task):
@@ -124,7 +127,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         }
 
     def tearDown(self) -> None:
-        client = kube_client.get_kube_client(in_cluster=False)
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
         import time
 
@@ -170,9 +174,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
         k.execute(context)
         expected_pod = copy(self.expected_pod)
-        expected_pod['metadata']['labels']['already_checked'] = 'True'
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-        assert expected_pod == actual_pod
+        assert actual_pod == expected_pod
 
     def test_working_pod(self):
         k = KubernetesPodOperator(
@@ -210,6 +213,57 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         actual_pod = self.api_client.sanitize_for_serialization(k.pod)
         assert self.expected_pod['spec'] == actual_pod['spec']
         assert self.expected_pod['metadata']['labels'] == actual_pod['metadata']['labels']
+
+    def test_already_checked_on_success(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
+
+    def test_already_checked_on_failure(self):
+        """
+        When ``is_delete_operator_pod=False``, pod should have 'already_checked'
+        label, whether pod is successful or not.
+        """
+        pod_name = "test-" + str(random.randint(0, 1000000))
+        k = KubernetesPodOperator(
+            namespace='default',
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["lalala"],
+            labels={"foo": "bar"},
+            name=pod_name,
+            task_id="task" + self.get_current_task_name(),
+            in_cluster=False,
+            do_xcom_push=False,
+            is_delete_operator_pod=False,
+        )
+        context = create_context(k)
+        with pytest.raises(AirflowException):
+            k.execute(context)
+        actual_pod = k.find_pod('default', context, exclude_checked=False)
+        actual_pod = self.api_client.sanitize_for_serialization(actual_pod)
+        status = next(iter(filter(lambda x: x['name'] == 'base', actual_pod['status']['containerStatuses'])))
+        assert status['state']['terminated']['reason'] == 'Error'
+        assert actual_pod['metadata']['labels']['already_checked'] == 'True'
 
     def test_pod_hostnetwork(self):
         k = KubernetesPodOperator(
@@ -587,10 +641,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['containers'].append(container)
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, mock_client, await_pod_completion_mock, create_pod):
+    @mock.patch(f"{POD_MANAGER_CLASS}.create_pod")
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_envs_from_secrets(self, await_pod_completion_mock, create_pod):
+        # todo: This isn't really a system test
+
         # GIVEN
 
         secret_ref = 'secret_name'
@@ -651,6 +707,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_pod_template_file_system(self):
+        """Note: this test requires that you have a namespace ``mem-example`` in your cluster."""
         fixture = sys.path[0] + '/tests/kubernetes/basic_pod.yaml'
         k = KubernetesPodOperator(
             task_id="task" + self.get_current_task_name(),
@@ -768,7 +825,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'kubernetes_pod_operator': 'True',
             'task_id': mock.ANY,
             'try_number': '1',
-            'already_checked': 'True',
         }
         assert k.pod.spec.containers[0].env == [k8s.V1EnvVar(name="env_name", value="value")]
         assert result == {"hello": "world"}
@@ -828,11 +884,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         ]
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.extract_xcom")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_template_file(self, mock_client, await_pod_completion_mock, create_mock, extract_xcom_mock):
+    @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_pod_template_file(self, await_pod_completion_mock, extract_xcom_mock):
+        # todo: This isn't really a system test
         extract_xcom_mock.return_value = '{}'
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         k = KubernetesPodOperator(
@@ -914,11 +971,15 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         del actual_pod['metadata']['labels']['airflow_version']
         assert expected_dict == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_pod_priority_class_name(self, mock_client, await_pod_completion_mock, create_mock):
-        """Test ability to assign priorityClassName to pod"""
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
+    @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_pod_priority_class_name(self, await_pod_completion_mock):
+        """
+        Test ability to assign priorityClassName to pod
+
+        todo: This isn't really a system test
+        """
 
         priority_class_name = "medium-test"
         k = KubernetesPodOperator(
@@ -958,10 +1019,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                 do_xcom_push=False,
             )
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    def test_on_kill(self, await_pod_completion_mock):
-
-        client = kube_client.get_kube_client(in_cluster=False)
+    @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion", new=MagicMock)
+    def test_on_kill(self):
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
         name = "test"
         namespace = "default"
         k = KubernetesPodOperator(
@@ -988,7 +1049,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             client.read_namespaced_pod(name=name, namespace=namespace)
 
     def test_reattach_failing_pod_once(self):
-        client = kube_client.get_kube_client(in_cluster=False)
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
         name = "test"
         namespace = "default"
 
@@ -1012,9 +1074,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         context = create_context(k)
 
         # launch pod
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion"
-        ) as await_pod_completion_mock:
+        with mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion") as await_pod_completion_mock:
             pod_mock = MagicMock()
 
             pod_mock.status.phase = 'Succeeded'
@@ -1038,9 +1098,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
         # `create_pod` should not be called because there's a pod there it should find
         # should use the found pod and patch as "already_checked" (in failure block)
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod"
-        ) as create_mock:
+        with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
             with pytest.raises(AirflowException):
                 k.execute(context)
             pod = client.read_namespaced_pod(name=name, namespace=namespace)
@@ -1052,9 +1110,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
         # `create_pod` should be called because though there's still a pod to be found,
         # it will be `already_checked`
-        with mock.patch(
-            "airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod"
-        ) as create_mock:
+        with mock.patch(f"{POD_MANAGER_CLASS}.create_pod") as create_mock:
             with pytest.raises(AirflowException):
                 k.execute(context)
             create_mock.assert_called_once()

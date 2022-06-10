@@ -167,7 +167,11 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         """
         if isinstance(sql, str):
             sql = self.maybe_split_sql_string(sql)
-        self.log.debug("Executing %d statements", len(sql))
+
+        if sql:
+            self.log.debug("Executing %d statements", len(sql))
+        else:
+            raise ValueError("List of SQL statements is empty")
 
         conn = None
         for sql_statement in sql:

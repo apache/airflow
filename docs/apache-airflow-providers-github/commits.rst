@@ -20,13 +20,42 @@
 Package apache-airflow-providers-github
 ------------------------------------------------------
 
-`Github <https://www.github.com/>`__
+`GitHub <https://www.github.com/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``github``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
+
+2.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`5f6d7d202e <https://github.com/apache/airflow/commit/5f6d7d202eaecf8619f1a1b943166d99554256c2>`_  2022-06-05   ``Migrate GitHub example DAGs to new design #22446 (#24134)``
+`82d5f7cdb7 <https://github.com/apache/airflow/commit/82d5f7cdb7c2879ad561b0edef028b8c5ebb289a>`_  2022-06-04   ``Remove 'GithubOperator' use in  'GithubSensor.__init__()'' (#24214)``
+`4a85370ca9 <https://github.com/apache/airflow/commit/4a85370ca997015b75660192d2a481f09734c99d>`_  2022-05-18   ``Change 'Github' to 'GitHub' (#23764)``
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+`6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
+=================================================================================================  ===========  ==================================================================================
+
+1.0.3
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
+=================================================================================================  ===========  ==============================================================
 
 1.0.2
 .....

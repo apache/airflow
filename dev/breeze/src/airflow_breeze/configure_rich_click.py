@@ -64,5 +64,9 @@ try:
             RELEASE_MANAGEMENT_COMMANDS,
         ]
     }
-except ImportError:
-    import click  # type: ignore[no-redef]
+except ImportError as e:
+    if "No module named 'rich_click'" in e.msg:
+        # just ignore the import error when rich_click is missing
+        import click  # type: ignore[no-redef]
+    else:
+        raise

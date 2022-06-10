@@ -24,7 +24,7 @@ import time
 import warnings
 from dataclasses import dataclass
 from tempfile import gettempdir
-from typing import TYPE_CHECKING, Callable, Iterable, List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Callable, Generator, Iterable, List, Optional, Tuple, Union
 
 from sqlalchemy import Table, and_, column, exc, func, inspect, or_, select, table, text, tuple_
 from sqlalchemy.orm.session import Session
@@ -68,6 +68,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session  
 from airflow.version import version
 
 if TYPE_CHECKING:
+    from alembic.runtime.environment import EnvironmentContext
     from alembic.script import ScriptDirectory
     from sqlalchemy.orm import Query
 
@@ -90,6 +91,8 @@ REVISION_HEADS_MAP = {
     "2.2.4": "587bdf053233",
     "2.2.5": "587bdf053233",
     "2.3.0": "b1b348e02d07",
+    "2.3.1": "1de7bc13c950",
+    "2.3.2": "3c94c427fdf6",
 }
 
 
@@ -689,6 +692,7 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
+    timeout = timeout or 1  # run the loop at least 1
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
@@ -707,7 +711,7 @@ def check_migrations(timeout):
 
 
 @contextlib.contextmanager
-def _configured_alembic_environment():
+def _configured_alembic_environment() -> Generator["EnvironmentContext", None, None]:
     from alembic.runtime.environment import EnvironmentContext
 
     config = _get_alembic_config()
@@ -857,7 +861,6 @@ def reflect_tables(tables: List[Union[Base, str]], session):
     This function gets the current state of each table in the set of models provided and returns
     a SqlAlchemy metadata object containing them.
     """
-
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -1169,7 +1172,6 @@ def _move_duplicate_data_to_new_table(
         building the DELETE FROM join condition.
     :param target_table_name: name of the table in which to park the duplicate rows
     """
-
     bind = session.get_bind()
     dialect_name = bind.dialect.name
     query = (
@@ -1604,7 +1606,11 @@ class DBLocks(enum.IntEnum):
 
 
 @contextlib.contextmanager
-def create_global_lock(session: Session, lock: DBLocks, lock_timeout=1800):
+def create_global_lock(
+    session: Session,
+    lock: DBLocks,
+    lock_timeout: int = 1800,
+) -> Generator[None, None, None]:
     """Contextmanager that will create and teardown a global db lock."""
     conn = session.get_bind().connect()
     dialect = conn.dialect

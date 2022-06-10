@@ -39,7 +39,7 @@ from os.path import dirname, relpath
 from pathlib import Path
 from random import choice
 from shutil import copyfile
-from typing import Any, Dict, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
+from typing import Any, Dict, Generator, Iterable, List, NamedTuple, Optional, Set, Tuple, Union
 
 import jsonschema
 import rich_click as click
@@ -196,7 +196,7 @@ argument_package_ids = click.argument('package_ids', nargs=-1)
 
 
 @contextmanager
-def with_group(title):
+def with_group(title: str) -> Generator[None, None, None]:
     """
     If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, display simple text groups.
@@ -1913,7 +1913,7 @@ def is_package_in_dist(dist_files: List[str], package: str) -> bool:
     envvar='GITHUB_TOKEN',
     help=textwrap.dedent(
         """
-      Github token used to authenticate.
+      GitHub token used to authenticate.
       You can set omit it if you have GITHUB_TOKEN env variable set.
       Can be generated with:
       https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""

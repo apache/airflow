@@ -62,9 +62,10 @@
       default: "SequentialExecutor"
     - name: parallelism
       description: |
-        This defines the maximum number of task instances that can run concurrently in Airflow
-        regardless of scheduler count and worker count. Generally, this value is reflective of
-        the number of task instances with the running state in the metadata database.
+        This defines the maximum number of task instances that can run concurrently per scheduler in
+        Airflow, regardless of the worker count. Generally this value, multiplied by the number of
+        schedulers in your cluster, is the maximum number of task instances with the running
+        state in the metadata database.
       version_added: ~
       type: string
       example: ~
@@ -248,6 +249,14 @@
       type: string
       example: ~
       default: "0"
+    - name: default_task_retry_delay
+      description: |
+          The number of seconds each task is going to wait by default between retries. Can be overridden at
+          dag or task level.
+      version_added: 2.3.2
+      type: integer
+      example: ~
+      default: "300"
     - name: default_task_weight_rule
       description: |
         The weighting method used for the effective total priority weight of the task
@@ -1767,12 +1776,23 @@
       default: "True"
     - name: task_adoption_timeout
       description: |
-        Time in seconds after which Adopted tasks are cleared by CeleryExecutor. This is helpful to clear
-        stalled tasks.
+        Time in seconds after which adopted tasks which are queued in celery are assumed to be stalled,
+        and are automatically rescheduled. This setting does the same thing as ``stalled_task_timeout`` but
+        applies specifically to adopted tasks only. When set to 0, the ``stalled_task_timeout`` setting
+        also applies to adopted tasks.
       version_added: 2.0.0
       type: integer
       example: ~
       default: "600"
+    - name: stalled_task_timeout
+      description: |
+        Time in seconds after which tasks queued in celery are assumed to be stalled, and are automatically
+        rescheduled. Adopted tasks will instead use the ``task_adoption_timeout`` setting if specified.
+        When set to 0, automatic clearing of stalled tasks is disabled.
+      version_added: 2.3.1
+      type: integer
+      example: ~
+      default: "0"
     - name: task_publish_max_retries
       description: |
         The Maximum number of retries for publishing task messages to the broker when failing
@@ -1923,6 +1943,22 @@
       type: string
       example: ~
       default: "30"
+    - name: enable_health_check
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check if this is set to True
+      version_added: 2.4.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: scheduler_health_check_server_port
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check on this port
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "8974"
     - name: orphaned_tasks_check_interval
       description: |
         How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
@@ -2148,15 +2184,6 @@
       type: boolean
       example: ~
       default: "True"
-- name: github_enterprise
-  description: ~
-  options:
-    - name: api_rev
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "v3"
 - name: elasticsearch
   description: ~
   options:

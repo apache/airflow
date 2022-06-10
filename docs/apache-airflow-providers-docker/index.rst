@@ -33,7 +33,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/docker/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-docker/3.0.0/tests/system/providers/docker>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-docker/>
     Installing from sources <installing-providers-from-sources>
 
@@ -53,7 +53,7 @@ Package apache-airflow-providers-docker
 `Docker <https://docs.docker.com/install/>`__
 
 
-Release: 2.7.0
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -64,16 +64,17 @@ are in ``airflow.providers.docker`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-docker``
 
-PIP requirements
-----------------
+Requirements
+------------
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``docker``          ``>=5.0.3``
 ==================  ==================
 

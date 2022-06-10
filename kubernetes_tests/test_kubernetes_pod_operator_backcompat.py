@@ -29,13 +29,13 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
 from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
@@ -45,6 +45,8 @@ from airflow.version import version as airflow_version
 from kubernetes_tests.kubernetes_test_utils import SharedLogger
 
 # noinspection DuplicatedCode
+
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
 
 
 def create_context(task):
@@ -122,13 +124,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         }
 
     def tearDown(self):
-        client = kube_client.get_kube_client(in_cluster=False)
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_image_pull_secrets_correctly_set(self, mock_client, await_pod_completion_mock, create_mock):
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_image_pull_secrets_correctly_set(self, await_pod_completion_mock, create_mock):
         fake_pull_secrets = "fakeSecret"
         k = KubernetesPodOperator(
             namespace='default',
@@ -311,7 +314,6 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             expected_pod['spec']['volumes'] = [
                 {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
             ]
-            expected_pod['metadata']['labels']['already_checked'] = 'True'
             assert expected_pod == actual_pod
 
     def test_run_as_user_root(self):
@@ -463,8 +465,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_configmaps(self, mock_client, mock_monitor, mock_start):
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_envs_from_configmaps(self, mock_monitor, mock_start):
         # GIVEN
         configmap = 'test-configmap'
         # WHEN
@@ -492,8 +494,8 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, mock_client, await_pod_completion_mock, create_mock):
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_envs_from_secrets(self, await_pod_completion_mock, create_mock):
         # GIVEN
         secret_ref = 'secret_name'
         secrets = [Secret('env', None, secret_ref)]

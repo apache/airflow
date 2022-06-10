@@ -393,12 +393,12 @@ with DAG(
     )
     # [END howto_operator_sagemaker_training]
 
-    # [START howto_operator_sagemaker_training_sensor]
+    # [START howto_sensor_sagemaker_training]
     await_training = SageMakerTrainingSensor(
         task_id='await_training',
         job_name=TRAINING_JOB_NAME,
     )
-    # [END howto_operator_sagemaker_training_sensor]
+    # [END howto_sensor_sagemaker_training]
 
     # [START howto_operator_sagemaker_model]
     create_model = SageMakerModelOperator(
@@ -418,12 +418,12 @@ with DAG(
     )
     # [END howto_operator_sagemaker_tuning]
 
-    # [START howto_operator_sagemaker_tuning_sensor]
+    # [START howto_sensor_sagemaker_tuning]
     await_tune = SageMakerTuningSensor(
         task_id='await_tuning',
         job_name=TUNING_JOB_NAME,
     )
-    # [END howto_operator_sagemaker_tuning_sensor]
+    # [END howto_sensor_sagemaker_tuning]
 
     # [START howto_operator_sagemaker_transform]
     test_model = SageMakerTransformOperator(
@@ -435,12 +435,12 @@ with DAG(
     )
     # [END howto_operator_sagemaker_transform]
 
-    # [START howto_operator_sagemaker_transform_sensor]
+    # [START howto_sensor_sagemaker_transform]
     await_transform = SageMakerTransformSensor(
         task_id='await_transform',
         job_name=TRANSFORM_JOB_NAME,
     )
-    # [END howto_operator_sagemaker_transform_sensor]
+    # [END howto_sensor_sagemaker_transform]
 
     # Trigger rule set to "all_done" so clean up will run regardless of success on other tasks.
     # [START howto_operator_sagemaker_delete_model]

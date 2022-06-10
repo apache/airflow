@@ -221,8 +221,6 @@ class DockerOperator(BaseOperator):
         self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
         self.cli = None
         self.container = None

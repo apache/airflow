@@ -70,8 +70,9 @@ log = logging.getLogger(__name__)
 
 _OPERATOR_EXTRA_LINKS: Set[str] = {
     "airflow.operators.trigger_dagrun.TriggerDagRunLink",
-    "airflow.sensors.external_task.ExternalTaskSensorLink",
+    "airflow.sensors.external_task.ExternalDagLink",
     # Deprecated names, so that existing serialized dags load straight away.
+    "airflow.sensors.external_task.ExternalTaskSensorLink",
     "airflow.operators.dagrun_operator.TriggerDagRunLink",
     "airflow.sensors.external_task_sensor.ExternalTaskSensorLink",
 }
@@ -96,7 +97,8 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     are defaults, they are automatically supplied on de-serialization, so we
     don't need to store them.
     """
-    default_partial_kwargs = BaseOperator.partial(task_id="_").expand().partial_kwargs
+    # Use the private _expand() method to avoid the empty kwargs check.
+    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand().partial_kwargs
     return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 

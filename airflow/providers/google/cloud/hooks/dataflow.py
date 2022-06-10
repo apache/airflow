@@ -972,16 +972,31 @@ class DataflowHook(GoogleBaseHook):
         :param on_new_job_callback: Callback called when the job is known.
         :return: the new job object
         """
+        gcp_options = [
+            f"--project={project_id}",
+            "--format=value(job.id)",
+            f"--job-name={job_name}",
+            f"--region={location}",
+        ]
+
+        if self.impersonation_chain:
+            if isinstance(self.impersonation_chain, str):
+                impersonation_account = self.impersonation_chain
+            elif len(self.impersonation_chain) == 1:
+                impersonation_account = self.impersonation_chain[0]
+            else:
+                raise AirflowException(
+                    "Chained list of accounts is not supported, please specify only one service account"
+                )
+            gcp_options.append(f"--impersonate-service-account={impersonation_account}")
+
         cmd = [
             "gcloud",
             "dataflow",
             "sql",
             "query",
             query,
-            f"--project={project_id}",
-            "--format=value(job.id)",
-            f"--job-name={job_name}",
-            f"--region={location}",
+            *gcp_options,
             *(beam_options_to_args(options)),
         ]
         self.log.info("Executing command: %s", " ".join(shlex.quote(c) for c in cmd))

@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-AWS Step Functions Operators
-============================
+==================
+AWS Step Functions
+==================
 
 `AWS Step Functions <https://aws.amazon.com/step-functions/>`__ makes it easy to coordinate the components
 of distributed applications as a series of steps in a visual workflow. You can quickly build and run state
@@ -28,13 +28,16 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:StepFunctionStartExecutionOperator:
 
-AWS Step Functions Start Execution Operator
-"""""""""""""""""""""""""""""""""""""""""""
+Start an AWS Step Functions state machine execution
+===================================================
 
-To start a new AWS Step Functions State Machine execution
-use :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionStartExecutionOperator`.
+To start a new AWS Step Functions state machine execution you can use
+:class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionStartExecutionOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_step_functions.py
     :language: python
@@ -42,26 +45,12 @@ use :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionSt
     :start-after: [START howto_operator_step_function_start_execution]
     :end-before: [END howto_operator_step_function_start_execution]
 
-.. _howto/operator:StepFunctionExecutionSensor:
-
-AWS Step Functions Execution Sensor
-"""""""""""""""""""""""""""""""""""
-
-To wait on the state of an AWS Step Function State Machine execution until it reaches a terminal state you can
-use :class:`~airflow.providers.amazon.aws.sensors.step_function.StepFunctionExecutionSensor`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_step_functions.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_step_function_execution_sensor]
-    :end-before: [END howto_operator_step_function_execution_sensor]
-
 .. _howto/operator:StepFunctionGetExecutionOutputOperator:
 
-AWS Step Functions Get Execution Output Operator
-""""""""""""""""""""""""""""""""""""""""""""""""
+Get an AWS Step Functions execution output
+==========================================
 
-To fetch the output from an AWS Step Function State Machine execution you can
+To fetch the output from an AWS Step Function state machine execution you can
 use :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionGetExecutionOutputOperator`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_step_functions.py
@@ -70,9 +59,24 @@ use :class:`~airflow.providers.amazon.aws.operators.step_function.StepFunctionGe
     :start-after: [START howto_operator_step_function_get_execution_output]
     :end-before: [END howto_operator_step_function_get_execution_output]
 
+Sensors
+-------
+
+.. _howto/sensor:StepFunctionExecutionSensor:
+
+Wait on an AWS Step Functions state machine execution state
+===========================================================
+
+To wait on the state of an AWS Step Function state machine execution until it reaches a terminal state you can
+use :class:`~airflow.providers.amazon.aws.sensors.step_function.StepFunctionExecutionSensor`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_step_functions.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_sensor_step_function_execution]
+    :end-before: [END howto_sensor_step_function_execution]
+
 References
 ----------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for Step Functions <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html>`__
+* `AWS boto3 library documentation for Step Functions <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html>`__

@@ -59,4 +59,5 @@ class TestBigQueryToGCSOperator(unittest.TestCase):
             field_delimiter=field_delimiter,
             print_header=print_header,
             labels=labels,
+            return_full_job=True,
         )

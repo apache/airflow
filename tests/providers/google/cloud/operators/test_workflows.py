@@ -64,7 +64,8 @@ class TestWorkflowsCreateWorkflowOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -100,7 +101,8 @@ class TestWorkflowsUpdateWorkflowOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -181,7 +183,8 @@ class TestWorkflowsListWorkflowsOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -216,7 +219,8 @@ class TestWorkflowsGetWorkflowOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -253,7 +257,8 @@ class TestWorkflowExecutionsCreateExecutionOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -269,7 +274,16 @@ class TestWorkflowExecutionsCreateExecutionOperator:
             timeout=TIMEOUT,
             metadata=METADATA,
         )
-        mock_xcom.assert_called_once_with({}, key="execution_id", value="execution_id")
+        mock_xcom.assert_called_with(
+            context,
+            key="workflow_execution",
+            value={
+                'location_id': LOCATION,
+                'workflow_id': WORKFLOW_ID,
+                'execution_id': EXECUTION_ID,
+                'project_id': PROJECT_ID,
+            },
+        )
         assert result == mock_object.to_dict.return_value
 
 
@@ -289,7 +303,8 @@ class TestWorkflowExecutionsCancelExecutionOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -328,7 +343,8 @@ class TestWorkflowExecutionsListExecutionsOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,
@@ -363,7 +379,8 @@ class TestWorkflowExecutionsGetExecutionOperator:
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
-        result = op.execute({})
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

@@ -20,8 +20,7 @@ import sys
 import time
 from copy import deepcopy
 from re import match
-from subprocess import CalledProcessError, CompletedProcess
-from typing import IO, Dict, List, Optional, Tuple, Union
+from typing import IO, Dict, List, Optional, Tuple
 
 import click
 
@@ -70,7 +69,7 @@ from airflow_breeze.utils.docker_command_utils import (
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.parallel import check_async_run_results
 from airflow_breeze.utils.python_versions import get_python_version_list
-from airflow_breeze.utils.run_utils import run_command
+from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 
 RELEASE_MANAGEMENT_PARAMETERS = {
     "breeze prepare-airflow-package": [
@@ -182,7 +181,8 @@ def run_with_debug(
     dry_run: bool,
     debug: bool,
     enable_input: bool = False,
-) -> Union[CompletedProcess, CalledProcessError]:
+    enabled_output_group: bool = False,
+) -> RunCommandResult:
     env_variables = get_env_variables_for_docker_commands(params)
     extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
     if enable_input or debug:
@@ -217,10 +217,18 @@ echo -e '\\e[34mRun this command to debug:
             verbose=verbose,
             dry_run=dry_run,
             env=env_variables,
+            enabled_output_group=enabled_output_group,
         )
     else:
         base_command.extend(command)
-        return run_command(base_command, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
+        return run_command(
+            base_command,
+            enabled_output_group=enabled_output_group,
+            verbose=verbose,
+            dry_run=dry_run,
+            env=env_variables,
+            check=False,
+        )
 
 
 @main.command(
@@ -259,6 +267,7 @@ def prepare_airflow_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -355,7 +364,7 @@ def prepare_provider_packages(
 
 
 def run_generate_constraints(
-    shell_params: ShellParams, dry_run: bool, verbose: bool, debug: bool
+    shell_params: ShellParams, dry_run: bool, verbose: bool, debug: bool, parallel: bool = False
 ) -> Tuple[int, str]:
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
@@ -366,6 +375,7 @@ def run_generate_constraints(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=not parallel,
     )
     return (
         generate_constraints_result.returncode,
@@ -389,7 +399,7 @@ def run_generate_constraints_in_parallel(
     results = [
         pool.apply_async(
             run_generate_constraints,
-            args=(shell_param, dry_run, verbose, False),
+            args=(shell_param, dry_run, verbose, False, True),
         )
         for shell_param in shell_params_list
     ]
@@ -487,6 +497,7 @@ def generate_constraints(
             dry_run=dry_run,
             verbose=verbose,
             debug=debug,
+            parallel=False,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
@@ -540,6 +551,7 @@ def verify_provider_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 

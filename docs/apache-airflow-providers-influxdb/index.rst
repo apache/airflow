@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/influxdb/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/2.0.0/tests/system/providers/influxdb>
 
 .. toctree::
     :maxdepth: 1
@@ -76,7 +76,7 @@ Package apache-airflow-providers-influxdb
 `InfluxDB <https://www.influxdata.com/>`__
 
 
-Release: 1.1.3
+Release: 2.0.0
 
 Provider package
 ----------------
@@ -87,15 +87,17 @@ are in ``airflow.providers.influxdb`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-influxdb``
 
-PIP requirements
-----------------
+Requirements
+------------
 
 ===================  ==================
 PIP package          Version required
 ===================  ==================
+``apache-airflow``   ``>=2.2.0``
 ``influxdb-client``  ``>=1.19.0``
 ``pandas``           ``>=0.17.1``
 ===================  ==================
