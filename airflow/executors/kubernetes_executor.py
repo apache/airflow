@@ -28,7 +28,7 @@ import multiprocessing
 import time
 from datetime import timedelta
 from queue import Empty, Queue
-from typing import Any, Dict, List, Optional, Tuple, Sequence
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from kubernetes import client, watch
 from kubernetes.client import Configuration, models as k8s

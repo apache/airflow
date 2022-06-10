@@ -32,7 +32,7 @@ import traceback
 from collections import OrderedDict
 from concurrent.futures import ProcessPoolExecutor
 from multiprocessing import cpu_count
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union, Sequence
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend

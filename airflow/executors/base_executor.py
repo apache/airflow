@@ -17,7 +17,7 @@
 """Base executor - this is the base class for all the implemented executors."""
 import sys
 from collections import OrderedDict
-from typing import Any, Counter, Dict, List, Optional, Set, Tuple, Union, Sequence
+from typing import Any, Counter, Dict, List, Optional, Sequence, Set, Tuple, Union
 
 from airflow.callbacks.base_callback_sink import BaseCallbackSink
 from airflow.callbacks.callback_requests import CallbackRequest
