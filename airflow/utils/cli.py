@@ -49,7 +49,7 @@ def _check_cli_args(args):
         raise ValueError("Args should be set")
     if not isinstance(args[0], Namespace):
         raise ValueError(
-            "1st positional argument should be argparse.Namespace instance," f"but is {type(args[0])}"
+            f"1st positional argument should be argparse.Namespace instance, but is {type(args[0])}"
         )
 
 
@@ -148,7 +148,7 @@ def _build_metrics(func_name, namespace):
 
     if not isinstance(namespace, Namespace):
         raise ValueError(
-            "namespace argument should be argparse.Namespace instance," f"but is {type(namespace)}"
+            f"namespace argument should be argparse.Namespace instance, but is {type(namespace)}"
         )
     tmp_dic = vars(namespace)
     metrics['dag_id'] = tmp_dic.get('dag_id')
@@ -204,6 +204,16 @@ def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
             f"Dag {dag_id!r} could not be found; either it does not exist or it failed to parse."
         )
     return dagbag.dags[dag_id]
+
+
+def get_dag_by_deserialization(dag_id: str) -> "DAG":
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    dag_model = SerializedDagModel.get(dag_id)
+    if dag_model is None:
+        raise AirflowException(f"Serialized DAG: {dag_id} could not be found")
+
+    return dag_model.dag
 
 
 def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):

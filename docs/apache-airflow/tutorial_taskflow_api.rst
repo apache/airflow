@@ -233,7 +233,7 @@ image must have a working Python installed and take in a bash command as the ``c
 
 Below is an example of using the ``@task.docker`` decorator to run a Python task.
 
-.. exampleinclude:: /../../airflow/providers/docker/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_etl_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START transform_docker]
@@ -257,7 +257,7 @@ environment on the same machine, you can use the ``@task.virtualenv`` decorator 
 decorator will allow you to create a new virtualenv with custom libraries and even a different
 Python version to run your function.
 
-.. exampleinclude:: /../../airflow/providers/docker/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_etl_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START extract_virtualenv]

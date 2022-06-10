@@ -38,8 +38,8 @@ class GlacierJobOperationSensor(BaseSensorOperator):
     Glacier sensor for checking job state. This operator runs only in reschedule mode.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GlacierJobOperationSensor`
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:GlacierJobOperationSensor`
 
     :param aws_conn_id: The reference to the AWS connection details
     :param vault_name: name of Glacier vault on which job is executed

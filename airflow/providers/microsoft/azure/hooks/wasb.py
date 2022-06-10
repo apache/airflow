@@ -29,7 +29,7 @@ field (see connection `wasb_default` for an example).
 from typing import Any, Dict, List, Optional
 
 from azure.core.exceptions import HttpResponseError, ResourceExistsError, ResourceNotFoundError
-from azure.identity import ClientSecretCredential, ManagedIdentityCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.storage.blob import BlobClient, BlobServiceClient, ContainerClient, StorageStreamDownloader
 
 from airflow.exceptions import AirflowException
@@ -46,7 +46,7 @@ class WasbHook(BaseHook):
     passed to the `BlockBlockService()` constructor. For example, authenticate
     using a SAS token by adding {"sas_token": "YOUR_TOKEN"}.
 
-    If no authentication configuration is provided, managed identity will be used (applicable
+    If no authentication configuration is provided, DefaultAzureCredential will be used (applicable
     when using Azure compute infrastructure).
 
     :param wasb_conn_id: Reference to the :ref:`wasb connection <howto/connection:wasb>`.
@@ -121,38 +121,40 @@ class WasbHook(BaseHook):
             # Here we use anonymous public read
             # more info
             # https://docs.microsoft.com/en-us/azure/storage/blobs/storage-manage-access-to-resources
-            return BlobServiceClient(account_url=conn.host)
+            return BlobServiceClient(account_url=conn.host, **extra)
 
-        if extra.get('connection_string') or extra.get('extra__wasb__connection_string'):
+        connection_string = extra.pop('connection_string', extra.pop('extra__wasb__connection_string', None))
+        if connection_string:
             # connection_string auth takes priority
-            connection_string = extra.get('connection_string') or extra.get('extra__wasb__connection_string')
-            return BlobServiceClient.from_connection_string(connection_string)
-        if extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key'):
-            shared_access_key = extra.get('shared_access_key') or extra.get('extra__wasb__shared_access_key')
+            return BlobServiceClient.from_connection_string(connection_string, **extra)
+
+        shared_access_key = extra.pop('shared_access_key', extra.pop('extra__wasb__shared_access_key', None))
+        if shared_access_key:
             # using shared access key
-            return BlobServiceClient(account_url=conn.host, credential=shared_access_key)
-        if extra.get('tenant_id') or extra.get('extra__wasb__tenant_id'):
+            return BlobServiceClient(account_url=conn.host, credential=shared_access_key, **extra)
+
+        tenant = extra.pop('tenant_id', extra.pop('extra__wasb__tenant_id', None))
+        if tenant:
             # use Active Directory auth
             app_id = conn.login
             app_secret = conn.password
-            tenant = extra.get('tenant_id', extra.get('extra__wasb__tenant_id'))
             token_credential = ClientSecretCredential(tenant, app_id, app_secret)
-            return BlobServiceClient(account_url=conn.host, credential=token_credential)
+            return BlobServiceClient(account_url=conn.host, credential=token_credential, **extra)
 
-        sas_token = extra.get('sas_token') or extra.get('extra__wasb__sas_token')
+        sas_token = extra.pop('sas_token', extra.pop('extra__wasb__sas_token', None))
         if sas_token:
             if sas_token.startswith('https'):
-                return BlobServiceClient(account_url=sas_token)
+                return BlobServiceClient(account_url=sas_token, **extra)
             else:
                 return BlobServiceClient(
-                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}'
+                    account_url=f'https://{conn.login}.blob.core.windows.net/{sas_token}', **extra
                 )
 
         # Fall back to old auth (password) or use managed identity if not provided.
         credential = conn.password
         if not credential:
-            credential = ManagedIdentityCredential()
-            self.log.info("Using managed identity as credential")
+            credential = DefaultAzureCredential()
+            self.log.info("Using DefaultAzureCredential as credential")
         return BlobServiceClient(
             account_url=f"https://{conn.login}.blob.core.windows.net/",
             credential=credential,

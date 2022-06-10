@@ -76,6 +76,8 @@ TEST_CONN_TIMEOUT = 30
 PASSPHRASE = ''.join(random.choice(string.ascii_letters) for i in range(10))
 TEST_ENCRYPTED_PRIVATE_KEY = generate_key_string(pkey=TEST_PKEY, passphrase=PASSPHRASE)
 
+TEST_DISABLED_ALGORITHMS = {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
+
 
 class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_NO_EXTRA = 'ssh_with_no_extra'
@@ -92,6 +94,11 @@ class TestSSHHook(unittest.TestCase):
     CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE = 'ssh_with_host_key_and_no_host_key_check_false'
     CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE = 'ssh_with_host_key_and_no_host_key_check_true'
     CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE = 'ssh_with_no_host_key_and_no_host_key_check_false'
+    CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE = 'ssh_with_no_host_key_and_no_host_key_check_true'
+    CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE = (
+        'ssh_with_host_key_and_allow_host_key_changes_true'
+    )
+    CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS = 'ssh_with_extra_disabled_algorithms'
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -110,6 +117,8 @@ class TestSSHHook(unittest.TestCase):
                 cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
                 cls.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
                 cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_FALSE,
+                cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
+                cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
             ]
             connections = session.query(Connection).filter(Connection.conn_id.in_(conns_to_reset))
             connections.delete(synchronize_session=False)
@@ -234,6 +243,36 @@ class TestSSHHook(unittest.TestCase):
                 host='remote_host',
                 conn_type='ssh',
                 extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "no_host_key_check": False}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE,
+                host='remote_host',
+                conn_type='ssh',
+                extra=json.dumps({"private_key": TEST_PRIVATE_KEY, "no_host_key_check": True}),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE,
+                host='remote_host',
+                conn_type='ssh',
+                extra=json.dumps(
+                    {
+                        "private_key": TEST_PRIVATE_KEY,
+                        "host_key": TEST_HOST_KEY,
+                        "allow_host_key_change": True,
+                    }
+                ),
+            )
+        )
+        db.merge_conn(
+            Connection(
+                conn_id=cls.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
+                host='localhost',
+                conn_type='ssh',
+                extra=json.dumps({"disabled_algorithms": TEST_DISABLED_ALGORITHMS}),
             )
         )
 
@@ -522,6 +561,27 @@ class TestSSHHook(unittest.TestCase):
             assert ssh_client.return_value.connect.called is True
             assert ssh_client.return_value.get_host_keys.return_value.add.called is False
 
+    def test_ssh_connection_with_host_key_where_no_host_key_check_is_true(self):
+        with pytest.raises(ValueError):
+            SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE)
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_no_host_key_where_no_host_key_check_is_true(self, ssh_client):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_NO_HOST_KEY_AND_NO_HOST_KEY_CHECK_TRUE)
+        assert hook.host_key is None
+        with hook.get_conn():
+            assert ssh_client.return_value.connect.called is True
+            assert ssh_client.return_value.set_missing_host_key_policy.called is True
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_connection_with_host_key_where_allow_host_key_change_is_true(self, ssh_client):
+        hook = SSHHook(ssh_conn_id=self.CONN_SSH_WITH_HOST_KEY_AND_ALLOW_HOST_KEY_CHANGES_TRUE)
+        assert hook.host_key is not None
+        with hook.get_conn():
+            assert ssh_client.return_value.connect.called is True
+            assert ssh_client.return_value.load_system_host_keys.called is False
+            assert ssh_client.return_value.set_missing_host_key_policy.called is True
+
     @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
     def test_ssh_connection_with_conn_timeout(self, ssh_mock):
         hook = SSHHook(
@@ -699,6 +759,28 @@ class TestSSHHook(unittest.TestCase):
                 look_for_keys=True,
             )
 
+    @mock.patch('airflow.providers.ssh.hooks.ssh.paramiko.SSHClient')
+    def test_ssh_with_extra_disabled_algorithms(self, ssh_mock):
+        hook = SSHHook(
+            ssh_conn_id=self.CONN_SSH_WITH_EXTRA_DISABLED_ALGORITHMS,
+            remote_host='remote_host',
+            port='port',
+            username='username',
+        )
+
+        with hook.get_conn():
+            ssh_mock.return_value.connect.assert_called_once_with(
+                banner_timeout=30.0,
+                hostname='remote_host',
+                username='username',
+                compress=True,
+                timeout=10,
+                port='port',
+                sock=None,
+                look_for_keys=True,
+                disabled_algorithms=TEST_DISABLED_ALGORITHMS,
+            )
+
     def test_openssh_private_key(self):
         # Paramiko behaves differently with OpenSSH generated keys to paramiko
         # generated keys, so we need a test one.
@@ -739,6 +821,24 @@ class TestSSHHook(unittest.TestCase):
         finally:
             session.delete(conn)
             session.commit()
+
+    def test_oneline_key(self):
+        with pytest.raises(Exception):
+            TEST_ONELINE_KEY = "-----BEGIN OPENSSHPRIVATE KEY-----asdfg-----END OPENSSHPRIVATE KEY-----"
+            session = settings.Session()
+            try:
+                conn = Connection(
+                    conn_id='openssh_pkey',
+                    host='localhost',
+                    conn_type='ssh',
+                    extra={"private_key": TEST_ONELINE_KEY},
+                )
+                session.add(conn)
+                session.flush()
+                SSHHook(ssh_conn_id=conn.conn_id)
+            finally:
+                session.delete(conn)
+                session.commit()
 
     @pytest.mark.flaky(max_runs=5, min_passes=1)
     def test_exec_ssh_client_command(self):

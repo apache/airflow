@@ -248,7 +248,7 @@ function parallel::get_maximum_parallel_k8s_jobs() {
     docker_engine_resources::get_available_cpus_in_docker
     if [[ -n ${RUNS_ON=} && ${RUNS_ON} != *"self-hosted"* ]]; then
         echo
-        echo "${COLOR_YELLOW}This is a Github Public runner - for now we are forcing max parallel K8S tests jobs to 1 for those${COLOR_RESET}"
+        echo "${COLOR_YELLOW}This is a GitHub Public runner - for now we are forcing max parallel K8S tests jobs to 1 for those${COLOR_RESET}"
         echo
         export MAX_PARALLEL_K8S_JOBS="1"
     else

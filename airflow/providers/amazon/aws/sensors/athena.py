@@ -36,6 +36,11 @@ class AthenaSensor(BaseSensorOperator):
     Asks for the state of the Query until it reaches a failure state or success state.
     If the query fails, the task will fail.
 
+    .. seealso::
+        For more information on how to use this sensor, take a look at the guide:
+        :ref:`howto/sensor:AthenaSensor`
+
+
     :param query_execution_id: query_execution_id to check the state of
     :param max_retries: Number of times to poll for query state before
         returning the current state, defaults to None

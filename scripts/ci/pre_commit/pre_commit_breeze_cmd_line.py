@@ -19,12 +19,14 @@
 import os
 import sys
 from pathlib import Path
-from subprocess import check_call, check_output
+from subprocess import check_call, check_output, run
 
 from rich.console import Console
 
-AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].absolute()
+AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 BREEZE_IMAGES_DIR = AIRFLOW_SOURCES_DIR / "images" / "breeze"
+BREEZE_INSTALL_DIR = AIRFLOW_SOURCES_DIR / "dev" / "breeze"
+BREEZE_SOURCES_DIR = BREEZE_INSTALL_DIR / "src"
 
 SCREENSHOT_WIDTH = "120"
 
@@ -39,7 +41,35 @@ def get_command_list():
 
 
 def print_help_for_all_commands():
+    console = Console(width=int(SCREENSHOT_WIDTH), color_system="standard")
     env = os.environ.copy()
+    env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
+    env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
+    env['RECORD_BREEZE_TITLE'] = "Breeze commands"
+    env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
+    env['TERM'] = "xterm-256color"
+    env['PYTHONPATH'] = str(BREEZE_SOURCES_DIR)
+    new_hash = check_output(
+        [
+            sys.executable,
+            str(BREEZE_SOURCES_DIR / "airflow_breeze" / "breeze.py"),
+            "command-hash-export",
+            "-",
+        ],
+        env=env,
+        text=True,
+    )
+    hash_file_path = BREEZE_IMAGES_DIR / "output-commands-hash.txt"
+    try:
+        old_hash = hash_file_path.read_text()
+    except FileNotFoundError:
+        old_hash = ""
+    if old_hash == new_hash:
+        console.print(f"[bright_blue]Skip generation of SVG images as command hash is unchanged {old_hash}")
+        return
+    run([sys.executable, "-m", "pip", "install", "--upgrade", "-e", BREEZE_INSTALL_DIR])
+    env = os.environ.copy()
+    env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
     env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
     env['RECORD_BREEZE_TITLE'] = "Breeze commands"
     env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
@@ -47,11 +77,13 @@ def print_help_for_all_commands():
     check_call(["breeze", "--help"], env=env)
     for command in get_command_list():
         env = os.environ.copy()
+        env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
         env['RECORD_BREEZE_WIDTH'] = SCREENSHOT_WIDTH
         env['RECORD_BREEZE_TITLE'] = f"Command: {command}"
         env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / f"output-{command}.svg")
         env['TERM'] = "xterm-256color"
         check_call(["breeze", command, "--help"], env=env)
+    hash_file_path.write_text(new_hash)
 
 
 def verify_all_commands_described_in_docs():

@@ -24,7 +24,12 @@ import re
 import weakref
 from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Sequence, Set, Tuple, Union
 
-from airflow.exceptions import AirflowDagCycleException, AirflowException, DuplicateTaskIdFound
+from airflow.exceptions import (
+    AirflowDagCycleException,
+    AirflowException,
+    DuplicateTaskIdFound,
+    TaskAlreadyInTaskGroup,
+)
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.utils.helpers import validate_group_key
@@ -186,7 +191,16 @@ class TaskGroup(DAGNode):
                 yield child
 
     def add(self, task: DAGNode) -> None:
-        """Add a task to this TaskGroup."""
+        """Add a task to this TaskGroup.
+
+        :meta private:
+        """
+        from airflow.models.abstractoperator import AbstractOperator
+
+        existing_tg = task.task_group
+        if isinstance(task, AbstractOperator) and existing_tg is not None and existing_tg != self:
+            raise TaskAlreadyInTaskGroup(task.node_id, existing_tg.node_id, self.node_id)
+
         # Set the TG first, as setting it might change the return value of node_id!
         task.task_group = weakref.proxy(self)
         key = task.node_id
@@ -229,12 +243,7 @@ class TaskGroup(DAGNode):
         """group_id excluding parent's group_id used as the node label in UI."""
         return self._group_id
 
-    def update_relative(
-        self,
-        other: DependencyMixin,
-        upstream=True,
-        edge_modifier: Optional["EdgeModifier"] = None,
-    ) -> None:
+    def update_relative(self, other: DependencyMixin, upstream=True) -> None:
         """
         Overrides TaskMixin.update_relative.
 
@@ -259,18 +268,10 @@ class TaskGroup(DAGNode):
                         f"or operators; received {task.__class__.__name__}"
                     )
 
-                # Do not set a relationship between a TaskGroup and a Label's roots
-                if self == task:
-                    continue
-
                 if upstream:
                     self.upstream_task_ids.add(task.node_id)
-                    if edge_modifier:
-                        edge_modifier.add_edge_info(self.dag, task.node_id, self.upstream_join_id)
                 else:
                     self.downstream_task_ids.add(task.node_id)
-                    if edge_modifier:
-                        edge_modifier.add_edge_info(self.dag, self.downstream_join_id, task.node_id)
 
     def _set_relatives(
         self,
@@ -293,7 +294,7 @@ class TaskGroup(DAGNode):
             task_or_task_list = [task_or_task_list]
 
         for task_like in task_or_task_list:
-            self.update_relative(task_like, upstream, edge_modifier=edge_modifier)
+            self.update_relative(task_like, upstream)
 
     def __enter__(self) -> "TaskGroup":
         TaskGroupContext.push_context_managed_task_group(self)

@@ -647,7 +647,6 @@ export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_IMAGE_KUBERNETES="${AIRFLOW_IMAGE_KUBERNETES}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
-export SKIP_PACKAGE_VERIFICATION="${SKIP_PACKAGE_VERIFICATION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
 export EXECUTOR="${EXECUTOR}"
 export START_AIRFLOW="${START_AIRFLOW}"
@@ -1430,7 +1429,6 @@ ${FORMATTED_KIND_OPERATIONS}
 
 Flags:
 $(breeze::flag_airflow_variants)
-$(breeze::flag_build_docker_images)
 "
     readonly DETAILED_USAGE_KIND_CLUSTER
     export DETAILED_USAGE_SETUP_AUTOCOMPLETE="
@@ -2224,7 +2222,6 @@ function breeze::check_and_save_all_params() {
     fi
 
     parameters::check_and_save_allowed_param "BACKEND" "backend" "--backend"
-    parameters::check_and_save_allowed_param "PLATFORM" "platform" "--platform"
     parameters::check_and_save_allowed_param "KUBERNETES_MODE" "Kubernetes mode" "--kubernetes-mode"
     parameters::check_and_save_allowed_param "KUBERNETES_VERSION" "Kubernetes version" "--kubernetes-version"
     parameters::check_and_save_allowed_param "KIND_VERSION" "KinD version" "--kind-version"
@@ -2235,7 +2232,6 @@ function breeze::check_and_save_all_params() {
     parameters::check_and_save_allowed_param "MSSQL_VERSION" "MSSql version" "--mssql-version"
 
     parameters::check_allowed_param TEST_TYPE "Type of tests" "--test-type"
-    parameters::check_allowed_param PACKAGE_FORMAT "Format of packages to build" "--package-format"
 }
 
 #######################################################################################################
@@ -2598,8 +2594,6 @@ breeze::print_header_line
 breeze::check_and_save_all_params
 
 initialization::make_constants_read_only
-
-sanity_checks::sanitize_mounted_files
 
 breeze::prepare_command_files
 

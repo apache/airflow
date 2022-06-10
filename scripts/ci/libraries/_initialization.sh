@@ -43,6 +43,10 @@ function initialization::create_directories() {
     export BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     readonly BUILD_CACHE_DIR
 
+    # Directory where Kind credential information is kept
+    export KUBE_CACHE_DIR="${AIRFLOW_SOURCES}/.kube"
+    readonly KUBE_CACHE_DIR
+
     # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
     # O_DIRECT parameter for direct writing to the filesystem
     # https://github.com/microsoft/mssql-docker/issues/13
@@ -55,6 +59,7 @@ function initialization::create_directories() {
     mkdir -p "${BUILD_CACHE_DIR}" >/dev/null
     mkdir -p "${FILES_DIR}" >/dev/null
     mkdir -p "${MSSQL_DATA_VOLUME}" >/dev/null
+    mkdir -p "${KUBE_CACHE_DIR}" >/dev/null
     # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
     # This is a bit scary and we could get by making it group-writeable but the group would have
     # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
@@ -64,7 +69,6 @@ function initialization::create_directories() {
     export CI="${CI="false"}"
 
     # Create useful directories if not yet created
-    mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
@@ -125,7 +129,7 @@ function initialization::initialize_base_variables() {
     export CURRENT_PYTHON_MAJOR_MINOR_VERSIONS
 
     # Currently supported versions of Postgres
-    CURRENT_POSTGRES_VERSIONS+=("10" "13")
+    CURRENT_POSTGRES_VERSIONS+=("10" "14")
     export CURRENT_POSTGRES_VERSIONS
 
     # Currently supported versions of MySQL
@@ -165,7 +169,7 @@ function initialization::initialize_base_variables() {
     export PRESERVE_VOLUMES="false"
 
     # Cleans up docker context files if specified
-    export CLEANUP_DOCKER_CONTEXT_FILES="false"
+    export CLEANUP_CONTEXT="false"
 
     # if set to true, the ci image will look for packages in dist folder and will install them
     # during entering the container
@@ -410,9 +414,6 @@ function initialization::initialize_image_build_variables() {
     INSTALL_PROVIDERS_FROM_SOURCES=${INSTALL_PROVIDERS_FROM_SOURCES:="true"}
     export INSTALL_PROVIDERS_FROM_SOURCES
 
-    SKIP_PACKAGE_VERIFICATION=${SKIP_PACKAGE_VERIFICATION:=""}
-    export SKIP_PACKAGE_VERIFICATION
-
     SKIP_SSH_SETUP=${SKIP_SSH_SETUP:="false"}
     export SKIP_SSH_SETUP
 
@@ -421,7 +422,7 @@ function initialization::initialize_image_build_variables() {
 
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.0.4"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.1.2"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds
@@ -456,15 +457,15 @@ function initialization::initialize_image_build_variables() {
     export INSTALL_AIRFLOW_REFERENCE=${INSTALL_AIRFLOW_REFERENCE:=""}
 
     # Determines which providers are used to generate constraints - source, pypi or no providers
-    export GENERATE_CONSTRAINTS_MODE=${GENERATE_CONSTRAINTS_MODE:="source-providers"}
+    export AIRFLOW_CONSTRAINTS_MODE=${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}
 
-    # whether installation of Airflow should be done via PIP. You can set it to false if you have
-    # all the binary packages (including airflow) in the docker-context-files folder and use
-    # INSTALL_FROM_DOCKER_CONTEXT_FILES="true" to install it from there.
-    export INSTALL_FROM_PYPI="${INSTALL_FROM_PYPI:="true"}"
+    # By default we install latest airflow from PyPI or sources. You can set this parameter to false
+    # if Airflow is in the .whl or .tar.gz packages placed in `docker-context-files` folder and you want
+    # to skip installing Airflow/Providers from PyPI or sources.
+    export AIRFLOW_IS_IN_CONTEXT="${AIRFLOW_IS_IN_CONTEXT:="false"}"
 
     # whether installation should be performed from the local wheel packages in "docker-context-files" folder
-    export INSTALL_FROM_DOCKER_CONTEXT_FILES="${INSTALL_FROM_DOCKER_CONTEXT_FILES:="false"}"
+    export INSTALL_PACKAGES_FROM_CONTEXT="${INSTALL_PACKAGES_FROM_CONTEXT:="false"}"
 
     # reference to CONSTRAINTS. they can be overwritten manually or replaced with AIRFLOW_CONSTRAINTS_LOCATION
     export AIRFLOW_CONSTRAINTS_REFERENCE="${AIRFLOW_CONSTRAINTS_REFERENCE:=""}"
@@ -477,7 +478,7 @@ function initialization::initialize_image_build_variables() {
     #   * 'constraints' = for constraints with PyPI released providers (default for installations)
     #   * 'constraints-source-providers' for constraints with source version of providers (defaults in Breeze and CI)
     #   * 'constraints-no-providers' for constraints without providers
-    export AIRFLOW_CONSTRAINTS="${AIRFLOW_CONSTRAINTS:="constraints-source-providers"}"
+    export AIRFLOW_CONSTRAINTS_MODE="${AIRFLOW_CONSTRAINTS_MODE:="constraints-source-providers"}"
 
     # Replace airflow at runtime in CI image with the one specified
     #   * none - just removes airflow
@@ -493,13 +494,13 @@ function initialization::initialize_image_build_variables() {
 # Determine versions of kubernetes cluster and tools used
 function initialization::initialize_kubernetes_variables() {
     # Currently supported versions of Kubernetes
-    CURRENT_KUBERNETES_VERSIONS+=("v1.23.4" "v1.22.7" "v1.21.10" "v1.20.15")
+    CURRENT_KUBERNETES_VERSIONS+=("v1.24.0" "v1.23.6" "v1.22.9" "v1.21.12" "v1.20.15")
     export CURRENT_KUBERNETES_VERSIONS
     # Currently supported modes of Kubernetes
     CURRENT_KUBERNETES_MODES+=("image")
     export CURRENT_KUBERNETES_MODES
     # Currently supported versions of Kind
-    CURRENT_KIND_VERSIONS+=("v0.12.0")
+    CURRENT_KIND_VERSIONS+=("v0.14.0")
     export CURRENT_KIND_VERSIONS
     # Currently supported versions of Helm
     CURRENT_HELM_VERSIONS+=("v3.6.3")
@@ -714,14 +715,14 @@ Common image build variables:
 
     INSTALL_AIRFLOW_VERSION: '${INSTALL_AIRFLOW_VERSION}'
     INSTALL_AIRFLOW_REFERENCE: '${INSTALL_AIRFLOW_REFERENCE}'
-    INSTALL_FROM_PYPI: '${INSTALL_FROM_PYPI}'
+    AIRFLOW_IS_IN_CONTEXT: '${AIRFLOW_IS_IN_CONTEXT}'
     AIRFLOW_PRE_CACHED_PIP_PACKAGES: '${AIRFLOW_PRE_CACHED_PIP_PACKAGES}'
     UPGRADE_TO_NEWER_DEPENDENCIES: '${UPGRADE_TO_NEWER_DEPENDENCIES}'
     CHECK_IMAGE_FOR_REBUILD: '${CHECK_IMAGE_FOR_REBUILD}'
     AIRFLOW_CONSTRAINTS_LOCATION: '${AIRFLOW_CONSTRAINTS_LOCATION}'
     AIRFLOW_CONSTRAINTS_REFERENCE: '${AIRFLOW_CONSTRAINTS_REFERENCE}'
     INSTALL_PROVIDERS_FROM_SOURCES: '${INSTALL_PROVIDERS_FROM_SOURCES}'
-    INSTALL_FROM_DOCKER_CONTEXT_FILES: '${INSTALL_FROM_DOCKER_CONTEXT_FILES}'
+    INSTALL_PACKAGES_FROM_CONTEXT: '${INSTALL_PACKAGES_FROM_CONTEXT}'
     ADDITIONAL_AIRFLOW_EXTRAS: '${ADDITIONAL_AIRFLOW_EXTRAS}'
     ADDITIONAL_PYTHON_DEPS: '${ADDITIONAL_PYTHON_DEPS}'
     DEV_APT_COMMAND: '${DEV_APT_COMMAND}'
@@ -857,8 +858,8 @@ function initialization::make_constants_read_only() {
     readonly IMAGE_TAG
 
     readonly AIRFLOW_PRE_CACHED_PIP_PACKAGES
-    readonly INSTALL_FROM_PYPI
-    readonly INSTALL_FROM_DOCKER_CONTEXT_FILES
+    readonly AIRFLOW_IS_IN_CONTEXT
+    readonly INSTALL_PACKAGES_FROM_CONTEXT
     readonly AIRFLOW_CONSTRAINTS_REFERENCE
     readonly AIRFLOW_CONSTRAINTS_LOCATION
 

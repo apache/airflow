@@ -395,7 +395,7 @@ class TestSchedulerJob:
         (ti1,) = dr1.task_instances
         ti1.state = State.SCHEDULED
 
-        self.scheduler_job._critical_section_execute_task_instances(session)
+        self.scheduler_job._critical_section_enqueue_task_instances(session)
         ti1.refresh_from_db(session=session)
         assert State.SCHEDULED == ti1.state
         session.rollback()
@@ -423,7 +423,7 @@ class TestSchedulerJob:
 
         assert dr1.is_backfill
 
-        self.scheduler_job._critical_section_execute_task_instances(session)
+        self.scheduler_job._critical_section_enqueue_task_instances(session)
         session.flush()
         ti1.refresh_from_db()
         assert State.SCHEDULED == ti1.state
@@ -1135,6 +1135,42 @@ class TestSchedulerJob:
 
         session.rollback()
 
+    def test_find_executable_task_instances_negative_open_pool_slots(self, dag_maker):
+        """
+        Pools with negative open slots should not block other pools.
+        Negative open slots can happen when reducing the number of total slots in a pool
+        while tasks are running in that pool.
+        """
+        set_default_pool_slots(0)
+
+        self.scheduler_job = SchedulerJob(subdir=os.devnull)
+        session = settings.Session()
+
+        pool1 = Pool(pool='pool1', slots=1)
+        pool2 = Pool(pool='pool2', slots=1)
+
+        session.add(pool1)
+        session.add(pool2)
+
+        dag_id = 'SchedulerJobTest.test_find_executable_task_instances_negative_open_pool_slots'
+        with dag_maker(dag_id=dag_id):
+            op1 = EmptyOperator(task_id='op1', pool='pool1')
+            op2 = EmptyOperator(task_id='op2', pool='pool2', pool_slots=2)
+
+        dr1 = dag_maker.create_dagrun(run_type=DagRunType.SCHEDULED)
+
+        ti1 = dr1.get_task_instance(op1.task_id, session)
+        ti2 = dr1.get_task_instance(op2.task_id, session)
+        ti1.state = State.SCHEDULED
+        ti2.state = State.RUNNING
+        session.flush()
+
+        res = self.scheduler_job._executable_task_instances_to_queued(max_tis=1, session=session)
+        assert 1 == len(res)
+        assert res[0].key == ti1.key
+
+        session.rollback()
+
     @mock.patch('airflow.jobs.scheduler_job.Stats.gauge')
     def test_emit_pool_starving_tasks_metrics(self, mock_stats_gauge, dag_maker):
         self.scheduler_job = SchedulerJob(subdir=os.devnull)
@@ -1222,7 +1258,7 @@ class TestSchedulerJob:
         assert ti.state == State.NONE
         mock_queue_command.assert_not_called()
 
-    def test_critical_section_execute_task_instances(self, dag_maker):
+    def test_critical_section_enqueue_task_instances(self, dag_maker):
         dag_id = 'SchedulerJobTest.test_execute_task_instances'
         task_id_1 = 'dummy_task'
         task_id_2 = 'dummy_task_nonexistent_queue'
@@ -1261,7 +1297,7 @@ class TestSchedulerJob:
 
         assert State.RUNNING == dr2.state
 
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
 
         # check that max_active_tasks is respected
         ti1.refresh_from_db()
@@ -1310,7 +1346,7 @@ class TestSchedulerJob:
             ti2.state = State.SCHEDULED
             session.flush()
         self.scheduler_job.max_tis_per_query = 2
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
         assert 2 == res
 
         self.scheduler_job.max_tis_per_query = 8
@@ -1320,9 +1356,9 @@ class TestSchedulerJob:
             mock_slots.return_value = 2
             # Check that we don't "overfill" the executor
             assert 2 == res
-            res = self.scheduler_job._critical_section_execute_task_instances(session)
+            res = self.scheduler_job._critical_section_enqueue_task_instances(session)
 
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
         assert 4 == res
         for ti in tis:
             ti.refresh_from_db()
@@ -1362,7 +1398,7 @@ class TestSchedulerJob:
         self.scheduler_job.max_tis_per_query = 0
         self.scheduler_job.executor = MagicMock(slots_available=36)
 
-        res = self.scheduler_job._critical_section_execute_task_instances(session)
+        res = self.scheduler_job._critical_section_enqueue_task_instances(session)
         # 20 dag runs * 2 tasks each = 40, but limited by number of slots available
         assert res == 36
         session.rollback()
@@ -3919,7 +3955,6 @@ class TestSchedulerJob:
         """End-to-end test of a simple mapped dag"""
         # Use SequentialExecutor for more predictable test behaviour
         from airflow.executors.sequential_executor import SequentialExecutor
-        from airflow.utils.dates import days_ago
 
         self.dagbag.process_file(str(TEST_DAGS_FOLDER / f'{dag_id}.py'))
         dag = self.dagbag.get_dag(dag_id)
@@ -3928,7 +3963,7 @@ class TestSchedulerJob:
             run_type=DagRunType.MANUAL,
             start_date=timezone.utcnow(),
             state=State.RUNNING,
-            execution_date=days_ago(2),
+            execution_date=timezone.utcnow() - datetime.timedelta(days=2),
             session=session,
         )
 
@@ -4064,42 +4099,42 @@ class TestSchedulerJob:
         ) > (timezone.utcnow() - timedelta(days=2))
 
 
-@pytest.mark.xfail(reason="Work out where this goes")
-def test_task_with_upstream_skip_process_task_instances():
+@pytest.mark.need_serialized_dag
+def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
     """
-    Test if _process_task_instances puts a task instance into SKIPPED state if any of its
+    Test if _schedule_dag_run puts a task instance into SKIPPED state if any of its
     upstream tasks are skipped according to TriggerRuleDep.
     """
-    clear_db_runs()
-    with DAG(
-        dag_id='test_task_with_upstream_skip_dag', start_date=DEFAULT_DATE, schedule_interval=None
-    ) as dag:
+    with dag_maker(
+        dag_id='test_task_with_upstream_skip_process_task_instances',
+        start_date=DEFAULT_DATE,
+        session=session,
+    ):
         dummy1 = EmptyOperator(task_id='dummy1')
         dummy2 = EmptyOperator(task_id="dummy2")
         dummy3 = EmptyOperator(task_id="dummy3")
         [dummy1, dummy2] >> dummy3
-
     # dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-    dag.clear()
-    dr = dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
+    dr = dag_maker.create_dagrun(state=State.RUNNING)
     assert dr is not None
 
-    with create_session() as session:
-        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
-        # Set dummy1 to skipped and dummy2 to success. dummy3 remains as none.
-        tis[dummy1.task_id].state = State.SKIPPED
-        tis[dummy2.task_id].state = State.SUCCESS
-        assert tis[dummy3.task_id].state == State.NONE
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    # Set dummy1 to skipped and dummy2 to success. dummy3 remains as none.
+    tis[dummy1.task_id].state = State.SKIPPED
+    tis[dummy2.task_id].state = State.SUCCESS
+    assert tis[dummy3.task_id].state == State.NONE
+    session.flush()
 
     # dag_runs = DagRun.find(dag_id='test_task_with_upstream_skip_dag')
     # dag_file_processor._process_task_instances(dag, dag_runs=dag_runs)
-
-    with create_session() as session:
-        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
-        assert tis[dummy1.task_id].state == State.SKIPPED
-        assert tis[dummy2.task_id].state == State.SUCCESS
-        # dummy3 should be skipped because dummy1 is skipped.
-        assert tis[dummy3.task_id].state == State.SKIPPED
+    scheduler_job = SchedulerJob(subdir=os.devnull)
+    scheduler_job._schedule_dag_run(dr, session)
+    session.flush()
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    assert tis[dummy1.task_id].state == State.SKIPPED
+    assert tis[dummy2.task_id].state == State.SUCCESS
+    # dummy3 should be skipped because dummy1 is skipped.
+    assert tis[dummy3.task_id].state == State.SKIPPED
 
 
 class TestSchedulerJobQueriesCount:

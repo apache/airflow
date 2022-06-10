@@ -19,7 +19,6 @@
 import datetime
 import subprocess
 import sys
-import warnings
 from pathlib import Path
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
@@ -36,6 +35,7 @@ from pendulum.datetime import DateTime
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
+from airflow.providers.google.common.links.storage import FileDetailsLink, StorageLink
 from airflow.utils import timezone
 
 
@@ -72,8 +72,6 @@ class GCSCreateBucketOperator(BaseOperator):
     :param project_id: The ID of the Google Cloud Project. (templated)
     :param labels: User-provided labels, in key/value pairs.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -110,6 +108,7 @@ class GCSCreateBucketOperator(BaseOperator):
         'impersonation_chain',
     )
     ui_color = '#f0eee4'
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -121,22 +120,11 @@ class GCSCreateBucketOperator(BaseOperator):
         project_id: Optional[str] = None,
         labels: Optional[Dict] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket_name = bucket_name
         self.resource = resource
         self.storage_class = storage_class
@@ -152,6 +140,12 @@ class GCSCreateBucketOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket_name,
+            project_id=self.project_id or hook.project_id,
         )
         try:
             hook.create_bucket(
@@ -180,8 +174,6 @@ class GCSListObjectsOperator(BaseOperator):
         For e.g to lists the CSV files from in a directory in GCS you would use
         delimiter='.csv'.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -216,6 +208,8 @@ class GCSListObjectsOperator(BaseOperator):
 
     ui_color = '#f0eee4'
 
+    operator_extra_links = (StorageLink(),)
+
     def __init__(
         self,
         *,
@@ -223,22 +217,11 @@ class GCSListObjectsOperator(BaseOperator):
         prefix: Optional[str] = None,
         delimiter: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket = bucket
         self.prefix = prefix
         self.delimiter = delimiter
@@ -261,6 +244,13 @@ class GCSListObjectsOperator(BaseOperator):
             self.prefix,
         )
 
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket,
+            project_id=hook.project_id,
+        )
+
         return hook.list(bucket_name=self.bucket, prefix=self.prefix, delimiter=self.delimiter)
 
 
@@ -276,8 +266,6 @@ class GCSDeleteObjectsOperator(BaseOperator):
     :param prefix: Prefix of objects to delete. All objects matching this
         prefix in the bucket will be deleted.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
@@ -305,20 +293,10 @@ class GCSDeleteObjectsOperator(BaseOperator):
         objects: Optional[List[str]] = None,
         prefix: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.bucket_name = bucket_name
         self.objects = objects
@@ -366,8 +344,6 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -387,6 +363,7 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         'impersonation_chain',
     )
     # [END gcs_bucket_create_acl_template_fields]
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -396,21 +373,10 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         role: str,
         user_project: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket = bucket
         self.entity = entity
         self.role = role
@@ -422,6 +388,12 @@ class GCSBucketCreateAclEntryOperator(BaseOperator):
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.bucket,
+            project_id=hook.project_id,
         )
         hook.insert_bucket_acl(
             bucket_name=self.bucket, entity=self.entity, role=self.role, user_project=self.user_project
@@ -449,8 +421,6 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
     :param user_project: (Optional) The project to be billed for this request.
         Required for Requester Pays buckets.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -472,6 +442,7 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         'impersonation_chain',
     )
     # [END gcs_object_create_acl_template_fields]
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -483,21 +454,10 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         generation: Optional[int] = None,
         user_project: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        google_cloud_storage_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
-
         self.bucket = bucket
         self.object_name = object_name
         self.entity = entity
@@ -511,6 +471,12 @@ class GCSObjectCreateAclEntryOperator(BaseOperator):
         hook = GCSHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
+        )
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            uri=f"{self.bucket}/{self.object_name}",
+            project_id=hook.project_id,
         )
         hook.insert_object_acl(
             bucket_name=self.bucket,
@@ -536,8 +502,12 @@ class GCSFileTransformOperator(BaseOperator):
     data from source, transform it and write the output to the local
     destination file.
 
-    :param source_bucket: The key to be retrieved from GCS. (templated)
-    :param destination_bucket: The key to be written from GCS. (templated)
+    :param source_bucket: The bucket to locate the source_object. (templated)
+    :param source_object: The key to be retrieved from GCS. (templated)
+    :param destination_bucket: The bucket to upload the key after transformation.
+        If not provided, source_bucket will be used. (templated)
+    :param destination_object: The key to be written in GCS.
+        If not provided, source_object will be used. (templated)
     :param transform_script: location of the executable transformation script or list of arguments
         passed to subprocess ex. `['python', 'script.py', 10]`. (templated)
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
@@ -553,10 +523,13 @@ class GCSFileTransformOperator(BaseOperator):
 
     template_fields: Sequence[str] = (
         'source_bucket',
+        'source_object',
         'destination_bucket',
+        'destination_object',
         'transform_script',
         'impersonation_chain',
     )
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -608,6 +581,12 @@ class GCSFileTransformOperator(BaseOperator):
             self.log.info("Transformation succeeded. Output temporarily located at %s", destination_file.name)
 
             self.log.info("Uploading file to %s as %s", self.destination_bucket, self.destination_object)
+            FileDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                uri=f"{self.destination_bucket}/{self.destination_object}",
+                project_id=hook.project_id,
+            )
             hook.upload(
                 bucket_name=self.destination_bucket,
                 object_name=self.destination_object,
@@ -687,6 +666,7 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         'source_impersonation_chain',
         'destination_impersonation_chain',
     )
+    operator_extra_links = (StorageLink(),)
 
     @staticmethod
     def interpolate_prefix(prefix: str, dt: datetime.datetime) -> Optional[str]:
@@ -776,6 +756,12 @@ class GCSTimeSpanFileTransformOperator(BaseOperator):
         destination_hook = GCSHook(
             gcp_conn_id=self.destination_gcp_conn_id,
             impersonation_chain=self.destination_impersonation_chain,
+        )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.destination_bucket,
+            project_id=destination_hook.project_id,
         )
 
         # Fetch list of files.
@@ -963,6 +949,7 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
         'delegate_to',
         'impersonation_chain',
     )
+    operator_extra_links = (StorageLink(),)
 
     def __init__(
         self,
@@ -997,6 +984,12 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        StorageLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self._get_uri(self.destination_bucket, self.destination_object),
+            project_id=hook.project_id,
+        )
         hook.sync(
             source_bucket=self.source_bucket,
             destination_bucket=self.destination_bucket,
@@ -1006,3 +999,8 @@ class GCSSynchronizeBucketsOperator(BaseOperator):
             delete_extra_files=self.delete_extra_files,
             allow_overwrite=self.allow_overwrite,
         )
+
+    def _get_uri(self, gcs_bucket: str, gcs_object: Optional[str]) -> str:
+        if gcs_object and gcs_object[-1] == "/":
+            gcs_object = gcs_object[:-1]
+        return f"{gcs_bucket}/{gcs_object}" if gcs_object else gcs_bucket

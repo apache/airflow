@@ -99,6 +99,7 @@ class TestAirflowCommon:
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
@@ -121,13 +122,14 @@ class TestAirflowCommon:
             assert "test-annotation/safe-to-evict" in annotations
             assert "true" in annotations["test-annotation/safe-to-evict"]
 
-    def test_global_affinity_tolerations_and_node_selector(self):
+    def test_global_affinity_tolerations_topology_spread_constraints_and_node_selector(self):
         """
-        Test affinity, tolerations, and node selector are correctly applied on all pods created
+        Test affinity, tolerations, etc are correctly applied on all pods created
         """
         k8s_objects = render_chart(
             values={
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "affinity": {
                     "nodeAffinity": {
@@ -144,6 +146,14 @@ class TestAirflowCommon:
                 },
                 "tolerations": [
                     {"key": "static-pods", "operator": "Equal", "value": "true", "effect": "NoSchedule"}
+                ],
+                "topologySpreadConstraints": [
+                    {
+                        "maxSkew": 1,
+                        "topologyKey": "foo",
+                        "whenUnsatisfiable": "ScheduleAnyway",
+                        "labelSelector": {"matchLabels": {"tier": "airflow"}},
+                    }
                 ],
                 "nodeSelector": {"type": "user-node"},
             },
@@ -180,6 +190,7 @@ class TestAirflowCommon:
             )
             assert "user-node" == jmespath.search("nodeSelector.type", podSpec)
             assert "static-pods" == jmespath.search("tolerations[0].key", podSpec)
+            assert "foo" == jmespath.search("topologySpreadConstraints[0].topologyKey", podSpec)
 
     @pytest.mark.parametrize(
         "use_default_image,expected_image",
@@ -302,8 +313,8 @@ class TestAirflowCommon:
     def test_priority_class_name(self):
         docs = render_chart(
             values={
-                "flower": {"priorityClassName": "low-priority-flower"},
-                "pgbouncer": {"priorityClassName": "low-priority-pgbouncer"},
+                "flower": {"enabled": True, "priorityClassName": "low-priority-flower"},
+                "pgbouncer": {"enabled": True, "priorityClassName": "low-priority-pgbouncer"},
                 "scheduler": {"priorityClassName": "low-priority-scheduler"},
                 "statsd": {"priorityClassName": "low-priority-statsd"},
                 "triggerer": {"priorityClassName": "low-priority-triggerer"},
@@ -321,6 +332,7 @@ class TestAirflowCommon:
             ],
         )
 
+        assert 7 == len(docs)
         for doc in docs:
             component = doc['metadata']['labels']['component']
             priority = doc['spec']['template']['spec']['priorityClassName']

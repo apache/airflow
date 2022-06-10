@@ -45,7 +45,7 @@ log = logging.getLogger(__name__)
 
 TIMEZONE = pendulum.tz.timezone('UTC')
 try:
-    tz = conf.get("core", "default_timezone")
+    tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
         TIMEZONE = pendulum.tz.local_timezone()
     else:
@@ -77,7 +77,7 @@ SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
 DONOT_MODIFY_HANDLERS: Optional[bool] = None
-DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
 
 engine: Engine
 Session: Callable[..., SASession]
@@ -88,16 +88,16 @@ json = json
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
 STATE_COLORS = {
+    "deferred": "mediumpurple",
+    "failed": "red",
     "queued": "gray",
     "running": "lime",
-    "success": "green",
-    "failed": "red",
-    "up_for_retry": "gold",
-    "up_for_reschedule": "turquoise",
-    "upstream_failed": "orange",
-    "skipped": "pink",
     "scheduled": "tan",
-    "deferred": "mediumpurple",
+    "skipped": "hotpink",
+    "success": "green",
+    "up_for_reschedule": "turquoise",
+    "up_for_retry": "gold",
+    "upstream_failed": "orange",
 }
 
 
@@ -293,7 +293,7 @@ def configure_orm(disable_connection_pool=False):
             data = result.fetchone()[0]
             if data != 1:
                 log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("The database %s has it disabled.", engine.url.database)
                 log.critical("This will cause random deadlocks, Refusing to start.")
                 log.critical(
                     "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"

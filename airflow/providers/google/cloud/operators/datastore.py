@@ -119,8 +119,8 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
                 gcs_hook.delete(self.bucket, obj)
 
         ds_hook = DatastoreHook(
-            self.datastore_conn_id,
-            self.delegate_to,
+            gcp_conn_id=self.datastore_conn_id,
+            delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
         result = ds_hook.export_to_storage_bucket(
@@ -140,6 +140,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
             context=context,
             task_instance=self,
             uri=f"{self.bucket}/{result['response']['outputUrl'].split('/')[3]}",
+            project_id=self.project_id or ds_hook.project_id,
         )
         return result
 

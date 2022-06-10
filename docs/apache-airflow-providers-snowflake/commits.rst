@@ -28,14 +28,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-2.6.0
+3.0.0
 .....
 
-Latest change: 2022-03-15
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`c2f10a4ee9 <https://github.com/apache/airflow/commit/c2f10a4ee9c2404e545d78281bf742a199895817>`_  2022-06-03   ``Migrate Snowflake system tests to new design #22434 (#24151)``
+`86cfd1244a <https://github.com/apache/airflow/commit/86cfd1244a641a8f17c9b33a34399d9be264f556>`_  2022-05-20   ``Fix error when SnowflakeHook take empty list in 'sql' param (#23767)``
+=================================================================================================  ===========  ==================================================================================
+
+2.7.0
+.....
+
+Latest change: 2022-05-12
 
 =================================================================================================  ===========  ====================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ====================================================================
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`b6aaf9e2fc <https://github.com/apache/airflow/commit/b6aaf9e2fc40724c9904504e121633baab2396e1>`_  2022-05-01   ``Allow multiline text in private key field for Snowflake (#23066)``
+=================================================================================================  ===========  ====================================================================
+
+2.6.0
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ====================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ====================================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
 `d6ed9cb950 <https://github.com/apache/airflow/commit/d6ed9cb95041285b1250039377e968329d9ca1f1>`_  2022-03-15   ``Add support for private key in connection for Snowflake (#22266)``
 =================================================================================================  ===========  ====================================================================
 

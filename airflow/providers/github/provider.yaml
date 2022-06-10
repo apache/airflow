@@ -18,9 +18,15 @@
 ---
 package-name: apache-airflow-providers-github
 name: Github
+
 description: |
-    `Github <https://www.github.com/>`__
+    `GitHub <https://www.github.com/>`__
+
+additional-dependencies:
+  - apache-airflow>=2.2.0
+
 versions:
+  - 2.0.0
   - 1.0.3
   - 1.0.2
   - 1.0.1

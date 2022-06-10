@@ -69,9 +69,13 @@ function prepare_airflow_packages() {
     rm -rf -- *egg-info*
     rm -rf -- build
 
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
     echo
     echo "${COLOR_GREEN}Airflow package prepared in format: ${PACKAGE_FORMAT}${COLOR_RESET}"
     echo
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
+    ls -w 1 ./dist
+    echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
 }
 
 install_supported_pip_version

@@ -781,6 +781,43 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+
+    post:
+      summary: Clear a DAG run
+      description: |
+        Clear a DAG run.
+
+        *New in version 2.4.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: clear_dag_run
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearDagRun'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /eventLogs:
     get:
       summary: List log entries
@@ -2392,6 +2429,28 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        data_interval_start:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_end:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_scheduling_decision:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        run_type:
+          type: string
+          readOnly: true
+          enum:
+            - backfill
+            - manual
+            - scheduled
         state:
           $ref: '#/components/schemas/DagState'
           readOnly: true
@@ -2420,6 +2479,7 @@ components:
           enum:
             - success
             - failed
+            - queued
 
     DAGRunCollection:
       type: object
@@ -3013,6 +3073,9 @@ components:
         depends_on_past:
           type: boolean
           readOnly: true
+        is_mapped:
+          type: boolean
+          readOnly: true
         wait_for_downstream:
           type: boolean
           readOnly: true
@@ -3285,6 +3348,16 @@ components:
           nullable: true
 
     # Form
+    ClearDagRun:
+      type: object
+      properties:
+        dry_run:
+          description: |
+            If set, don't actually run this operation. The response will contain a list of task instances
+            planned to be cleaned, but not modified in any way.
+          type: boolean
+          default: true
+
     ClearTaskInstance:
       type: object
       properties:
@@ -3561,6 +3634,7 @@ components:
       description: |
         Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
         execution_date to figure out the next schedule.
+      nullable: true
       readOnly: true
       anyOf:
         - $ref: '#/components/schemas/TimeDelta'

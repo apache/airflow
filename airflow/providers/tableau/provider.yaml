@@ -22,6 +22,8 @@ description: |
     `Tableau <https://www.tableau.com/>`__
 
 versions:
+  - 3.0.0
+  - 2.1.8
   - 2.1.7
   - 2.1.6
   - 2.1.5
@@ -34,7 +36,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Tableau
@@ -54,6 +56,7 @@ sensors:
   - integration-name: Tableau
     python-modules:
       - airflow.providers.tableau.sensors.tableau_job_status
+      - airflow.providers.tableau.sensors.tableau
 
 hooks:
   - integration-name: Tableau

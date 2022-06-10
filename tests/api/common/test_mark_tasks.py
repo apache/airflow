@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from datetime import timedelta
+import datetime
 from typing import Callable
 
 import pytest
@@ -34,7 +34,6 @@ from airflow.api.common.mark_tasks import (
 )
 from airflow.models import DagRun
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -62,12 +61,12 @@ class TestMarkTasks:
         cls.dag2 = dagbag.get_dag('example_subdag_operator')
         cls.dag3 = dagbag.get_dag('example_trigger_target_dag')
         cls.dag4 = dagbag.get_dag('test_mapped_classic')
-        cls.execution_dates = [days_ago(2), days_ago(1)]
+        cls.execution_dates = [timezone.datetime(2022, 1, 1), timezone.datetime(2022, 1, 2)]
         start_date3 = cls.dag3.start_date
         cls.dag3_execution_dates = [
             start_date3,
-            start_date3 + timedelta(days=1),
-            start_date3 + timedelta(days=2),
+            start_date3 + datetime.timedelta(days=1),
+            start_date3 + datetime.timedelta(days=2),
         ]
 
     @pytest.fixture(autouse=True)
@@ -76,7 +75,7 @@ class TestMarkTasks:
         clear_db_runs()
         drs = _create_dagruns(
             self.dag1,
-            [_DagRunInfo(d, (d, d + timedelta(days=1))) for d in self.execution_dates],
+            [_DagRunInfo(d, (d, d + datetime.timedelta(days=1))) for d in self.execution_dates],
             state=State.RUNNING,
             run_type=DagRunType.SCHEDULED,
         )
@@ -88,7 +87,7 @@ class TestMarkTasks:
             [
                 _DagRunInfo(
                     self.dag2.start_date,
-                    (self.dag2.start_date, self.dag2.start_date + timedelta(days=1)),
+                    (self.dag2.start_date, self.dag2.start_date + datetime.timedelta(days=1)),
                 ),
             ],
             state=State.RUNNING,
@@ -112,7 +111,7 @@ class TestMarkTasks:
             [
                 _DagRunInfo(
                     self.dag4.start_date,
-                    (self.dag4.start_date, self.dag4.start_date + timedelta(days=1)),
+                    (self.dag4.start_date, self.dag4.start_date + datetime.timedelta(days=1)),
                 )
             ],
             state=State.SUCCESS,
@@ -482,7 +481,11 @@ class TestMarkDAGRun:
         cls.dag1.sync_to_db()
         cls.dag2 = dagbag.dags['example_subdag_operator']
         cls.dag2.sync_to_db()
-        cls.execution_dates = [days_ago(2), days_ago(1), days_ago(0)]
+        cls.execution_dates = [
+            timezone.datetime(2022, 1, 1),
+            timezone.datetime(2022, 1, 2),
+            timezone.datetime(2022, 1, 3),
+        ]
 
     def setup_method(self):
         clear_db_runs()

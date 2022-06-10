@@ -52,7 +52,7 @@ Package apache-airflow-providers-ftp
 `File Transfer Protocol (FTP) <https://tools.ietf.org/html/rfc114>`__
 
 
-Release: 2.1.2
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -63,7 +63,8 @@ are in ``airflow.providers.ftp`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-ftp``
 
 .. include:: ../../airflow/providers/ftp/CHANGELOG.rst

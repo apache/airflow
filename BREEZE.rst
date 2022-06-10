@@ -92,7 +92,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 Docker Compose
 --------------
 
-- **Version**: Install the latest stable `Docker Compose<https://docs.docker.com/compose/install/>`_
+- **Version**: Install the latest stable `Docker Compose <https://docs.docker.com/compose/install/>`_
   and add it to the PATH. ``Breeze`` detects if you are using version that is too old and warns you to upgrade.
 - **Permissions**: Configure permission to be able to run the ``docker-compose`` command by your user.
 
@@ -127,9 +127,17 @@ Docker in WSL 2
 
 - **WSL 2 Docker mount errors**:
     Another reason to use Linux filesystem, is that sometimes - depending on the length of
-    your path, you might get strange errors when you try start ``Breeze``, such us
+    your path, you might get strange errors when you try start ``Breeze``, such as
     ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
     Airflow in Windows-mounted Filesystem is strongly discouraged.
+
+- **WSL 2 Docker volume remount errors**:
+    If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
+    Cannot create container for service airflow: not a directory`` when starting Breeze
+    after the first time or an error like ``docker: Error response from daemon: not a directory.
+    See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
+    `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
+    instead of using Docker Desktop for Windows.
 
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
@@ -258,6 +266,8 @@ If you have several checked out Airflow sources, Breeze will warn you if you are
 source tree and will offer you to re-install from those sources - to make sure that you are using the right
 version.
 
+You can skip Breeze's upgrade check by setting ``SKIP_BREEZE_UPGRADE_CHECK`` variable to non empty value.
+
 By default Breeze works on the version of Airflow that you run it in - in case you are outside of the
 sources of Airflow and you installed Breeze from a directory - Breeze will be run on Airflow sources from
 where it was installed.
@@ -311,15 +321,25 @@ Those are all available flags of ``setup-autocomplete`` command:
 
 Customize your environment
 --------------------------
+
 When you enter the Breeze environment, automatically an environment file is sourced from
-``files/airflow-breeze-config/variables.env``. The ``files`` folder from your local sources is
-automatically mounted to the container under ``/files`` path and you can put there any files you want
-to make available for the Breeze container.
+``files/airflow-breeze-config/variables.env``.
+
+You can also add ``files/airflow-breeze-config/init.sh`` and the script will be sourced always
+when you enter Breeze. For example you can add ``pip install`` commands if you want to install
+custom dependencies - but there are no limits to add your own customizations.
+
+The ``files`` folder from your local sources is automatically mounted to the container under
+``/files`` path and you can put there any files you want to make available for the Breeze container.
+
+You can also copy any .whl or .sdist packages to dist and when you pass ``--use-packages-from-dist`` flag
+as ``wheel`` or ``sdist`` line parameter, breeze will automatically install the packages found there
+when you enter Breeze.
 
 You can also add your local tmux configuration in ``files/airflow-breeze-config/.tmux.conf`` and
 these configurations will be available for your tmux environment.
 
-there is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
+There is a symlink between ``files/airflow-breeze-config/.tmux.conf`` and ``~/.tmux.conf`` in the container,
 so you can change it at any place, and run
 
 .. code-block:: bash
@@ -378,6 +398,17 @@ default settings.
 You can see which value of the parameters that can be stored persistently in cache marked with >VALUE<
 in the help of the commands.
 
+Another part of configuration is enabling/disabling cheatsheet, asciiart. The cheatsheet and asciiart can
+be disabled - they are "nice looking" and cheatsheet
+contains useful information for first time users but eventually you might want to disable both if you
+find it repetitive and annoying.
+
+With the config setting colour-blind-friendly communication for Breeze messages. By default we communicate
+with the users about information/errors/warnings/successes via colour-coded messages, but we can switch
+it off by passing ``--no-colour`` to config in which case the messages to the user printed by Breeze
+will be printed using different schemes (italic/bold/underline) to indicate different kind of messages
+rather than colours.
+
 Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
 command but it is very similar to current ``breeze`` command):
 
@@ -395,6 +426,26 @@ Those are all available flags of ``config`` command:
 .. image:: ./images/breeze/output-config.svg
   :width: 100%
   :alt: Breeze config
+
+
+You can also dump hash of the configuration options used - this is mostly use to generate the dump
+of help of the commands only when they change.
+
+.. image:: ./images/breeze/output-command-hash-export.svg
+  :width: 100%
+  :alt: Breeze command-hash-export
+
+Regenerating images for documentation
+=====================================
+
+This documentation contains exported images with "help" of their commands and parameters. You can
+regenerate all those images (which might be needed in case new version of rich is used) via
+``regenerate-breeze-images`` command.
+
+.. image:: ./images/breeze/output-regenerate-command-images.svg
+  :width: 100%
+  :alt: Breeze regenerate-command-images
+
 
 Starting complete Airflow installation
 ======================================
@@ -460,8 +511,13 @@ Those are commands mostly used by contributors:
 * Build documentation with ``breeze build-docs`` command
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
-* Run test specified with ``./breeze-legacy tests`` command
-* Join running interactive shell with ``./breeze-legacy exec`` command
+* Run test specified with ``breeze tests`` command
+* Build CI docker image with ``breeze build-image`` command
+* Cleanup breeze with ``breeze cleanup`` command
+
+Additional management tasks:
+
+* Join running interactive shell with ``breeze exec`` command
 * Stop running interactive environment with ``breeze stop`` command
 * Execute arbitrary docker-compose command with ``./breeze-legacy docker-compose`` command
 
@@ -469,6 +525,11 @@ Tests
 -----
 
 * Run docker-compose tests with ``breeze docker-compose-tests`` command.
+* Run test specified with ``breeze tests`` command.
+
+.. image:: ./images/breeze/output-tests.svg
+  :width: 100%
+  :alt: Breeze tests
 
 Kubernetes tests
 ----------------
@@ -508,6 +569,8 @@ Configuration and maintenance
 * Freeing space needed to run CI tests with ``breeze free-space`` command
 * Fixing ownership of files in your repository with ``breeze fix-ownership`` command
 * Print Breeze version with ``breeze version`` command
+* Outputs hash of commands defined by ``breeze`` with ``command-hash-export`` (useful to avoid needless
+  regeneration of Breeze images)
 
 Release tasks
 -------------
@@ -519,10 +582,13 @@ do not need or have no access to run). Those are usually connected with releasin
   ``breeze build-prod image --prepare-build-cache``(needs buildx plugin and write access to registry ghcr.io)
 * Generate constraints with ``breeze generate-constraints`` (needed when conflicting changes are merged)
 * Prepare airflow packages: ``breeze prepare-airflow-package`` (when releasing Airflow)
+* Verify providers: ``breeze verify-provider-packages`` (when releasing provider packages) - including importing
+  the providers in an earlier airflow version.
 * Prepare provider documentation ``breeze prepare-provider-documentation`` and prepare provider packages
   ``breeze prepare-provider-packages`` (when releasing provider packages)
 * Finding the updated dependencies since the last successful build when we have conflict with
   ``breeze find-newer-dependencies`` command
+* Release production images to DockerHub with ``breeze release-prod-images`` command
 
 
 Details of Breeze usage
@@ -548,7 +614,7 @@ Image cleanup
 Breeze uses docker images heavily and those images are rebuild periodically. This might cause extra
 disk usage by the images. If you need to clean-up the images periodically you can run
 ``breeze cleanup`` command (by default it will skip removing your images before cleaning up but you
-can also remove the images to clean-up everything by adding ``--include-current-images``).
+can also remove the images to clean-up everything by adding ``--all``).
 
 Those are all available flags of ``cleanup`` command:
 
@@ -569,8 +635,7 @@ capability of creating multiple virtual terminals and multiplex between them. Mo
 found at `tmux GitHub wiki page <https://github.com/tmux/tmux/wiki>`_ . Tmux has several useful shortcuts
 that allow you to split the terminals, open new tabs etc - it's pretty useful to learn it.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command but it is very similar to current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -584,12 +649,11 @@ command but it is very similar to current ``breeze`` command):
 
 Another way is to exec into Breeze terminal from the host's terminal. Often you can
 have multiple terminals in the host (Linux/MacOS/WSL2 on Windows) and you can simply use those terminals
-to enter the running container. It's as easy as launching ``./breeze-legacy exec`` while you already started the
+to enter the running container. It's as easy as launching ``breeze exec`` while you already started the
 Breeze environment. You will be dropped into bash and environment variables will be read in the same
 way as when you enter the environment. You can do it multiple times and open as many terminals as you need.
 
-Here is the part of Breeze video which is relevant (note that it refers to the old ``./breeze-legacy``
-command and it is not yet available in the current ``breeze`` command):
+Here is the part of Breeze video which is relevant:
 
 .. raw:: html
 
@@ -600,6 +664,12 @@ command and it is not yet available in the current ``breeze`` command):
       </a>
     </div>
 
+
+Those are all available flags of ``exec`` command:
+
+.. image:: ./images/breeze/output-exec.svg
+  :width: 100%
+  :alt: Breeze exec
 
 Additional tools
 ----------------
@@ -719,6 +789,27 @@ Those are all available flags of ``verify-image`` command:
   :width: 100%
   :alt: Breeze verify-image
 
+Verifying providers
+-------------------
+
+Breeze can also be used to verify if provider classes are importable and if they are following the
+right naming conventions. This happens automatically on CI but you can also run it manually.
+
+.. code-block:: bash
+
+     breeze verify-provider-packages
+
+You can also run the verification with an earlier airflow version to check for compatibility.
+
+.. code-block:: bash
+
+    breeze verify-provider-packages --use-airflow-version 2.1.0
+
+All the command parameters are here:
+
+.. image:: ./images/breeze/output-verify-provider-packages.svg
+  :width: 100%
+  :alt: Breeze verify-provider-packages
 
 Preparing packages
 ------------------
@@ -889,6 +980,34 @@ Those are all available flags of ``verify-prod-image`` command:
   :width: 100%
   :alt: Breeze verify-prod-image
 
+Releasing Production images to DockerHub
+----------------------------------------
+
+The **Production image** can be released by release managers who have permissions to push the image. This
+happens only when there is an RC candidate or final version of Airflow released.
+
+You release "regular" and "slim" images as separate steps.
+
+Releasing "regular" images:
+
+.. code-block:: bash
+
+     breeze release-prod-images --airflow-version 2.4.0
+
+Or "slim" images:
+
+.. code-block:: bash
+
+     breeze release-prod-images --airflow-version 2.4.0 --slim-images
+
+By default when you are releasing the "final" image, we also tag image with "latest" tags but this
+step can be skipped if you pass the ``--skip-latest`` flag.
+
+These are all of the available flags for the ``release-prod-images`` command:
+
+.. image:: ./images/breeze/output-release-prod-images.svg
+  :width: 100%
+  :alt: Release prod images
 
 
 Running static checks
@@ -953,6 +1072,12 @@ command but it is very similar to current ``breeze`` command):
              alt="Airflow Breeze - Static checks">
       </a>
     </div>
+
+.. note::
+
+    When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
+    so that it can speed up static checks execution significantly. However, sometimes, the cache might
+    get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
 
 Building the Documentation
@@ -1030,23 +1155,22 @@ all or selected python version and single constraint mode like this:
 
 .. code-block:: bash
 
-     breeze generate-constraints --generate-constraints-mode pypi-providers
+     breeze generate-constraints --airflow-constraints-mode constraints
 
 Constraints are generated separately for each python version and there are separate constraints modes:
 
 * 'constraints' - those are constraints generated by matching the current airflow version from sources
    and providers that are installed from PyPI. Those are constraints used by the users who want to
-   install airflow with pip. Use ``pypi-providers`` mode for that.
+   install airflow with pip.
 
 * "constraints-source-providers" - those are constraints generated by using providers installed from
   current sources. While adding new providers their dependencies might change, so this set of providers
   is the current set of the constraints for airflow and providers from the current main sources.
-  Those providers are used by CI system to keep "stable" set of constraints. Use
-  ``source-providers`` mode for that.
+  Those providers are used by CI system to keep "stable" set of constraints.
 
 * "constraints-no-providers" - those are constraints generated from only Apache Airflow, without any
   providers. If you want to manage airflow separately and then add providers individually, you can
-  use those. Use ``no-providers`` mode for that.
+  use those.
 
 Those are all available flags of ``generate-constraints`` command:
 

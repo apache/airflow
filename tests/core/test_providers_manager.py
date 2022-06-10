@@ -238,5 +238,5 @@ class TestProviderManager:
                 hook_class_name=None, provider_info=None, package_name=None, connection_type="test_connection"
             )
             assert [
-                "Optional provider feature disabled when importing 'HookClass' from " "'test_package' package"
+                "Optional provider feature disabled when importing 'HookClass' from 'test_package' package"
             ] == self._caplog.messages

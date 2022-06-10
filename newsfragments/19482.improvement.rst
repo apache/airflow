@@ -1,1 +1,0 @@
-Added column duration to DAG runs view

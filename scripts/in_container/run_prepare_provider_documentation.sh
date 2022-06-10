@@ -18,11 +18,6 @@
 # shellcheck source=scripts/in_container/_in_container_script_init.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/_in_container_script_init.sh"
 
-function verify_provider_packages_named_properly() {
-    python3 "${PROVIDER_PACKAGES_DIR}/prepare_provider_packages.py" \
-        verify-provider-classes
-}
-
 function run_prepare_documentation() {
     local prepared_documentation=()
     local skipped_documentation=()
@@ -50,22 +45,18 @@ function run_prepare_documentation() {
             skipped_documentation+=("${provider_package}")
             continue
             echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
-        fi
-        if [[ ${res} == "65" ]]; then
+        elif [[ ${res} == "65" ]]; then
             echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
             exit 1
-        fi
-        if [[ ${res} == "128" ]]; then
+        elif [[ ${res} == "128" ]]; then
             echo "${COLOR_RED}Exiting as there wes a serious error during processing '${provider_package}'${COLOR_RESET}"
             error_documentation+=("${provider_package}")
             exit 1
-        fi
-        if [[ ${res} == "66" ]]; then
+        elif [[ ${res} == "66" ]]; then
             echo "${COLOR_YELLOW}Provider package '${provider_package}' marked as documentation-only!${COLOR_RESET}"
             doc_only_documentation+=("${provider_package}")
             continue
-        fi
-        if [[ ${res} != "0" ]]; then
+        elif [[ ${res} != "0" ]]; then
             echo "${COLOR_RED}Error when generating provider package '${provider_package}'${COLOR_RESET}"
             error_documentation+=("${provider_package}")
             continue
@@ -80,8 +71,7 @@ function run_prepare_documentation() {
             skipped_documentation+=("${provider_package}")
             continue
             echo "${COLOR_YELLOW}Skipping provider package '${provider_package}'${COLOR_RESET}"
-        fi
-        if [[ ${res} == "65" ]]; then
+        elif [[ ${res} == "65" ]]; then
             echo "${COLOR_RED}Exiting as the user chose to quit!${COLOR_RESET}"
             exit 1
         fi
@@ -106,7 +96,7 @@ function run_prepare_documentation() {
     fi
     if [[ "${#error_documentation[@]}" != "0" ]]; then
         echo "${COLOR_RED}   Errors:${COLOR_RESET}"
-        echo "${error_documentation[@]}" | fold -sw 100 | sed "s/^/  /" | sed "s/$/\\/"
+        echo "${error_documentation[@]}" | fold -sw 100
     fi
     echo
     echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
@@ -120,19 +110,6 @@ function run_prepare_documentation() {
             python3 dev/provider_packages/prepare_provider_packages.py generate-issue-content "${prepared_documentation[@]}"
             echo
         fi
-        echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
-        echo
-        echo "${COLOR_YELLOW}You can separately generate content of the issue to create to track testing status by running this command${COLOR_RESET}"
-        echo "${COLOR_YELLOW}You can optionally exclude some PRs via --excluded-pr-list option containing coma-separated list of pr numbers${COLOR_RESET}"
-        echo
-        echo "python3 dev/provider_packages/prepare_provider_packages.py generate-issue-content \\"
-        echo "${prepared_documentation[@]}"  | fold -sw 100 | sed "s/^/  /" | sed "s/$/ \\\\/"
-        echo "  [--excluded-pr-list=\"\" ]"
-        echo
-        echo "${COLOR_YELLOW}You can also run it here by rerunning the prepare-providers-documentation${COLOR_RESET}"
-        echo "${COLOR_YELLOW}with --generate-providers-issue and --forward-credentials flag (you have to have GITHUB_TOKEN variable set)${COLOR_RESET}"
-        echo
-        echo "${COLOR_BLUE}===================================================================================${COLOR_RESET}"
         echo
         echo "${COLOR_YELLOW}Please review the updated files, classify the changelog entries and commit the changes!${COLOR_RESET}"
         echo
@@ -147,17 +124,6 @@ cd "${AIRFLOW_SOURCES}" || exit 1
 export PYTHONPATH="${AIRFLOW_SOURCES}"
 
 install_supported_pip_version
-
-if [[ ${SKIP_PACKAGE_VERIFICATION=} == "true" ||  ${SKIP_PACKAGE_VERIFICATION} == "True" ]]; then
-    echo
-    echo "${COLOR_YELLOW}Skipping package verification!${COLOR_RESET}"
-    echo
-else
-    group_start "Importing all classes"
-    python3 "${AIRFLOW_SOURCES}/dev/import_all_classes.py" --path "airflow/providers"
-    group_end
-    verify_provider_packages_named_properly
-fi
 
 OPTIONAL_RELEASE_VERSION_ARGUMENT=()
 if [[ $# != "0" && ${1} =~ ^[0-9][0-9][0-9][0-9]\.[0-9][0-9]\.[0-9][0-9]$ ]]; then

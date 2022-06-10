@@ -16,12 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import contextlib
+import datetime
 import logging
 from unittest import mock
 
 import pytest
 from flask_appbuilder import SQLA, Model, expose, has_access
 from flask_appbuilder.views import BaseView, ModelView
+from freezegun import freeze_time
 from sqlalchemy import Column, Date, Float, Integer, String
 
 from airflow.exceptions import AirflowException
@@ -190,7 +192,8 @@ def sample_dags(security_manager):
 @pytest.fixture(scope="module")
 def has_dag_perm(security_manager):
     def _has_dag_perm(perm, dag_id, user):
-        return security_manager.has_access(perm, permissions.resource_name_for_dag(dag_id), user)
+        root_dag_id = security_manager._get_root_dag_id(dag_id)
+        return security_manager.has_access(perm, permissions.resource_name_for_dag(root_dag_id), user)
 
     return _has_dag_perm
 
@@ -349,7 +352,7 @@ def test_verify_anon_user_with_admin_role_has_access_to_each_dag(
         user.roles = security_manager.get_user_roles(user)
         assert user.roles == {security_manager.get_public_role()}
 
-        test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3"]
+        test_dag_ids = ["test_dag_id_1", "test_dag_id_2", "test_dag_id_3", "test_dag_id_4.with_dot"]
 
         for dag_id in test_dag_ids:
             with _create_dag_model_context(dag_id, session, security_manager):
@@ -586,7 +589,8 @@ def test_access_control_with_invalid_permission(app, security_manager):
         for action in invalid_actions:
             with pytest.raises(AirflowException) as ctx:
                 security_manager._sync_dag_view_permissions(
-                    'access_control_test', access_control={rolename: {action}}
+                    'access_control_test',
+                    access_control={rolename: {action}},
                 )
             assert "invalid permissions" in str(ctx.value)
 
@@ -726,11 +730,13 @@ def test_create_dag_specific_permissions(session, security_manager, monkeypatch,
         assert ('can_edit', dag_resource_name) in all_perms
 
     security_manager._sync_dag_view_permissions.assert_called_once_with(
-        permissions.resource_name_for_dag('has_access_control'), access_control
+        permissions.resource_name_for_dag('has_access_control'),
+        access_control,
     )
 
     del dagbag_mock.dags["has_access_control"]
-    with assert_queries_count(1):  # one query to get all perms; dagbag is mocked
+    with assert_queries_count(2):  # two query to get all perms; dagbag is mocked
+        # The extra query happens at permission check
         security_manager.create_dag_specific_permissions()
 
 
@@ -780,10 +786,12 @@ def test_prefixed_dag_id_is_deprecated(security_manager):
         security_manager.prefixed_dag_id("hello")
 
 
-def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_has_dag_perms):
+def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_has_dag_perms, session):
     username = 'dag_permission_user'
     role_name = 'dag_permission_role'
     parent_dag_name = "parent_dag"
+    subdag_name = parent_dag_name + ".subdag"
+    subsubdag_name = parent_dag_name + ".subdag.subsubdag"
     with app.app_context():
         mock_roles = [
             {
@@ -799,18 +807,125 @@ def test_parent_dag_access_applies_to_subdag(app, security_manager, assert_user_
             username=username,
             role_name=role_name,
         ) as user:
+            dag1 = DagModel(dag_id=parent_dag_name)
+            dag2 = DagModel(dag_id=subdag_name, is_subdag=True, root_dag_id=parent_dag_name)
+            dag3 = DagModel(dag_id=subsubdag_name, is_subdag=True, root_dag_id=parent_dag_name)
+            session.add_all([dag1, dag2, dag3])
+            session.commit()
             security_manager.bulk_sync_roles(mock_roles)
-            security_manager._sync_dag_view_permissions(
-                parent_dag_name, access_control={role_name: READ_WRITE}
-            )
+            for dag in [dag1, dag2, dag3]:
+                security_manager._sync_dag_view_permissions(
+                    parent_dag_name, access_control={role_name: READ_WRITE}
+                )
+
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name, user=user)
             assert_user_has_dag_perms(perms=READ_WRITE, dag_id=parent_dag_name + ".subdag", user=user)
             assert_user_has_dag_perms(
                 perms=READ_WRITE, dag_id=parent_dag_name + ".subdag.subsubdag", user=user
             )
+            session.query(DagModel).delete()
+
+
+def test_permissions_work_for_dags_with_dot_in_dagname(
+    app, security_manager, assert_user_has_dag_perms, assert_user_does_not_have_dag_perms, session
+):
+    username = 'dag_permission_user'
+    role_name = 'dag_permission_role'
+    dag_id = "dag_id_1"
+    dag_id_2 = "dag_id_1.with_dot"
+    with app.app_context():
+        mock_roles = [
+            {
+                'role': role_name,
+                'perms': [
+                    (permissions.ACTION_CAN_READ, f"DAG:{dag_id}"),
+                    (permissions.ACTION_CAN_EDIT, f"DAG:{dag_id}"),
+                ],
+            }
+        ]
+        with create_user_scope(
+            app,
+            username=username,
+            role_name=role_name,
+        ) as user:
+            dag1 = DagModel(dag_id=dag_id)
+            dag2 = DagModel(dag_id=dag_id_2)
+            session.add_all([dag1, dag2])
+            session.commit()
+            security_manager.bulk_sync_roles(mock_roles)
+            security_manager.sync_perm_for_dag(dag1.dag_id, access_control={role_name: READ_WRITE})
+            security_manager.sync_perm_for_dag(dag2.dag_id, access_control={role_name: READ_WRITE})
+            assert_user_has_dag_perms(perms=READ_WRITE, dag_id=dag_id, user=user)
+            assert_user_does_not_have_dag_perms(perms=READ_WRITE, dag_id=dag_id_2, user=user)
+            session.query(DagModel).delete()
 
 
 def test_fab_models_use_airflow_base_meta():
     # TODO: move this test to appropriate place when we have more tests for FAB models
     user = User()
     assert user.metadata is Base.metadata
+
+
+@pytest.fixture()
+def mock_security_manager(app_builder):
+    mocked_security_manager = MockSecurityManager(appbuilder=app_builder)
+    mocked_security_manager.update_user = mock.MagicMock()
+    return mocked_security_manager
+
+
+@pytest.fixture()
+def new_user():
+    user = mock.MagicMock()
+    user.login_count = None
+    user.fail_login_count = None
+    user.last_login = None
+    return user
+
+
+@pytest.fixture()
+def old_user():
+    user = mock.MagicMock()
+    user.login_count = 42
+    user.fail_login_count = 9
+    user.last_login = datetime.datetime(1984, 12, 1, 0, 0, 0)
+    return user
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))  # Get the Delorean, doc!
+def test_update_user_auth_stat_first_successful_auth(mock_security_manager, new_user):
+    mock_security_manager.update_user_auth_stat(new_user, success=True)
+
+    assert new_user.login_count == 1
+    assert new_user.fail_login_count == 0
+    assert new_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_subsequent_successful_auth(mock_security_manager, old_user):
+    mock_security_manager.update_user_auth_stat(old_user, success=True)
+
+    assert old_user.login_count == 43
+    assert old_user.fail_login_count == 0
+    assert old_user.last_login == datetime.datetime(1985, 11, 5, 1, 24, 0)
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_first_unsuccessful_auth(mock_security_manager, new_user):
+    mock_security_manager.update_user_auth_stat(new_user, success=False)
+
+    assert new_user.login_count == 0
+    assert new_user.fail_login_count == 1
+    assert new_user.last_login is None
+    assert mock_security_manager.update_user.called_once
+
+
+@freeze_time(datetime.datetime(1985, 11, 5, 1, 24, 0))
+def test_update_user_auth_stat_subsequent_unsuccessful_auth(mock_security_manager, old_user):
+    mock_security_manager.update_user_auth_stat(old_user, success=False)
+
+    assert old_user.login_count == 42
+    assert old_user.fail_login_count == 10
+    assert old_user.last_login == datetime.datetime(1984, 12, 1, 0, 0, 0)
+    assert mock_security_manager.update_user.called_once

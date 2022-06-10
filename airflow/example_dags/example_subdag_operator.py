@@ -19,18 +19,19 @@
 """Example DAG demonstrating the usage of the SubDagOperator."""
 
 # [START example_subdag_operator]
+import datetime
+
 from airflow import DAG
 from airflow.example_dags.subdags.subdag import subdag
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SubDagOperator
-from airflow.utils.dates import days_ago
 
 DAG_NAME = 'example_subdag_operator'
 
 with DAG(
     dag_id=DAG_NAME,
     default_args={"retries": 2},
-    start_date=days_ago(2),
+    start_date=datetime.datetime(2022, 1, 1),
     schedule_interval="@once",
     tags=['example'],
 ) as dag:

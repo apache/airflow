@@ -26,6 +26,7 @@ from google.protobuf.json_format import MessageToDict
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook, RecognitionAudio
+from airflow.providers.google.common.links.storage import FileDetailsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -72,6 +73,7 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
         "impersonation_chain",
     )
     # [END gcp_speech_to_text_synthesize_template_fields]
+    operator_extra_links = (FileDetailsLink(),)
 
     def __init__(
         self,
@@ -106,6 +108,15 @@ class CloudSpeechToTextRecognizeSpeechOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            # Slice from: "gs://{BUCKET_NAME}/{FILE_NAME}" to: "{BUCKET_NAME}/{FILE_NAME}"
+            uri=self.audio["uri"][5:],
+            project_id=self.project_id or hook.project_id,
+        )
+
         response = hook.recognize_speech(
             config=self.config, audio=self.audio, retry=self.retry, timeout=self.timeout
         )

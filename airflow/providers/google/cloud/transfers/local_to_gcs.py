@@ -17,7 +17,6 @@
 # under the License.
 """This module contains operator for uploading local file(s) to GCS."""
 import os
-import warnings
 from glob import glob
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
@@ -44,8 +43,6 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         (e.g. /path/to/directory/) (templated)
     :param bucket: The bucket to upload to. (templated)
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param google_cloud_storage_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param mime_type: The mime-type string
     :param delegate_to: The account to impersonate, if any
     :param gzip: Allows for file to be compressed and uploaded as gzip
@@ -73,7 +70,6 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         dst,
         bucket,
         gcp_conn_id='google_cloud_default',
-        google_cloud_storage_conn_id=None,
         mime_type='application/octet-stream',
         delegate_to=None,
         gzip=False,
@@ -81,15 +77,6 @@ class LocalFilesystemToGCSOperator(BaseOperator):
         **kwargs,
     ):
         super().__init__(**kwargs)
-
-        if google_cloud_storage_conn_id:
-            warnings.warn(
-                "The google_cloud_storage_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = google_cloud_storage_conn_id
 
         self.src = src
         self.dst = dst

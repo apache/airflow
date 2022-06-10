@@ -28,14 +28,90 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.0.0
+.....
+
+Latest change: 2022-06-08
+
+=================================================================================================  ===========  ===========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================================================
+`dc9c083a4b <https://github.com/apache/airflow/commit/dc9c083a4b696ec5ed4e7059de2fb98222e1ab62>`_  2022-06-08   ``fix: patches #24215. Won't raise KeyError when 'create_job_kwargs' contains the 'Command' key. (#24308)``
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`b88ce95188 <https://github.com/apache/airflow/commit/b88ce951881914e51058ad71858874fdc00a3cbe>`_  2022-06-07   ``Update doc and sample dag for EMR Containers (#24087)``
+`c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
+`41898d8922 <https://github.com/apache/airflow/commit/41898d89220c8525d941367a875b4806e618b0d0>`_  2022-06-06   ``Refactor GlueJobHook get_or_create_glue_job method. (#24215)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`daa138c8eb <https://github.com/apache/airflow/commit/daa138c8eb586fae80ae3e5d42f6a1a547016ad0>`_  2022-06-04   ``fix: StepFunctionHook ignores explicit set 'region_name' (#23976)``
+`5b32966c35 <https://github.com/apache/airflow/commit/5b32966c3545e2ed5182975764efb750eb7a3477>`_  2022-06-03   ``Remove old Athena Sample DAG (#24170)``
+`595981c8ad <https://github.com/apache/airflow/commit/595981c8ad3cfeb4ad7a4514d00060e978aa9d81>`_  2022-05-31   ``Light Refactor and Clean-up AWS Provider (#23907)``
+`94f2ce9342 <https://github.com/apache/airflow/commit/94f2ce9342d995f1d2eb00e6a9444e57c90e4963>`_  2022-05-30   ``Add partition related methods to GlueCatalogHook: (#23857)``
+`92ddcf4ac6 <https://github.com/apache/airflow/commit/92ddcf4ac6fa452c5056b1f7cad1fca4d5759802>`_  2022-05-27   ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
+`47fc253ea4 <https://github.com/apache/airflow/commit/47fc253ea432d3d794c09dfa893cdbda03af4237>`_  2022-05-24   ``Move string arg evals to 'execute()' in 'EksCreateClusterOperator' (#23877)``
+`ec6761a5c0 <https://github.com/apache/airflow/commit/ec6761a5c0d031221d53ce213c0e42813606c55d>`_  2022-05-23   ``Clean up f-strings in logging calls (#23597)``
+`5d2296becb <https://github.com/apache/airflow/commit/5d2296becb9401df6ca58bb7d15d6655eb168aed>`_  2022-05-22   ``Fix Amazon EKS example DAG raises warning during Imports (#23849)``
+`e54ca47262 <https://github.com/apache/airflow/commit/e54ca47262579742fc3c297c7f8d4c48f2437f82>`_  2022-05-22   ``Add support for associating  custom tags to job runs submitted via EmrContainerOperator (#23769)``
+`69f444f87a <https://github.com/apache/airflow/commit/69f444f87acef511da8f44ebd04ee435d10b7e5c>`_  2022-05-22   ``Add number of node params only for single-node cluster in RedshiftCreateClusterOperator (#23839)``
+`509b277dce <https://github.com/apache/airflow/commit/509b277dce50fb1fbc25aea565182933bb506ee2>`_  2022-05-22   ``Update sample dag and doc for RDS (#23651)``
+`4c9f756035 <https://github.com/apache/airflow/commit/4c9f7560355eefd57a29afee73bf04273e81a7e8>`_  2022-05-20   ``Reformat the whole AWS documentation (#23810)``
+`fb3b980b5d <https://github.com/apache/airflow/commit/fb3b980b5d313b6773f45fa191766eedfea4e36d>`_  2022-05-19   ``Update the DMS Sample DAG and Docs (#23681)``
+`64d0d9cd92 <https://github.com/apache/airflow/commit/64d0d9cd926bba9348adda577fc2f8b5b576c3b7>`_  2022-05-17   ``Add AWS project structure tests (re: AIP-47) (#23630)``
+`ca25436108 <https://github.com/apache/airflow/commit/ca2543610872ccf62ccb085c5e0b6f9b8717c1aa>`_  2022-05-16   ``Add doc and sample dag for GCSToS3Operator (#23730)``
+`1a8f1ee276 <https://github.com/apache/airflow/commit/1a8f1ee27687492a69a8000bbec99ac31e7b0d33>`_  2022-05-12   ``Update doc and sample dag for Quicksight (#23653)``
+`094e50eb43 <https://github.com/apache/airflow/commit/094e50eb439e1c22e14ee78f375b7e00c71e9269>`_  2022-05-12   ``Replace "absolute()" with "resolve()" in pathlib objects (#23675)``
+=================================================================================================  ===========  ===========================================================================================================
+
+3.4.0
+.....
+
+Latest change: 2022-05-12
+
+=================================================================================================  ===========  ========================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================================================================
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`3ed895bb7b <https://github.com/apache/airflow/commit/3ed895bb7b0dee45955b29e492ae408b867b6af8>`_  2022-05-11   ``Add 'RedshiftDeleteClusterOperator' support (#23563)``
+`5c149c341e <https://github.com/apache/airflow/commit/5c149c341eb420fd5f8fc77534b1236ad8a9c6c1>`_  2022-05-10   ``Add Quicksight create ingestion Hook and Operator (#21863)``
+`d21e49dfda <https://github.com/apache/airflow/commit/d21e49dfda3fa8432ad995c62620d89d1bb3c217>`_  2022-05-10   ``Add sample dag and doc for S3ListPrefixesOperator (#23448)``
+`7354d2eac9 <https://github.com/apache/airflow/commit/7354d2eac990208d5a631c05649c482560bd827b>`_  2022-05-09   ``Add sample dag and doc for S3ListOperator (#23449)``
+`389676bb0d <https://github.com/apache/airflow/commit/389676bb0dba7c1e191f61992f244a03393c6922>`_  2022-05-09   ``Add doc and sample dag for EC2 (#23547)``
+`428a439953 <https://github.com/apache/airflow/commit/428a43995390b3623a51aa7bac7e21da69a8db22>`_  2022-05-09   ``Clean up in-line f-string concatenation (#23591)``
+`ec4dcce338 <https://github.com/apache/airflow/commit/ec4dcce3384262d858b6951631da809f15974db7>`_  2022-05-09   ``Update sample dag and doc for Datasync (#23511)``
+`5d1e6ff19a <https://github.com/apache/airflow/commit/5d1e6ff19ab4a63259a2c5aed02b601ca055a289>`_  2022-05-09   ``Add default 'aws_conn_id' to SageMaker Operators #21808 (#23515)``
+`c3386c5fcf <https://github.com/apache/airflow/commit/c3386c5fcf193bc3a13621af5f10162962f4308f>`_  2022-05-09   ``Fix conn close error on retrieving log events (#23470)``
+`ad863ce510 <https://github.com/apache/airflow/commit/ad863ce51020992508c83c1dcf0624623b09bca6>`_  2022-05-08   ``Amazon Sagemaker Sample DAG and docs update (#23256)``
+`27a80511ec <https://github.com/apache/airflow/commit/27a80511ec3ffcf036354741bd0bfe18d4b4a471>`_  2022-05-07   ``Fix LocalFilesystemToS3Operator and S3CreateObjectOperator to support full s3:// style keys (#23180)``
+`46af5baba8 <https://github.com/apache/airflow/commit/46af5baba810a07eec395e89db08fc5dab175e23>`_  2022-05-07   ``Update the Athena Sample DAG and Docs (#23428)``
+`6065d1203e <https://github.com/apache/airflow/commit/6065d1203e2ce0aeb19551c545fb668978b72506>`_  2022-05-06   ``Update docs Amazon Glacier Docs (#23372)``
+`7f40fa0130 <https://github.com/apache/airflow/commit/7f40fa0130c177820df0b8b06cd556913cbe08b4>`_  2022-05-04   ``Add doc and example dag for Amazon SQS Operators (#23312)``
+`2d109401b3 <https://github.com/apache/airflow/commit/2d109401b3566aef613501691d18cf7e4c776cd2>`_  2022-05-04   ``Bump pre-commit hook versions (#22887)``
+`d6141c6594 <https://github.com/apache/airflow/commit/d6141c6594da86653b15d67eaa99511e8fe37a26>`_  2022-05-01   ``Fix attempting to reattach in 'ECSOperator' (#23370)``
+`fa0d93418b <https://github.com/apache/airflow/commit/fa0d93418b026f9822c8ffc0521381f019ef7821>`_  2022-04-30   ``Allow back script_location in Glue to be None (#23357)``
+`9021c2b97d <https://github.com/apache/airflow/commit/9021c2b97d6c662f7a8b7380f74af5b0739a3f50>`_  2022-04-26   ``Fix doc build failure on main (#23240)``
+`754e293c54 <https://github.com/apache/airflow/commit/754e293c546ebffc32422ff8883db57755f8518b>`_  2022-04-26   ``Add RedshiftCreateClusterOperator``
+`ff85c12f4a <https://github.com/apache/airflow/commit/ff85c12f4ab42887a8710f1febaf19c5c43a962d>`_  2022-04-26   ``Fix "Chain not supported for different length Iterable"``
+`444794446d <https://github.com/apache/airflow/commit/444794446d13455a57b2a87bb1a907c91afba32c>`_  2022-04-26   ``Add sample dag and doc for S3KeysUnchangedSensor``
+`692a089943 <https://github.com/apache/airflow/commit/692a0899430f86d160577c3dd0f52644c4ffad37>`_  2022-04-25   ``Add doc and sample dag for S3FileTransformOperator``
+`8cfb2be989 <https://github.com/apache/airflow/commit/8cfb2be98931e0f0bfb15ca411b36be3d6e66b80>`_  2022-04-25   ``Add doc and example dag for AWS Step Functions Operators``
+`d91b6cd40f <https://github.com/apache/airflow/commit/d91b6cd40fbc898fd60e3de252148b56cd0e175d>`_  2022-04-23   ``'S3Hook': fix 'load_bytes' docstring (#23182)``
+`8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+`9e1ac6e425 <https://github.com/apache/airflow/commit/9e1ac6e425aa52a55601bb2b5587fd97d361bfcc>`_  2022-04-20   ``Add 'S3CreateObjectOperator' (#22758)``
+`ddb5d9b4a2 <https://github.com/apache/airflow/commit/ddb5d9b4a2b4e6605f66f82a6bec30393f096c05>`_  2022-04-14   ``Add doc and sample dag for S3CopyObjectOperator and S3DeleteObjectsOperator (#22959)``
+`dffb0d27f2 <https://github.com/apache/airflow/commit/dffb0d27f25b9a1f2497535cb87de3b889aae9d0>`_  2022-04-12   ``Deprecate 'S3PrefixSensor' and 'S3KeySizeSensor' in favor of 'S3KeySensor' (#22737)``
+`6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
+=================================================================================================  ===========  ========================================================================================================
+
 3.3.0
 .....
 
-Latest change: 2022-04-06
+Latest change: 2022-04-07
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `de84eaf1b0 <https://github.com/apache/airflow/commit/de84eaf1b042304dd966219da22c7c529afbb662>`_  2022-04-06   ``Pass custom headers through in SES email backend (#22667)``
 `e7650b85a3 <https://github.com/apache/airflow/commit/e7650b85a3d49da545e579d75ad4c01b88a3864a>`_  2022-03-31   ``Add doc and sample dag for SqlToS3Operator (#22603)``
 `898d31e9c2 <https://github.com/apache/airflow/commit/898d31e9c2111553d4ef445ee146501de8c54b74>`_  2022-03-31   ``Adds HiveToDynamoDB Transfer Sample DAG and Docs (#22517)``
