@@ -3540,7 +3540,10 @@ class Airflow(AirflowBaseView):
             }
 
         # avoid spaces to reduce payload size
-        return htmlsafe_json_dumps(data, separators=(',', ':'))
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':')),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
 
     @expose('/robots.txt')
     @action_logging
