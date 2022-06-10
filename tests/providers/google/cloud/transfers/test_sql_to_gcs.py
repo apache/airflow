@@ -159,7 +159,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         operator = DummySQLToGCSOperator(
             sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="json", schema=SCHEMA
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
 
         mock_query.assert_called_once()
         mock_write.assert_has_calls(
@@ -186,11 +186,42 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
 
         cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
 
+        # Test Metadata Upload
+        operator = DummySQLToGCSOperator(
+            sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="json", schema=SCHEMA, upload_metadata=True
+        )
+        result = operator.execute(context=dict())
+
+        mock_query.assert_called_once()
+        mock_write.assert_has_calls(
+            [
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+            ]
+        )
+        mock_flush.assert_called_once()
+        mock_upload.assert_called_once_with(
+            BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type=APP_JSON, gzip=False, metadata=None
+        )
+        mock_close.assert_called_once()
+
+        mock_query.reset_mock()
+        mock_flush.reset_mock()
+        mock_upload.reset_mock()
+        mock_close.reset_mock()
+        cursor_mock.reset_mock()
+
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
+
         # Test parquet
         operator = DummySQLToGCSOperator(
             sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="parquet", schema=SCHEMA
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
 
         mock_query.assert_called_once()
         mock_flush.assert_called_once()
@@ -211,7 +242,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="csv",
             null_marker="NULL",
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
 
         mock_writerow.assert_has_calls(
             [

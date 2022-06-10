@@ -74,6 +74,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param upload_metadata: whether to upload the row count metadata as blob metadata
     """
 
     template_fields: Sequence[str] = (
@@ -107,6 +108,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         google_cloud_storage_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        upload_metadata: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -134,6 +136,7 @@ class BaseSQLToGCSOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
+        self.upload_metadata = upload_metadata
 
     def execute(self, context: 'Context'):
         self.log.info("Executing query")
@@ -152,6 +155,12 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema_file['file_handle'].close()
 
         counter = 0
+        file_meta = {
+                'bucket': self.bucket,
+                'total_row_count': 0,
+                'total_files': 0,
+                'files': [],
+                }
         self.log.info('Writing local data files')
         for file_to_upload in self._write_local_data_files(cursor):
             # Flush file before uploading
@@ -162,7 +171,19 @@ class BaseSQLToGCSOperator(BaseOperator):
 
             self.log.info('Removing local file')
             file_to_upload['file_handle'].close()
+
+            # Metadata to be outputted to Xcom
+            file_meta['total_row_count'] += file_to_upload['row_count']
+            file_meta['total_files'] += 1
+            file_meta['files'].append({
+                'file_name': file_to_upload['file_name'],
+                'file_mime_type': file_to_upload['file_mime_type'],
+                'file_row_count': file_to_upload['file_row_count'],
+            })
+
             counter += 1
+
+        return file_meta
 
     def convert_types(self, schema, col_type_dict, row) -> list:
         """Convert values from DBAPI to output-friendly formats."""
@@ -191,6 +212,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             'file_name': self.filename.format(file_no),
             'file_handle': tmp_file_handle,
             'file_mime_type': file_mime_type,
+            'file_row_count': 0,
         }
 
         if self.export_format == 'csv':
@@ -203,6 +225,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             # Convert datetime objects to utc seconds, and decimals to floats.
             # Convert binary type object to string encoded with base64.
             row = self.convert_types(schema, col_type_dict, row)
+            file_to_upload['file_row_count'] += 1
 
             if self.export_format == 'csv':
                 if self.null_marker is not None:
@@ -236,6 +259,7 @@ class BaseSQLToGCSOperator(BaseOperator):
                     'file_name': self.filename.format(file_no),
                     'file_handle': tmp_file_handle,
                     'file_mime_type': file_mime_type,
+                    'file_row_count': 0,
                 }
                 if self.export_format == 'csv':
                     csv_writer = self._configure_csv_file(tmp_file_handle, schema)
@@ -350,10 +374,17 @@ class BaseSQLToGCSOperator(BaseOperator):
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
         )
+        is_data_file = file_to_upload.get('file_name') != self.schema_filename
+        metadata = None
+        if is_data_file and self.upload_metadata:
+            metadata = {
+                'row_count': file_to_upload['file_row_count']
+            } 
         hook.upload(
             self.bucket,
             file_to_upload.get('file_name'),
             file_to_upload.get('file_handle').name,
             mime_type=file_to_upload.get('file_mime_type'),
-            gzip=self.gzip if file_to_upload.get('file_name') != self.schema_filename else False,
+            gzip=self.gzip if is_data_file else False,
+            metadata = None,
         )
