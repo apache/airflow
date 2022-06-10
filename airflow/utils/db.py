@@ -537,6 +537,9 @@ def create_default_connections(session: Session = NEW_SESSION):
         Connection(
             conn_id="salesforce_default",
             conn_type="salesforce",
+            login="username",
+            password="password",
+            extra='{"security_token": "security_token"}',
         ),
         session,
     )
