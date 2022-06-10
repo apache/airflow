@@ -22,7 +22,7 @@ import pytest
 
 from airflow.models import DagBag
 from airflow.operators.empty import EmptyOperator
-from airflow.utils.state import DagRunState
+from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
 from tests.test_utils.mock_operators import MockOperator
@@ -38,14 +38,14 @@ def examples_dag_bag():
 
 
 @pytest.fixture
-def dag_without_runs(dag_maker, app, monkeypatch):
+def dag_without_runs(dag_maker, session, app, monkeypatch):
     with monkeypatch.context() as m:
         # Remove global operator links for this test
         m.setattr('airflow.plugins_manager.global_operator_extra_links', [])
         m.setattr('airflow.plugins_manager.operator_extra_links', [])
         m.setattr('airflow.plugins_manager.registered_operator_link_classes', {})
 
-        with dag_maker(dag_id=DAG_ID, serialized=True):
+        with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
             EmptyOperator(task_id="task1")
             with TaskGroup(group_id='group'):
                 MockOperator.partial(task_id='mapped').expand(arg1=['a', 'b', 'c'])
@@ -58,16 +58,16 @@ def dag_without_runs(dag_maker, app, monkeypatch):
 def dag_with_runs(dag_without_runs):
     with freezegun.freeze_time(CURRENT_TIME):
         date = dag_without_runs.dag.start_date
-        run1 = dag_without_runs.create_dagrun(
-            run_id="success", state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
+        run_1 = dag_without_runs.create_dagrun(
+            run_id='run_1', state=DagRunState.SUCCESS, run_type=DagRunType.SCHEDULED, execution_date=date
         )
-        run2 = dag_without_runs.create_dagrun(
-            run_id="not_run",
+        run_2 = dag_without_runs.create_dagrun(
+            run_id='run_2',
             run_type=DagRunType.SCHEDULED,
             execution_date=dag_without_runs.dag.next_dagrun_info(date).logical_date,
         )
 
-        yield run1, run2
+        yield run_1, run_2
 
 
 def test_no_runs(admin_client, dag_without_runs):
@@ -108,7 +108,14 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
-def test_one_run(admin_client, dag_with_runs):
+def test_one_run(admin_client, dag_with_runs, session):
+    run1, run2 = dag_with_runs
+
+    for ti in run1.task_instances:
+        ti.state = TaskInstanceState.SUCCESS
+
+    session.flush()
+
     resp = admin_client.get(f'/object/grid_data?dag_id={DAG_ID}', follow_redirects=True)
     assert resp.status_code == 200, resp.json
     assert resp.json == {
@@ -119,7 +126,7 @@ def test_one_run(admin_client, dag_with_runs):
                 'end_date': '2021-09-07T00:00:00+00:00',
                 'execution_date': '2016-01-01T00:00:00+00:00',
                 'last_scheduling_decision': None,
-                'run_id': 'success',
+                'run_id': 'run_1',
                 'run_type': 'scheduled',
                 'start_date': '2016-01-01T00:00:00+00:00',
                 'state': 'success',
@@ -130,7 +137,7 @@ def test_one_run(admin_client, dag_with_runs):
                 'end_date': None,
                 'execution_date': '2016-01-02T00:00:00+00:00',
                 'last_scheduling_decision': None,
-                'run_id': 'not_run',
+                'run_id': 'run_2',
                 'run_type': 'scheduled',
                 'start_date': '2016-01-01T00:00:00+00:00',
                 'state': 'running',
@@ -145,16 +152,16 @@ def test_one_run(admin_client, dag_with_runs):
                         {
                             'end_date': None,
                             'map_index': -1,
-                            'run_id': 'success',
+                            'run_id': 'run_1',
                             'start_date': None,
-                            'state': None,
+                            'state': 'success',
                             'task_id': 'task1',
                             'try_number': 1,
                         },
                         {
                             'end_date': None,
                             'map_index': -1,
-                            'run_id': 'not_run',
+                            'run_id': 'run_2',
                             'start_date': None,
                             'state': None,
                             'task_id': 'task1',
@@ -172,17 +179,17 @@ def test_one_run(admin_client, dag_with_runs):
                             'instances': [
                                 {
                                     'end_date': None,
-                                    'mapped_states': [None, None, None],
-                                    'run_id': 'success',
+                                    'mapped_states': ['success', 'success', 'success'],
+                                    'run_id': 'run_1',
                                     'start_date': None,
-                                    'state': None,
+                                    'state': 'success',
                                     'task_id': 'group.mapped',
                                     'try_number': 1,
                                 },
                                 {
                                     'end_date': None,
                                     'mapped_states': [None, None, None],
-                                    'run_id': 'not_run',
+                                    'run_id': 'run_2',
                                     'start_date': None,
                                     'state': None,
                                     'task_id': 'group.mapped',
@@ -197,14 +204,14 @@ def test_one_run(admin_client, dag_with_runs):
                     'instances': [
                         {
                             'end_date': None,
-                            'run_id': 'success',
+                            'run_id': 'run_1',
                             'start_date': None,
-                            'state': None,
+                            'state': 'success',
                             'task_id': 'group',
                         },
                         {
                             'end_date': None,
-                            'run_id': 'not_run',
+                            'run_id': 'run_2',
                             'start_date': None,
                             'state': None,
                             'task_id': 'group',
@@ -216,8 +223,14 @@ def test_one_run(admin_client, dag_with_runs):
             ],
             'id': None,
             'instances': [
-                {'end_date': None, 'run_id': 'success', 'start_date': None, 'state': None, 'task_id': None},
-                {'end_date': None, 'run_id': 'not_run', 'start_date': None, 'state': None, 'task_id': None},
+                {
+                    'end_date': None,
+                    'run_id': 'run_1',
+                    'start_date': None,
+                    'state': 'success',
+                    'task_id': None,
+                },
+                {'end_date': None, 'run_id': 'run_2', 'start_date': None, 'state': None, 'task_id': None},
             ],
             'label': None,
             'tooltip': '',
