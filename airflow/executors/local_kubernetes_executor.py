@@ -162,17 +162,12 @@ class LocalKubernetesExecutor(LoggingMixin):
         :return: any TaskInstances that were unable to be adopted
         :rtype: list[airflow.models.TaskInstance]
         """
-        local_tis = []
-        kubernetes_tis = []
-        abandoned_tis = []
-        for ti in tis:
-            if ti.queue == self.KUBERNETES_QUEUE:
-                kubernetes_tis.append(ti)
-            else:
-                local_tis.append(ti)
-        abandoned_tis.extend(self.local_executor.try_adopt_task_instances(local_tis))
-        abandoned_tis.extend(self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis))
-        return abandoned_tis
+        local_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return [
+            *self.local_executor.try_adopt_task_instances(local_tis),
+            *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
+        ]
 
     def end(self) -> None:
         """End local and kubernetes executor"""
