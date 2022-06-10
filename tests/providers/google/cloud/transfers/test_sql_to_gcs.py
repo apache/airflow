@@ -122,7 +122,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             schema=SCHEMA,
             gcp_conn_id='google_cloud_default',
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
 
         mock_query.assert_called_once()
         mock_writerow.assert_has_calls(
