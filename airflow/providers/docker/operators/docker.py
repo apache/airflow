@@ -192,7 +192,7 @@ class DockerOperator(BaseOperator):
         self.api_version = api_version
         if type(auto_remove) == bool:
             warnings.warn(
-                "bool value is deprecated, please use 'never', 'success', or 'force' instead",
+                "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
                 DeprecationWarning,
                 stacklevel=2,
             )
