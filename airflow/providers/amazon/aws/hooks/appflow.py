@@ -15,9 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import sys
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+
+if sys.version_info >= (3, 8):
+    from functools import cached_property
+else:
+    from cached_property import cached_property
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient
@@ -44,7 +50,7 @@ class AppflowHook(AwsBaseHook):
         kwargs["client_type"] = "appflow"
         super().__init__(*args, **kwargs)
 
-    @property
+    @cached_property
     def conn(self) -> 'AppflowClient':
         """Get the underlying boto3 Appflow client (cached)"""
         return super().conn

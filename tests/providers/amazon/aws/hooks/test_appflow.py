@@ -23,4 +23,6 @@ class TestAppflowHook:
     def test_conn_attribute(self):
         hook = AppflowHook(aws_conn_id='aws_default', region_name='us-east-1')
         assert hasattr(hook, 'conn')
+        conn = hook.conn
+        assert conn is hook.conn, "AppflowHook conn property non-cached"
         assert hook.conn.__class__.__name__ == 'Appflow'
