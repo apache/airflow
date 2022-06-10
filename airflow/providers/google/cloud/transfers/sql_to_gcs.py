@@ -147,12 +147,9 @@ class BaseSQLToGCSOperator(BaseOperator):
             schema_file['file_handle'].close()
 
         counter = 0
-        file_meta = {
-                'bucket': self.bucket,
-                'total_row_count': 0,
-                'total_files': 0,
-                'files': [],
-                }
+        files = []
+        total_row_count = 0
+        total_files = 0
         self.log.info('Writing local data files')
         for file_to_upload in self._write_local_data_files(cursor):
             # Flush file before uploading
@@ -165,15 +162,24 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_to_upload['file_handle'].close()
 
             # Metadata to be outputted to Xcom
-            file_meta['total_row_count'] += file_to_upload['file_row_count']
-            file_meta['total_files'] += 1
-            file_meta['files'].append({
-                'file_name': file_to_upload['file_name'],
-                'file_mime_type': file_to_upload['file_mime_type'],
-                'file_row_count': file_to_upload['file_row_count'],
-            })
+            total_row_count += file_to_upload['file_row_count']
+            total_files += 1
+            files.append(
+                {
+                    'file_name': file_to_upload['file_name'],
+                    'file_mime_type': file_to_upload['file_mime_type'],
+                    'file_row_count': file_to_upload['file_row_count'],
+                }
+            )
 
             counter += 1
+
+        file_meta = {
+            'bucket': self.bucket,
+            'total_row_count': total_row_count,
+            'total_files': total_files,
+            'files': files,
+        }
 
         return file_meta
 
@@ -379,14 +385,13 @@ class BaseSQLToGCSOperator(BaseOperator):
         is_data_file = file_to_upload.get('file_name') != self.schema_filename
         metadata = None
         if is_data_file and self.upload_metadata:
-            metadata = {
-                'row_count': file_to_upload['file_row_count']
-            } 
+            metadata = {'row_count': file_to_upload['file_row_count']}
+
         hook.upload(
             self.bucket,
             file_to_upload.get('file_name'),
             file_to_upload.get('file_handle').name,
             mime_type=file_to_upload.get('file_mime_type'),
             gzip=self.gzip if is_data_file else False,
-            metadata = metadata,
+            metadata=metadata,
         )

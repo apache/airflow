@@ -127,7 +127,7 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             gzip=True,
             schema=SCHEMA,
             gcp_conn_id='google_cloud_default',
-            upload_metadata=True
+            upload_metadata=True,
         )
         result = operator.execute(context=dict())
 
