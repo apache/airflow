@@ -41,7 +41,7 @@ with DAG(
 
     # [START howto_operator_emr_serverless_create_application]
     emr_serverless_app = EmrServerlessCreateApplicationOperator(
-        task_id = 'create-emr-serverless-task',
+        task_id='create-emr-serverless-task',
         release_label='emr-6.5.0-preview',
         job_type="SPARK",
         config={
@@ -51,7 +51,7 @@ with DAG(
     # [END howto_operator_emr_serverless_create_application]
 
     # [START howto_sensor_emr_serverless_application]
-    wait_for_app_creation = EmrServerlessApplicationSensor(task_id='wait_for_app_creation', application_id=emr_serverless_app.output)
+    wait_for_app_creation = EmrServerlessApplicationSensor(task_id='wait_for_app_creation', application_id=emr_serverless_app.output,)
     # [END howto_sensor_emr_serverless_application]
 
     # [START howto_operator_emr_serverless_start_job]
@@ -72,4 +72,4 @@ with DAG(
     delete_app = EmrServerlessDeleteApplicationOperator(task_id='delete-application', application_id=emr_serverless_app.output, trigger_rule="all_done")
     # [END howto_operator_emr_serverless_delete_application]
     
-    chain(emr_serverless_app, wait_for_app_creation, start_job, wait_for_job, delete_app)
+    chain(emr_serverless_app, wait_for_app_creation, start_job, wait_for_job, delete_app,)

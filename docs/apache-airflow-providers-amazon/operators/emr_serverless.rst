@@ -26,12 +26,6 @@ data analytics frameworks without configuring, managing, and scaling clusters or
 You get all the features and benefits of Amazon EMR without the need for experts to plan
 and manage clusters.
 
- - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessJobSensor`
- - :class:`~airflow.providers.amazon.aws.sensors.emr.EmrServerlessApplicationSensor`
- - :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessCreateApplicationOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessDeleteApplicationOperator`
- - :class:`~airflow.providers.amazon.aws.operators.emr.EmrServerlessStartJobOperator`
-
 Prerequisite Tasks
 ------------------
 

@@ -154,7 +154,6 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         self.target_states = target_states
         self.application_id = application_id
         self.job_run_id = job_run_id
-        self.log.info(f"From sensor: application Id is {application_id}")
         super().__init__(**kwargs)
 
     def poke(self, context: 'Context') -> bool:
