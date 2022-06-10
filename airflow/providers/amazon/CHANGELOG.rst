@@ -46,6 +46,7 @@ Bug Fixes
 * ``fix: StepFunctionHook ignores explicit set 'region_name' (#23976)``
 * ``Fix Amazon EKS example DAG raises warning during Imports (#23849)``
 * ``Move string arg evals to 'execute()' in 'EksCreateClusterOperator' (#23877)``
+* ``fix: patches #24215. Won't raise KeyError when 'create_job_kwargs' contains the 'Command' key. (#24308)``
 
 Misc
 ~~~~
@@ -70,6 +71,7 @@ Misc
    * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
    * ``pydocstyle D202 added (#24221)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 3.4.0
 .....

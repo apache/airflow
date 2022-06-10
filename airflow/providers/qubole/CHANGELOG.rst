@@ -47,6 +47,7 @@ Bug Fixes
    * ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.1.3
 .....

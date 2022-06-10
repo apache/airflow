@@ -285,8 +285,13 @@ class EmrCreateJobFlowOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:EmrCreateJobFlowOperator`
 
-    :param aws_conn_id: aws connection to uses
-    :param emr_conn_id: emr connection to use
+    :param aws_conn_id: The Airflow connection used for AWS credentials.
+        If this is None or empty then the default boto3 behaviour is used. If
+        running Airflow in a distributed manner and aws_conn_id is None or
+        empty, then default boto3 configuration would be used (and must be
+        maintained on each worker node)
+    :param emr_conn_id: emr connection to use for run_job_flow request body.
+        This will be overridden by the job_flow_overrides param
     :param job_flow_overrides: boto3 style arguments or reference to an arguments file
         (must be '.json') to override emr_connection extra. (templated)
     :param region_name: Region named passed to EmrHook

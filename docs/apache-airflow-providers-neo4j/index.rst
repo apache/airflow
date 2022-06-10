@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/neo4j>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-neo4j/3.0.0/tests/system/providers/neo4j>
 
 .. toctree::
     :maxdepth: 1

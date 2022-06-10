@@ -46,6 +46,7 @@ Bug Fixes
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.1.0
 .....

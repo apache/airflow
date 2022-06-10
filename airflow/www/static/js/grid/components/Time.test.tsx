@@ -17,7 +17,7 @@
  * under the License.
  */
 
-/* global describe, test, expect, document, Event */
+/* global describe, test, expect, document, CustomEvent */
 
 import React from 'react';
 import {
@@ -33,7 +33,7 @@ describe('Test Time and TimezoneProvider', () => {
   test('Displays a UTC time correctly', () => {
     const now = new Date();
     const { getByText } = render(
-      <Time dateTime={now} />,
+      <Time dateTime={now.toISOString()} />,
       { wrapper: Wrapper },
     );
 
@@ -48,7 +48,7 @@ describe('Test Time and TimezoneProvider', () => {
     moment.tz.setDefault(tz);
 
     const { getByText } = render(
-      <Time dateTime={now} />,
+      <Time dateTime={now.toISOString()} />,
       { wrapper: Wrapper },
     );
 
@@ -60,7 +60,7 @@ describe('Test Time and TimezoneProvider', () => {
   test('Updates based on timezone change', async () => {
     const now = new Date();
     const { getByText, queryByText } = render(
-      <Time dateTime={now} />,
+      <Time dateTime={now.toISOString()} />,
       { wrapper: Wrapper },
     );
 
@@ -68,9 +68,9 @@ describe('Test Time and TimezoneProvider', () => {
     expect(utcTime).toBeDefined();
 
     // Fire a custom timezone change event
-    const event = new Event(TimezoneEvent);
-    event.value = 'EST';
-    event.key = 'selected-timezone';
+    const event = new CustomEvent(TimezoneEvent, {
+      detail: 'EST',
+    });
     await act(async () => {
       fireEvent(document, event);
     });

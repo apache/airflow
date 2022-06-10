@@ -32,7 +32,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/plexus>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-plexus/3.0.0/tests/system/providers/plexus>
 
 .. toctree::
     :maxdepth: 1

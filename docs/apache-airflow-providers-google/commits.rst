@@ -38,11 +38,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 8.0.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-08
 
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`047a6162b0 <https://github.com/apache/airflow/commit/047a6162b0b4cbf07fe2fd978e335839a7d3900b>`_  2022-06-08   ``Workaround job race bug on biguery to gcs transfer (#24330)``
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `c3a9ef1ada <https://github.com/apache/airflow/commit/c3a9ef1adadc1e39536f60db46017870860fc633>`_  2022-06-07   ``AIP-47 - Migrate google leveldb DAGs to new design ##22447 (#24233)``

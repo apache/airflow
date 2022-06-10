@@ -39,7 +39,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/github>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-github/2.0.0/tests/system/providers/github>
 
 .. toctree::
     :maxdepth: 1
