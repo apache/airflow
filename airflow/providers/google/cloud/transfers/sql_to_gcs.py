@@ -165,7 +165,7 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_to_upload['file_handle'].close()
 
             # Metadata to be outputted to Xcom
-            file_meta['total_row_count'] += file_to_upload['row_count']
+            file_meta['total_row_count'] += file_to_upload['file_row_count']
             file_meta['total_files'] += 1
             file_meta['files'].append({
                 'file_name': file_to_upload['file_name'],
@@ -263,7 +263,9 @@ class BaseSQLToGCSOperator(BaseOperator):
                     parquet_writer = self._configure_parquet_file(tmp_file_handle, parquet_schema)
         if self.export_format == 'parquet':
             parquet_writer.close()
-        yield file_to_upload
+        # Last file may have 0 rows, don't yield if empty
+        if file_to_upload['file_row_count'] > 0:
+            yield file_to_upload
 
     def _configure_csv_file(self, file_handle, schema):
         """Configure a csv writer with the file_handle and write schema
@@ -386,5 +388,5 @@ class BaseSQLToGCSOperator(BaseOperator):
             file_to_upload.get('file_handle').name,
             mime_type=file_to_upload.get('file_mime_type'),
             gzip=self.gzip if is_data_file else False,
-            metadata = None,
+            metadata = metadata,
         )
