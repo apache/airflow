@@ -408,8 +408,7 @@ class PythonVirtualenvOperator(PythonOperator):
         if not requirements:
             self.requirements: Union[List[str], str] = []
         elif isinstance(requirements, str):
-            with open(requirements, "r") as file:
-                self.requirements = file.readlines()
+            self.requirements = requirements
         else:
             self.requirements = list(requirements)
         self.string_args = string_args or []
@@ -431,7 +430,11 @@ class PythonVirtualenvOperator(PythonOperator):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
             requirements_file_name = f'{tmp_dir}/requirements.txt'
 
-            requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
+            if not isinstance(self.requirements, str):
+                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
+            else:
+                with open(self.requirements, "r") as file:
+                    requirements_file_contents = "\n".join(file.readlines())
 
             if not self.system_site_packages and self.use_dill:
                 requirements_file_contents += '\ndill'
