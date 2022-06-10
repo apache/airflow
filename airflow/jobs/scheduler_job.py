@@ -34,7 +34,13 @@ from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
+from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import (
+    CallbackRequest,
+    DagCallbackRequest,
+    SlaCallbackRequest,
+    TaskCallbackRequest,
+)
 from airflow.callbacks.database_callback_sink import DatabaseCallbackSink
 from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
@@ -164,6 +170,8 @@ class SchedulerJob(BaseJob):
                 f' Please use Deferrable Operators instead. See {docs_url} for more info.',
                 DeprecationWarning,
             )
+
+        self._callback_sink: Optional[BaseCallbackSink] = None
 
     def register_signals(self) -> None:
         """Register signals that stop child processes"""
@@ -687,7 +695,7 @@ class SchedulerJob(BaseJob):
                         simple_task_instance=SimpleTaskInstance.from_ti(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
-                    self.executor.send_callback(request)
+                    self._send_callback(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
@@ -721,12 +729,10 @@ class SchedulerJob(BaseJob):
             self.executor.job_id = self.id
             if self.processor_agent:
                 self.log.debug("Using PipeCallbackSink as callback sink.")
-                self.executor.callback_sink = PipeCallbackSink(
-                    get_sink_pipe=self.processor_agent.get_callbacks_pipe
-                )
+                self._callback_sink = PipeCallbackSink(get_sink_pipe=self.processor_agent.get_callbacks_pipe)
             else:
                 self.log.debug("Using DatabaseCallbackSink as callback sink.")
-                self.executor.callback_sink = DatabaseCallbackSink()
+                self._callback_sink = DatabaseCallbackSink()
 
             self.executor.start()
 
@@ -1203,7 +1209,7 @@ class SchedulerJob(BaseJob):
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.executor.send_callback(callback)
+            self._send_callback(callback)
         else:
             self.log.debug("callback is empty")
 
@@ -1217,7 +1223,7 @@ class SchedulerJob(BaseJob):
             return
 
         request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
-        self.executor.send_callback(request)
+        self._send_callback(request)
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
@@ -1378,5 +1384,14 @@ class SchedulerJob(BaseJob):
                 msg=f"Detected {ti} as zombie",
             )
             self.log.error("Detected zombie job: %s", request)
-            self.executor.send_callback(request)
+            self._send_callback(request)
             Stats.incr('zombies_killed')
+
+    def _send_callback(self, request: CallbackRequest) -> None:
+        """Sends callback for execution.
+
+        :param request: Callback request to be executed.
+        """
+        if not self._callback_sink:
+            raise ValueError("Callback sink is not ready.")
+        self._callback_sink.send(request)
