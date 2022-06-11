@@ -26,7 +26,7 @@ const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 
 const LogLink = ({
-  index, dagId, taskId, executionDate, isInternal,
+  dagId, taskId, executionDate, isInternal, tryNumber,
 }) => {
   let fullMetadataUrl = `${isInternal ? logsWithMetadataUrl : externalLogUrl
   }?dag_id=${encodeURIComponent(dagId)
@@ -35,17 +35,16 @@ const LogLink = ({
   }`;
 
   if (isInternal) {
-    fullMetadataUrl += `&format=file${index > 0 && `&try_number=${index}`}`;
+    fullMetadataUrl += `&format=file${tryNumber > 0 && `&try_number=${tryNumber}`}`;
   } else {
-    fullMetadataUrl += `&try_number=${index}`;
+    fullMetadataUrl += `&try_number=${tryNumber}`;
   }
   return (
     <LinkButton
-      key={index}
       href={fullMetadataUrl}
       target={isInternal ? undefined : '_blank'}
     >
-      {isInternal ? 'Download' : index}
+      {isInternal ? 'Download' : tryNumber}
     </LinkButton>
   );
 };

@@ -21,18 +21,29 @@
 
 import React from 'react';
 import { render } from '@testing-library/react';
+import LogLink from './LogLink';
 
-import LinkButton from './LinkButton';
+describe('Test LogLink Component.', () => {
+  test('Internal Link', () => {
+  });
 
-describe('Test LinkButton Component.', () => {
-  test('LinkButton should be rendered as a link.', () => {
+  test('External Link', () => {
+    const tryNumber = 1;
     const { getByText, container } = render(
-      <LinkButton>
-        <div>The link</div>
-      </LinkButton>,
+      <LogLink
+        tryNumber={tryNumber}
+        dagId="dummyDagId"
+        taskId="dummyTaskId"
+        executionDate="2020:01:01T01:00+00:00"
+      />,
     );
 
-    expect(getByText('The link')).toBeDefined();
-    expect(container.querySelector('a')).not.toBeNull();
+    expect(getByText(tryNumber)).toBeDefined();
+    const linkElement = container.querySelector('a');
+    expect(linkElement).toBeDefined();
+    expect(linkElement).toHaveAttribute('target', '_blank');
+    expect(linkElement.href.includes(
+      `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&try_number=${tryNumber}`,
+    )).toBeTruthy();
   });
 });

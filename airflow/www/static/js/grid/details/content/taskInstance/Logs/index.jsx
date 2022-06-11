@@ -100,6 +100,7 @@ const Logs = ({
                   variant="ghost"
                   colorScheme="blue"
                   onClick={() => setSelectedAttempt(index)}
+                  data-testid={`log-attempt-select-button-${index}`}
                 >
                   {index}
                 </Button>
@@ -115,6 +116,7 @@ const Logs = ({
               <Checkbox
                 onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
                 px={4}
+                data-testid="full-content-checkbox"
               >
                 <Text as="strong">Full Logs</Text>
               </Checkbox>
@@ -169,10 +171,10 @@ const Logs = ({
                 (index) => (
                   <LogLink
                     key={index}
-                    index={index}
                     dagId={dagId}
                     taskId={taskId}
                     executionDate={executionDate}
+                    tryNumber={index}
                   />
                 ),
               )
