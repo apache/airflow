@@ -70,6 +70,7 @@ Committers
 - Maxime "Max" Beauchemin (@mistercrunch)
 - Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
+- Ping Zhang (@pingzh)
 - Ry Walker (@ryw)
 - Ryan Hamilton (@ryanahamilton)
 - Siddharth "Sid" Anand (@r39132)
