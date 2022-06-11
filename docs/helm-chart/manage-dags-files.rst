@@ -78,6 +78,17 @@ If you are deploying an image with a constant tag, you need to make sure that th
       --set images.airflow.tag=8a0da78 \
       --set images.airflow.pullPolicy=Always
 
+If you are deploying an image from a private repository, you need to create a secret, e.g. ``gitlab-registry-credentials`` (refer `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`_ for details), and specify it using ``--set registry.secretName``:
+
+
+.. code-block:: bash
+
+    helm upgrade --install airflow apache-airflow/airflow \
+      --set images.airflow.repository=my-company/airflow \
+      --set images.airflow.tag=8a0da78 \
+      --set images.airflow.pullPolicy=Always \
+      --set registry.secretName=gitlab-registry-credentials
+
 Mounting DAGs using Git-Sync sidecar with Persistence enabled
 -------------------------------------------------------------
 
