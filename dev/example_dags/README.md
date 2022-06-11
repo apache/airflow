@@ -17,5 +17,18 @@
  under the License.
  -->
 
-Run this script in a `docs-archive` folder of checked out `github.com:apache/airflow-site.git` repo
+1. Update links to missing example dags:
+
+Run `update_example_dags_paths.py` script in a `docs-archive` folder of
+checked out `github.com:apache/airflow-site.git` repo
 to refresh links to example dags to the right versions.
+
+3. Update links to missing `[source]` links:
+
+Run `update_source_links_providers.py` script in a `docs-archive` folder of
+checked out `github.com:apache/airflow-site.git` repo
+to refresh links to example dags to the right versions in providers.
+
+Run `update_source_links_airflow.py` script in a `docs-archive` folder of
+checked out `github.com:apache/airflow-site.git` repo
+to refresh links to example dags to the right versions in airflow.
