@@ -231,7 +231,7 @@ class TestSecretsBackendsConfig(unittest.TestCase):
                 "MetastoreBackend",
             ]
 
-    def test_multiple_same_backends(self):
+    def test_multiple_same_backends_classes(self):
         secrets_backend_config = [
             {"backend": SSM_SB, "backend_kwargs": {"use_ssl": False}},
             {"backend": ENV_SB},
@@ -254,6 +254,25 @@ class TestSecretsBackendsConfig(unittest.TestCase):
             assert backends[0].kwargs == {'use_ssl': False}
             assert backends[-1].kwargs == {'use_ssl': True}
 
+    def test_multiple_duplicates_backends_classes(self):
+        secrets_backend_config = [
+            {"backend": ENV_SB},
+            {"backend": ENV_SB},
+            {"backend": METASTORE_DB_SB},
+            {"backend": METASTORE_DB_SB},
+            {"backend": ENV_SB},
+            {"backend": METASTORE_DB_SB},
+        ]
+
+        with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
+            backends = ensure_secrets_loaded()
+            backend_classes = [backend.__class__.__name__ for backend in backends]
+
+            assert backend_classes == [
+                "EnvironmentVariablesBackend",
+                "MetastoreBackend",
+            ]
+
     @conf_vars({("secrets", "backends_config"): '"INVALID"'})
     def test_invalid_backend_config_type(self):
         error_match = r"\[secrets\] 'backends_config' expected list of backends.*"
@@ -268,7 +287,7 @@ class TestSecretsBackendsConfig(unittest.TestCase):
         ]
 
         with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
-            error_match = r"Cannot read config: {'backend': 'airflow.secrets.local_filesystem.*"
+            error_match = r"Cannot initialize secrets backend .* with keyword arguments .*"
             with pytest.raises(AirflowConfigException, match=error_match):
                 ensure_secrets_loaded()
 

@@ -1501,7 +1501,22 @@ def set(*args, **kwargs) -> None:
 
 
 class DefaultSecretsBackend(UserList):
-    """Container which use for store default secrets backend configuration."""
+    """List Container which use for store default secrets backends."""
+
+
+class UniqueSecretsBackendsConfigs(UserList):
+    """List Container which use for store unique secrets backends configs."""
+
+    def append(self, item) -> None:
+        """Append item to a list if it not exists yet"""
+        if item in self.data:
+            return
+        self.data.append(item)
+
+    def extend(self, other) -> None:
+        """Extends item if it not exists yet"""
+        for item in other:
+            self.append(item)
 
 
 @dataclass(frozen=True)
@@ -1512,8 +1527,17 @@ class SecretsBackendConfig:
     backend_kwargs: Dict[str, Any] = field(default_factory=dict)
 
     @classmethod
+    def from_dict(cls, d: Dict[str, Any]) -> 'SecretsBackendConfig':
+        """
+        Read Secret Backend Config from dictionary
+
+        Ignores all unexpected keywords
+        """
+        return cls(d['backend'], d.get('backend_kwargs', {}))
+
+    @classmethod
     def from_config(cls) -> Optional['SecretsBackendConfig']:
-        """Try to get `SecretsBackendConfig` from Apache Airflow configs"""
+        """Try to get ``SecretsBackendConfig`` from airflow config [secrets] section"""
         secrets_backend = conf.get(section='secrets', key='backend', fallback=None)
 
         if not secrets_backend:
@@ -1523,7 +1547,7 @@ class SecretsBackendConfig:
             secrets_backend_kwargs: Any = conf.get(section='secrets', key='backend_kwargs', fallback='{}')
             secrets_backend_kwargs = json.loads(secrets_backend_kwargs)
         except JSONDecodeError:
-            secrets_backend_kwargs = None
+            secrets_backend_kwargs = {}
 
         return cls(secrets_backend, secrets_backend_kwargs)
 
@@ -1541,10 +1565,13 @@ def ensure_secrets_loaded() -> Sequence[BaseSecretsBackend]:
 
 def initialize_secrets_backends() -> Sequence[BaseSecretsBackend]:
     """
+    * read secrets backend configurations
+    * keep only unique secret backend configurations
     * import secrets backend classes
     * instantiate them and return them in a list
     """
-    backend_list = []
+    backend_configs = UniqueSecretsBackendsConfigs()
+    default_configs = [SecretsBackendConfig.from_dict(config) for config in DEFAULT_SECRETS_SEARCH_PATH]
 
     secrets_backend_config = conf.getjson(section='secrets', key='backends_config', fallback=None)
     if secrets_backend_config:
@@ -1558,22 +1585,32 @@ def initialize_secrets_backends() -> Sequence[BaseSecretsBackend]:
 
         for config in secrets_backend_config:
             try:
-                backend_list.append(SecretsBackendConfig(**config).initialize())
+                backend_configs.append(SecretsBackendConfig.from_dict(config))
             except Exception as e:
                 raise AirflowConfigException(
                     f"Cannot read config: {config!r} from [secrets] 'backends_config'.\n{e}"
                 ) from e
 
     else:
-        backend_list.extend(
-            SecretsBackendConfig(**config).initialize() for config in DEFAULT_SECRETS_SEARCH_PATH
-        )
         custom_secrets_backend_config = SecretsBackendConfig.from_config()
         if not custom_secrets_backend_config:
             # Returns default secrets backend list for further checks in `ensure_secrets_loaded()`.
-            return DefaultSecretsBackend(backend_list)
+            return DefaultSecretsBackend(config.initialize() for config in default_configs)
 
-        backend_list.insert(0, custom_secrets_backend_config.initialize())
+        backend_configs.append(custom_secrets_backend_config)
+        backend_configs.extend(default_configs)
+
+    # Initialize secrets backends
+    backend_list = []
+    for config in backend_configs:
+        try:
+            backend_list.append(config.initialize())
+        except Exception as e:
+            raise AirflowConfigException(
+                f"Cannot initialize secrets backend {config.backend!r} "
+                f"with keyword arguments {config.backend_kwargs}.\n"
+                f"{e}"
+            ) from e
 
     return backend_list
 
