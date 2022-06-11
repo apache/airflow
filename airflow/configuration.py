@@ -1544,7 +1544,7 @@ def initialize_secrets_backends() -> Sequence[BaseSecretsBackend]:
     * import secrets backend classes
     * instantiate them and return them in a list
     """
-    list_backends = []
+    backend_list = []
 
     secrets_backend_config = conf.getjson(section='secrets', key='backends_config', fallback=None)
     if secrets_backend_config:
@@ -1558,24 +1558,24 @@ def initialize_secrets_backends() -> Sequence[BaseSecretsBackend]:
 
         for config in secrets_backend_config:
             try:
-                list_backends.append(SecretsBackendConfig(**config).initialize())
+                backend_list.append(SecretsBackendConfig(**config).initialize())
             except Exception as e:
                 raise AirflowConfigException(
                     f"Cannot read config: {config!r} from [secrets] 'backends_config'.\n{e}"
                 ) from e
 
     else:
-        list_backends.extend(
+        backend_list.extend(
             SecretsBackendConfig(**config).initialize() for config in DEFAULT_SECRETS_SEARCH_PATH
         )
         custom_secrets_backend_config = SecretsBackendConfig.from_config()
         if not custom_secrets_backend_config:
             # Returns default secrets backend list for further checks in `ensure_secrets_loaded()`.
-            return DefaultSecretsBackend(list_backends)
+            return DefaultSecretsBackend(backend_list)
 
-        list_backends.insert(0, custom_secrets_backend_config.initialize())
+        backend_list.insert(0, custom_secrets_backend_config.initialize())
 
-    return list_backends
+    return backend_list
 
 
 @functools.lru_cache(maxsize=None)
