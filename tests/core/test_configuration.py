@@ -290,10 +290,10 @@ sql_alchemy_conn = airflow
 
         with pytest.raises(
             AirflowConfigException,
-            match=re.escape(
-                'Cannot retrieve config from alternative secrets backend. '
-                'Make sure it is configured properly and that the Backend '
-                'is accessible.'
+            match=(
+                r'Cannot retrieve config from secrets backend `.*`. '
+                r'Make sure it is configured properly and that the Backend '
+                r'is accessible.'
             ),
         ):
             test_conf.get('test', 'sql_alchemy_conn')
@@ -1184,11 +1184,9 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict('os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
-    @mock.patch("airflow.configuration.get_custom_secret_backend")
-    def test_conf_as_dict_when_deprecated_value_in_secrets(
-        self, get_custom_secret_backend, display_source: bool
-    ):
-        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+    @mock.patch("airflow.secrets.base_secrets.BaseSecretsBackend.get_config")
+    def test_conf_as_dict_when_deprecated_value_in_secrets(self, mock_get_config, display_source: bool):
+        mock_get_config.return_value = "postgresql://"
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1210,11 +1208,11 @@ sql_alchemy_conn=sqlite://test
 
     @pytest.mark.parametrize("display_source", [True, False])
     @mock.patch.dict('os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
-    @mock.patch("airflow.configuration.get_custom_secret_backend")
+    @mock.patch("airflow.secrets.base_secrets.BaseSecretsBackend.get_config")
     def test_conf_as_dict_when_deprecated_value_in_secrets_disabled_env(
-        self, get_custom_secret_backend, display_source: bool
+        self, mock_get_config, display_source: bool
     ):
-        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        mock_get_config.return_value = "postgresql://"
         with use_config(config="empty.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
@@ -1236,12 +1234,12 @@ sql_alchemy_conn=sqlite://test
                 assert conf.get('database', 'sql_alchemy_conn') == f'sqlite:///{HOME_DIR}/airflow/airflow.db'
 
     @pytest.mark.parametrize("display_source", [True, False])
-    @mock.patch("airflow.configuration.get_custom_secret_backend")
+    @mock.patch("airflow.secrets.base_secrets.BaseSecretsBackend.get_config")
     @mock.patch.dict('os.environ', {}, clear=True)
     def test_conf_as_dict_when_deprecated_value_in_secrets_disabled_config(
-        self, get_custom_secret_backend, display_source: bool
+        self, mock_get_config, display_source: bool
     ):
-        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        mock_get_config.return_value = "postgresql://"
         with use_config(config="deprecated_secret.cfg"):
             cfg_dict = conf.as_dict(
                 display_source=display_source,
