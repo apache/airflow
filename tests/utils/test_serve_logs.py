@@ -31,6 +31,8 @@ if TYPE_CHECKING:
 
 LOG_DATA = "Airflow log data" * 20
 
+secret_key: str = conf.get('webserver', 'secret_key')  # type: ignore
+
 
 @pytest.fixture
 def client(tmpdir):
@@ -51,7 +53,7 @@ def sample_log(tmpdir):
 @pytest.fixture
 def signer():
     return JWTSigner(
-        secret_key=conf.get('webserver', 'secret_key'),
+        secret_key=secret_key,
         expiration_time_in_seconds=30,
         audience="task-instance-logs",
     )
@@ -60,7 +62,7 @@ def signer():
 @pytest.fixture
 def different_audience():
     return JWTSigner(
-        secret_key=conf.get('webserver', 'secret_key'),
+        secret_key=secret_key,
         expiration_time_in_seconds=30,
         audience="different-audience",
     )
@@ -191,7 +193,7 @@ class TestServeLogs:
         jwt_dict.update({"filename": 'sample.log'})
         token = jwt.encode(
             jwt_dict,
-            conf.get('webserver', 'secret_key'),
+            secret_key,
             algorithm="HS512",
         )
         assert (

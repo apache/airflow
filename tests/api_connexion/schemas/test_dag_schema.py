@@ -30,7 +30,8 @@ from airflow.api_connexion.schemas.dag_schema import (
 from airflow.configuration import conf
 from airflow.models import DagModel, DagTag
 
-SERIALIZER = URLSafeSerializer(conf.get('webserver', 'SECRET_KEY'))
+# the secret key is always available, so we can ignore Optional here
+SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))  # type: ignore[arg-type]
 
 
 class TestDagSchema(unittest.TestCase):
