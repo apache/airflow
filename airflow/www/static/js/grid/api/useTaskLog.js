@@ -26,7 +26,7 @@ const taskLogApi = getMetaValue('task_log_api');
 const useTaskLog = ({
   dagId, dagRunId, taskId, taskTryNumber, fullContent, enabled,
 }) => {
-  const url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace('-1', taskTryNumber);
+  const url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber);
 
   return useQuery(
     ['taskLogs', dagId, dagRunId, taskId, taskTryNumber, fullContent],
