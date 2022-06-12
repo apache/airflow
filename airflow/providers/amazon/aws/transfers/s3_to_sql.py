@@ -31,7 +31,7 @@ if TYPE_CHECKING:
 
 class S3ToSqlOperator(BaseOperator):
     """
-    Moves data from S3 to SQL.
+    Loads a file from S3 into a SQL table.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
