@@ -41,7 +41,7 @@ from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
-from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, clear_db_variables
 from tests.test_utils.mock_operators import MockOperator
 
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -54,11 +54,13 @@ class TestDagRun:
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
+        clear_db_variables()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
+        clear_db_variables()
 
     def create_dag_run(
         self,
