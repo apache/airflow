@@ -21,8 +21,6 @@ from enum import Enum
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
-import numpy as np
-import pandas as pd
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException

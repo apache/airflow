@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from typing import List, Optional, Sequence, Union, TYPE_CHECKING
 
-import os
 import pandas
 
 from airflow.exceptions import AirflowException
