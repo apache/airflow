@@ -65,7 +65,9 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
         },
         'airflow_coloured': {
             'format': COLORED_LOG_FORMAT if COLORED_LOG else LOG_FORMAT,
-            'class': COLORED_FORMATTER_CLASS if COLORED_LOG else 'airflow.utils.log.timezone_aware.TimezoneAware',
+            'class': COLORED_FORMATTER_CLASS
+            if COLORED_LOG
+            else 'airflow.utils.log.timezone_aware.TimezoneAware',
         },
     },
     'filters': {

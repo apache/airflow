@@ -19,5 +19,12 @@ import logging
 
 
 class TimezoneAware(logging.Formatter):
+    """
+    Override default_time_format and default_msec_format to specify utc offset.
+
+    With this Formatter, %(asctime)s will be formatted with utc offset(e.g [2022-06-12 13:00:00+0000 123ms] ).
+    moments.js object in www/static/js/datetime_utils.js require this utc offset to format timezone properly.
+    """
+
     default_time_format = '%Y-%m-%d %H:%M:%S%z'
-    default_msec_format = None
+    default_msec_format = '%s %03dms'
