@@ -17,7 +17,9 @@
  * under the License.
  */
 
-import React, { useRef, useState, useEffect } from 'react';
+import React, {
+  useRef, useState, useEffect, useMemo,
+} from 'react';
 import {
   Text,
   Box,
@@ -26,12 +28,15 @@ import {
   Code,
   Button,
   Checkbox,
+  Select,
 } from '@chakra-ui/react';
 
 import { getMetaValue } from '../../../../../utils';
 import LogLink from './LogLink';
 import useTaskLog from '../../../../api/useTaskLog';
 import LinkButton from '../../../../components/LinkButton';
+import { LogLevel, parseLogs } from './utils';
+import { useTimezone } from '../../../../context/timezone';
 
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 const externalLogName = getMetaValue('external_log_name');
@@ -65,6 +70,9 @@ const Logs = ({
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(false);
+  const [logLevelFilter, setLogLevelFilter] = useState('');
+  const [logGroupFilter, setLogGroupFilter] = useState('');
+  const { timezone } = useTimezone();
   const { data, isSuccess } = useTaskLog({
     dagId,
     dagRunId,
@@ -86,55 +94,84 @@ const Logs = ({
     execution_date: executionDate,
   }).toString();
 
+  const { parsedLogs, logGroups = [] } = useMemo(() => parseLogs(
+    data,
+    timezone,
+    logLevelFilter,
+    logGroupFilter,
+  ),
+  [data, logGroupFilter, logLevelFilter, timezone]);
+
   return (
     <>
       {tryNumber > 0 && (
       <>
         <Text as="span"> (by attempts)</Text>
-        <Box>
-          <Flex my={1} justifyContent="space-between">
-            <Flex flexWrap="wrap">
-              {internalIndexes.map((index) => (
-                <Button
-                  key={index}
-                  variant="ghost"
-                  colorScheme="blue"
-                  onClick={() => setSelectedAttempt(index)}
-                  data-testid={`log-attempt-select-button-${index}`}
-                >
-                  {index}
-                </Button>
-              ))}
-            </Flex>
-            <Flex>
-              <Checkbox
-                onChange={() => setWrap((previousState) => !previousState)}
-                px={4}
+        <Flex my={1} justifyContent="space-between">
+          <Flex flexWrap="wrap">
+            {internalIndexes.map((index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                colorScheme="blue"
+                onClick={() => setSelectedAttempt(index)}
+                data-testid={`log-attempt-select-button-${index}`}
               >
-                <Text as="strong">Wrap</Text>
-              </Checkbox>
-              <Checkbox
-                onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
-                px={4}
-                data-testid="full-content-checkbox"
-              >
-                <Text as="strong">Full Logs</Text>
-              </Checkbox>
-              <LogLink
-                index={selectedAttempt}
-                dagId={dagId}
-                taskId={taskId}
-                executionDate={executionDate}
-                isInternal
-              />
-              <LinkButton
-                href={`${logUrl}&${params}`}
-              >
-                See More
-              </LinkButton>
-            </Flex>
+                {index}
+              </Button>
+            ))}
           </Flex>
-        </Box>
+          <Flex alignItems="center">
+            <Select
+              size="sm"
+              value={logLevelFilter}
+              onChange={(e) => setLogLevelFilter(e.target.value)}
+              mr={2}
+            >
+              <option value="" key="all">All Levels</option>
+              {Object.values(LogLevel).map((value) => (
+                <option value={value} key={value}>{value}</option>
+              ))}
+            </Select>
+            <Select
+              size="sm"
+              value={logGroupFilter}
+              onChange={(e) => setLogGroupFilter(e.target.value)}
+            >
+              <option value="" key="all">All Groups</option>
+              {logGroups.map((value) => (
+                <option value={value} key={value}>{value}</option>
+              ))}
+            </Select>
+          </Flex>
+          <Flex alignItems="center">
+            <Checkbox
+              onChange={() => setWrap((previousState) => !previousState)}
+              px={4}
+            >
+              <Text as="strong">Wrap</Text>
+            </Checkbox>
+            <Checkbox
+              onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
+              px={4}
+              data-testid="full-content-checkbox"
+            >
+              <Text as="strong">Full Logs</Text>
+            </Checkbox>
+            <LogLink
+              index={selectedAttempt}
+              dagId={dagId}
+              taskId={taskId}
+              executionDate={executionDate}
+              isInternal
+            />
+            <LinkButton
+              href={`${logUrl}&${params}`}
+            >
+              See More
+            </LinkButton>
+          </Flex>
+        </Flex>
         {
           isSuccess && (
             <Code
@@ -148,7 +185,7 @@ const Logs = ({
               borderRadius={3}
               borderColor="blue.500"
             >
-              {data}
+              {parsedLogs}
               <div ref={codeBlockBottomDiv} />
             </Code>
           )
