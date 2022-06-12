@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+import os
 from typing import List, Optional, Sequence, Union
 
 import numpy
@@ -112,4 +112,7 @@ class S3ToSqlOperator(BaseOperator):
             run(self.preoperator)
         self.fix_int_dtypes(df)
         self.log.info("Inserting rows into %s", self.destination_conn_id)
-        df.to_sql(self.destination_table, destination_hook.get_conn(), **self.insert_args)
+        try:
+            df.to_sql(self.destination_table, destination_hook.get_conn(), **self.insert_args)
+        finally:
+            os.remove(file)
