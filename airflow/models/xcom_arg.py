@@ -35,7 +35,6 @@ from typing import (
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.taskmixin import DAGNode, DependencyMixin
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -324,15 +323,8 @@ class PlainXComArg(XComArg):
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
         """
-        result = context["ti"].xcom_pull(
-            task_ids=self.operator.task_id, key=str(self.key), default=NOTSET, session=session
-        )
-        if result is NOTSET:
-            raise AirflowException(
-                f'XComArg result from {self.operator.task_id} at {context["ti"].dag_id} '
-                f'with key="{self.key}" is not found!'
-            )
-        return result
+        source_id = self.operator.task_id
+        return context["ti"].xcom_pull(task_ids=source_id, key=str(self.key), default=None, session=session)
 
 
 class _MapResult(Sequence):
