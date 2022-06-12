@@ -812,6 +812,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         gcs_schema_object: Optional[str] = None,
         time_partitioning: Optional[Dict] = None,
         gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
         google_cloud_storage_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
@@ -824,6 +825,14 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         exists_ok: bool = False,
         **kwargs,
     ) -> None:
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            gcp_conn_id = bigquery_conn_id
+
         super().__init__(**kwargs)
 
         self.project_id = project_id
@@ -1007,6 +1016,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         allow_quoted_newlines: bool = False,
         allow_jagged_rows: bool = False,
         gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
         google_cloud_storage_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         src_fmt_configs: Optional[dict] = None,
@@ -1016,6 +1026,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            gcp_conn_id = bigquery_conn_id
+
         super().__init__(**kwargs)
 
         # BQ config
