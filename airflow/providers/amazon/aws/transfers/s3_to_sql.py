@@ -37,12 +37,12 @@ class S3ToSqlOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:S3ToSqlOperator `
 
-    :param s3_key: path to s3 file
-    :param destination_table: target table on sql
-    :param file_format: input file format. CSV, JSON or Parquet
-    :param file_options: file reader options
-    :param source_conn_id: source connection
-    :param destination_conn_id: destination connection
+    :param s3_key: path to s3 file. (templated)
+    :param destination_table: target table on sql. (templated)
+    :param file_format: input file format. CSV, JSON or Parquet. (templated)
+    :param file_options: file reader options.
+    :param source_conn_id: source connection.
+    :param destination_conn_id: destination connection.
     :param preoperator: sql statement or list of statements to be
         executed prior to loading the data. (templated)
     :param insert_args: extra params for `insert_rows` method.
