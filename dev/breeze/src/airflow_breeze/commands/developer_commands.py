@@ -25,6 +25,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
     get_available_packages,
 )
@@ -601,7 +602,13 @@ def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCom
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
-
+    if "arm64" in DOCKER_DEFAULT_PLATFORM:
+        if shell_params.backend == "mysql":
+            get_console().print('\n[error]MySQL is not supported on ARM architecture.[/]\n')
+            sys.exit(1)
+        if shell_params.backend == "mssql":
+            get_console().print('\n[error]MSSQL is not supported on ARM architecture[/]\n')
+            sys.exit(1)
     command_result = run_command(
         cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True, check=False
     )
