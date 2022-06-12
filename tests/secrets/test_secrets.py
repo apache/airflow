@@ -265,9 +265,11 @@ class TestSecretsBackendsConfig(unittest.TestCase):
         ]
 
         with conf_vars({("secrets", "backends_config"): json.dumps(secrets_backend_config)}):
-            backends = ensure_secrets_loaded()
-            backend_classes = [backend.__class__.__name__ for backend in backends]
+            with self.assertLogs(level='WARNING') as capture_logs:
+                backends = ensure_secrets_loaded()
+                assert len(capture_logs.records) == 4
 
+            backend_classes = [backend.__class__.__name__ for backend in backends]
             assert backend_classes == [
                 "EnvironmentVariablesBackend",
                 "MetastoreBackend",

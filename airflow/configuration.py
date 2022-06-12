@@ -1504,21 +1504,6 @@ class DefaultSecretsBackend(UserList):
     """List Container which use for store default secrets backends."""
 
 
-class UniqueSecretsBackendsConfigs(UserList):
-    """List Container which use for store unique secrets backends configs."""
-
-    def append(self, item) -> None:
-        """Append item to a list if it not exists yet"""
-        if item in self.data:
-            return
-        self.data.append(item)
-
-    def extend(self, other) -> None:
-        """Extends item if it not exists yet"""
-        for item in other:
-            self.append(item)
-
-
 @dataclass(frozen=True)
 class SecretsBackendConfig:
     """Secrets Backend Config dataclass helper."""
@@ -1554,6 +1539,22 @@ class SecretsBackendConfig:
     def initialize(self) -> BaseSecretsBackend:
         """Initialize Secrets Backend."""
         return import_string(self.backend)(**self.backend_kwargs)
+
+
+class UniqueSecretsBackendsConfigs(UserList):
+    """List Container which use for store unique secrets backends configs."""
+
+    def append(self, config) -> None:
+        """Append item to a list if it not exists yet"""
+        if config in self.data:
+            log.warning("%r already exists.", config)
+            return
+        self.data.append(config)
+
+    def extend(self, configs) -> None:
+        """Extends item if it not exists yet"""
+        for config in configs:
+            self.append(config)
 
 
 def ensure_secrets_loaded() -> Sequence[BaseSecretsBackend]:
