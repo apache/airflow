@@ -32,12 +32,12 @@ if TYPE_CHECKING:
 
 class S3ToSqlOperator(BaseOperator):
     """
-
     Moves data from s3 to sql.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:S3ToSqlOperator `
+
     :param s3_key: path to s3 file
     :param destination_table: target table on sql
     :param file_format: input file format. CSV, JSON or Parquet
