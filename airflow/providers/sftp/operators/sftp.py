@@ -18,10 +18,11 @@
 """This module contains SFTP operator."""
 import os
 from pathlib import Path
-from typing import Any, Sequence
+from typing import Any, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
+from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.ssh.hooks.ssh import SSHHook
 
 
@@ -35,7 +36,7 @@ class SFTPOperation:
 class SFTPOperator(BaseOperator):
     """
     SFTPOperator for transferring files from remote host to local or vice a versa.
-    This operator uses ssh_hook to open sftp transport channel that serve as basis
+    This operator uses sftp_hook to open sftp transport channel that serve as basis
     for file transfer.
 
     :param ssh_hook: predefined ssh_hook to use for remote execution.
@@ -75,18 +76,20 @@ class SFTPOperator(BaseOperator):
     def __init__(
         self,
         *,
-        ssh_hook=None,
-        ssh_conn_id=None,
-        remote_host=None,
-        local_filepath=None,
-        remote_filepath=None,
-        operation=SFTPOperation.PUT,
-        confirm=True,
-        create_intermediate_dirs=False,
+        ssh_hook: Optional[SSHHook] = None,
+        sftp_hook: Optional[SFTPHook] = None,
+        ssh_conn_id: Optional[str] = None,
+        remote_host: Optional[str] = None,
+        local_filepath: str,
+        remote_filepath: str,
+        operation: str = SFTPOperation.PUT,
+        confirm: bool = True,
+        create_intermediate_dirs: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.ssh_hook = ssh_hook
+        self.sftp_hook = sftp_hook
         self.ssh_conn_id = ssh_conn_id
         self.remote_host = remote_host
         self.local_filepath = local_filepath
@@ -99,8 +102,9 @@ class SFTPOperator(BaseOperator):
                 f"Unsupported operation value {self.operation}, "
                 f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."
             )
+        # TODO: handle ssh_hook, sftp_hook, ssh_conn_id...
 
-    def execute(self, context: Any) -> str:
+    def execute(self, context: Any) -> Optional[str]:
         file_msg = None
         try:
             if self.ssh_conn_id:
