@@ -23,7 +23,6 @@ from io import StringIO
 from unittest import mock
 
 import paramiko
-import pysftp
 from parameterized import parameterized
 
 from airflow.models import Connection
@@ -79,7 +78,7 @@ class TestSFTPHook(unittest.TestCase):
 
     def test_get_conn(self):
         output = self.hook.get_conn()
-        assert isinstance(output, pysftp.Connection)
+        assert isinstance(output, paramiko.SFTPClient)
 
     def test_close_conn(self):
         self.hook.conn = self.hook.get_conn()
