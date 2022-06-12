@@ -90,44 +90,14 @@ class TestOracleHookConn(unittest.TestCase):
         )
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
-    def test_get_conn_encoding_without_nencoding(self, mock_connect):
-        self.connection.extra = json.dumps({'encoding': 'UTF-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert kwargs['encoding'] == 'UTF-8'
-        assert kwargs['nencoding'] == 'UTF-8'
-
-    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
-    def test_get_conn_encoding_with_nencoding(self, mock_connect):
-        self.connection.extra = json.dumps({'encoding': 'UTF-8', 'nencoding': 'gb2312'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert kwargs['encoding'] == 'UTF-8'
-        assert kwargs['nencoding'] == 'gb2312'
-
-    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
-    def test_get_conn_nencoding(self, mock_connect):
-        self.connection.extra = json.dumps({'nencoding': 'UTF-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert 'encoding' not in kwargs
-        assert kwargs['nencoding'] == 'UTF-8'
-
-    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_mode(self, mock_connect):
         mode = {
-            'sysdba': oracledb.AUHT_MODE_SYSDBA,
-            'sysasm': oracledb.AUHT_MODE_SYSASM,
-            'sysoper': oracledb.AUHT_MODE_SYSOPER,
-            'sysbkp': oracledb.AUHT_MODE_SYSBKP,
-            'sysdgd': oracledb.AUHT_MODE_SYSDGD,
-            'syskmt': oracledb.AUHT_MODE_SYSKMT,
+            'sysdba': oracledb.AUTH_MODE_SYSDBA,
+            'sysasm': oracledb.AUTH_MODE_SYSASM,
+            'sysoper': oracledb.AUTH_MODE_SYSOPER,
+            'sysbkp': oracledb.AUTH_MODE_SYSBKP,
+            'sysdgd': oracledb.AUTH_MODE_SYSDGD,
+            'syskmt': oracledb.AUTH_MODE_SYSKMT,
         }
         first = True
         for mod in mode:
@@ -139,15 +109,6 @@ class TestOracleHookConn(unittest.TestCase):
             args, kwargs = mock_connect.call_args
             assert args == ()
             assert kwargs['mode'] == mode.get(mod)
-
-    @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
-    def test_get_conn_threaded(self, mock_connect):
-        self.connection.extra = json.dumps({'threaded': True})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        args, kwargs = mock_connect.call_args
-        assert args == ()
-        assert kwargs['threaded'] is True
 
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_events(self, mock_connect):
