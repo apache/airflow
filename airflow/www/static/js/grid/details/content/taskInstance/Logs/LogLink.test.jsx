@@ -25,6 +25,24 @@ import LogLink from './LogLink';
 
 describe('Test LogLink Component.', () => {
   test('Internal Link', () => {
+    const tryNumber = 1;
+    const { getByText, container } = render(
+      <LogLink
+        tryNumber={tryNumber}
+        dagId="dummyDagId"
+        taskId="dummyTaskId"
+        executionDate="2020:01:01T01:00+00:00"
+        isInternal
+      />,
+    );
+
+    expect(getByText('Download')).toBeDefined();
+    const linkElement = container.querySelector('a');
+    expect(linkElement).toBeDefined();
+    expect(linkElement).not.toHaveAttribute('target');
+    expect(linkElement.href.includes(
+      `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&format=file&try_number=${tryNumber}`,
+    )).toBeTruthy();
   });
 
   test('External Link', () => {
