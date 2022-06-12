@@ -55,9 +55,12 @@ class TestS3ToSqlTransfer(unittest.TestCase):
             's3_key': 'test/s3_to_mysql_test.csv',
             'destination_table': 'mysql_table',
             'file_format': 'csv',
+            'file_options': None,
             'source_conn_id': 's3_test',
             'destination_conn_id': 'mysql_test',
+            'preoperator': None,
             'task_id': 'task_id',
+            'insert_args': None,
             'dag': None,
         }
 
