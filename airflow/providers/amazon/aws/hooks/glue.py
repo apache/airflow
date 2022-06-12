@@ -181,6 +181,12 @@ class GlueJobHook(AwsBaseHook):
             s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:
+                default_command = {
+                    "Name": "glueetl",
+                    "ScriptLocation": self.script_location,
+                }
+                command = self.create_job_kwargs.get("Command", default_command)
+
                 if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
                     create_job_response = glue_client.create_job(
                         Name=self.job_name,
@@ -188,7 +194,7 @@ class GlueJobHook(AwsBaseHook):
                         LogUri=s3_log_path,
                         Role=execution_role['Role']['Arn'],
                         ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        Command=command,
                         MaxRetries=self.retry_limit,
                         **self.create_job_kwargs,
                     )
@@ -199,7 +205,7 @@ class GlueJobHook(AwsBaseHook):
                         LogUri=s3_log_path,
                         Role=execution_role['Role']['Arn'],
                         ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        Command=command,
                         MaxRetries=self.retry_limit,
                         MaxCapacity=self.num_of_dpus,
                         **self.create_job_kwargs,

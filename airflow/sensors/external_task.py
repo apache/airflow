@@ -18,8 +18,10 @@
 
 import datetime
 import os
+import warnings
 from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable, Optional, Union
 
+import attr
 from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
@@ -31,10 +33,10 @@ from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
 
-class ExternalTaskSensorLink(BaseOperatorLink):
+class ExternalDagLink(BaseOperatorLink):
     """
-    Operator link for ExternalTaskSensor. It allows users to access
-    DAG waited with ExternalTaskSensor.
+    Operator link for ExternalTaskSensor and ExternalTaskMarker.
+    It allows users to access DAG waited with ExternalTaskSensor or cleared by ExternalTaskMarker.
     """
 
     name = 'External DAG'
@@ -83,7 +85,7 @@ class ExternalTaskSensor(BaseSensorOperator):
     @property
     def operator_extra_links(self):
         """Return operator extra links"""
-        return [ExternalTaskSensorLink()]
+        return [ExternalDagLink()]
 
     def __init__(
         self,
@@ -287,6 +289,11 @@ class ExternalTaskMarker(EmptyOperator):
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
     __serialized_fields: Optional[FrozenSet[str]] = None
 
+    @property
+    def operator_extra_links(self):
+        """Return operator extra links"""
+        return [ExternalDagLink()]
+
     def __init__(
         self,
         *,
@@ -318,3 +325,19 @@ class ExternalTaskMarker(EmptyOperator):
         if not cls.__serialized_fields:
             cls.__serialized_fields = frozenset(super().get_serialized_fields() | {"recursion_depth"})
         return cls.__serialized_fields
+
+
+@attr.s(auto_attribs=True)
+class ExternalTaskSensorLink(ExternalDagLink):
+    """
+    This external link is deprecated.
+    Please use :class:`airflow.sensors.external_task.ExternalDagLink`.
+    """
+
+    def __attrs_post_init__(self):
+        warnings.warn(
+            "This external link is deprecated. "
+            "Please use :class:`airflow.sensors.external_task.ExternalDagLink`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )

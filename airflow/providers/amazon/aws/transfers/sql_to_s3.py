@@ -30,6 +30,7 @@ from airflow.hooks.base import BaseHook
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+from airflow.providers.amazon.aws.utils.s3 import fix_int_dtypes
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -123,29 +124,13 @@ class SqlToS3Operator(BaseOperator):
         if self.file_format is None:
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
-    @staticmethod
-    def _fix_int_dtypes(df: pd.DataFrame) -> None:
-        """Mutate DataFrame to set dtypes for int columns containing NaN values."""
-        for col in df:
-            if "float" in df[col].dtype.name and df[col].hasnans:
-                # inspect values to determine if dtype of non-null values is int or float
-                notna_series = df[col].dropna().values
-                if np.equal(notna_series, notna_series.astype(int)).all():
-                    # set to dtype that retains integers and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(pd.Int64Dtype())
-                elif np.isclose(notna_series, notna_series.astype(int)).all():
-                    # set to float dtype that retains floats and supports NaNs
-                    df[col] = np.where(df[col].isnull(), None, df[col])
-                    df[col] = df[col].astype(pd.Float64Dtype())
-
     def execute(self, context: 'Context') -> None:
         sql_hook = self._get_hook()
         s3_conn = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         data_df = sql_hook.get_pandas_df(sql=self.query, parameters=self.parameters)
         self.log.info("Data from SQL obtained")
 
-        self._fix_int_dtypes(data_df)
+        fix_int_dtypes(data_df)
         file_options = FILE_OPTIONS_MAP[self.file_format]
 
         with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:

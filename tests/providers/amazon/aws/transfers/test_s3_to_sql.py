@@ -27,7 +27,7 @@ from airflow.utils import db
 from airflow.utils.session import create_session
 
 
-class TestS3ToMySqlTransfer(unittest.TestCase):
+class TestS3ToSqlTransfer(unittest.TestCase):
     def setUp(self):
         configuration.conf.load_test_config()
 
@@ -52,22 +52,7 @@ class TestS3ToMySqlTransfer(unittest.TestCase):
             )
         )
 
-        """
-                (
-                self,
-                *,
-                s3_key: str,
-                destination_table: str,
-                file_format: str,
-                file_options: Optional[dict] = None,
-                source_conn_id: str = 'aws_default',
-                destination_conn_id: str = 'sql_default',
-                preoperator: Optional[Union[str, List[str]]] = None,
-                insert_args: Optional[dict] = None,
-                **kwargs,
-            )
-            """
-        self.s3_to_mysql_transfer_kwargs = {
+        self.s3_to_sql_transfer_kwargs = {
             's3_key': 'test/s3_to_mysql_test.csv',
             'destination_table': 'mysql_table',
             'file_format': 'csv',
@@ -80,18 +65,11 @@ class TestS3ToMySqlTransfer(unittest.TestCase):
     @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.S3Hook.download_file')
     @patch('airflow.hooks.base.BaseHook.get_hook')
     @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.os.remove')
-    @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.pandas.read_csv')
-    @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.fix_int_dtypes')
-    def test_execute(self, mock_remove, mock_bulk_load_custom, mock_download_file):
-        S3ToSqlOperator(**self.s3_to_mysql_transfer_kwargs).execute({})
+    def test_execute(self, mock_download_file, mock_get_hook, mock_remove):
+        S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
 
-        mock_download_file.assert_called_once_with(key=self.s3_to_mysql_transfer_kwargs['s3_source_key'])
-        mock_bulk_load_custom.assert_called_once_with(
-            table=self.s3_to_mysql_transfer_kwargs['mysql_table'],
-            tmp_file=mock_download_file.return_value,
-            duplicate_key_handling=self.s3_to_mysql_transfer_kwargs['mysql_duplicate_key_handling'],
-            extra_options=self.s3_to_mysql_transfer_kwargs['mysql_extra_options'],
-        )
+        mock_download_file.assert_called_once_with(key=self.s3_to_sql_transfer_kwargs['s3_key'])
+        mock_get_hook.assert_called_once_with(self.s3_to_sql_transfer_kwargs['destination_conn_id'])
         mock_remove.assert_called_once_with(mock_download_file.return_value)
 
     def tearDown(self):

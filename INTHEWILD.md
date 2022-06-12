@@ -349,6 +349,7 @@ Currently, **officially** using Airflow:
 1. [Pronto Tools](http://www.prontotools.io/) [[@zkan](https://github.com/zkan) & [@mesodiar](https://github.com/mesodiar)]
 1. [proton.ai](https://proton.ai/) [[@prmsolutions](https://github.com/prmsolutions)]
 1. [PubNub](https://pubnub.com) [[@jzucker2](https://github.com/jzucker2)]
+1. [Pura Scents](https://www.trypura.com/) [[@mfjackson](https://github.com/mfjackson)]
 1. [PXYData](https://www.pxydata.com) [[@patchus](https://github.com/patchus)]
 1. [Qliro](https://www.qliro.com) [[@kvackkvackanka](https://github.com/kvackkvackanka)]
 1. [Qoala](https://www.qoala.id) [[@gnomeria](https://github.com/gnomeria), [@qoala-engineering](https://github.com/qoala-engineering)]
@@ -411,7 +412,7 @@ Currently, **officially** using Airflow:
 1. [Tesla](https://www.tesla.com/) [[@thoralf-gutierrez](https://github.com/thoralf-gutierrez)]
 1. [TextNow](https://www.textnow.com/)
 1. [The Climate Corporation](https://climate.com/) [[@jmelching](https://github.com/jmelching)]
-1. [The Dyrt](https://thedyrt.com/) [[@mfjackson](https://github.com/mfjackson)]
+1. [The Dyrt](https://thedyrt.com/)
 1. [The Home Depot](https://www.homedepot.com/) [[@apekshithr](https://github.com/apekshithr)]
 1. [THE ICONIC](https://www.theiconic.com.au/) [[@revathijay](https://github.com/revathijay), [@ilikedata](https://github.com/ilikedata)]
 1. [theScore](https://www.thescore.com/) [[@kristenmalikk](https://github.com/kristenmalikk)]
