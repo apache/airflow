@@ -18,7 +18,6 @@
 import unittest
 from unittest.mock import patch
 
-import pytest
 from sqlalchemy import or_
 
 from airflow import configuration, models
