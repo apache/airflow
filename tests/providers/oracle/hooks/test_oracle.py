@@ -122,12 +122,12 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_mode(self, mock_connect):
         mode = {
-            'sysdba': oracledb.SYSDBA,
-            'sysasm': oracledb.SYSASM,
-            'sysoper': oracledb.SYSOPER,
-            'sysbkp': oracledb.SYSBKP,
-            'sysdgd': oracledb.SYSDGD,
-            'syskmt': oracledb.SYSKMT,
+            'sysdba': oracledb.AUHT_MODE_SYSDBA,
+            'sysasm': oracledb.AUHT_MODE_SYSASM,
+            'sysoper': oracledb.AUHT_MODE_SYSOPER,
+            'sysbkp': oracledb.AUHT_MODE_SYSBKP,
+            'sysdgd': oracledb.AUHT_MODE_SYSDGD,
+            'syskmt': oracledb.AUHT_MODE_SYSKMT,
         }
         first = True
         for mod in mode:
@@ -161,9 +161,9 @@ class TestOracleHookConn(unittest.TestCase):
     @mock.patch('airflow.providers.oracle.hooks.oracle.oracledb.connect')
     def test_get_conn_purity(self, mock_connect):
         purity = {
-            'new': oracledb.ATTR_PURITY_NEW,
-            'self': oracledb.ATTR_PURITY_SELF,
-            'default': oracledb.ATTR_PURITY_DEFAULT,
+            'new': oracledb.PURITY_NEW,
+            'self': oracledb.PURITY_SELF,
+            'default': oracledb.PURITY_DEFAULT,
         }
         first = True
         for pur in purity:
