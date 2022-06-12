@@ -55,7 +55,7 @@ class TestS3ToSqlTransfer(unittest.TestCase):
             's3_key': 'test/s3_to_mysql_test.csv',
             'destination_table': 'mysql_table',
             'file_format': 'csv',
-            'file_options': None,
+            'file_options': {},
             'source_conn_id': 's3_test',
             'destination_conn_id': 'mysql_test',
             'preoperator': None,
@@ -73,7 +73,7 @@ class TestS3ToSqlTransfer(unittest.TestCase):
 
         mock_download_file.assert_called_once_with(key=self.s3_to_sql_transfer_kwargs['s3_key'])
         mock_read_file.assert_called_once_with(
-            mock_download_file.return_value, self.s3_to_sql_transfer_kwargs['file_options']
+            mock_download_file.return_value, **self.s3_to_sql_transfer_kwargs['file_options']
         )
         mock_get_hook.assert_called_once_with(self.s3_to_sql_transfer_kwargs['destination_conn_id'])
         mock_remove.assert_called_once_with(mock_download_file.return_value)
