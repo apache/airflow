@@ -66,14 +66,15 @@ DEPRECATED_ACTION_CAN_DAG_EDIT = "can_dag_edit"
 DAG_ACTIONS = {ACTION_CAN_READ, ACTION_CAN_EDIT, ACTION_CAN_DELETE}
 
 
-def resource_name_for_dag(dag_id):
-    """Returns the resource name for a DAG id."""
-    if dag_id == RESOURCE_DAG:
-        return dag_id
+def resource_name_for_dag(root_dag_id: str) -> str:
+    """Returns the resource name for a DAG id.
 
-    if dag_id.startswith(RESOURCE_DAG_PREFIX):
-        return dag_id
-
-    # To account for SubDags
-    root_dag_id = dag_id.split(".")[0]
+    Note that since a sub-DAG should follow the permission of its
+    parent DAG, you should pass ``DagModel.root_dag_id`` to this function,
+    for a subdag. A normal dag should pass the ``DagModel.dag_id``.
+    """
+    if root_dag_id == RESOURCE_DAG:
+        return root_dag_id
+    if root_dag_id.startswith(RESOURCE_DAG_PREFIX):
+        return root_dag_id
     return f"{RESOURCE_DAG_PREFIX}{root_dag_id}"

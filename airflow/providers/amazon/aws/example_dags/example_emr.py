@@ -19,13 +19,19 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
-from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor
+from airflow.models.baseoperator import chain
+from airflow.providers.amazon.aws.operators.emr import (
+    EmrAddStepsOperator,
+    EmrCreateJobFlowOperator,
+    EmrModifyClusterOperator,
+    EmrTerminateJobFlowOperator,
+)
+from airflow.providers.amazon.aws.sensors.emr import EmrJobFlowSensor, EmrStepSensor
 
 JOB_FLOW_ROLE = os.getenv('EMR_JOB_FLOW_ROLE', 'EMR_EC2_DefaultRole')
 SERVICE_ROLE = os.getenv('EMR_SERVICE_ROLE', 'EMR_DefaultRole')
 
-# [START howto_operator_emr_automatic_steps_config]
+# [START howto_operator_emr_steps_config]
 SPARK_STEPS = [
     {
         'Name': 'calculate_pi',
@@ -58,17 +64,15 @@ JOB_FLOW_OVERRIDES = {
     'JobFlowRole': JOB_FLOW_ROLE,
     'ServiceRole': SERVICE_ROLE,
 }
-# [END howto_operator_emr_automatic_steps_config]
-
+# [END howto_operator_emr_steps_config]
 
 with DAG(
-    dag_id='example_emr_job_flow_automatic_steps',
+    dag_id='example_emr',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
 ) as dag:
-
     # [START howto_operator_emr_create_job_flow]
     job_flow_creator = EmrCreateJobFlowOperator(
         task_id='create_job_flow',
@@ -76,9 +80,47 @@ with DAG(
     )
     # [END howto_operator_emr_create_job_flow]
 
-    # [START howto_sensor_emr_job_flow_sensor]
+    # [START howto_sensor_emr_job_flow]
     job_sensor = EmrJobFlowSensor(
         task_id='check_job_flow',
         job_flow_id=job_flow_creator.output,
     )
-    # [END howto_sensor_emr_job_flow_sensor]
+    # [END howto_sensor_emr_job_flow]
+
+    # [START howto_operator_emr_modify_cluster]
+    cluster_modifier = EmrModifyClusterOperator(
+        task_id='modify_cluster', cluster_id=job_flow_creator.output, step_concurrency_level=1
+    )
+    # [END howto_operator_emr_modify_cluster]
+
+    # [START howto_operator_emr_add_steps]
+    step_adder = EmrAddStepsOperator(
+        task_id='add_steps',
+        job_flow_id=job_flow_creator.output,
+        steps=SPARK_STEPS,
+    )
+    # [END howto_operator_emr_add_steps]
+
+    # [START howto_sensor_emr_step]
+    step_checker = EmrStepSensor(
+        task_id='watch_step',
+        job_flow_id=job_flow_creator.output,
+        step_id="{{ task_instance.xcom_pull(task_ids='add_steps', key='return_value')[0] }}",
+    )
+    # [END howto_sensor_emr_step]
+
+    # [START howto_operator_emr_terminate_job_flow]
+    cluster_remover = EmrTerminateJobFlowOperator(
+        task_id='remove_cluster',
+        job_flow_id=job_flow_creator.output,
+    )
+    # [END howto_operator_emr_terminate_job_flow]
+
+    chain(
+        job_flow_creator,
+        job_sensor,
+        cluster_modifier,
+        step_adder,
+        step_checker,
+        cluster_remover,
+    )

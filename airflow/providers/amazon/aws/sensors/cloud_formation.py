@@ -36,7 +36,7 @@ class CloudFormationCreateStackSensor(BaseSensorOperator):
     Waits for a stack to be created successfully on AWS CloudFormation.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:CloudFormationCreateStackSensor`
 
 
@@ -74,7 +74,7 @@ class CloudFormationDeleteStackSensor(BaseSensorOperator):
     Waits for a stack to be deleted successfully on AWS CloudFormation.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:CloudFormationDeleteStackSensor`
 
     :param stack_name: The name of the stack to wait for (templated)

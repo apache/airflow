@@ -56,7 +56,6 @@ class RdsBaseSensor(BaseSensorOperator):
 
     def _check_item(self, item_type: str, item_name: str) -> bool:
         """Get certain item from `_describe_item()` and check its status"""
-
         try:
             items = self._describe_item(item_type, item_name)
         except ClientError:
@@ -70,7 +69,7 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
     Waits for RDS snapshot with a specific status.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:RdsSnapshotExistenceSensor`
 
     :param db_type: Type of the DB - either "instance" or "cluster"
@@ -112,7 +111,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
     Waits for RDS export task with a specific status.
 
     .. seealso::
-        For more information on how to use this operator, take a look at the guide:
+        For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:RdsExportTaskExistenceSensor`
 
     :param export_task_identifier: A unique identifier for the snapshot export task.

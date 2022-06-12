@@ -90,6 +90,8 @@ const config = {
     extensions: [
       '.js',
       '.jsx',
+      '.ts',
+      '.tsx',
       '.css',
     ],
   },
@@ -100,11 +102,11 @@ const config = {
         loader: 'imports-loader?define=>false',
       },
       {
-        test: /\.jsx?$/,
+        test: /\.[j|t]sx?$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
         options: {
-          presets: ['@babel/preset-react'],
+          presets: ['@babel/preset-react', '@babel/preset-typescript'],
         },
       },
       // Extract css files

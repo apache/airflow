@@ -491,9 +491,7 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = [
-    # The limit to Presto 0.8 for unknown reason
-    # TODO: Remove the limit
-    'presto-python-client>=0.7.0,<0.8',
+    'presto-python-client>=0.8.2',
     pandas_requirement,
 ]
 psrp = [

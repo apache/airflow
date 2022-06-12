@@ -86,5 +86,5 @@ class PapermillOperator(BaseOperator):
                 progress_bar=False,
                 report_mode=True,
                 kernel_name=self.kernel_name,
-                language_name=self.language_name,
+                language=self.language_name,
             )
