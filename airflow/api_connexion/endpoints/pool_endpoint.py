@@ -18,13 +18,14 @@
 from http import HTTPStatus
 from typing import Optional
 
-from flask import Response, request
+from flask import Response
 from marshmallow import ValidationError
 from sqlalchemy import func
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.mapping_from_request import get_mapping_from_request
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.pool_schema import PoolCollection, pool_collection_schema, pool_schema
@@ -87,7 +88,10 @@ def patch_pool(
     """Update a pool"""
     # Only slots can be modified in 'default_pool'
     try:
-        if pool_name == Pool.DEFAULT_POOL_NAME and request.json["name"] != Pool.DEFAULT_POOL_NAME:
+        if (
+            pool_name == Pool.DEFAULT_POOL_NAME
+            and get_mapping_from_request()["name"] != Pool.DEFAULT_POOL_NAME
+        ):
             if update_mask and len(update_mask) == 1 and update_mask[0].strip() == "slots":
                 pass
             else:
@@ -100,7 +104,7 @@ def patch_pool(
         raise NotFound(detail=f"Pool with name:'{pool_name}' not found")
 
     try:
-        patch_body = pool_schema.load(request.json)
+        patch_body = pool_schema.load(get_mapping_from_request())
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
@@ -121,7 +125,7 @@ def patch_pool(
 
     else:
         required_fields = {"name", "slots"}
-        fields_diff = required_fields - set(request.json.keys())
+        fields_diff = required_fields - set(get_mapping_from_request().keys())
         if fields_diff:
             raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 
@@ -136,12 +140,12 @@ def patch_pool(
 def post_pool(*, session: Session = NEW_SESSION) -> APIResponse:
     """Create a pool"""
     required_fields = {"name", "slots"}  # Pool would require both fields in the post request
-    fields_diff = required_fields - set(request.json.keys())
+    fields_diff = required_fields - set(get_mapping_from_request().keys())
     if fields_diff:
         raise BadRequest(detail=f"Missing required property(ies): {sorted(fields_diff)}")
 
     try:
-        post_body = pool_schema.load(request.json, session=session)
+        post_body = pool_schema.load(get_mapping_from_request(), session=session)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
