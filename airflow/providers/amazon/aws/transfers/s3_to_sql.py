@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -17,7 +16,7 @@
 # under the License.
 
 import os
-from typing import List, Optional, Sequence, Union, TYPE_CHECKING
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 import pandas
 
@@ -32,7 +31,7 @@ if TYPE_CHECKING:
 
 class S3ToSqlOperator(BaseOperator):
     """
-    Moves data from s3 to sql.
+    Moves data from S3 to SQL.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
