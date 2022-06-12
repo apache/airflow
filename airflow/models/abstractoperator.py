@@ -396,10 +396,7 @@ class AbstractOperator(LoggingMixin, DAGNode):
             return render_template_to_string(template, context)
 
         if isinstance(value, (DagParam, XComArg)):
-            try:
-                return value.resolve(context)
-            except AirflowException:
-                return None
+            return value.resolve(context)
 
         # Fast path for common built-in collections.
         if value.__class__ is tuple:

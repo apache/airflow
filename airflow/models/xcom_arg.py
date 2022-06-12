@@ -149,10 +149,7 @@ class XComArg(DependencyMixin):
             task_ids=self.operator.task_id, key=str(self.key), default=NOTSET, session=session
         )
         if result is NOTSET:
-            raise AirflowException(
-                f'XComArg result from {self.operator.task_id} at {context["ti"].dag_id} '
-                f'with key="{self.key}" is not found!'
-            )
+            return None
         return result
 
     @staticmethod
