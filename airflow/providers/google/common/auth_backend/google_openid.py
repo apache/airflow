@@ -88,7 +88,7 @@ def _verify_id_token(id_token: str) -> Optional[str]:
 
 
 def _lookup_user(user_email: str):
-    security_manager = current_app.appbuilder.sm
+    security_manager = current_app.appbuilder.sm  # type: ignore[attr-defined]
     user = security_manager.find_user(email=user_email)
 
     if not user:

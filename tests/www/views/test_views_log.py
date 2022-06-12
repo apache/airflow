@@ -461,7 +461,7 @@ def test_redirect_to_external_log_with_local_log_handler(log_admin_client, task_
     )
     response = log_admin_client.get(url)
     assert 302 == response.status_code
-    assert 'http://localhost/home' == response.headers['Location']
+    assert '/home' == response.headers['Location']
 
 
 class _ExternalHandler(ExternalLoggingMixin):
