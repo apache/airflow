@@ -52,6 +52,7 @@ from airflow.utils.cli import (
 )
 from airflow.utils.dates import timezone
 from airflow.utils.log.logging_mixin import StreamLogWriter
+from airflow.utils.log.secrets_masker import RedactedIO
 from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
@@ -539,10 +540,11 @@ def task_test(args, dag=None):
     ti, dr_created = _get_ti(task, args.execution_date_or_run_id, args.map_index, create_if_necessary="db")
 
     try:
-        if args.dry_run:
-            ti.dry_run()
-        else:
-            ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
+        with redirect_stdout(RedactedIO()):
+            if args.dry_run:
+                ti.dry_run()
+            else:
+                ti.run(ignore_task_deps=True, ignore_ti_state=True, test_mode=True)
     except Exception:
         if args.post_mortem:
             debugger = _guess_debugger()

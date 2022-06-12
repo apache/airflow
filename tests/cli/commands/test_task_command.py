@@ -57,7 +57,7 @@ def reset(dag_id):
 
 
 # TODO: Check if tests needs side effects - locally there's missing DAG
-class TestCliTasks(unittest.TestCase):
+class TestCliTasks:
     run_id = 'TEST_RUN_ID'
     dag_id = 'example_python_operator'
     parser: ArgumentParser
@@ -66,7 +66,7 @@ class TestCliTasks(unittest.TestCase):
     dag_run: DagRun
 
     @classmethod
-    def setUpClass(cls):
+    def setup_class(cls):
         cls.dagbag = DagBag(include_examples=True)
         cls.parser = cli_parser.get_parser()
         clear_db_runs()
@@ -77,7 +77,7 @@ class TestCliTasks(unittest.TestCase):
         )
 
     @classmethod
-    def tearDownClass(cls) -> None:
+    def teardown_class(cls) -> None:
         clear_db_runs()
 
     def test_cli_list_tasks(self):
@@ -102,20 +102,34 @@ class TestCliTasks(unittest.TestCase):
         assert "'example_python_operator__print_the_context__20180101'" in stdout.getvalue()
 
     @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
-    def test_test_with_existing_dag_run(self):
+    def test_test_with_existing_dag_run(self, caplog):
         """Test the `airflow test` command"""
         task_id = 'print_the_context'
-
         args = self.parser.parse_args(["tasks", "test", self.dag_id, task_id, DEFAULT_DATE.isoformat()])
-
-        with self.assertLogs('airflow.task', level='INFO') as cm:
+        with caplog.at_level("INFO", logger="airflow.task"):
             task_command.task_test(args)
-            assert any(
-                [
-                    f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in log
-                    for log in cm.output
-                ]
-            )
+        assert f"Marking task as SUCCESS. dag_id={self.dag_id}, task_id={task_id}" in caplog.text
+
+    @pytest.mark.filterwarnings("ignore::airflow.utils.context.AirflowContextDeprecationWarning")
+    def test_test_filters_secrets(self, capsys):
+        """Test ``airflow test`` does not print secrets to stdout.
+
+        Output should be filtered by SecretsMasker.
+        """
+        password = "somepassword1234!"
+        logging.getLogger("airflow.task").filters[0].add_mask(password)
+        args = self.parser.parse_args(
+            ["tasks", "test", "example_python_operator", "print_the_context", "2018-01-01"],
+        )
+
+        with mock.patch("airflow.models.TaskInstance.run", new=lambda *_, **__: print(password)):
+            task_command.task_test(args)
+        assert capsys.readouterr().out.endswith("***\n")
+
+        not_password = "!4321drowssapemos"
+        with mock.patch("airflow.models.TaskInstance.run", new=lambda *_, **__: print(not_password)):
+            task_command.task_test(args)
+        assert capsys.readouterr().out.endswith(f"{not_password}\n")
 
     @mock.patch("airflow.cli.commands.task_command.LocalTaskJob")
     def test_run_with_existing_dag_run_id(self, mock_local_job):
@@ -164,7 +178,7 @@ class TestCliTasks(unittest.TestCase):
             task0_id,
             run_id,
         ]
-        with self.assertRaises(DagRunNotFound):
+        with pytest.raises(DagRunNotFound):
             task_command.task_run(self.parser.parse_args(args0), dag=dag)
 
     def test_cli_test_with_params(self):
