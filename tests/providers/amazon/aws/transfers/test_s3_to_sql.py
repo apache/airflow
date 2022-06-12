@@ -72,7 +72,8 @@ class TestS3ToSqlTransfer(unittest.TestCase):
         S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
 
         mock_download_file.assert_called_once_with(key=self.s3_to_sql_transfer_kwargs['s3_key'])
-        mock_read_file.assert_called_once_with(mock_download_file.return_value)
+        mock_read_file.assert_called_once_with(mock_download_file.return_value,
+                                               self.s3_to_sql_transfer_kwargs['file_options'])
         mock_get_hook.assert_called_once_with(self.s3_to_sql_transfer_kwargs['destination_conn_id'])
         mock_remove.assert_called_once_with(mock_download_file.return_value)
 
