@@ -20,13 +20,40 @@
 Package apache-airflow-providers-alibaba
 ------------------------------------------------------
 
-Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com//>`__).
+Alibaba Cloud integration (including `Alibaba Cloud <https://www.alibabacloud.com>`__).
 
 
 This is detailed commit list of changes for versions provider package: ``alibaba``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
+
+2.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  =======================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`c887275bb8 <https://github.com/apache/airflow/commit/c887275bb8ad29930f5a2cc5e5270533f92b80d1>`_  2022-06-03   ``Migrate Alibaba example DAGs to new design #22437 (#24130)``
+`d19cb86660 <https://github.com/apache/airflow/commit/d19cb86660d40e665d8c4fe2b07d76b88532bd8b>`_  2022-05-31   ``SSL Bucket, Light Logic Refactor and Docstring Update for Alibaba Provider (#23891)``
+=================================================================================================  ===========  =======================================================================================
+
+1.1.1
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
+=================================================================================================  ===========  ==============================================================
 
 1.1.0
 .....

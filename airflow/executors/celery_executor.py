@@ -33,7 +33,7 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from enum import Enum
 from multiprocessing import cpu_count
-from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Set, Tuple, Union
+from typing import Any, Dict, List, Mapping, MutableMapping, Optional, Sequence, Set, Tuple, Union
 
 from celery import Celery, Task, states as celery_states
 from celery.backends.base import BaseKeyValueStoreBackend
@@ -478,7 +478,7 @@ class CeleryExecutor(BaseExecutor):
     def terminate(self):
         pass
 
-    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         # See which of the TIs are still alive (or have finished even!)
         #
         # Since Celery doesn't store "SENT" state for queued commands (if we create an AsyncResult with a made

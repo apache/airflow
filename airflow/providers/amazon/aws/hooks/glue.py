@@ -185,7 +185,7 @@ class GlueJobHook(AwsBaseHook):
                     "Name": "glueetl",
                     "ScriptLocation": self.script_location,
                 }
-                command = self.create_job_kwargs.get("Command", default_command)
+                command = self.create_job_kwargs.pop("Command", default_command)
 
                 if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
                     create_job_response = glue_client.create_job(

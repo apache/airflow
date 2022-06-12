@@ -24,6 +24,35 @@
 Changelog
 ---------
 
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Add Deferrable Databricks operators (#19736)``
+* ``Add git_source to DatabricksSubmitRunOperator (#23620)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: DatabricksSubmitRunOperator and DatabricksRunNowOperator cannot define .json as template_ext (#23622) (#23641)``
+* ``Fix UnboundLocalError when sql is empty list in DatabricksSqlHook (#23815)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``AIP-47 - Migrate databricks DAGs to new design #22442 (#24203)``
+   * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
 2.7.0
 .....
 
@@ -67,7 +96,6 @@ Misc
    * ``Fix new MyPy errors in main (#22884)``
    * ``Prepare mid-April provider documentation. (#22819)``
 
-.. Review and move the new changes to one of the sections above:
    * ``Prepare for RC2 release of March Databricks provider (#22979)``
 
 2.5.0

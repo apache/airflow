@@ -55,8 +55,8 @@ export const AutoRefreshProvider = ({ children }) => {
 
   useEffect(() => {
     const handleChange = (e) => {
-      setIsPaused(!e.value);
-      if (!e.value) {
+      setIsPaused(!e.detail);
+      if (!e.detail) {
         stopRefresh();
       }
     };

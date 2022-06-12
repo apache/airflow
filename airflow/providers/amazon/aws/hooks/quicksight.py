@@ -72,7 +72,6 @@ class QuickSightHook(AwsBaseHook):
             having Ingestion ARN, HTTP status, ingestion ID and ingestion status.
         :rtype: Dict
         """
-
         self.log.info("Creating QuickSight Ingestion for data set id %s.", data_set_id)
         quicksight_client = self.get_conn()
         try:
@@ -136,7 +135,6 @@ class QuickSightHook(AwsBaseHook):
             will check the status of QuickSight Ingestion
         :return: response of describe_ingestion call after Ingestion is is done
         """
-
         sec = 0
         status = self.get_status(aws_account_id, data_set_id, ingestion_id)
         while status in self.NON_TERMINAL_STATES and status != target_state:

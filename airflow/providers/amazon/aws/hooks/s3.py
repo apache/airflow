@@ -162,7 +162,6 @@ class S3Hook(AwsBaseHook):
         :return: the parsed bucket name and key
         :rtype: tuple of str
         """
-
         if bucket is None:
             return S3Hook.parse_s3_url(key)
 

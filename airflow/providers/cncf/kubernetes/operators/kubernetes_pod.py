@@ -593,7 +593,6 @@ class KubernetesPodOperator(BaseOperator):
         When we find values there that we need to apply on the hook, we patch special
         hook attributes here.
         """
-
         # default for enable_tcp_keepalive is True; patch if False
         if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
             hook._deprecated_core_disable_tcp_keepalive = True

@@ -19,7 +19,9 @@ import os
 from datetime import datetime
 
 from airflow import DAG
+from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.emr import EmrContainerOperator
+from airflow.providers.amazon.aws.sensors.emr import EmrContainerSensor
 
 VIRTUAL_CLUSTER_ID = os.getenv("VIRTUAL_CLUSTER_ID", "test-cluster")
 JOB_ROLE_ARN = os.getenv("JOB_ROLE_ARN", "arn:aws:iam::012345678912:role/emr_eks_default_role")
@@ -51,18 +53,13 @@ CONFIGURATION_OVERRIDES_ARG = {
 # [END howto_operator_emr_eks_config]
 
 with DAG(
-    dag_id='example_emr_eks_job',
+    dag_id='example_emr_eks',
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
 ) as dag:
-
-    # An example of how to get the cluster id and arn from an Airflow connection
-    # VIRTUAL_CLUSTER_ID = '{{ conn.emr_eks.extra_dejson["virtual_cluster_id"] }}'
-    # JOB_ROLE_ARN = '{{ conn.emr_eks.extra_dejson["job_role_arn"] }}'
-
-    # [START howto_operator_emr_eks_job]
+    # [START howto_operator_emr_container]
     job_starter = EmrContainerOperator(
         task_id="start_job",
         virtual_cluster_id=VIRTUAL_CLUSTER_ID,
@@ -71,5 +68,14 @@ with DAG(
         job_driver=JOB_DRIVER_ARG,
         configuration_overrides=CONFIGURATION_OVERRIDES_ARG,
         name="pi.py",
+        wait_for_completion=False,
     )
-    # [END howto_operator_emr_eks_job]
+    # [END howto_operator_emr_container]
+
+    # [START howto_sensor_emr_container]
+    job_waiter = EmrContainerSensor(
+        task_id="job_waiter", virtual_cluster_id=VIRTUAL_CLUSTER_ID, job_id=str(job_starter.output)
+    )
+    # [END howto_sensor_emr_container]
+
+    chain(job_starter, job_waiter)
