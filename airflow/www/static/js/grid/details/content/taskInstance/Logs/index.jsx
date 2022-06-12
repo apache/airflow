@@ -102,6 +102,17 @@ const Logs = ({
   ),
   [data, logGroupFilter, logLevelFilter, timezone]);
 
+  useEffect(() => {
+    // Reset filters and selected attempt when changing to
+    // a task that do not have those filters anymore.
+    if (!internalIndexes.includes(selectedAttempt)) {
+      setSelectedAttempt(internalIndexes[0]);
+    }
+    if (logGroupFilter && !logGroups.includes(logGroupFilter)) {
+      setLogGroupFilter('');
+    }
+  }, [data, internalIndexes, logGroupFilter, logGroups, selectedAttempt]);
+
   return (
     <>
       {tryNumber > 0 && (
