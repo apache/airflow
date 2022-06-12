@@ -17,16 +17,15 @@
 # under the License.
 import ast
 import sys
-from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.emr import EmrHook
+from airflow.providers.amazon.aws.links.emr import EmrClusterLink
 
 if TYPE_CHECKING:
-    from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
 
@@ -62,6 +61,7 @@ class EmrAddStepsOperator(BaseOperator):
     template_ext: Sequence[str] = ('.json',)
     template_fields_renderers = {"steps": "json"}
     ui_color = '#f9c915'
+    operator_extra_links = (EmrClusterLink(),)
 
     def __init__(
         self,
@@ -100,6 +100,14 @@ class EmrAddStepsOperator(BaseOperator):
 
         if self.do_xcom_push:
             context['ti'].xcom_push(key='job_flow_id', value=job_flow_id)
+
+        EmrClusterLink.persist(
+            context=context,
+            operator=self,
+            region_name=emr_hook.conn_region_name,
+            aws_partition=emr_hook.conn_partition,
+            job_flow_id=job_flow_id,
+        )
 
         self.log.info('Adding steps to %s', job_flow_id)
 
@@ -243,38 +251,6 @@ class EmrContainerOperator(BaseOperator):
                     self.hook.poll_query_status(self.job_id)
 
 
-class EmrClusterLink(BaseOperatorLink):
-    """Operator link for EmrCreateJobFlowOperator. It allows users to access the EMR Cluster"""
-
-    name = 'EMR Cluster'
-
-    def get_link(
-        self,
-        operator,
-        dttm: Optional[datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
-    ) -> str:
-        """
-        Get link to EMR cluster.
-
-        :param operator: operator
-        :param dttm: datetime
-        :return: url link
-        """
-        if ti_key is not None:
-            flow_id = XCom.get_value(key="return_value", ti_key=ti_key)
-        else:
-            assert dttm
-            flow_id = XCom.get_one(
-                key="return_value", dag_id=operator.dag_id, task_id=operator.task_id, execution_date=dttm
-            )
-        return (
-            f'https://console.aws.amazon.com/elasticmapreduce/home#cluster-details:{flow_id}'
-            if flow_id
-            else ''
-        )
-
-
 class EmrCreateJobFlowOperator(BaseOperator):
     """
     Creates an EMR JobFlow, reading the config from the EMR connection.
@@ -339,8 +315,16 @@ class EmrCreateJobFlowOperator(BaseOperator):
         if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
             raise AirflowException(f'JobFlow creation failed: {response}')
         else:
-            self.log.info('JobFlow with id %s created', response['JobFlowId'])
-            return response['JobFlowId']
+            job_flow_id = response['JobFlowId']
+            self.log.info('JobFlow with id %s created', job_flow_id)
+            EmrClusterLink.persist(
+                context=context,
+                operator=self,
+                region_name=emr.conn_region_name,
+                aws_partition=emr.conn_partition,
+                job_flow_id=job_flow_id,
+            )
+            return job_flow_id
 
 
 class EmrModifyClusterOperator(BaseOperator):
@@ -360,6 +344,7 @@ class EmrModifyClusterOperator(BaseOperator):
     template_fields: Sequence[str] = ('cluster_id', 'step_concurrency_level')
     template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
+    operator_extra_links = (EmrClusterLink(),)
 
     def __init__(
         self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = 'aws_default', **kwargs
@@ -373,11 +358,18 @@ class EmrModifyClusterOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> int:
         emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
-
         emr = emr_hook.get_conn()
 
         if self.do_xcom_push:
             context['ti'].xcom_push(key='cluster_id', value=self.cluster_id)
+
+        EmrClusterLink.persist(
+            context=context,
+            operator=self,
+            region_name=emr_hook.conn_region_name,
+            aws_partition=emr_hook.conn_partition,
+            job_flow_id=self.cluster_id,
+        )
 
         self.log.info('Modifying cluster %s', self.cluster_id)
         response = emr.modify_cluster(
@@ -406,6 +398,7 @@ class EmrTerminateJobFlowOperator(BaseOperator):
     template_fields: Sequence[str] = ('job_flow_id',)
     template_ext: Sequence[str] = ()
     ui_color = '#f9c915'
+    operator_extra_links = (EmrClusterLink(),)
 
     def __init__(self, *, job_flow_id: str, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
@@ -413,7 +406,16 @@ class EmrTerminateJobFlowOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
 
     def execute(self, context: 'Context') -> None:
-        emr = EmrHook(aws_conn_id=self.aws_conn_id).get_conn()
+        emr_hook = EmrHook(aws_conn_id=self.aws_conn_id)
+        emr = emr_hook.get_conn()
+
+        EmrClusterLink.persist(
+            context=context,
+            operator=self,
+            region_name=emr_hook.conn_region_name,
+            aws_partition=emr_hook.conn_partition,
+            job_flow_id=self.job_flow_id,
+        )
 
         self.log.info('Terminating JobFlow %s', self.job_flow_id)
         response = emr.terminate_job_flows(JobFlowIds=[self.job_flow_id])
