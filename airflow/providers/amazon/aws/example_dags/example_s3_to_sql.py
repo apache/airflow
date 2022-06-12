@@ -33,6 +33,7 @@ with models.DAG(
 ) as dag:
     # [START howto_transfer_s3_to_sql]
     s3_to_sql_task = S3ToSqlOperator(
+        task_id='example_s3_to_sql',
         s3_key=S3_KEY,
         destination_table=DESTINATION_TABLE,
         file_format='csv',
