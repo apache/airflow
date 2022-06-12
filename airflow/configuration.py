@@ -41,7 +41,7 @@ from urllib.parse import urlparse
 from typing_extensions import overload
 
 from airflow.exceptions import AirflowConfigException
-from airflow.secrets.base_secrets import BaseSecretsBackend
+from airflow.secrets import BaseSecretsBackend
 from airflow.utils import yaml
 from airflow.utils.module_loading import import_string
 from airflow.utils.weight_rule import WeightRule
