@@ -17,9 +17,9 @@
  * under the License.
  */
 
-import { defaultFormatWithTZ } from '../../../../../datetime_utils';
-
 /* global moment */
+
+import { defaultFormatWithTZ } from '../../../../../datetime_utils';
 
 export const LogLevel = {
   DEBUG: 'DEBUG',
@@ -49,24 +49,21 @@ export const parseLogs = (data, timezone, logLevelFilter, logGroupFilter) => {
 
     const regExp = /\[(.*?)\] \{(.*?)\}/;
     const matches = line.match(regExp);
+    let logGroup = '';
     if (matches) {
       // Replace UTC with the local timezone.
       const dateTime = matches[1];
-      const logGroup = matches[2].split(':')[0];
+      [logGroup] = matches[2].split(':');
       if (dateTime && timezone) {
-        const localDateTime = moment(dateTime).tz(timezone).format(defaultFormatWithTZ);
+        const localDateTime = moment.utc(dateTime).tz(timezone).format(defaultFormatWithTZ);
         parsedLine = line.replace(dateTime, localDateTime);
       }
 
       logGroups.add(logGroup);
-
-      // Apply the log group filter.
-      if (logGroupFilter && logGroup !== logGroupFilter) {
-        return;
-      }
     }
-
-    parsedLines.push(parsedLine);
+    if (!logGroupFilter || logGroupFilter === logGroup) {
+      parsedLines.push(parsedLine);
+    }
   });
 
   return { parsedLogs: parsedLines.join('\n'), logGroups: Array.from(logGroups).sort() };
