@@ -1338,7 +1338,7 @@ ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     AIRFLOW_IS_IN_CONTEXT=${AIRFLOW_IS_IN_CONTEXT} \
     EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
-WORKDIR /opt/airflow
+WORKDIR ${AIRFLOW_HOME}
 
 COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
      install_additional_dependencies.sh /scripts/docker/
@@ -1473,7 +1473,7 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
-# That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
+# That also protects against AUFS Docker backend problem where changing the executable bit required sync
 RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mssql.sh \
     && bash /scripts/docker/install_postgres.sh prod \
