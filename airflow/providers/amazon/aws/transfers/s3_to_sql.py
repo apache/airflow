@@ -25,6 +25,7 @@ from airflow.hooks.base import BaseHook
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.s3 import fix_int_dtypes
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -35,7 +36,7 @@ class S3ToSqlOperator(BaseOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:S3ToSqlOperator `
+        :ref:`howto/operator:S3ToSqlOperator`
 
     :param s3_key: path to s3 file. (templated)
     :param destination_table: target table on sql. (templated)
