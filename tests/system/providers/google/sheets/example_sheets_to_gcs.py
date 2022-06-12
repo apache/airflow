@@ -20,22 +20,56 @@ import os
 from datetime import datetime
 
 from airflow import models
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.sheets_to_gcs import GoogleSheetsToGCSOperator
+from airflow.utils.trigger_rule import TriggerRule
 
-BUCKET = os.environ.get("GCP_GCS_BUCKET", "test28397yeo")
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+DAG_ID = "example_sheets_to_gcs"
+
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 SPREADSHEET_ID = os.environ.get("SPREADSHEET_ID", "1234567890qwerty")
 
 with models.DAG(
-    "example_sheets_to_gcs",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=["example"],
+    tags=["example", "sheets"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+    )
+
     # [START upload_sheet_to_gcs]
     upload_sheet_to_gcs = GoogleSheetsToGCSOperator(
         task_id="upload_sheet_to_gcs",
-        destination_bucket=BUCKET,
+        destination_bucket=BUCKET_NAME,
         spreadsheet_id=SPREADSHEET_ID,
     )
     # [END upload_sheet_to_gcs]
+
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (
+        # TEST SETUP
+        create_bucket
+        # TEST BODY
+        >> upload_sheet_to_gcs
+        # TEST TEARDOWN
+        >> delete_bucket
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
