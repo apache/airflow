@@ -924,7 +924,7 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
 
     session.add(dag_run)
     session.flush()
-    dag_run.verify_integrity(session)
+    dag_run.verify_integrity(session=session)
 
     tis = dag_run.task_instances
     assert len(tis) == expected_tis

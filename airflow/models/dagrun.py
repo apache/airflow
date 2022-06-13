@@ -642,9 +642,9 @@ class DagRun(Base, LoggingMixin):
         tis = list(self.get_task_instances(session=session, state=State.task_states))
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
         dag = self.get_dag()
-
-        if self.should_verify_integrity(dag, tis, session=session):
-            self.verify_integrity(session=session)
+        missing_indexes = self._find_missing_task_indexes(dag, tis, session=session)
+        if missing_indexes:
+            self.verify_integrity(missing_indexes=missing_indexes, session=session)
 
         unfinished_tis = [t for t in tis if t.state in State.unfinished]
         finished_tis = [t for t in tis if t.state in State.finished]
@@ -805,11 +805,12 @@ class DagRun(Base, LoggingMixin):
             Stats.timing(f'dagrun.duration.failed.{self.dag_id}', duration)
 
     @provide_session
-    def verify_integrity(self, session: Session = NEW_SESSION):
+    def verify_integrity(self, *, missing_indexes=None, session: Session = NEW_SESSION):
         """
         Verifies the DagRun by checking for removed tasks or tasks that are not in the
         database yet. It will set state to removed or add the task if required.
 
+        :missing_indexes: A dictionary of task vs indexes that are missing.
         :param session: Sqlalchemy ORM Session
         """
         from airflow.settings import task_instance_mutation_hook
@@ -818,9 +819,16 @@ class DagRun(Base, LoggingMixin):
         hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
 
         dag = self.get_dag()
-        task_ids, missing_indexes = self._check_for_removed_or_restored_tasks(
-            dag, task_instance_mutation_hook, session=session
-        )
+        task_ids = set()
+        if missing_indexes:
+            tis = self.get_task_instances(session=session)
+            for ti in tis:
+                task_instance_mutation_hook(ti)
+                task_ids.add(ti.task_id)
+        else:
+            task_ids, missing_indexes = self._check_for_removed_or_restored_tasks(
+                dag, task_instance_mutation_hook, session=session
+            )
 
         def task_filter(task: "Operator") -> bool:
             return task.task_id not in task_ids and (
@@ -1048,14 +1056,19 @@ class DagRun(Base, LoggingMixin):
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
-    def should_verify_integrity(self, dag, tis, *, session) -> bool:
+    def _find_missing_task_indexes(self, dag, tis, *, session) -> Dict["MappedOperator", List[int]]:
         """
         Here we check if the length of the mapped task instances changed
-        at runtime. If so, we need to verify the integrity of the mapped
-        tasks.
+        at runtime. If so, we find the missing indexes.
+
+        This function also marks task instances with missing indexes as REMOVED.
+
+        :param dag: DAG object corresponding to the dagrun
+        :param tis: task instances to check
+        :param session: the session to use
         """
         existing_indexes: Dict["MappedOperator", list] = defaultdict(list)
-        new_indexes: Dict["MappedOperator", list] = defaultdict(list)
+        new_indexes: Dict["MappedOperator", Sequence[int]] = defaultdict(list)
         for ti in tis:
             try:
                 ti.task = dag.get_task(ti.task_id)
@@ -1074,10 +1087,11 @@ class DagRun(Base, LoggingMixin):
             existing_indexes[task].append(ti.map_index)
             task.run_time_mapped_ti_count.cache_clear()
             new_length = task.run_time_mapped_ti_count(self.run_id, session=session) or 0
-            new_indexes.update({task: list(range(new_length))})
+            new_indexes[task] = range(new_length)
         missing_indexes: Dict["MappedOperator", list] = defaultdict(list)
-        [missing_indexes.update({k: list(set(new_indexes[k]) - set(v))}) for k, v in existing_indexes.items()]
-        return len(missing_indexes.values()) > 0
+        for k, v in existing_indexes.items():
+            missing_indexes.update({k: list(set(new_indexes[k]).difference(v))})
+        return missing_indexes
 
     @staticmethod
     def get_run(session: Session, dag_id: str, execution_date: datetime) -> Optional['DagRun']:
