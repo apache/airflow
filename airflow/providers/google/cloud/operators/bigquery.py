@@ -19,10 +19,7 @@
 
 """This module contains Google BigQuery operators."""
 import enum
-import hashlib
 import json
-import re
-import uuid
 import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
@@ -30,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence,
 import attr
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY
+from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -2119,21 +2116,6 @@ class BigQueryInsertJobOperator(BaseOperator):
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
-    def _job_id(self, context):
-        if self.force_rerun:
-            hash_base = str(uuid.uuid4())
-        else:
-            hash_base = json.dumps(self.configuration, sort_keys=True)
-
-        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
-
-        if self.job_id:
-            return f"{self.job_id}_{uniqueness_suffix}"
-
-        exec_date = context['logical_date'].isoformat()
-        job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
-        return re.sub(r"[:\-+.]", "_", job_id)
-
     def execute(self, context: Any):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -2142,7 +2124,14 @@ class BigQueryInsertJobOperator(BaseOperator):
         )
         self.hook = hook
 
-        job_id = self._job_id(context)
+        job_id = hook.generate_job_id(
+            job_id=self.job_id,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=context["logical_date"],
+            configuration=self.configuration,
+            force_rerun=self.force_rerun,
+        )
 
         try:
             self.log.info(f"Executing: {self.configuration}")
@@ -2167,16 +2156,34 @@ class BigQueryInsertJobOperator(BaseOperator):
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
-        if "query" in job.to_api_repr()["configuration"]:
-            if "destinationTable" in job.to_api_repr()["configuration"]["query"]:
-                table = job.to_api_repr()["configuration"]["query"]["destinationTable"]
-                BigQueryTableLink.persist(
-                    context=context,
-                    task_instance=self,
-                    dataset_id=table["datasetId"],
-                    project_id=table["projectId"],
-                    table_id=table["tableId"],
-                )
+        job_types = {
+            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            ExtractJob._JOB_TYPE: ["sourceTable"],
+            QueryJob._JOB_TYPE: ["destinationTable"],
+        }
+
+        for job_type, tables_prop in job_types.items():
+            if job_type in job.to_api_repr()["configuration"]:
+                for table_prop in tables_prop:
+                    if table_prop in job.to_api_repr()["configuration"][job_type]:
+                        table = job.to_api_repr()["configuration"][job_type][table_prop]
+                        if self.project_id:
+                            if isinstance(table, str):
+                                BigQueryTableLink.persist(
+                                    context=context,
+                                    task_instance=self,
+                                    project_id=self.project_id,
+                                    table_id=table,
+                                )
+                            else:
+                                BigQueryTableLink.persist(
+                                    context=context,
+                                    task_instance=self,
+                                    dataset_id=table["datasetId"],
+                                    project_id=self.project_id,
+                                    table_id=table["tableId"],
+                                )
 
         self.job_id = job.job_id
         return job.job_id
