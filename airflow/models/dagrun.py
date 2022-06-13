@@ -805,7 +805,12 @@ class DagRun(Base, LoggingMixin):
             Stats.timing(f'dagrun.duration.failed.{self.dag_id}', duration)
 
     @provide_session
-    def verify_integrity(self, *, missing_indexes=None, session: Session = NEW_SESSION):
+    def verify_integrity(
+        self,
+        *,
+        missing_indexes: Optional[Dict["MappedOperator", Sequence[int]]] = None,
+        session: Session = NEW_SESSION,
+    ):
         """
         Verifies the DagRun by checking for removed tasks or tasks that are not in the
         database yet. It will set state to removed or add the task if required.
@@ -819,7 +824,7 @@ class DagRun(Base, LoggingMixin):
         hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
 
         dag = self.get_dag()
-        task_ids = set()
+        task_ids: Set[str] = set()
         if missing_indexes:
             tis = self.get_task_instances(session=session)
             for ti in tis:
@@ -978,7 +983,7 @@ class DagRun(Base, LoggingMixin):
         dag: "DAG",
         task_creator: Callable,
         task_filter: Callable,
-        missing_indexes: Dict["MappedOperator", Sequence[int]],
+        missing_indexes: Optional[Dict["MappedOperator", Sequence[int]]],
         *,
         session: Session,
     ) -> Iterable["Operator"]:
@@ -1056,12 +1061,12 @@ class DagRun(Base, LoggingMixin):
             # TODO[HA]: We probably need to savepoint this so we can keep the transaction alive.
             session.rollback()
 
-    def _find_missing_task_indexes(self, dag, tis, *, session) -> Dict["MappedOperator", List[int]]:
+    def _find_missing_task_indexes(self, dag, tis, *, session) -> Dict["MappedOperator", Sequence[int]]:
         """
         Here we check if the length of the mapped task instances changed
         at runtime. If so, we find the missing indexes.
 
-        This function also marks task instances with missing indexes as REMOVED.
+        This function also marks task instances with missing tasks as REMOVED.
 
         :param dag: DAG object corresponding to the dagrun
         :param tis: task instances to check
@@ -1087,7 +1092,7 @@ class DagRun(Base, LoggingMixin):
             task.run_time_mapped_ti_count.cache_clear()
             new_length = task.run_time_mapped_ti_count(self.run_id, session=session) or 0
             new_indexes[task] = range(new_length)
-        missing_indexes: Dict["MappedOperator", list] = defaultdict(list)
+        missing_indexes: Dict["MappedOperator", Sequence[int]] = defaultdict(list)
         for k, v in existing_indexes.items():
             missing_indexes.update({k: list(set(new_indexes[k]).difference(v))})
         return missing_indexes
