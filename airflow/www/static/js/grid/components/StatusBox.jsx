@@ -23,12 +23,12 @@ import React from 'react';
 import { isEqual } from 'lodash';
 import {
   Box,
-  Tooltip,
   useTheme,
 } from '@chakra-ui/react';
 
 import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from '../context/containerRef';
+import Tooltip from './Tooltip';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
@@ -72,11 +72,11 @@ const StatusBox = ({
 
   return (
     <Tooltip
-      label={<InstanceTooltip instance={instance} group={group} />}
-      portalProps={{ containerRef }}
-      hasArrow
-      placement="top"
-      openDelay={400}
+      content={<InstanceTooltip instance={instance} group={group} />}
+      // portalProps={{ containerRef }}
+      // hasArrow
+      // placement="top"
+      // openDelay={400}
     >
       <Box>
         <SimpleStatus
@@ -88,6 +88,7 @@ const StatusBox = ({
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           opacity={isActive ? 1 : 0.3}
+
         />
       </Box>
     </Tooltip>
