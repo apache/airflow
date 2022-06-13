@@ -45,7 +45,7 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
                 return (
                     render_template(
                         'airflow/no_roles_permissions.html',
-                        hostname=get_hostname
+                        hostname=get_hostname()
                         if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
                         else 'redact',
                         logout_url=appbuilder.get_url_for_logout,
