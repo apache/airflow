@@ -79,7 +79,7 @@
   },
   "dependencies": {
     "@chakra-ui/react": "^2.2.0",
-    "@emotion/cache": "^11.4.0",
+    "@emotion/cache": "^11.9.3",
     "@emotion/react": "^11.9.3",
     "@emotion/styled": "^11",
     "axios": "^0.26.0",
