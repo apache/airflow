@@ -50,6 +50,7 @@ describe('Test Logs Utils.', () => {
       null,
       null,
     );
+
     expect(parsedLogs).toContain('2022-06-04, 00:00:01 UTC');
     expect(fileSources).toEqual([
       'dagbag.py',
@@ -57,7 +58,6 @@ describe('Test Logs Utils.', () => {
       'task_command.py',
       'taskinstance.py',
     ]);
-
     const result = parseLogs(
       mockTaskLog,
       'America/Los_Angeles',
@@ -83,7 +83,6 @@ describe('Test Logs Utils.', () => {
       );
 
       expect(fileSources).toHaveLength(expectedNumberOfFileSources);
-
       const lines = parsedLogs.split('\n');
       expect(lines).toHaveLength(expectedNumberOfLines);
       lines.forEach((line) => expect(line).toContain(logLevelFilter));
@@ -96,15 +95,34 @@ describe('Test Logs Utils.', () => {
       null,
       'taskinstance.py',
     );
+
     expect(fileSources).toEqual([
       'dagbag.py',
       'standard_task_runner.py',
       'task_command.py',
       'taskinstance.py',
     ]);
-
     const lines = parsedLogs.split('\n');
     expect(lines).toHaveLength(7);
     lines.forEach((line) => expect(line).toContain('taskinstance.py'));
+  });
+
+  test('parseLogs function with filter on log level and file source', () => {
+    const { parsedLogs, fileSources } = parseLogs(
+      mockTaskLog,
+      null,
+      'INFO',
+      'taskinstance.py',
+    );
+
+    expect(fileSources).toEqual([
+      'dagbag.py',
+      'standard_task_runner.py',
+      'task_command.py',
+      'taskinstance.py',
+    ]);
+    const lines = parsedLogs.split('\n');
+    expect(lines).toHaveLength(6);
+    lines.forEach((line) => expect(line).toContain('INFO'));
   });
 });

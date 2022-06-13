@@ -133,27 +133,30 @@ const Logs = ({
             ))}
           </Flex>
           <Flex alignItems="center">
-            <Select
-              size="sm"
-              value={logLevelFilter}
-              onChange={(e) => setLogLevelFilter(e.target.value)}
-              mr={2}
-            >
-              <option value="" key="all">All Levels</option>
-              {Object.values(logLevel).map((value) => (
-                <option value={value} key={value}>{value}</option>
-              ))}
-            </Select>
-            <Select
-              size="sm"
-              value={fileSourceFilter}
-              onChange={(e) => setFileSourceFilter(e.target.value)}
-            >
-              <option value="" key="all">All File Sources</option>
-              {fileSources.map((value) => (
-                <option value={value} key={value}>{value}</option>
-              ))}
-            </Select>
+            <Box w="90px" mr={2}>
+              <Select
+                size="sm"
+                value={logLevelFilter}
+                onChange={(e) => setLogLevelFilter(e.target.value)}
+              >
+                <option value="" key="all">All Levels</option>
+                {Object.values(logLevel).map((value) => (
+                  <option value={value} key={value}>{value}</option>
+                ))}
+              </Select>
+            </Box>
+            <Box w="110px">
+              <Select
+                size="sm"
+                value={fileSourceFilter}
+                onChange={(e) => setFileSourceFilter(e.target.value)}
+              >
+                <option value="" key="all">All File Sources</option>
+                {fileSources.map((value) => (
+                  <option value={value} key={value}>{value}</option>
+                ))}
+              </Select>
+            </Box>
           </Flex>
           <Flex alignItems="center">
             <Checkbox
