@@ -1071,8 +1071,7 @@ class DagRun(Base, LoggingMixin):
         new_indexes: Dict["MappedOperator", Sequence[int]] = defaultdict(list)
         for ti in tis:
             try:
-                ti.task = dag.get_task(ti.task_id)
-                task = ti.task
+                task = ti.task = dag.get_task(ti.task_id)
             except TaskNotFound:
                 self.log.error("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, ti.dag_id)
 
