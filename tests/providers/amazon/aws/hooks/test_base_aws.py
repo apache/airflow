@@ -114,7 +114,7 @@ class CustomSessionFactory(BaseSessionFactory):
         return mock.MagicMock()
 
 
-class TestAwsBaseHook(unittest.TestCase):
+class TestAwsBaseHook:
     @conf_vars(
         {("aws", "session_factory"): "tests.providers.amazon.aws.hooks.test_base_aws.CustomSessionFactory"}
     )
@@ -646,6 +646,60 @@ class TestAwsBaseHook(unittest.TestCase):
             client.get_caller_identity()
             assert mock_refresh.call_count == 2
             assert len(expire_on_calls) == 0
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    @pytest.mark.parametrize("conn_type", ["client", "resource"])
+    @pytest.mark.parametrize(
+        "connection_uri,region_name,env_region,expected_region_name",
+        [
+            ("aws://?region_name=eu-west-1", None, "", "eu-west-1"),
+            ("aws://?region_name=eu-west-1", "cn-north-1", "", "cn-north-1"),
+            ("aws://?region_name=eu-west-1", None, "us-east-2", "eu-west-1"),
+            ("aws://?region_name=eu-west-1", "cn-north-1", "us-gov-east-1", "cn-north-1"),
+            ("aws://?", "cn-north-1", "us-gov-east-1", "cn-north-1"),
+            ("aws://?", None, "us-gov-east-1", "us-gov-east-1"),
+        ],
+    )
+    def test_connection_region_name(
+        self, conn_type, connection_uri, region_name, env_region, expected_region_name
+    ):
+        with unittest.mock.patch.dict(
+            'os.environ', AIRFLOW_CONN_TEST_CONN=connection_uri, AWS_DEFAULT_REGION=env_region
+        ):
+            if conn_type == "client":
+                hook = AwsBaseHook(aws_conn_id='test_conn', region_name=region_name, client_type='dynamodb')
+            elif conn_type == "resource":
+                hook = AwsBaseHook(aws_conn_id='test_conn', region_name=region_name, resource_type='dynamodb')
+            else:
+                raise ValueError(f"Unsupported conn_type={conn_type!r}")
+
+            assert hook.conn_region_name == expected_region_name
+
+    @unittest.skipIf(mock_dynamodb2 is None, 'mock_dynamo2 package not present')
+    @mock_dynamodb2
+    @pytest.mark.parametrize("conn_type", ["client", "resource"])
+    @pytest.mark.parametrize(
+        "connection_uri,expected_partition",
+        [
+            ("aws://?region_name=eu-west-1", "aws"),
+            ("aws://?region_name=cn-north-1", "aws-cn"),
+            ("aws://?region_name=us-gov-east-1", "aws-us-gov"),
+        ],
+    )
+    def test_connection_aws_partition(self, conn_type, connection_uri, expected_partition):
+        with unittest.mock.patch.dict(
+            'os.environ',
+            AIRFLOW_CONN_TEST_CONN=connection_uri,
+        ):
+            if conn_type == "client":
+                hook = AwsBaseHook(aws_conn_id='test_conn', client_type='dynamodb')
+            elif conn_type == "resource":
+                hook = AwsBaseHook(aws_conn_id='test_conn', resource_type='dynamodb')
+            else:
+                raise ValueError(f"Unsupported conn_type={conn_type!r}")
+
+            assert hook.conn_partition == expected_partition
 
 
 class ThrowErrorUntilCount:

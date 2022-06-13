@@ -161,6 +161,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-docstring-param-types                            | Check that docstrings do not specify param types                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-example-dags-urls                                | Check that example dags url include provider versions            |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-executables-have-shebangs                        | Check that executables have shebang                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-extra-packages-references                        | Checks setup extra packages                                      |         |

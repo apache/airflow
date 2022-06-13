@@ -17,31 +17,12 @@
  * under the License.
  */
 
-/* global moment */
-
 import React from 'react';
-import { useTimezone } from '../context/timezone';
-import { defaultFormatWithTZ } from '../../datetime_utils';
+import {
+  Button,
+  Link,
+} from '@chakra-ui/react';
 
-const Time = ({ dateTime, format = defaultFormatWithTZ }) => {
-  const { timezone } = useTimezone();
-  const time = moment(dateTime);
+const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
-  // eslint-disable-next-line no-underscore-dangle
-  if (!dateTime || !time._isValid) return null;
-
-  const formattedTime = time.tz(timezone).format(format);
-  const utcTime = time.tz('UTC').format(defaultFormatWithTZ);
-
-  return (
-    <time
-      dateTime={dateTime}
-      // show title if date is not UTC
-      title={timezone.toUpperCase() !== 'UTC' ? utcTime : undefined}
-    >
-      {formattedTime}
-    </time>
-  );
-};
-
-export default Time;
+export default LinkButton;

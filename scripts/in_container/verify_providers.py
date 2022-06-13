@@ -182,6 +182,7 @@ KNOWN_DEPRECATED_MESSAGES: Set[Tuple[str, str]] = {
         "going out for this old package name.",
         "scrapbook",
     ),
+    ("SelectableGroups dict interface is deprecated. Use select.", "markdown"),
 }
 
 KNOWN_COMMON_DEPRECATED_MESSAGES: Set[str] = {
@@ -364,8 +365,8 @@ def import_all_classes(
             """
 [red]ERROR: There were some import errors[/]
 
-[yellow]If the job is about installing providers in 2.1.0, most likely you are using features that[/]
-[yellow]are not available in Airflow 2.1.0 and you mast implement them in backwards-compatible way![/]
+[yellow]If the job is about installing providers in 2.2.0, most likely you are using features that[/]
+[yellow]are not available in Airflow 2.2.0 and you must implement them in backwards-compatible way![/]
 
 """,
         )

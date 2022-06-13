@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,28 +15,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
-from datetime import datetime
+import datetime
 
-from airflow import models
-from airflow.providers.google.cloud.transfers.calendar_to_gcs import GoogleCalendarToGCSOperator
+from airflow import DAG
+from airflow.decorators import task
+from airflow.sensors.date_time import DateTimeSensor
+from airflow.utils import timezone
 
-BUCKET = os.environ.get("GCP_GCS_BUCKET", "test28397yeo")
-CALENDAR_ID = os.environ.get("CALENDAR_ID", "1234567890qwerty")
-API_VERSION = "v3"
-
-with models.DAG(
-    "example_calendar_to_gcs",
-    schedule_interval='@once',  # Override to match your needs
-    start_date=datetime(2022, 1, 1),
-    catchup=False,
-    tags=["example"],
+with DAG(
+    dag_id='test_sensor', start_date=datetime.datetime(2022, 1, 1), catchup=False, schedule_interval='@once'
 ) as dag:
-    # [START upload_calendar_to_gcs]
-    upload_calendar_to_gcs = GoogleCalendarToGCSOperator(
-        task_id="upload_calendar_to_gcs",
-        destination_bucket=BUCKET,
-        calendar_id=CALENDAR_ID,
-        api_version=API_VERSION,
-    )
-    # [END upload_calendar_to_gcs]
+
+    @task
+    def get_date():
+        return str(timezone.utcnow() + datetime.timedelta(seconds=3))
+
+    DateTimeSensor(task_id='dts', target_time=str(get_date()), poke_interval=1, mode='reschedule')

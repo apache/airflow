@@ -37,6 +37,7 @@ PRE_COMMIT_LIST = [
     'check-changelog-has-no-duplicates',
     'check-daysago-import-from-utils',
     'check-docstring-param-types',
+    'check-example-dags-urls',
     'check-executables-have-shebangs',
     'check-extra-packages-references',
     'check-extras-order',

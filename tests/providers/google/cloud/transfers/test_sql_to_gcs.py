@@ -127,8 +127,20 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             gzip=True,
             schema=SCHEMA,
             gcp_conn_id='google_cloud_default',
+            upload_metadata=True,
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
+
+        assert result == {
+            'bucket': 'TEST-BUCKET-1',
+            'total_row_count': 3,
+            'total_files': 3,
+            'files': [
+                {'file_name': 'test_results_0.csv', 'file_mime_type': 'text/csv', 'file_row_count': 1},
+                {'file_name': 'test_results_1.csv', 'file_mime_type': 'text/csv', 'file_row_count': 1},
+                {'file_name': 'test_results_2.csv', 'file_mime_type': 'text/csv', 'file_row_count': 1},
+            ],
+        }
 
         mock_query.assert_called_once()
         mock_writerow.assert_has_calls(
@@ -142,16 +154,25 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
                 mock.call(COLUMNS),
             ]
         )
-        mock_flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call(), mock.call()])
+        mock_flush.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
         csv_calls = []
         for i in range(0, 3):
             csv_calls.append(
-                mock.call(BUCKET, FILENAME.format(i), TMP_FILE_NAME, mime_type='text/csv', gzip=True)
+                mock.call(
+                    BUCKET,
+                    FILENAME.format(i),
+                    TMP_FILE_NAME,
+                    mime_type='text/csv',
+                    gzip=True,
+                    metadata={'row_count': 1},
+                )
             )
-        json_call = mock.call(BUCKET, SCHEMA_FILE, TMP_FILE_NAME, mime_type=APP_JSON, gzip=False)
+        json_call = mock.call(
+            BUCKET, SCHEMA_FILE, TMP_FILE_NAME, mime_type=APP_JSON, gzip=False, metadata=None
+        )
         upload_calls = [json_call, csv_calls[0], csv_calls[1], csv_calls[2]]
         mock_upload.assert_has_calls(upload_calls)
-        mock_close.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call(), mock.call()])
+        mock_close.assert_has_calls([mock.call(), mock.call(), mock.call(), mock.call()])
 
         mock_query.reset_mock()
         mock_flush.reset_mock()
@@ -165,7 +186,16 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         operator = DummySQLToGCSOperator(
             sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="json", schema=SCHEMA
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
+
+        assert result == {
+            'bucket': 'TEST-BUCKET-1',
+            'total_row_count': 3,
+            'total_files': 1,
+            'files': [
+                {'file_name': 'test_results_0.csv', 'file_mime_type': 'application/json', 'file_row_count': 3}
+            ],
+        }
 
         mock_query.assert_called_once()
         mock_write.assert_has_calls(
@@ -180,7 +210,59 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         )
         mock_flush.assert_called_once()
         mock_upload.assert_called_once_with(
-            BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type=APP_JSON, gzip=False
+            BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type=APP_JSON, gzip=False, metadata=None
+        )
+        mock_close.assert_called_once()
+
+        mock_query.reset_mock()
+        mock_flush.reset_mock()
+        mock_upload.reset_mock()
+        mock_close.reset_mock()
+        cursor_mock.reset_mock()
+
+        cursor_mock.__iter__ = Mock(return_value=iter(INPUT_DATA))
+
+        # Test Metadata Upload
+        operator = DummySQLToGCSOperator(
+            sql=SQL,
+            bucket=BUCKET,
+            filename=FILENAME,
+            task_id=TASK_ID,
+            export_format="json",
+            schema=SCHEMA,
+            upload_metadata=True,
+        )
+        result = operator.execute(context=dict())
+
+        assert result == {
+            'bucket': 'TEST-BUCKET-1',
+            'total_row_count': 3,
+            'total_files': 1,
+            'files': [
+                {'file_name': 'test_results_0.csv', 'file_mime_type': 'application/json', 'file_row_count': 3}
+            ],
+        }
+
+        mock_query.assert_called_once()
+        mock_write.assert_has_calls(
+            [
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+                mock.call(OUTPUT_DATA),
+                mock.call(b"\n"),
+            ]
+        )
+
+        mock_flush.assert_called_once()
+        mock_upload.assert_called_once_with(
+            BUCKET,
+            FILENAME.format(0),
+            TMP_FILE_NAME,
+            mime_type=APP_JSON,
+            gzip=False,
+            metadata={'row_count': 3},
         )
         mock_close.assert_called_once()
 
@@ -196,12 +278,30 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
         operator = DummySQLToGCSOperator(
             sql=SQL, bucket=BUCKET, filename=FILENAME, task_id=TASK_ID, export_format="parquet", schema=SCHEMA
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
+
+        assert result == {
+            'bucket': 'TEST-BUCKET-1',
+            'total_row_count': 3,
+            'total_files': 1,
+            'files': [
+                {
+                    'file_name': 'test_results_0.csv',
+                    'file_mime_type': 'application/octet-stream',
+                    'file_row_count': 3,
+                }
+            ],
+        }
 
         mock_query.assert_called_once()
         mock_flush.assert_called_once()
         mock_upload.assert_called_once_with(
-            BUCKET, FILENAME.format(0), TMP_FILE_NAME, mime_type='application/octet-stream', gzip=False
+            BUCKET,
+            FILENAME.format(0),
+            TMP_FILE_NAME,
+            mime_type='application/octet-stream',
+            gzip=False,
+            metadata=None,
         )
         mock_close.assert_called_once()
 
@@ -217,7 +317,14 @@ class TestBaseSQLToGCSOperator(unittest.TestCase):
             export_format="csv",
             null_marker="NULL",
         )
-        operator.execute(context=dict())
+        result = operator.execute(context=dict())
+
+        assert result == {
+            'bucket': 'TEST-BUCKET-1',
+            'total_row_count': 3,
+            'total_files': 1,
+            'files': [{'file_name': 'test_results_0.csv', 'file_mime_type': 'text/csv', 'file_row_count': 3}],
+        }
 
         mock_writerow.assert_has_calls(
             [

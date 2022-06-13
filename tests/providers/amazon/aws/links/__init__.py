@@ -14,26 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from datetime import datetime
-from os import environ
-
-from airflow import DAG
-from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
-
-SNS_TOPIC_ARN = environ.get('SNS_TOPIC_ARN', 'arn:aws:sns:us-west-2:123456789012:dummy-topic-name')
-
-with DAG(
-    dag_id='example_sns',
-    schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
-    tags=['example'],
-    catchup=False,
-) as dag:
-
-    # [START howto_operator_sns_publish_operator]
-    publish = SnsPublishOperator(
-        task_id='publish_message',
-        target_arn=SNS_TOPIC_ARN,
-        message='This is a sample message sent to SNS via an Apache Airflow DAG task.',
-    )
-    # [END howto_operator_sns_publish_operator]

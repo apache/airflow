@@ -19,7 +19,7 @@
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
 
 if TYPE_CHECKING:
@@ -115,7 +115,7 @@ class BigQueryToGCSOperator(BaseOperator):
             location=self.location,
             impersonation_chain=self.impersonation_chain,
         )
-        job_id = hook.run_extract(
+        job: BigQueryJob = hook.run_extract(
             source_project_dataset_table=self.source_project_dataset_table,
             destination_cloud_storage_uris=self.destination_cloud_storage_uris,
             compression=self.compression,
@@ -123,9 +123,8 @@ class BigQueryToGCSOperator(BaseOperator):
             field_delimiter=self.field_delimiter,
             print_header=self.print_header,
             labels=self.labels,
+            return_full_job=True,
         )
-
-        job = hook.get_job(job_id=job_id).to_api_repr()
         conf = job["configuration"]["extract"]["sourceTable"]
         dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
         BigQueryTableLink.persist(
