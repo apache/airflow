@@ -1432,7 +1432,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   tests-kubernetes:
-    timeout-minutes: 70
+    timeout-minutes: 240
     name: Helm Chart; ${{matrix.executor}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, wait-for-prod-images]
