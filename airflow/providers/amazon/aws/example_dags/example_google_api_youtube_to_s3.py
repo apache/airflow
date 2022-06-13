@@ -26,7 +26,8 @@ saves the response in S3 + passes over the YouTube IDs to the next request which
 Further information:
 
 YOUTUBE_VIDEO_PUBLISHED_AFTER and YOUTUBE_VIDEO_PUBLISHED_BEFORE needs to be formatted
-"YYYY-MM-DDThh:mm:ss.sZ". See https://developers.google.com/youtube/v3/docs/search/list for more information.
+``YYYY-MM-DDThh:mm:ss.sZ``.
+See https://developers.google.com/youtube/v3/docs/search/list for more information.
 YOUTUBE_VIDEO_PARTS depends on the fields you pass via YOUTUBE_VIDEO_FIELDS. See
 https://developers.google.com/youtube/v3/docs/videos/list#parameters for more information.
 YOUTUBE_CONN_ID is optional for public videos. It does only need to authenticate when there are private videos

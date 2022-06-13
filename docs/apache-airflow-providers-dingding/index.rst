@@ -35,6 +35,12 @@ Content
     Python API <_api/airflow/providers/dingding/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/dingding/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
