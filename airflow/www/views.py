@@ -262,19 +262,20 @@ def dag_to_grid(dag, dag_runs, session):
         session.query(
             TaskInstance.task_id,
             TaskInstance.run_id,
-            TaskInstance.map_index,
             TaskInstance.state,
-            TaskInstance.start_date,
-            TaskInstance.end_date,
-            TaskInstance._try_number,
+            sqla.func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal('no_status'))).label(
+                'state_count'
+            ),
+            sqla.func.min(TaskInstance.start_date).label('start_date'),
+            sqla.func.max(TaskInstance.end_date).label('end_date'),
+            sqla.func.max(TaskInstance._try_number).label('_try_number'),
         )
         .filter(
             TaskInstance.dag_id == dag.dag_id,
             TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
-            # Only get normal task instances or the first mapped task
-            TaskInstance.map_index <= 0,
         )
-        .order_by(TaskInstance.task_id)
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state)
+        .order_by(TaskInstance.task_id, TaskInstance.run_id)
     )
 
     grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
@@ -292,16 +293,58 @@ def dag_to_grid(dag, dag_runs, session):
                 return {
                     'task_id': task_instance.task_id,
                     'run_id': task_instance.run_id,
-                    'map_index': task_instance.map_index,
                     'state': task_instance.state,
                     'start_date': task_instance.start_date,
                     'end_date': task_instance.end_date,
                     'try_number': try_count,
                 }
 
+            def _mapped_summary(ti_summaries):
+                run_id = None
+                record = None
+
+                def set_overall_state(record):
+                    for state in wwwutils.priority:
+                        if state in record['mapped_states']:
+                            record['state'] = state
+                            break
+                    if None in record['mapped_states']:
+                        # When turnong the dict into JSON we can't have None as a key, so use the string that
+                        # the UI does
+                        record['mapped_states']['no_status'] = record['mapped_states'].pop(None)
+
+                for ti_summary in ti_summaries:
+                    if ti_summary.state is None:
+                        ti_summary.state == 'no_status'
+                    if run_id != ti_summary.run_id:
+                        run_id = ti_summary.run_id
+                        if record:
+                            set_overall_state(record)
+                            yield record
+                        record = {
+                            'task_id': ti_summary.task_id,
+                            'run_id': run_id,
+                            'start_date': ti_summary.start_date,
+                            'end_date': ti_summary.end_date,
+                            'mapped_states': {ti_summary.state: ti_summary.state_count},
+                            'state': None,  # We change this before yielding
+                        }
+                        continue
+                    record['start_date'] = min(record['start_date'], ti_summary.start_date)
+                    record['end_date'] = max(record['end_date'], ti_summary.end_date)
+                    record['mapped_states'][ti_summary.state] = ti_summary.state_count
+                if record:
+                    set_overall_state(record)
+                    yield record
+
+            if item.is_mapped:
+                instances = list(_mapped_summary(grouped_tis.get(item.task_id, [])))
+            else:
+                instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
+
             return {
                 'id': item.task_id,
-                'instances': list(map(_get_summary, grouped_tis.get(item.task_id, []))),
+                'instances': instances,
                 'label': item.label,
                 'extra_links': item.extra_links,
                 'is_mapped': item.is_mapped,

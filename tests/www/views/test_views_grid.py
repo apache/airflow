@@ -25,6 +25,8 @@ from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from airflow.www.views import dag_to_grid
+from tests.test_utils.asserts import assert_queries_count
 from tests.test_utils.mock_operators import MockOperator
 
 DAG_ID = 'test'
@@ -151,7 +153,6 @@ def test_one_run(admin_client, dag_with_runs, session):
                     'instances': [
                         {
                             'end_date': None,
-                            'map_index': -1,
                             'run_id': 'run_1',
                             'start_date': None,
                             'state': 'success',
@@ -160,7 +161,6 @@ def test_one_run(admin_client, dag_with_runs, session):
                         },
                         {
                             'end_date': None,
-                            'map_index': -1,
                             'run_id': 'run_2',
                             'start_date': None,
                             'state': None,
@@ -179,21 +179,19 @@ def test_one_run(admin_client, dag_with_runs, session):
                             'instances': [
                                 {
                                     'end_date': None,
-                                    'mapped_states': ['success', 'success', 'success'],
+                                    'mapped_states': {'success': 3},
                                     'run_id': 'run_1',
                                     'start_date': None,
                                     'state': 'success',
                                     'task_id': 'group.mapped',
-                                    'try_number': 1,
                                 },
                                 {
                                     'end_date': None,
-                                    'mapped_states': [None, None, None],
+                                    'mapped_states': {'no_status': 3},
                                     'run_id': 'run_2',
                                     'start_date': None,
                                     'state': None,
                                     'task_id': 'group.mapped',
-                                    'try_number': 1,
                                 },
                             ],
                             'is_mapped': True,
@@ -236,3 +234,9 @@ def test_one_run(admin_client, dag_with_runs, session):
             'tooltip': '',
         },
     }
+
+
+def test_query_count(dag_with_runs, session):
+    run1, run2 = dag_with_runs
+    with assert_queries_count(1):
+        dag_to_grid(run1.dag, (run1, run2), session)
