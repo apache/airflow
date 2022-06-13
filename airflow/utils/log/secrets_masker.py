@@ -18,17 +18,16 @@
 import collections
 import logging
 import re
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+import sys
+from typing import Any, Dict, Iterable, List, Optional, Set, TextIO, Tuple, TypeVar, Union
 
 from airflow import settings
 from airflow.compat.functools import cache, cached_property
 
-if TYPE_CHECKING:
-    RedactableItem = Union[str, Dict[Any, Any], Tuple[Any, ...], List[Any]]
-
+Redactable = TypeVar("Redactable", str, Dict[Any, Any], Tuple[Any, ...], List[Any])
+Redacted = Union[Redactable, str]
 
 log = logging.getLogger(__name__)
-
 
 DEFAULT_SENSITIVE_FIELDS = frozenset(
     {
@@ -91,14 +90,13 @@ def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) 
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: "RedactableItem", name: Optional[str] = None) -> "RedactableItem":
+def redact(value: Redactable, name: Optional[str] = None) -> Redacted:
     """Redact any secrets found in ``value``."""
     return _secrets_masker().redact(value, name)
 
 
 @cache
 def _secrets_masker() -> "SecretsMasker":
-
     for flt in logging.getLogger('airflow.task').filters:
         if isinstance(flt, SecretsMasker):
             return flt
@@ -177,7 +175,7 @@ class SecretsMasker(logging.Filter):
 
         return True
 
-    def _redact_all(self, item: "RedactableItem", depth: int) -> "RedactableItem":
+    def _redact_all(self, item: Redactable, depth: int) -> Redacted:
         if depth > self.MAX_RECURSION_DEPTH or isinstance(item, str):
             return '***'
         if isinstance(item, dict):
@@ -190,7 +188,7 @@ class SecretsMasker(logging.Filter):
         else:
             return item
 
-    def _redact(self, item: "RedactableItem", name: Optional[str], depth: int) -> "RedactableItem":
+    def _redact(self, item: Redactable, name: Optional[str], depth: int) -> Redacted:
         # Avoid spending too much effort on redacting on deeply nested
         # structures. This also avoid infinite recursion if a structure has
         # reference to self.
@@ -231,7 +229,7 @@ class SecretsMasker(logging.Filter):
             )
             return item
 
-    def redact(self, item: "RedactableItem", name: Optional[str] = None) -> "RedactableItem":
+    def redact(self, item: Redactable, name: Optional[str] = None) -> Redacted:
         """Redact an any secrets found in ``item``, if it is a string.
 
         If ``name`` is given, and it's a "sensitive" name (see
@@ -258,3 +256,23 @@ class SecretsMasker(logging.Filter):
         elif isinstance(secret, collections.abc.Iterable):
             for v in secret:
                 self.add_mask(v, name)
+
+
+class RedactedIO(TextIO):
+    """IO class that redacts values going into stdout.
+
+    Expected usage::
+
+        with contextlib.redirect_stdout(RedactedIO()):
+            ...  # Writes to stdout will be redacted.
+    """
+
+    def __init__(self):
+        self.target = sys.stdout
+
+    def write(self, s: str) -> int:
+        s = redact(s)
+        return self.target.write(s)
+
+    def flush(self) -> None:
+        return self.target.flush()
