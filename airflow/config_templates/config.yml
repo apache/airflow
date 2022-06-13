@@ -373,6 +373,14 @@
       type: integer
       example: ~
       default: "1024"
+    - name: render_dict_keys
+      description: |
+        Flag to enable jinja2 rendering of dictionary keys inside fields of template_fields.
+        Disabled by default, and if jinja template is detected, warning is issued
+      version_added: 2.3.0
+      type: boolean
+      example: ~
+      default: "False"
 
 - name: database
   description: ~

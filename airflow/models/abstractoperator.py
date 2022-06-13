@@ -18,6 +18,7 @@
 
 import datetime
 import inspect
+import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
@@ -65,6 +66,7 @@ DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
     "scheduler", "ignore_first_depends_on_past_by_default"
 )
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
+RENDER_DICT_KEYS: bool = conf.getboolean('core', 'render_dict_keys')
 DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
     seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
 )
@@ -406,7 +408,23 @@ class AbstractOperator(LoggingMixin, DAGNode):
         elif isinstance(value, list):
             return [self.render_template(element, context, jinja_env) for element in value]
         elif isinstance(value, dict):
-            return {key: self.render_template(value, context, jinja_env) for key, value in value.items()}
+            if RENDER_DICT_KEYS:
+                return {
+                    self.render_template(key, context, jinja_env): self.render_template(
+                        value, context, jinja_env
+                    )
+                    for key, value in value.items()
+                }
+            else:
+                potential_templated_keys = [key for key in value.keys() if "{{" in key and "}}" in key]
+                if len(potential_templated_keys) > 0:
+                    warnings.warn(
+                        f"You are probably using non-rendered jinja templates in the dictionary keys "
+                        f"'{potential_templated_keys}', please consider enabling core.render_dict_keys",
+                        DeprecationWarning,
+                        stacklevel=3,
+                    )
+                return {key: self.render_template(value, context, jinja_env) for key, value in value.items()}
         elif isinstance(value, set):
             return {self.render_template(element, context, jinja_env) for element in value}
 

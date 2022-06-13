@@ -174,7 +174,7 @@ class TestBaseOperator:
             (
                 {"key_{{ foo }}_1": 1, "key_2": "{{ foo }}_2"},
                 {"foo": "bar"},
-                {"key_{{ foo }}_1": 1, "key_2": "bar_2"},
+                {"key_bar_1": 1, "key_2": "bar_2"},
             ),
             (date(2018, 12, 6), {"foo": "bar"}, date(2018, 12, 6)),
             (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
