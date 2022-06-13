@@ -3538,7 +3538,6 @@ class Airflow(AirflowBaseView):
                 'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
                 'dag_runs': encoded_runs,
             }
-
         # avoid spaces to reduce payload size
         return (
             htmlsafe_json_dumps(data, separators=(',', ':')),
@@ -3579,7 +3578,6 @@ class Airflow(AirflowBaseView):
             query = query.filter(Log.event.notin_(excluded_events))
 
         dag_audit_logs = query.all()
-
         content = self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
