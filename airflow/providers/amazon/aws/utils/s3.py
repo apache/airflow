@@ -20,6 +20,7 @@ import pandas
 
 
 def fix_int_dtypes(df: pandas.DataFrame) -> None:
+    """Mutate DataFrame to set dtypes for int columns containing NaN values."""
     for col in df:
         if "float" in df[col].dtype.name and df[col].hasnans:
             notna_series = df[col].dropna().values
