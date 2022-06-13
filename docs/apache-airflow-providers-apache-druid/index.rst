@@ -32,6 +32,18 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/apache/druid/index>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/druid/index>
+
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-druid/>
     Installing from sources <installing-providers-from-sources>
     Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/apache/druid/example_dags>

@@ -704,6 +704,7 @@ Misc/Internal
 - Remove deprecated usage of ``init_role()`` from API (#18820)
 - Remove duplicate code on dbapi hook (#18821)
 
+
 Airflow 2.2.5, (2022-04-04)
 ---------------------------
 

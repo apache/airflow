@@ -28,7 +28,7 @@ repos:
       - id: check-hooks-apply
         name: Check if all hooks apply to the repository
   - repo: https://github.com/thlorenz/doctoc.git
-    rev: v2.1.0
+    rev: v2.2.0
     hooks:
       - id: doctoc
         name: Add TOC for md and rst files
@@ -39,7 +39,7 @@ repos:
           - "--maxlevel"
           - "2"
   - repo: https://github.com/Lucas-C/pre-commit-hooks
-    rev: v1.1.13
+    rev: v1.2.0
     hooks:
       - id: forbid-tabs
         name: Fail if tabs are used in the project
@@ -204,7 +204,7 @@ repos:
         pass_filenames: true
   # TODO: Bump to Python 3.8 when support for Python 3.7 is dropped in Airflow.
   - repo: https://github.com/asottile/pyupgrade
-    rev: v2.32.0
+    rev: v2.32.1
     hooks:
       - id: pyupgrade
         name: Upgrade Python code automatically
@@ -242,7 +242,7 @@ repos:
         name: Run pydocstyle
         args:
           - --convention=pep257
-          - --add-ignore=D100,D102,D103,D104,D105,D107,D202,D205,D400,D401
+          - --add-ignore=D100,D102,D103,D104,D105,D107,D205,D400,D401
         exclude: |
           (?x)
           ^tests/.*\.py$|
@@ -422,11 +422,11 @@ repos:
       - id: check-no-relative-imports
         language: pygrep
         name: No relative imports
-        description: Airflow style is to use absolute imports only
+        description: Airflow style is to use absolute imports only (except docs building)
         entry: "^\\s*from\\s+\\."
         pass_filenames: true
         files: \.py$
-        exclude: ^tests/|^airflow/_vendor/
+        exclude: ^tests/|^airflow/_vendor/|^docs/
       - id: check-for-inclusive-language
         language: pygrep
         name: Check for language that we do not accept as community
@@ -449,6 +449,7 @@ repos:
           ^airflow/www/static/|
           ^airflow/providers/|
           ^tests/providers/apache/cassandra/hooks/test_cassandra.py$|
+          ^tests/system/providers/apache/spark/example_spark_dag.py$|
           ^docs/apache-airflow-providers-apache-cassandra/connections/cassandra.rst$|
           ^docs/apache-airflow-providers-apache-hive/commits.rst$|
           ^airflow/api_connexion/openapi/v1.yaml$|

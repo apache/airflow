@@ -62,12 +62,9 @@ with DAG(
     # [START howto_sensor_s3_key_function_definition]
     def check_fn(files: List) -> bool:
         """
-        Example of custom check: check if all files are bigger than 1kB
+        Example of custom check: check if all files are bigger than ``1kB``
 
         :param files: List of S3 object attributes.
-        Format: [{
-            'Size': int
-        }]
         :return: true if the criteria is met
         :rtype: bool
         """

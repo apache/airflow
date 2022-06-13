@@ -35,6 +35,12 @@ Content
     Python API <_api/airflow/providers/trino/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/trino/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

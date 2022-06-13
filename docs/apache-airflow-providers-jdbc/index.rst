@@ -36,6 +36,12 @@ Content
     Python API <_api/airflow/providers/jdbc/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/jdbc/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

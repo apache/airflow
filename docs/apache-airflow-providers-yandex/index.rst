@@ -36,6 +36,12 @@ Content
     Python API <_api/airflow/providers/yandex/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/yandex/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

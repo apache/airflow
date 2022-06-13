@@ -36,6 +36,12 @@ Content
     Python API <_api/airflow/providers/apache/hive/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/hive/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

@@ -36,6 +36,12 @@ Content
     Python API <_api/airflow/providers/microsoft/mssql/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/microsoft/mssql/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

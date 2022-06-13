@@ -35,6 +35,12 @@ Content
     Python API <_api/airflow/providers/microsoft/winrm/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/microsoft/winrm/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

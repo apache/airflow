@@ -35,20 +35,17 @@ import json
 import os
 import sys
 from collections import defaultdict
+from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 import yaml
 
-try:
-    from yaml import CSafeLoader as SafeLoader
-except ImportError:
-    from yaml import SafeLoader  # type: ignore[misc]
-
 import airflow
 from airflow.configuration import AirflowConfigParser, default_config_yaml
-from docs.exts.docs_build.third_party_inventories import THIRD_PARTY_INDEXES
 
-sys.path.append(os.path.join(os.path.dirname(__file__), 'exts'))
+sys.path.append(str(Path(__file__).parent / 'exts'))
+
+from docs_build.third_party_inventories import THIRD_PARTY_INDEXES  # noqa: E402
 
 CONF_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__)))
 INVENTORY_CACHE_DIR = os.path.join(CONF_DIR, '_inventory_cache')
@@ -61,6 +58,7 @@ PACKAGE_DIR: Optional[str]
 if PACKAGE_NAME == 'apache-airflow':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
     PACKAGE_VERSION = airflow.__version__
+    SYSTEM_TESTS_DIR = None
 elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
     from provider_yaml_utils import load_package_data
 
@@ -75,23 +73,27 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
         raise Exception(f"Could not find provider.yaml file for package: {PACKAGE_NAME}")
     PACKAGE_DIR = CURRENT_PROVIDER['package-dir']
     PACKAGE_VERSION = CURRENT_PROVIDER['versions'][0]
+    SYSTEM_TESTS_DIR = CURRENT_PROVIDER['system-tests-dir']
 elif PACKAGE_NAME == 'apache-airflow-providers':
     from provider_yaml_utils import load_package_data
 
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow', 'providers')
     PACKAGE_VERSION = 'devel'
     ALL_PROVIDER_YAMLS = load_package_data()
+    SYSTEM_TESTS_DIR = None
 elif PACKAGE_NAME == 'helm-chart':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'chart')
     CHART_YAML_FILE = os.path.join(PACKAGE_DIR, 'Chart.yaml')
 
     with open(CHART_YAML_FILE) as chart_file:
-        chart_yaml_contents = yaml.load(chart_file, SafeLoader)
+        chart_yaml_contents = yaml.safe_load(chart_file)
 
     PACKAGE_VERSION = chart_yaml_contents['version']
+    SYSTEM_TESTS_DIR = None
 else:
     PACKAGE_DIR = None
     PACKAGE_VERSION = 'devel'
+    SYSTEM_TESTS_DIR = None
 # Adds to environment variables for easy access from other plugins like airflow_intersphinx.
 os.environ['AIRFLOW_PACKAGE_NAME'] = PACKAGE_NAME
 if PACKAGE_DIR:
@@ -220,6 +222,7 @@ if PACKAGE_NAME == 'apache-airflow':
             exclude_patterns.append(f"_api/airflow/{name.rpartition('.')[0]}")
         browsable_packages = [
             "hooks",
+            "example_dags",
             "executors",
             "models",
             "operators",
@@ -318,9 +321,12 @@ html_use_index = True
 html_show_copyright = False
 
 # Theme configuration
-html_theme_options: Dict[str, Any] = {
-    'hide_website_buttons': True,
-}
+if PACKAGE_NAME.startswith('apache-airflow-providers-'):
+    # Only hide hidden items for providers. For Chart and Airflow we are using the approach where
+    # TOC is hidden but sidebar still shows the content (but we are not doing it for providers).
+    html_theme_options: Dict[str, Any] = {'hide_website_buttons': True, 'sidebar_includehidden': False}
+else:
+    html_theme_options = {'hide_website_buttons': True, 'sidebar_includehidden': True}
 if FOR_PRODUCTION:
     html_theme_options['navbar_links'] = [
         {'href': '/community/', 'text': 'Community'},
@@ -415,7 +421,7 @@ elif PACKAGE_NAME.startswith('apache-airflow-providers-'):
             return {}
 
         with open(file_path) as f:
-            return yaml.load(f, SafeLoader)
+            return yaml.safe_load(f)
 
     config = _load_config()
     jinja_contexts = {
@@ -668,6 +674,9 @@ autoapi_dirs = [
     PACKAGE_DIR,
 ]
 
+if SYSTEM_TESTS_DIR and os.path.exists(SYSTEM_TESTS_DIR):
+    autoapi_dirs.append(SYSTEM_TESTS_DIR)
+
 # A directory that has user-defined templates to override our default templates.
 if PACKAGE_NAME == 'apache-airflow':
     autoapi_template_dir = 'autoapi_templates'
@@ -675,11 +684,13 @@ if PACKAGE_NAME == 'apache-airflow':
 # A list of patterns to ignore when finding files
 autoapi_ignore = [
     '*/airflow/_vendor/*',
-    '*/example_dags/*',
     '*/_internal*',
     '*/node_modules/*',
     '*/migrations/*',
     '*/contrib/*',
+    '**/example_sla_dag.py',
+    '**/example_taskflow_api_etl_docker_virtualenv.py',
+    '**/example_dag_decorator.py',
 ]
 if PACKAGE_NAME == 'apache-airflow':
     autoapi_ignore.append('*/airflow/providers/*')
