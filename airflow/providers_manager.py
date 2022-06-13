@@ -651,7 +651,6 @@ class ProvidersManager(LoggingMixin):
         """Force-import all hooks and initialize the connections/fields"""
         # Retrieve all hooks to make sure that all of them are imported
         _ = list(self._hooks_lazy_dict.values())
-        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
 
     def _discover_taskflow_decorators(self) -> None:
