@@ -122,7 +122,7 @@ The command removes all the Kubernetes components associated with the chart and 
 Installing the Chart with ArgoCD or FluxCD
 ------------------------------------------
 
-When installing the chart using ArgoCD or FluxCD, you MUST set the two following values, or your application
+When installing the chart using Argo CD or Flux, you MUST set the two following values, or your application
 will not start as the migrations will not be run:
 
 .. code-block:: yaml
