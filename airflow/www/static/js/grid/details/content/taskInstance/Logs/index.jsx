@@ -35,7 +35,7 @@ import { getMetaValue } from '../../../../../utils';
 import LogLink from './LogLink';
 import useTaskLog from '../../../../api/useTaskLog';
 import LinkButton from '../../../../components/LinkButton';
-import { LogLevel, parseLogs } from './utils';
+import { logLevel, parseLogs } from './utils';
 import { useTimezone } from '../../../../context/timezone';
 
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
@@ -71,7 +71,7 @@ const Logs = ({
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(false);
   const [logLevelFilter, setLogLevelFilter] = useState('');
-  const [logGroupFilter, setLogGroupFilter] = useState('');
+  const [fileSourceFilter, setFileSourceFilter] = useState('');
   const { timezone } = useTimezone();
   const { data, isSuccess } = useTaskLog({
     dagId,
@@ -94,24 +94,24 @@ const Logs = ({
     execution_date: executionDate,
   }).toString();
 
-  const { parsedLogs, logGroups = [] } = useMemo(() => parseLogs(
+  const { parsedLogs, fileSources = [] } = useMemo(() => parseLogs(
     data,
     timezone,
     logLevelFilter,
-    logGroupFilter,
+    fileSourceFilter,
   ),
-  [data, logGroupFilter, logLevelFilter, timezone]);
+  [data, fileSourceFilter, logLevelFilter, timezone]);
 
   useEffect(() => {
-    // Reset filters and selected attempt when changing to
+    // Reset fileSourceFilter and selected attempt when changing to
     // a task that do not have those filters anymore.
     if (!internalIndexes.includes(selectedAttempt)) {
       setSelectedAttempt(internalIndexes[0]);
     }
-    if (logGroupFilter && !logGroups.includes(logGroupFilter)) {
-      setLogGroupFilter('');
+    if (fileSourceFilter && !fileSources.includes(fileSourceFilter)) {
+      setFileSourceFilter('');
     }
-  }, [data, internalIndexes, logGroupFilter, logGroups, selectedAttempt]);
+  }, [data, internalIndexes, fileSourceFilter, fileSources, selectedAttempt]);
 
   return (
     <>
@@ -140,17 +140,17 @@ const Logs = ({
               mr={2}
             >
               <option value="" key="all">All Levels</option>
-              {Object.values(LogLevel).map((value) => (
+              {Object.values(logLevel).map((value) => (
                 <option value={value} key={value}>{value}</option>
               ))}
             </Select>
             <Select
               size="sm"
-              value={logGroupFilter}
-              onChange={(e) => setLogGroupFilter(e.target.value)}
+              value={fileSourceFilter}
+              onChange={(e) => setFileSourceFilter(e.target.value)}
             >
-              <option value="" key="all">All Groups</option>
-              {logGroups.map((value) => (
+              <option value="" key="all">All File Sources</option>
+              {fileSources.map((value) => (
                 <option value={value} key={value}>{value}</option>
               ))}
             </Select>

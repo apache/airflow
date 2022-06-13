@@ -21,7 +21,7 @@
 
 import { defaultFormatWithTZ } from '../../../../../datetime_utils';
 
-export const LogLevel = {
+export const logLevel = {
   DEBUG: 'DEBUG',
   INFO: 'INFO',
   WARNING: 'WARNING',
@@ -29,7 +29,7 @@ export const LogLevel = {
   CRITICAL: 'CRITICAL',
 };
 
-export const parseLogs = (data, timezone, logLevelFilter, logGroupFilter) => {
+export const parseLogs = (data, timezone, logLevelFilter, fileSourceFilter) => {
   const lines = data.split('\n');
 
   if (!data) {
@@ -37,7 +37,7 @@ export const parseLogs = (data, timezone, logLevelFilter, logGroupFilter) => {
   }
 
   const parsedLines = [];
-  const logGroups = new Set();
+  const fileSources = new Set();
 
   lines.forEach((line) => {
     let parsedLine = line;
@@ -59,12 +59,12 @@ export const parseLogs = (data, timezone, logLevelFilter, logGroupFilter) => {
         parsedLine = line.replace(dateTime, localDateTime);
       }
 
-      logGroups.add(logGroup);
+      fileSources.add(logGroup);
     }
-    if (!logGroupFilter || logGroupFilter === logGroup) {
+    if (!fileSourceFilter || fileSourceFilter === logGroup) {
       parsedLines.push(parsedLine);
     }
   });
 
-  return { parsedLogs: parsedLines.join('\n'), logGroups: Array.from(logGroups).sort() };
+  return { parsedLogs: parsedLines.join('\n'), fileSources: Array.from(fileSources).sort() };
 };

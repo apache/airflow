@@ -44,14 +44,14 @@ AIRFLOW_CTX_DAG_ID=test_ui_grid
 
 describe('Test Logs Utils.', () => {
   test('parseLogs function replaces datetimes', () => {
-    const { parsedLogs, logGroups } = parseLogs(
+    const { parsedLogs, fileSources } = parseLogs(
       mockTaskLog,
       'UTC',
       null,
       null,
     );
     expect(parsedLogs).toContain('2022-06-04, 00:00:01 UTC');
-    expect(logGroups).toEqual([
+    expect(fileSources).toEqual([
       'dagbag.py',
       'standard_task_runner.py',
       'task_command.py',
@@ -68,35 +68,35 @@ describe('Test Logs Utils.', () => {
   });
 
   test.each([
-    { logLevelFilter: 'INFO', expectedNumberOfLines: 11, expectedNumberOfLogGroups: 4 },
-    { logLevelFilter: 'WARNING', expectedNumberOfLines: 1, expectedNumberOfLogGroups: 1 },
-  ])('Filtering logs on $logLevelFilter level should return $expectedNumberOfLines lines and $expectedNumberOfLogGroups log groups',
+    { logLevelFilter: 'INFO', expectedNumberOfLines: 11, expectedNumberOfFileSources: 4 },
+    { logLevelFilter: 'WARNING', expectedNumberOfLines: 1, expectedNumberOfFileSources: 1 },
+  ])('Filtering logs on $logLevelFilter level should return $expectedNumberOfLines lines and $expectedNumberOfFileSources file sources',
     ({
       logLevelFilter,
-      expectedNumberOfLines, expectedNumberOfLogGroups,
+      expectedNumberOfLines, expectedNumberOfFileSources,
     }) => {
-      const { parsedLogs, logGroups } = parseLogs(
+      const { parsedLogs, fileSources } = parseLogs(
         mockTaskLog,
         null,
         logLevelFilter,
         null,
       );
 
-      expect(logGroups).toHaveLength(expectedNumberOfLogGroups);
+      expect(fileSources).toHaveLength(expectedNumberOfFileSources);
 
       const lines = parsedLogs.split('\n');
       expect(lines).toHaveLength(expectedNumberOfLines);
       lines.forEach((line) => expect(line).toContain(logLevelFilter));
     });
 
-  test('parseLogs function group level filter', () => {
-    const { parsedLogs, logGroups } = parseLogs(
+  test('parseLogs function with file source filter', () => {
+    const { parsedLogs, fileSources } = parseLogs(
       mockTaskLog,
       null,
       null,
       'taskinstance.py',
     );
-    expect(logGroups).toEqual([
+    expect(fileSources).toEqual([
       'dagbag.py',
       'standard_task_runner.py',
       'task_command.py',
