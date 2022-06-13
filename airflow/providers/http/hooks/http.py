@@ -203,7 +203,7 @@ class HttpHook(BaseHook):
             retry_args = dict(
                 wait=tenacity.wait_exponential(),
                 stop=tenacity.stop_after_attempt(10),
-                retry=requests.exceptions.ConnectionError,
+                retry=tenacity.retry_if_exception_type(Exception),
             )
             hook.run_with_advanced_retry(endpoint="v1/test", _retry_args=retry_args)
 

@@ -96,6 +96,7 @@ class TestDb:
 
     def test_check_migrations(self):
         # Should run without error. Can't easily test the behaviour, but we can check it works
+        check_migrations(0)
         check_migrations(1)
 
     @mock.patch('alembic.command')

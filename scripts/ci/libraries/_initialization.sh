@@ -43,6 +43,10 @@ function initialization::create_directories() {
     export BUILD_CACHE_DIR="${AIRFLOW_SOURCES}/.build"
     readonly BUILD_CACHE_DIR
 
+    # Directory where Kind credential information is kept
+    export KUBE_CACHE_DIR="${AIRFLOW_SOURCES}/.kube"
+    readonly KUBE_CACHE_DIR
+
     # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
     # O_DIRECT parameter for direct writing to the filesystem
     # https://github.com/microsoft/mssql-docker/issues/13
@@ -55,6 +59,7 @@ function initialization::create_directories() {
     mkdir -p "${BUILD_CACHE_DIR}" >/dev/null
     mkdir -p "${FILES_DIR}" >/dev/null
     mkdir -p "${MSSQL_DATA_VOLUME}" >/dev/null
+    mkdir -p "${KUBE_CACHE_DIR}" >/dev/null
     # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
     # This is a bit scary and we could get by making it group-writeable but the group would have
     # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
@@ -64,7 +69,6 @@ function initialization::create_directories() {
     export CI="${CI="false"}"
 
     # Create useful directories if not yet created
-    mkdir -p "${AIRFLOW_SOURCES}/.mypy_cache"
     mkdir -p "${AIRFLOW_SOURCES}/logs"
     mkdir -p "${AIRFLOW_SOURCES}/dist"
 
@@ -418,7 +422,7 @@ function initialization::initialize_image_build_variables() {
 
     export INSTALLED_EXTRAS="async,amazon,celery,cncf.kubernetes,docker,dask,elasticsearch,ftp,grpc,hashicorp,http,imap,ldap,google,microsoft.azure,mysql,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
 
-    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.1.1"}
+    AIRFLOW_PIP_VERSION=${AIRFLOW_PIP_VERSION:="22.1.2"}
     export AIRFLOW_PIP_VERSION
 
     # We also pin version of wheel used to get consistent builds

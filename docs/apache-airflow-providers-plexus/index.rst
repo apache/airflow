@@ -29,15 +29,16 @@ Content
     Python API <_api/airflow/providers/plexus/index>
 
 .. toctree::
-    :maxdepth: 1
-    :caption: Resources
+    :hidden:
+    :caption: System tests
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/plexus/example_dags>
+    System Tests <_api/tests/system/providers/plexus/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-plexus/3.0.0/tests/system/providers/plexus>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-plexus/>
     Installing from sources <installing-providers-from-sources>
 
@@ -57,7 +58,7 @@ Package apache-airflow-providers-plexus
 `Plexus <https://plexus.corescientific.com/>`__
 
 
-Release: 2.0.4
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -68,16 +69,17 @@ are in ``airflow.providers.plexus`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-plexus``
 
-PIP requirements
-----------------
+Requirements
+------------
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``arrow``           ``>=0.16.0``
 ==================  ==================
 

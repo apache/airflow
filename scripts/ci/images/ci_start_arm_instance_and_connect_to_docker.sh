@@ -22,8 +22,8 @@ SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 # This is an AMI that is based on Basic Amazon Linux AMI with installed and configured docker service
 WORKING_DIR="/tmp/armdocker"
 INSTANCE_INFO="${WORKING_DIR}/instance_info.json"
-ARM_AMI="ami-002fa24639ab2520a"
-INSTANCE_TYPE="c6gd.medium"
+ARM_AMI="ami-06b8158ea372d3259"
+INSTANCE_TYPE="c6g.xlarge"
 MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.1,SpotInstanceType=one-time}"
 REGION="us-east-2"
 EC2_USER="ec2-user"
@@ -69,7 +69,7 @@ function start_arm_instance() {
 
     bash -c 'echo -n "Waiting port 12357 .."; for _ in `seq 1 40`; do echo -n .; sleep 0.25; nc -z localhost 12357 && echo " Open." && exit ; done; echo " Timeout!" >&2; exit 1'
 
-    docker buildx rm -f airflow_cache || true
+    docker buildx rm --force airflow_cache || true
     docker buildx create --name airflow_cache
     docker buildx create --name airflow_cache --append localhost:12357
     docker buildx ls

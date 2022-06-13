@@ -590,7 +590,7 @@ For connection, use :envvar:`AIRFLOW_CONN_{CONN_ID}`.
         assert "cat" == Connection.get("my_conn").login
 
 Metadata DB maintenance
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Over time, the metadata database will increase its storage footprint as more DAG and task runs and event logs accumulate.
 
@@ -599,15 +599,15 @@ You can use the Airflow CLI to purge old data with the command ``airflow db clea
 See :ref:`db clean usage<cli-db-clean>` for more details.
 
 Upgrades and downgrades
------------------------
+^^^^^^^^^^^^^^^^^^^^^^^
 
 Backup your database
-^^^^^^^^^^^^^^^^^^^^
+--------------------
 
 It's always a wise idea to backup the metadata database before undertaking any operation modifying the database.
 
 Disable the scheduler
-^^^^^^^^^^^^^^^^^^^^^
+---------------------
 
 You might consider disabling the Airflow cluster while you perform such maintenance.
 
@@ -618,13 +618,13 @@ A *better* way (though it's a bit more manual) is to use the ``dags pause`` comm
 .. _integration-test-dags:
 
 Add "integration test" DAGs
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------
 
 It can be helpful to add a couple "integration test" DAGs that use all the common services in your ecosystem (e.g. S3, Snowflake, Vault) but with dummy resources or "dev" accounts.  These test DAGs can be the ones you turn on *first* after an upgrade, because if they fail, it doesn't matter and you can revert to your backup without negative consequences.  However, if they succeed, they should prove that your cluster is able to run tasks with the libraries and services that you need to use.
 
 For example, if you use an external secrets backend, make sure you have a task that retrieves a connection.  If you use KubernetesPodOperator, add a task that runs ``sleep 30; echo "hello"``.  If you need to write to s3, do so in a test task.  And if you need to access a database, add a task that does ``select 1`` from the server.
 
 Prune data before upgrading
-^^^^^^^^^^^^^^^^^^^^^^^^^^^
+---------------------------
 
 Some database migrations can be time-consuming.  If your metadata database is very large, consider pruning some of the old data with the :ref:`db clean<cli-db-clean>` command prior to performing the upgrade.  *Use with caution.*

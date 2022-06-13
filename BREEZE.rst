@@ -92,7 +92,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 Docker Compose
 --------------
 
-- **Version**: Install the latest stable `Docker Compose<https://docs.docker.com/compose/install/>`_
+- **Version**: Install the latest stable `Docker Compose <https://docs.docker.com/compose/install/>`_
   and add it to the PATH. ``Breeze`` detects if you are using version that is too old and warns you to upgrade.
 - **Permissions**: Configure permission to be able to run the ``docker-compose`` command by your user.
 
@@ -127,9 +127,17 @@ Docker in WSL 2
 
 - **WSL 2 Docker mount errors**:
     Another reason to use Linux filesystem, is that sometimes - depending on the length of
-    your path, you might get strange errors when you try start ``Breeze``, such us
+    your path, you might get strange errors when you try start ``Breeze``, such as
     ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
     Airflow in Windows-mounted Filesystem is strongly discouraged.
+
+- **WSL 2 Docker volume remount errors**:
+    If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
+    Cannot create container for service airflow: not a directory`` when starting Breeze
+    after the first time or an error like ``docker: Error response from daemon: not a directory.
+    See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
+    `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
+    instead of using Docker Desktop for Windows.
 
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
@@ -257,6 +265,8 @@ Those are all available flags of ``self-upgrade`` command:
 If you have several checked out Airflow sources, Breeze will warn you if you are using it from a different
 source tree and will offer you to re-install from those sources - to make sure that you are using the right
 version.
+
+You can skip Breeze's upgrade check by setting ``SKIP_BREEZE_UPGRADE_CHECK`` variable to non empty value.
 
 By default Breeze works on the version of Airflow that you run it in - in case you are outside of the
 sources of Airflow and you installed Breeze from a directory - Breeze will be run on Airflow sources from
@@ -424,6 +434,17 @@ of help of the commands only when they change.
 .. image:: ./images/breeze/output-command-hash-export.svg
   :width: 100%
   :alt: Breeze command-hash-export
+
+Regenerating images for documentation
+=====================================
+
+This documentation contains exported images with "help" of their commands and parameters. You can
+regenerate all those images (which might be needed in case new version of rich is used) via
+``regenerate-breeze-images`` command.
+
+.. image:: ./images/breeze/output-regenerate-command-images.svg
+  :width: 100%
+  :alt: Breeze regenerate-command-images
 
 
 Starting complete Airflow installation
@@ -1051,6 +1072,12 @@ command but it is very similar to current ``breeze`` command):
              alt="Airflow Breeze - Static checks">
       </a>
     </div>
+
+.. note::
+
+    When you run static checks, some of the artifacts (mypy_cache) is stored in docker-compose volume
+    so that it can speed up static checks execution significantly. However, sometimes, the cache might
+    get broken, in which case you should run ``breeze stop`` to clean up the cache.
 
 
 Building the Documentation

@@ -17,7 +17,7 @@
 
 import os
 import sys
-from typing import Optional, Tuple
+from typing import Iterable, Optional, Tuple
 
 import rich_click as click
 
@@ -25,6 +25,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
     get_available_packages,
 )
@@ -199,7 +200,7 @@ DEVELOPER_PARAMETERS = {
             "name": "Pre-commit flags",
             "options": [
                 "--type",
-                "--files",
+                "--file",
                 "--all-files",
                 "--show-diff-on-failure",
                 "--last-commit",
@@ -439,7 +440,7 @@ def build_docs(
     multiple=True,
 )
 @click.option('-a', '--all-files', help="Run checks on all files.", is_flag=True)
-@click.option('-f', '--files', help="List of files to run the checks on.", multiple=True)
+@click.option('-f', '--file', help="List of files to run the checks on.", type=click.Path(), multiple=True)
 @click.option(
     '-s', '--show-diff-on-failure', help="Show diff for files modified by the checks.", is_flag=True
 )
@@ -469,7 +470,7 @@ def static_checks(
     last_commit: bool,
     commit_ref: str,
     type: Tuple[str],
-    files: bool,
+    file: Iterable[str],
     precommit_args: Tuple,
 ):
     assert_pre_commit_installed(verbose=verbose)
@@ -488,10 +489,11 @@ def static_checks(
         command_to_execute.extend(["--from-ref", "HEAD^", "--to-ref", "HEAD"])
     if commit_ref:
         command_to_execute.extend(["--from-ref", f"{commit_ref}^", "--to-ref", f"{commit_ref}"])
-    if files:
-        command_to_execute.append("--files")
     if verbose or dry_run:
         command_to_execute.append("--verbose")
+    if file:
+        command_to_execute.append("--files")
+        command_to_execute.extend(file)
     if precommit_args:
         command_to_execute.extend(precommit_args)
     env = os.environ.copy()
@@ -523,7 +525,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     command_to_execute = ['docker-compose', 'down', "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
-    shell_params = ShellParams(verbose=verbose)
+    shell_params = ShellParams(verbose=verbose, backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
@@ -578,6 +580,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if read_from_cache_file('suppress_cheatsheet') is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
+    enter_shell_params.include_mypy_volume = True
     rebuild_ci_image_if_needed(build_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
     return run_shell(verbose, dry_run, enter_shell_params)
 
@@ -599,7 +602,13 @@ def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCom
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
-
+    if "arm64" in DOCKER_DEFAULT_PLATFORM:
+        if shell_params.backend == "mysql":
+            get_console().print('\n[error]MySQL is not supported on ARM architecture.[/]\n')
+            sys.exit(1)
+        if shell_params.backend == "mssql":
+            get_console().print('\n[error]MSSQL is not supported on ARM architecture[/]\n')
+            sys.exit(1)
     command_result = run_command(
         cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True, check=False
     )
