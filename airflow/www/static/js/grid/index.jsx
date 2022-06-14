@@ -20,14 +20,15 @@
 /* global document */
 
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider, extendTheme } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import Main from './Main';
+import theme from './theme';
 import { ContainerRefProvider } from './context/containerRef';
 import { TimezoneProvider } from './context/timezone';
 import { AutoRefreshProvider } from './context/autorefresh';
@@ -60,16 +61,6 @@ const queryClient = new QueryClient({
   },
 });
 
-const theme = extendTheme({
-  components: {
-    Tooltip: {
-      baseStyle: {
-        fontSize: 'md',
-      },
-    },
-  },
-});
-
 function App() {
   return (
     <React.StrictMode>
@@ -92,4 +83,5 @@ function App() {
   );
 }
 
-ReactDOM.render(<App />, mainElement);
+const reactRoot = createRoot(mainElement);
+reactRoot.render(<App />);
