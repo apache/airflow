@@ -118,8 +118,8 @@ class GlueJobHook(AwsBaseHook):
 
         try:
             job_name = self.get_or_create_glue_job()
-            job_run = glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
-            return job_run
+            return glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
+
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -134,8 +134,7 @@ class GlueJobHook(AwsBaseHook):
         """
         glue_client = self.get_conn()
         job_run = glue_client.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
-        job_run_state = job_run['JobRun']['JobRunState']
-        return job_run_state
+        return job_run['JobRun']['JobRunState']
 
     def job_completion(self, job_name: str, run_id: str) -> Dict[str, str]:
         """
@@ -155,7 +154,7 @@ class GlueJobHook(AwsBaseHook):
                 self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
             if job_run_state in failed_states:
-                job_error_message = "Exiting Job " + run_id + " Run State: " + job_run_state
+                job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
                 self.log.info(job_error_message)
                 raise AirflowException(job_error_message)
             else:
@@ -182,6 +181,12 @@ class GlueJobHook(AwsBaseHook):
             s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:
+                default_command = {
+                    "Name": "glueetl",
+                    "ScriptLocation": self.script_location,
+                }
+                command = self.create_job_kwargs.pop("Command", default_command)
+
                 if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
                     create_job_response = glue_client.create_job(
                         Name=self.job_name,
@@ -189,7 +194,7 @@ class GlueJobHook(AwsBaseHook):
                         LogUri=s3_log_path,
                         Role=execution_role['Role']['Arn'],
                         ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        Command=command,
                         MaxRetries=self.retry_limit,
                         **self.create_job_kwargs,
                     )
@@ -200,7 +205,7 @@ class GlueJobHook(AwsBaseHook):
                         LogUri=s3_log_path,
                         Role=execution_role['Role']['Arn'],
                         ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                        Command={"Name": "glueetl", "ScriptLocation": self.script_location},
+                        Command=command,
                         MaxRetries=self.retry_limit,
                         MaxCapacity=self.num_of_dpus,
                         **self.create_job_kwargs,

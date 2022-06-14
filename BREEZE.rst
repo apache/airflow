@@ -92,7 +92,7 @@ Here is an example configuration with more than 200GB disk space for Docker:
 Docker Compose
 --------------
 
-- **Version**: Install the latest stable `Docker Compose<https://docs.docker.com/compose/install/>`_
+- **Version**: Install the latest stable `Docker Compose <https://docs.docker.com/compose/install/>`_
   and add it to the PATH. ``Breeze`` detects if you are using version that is too old and warns you to upgrade.
 - **Permissions**: Configure permission to be able to run the ``docker-compose`` command by your user.
 
@@ -127,9 +127,17 @@ Docker in WSL 2
 
 - **WSL 2 Docker mount errors**:
     Another reason to use Linux filesystem, is that sometimes - depending on the length of
-    your path, you might get strange errors when you try start ``Breeze``, such us
+    your path, you might get strange errors when you try start ``Breeze``, such as
     ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
     Airflow in Windows-mounted Filesystem is strongly discouraged.
+
+- **WSL 2 Docker volume remount errors**:
+    If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
+    Cannot create container for service airflow: not a directory`` when starting Breeze
+    after the first time or an error like ``docker: Error response from daemon: not a directory.
+    See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
+    `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
+    instead of using Docker Desktop for Windows.
 
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
@@ -426,6 +434,17 @@ of help of the commands only when they change.
 .. image:: ./images/breeze/output-command-hash-export.svg
   :width: 100%
   :alt: Breeze command-hash-export
+
+Regenerating images for documentation
+=====================================
+
+This documentation contains exported images with "help" of their commands and parameters. You can
+regenerate all those images (which might be needed in case new version of rich is used) via
+``regenerate-breeze-images`` command.
+
+.. image:: ./images/breeze/output-regenerate-command-images.svg
+  :width: 100%
+  :alt: Breeze regenerate-command-images
 
 
 Starting complete Airflow installation

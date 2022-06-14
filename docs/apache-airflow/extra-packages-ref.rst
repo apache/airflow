@@ -218,6 +218,8 @@ Those are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | extra               | install command                                     | enables                                   |
 +=====================+=====================================================+===========================================+
+| arangodb            | ``pip install 'apache-airflow[arangodb]'``          | ArangoDB operators, sensors and hook      |
++---------------------+-----------------------------------------------------+-------------------------------------------+
 | docker              | ``pip install 'apache-airflow[docker]'``            | Docker hooks and operators                |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | elasticsearch       | ``pip install 'apache-airflow[elasticsearch]'``     | Elasticsearch hooks and Log Handler       |
@@ -256,8 +258,6 @@ Those are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | trino               | ``pip install 'apache-airflow[trino]'``             | All Trino related operators & hooks       |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
-| arangodb            | ``pip install 'apache-airflow[arangodb]'``          | ArangoDB operators, sensors and hook      |
-+---------------------+-----------------------------------------------------+-------------------------------------------+
 
 
 Other extras
@@ -278,6 +278,10 @@ Those are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | jdbc                | ``pip install 'apache-airflow[jdbc]'``              | JDBC hooks and operators             |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| microsoft.psrp      | ``pip install 'apache-airflow[microsoft.psrp]'``    | PSRP hooks and operators             |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
+| microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators            |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | papermill           | ``pip install 'apache-airflow[papermill]'``         | Papermill hooks and operators        |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | sftp                | ``pip install 'apache-airflow[sftp]'``              | SFTP hooks, operators and sensors    |              |
@@ -285,10 +289,6 @@ Those are extras that provide support for integration with external systems via 
 | sqlite              | ``pip install 'apache-airflow[sqlite]'``            | SQLite hooks and operators           |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ssh                 | ``pip install 'apache-airflow[ssh]'``               | SSH hooks and operators              |              |
-+---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| microsoft.psrp      | ``pip install 'apache-airflow[microsoft.psrp]'``    | PSRP hooks and operators             |              |
-+---------------------+-----------------------------------------------------+--------------------------------------+--------------+
-| microsoft.winrm     | ``pip install 'apache-airflow[microsoft.winrm]'``   | WinRM hooks and operators            |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 
 Bundle extras

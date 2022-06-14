@@ -23,10 +23,10 @@ import React from 'react';
 import { isEqual } from 'lodash';
 import {
   Box,
-  Tooltip,
   useTheme,
 } from '@chakra-ui/react';
 
+import Tooltip from './Tooltip';
 import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from '../context/containerRef';
 

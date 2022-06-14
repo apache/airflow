@@ -79,6 +79,8 @@ class TestBatchOperator(unittest.TestCase):
         assert self.batch.job_id is None
         self.batch.job_id = JOB_ID
 
+        self.mock_context = mock.MagicMock()
+
     def test_init(self):
         assert self.batch.job_id == JOB_ID
         assert self.batch.job_name == JOB_NAME
@@ -104,15 +106,16 @@ class TestBatchOperator(unittest.TestCase):
             "parameters",
         )
 
+    @mock.patch.object(BatchClientHook, "get_job_description")
     @mock.patch.object(BatchClientHook, "wait_for_job")
     @mock.patch.object(BatchClientHook, "check_job_success")
-    def test_execute_without_failures(self, check_mock, wait_mock):
+    def test_execute_without_failures(self, check_mock, wait_mock, job_description_mock):
         # JOB_ID is in RESPONSE_WITHOUT_FAILURES
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
         self.batch.job_id = None
         self.batch.waiters = None  # use default wait
 
-        self.batch.execute({})
+        self.batch.execute(self.mock_context)
 
         self.client_mock.submit_job.assert_called_once_with(
             jobQueue="queue",
@@ -128,11 +131,15 @@ class TestBatchOperator(unittest.TestCase):
         wait_mock.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)
 
+        # First Call: Retrieve Batch Queue and Job Definition
+        # Second Call: Retrieve CloudWatch information
+        assert job_description_mock.call_count == 2
+
     def test_execute_with_failures(self):
-        self.client_mock.submit_job.return_value = ""
+        self.client_mock.submit_job.side_effect = Exception()
 
         with pytest.raises(AirflowException):
-            self.batch.execute({})
+            self.batch.execute(self.mock_context)
 
         self.client_mock.submit_job.assert_called_once_with(
             jobQueue="queue",
@@ -151,7 +158,7 @@ class TestBatchOperator(unittest.TestCase):
 
         self.client_mock.submit_job.return_value = RESPONSE_WITHOUT_FAILURES
         self.client_mock.describe_jobs.return_value = {"jobs": [{"jobId": JOB_ID, "status": "SUCCEEDED"}]}
-        self.batch.execute({})
+        self.batch.execute(self.mock_context)
 
         mock_waiters.wait_for_job.assert_called_once_with(JOB_ID)
         check_mock.assert_called_once_with(JOB_ID)

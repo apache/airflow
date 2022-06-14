@@ -111,8 +111,8 @@ For details on advanced usage of the install method, use:
 Available pre-commit checks
 ...........................
 
-This table lists pre-commit hooks used by Airflow. The ``Breeze`` column indicates which hooks
-require Breeze Docker images to be installed locally.
+This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
+require Breeze Docker image to be build locally.
 
 .. note:: Disabling particular checks
 
@@ -122,6 +122,10 @@ require Breeze Docker images to be installed locally.
   when you want to skip some checks (flake/mypy for example), you should be able to do it by setting
   ``export SKIP=run-flake8,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
   do not want to set it manually every time you enter the terminal.
+
+  In case you do not have breeze image configured locally, you can also disable all checks that require
+  the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
+  when run locally (note that those checks will anyway run in CI).
 
   .. BEGIN AUTO-GENERATED STATIC CHECK LIST
 
@@ -140,6 +144,8 @@ require Breeze Docker images to be installed locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-base-operator-partial-arguments                  | Check BaseOperator and partial() arguments                       |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-base-operator-usage                              | * Check BaseOperator[Link] core imports                          |         |
 |                                                        | * Check BaseOperator[Link] other imports                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -154,6 +160,8 @@ require Breeze Docker images to be installed locally.
 | check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-docstring-param-types                            | Check that docstrings do not specify param types                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-example-dags-urls                                | Check that example dags url include provider versions            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-executables-have-shebangs                        | Check that executables have shebang                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -201,9 +209,13 @@ require Breeze Docker images to be installed locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-system-tests-present                             | Check if system tests have required segments of code             |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-system-tests-tocs                                | Check that system tests is properly added                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-xml                                              | Check XML files with xmllint                                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | codespell                                              | Run codespell to check for common misspellings in files          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| create-missing-init-py-files-tests                     | Create missing init.py files in tests                            |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | debug-statements                                       | Detect accidentally committed debug statements                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -242,7 +254,7 @@ require Breeze Docker images to be installed locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-helm-chart                                        | Lint Helm Chart                                                  |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| lint-javascript                                        | * ESLint against airflow/ui                                      |         |
+| lint-javascript                                        | * ESLint against airflow/ui                                      | *       |
 |                                                        | * ESLint against current UI JavaScript files                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | lint-json-schema                                       | * Lint JSON Schema files with JSON Schema                        |         |
@@ -269,9 +281,9 @@ require Breeze Docker images to be installed locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | rst-backticks                                          | Check if RST files use double backticks for code                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| run-flake8                                             | Run flake8                                                       |         |
+| run-flake8                                             | Run flake8                                                       | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| run-mypy                                               | * Run mypy for dev                                               |         |
+| run-mypy                                               | * Run mypy for dev                                               | *       |
 |                                                        | * Run mypy for core                                              |         |
 |                                                        | * Run mypy for providers                                         |         |
 |                                                        | * Run mypy for /docs/ folder                                     |         |
@@ -294,7 +306,7 @@ require Breeze Docker images to be installed locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-local-yml-file                                  | Update mounts in the local yml file                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-migration-references                            | Update migration ref doc                                         |         |
+| update-migration-references                            | Update migration ref doc                                         | *       |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-providers-dependencies                          | Update cross-dependencies for providers packages                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -387,49 +399,63 @@ Run the ``mypy`` check for the currently staged changes:
 
 .. code-block:: bash
 
-     breeze static-check --type run-mypy
+     breeze static-checks --type run-mypy
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     breeze static-check --type run-mypy --all-files
+     breeze static-checks --type run-mypy --all-files
 
 Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     breeze static-check --type run-flake8 --file tests/core.py --verbose
+     breeze static-checks --type run-flake8 --file tests/core.py --verbose
 
 Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     breeze static-check --type run-flake8 --file tests/core/* --verbose
+     breeze static-checks --type run-flake8 --file tests/core/* --verbose
 
-Run all tests for the currently staged files:
-
-.. code-block:: bash
-
-     breeze static-check --type all
-
-Run all tests for all files:
+Run all checks for the currently staged files:
 
 .. code-block:: bash
 
-    breeze static-check --type all --all-files
+     breeze static-checks --type all
 
-Run all tests for last commit :
-
-.. code-block:: bash
-
-     breeze static-check --type all --last-commit
-
-
-The ``license`` check is run via a separate script and a separate Docker image containing the
-Apache RAT verification tool that checks for Apache-compatibility of licenses within the codebase.
-It does not take pre-commit parameters as extra arguments.
+Run all checks for all files:
 
 .. code-block:: bash
 
-     breeze static-check licenses
+    breeze static-checks --type all --all-files
+
+Run all checks for last commit :
+
+.. code-block:: bash
+
+     breeze static-checks --type all --last-commit
+
+Debugging pre-commit check scripts requiring image
+--------------------------------------------------
+
+Those commits that use Breeze docker image might sometimes fail, depending on your operating system and
+docker setup, so sometimes it might be required to run debugging with the commands. This is done via
+two environment variables ``VERBOSE`` and ``DRY_RUN``. Setting them to "true" will respectively show the
+commands to run before running them or skip running the commands.
+
+Note that you need to run pre-commit with --verbose command to get the output regardless of the status
+of the static check (normally it will only show output on failure).
+
+Printing the commands while executing:
+
+.. code-block:: bash
+
+     VERBOSE="true" pre-commit run --verbose run-flake8
+
+Just performing dry run:
+
+.. code-block:: bash
+
+     DRY_RUN="true" pre-commit run --verbose run-flake8

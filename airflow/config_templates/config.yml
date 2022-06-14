@@ -1943,6 +1943,22 @@
       type: string
       example: ~
       default: "30"
+    - name: enable_health_check
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check if this is set to True
+      version_added: 2.4.0
+      type: boolean
+      example: ~
+      default: "False"
+    - name: scheduler_health_check_server_port
+      description: |
+        When you start a scheduler, airflow starts a tiny web server
+        subprocess to serve a health check on this port
+      version_added: 2.4.0
+      type: string
+      example: ~
+      default: "8974"
     - name: orphaned_tasks_check_interval
       description: |
         How often (in seconds) should the scheduler check for orphaned tasks and SchedulerJobs
@@ -2168,15 +2184,6 @@
       type: boolean
       example: ~
       default: "True"
-- name: github_enterprise
-  description: ~
-  options:
-    - name: api_rev
-      description: ~
-      version_added: ~
-      type: string
-      example: ~
-      default: "v3"
 - name: elasticsearch
   description: ~
   options:

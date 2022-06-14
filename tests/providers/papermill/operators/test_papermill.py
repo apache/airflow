@@ -31,6 +31,7 @@ class TestPapermillOperator(unittest.TestCase):
         in_nb = "/tmp/does_not_exist"
         out_nb = "/tmp/will_not_exist"
         kernel_name = "python3"
+        language_name = "python"
         parameters = {"msg": "hello_world", "train": 1}
 
         op = PapermillOperator(
@@ -39,6 +40,7 @@ class TestPapermillOperator(unittest.TestCase):
             parameters=parameters,
             task_id="papermill_operator_test",
             kernel_name=kernel_name,
+            language_name=language_name,
             dag=None,
         )
 
@@ -50,6 +52,7 @@ class TestPapermillOperator(unittest.TestCase):
             out_nb,
             parameters=parameters,
             kernel_name=kernel_name,
+            language=language_name,
             progress_bar=False,
             report_mode=True,
         )
@@ -64,6 +67,7 @@ class TestPapermillOperator(unittest.TestCase):
             output_nb="/tmp/out-{{ dag.dag_id }}.ipynb",
             parameters={"msgs": "dag id is {{ dag.dag_id }}!"},
             kernel_name="python3",
+            language_name="python",
             dag=dag,
         )
 
@@ -71,7 +75,8 @@ class TestPapermillOperator(unittest.TestCase):
         ti.dag_run = DagRun(execution_date=DEFAULT_DATE)
         ti.render_templates()
 
-        assert "/tmp/test_render_template.ipynb" == getattr(operator, 'input_nb')
-        assert '/tmp/out-test_render_template.ipynb' == getattr(operator, 'output_nb')
-        assert {"msgs": "dag id is test_render_template!"} == getattr(operator, 'parameters')
-        assert "python3" == getattr(operator, 'kernel_name')
+        assert "/tmp/test_render_template.ipynb" == operator.input_nb
+        assert '/tmp/out-test_render_template.ipynb' == operator.output_nb
+        assert {"msgs": "dag id is test_render_template!"} == operator.parameters
+        assert "python3" == operator.kernel_name
+        assert "python" == operator.language_name

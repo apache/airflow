@@ -36,10 +36,16 @@ Content
     Python API <_api/airflow/providers/jdbc/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/jdbc/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/jdbc/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-jdbc/3.0.0/tests/system/providers/jdbc/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +65,7 @@ Package apache-airflow-providers-jdbc
 `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 
-Release: 2.1.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -70,16 +76,17 @@ are in ``airflow.providers.jdbc`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-jdbc``
 
-PIP requirements
-----------------
+Requirements
+------------
 
 ==================  ==================
 PIP package         Version required
 ==================  ==================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``jaydebeapi``      ``>=1.1.1``
 ==================  ==================
 

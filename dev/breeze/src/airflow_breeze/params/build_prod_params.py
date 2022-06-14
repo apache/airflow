@@ -21,7 +21,7 @@ import sys
 from dataclasses import dataclass
 from typing import List
 
-from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.branch_defaults import AIRFLOW_BRANCH, DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
 from airflow_breeze.global_constants import (
     AIRFLOW_SOURCES_FROM,
     AIRFLOW_SOURCES_TO,
@@ -30,17 +30,18 @@ from airflow_breeze.global_constants import (
     get_airflow_extras,
     get_airflow_version,
 )
-from airflow_breeze.params._common_build_params import _CommonBuildParams
+from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.utils.console import get_console
 
 
 @dataclass
-class BuildProdParams(_CommonBuildParams):
+class BuildProdParams(CommonBuildParams):
     """
     PROD build parameters. Those parameters are used to determine command issued to build PROD image.
     """
 
     airflow_constraints_mode: str = "constraints"
+    default_constraints_branch: str = DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH
     airflow_constraints_reference: str = ""
     airflow_is_in_context: bool = False
     cleanup_context: bool = False
