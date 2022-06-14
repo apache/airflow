@@ -27,7 +27,18 @@ from airflow.utils.state import State
 
 @airflow_cmd.group("jobs")
 def jobs():
-    """Manage jobs"""
+    """Manage jobs
+
+    \b
+    Examples:
+    To check if the local scheduler is still working properly, run:
+    \b
+        $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
+    \b
+    To check if any scheduler is running when you are using high availability, run:
+    \b
+        $ airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100
+    """
 
 
 @jobs.command("check")
