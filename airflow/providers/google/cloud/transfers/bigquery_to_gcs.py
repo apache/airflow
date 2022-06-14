@@ -18,6 +18,8 @@
 """This module contains Google BigQuery to Google Cloud Storage operator."""
 from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
 
+from google.cloud.bigquery import ExtractJob
+
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
@@ -125,12 +127,13 @@ class BigQueryToGCSOperator(BaseOperator):
             labels=self.labels,
             return_full_job=True,
         )
-        conf = job["configuration"]["extract"]["sourceTable"]
-        dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
-        BigQueryTableLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=dataset_id,
-            project_id=project_id,
-            table_id=table_id,
-        )
+        table_ref = job.source
+        if isinstance(table_ref, ExtractJob):
+            dataset_id, project_id, table_id = table_ref.dataset_id, table_ref.project, table_ref.table_id
+            BigQueryTableLink.persist(
+                context=context,
+                task_instance=self,
+                dataset_id=dataset_id,
+                project_id=project_id,
+                table_id=table_id,
+            )
