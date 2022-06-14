@@ -35,7 +35,5 @@ Client ID
 Client Secret
     The Client Secret from Tabular
 
-Extra (optional, connection parameters)
-    Specify the extra parameters (as json dictionary) that can be used the Tabular connection. The following parameters out of the standard python parameters are supported:
-
-    * ``base_url`` - Optional, sets the URL to the Tabular environment. By default `https://api.tabulardata.io/ws/v1`
+Host
+    Sets the URL to the Tabular environment. By default `https://api.tabulardata.io/ws/v1`
