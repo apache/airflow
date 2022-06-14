@@ -1066,7 +1066,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
     dr = dag_maker.create_dagrun()
     tis = dr.get_task_instances()
     indices = [(ti.map_index, ti.state) for ti in tis]
-    assert indices == [
+    assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
         (2, State.NONE),
@@ -1090,7 +1090,7 @@ def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
 
     tis = dr.get_task_instances()
     indices = [(ti.map_index, ti.state) for ti in tis]
-    assert indices == [
+    assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
         (2, State.NONE),
@@ -1113,7 +1113,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     dr = dag_maker.create_dagrun()
     tis = dr.get_task_instances()
     indices = [(ti.map_index, ti.state) for ti in tis]
-    assert indices == [
+    assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
         (2, State.NONE),
@@ -1137,7 +1137,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
 
     tis = dr.get_task_instances()
     indices = [(ti.map_index, ti.state) for ti in tis]
-    assert indices == [
+    assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
         (2, State.REMOVED),
@@ -1169,7 +1169,7 @@ def test_mapped_literal_length_increase_at_runtime_adds_additional_tis(dag_maker
     dr.task_instance_scheduling_decisions()
     tis = dr.get_task_instances()
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert indices == [
+    assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
         (2, State.NONE),
@@ -1199,7 +1199,7 @@ def test_mapped_literal_length_increase_at_runtime_adds_additional_tis(dag_maker
     tis = dr.get_task_instances()
 
     indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
-    assert indices == [
+    assert sorted(indices) == [
         (0, State.NONE),
         (1, State.NONE),
         (2, State.NONE),
