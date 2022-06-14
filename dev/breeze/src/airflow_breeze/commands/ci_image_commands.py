@@ -44,6 +44,7 @@ from airflow_breeze.utils.common_options import (
     option_docker_cache,
     option_dry_run,
     option_empty_image,
+    option_force_build,
     option_github_repository,
     option_github_token,
     option_github_username,
@@ -216,6 +217,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 @option_additional_runtime_apt_command
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_force_build
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_airflow_constraints_mode_ci

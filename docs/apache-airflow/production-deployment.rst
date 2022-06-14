@@ -34,7 +34,7 @@ You can change the backend using the following config
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn = my_conn_string
 
 Once you have changed the backend, airflow needs to create all the tables required for operation.

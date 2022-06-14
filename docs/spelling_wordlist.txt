@@ -193,6 +193,7 @@ Hou
 Http
 HttpError
 HttpRequest
+IGM
 IdP
 ImageAnnotatorClient
 Imap
@@ -281,6 +282,7 @@ OSS
 Oauth
 Oauthlib
 Okta
+OnFailure
 Oozie
 Opsgenie
 Optimise
@@ -796,6 +798,7 @@ evals
 eventlet
 evo
 exasol
+executables
 execvp
 exitcode
 explicit
@@ -821,12 +824,14 @@ filehandle
 fileloc
 filelocs
 filepath
+fileshare
 filesize
 filesystem
 filesystems
 filetype
 finalizers
 findall
+firestore
 firstname
 fluentd
 fmt
@@ -875,6 +880,7 @@ greenlet
 groupId
 grpc
 gz
+gzipped
 hadoop
 hadoopcmd
 hardcoded
@@ -1190,6 +1196,7 @@ preloading
 prepend
 prepended
 preprocess
+preprocessing
 presign
 presigned
 prestocmd
@@ -1346,6 +1353,7 @@ sourceRepository
 sourceUploadUrl
 sparkApplication
 sparkcmd
+sparkr
 sparksql
 spegno
 spotahome
@@ -1476,6 +1484,7 @@ tsql
 tsv
 ttl
 tunables
+twitterHandle
 txt
 typeahead
 tz

@@ -25,6 +25,7 @@ from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
     get_available_packages,
 )
@@ -524,7 +525,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     command_to_execute = ['docker-compose', 'down', "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
-    shell_params = ShellParams(verbose=verbose, backend="all")
+    shell_params = ShellParams(verbose=verbose, backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
@@ -579,6 +580,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if read_from_cache_file('suppress_cheatsheet') is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
+    enter_shell_params.include_mypy_volume = True
     rebuild_ci_image_if_needed(build_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
     return run_shell(verbose, dry_run, enter_shell_params)
 
@@ -600,7 +602,13 @@ def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCom
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
-
+    if "arm64" in DOCKER_DEFAULT_PLATFORM:
+        if shell_params.backend == "mysql":
+            get_console().print('\n[error]MySQL is not supported on ARM architecture.[/]\n')
+            sys.exit(1)
+        if shell_params.backend == "mssql":
+            get_console().print('\n[error]MSSQL is not supported on ARM architecture[/]\n')
+            sys.exit(1)
     command_result = run_command(
         cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True, check=False
     )

@@ -96,6 +96,7 @@ def run_command(
             return subprocess.CompletedProcess(cmd, returncode=0)
     try:
         cmd_env = os.environ.copy()
+        cmd_env.setdefault("HOME", str(Path.home()))
         if env:
             cmd_env.update(env)
         with ci_group(title=f"Output of {title}", enabled=enabled_output_group):

@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-
+import fnmatch
 import os
 import re
 import sys
@@ -112,12 +112,13 @@ class S3KeySensor(BaseSensorOperator):
         """
         if self.wildcard_match:
             prefix = re.split(r'[\[\*\?]', key, 1)[0]
-            files = self.get_hook().get_file_metadata(prefix, bucket_name)
-            if len(files) == 0:
+            keys = self.get_hook().get_file_metadata(prefix, bucket_name)
+            key_matches = [k for k in keys if fnmatch.fnmatch(k['Key'], key)]
+            if len(key_matches) == 0:
                 return False
 
             # Reduce the set of metadata to size only
-            files = list(map(lambda f: {'Size': f['Size']}, files))
+            files = list(map(lambda f: {'Size': f['Size']}, key_matches))
         else:
             obj = self.get_hook().head_object(key, bucket_name)
             if obj is None:
@@ -341,8 +342,7 @@ class S3PrefixSensor(S3KeySensor):
             stacklevel=2,
         )
 
-        self.prefix = prefix
-        prefixes = [self.prefix] if isinstance(self.prefix, str) else self.prefix
+        prefixes = [prefix] if isinstance(prefix, str) else prefix
         keys = [pref if pref.endswith(delimiter) else pref + delimiter for pref in prefixes]
 
         super().__init__(bucket_key=keys, **kwargs)

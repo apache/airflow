@@ -36,10 +36,16 @@ Content
     Python API <_api/airflow/providers/http/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/http/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/http/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-http/3.0.0/tests/system/providers/http>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-http/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +65,7 @@ Package apache-airflow-providers-http
 `Hypertext Transfer Protocol (HTTP) <https://www.w3.org/Protocols/>`__
 
 
-Release: 2.1.2
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -70,11 +76,12 @@ are in ``airflow.providers.http`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-http``
 
-PIP requirements
-----------------
+Requirements
+------------
 
 =============  ==================
 PIP package    Version required

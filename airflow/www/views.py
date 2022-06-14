@@ -28,7 +28,7 @@ import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
@@ -39,6 +39,7 @@ import lazy_object_proxy
 import markupsafe
 import nvd3
 import sqlalchemy as sqla
+from croniter import croniter
 from flask import (
     Response,
     abort,
@@ -117,6 +118,7 @@ from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
@@ -271,7 +273,9 @@ def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
 
     def get_summary(dag_run, children):
         child_instances = [child['instances'] for child in children if 'instances' in child]
-        child_instances = [item for sublist in child_instances for item in sublist]
+        child_instances = [
+            item for sublist in child_instances for item in sublist if item['run_id'] == dag_run.run_id
+        ]
 
         children_start_dates = [item['start_date'] for item in child_instances if item]
         children_end_dates = [item['end_date'] for item in child_instances if item]
@@ -2611,8 +2615,6 @@ class Airflow(AirflowBaseView):
             .limit(num_runs)
             .all()
         )
-        dag_runs.reverse()
-        encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
         dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         max_date = max(dag_run_dates, default=None)
@@ -2632,14 +2634,6 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
-        data = {
-            'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
-            'dag_runs': encoded_runs,
-        }
-
-        # avoid spaces to reduce payload size
-        data = htmlsafe_json_dumps(data, separators=(',', ':'))
-
         default_dag_run_display_number = conf.getint('webserver', 'default_dag_run_display_number')
 
         num_runs_options = [5, 25, 50, 100, 365]
@@ -2654,7 +2648,6 @@ class Airflow(AirflowBaseView):
             form=form,
             dag=dag,
             doc_md=doc_md,
-            data=data,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
@@ -2751,18 +2744,28 @@ class Airflow(AirflowBaseView):
             restriction = TimeRestriction(dag.start_date, dag.end_date, False)
             dates = collections.Counter()
 
-            while True:
-                info = dag.timetable.next_dagrun_info(
-                    last_automated_data_interval=last_automated_data_interval, restriction=restriction
-                )
-                if info is None:
-                    break
-
-                if info.logical_date.year != year:
-                    break
-
-                last_automated_data_interval = info.data_interval
-                dates[info.logical_date] += 1
+            if isinstance(dag.timetable, CronDataIntervalTimetable):
+                for next in croniter(
+                    dag.timetable.summary, start_time=last_automated_data_interval.end, ret_type=datetime
+                ):
+                    if next is None:
+                        break
+                    if next.year != year:
+                        break
+                    if dag.end_date and next > dag.end_date:
+                        break
+                    dates[next.date()] += 1
+            else:
+                while True:
+                    info = dag.timetable.next_dagrun_info(
+                        last_automated_data_interval=last_automated_data_interval, restriction=restriction
+                    )
+                    if info is None:
+                        break
+                    if info.logical_date.year != year:
+                        break
+                    last_automated_data_interval = info.data_interval
+                    dates[info.logical_date] += 1
 
             data_dag_states.extend(
                 {'date': date.isoformat(), 'state': 'planned', 'count': count}
@@ -3535,9 +3538,11 @@ class Airflow(AirflowBaseView):
                 'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
                 'dag_runs': encoded_runs,
             }
-
         # avoid spaces to reduce payload size
-        return htmlsafe_json_dumps(data, separators=(',', ':'))
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':')),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
 
     @expose('/robots.txt')
     @action_logging
@@ -3573,7 +3578,6 @@ class Airflow(AirflowBaseView):
             query = query.filter(Log.event.notin_(excluded_events))
 
         dag_audit_logs = query.all()
-
         content = self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,

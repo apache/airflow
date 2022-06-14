@@ -67,7 +67,7 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         *,
         base_log_folder: str,
         gcs_log_folder: str,
-        filename_template: str,
+        filename_template: Optional[str] = None,
         gcp_key_path: Optional[str] = None,
         gcp_keyfile_dict: Optional[dict] = None,
         gcp_scopes: Optional[Collection[str]] = _DEFAULT_SCOPESS,

@@ -112,15 +112,7 @@ describe('Test DagRuns', () => {
   });
 
   test('Handles empty data correctly', () => {
-    global.gridData = null;
-    const { queryByTestId } = render(
-      <DagRuns />, { wrapper: TableWrapper },
-    );
-    expect(queryByTestId('run')).toBeNull();
-  });
-
-  test('Handles no data correctly', () => {
-    global.gridData = {};
+    global.autoRefreshInterval = 0;
     const { queryByTestId } = render(
       <DagRuns />, { wrapper: TableWrapper },
     );

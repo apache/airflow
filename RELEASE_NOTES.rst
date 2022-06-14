@@ -21,6 +21,45 @@
 
 .. towncrier release notes start
 
+Airflow 2.3.2 (2022-06-04)
+--------------------------
+
+No significant changes
+
+Bug Fixes
+^^^^^^^^^
+
+- Run the ``check_migration`` loop at least once
+- Fix grid view for mapped tasks (#24059)
+- Icons in grid view for different DAG run types (#23970)
+- Faster grid view (#23951)
+- Disallow calling expand with no arguments (#23463)
+- Add missing ``is_mapped`` field to Task response. (#23319)
+- DagFileProcessorManager: Start a new process group only if current process not a session leader (#23872)
+- Mask sensitive values for not-yet-running TIs (#23807)
+- Add cascade to ``dag_tag`` to ``dag`` foreign key (#23444)
+- Use ``--subdir`` argument value for standalone dag processor. (#23864)
+- Highlight task states by hovering on legend row (#23678)
+- Fix and speed up grid view (#23947)
+- Prevent UI from crashing if grid task instances are null (#23939)
+- Remove redundant register exit signals in ``dag-processor`` command (#23886)
+- Add ``__wrapped__`` property to ``_TaskDecorator`` (#23830)
+- Fix UnboundLocalError when ``sql`` is empty list in DbApiHook (#23816)
+- Enable clicking on DAG owner in autocomplete dropdown (#23804)
+- Simplify flash message for ``_airflow_moved`` tables (#23635)
+- Exclude missing tasks from the gantt view (#23627)
+
+Doc only changes
+^^^^^^^^^^^^^^^^
+
+- Add column names for DB Migration Reference (#23853)
+
+Misc/Internal
+^^^^^^^^^^^^^
+
+- Remove pinning for xmltodict (#23992)
+
+
 Airflow 2.3.1 (2022-05-25)
 --------------------------
 
@@ -1204,6 +1243,13 @@ DaskExecutor - Dask Worker Resources and queues
 """""""""""""""""""""""""""""""""""""""""""""""
 
 If dask workers are not started with complementary resources to match the specified queues, it will now result in an ``AirflowException``\ , whereas before it would have just ignored the ``queue`` argument.
+
+Logical date of a DAG run triggered from the web UI now have its sub-second component set to zero
+"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
+
+Due to a change in how the logical date (``execution_date``) is generated for a manual DAG run, a manual DAG run’s logical date may not match its time-of-trigger, but have its sub-second part zero-ed out. For example, a DAG run triggered on ``2021-10-11T12:34:56.78901`` would have its logical date set to ``2021-10-11T12:34:56.00000``.
+
+This may affect some logic that expects on this quirk to detect whether a run is triggered manually or not. Note that ``dag_run.run_type`` is a more authoritative value for this purpose. Also, if you need this distinction between automated and manually-triggered run for “next execution date” calculation, please also consider using the new data interval variables instead, which provide a more consistent behavior between the two run types.
 
 New Features
 ^^^^^^^^^^^^

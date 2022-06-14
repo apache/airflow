@@ -17,15 +17,23 @@
 
 ---
 package-name: apache-airflow-providers-influxdb
+
 name: Influxdb
+
 description: |
     `InfluxDB <https://www.influxdata.com/>`__
+
+additional-dependencies:
+  - apache-airflow>=2.2.0
+
 versions:
+  - 2.0.0
   - 1.1.3
   - 1.1.2
   - 1.1.1
   - 1.1.0
   - 1.0.0
+
 integrations:
   - integration-name: Influxdb
     external-doc-url: https://www.influxdata.com/

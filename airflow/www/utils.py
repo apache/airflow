@@ -113,10 +113,11 @@ def get_mapped_summary(parent_instance, task_instances):
     )
 
     try_count = (
-        parent_instance.prev_attempted_tries
-        if parent_instance.prev_attempted_tries != 0
-        else parent_instance.try_number
+        parent_instance._try_number
+        if parent_instance._try_number != 0 or parent_instance.state in State.running
+        else parent_instance._try_number + 1
     )
+
     return {
         'task_id': parent_instance.task_id,
         'run_id': parent_instance.run_id,
@@ -129,20 +130,25 @@ def get_mapped_summary(parent_instance, task_instances):
 
 
 def get_task_summaries(task, dag_runs: List[DagRun], session: Session) -> List[Dict[str, Any]]:
-    tis = session.query(
-        TaskInstance.task_id,
-        TaskInstance.run_id,
-        TaskInstance.map_index,
-        TaskInstance.state,
-        TaskInstance.start_date,
-        TaskInstance.end_date,
-        TaskInstance._try_number,
-    ).filter(
-        TaskInstance.dag_id == task.dag_id,
-        TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
-        TaskInstance.task_id == task.task_id,
-        # Only get normal task instances or the first mapped task
-        TaskInstance.map_index <= 0,
+    tis = (
+        session.query(
+            TaskInstance.dag_id,
+            TaskInstance.task_id,
+            TaskInstance.run_id,
+            TaskInstance.map_index,
+            TaskInstance.state,
+            TaskInstance.start_date,
+            TaskInstance.end_date,
+            TaskInstance._try_number,
+        )
+        .filter(
+            TaskInstance.dag_id == task.dag_id,
+            TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
+            TaskInstance.task_id == task.task_id,
+            # Only get normal task instances or the first mapped task
+            TaskInstance.map_index <= 0,
+        )
+        .order_by(TaskInstance.run_id.asc())
     )
 
     def _get_summary(task_instance):
