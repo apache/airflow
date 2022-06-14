@@ -128,18 +128,19 @@ class GoogleDriveHook(GoogleBaseHook):
         request = service.files().get_media(fileId=file_id)
         return request
 
-    def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+    def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None, include_trashed: Optional[bool] = False):
         """
         Checks to see if a file exists within a Google Drive folder
 
         :param folder_id: The id of the Google Drive folder in which the file resides
         :param file_name: The name of a file in Google Drive
         :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
+        :param include_trashed: Optional. Indicates whether a trashed file should count as existing.
         :return: True if the file exists, False otherwise
         :rtype: bool
         """
         file_metadata = self.get_file_id(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
-        return bool(file_metadata) and not file_metadata["trashed"]
+        return bool(file_metadata) and (include_trashed or (not file_metadata["trashed"]))
 
     def get_file_id(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
         """
