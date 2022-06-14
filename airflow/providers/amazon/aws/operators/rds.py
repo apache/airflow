@@ -566,6 +566,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param wait_for_completion:  Whether or not wait for creation of the DB instance complete. (default: True)
     """
 
     def __init__(
@@ -576,6 +577,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         engine: str,
         rds_kwargs: Optional[Dict] = None,
         aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = True,
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
@@ -584,6 +586,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         self.db_instance_class = db_instance_class
         self.engine = engine
         self.rds_kwargs = rds_kwargs or {}
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
         self.log.info(f"Creating new DB instance {self.db_instance_identifier}")
@@ -594,9 +597,11 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
             Engine=self.engine,
             **self.rds_kwargs,
         )
-        self.hook.conn.get_waiter("db_instance_available").wait(
-            DBInstanceIdentifier=self.db_instance_identifier
-        )
+
+        if self.wait_for_completion:
+            self.hook.conn.get_waiter("db_instance_available").wait(
+                DBInstanceIdentifier=self.db_instance_identifier
+            )
 
         return json.dumps(create_db_instance, default=str)
 
@@ -613,6 +618,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.delete_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
+    :param wait_for_completion:  Whether or not wait for deletion of the DB instance complete. (default: True)
     """
 
     def __init__(
@@ -621,11 +627,13 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         db_instance_identifier: str,
         rds_kwargs: Optional[Dict] = None,
         aws_conn_id: str = "aws_default",
+        wait_for_completion: bool = True,
         **kwargs,
     ):
         super().__init__(aws_conn_id=aws_conn_id, **kwargs)
         self.db_instance_identifier = db_instance_identifier
         self.rds_kwargs = rds_kwargs or {}
+        self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
         self.log.info(f"Deleting DB instance {self.db_instance_identifier}")
@@ -634,9 +642,11 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
             DBInstanceIdentifier=self.db_instance_identifier,
             **self.rds_kwargs,
         )
-        self.hook.conn.get_waiter("db_instance_deleted").wait(
-            DBInstanceIdentifier=self.db_instance_identifier
-        )
+
+        if self.wait_for_completion:
+            self.hook.conn.get_waiter("db_instance_deleted").wait(
+                DBInstanceIdentifier=self.db_instance_identifier
+            )
 
         return json.dumps(delete_db_instance, default=str)
 
