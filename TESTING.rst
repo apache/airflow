@@ -182,6 +182,21 @@ You can also specify individual tests or a group of tests:
 
     breeze tests --db-reset tests/core/test_core.py::TestCore
 
+You can also limit the tests to execute to specific group of tests
+
+.. code-block:: bash
+
+    breeze tests --test-type Core
+
+
+You can also write tests in "limited progress" mode (useful in the future to run CI). In this mode each
+test just prints "percentage" summary of the run as single line and only dumps full output of the test
+after it completes.
+
+.. code-block:: bash
+
+    breeze tests --test-type Core --limit-progress-output
+
 
 Running Tests of a specified type from the Host
 -----------------------------------------------
