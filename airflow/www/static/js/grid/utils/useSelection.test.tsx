@@ -25,7 +25,11 @@ import { MemoryRouter } from 'react-router-dom';
 
 import useSelection from './useSelection';
 
-const Wrapper = ({ children }) => (
+interface Props {
+  children: React.ReactNode;
+}
+
+const Wrapper: React.FC<Props> = ({ children }) => (
   <MemoryRouter>
     {children}
   </MemoryRouter>
@@ -47,8 +51,8 @@ describe('Test useSelection hook', () => {
 
   test.each([
     { taskId: 'task_1', runId: 'run_1' },
-    { taskId: null, runId: 'run_1' },
-    { taskId: 'task_1', runId: null },
+    { runId: 'run_1' },
+    { taskId: 'task_1' },
   ])('Test onSelect() and clearSelection()', async (selected) => {
     const { result } = renderHook(() => useSelection(), { wrapper: Wrapper });
 

@@ -24,23 +24,26 @@ import {
   Text,
   Box,
   Flex,
+  TextProps,
 } from '@chakra-ui/react';
 
 import { useGridData } from '../api';
 import DagRunBar from './Bar';
 import { getDuration, formatDuration } from '../../datetime_utils';
 import useSelection from '../utils/useSelection';
+import type { DagRun } from '../types';
 
-const DurationTick = ({ children, ...rest }) => (
+const DurationTick: React.FC<TextProps> = ({ children, ...rest }) => (
   <Text fontSize="sm" color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
     {children}
   </Text>
 );
 
-const DagRuns = () => {
-  const { data: { dagRuns } } = useGridData();
+const DagRuns: React.FC = () => {
+  const { data } = useGridData();
+  const dagRuns: DagRun[] = (data as any)?.dagRuns || [];
   const { selected, onSelect } = useSelection();
-  const durations = [];
+  const durations: number[] = [];
   const runs = dagRuns.map((dagRun) => {
     const duration = getDuration(dagRun.startDate, dagRun.endDate);
     durations.push(duration);
@@ -91,7 +94,7 @@ const DagRuns = () => {
       </Td>
       <Td p={0} align="right" verticalAlign="bottom" borderBottom={0} width={`${runs.length * 16}px`}>
         <Flex justifyContent="flex-end">
-          {runs.map((run, i) => (
+          {runs.map((run: DagRun, i: number) => (
             <DagRunBar
               key={run.runId}
               run={run}

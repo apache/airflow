@@ -17,26 +17,10 @@
  * under the License.
  */
 
-/*
-*  TypeScript config
-*/
-{
-  "compilerOptions": {
-    "strict": true,
-    "allowJs": true,
-    "importsNotUsedAsValues": "error",
-    "target": "ES6",
-    "module": "ES6",
-    "moduleResolution": "node",
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "jsx": "preserve",
-    "types": ["node", "jest"],
-  },
-  "include": [
-    "static/js",
-  ],
-  "exclude": ["node_modules", "static/dist"]
+/* eslint-disable no-var */
+
+declare global {
+  const autoRefreshInterval: number | undefined;
 }
+
+export {};

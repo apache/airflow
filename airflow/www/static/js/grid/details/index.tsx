@@ -30,21 +30,21 @@ import DagRunContent from './content/dagRun';
 import DagContent from './content/Dag';
 import useSelection from '../utils/useSelection';
 
-const Details = () => {
-  const { selected } = useSelection();
+const Details: React.FC = () => {
+  const { selected: { runId, taskId } } = useSelection();
   return (
     <Flex flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">
       <Header />
       <Divider my={2} />
       <Box minWidth="750px">
-        {!selected.runId && !selected.taskId && <DagContent />}
-        {selected.runId && !selected.taskId && (
-          <DagRunContent runId={selected.runId} />
+        {!runId && !taskId && <DagContent />}
+        {runId && !taskId && (
+          <DagRunContent runId={runId} />
         )}
-        {selected.taskId && (
+        {taskId && (
         <TaskInstanceContent
-          runId={selected.runId}
-          taskId={selected.taskId}
+          runId={runId}
+          taskId={taskId}
         />
         )}
       </Box>

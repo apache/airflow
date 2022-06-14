@@ -38,8 +38,9 @@ import { useGridData } from './api';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
-const Main = () => {
-  const { data: { groups }, isLoading } = useGridData();
+const Main: React.FC = () => {
+  const { data, isLoading } = useGridData();
+  const groups = (data as any)?.groups || {};
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
@@ -47,10 +48,10 @@ const Main = () => {
 
   const onPanelToggle = () => {
     if (!isOpen) {
-      localStorage.setItem(detailsPanelKey, false);
+      localStorage.setItem(detailsPanelKey, 'false');
     } else {
       clearSelection();
-      localStorage.setItem(detailsPanelKey, true);
+      localStorage.setItem(detailsPanelKey, 'true');
     }
     onToggle();
   };

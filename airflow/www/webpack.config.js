@@ -53,6 +53,10 @@ Foundation (http://www.apache.org/).
   return text;
 };
 
+const babelOptions = {
+  presets: ['@babel/preset-react', '@babel/preset-typescript'],
+};
+
 const config = {
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
@@ -106,14 +110,25 @@ const config = {
         ],
       },
       {
-        test: /\.[j|t]sx?$/,
+        test: /\.ts(x?)$/,
         exclude: /node_modules/,
         use: [
           {
             loader: 'babel-loader',
-            options: {
-              presets: ['@babel/preset-react', '@babel/preset-typescript'],
-            },
+            options: babelOptions,
+          },
+          {
+            loader: 'ts-loader',
+          },
+        ],
+      },
+      {
+        test: /\.js(x?)$/,
+        exclude: /node_modules/,
+        use: [
+          {
+            loader: 'babel-loader',
+            options: babelOptions,
           },
         ],
       },
