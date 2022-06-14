@@ -56,13 +56,17 @@ def upgrade():
             'trigger_timeout', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=True
         )
     with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
-        # drop server_default by not providing existing_server_default
+        # drop server_default
         batch_op.alter_column(
             'dag_hash',
             existing_type=sa.String(32),
             server_default=None,
             type_=sa.String(32),
             existing_nullable=False,
+        )
+    with op.batch_alter_table('trigger', schema=None) as batch_op:
+        batch_op.alter_column(
+            'created_date', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
         )
     # pool_slots server_default mistakenly dropped in 7b2661a43ba3 for postgresql.
     # existing_server_default not used in alter
@@ -172,6 +176,10 @@ def downgrade():
     with op.batch_alter_table('task_instance', schema=None) as batch_op:
         batch_op.alter_column(
             'trigger_timeout', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=True
+        )
+    with op.batch_alter_table('trigger', schema=None) as batch_op:
+        batch_op.alter_column(
+            'created_date', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
         )
     conn = op.get_bind()
 

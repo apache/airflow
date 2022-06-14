@@ -1703,15 +1703,17 @@ def compare_server_default(
 
     return True if the defaults are different, False if not, or None to allow the default implementation
     to compare these defaults
+
+    Comparing server_default is not accurate in MSSQL because the
+    inspected_default above != metadata_default, while in Postgres/MySQL they are equal.
+    This is an issue with alembic
+    In SQLite: task_instance.map_index & task_reschedule.map_index
+    are not comparing accurately. Sometimes they are equal, sometimes they are not.
+    Alembic warned that this feature has varied accuracy depending on backends.
+    See: (https://alembic.sqlalchemy.org/en/latest/api/runtime.html#alembic.runtime.
+        environment.EnvironmentContext.configure.params.compare_server_default)
     """
     if context.connection.dialect.name in ['mssql', 'sqlite']:
-        # autogenerate doesn't work when comparing server_default in MSSQL
-        # e.g inspected_default != metadata_default
-        # TODO: Make this work
-        # SQLite: task_instance.map_index & task_reschedule.map_index
-        # are not comparing well(flaky).
-        # Note that this feature have varied accuracy
-        # depending on backends(check doc).
         return False
     return None
 
