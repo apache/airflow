@@ -330,8 +330,12 @@ def dag_to_grid(dag, dag_runs, session):
                             'state': None,  # We change this before yielding
                         }
                         continue
-                    record['start_date'] = min(record['start_date'], ti_summary.start_date)
-                    record['end_date'] = max(record['end_date'], ti_summary.end_date)
+                    record['start_date'] = min(
+                        filter(None, [record['start_date'], ti_summary.start_date]), default=None
+                    )
+                    record['end_date'] = max(
+                        filter(None, [record['end_date'], ti_summary.end_date]), default=None
+                    )
                     record['mapped_states'][ti_summary.state] = ti_summary.state_count
                 if record:
                     set_overall_state(record)
