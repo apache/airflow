@@ -1552,6 +1552,7 @@ util
 utilise
 utils
 uuid
+vCPU
 validator
 vals
 ve
@@ -1564,7 +1565,6 @@ videointelligence
 virtualenv
 vm
 volumeMounts
-vCPU
 warmup
 wasb
 webProperty
