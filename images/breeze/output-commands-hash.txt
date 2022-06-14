@@ -1,2 +1,1 @@
-mypy-cache-volume
 a862d3c76df14e00a5bf68ab899f8be8
