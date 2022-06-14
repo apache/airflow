@@ -137,7 +137,10 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     SUCCESS_STATES = {'SUCCESS'}
     TERMINAL_STATES = SUCCESS_STATES.union(FAILURE_STATES)
 
-    template_fields: Sequence[str] = ('application_id','job_run_id',)
+    template_fields: Sequence[str] = (
+        'application_id',
+        'job_run_id',
+    )
 
     def __init__(
         self,
@@ -160,9 +163,9 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         state = None
 
         try:
-            state = self.hook.get_serverless_job_status(
-                application_id=self.application_id, job_run_id=self.job_run_id
-            )
+            state = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)[
+                'jobRun'
+            ]['state']
         except Exception:
             raise AirflowException(f'Unable to get job state: {state}')
 
@@ -189,12 +192,12 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     :param emr_conn_id: emr connection to use, defaults to 'emr_default'
     """
 
+    template_fields: Sequence[str] = ('application_id',)
+
     INTERMEDIATE_STATES = {'CREATING', 'STARTING', 'STOPPING'}
     # TODO:  Question: Do these states indicate failure?
     FAILURE_STATES = {'STOPPED', 'TERMINATED'}
     SUCCESS_STATES = {'CREATED', 'STARTED'}
-
-    template_fields: Sequence[str] = ('application_id',)
 
     def __init__(
         self,
@@ -215,7 +218,7 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         state = None
 
         try:
-            state = self.hook.get_application_status(application_id=self.application_id)
+            state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
         except Exception:
             raise AirflowException(f'Unable to get application state: {state}')
 

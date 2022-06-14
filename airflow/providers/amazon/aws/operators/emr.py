@@ -457,12 +457,16 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
         self.client_request_token = client_request_token or str(uuid4())
 
+    @cached_property
+    def hook(self) -> EmrServerlessHook:
+        """Create and return an EmrServerlessHook."""
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
+
     def execute(self, context: 'Context'):
-        emr_serverless_hook = EmrServerlessHook()
-        response = emr_serverless_hook.create_serverless_application(
-            client_request_token=self.client_request_token,
-            release_label=self.release_label,
-            job_type=self.job_type,
+        response = self.hook.conn.create_application(
+            clientToken=self.client_request_token,
+            releaseLabel=self.release_label,
+            type=self.job_type,
             **self.config,
         )
         application_id = response['applicationId']
@@ -474,23 +478,25 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
         # This should be replaced with a boto waiter when available.
         waiter(
-            get_status_callable=EmrServerlessHook().get_application_status,
-            get_status_args={'application_id': application_id},
-            desired_status={'CREATED'},
+            get_state_callable=self.hook.conn.get_application,
+            get_state_args={'applicationId': application_id},
+            parse_response=['application', 'state'],
+            desired_state={'CREATED'},
             failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
             object_type='application',
             action='created',
         )
 
         self.log.info(f'Starting application {application_id}.')
-        emr_serverless_hook.start_serverless_application(application_id=application_id)
+        self.hook.conn.start_application(applicationId=application_id)
 
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
             waiter(
-                get_status_callable=EmrServerlessHook().get_application_status,
-                get_status_args={'application_id': application_id},
-                desired_status={'STARTED'},
+                get_state_callable=self.hook.conn.get_application,
+                get_state_args={'applicationId': application_id},
+                parse_response=['application', 'state'],
+                desired_state={'STARTED'},
                 failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
                 object_type='application',
                 action='started',
@@ -540,16 +546,24 @@ class EmrServerlessStartJobOperator(BaseOperator):
 
         self.client_request_token = client_request_token or str(uuid4())
 
-    def execute(self, context: 'Context') -> Dict:
-        emr_serverless_hook = EmrServerlessHook()
+    @cached_property
+    def hook(self) -> EmrServerlessHook:
+        """Create and return an EmrServerlessHook."""
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
+    def execute(self, context: 'Context') -> Dict:
         self.log.info(f'Starting job on Application: {self.application_id}')
-        response = emr_serverless_hook.start_serverless_job(
-            client_request_token=self.client_request_token,
-            application_id=self.application_id,
-            execution_role_arn=self.execution_role_arn,
-            job_driver=self.job_driver,
-            configuration_overrides=self.configuration_overrides,
+
+        job_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
+        if job_state not in {'CREATED', 'STARTING'}:
+            self.hook.conn.start_application(applicationId=self.application_id)
+
+        response = self.hook.conn.start_job_run(
+            clientToken=self.client_request_token,
+            applicationId=self.application_id,
+            executionRoleArn=self.execution_role_arn,
+            jobDriver=self.job_driver,
+            configurationOverrides=self.configuration_overrides,
         )
 
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
@@ -559,12 +573,13 @@ class EmrServerlessStartJobOperator(BaseOperator):
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
             waiter(
-                get_status_callable=EmrServerlessHook().get_serverless_job_status,
-                get_status_args={
-                    'application_id': self.application_id,
-                    'job_run_id': response['jobRunId'],
+                get_state_callable=self.hook.conn.get_job_run,
+                get_state_args={
+                    'applicationId': self.application_id,
+                    'jobRunId': response['jobRunId'],
                 },
-                desired_status=EmrServerlessJobSensor.TERMINAL_STATES,
+                parse_response=['jobRun', 'state'],
+                desired_state=EmrServerlessJobSensor.TERMINAL_STATES,
                 failure_states=EmrServerlessJobSensor.FAILURE_STATES,
                 object_type='job',
                 action='run',
@@ -599,26 +614,30 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         self.wait_for_completion = wait_for_completion
         super().__init__(**kwargs)
 
-    def execute(self, context: 'Context') -> None:
-        emr_serverless_hook = EmrServerlessHook()
+    @cached_property
+    def hook(self) -> EmrServerlessHook:
+        """Create and return an EmrServerlessHook."""
+        return EmrServerlessHook(aws_conn_id=self.aws_conn_id)
 
+    def execute(self, context: 'Context') -> None:
         self.log.info(f'Stopping application: {self.application_id}')
-        emr_serverless_hook.stop_serverless_application(application_id=self.application_id)
+        self.hook.conn.stop_application(applicationId=self.application_id)
 
         # This should be replaced with a boto waiter when available.
         waiter(
-            get_status_callable=EmrServerlessHook().get_application_status,
-            get_status_args={
-                'application_id': self.application_id,
+            get_state_callable=self.hook.conn.get_application,
+            get_state_args={
+                'applicationId': self.application_id,
             },
-            desired_status=EmrServerlessApplicationSensor.FAILURE_STATES,
+            parse_response=['application', 'state'],
+            desired_state=EmrServerlessApplicationSensor.FAILURE_STATES,
             failure_states=set(),
             object_type='application',
             action='stopped',
         )
 
         self.log.info(f'Deleting application: {self.application_id}')
-        response = emr_serverless_hook.delete_serverless_application(application_id=self.application_id)
+        response = self.hook.conn.delete_application(applicationId=self.application_id)
 
         if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             raise AirflowException(f'Application deletion failed: {response}')
@@ -626,9 +645,10 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
             waiter(
-                get_status_callable=EmrServerlessHook().get_application_status,
-                get_status_args={'application_id': self.application_id},
-                desired_status={'TERMINATED'},
+                get_state_callable=self.hook.conn.get_application,
+                get_state_args={'applicationId': self.application_id},
+                parse_response=['application', 'state'],
+                desired_state={'TERMINATED'},
                 failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
                 object_type='application',
                 action='deleted',
