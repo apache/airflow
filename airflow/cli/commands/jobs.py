@@ -27,18 +27,7 @@ from airflow.utils.state import State
 
 @airflow_cmd.group("jobs")
 def jobs():
-    """Manage jobs
-
-    \b
-    Examples:
-    To check if the local scheduler is still working properly, run:
-    \b
-        $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
-    \b
-    To check if any scheduler is running when you are using high availability, run:
-    \b
-        $ airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100
-    """
+    """Manage jobs"""
 
 
 @jobs.command("check")
@@ -64,7 +53,18 @@ def jobs():
 )
 @provide_session
 def check(job_type: str, hostname: str, limit: int, allow_multiple: bool, session=None):
-    """Checks if job(s) are still alive"""
+    """Checks if job(s) are still alive
+
+    \b
+    examples:
+    To check if the local scheduler is still working properly, run:
+    \b
+        $ airflow jobs check --job-type SchedulerJob --hostname "$(hostname)"
+    \b
+    To check if any scheduler is running when you are using high availability, run:
+    \b
+        $ airflow jobs check --job-type SchedulerJob --allow-multiple --limit 100
+    """
     if allow_multiple and not limit > 1:
         raise SystemExit("To use option --allow-multiple, you must set the limit to a value greater than 1.")
     query = (
