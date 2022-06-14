@@ -256,7 +256,7 @@ containing your previous ``log_id_template`` and ``log_filename_template``. For 
 
 .. code-block:: sql
 
-    INSERT INTO log_template (id, filename, elasticsearch_id, created_at) VALUES (0, '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', '{dag_id}_{task_id}_{run_id}_{try_number}', NOW());
+    INSERT INTO log_template (id, filename, elasticsearch_id, created_at) VALUES (0, '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log', '{dag_id}-{task_id}-{execution_date}-{try_number}', NOW());
 
 BaseOperatorLink's ``get_link`` method changed to take a ``ti_key`` keyword argument (#21798)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
