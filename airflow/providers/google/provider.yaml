@@ -930,8 +930,8 @@ extra-links:
 additional-extras:
   apache.beam: apache-beam[gcp]
   leveldb: plyvel
-  facebook: apache-airlfow-providers-facebook>=2.2.0
-  amazon: apache-airlfow-providers-facebook>=2.6.0
+  facebook: apache-airflow-providers-facebook>=2.2.0
+  amazon: apache-airflow-providers-amazon>=2.6.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

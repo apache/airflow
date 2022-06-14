@@ -206,9 +206,6 @@ log.txt*
 # Terraform variables
 *.tfvars
 
-# Chart dependencies
-**/charts/*.tgz
-
 # Might be generated when you build wheels
 pip-wheel-metadata
 

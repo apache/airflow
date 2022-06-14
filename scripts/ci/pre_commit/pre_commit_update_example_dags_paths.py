@@ -18,7 +18,7 @@
 import re
 import sys
 from pathlib import Path
-from typing import Tuple
+from typing import Optional, Tuple
 
 import yaml
 from rich.console import Console
@@ -37,10 +37,6 @@ AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 
 EXAMPLE_DAGS_URL_MATCHER = re.compile(
     r"^(.*)(https://github.com/apache/airflow/tree/(.*)/airflow/providers/(.*)/example_dags)(/?>.*)$"
-)
-
-SYSTEM_TESTS_URL_MATCHER = re.compile(
-    r"^(.*)(https://github.com/apache/airflow/tree/(.*)/tests/system/providers/(.*))(/?>.*)$"
 )
 
 
@@ -67,45 +63,39 @@ def get_provider_and_version(url_path: str) -> Tuple[str, str]:
     sys.exit(1)
 
 
-def replace_match(file: str, line: str) -> str:
-    for matcher in [EXAMPLE_DAGS_URL_MATCHER, SYSTEM_TESTS_URL_MATCHER]:
-        match = matcher.match(line)
-        if match:
-            new_line = line
-            url_path_to_dir = match.group(4)
-            folders = url_path_to_dir.split("/")
-            example_dags_folder = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
-                *folders
-            ) / "example_dags"
-            system_tests_folder = (AIRFLOW_SOURCES_ROOT / "tests" / "system" / "providers").joinpath(*folders)
-            provider, version = get_provider_and_version(url_path_to_dir)
-            if system_tests_folder.exists():
-                proper_system_tests_url = (
-                    f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
-                    f"/tests/system/providers/{url_path_to_dir}"
-                )
-                new_line = re.sub(matcher, r"\1" + proper_system_tests_url + r"\5", line)
-            elif example_dags_folder.exists():
-                proper_example_dags_url = (
-                    f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
-                    f"/airflow/providers/{url_path_to_dir}/example_dags"
-                )
-                new_line = re.sub(matcher, r"\1" + proper_example_dags_url + r"\5", line)
+def replace_match(file: Path, line: str) -> Optional[str]:
+    match = EXAMPLE_DAGS_URL_MATCHER.match(line)
+    if match:
+        url_path_to_dir = match.group(4)
+        folders = url_path_to_dir.split("/")
+        example_dags_folder = (AIRFLOW_SOURCES_ROOT / "airflow" / "providers").joinpath(
+            *folders
+        ) / "example_dags"
+        provider, version = get_provider_and_version(url_path_to_dir)
+        proper_system_tests_url = (
+            f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
+            f"/tests/system/providers/{url_path_to_dir}"
+        )
+        if not example_dags_folder.exists():
+            if proper_system_tests_url in file.read_text():
+                console.print(f'[yellow] Removing from {file}[/]\n{line.strip()}')
+                return None
             else:
-                console.print(
-                    f"[red] Error - neither example dags nor system tests folder exists for {provider}[/]"
-                )
-            if line != new_line:
-                console.print(f'[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}')
+                new_line = re.sub(EXAMPLE_DAGS_URL_MATCHER, r"\1" + proper_system_tests_url + r"\5", line)
+                if new_line != line:
+                    console.print(f'[yellow] Replacing in {file}[/]\n{line.strip()}\n{new_line.strip()}')
                 return new_line
     return line
 
 
 def find_matches(_file: Path):
+    new_lines = []
     lines = _file.read_text().splitlines(keepends=True)
     for index, line in enumerate(lines):
-        lines[index] = replace_match(str(_file), line)
-    _file.write_text("".join(lines))
+        new_line = replace_match(_file, line)
+        if new_line is not None:
+            new_lines.append(new_line)
+    _file.write_text("".join(new_lines))
 
 
 if __name__ == '__main__':
