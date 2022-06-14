@@ -34,28 +34,27 @@ def waiter(
     """
     Will run the sensor until it turns True.
 
-    :param get_state_callable: A callable to run until it returns True, likely a Sensor
-    :param get_state_args: Arguments to pass the sensor
-    :param parse_response: Dictionary keys to extract state from callable response
+    :param get_state_callable: A callable to run until it returns True
+    :param get_state_args: Arguments to pass to get_state_callable
+    :param parse_response: Dictionary keys to extract state from response of get_state_callable
     :param desired_state: Wait until the getter returns this value
     :param failure_states: A set of states which indicate failure and should throw an
       exception if any are reached before the desired_state
     :param object_type: Used for the reporting string. What are you waiting for? (application, job, etc)
     :param action: Used for the reporting string. What action are you waiting for? (created, deleted, etc)
     """
-    check_interval_seconds: int = 15
-    timeout_seconds: int = 25 * 60
+    check_interval_seconds: int = 60
     response = get_state_callable(**get_state_args)
-    countdown: int = timeout_seconds
-    status: str = get_state(response, parse_response)
-    while status not in desired_state:
-        if status in failure_states:
-            raise AirflowException(f'{object_type.title()} reached failure state {status}.')
+    countdown: int = 25 * 60
+    state: str = get_state(response, parse_response)
+    while state not in desired_state:
+        if state in failure_states:
+            raise AirflowException(f'{object_type.title()} reached failure state {state}.')
         if countdown >= check_interval_seconds:
             countdown -= check_interval_seconds
             print(f'Waiting for {object_type.lower()} to be {action.lower()}.')
             sleep(check_interval_seconds)
-            status = get_state(get_state_callable(**get_state_args), parse_response)
+            state = get_state(get_state_callable(**get_state_args), parse_response)
         else:
             message = f'{object_type.title()} still not {action.lower()} after the allocated time limit.'
             print(message)
