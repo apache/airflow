@@ -23,13 +23,13 @@ def fix_int_dtypes(df: pandas.DataFrame) -> None:
     """Mutate DataFrame to set dtypes for int columns containing NaN values."""
     for col in df:
         if "float" in df[col].dtype.name and df[col].hasnans:
-            # inspect values to determine if dtype of non-null values is int or float
+            # inspect values to determine if data type of non-null values is int or float
             notna_series = df[col].dropna().values
             if numpy.equal(notna_series, notna_series.astype(int)).all():
-                # set to dtype that retains integers and supports NaNs
+                # set to data type that retains integers and supports NaNs
                 df[col] = numpy.where(df[col].isnull(), None, df[col])
                 df[col] = df[col].astype('Int64')
             elif numpy.isclose(notna_series, notna_series.astype(int)).all():
-                # set to float dtype that retains floats and supports NaNs
+                # set to float data type that retains floats and supports NaNs
                 df[col] = numpy.where(df[col].isnull(), None, df[col])
                 df[col] = df[col].astype('float64')
