@@ -17,7 +17,6 @@
 # under the License.
 
 from datetime import datetime
-from os import getenv
 
 from airflow import DAG
 from airflow.models.baseoperator import chain
@@ -30,11 +29,11 @@ from tests.system.providers.amazon.aws.utils import set_env_id
 ENV_ID = set_env_id()
 DAG_ID = "example_rds_instance"
 
-RDS_DB_IDENTIFIER = getenv("RDS_DB_IDENTIFIER", "database-identifier")
-RDS_USERNAME = getenv("RDS_USERNAME", "database_username")
+RDS_DB_IDENTIFIER = f'{ENV_ID}-database'
+RDS_USERNAME = 'database_username'
 # NEVER store your production password in plaintext in a DAG like this.
 # Use Airflow Secrets or a secret manager for this in production.
-RDS_PASSWORD = getenv("RDS_PASSWORD", "database_password")
+RDS_PASSWORD = 'database_password'
 
 with DAG(
     dag_id=DAG_ID,
