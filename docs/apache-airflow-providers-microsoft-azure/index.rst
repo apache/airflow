@@ -38,6 +38,12 @@ Content
     Python API <_api/airflow/providers/microsoft/azure/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/microsoft/azure/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

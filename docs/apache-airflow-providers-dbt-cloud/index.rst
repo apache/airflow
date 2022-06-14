@@ -40,6 +40,12 @@ Content
     Python API <_api/airflow/providers/dbt/cloud/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/dbt/cloud/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

@@ -22,7 +22,7 @@ using docker-containers.
 The following operators are being used: DockerOperator,
 BashOperator & ShortCircuitOperator.
 TODO: Review the workflow, change it accordingly to
-      your environment & enable the code.
+your environment & enable the code.
 """
 import os
 from datetime import datetime

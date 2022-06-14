@@ -21,14 +21,10 @@ import React from 'react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { MemoryRouter } from 'react-router-dom';
-// eslint-disable-next-line import/no-extraneous-dependencies
-import moment from 'moment-timezone';
 
 import { ContainerRefProvider } from '../context/containerRef';
 import { TimezoneProvider } from '../context/timezone';
 import { AutoRefreshProvider } from '../context/autorefresh';
-
-global.moment = moment;
 
 export const Wrapper = ({ children }) => {
   const queryClient = new QueryClient({
