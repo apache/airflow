@@ -45,6 +45,7 @@ class TestMySqlHookConn(unittest.TestCase):
             login='login',
             password='password',
             host='host',
+            schema='schema',
         )
 
         self.db_hook = MySqlHook()
@@ -53,7 +54,6 @@ class TestMySqlHookConn(unittest.TestCase):
 
     @mock.patch('MySQLdb.connect')
     def test_get_conn(self, mock_connect):
-        self.connection.schema = 'schema'
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
         args, kwargs = mock_connect.call_args
@@ -68,82 +68,8 @@ class TestMySqlHookConn(unittest.TestCase):
         self.connection.extra = json.dumps({'charset': 'utf-8'})
         self.db_hook.get_conn()
         assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://login:password@host/?charset=utf-8"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_without_extra(self, mock_connect):
-        self.connection.schema = 'schema'
-        self.connection.port = '3306'
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://login:password@host:3306/schema"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_with_schema(self, mock_connect):
-        self.connection.schema = 'schema'
-        self.connection.extra = json.dumps({'charset': 'utf-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
+        args, kwargs = mock_connect.call_args
         assert self.db_hook.get_uri() == "mysql://login:password@host/schema?charset=utf-8"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_with_port(self, mock_connect):
-        self.connection.port = '3306'
-        self.connection.extra = json.dumps({'charset': 'utf-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://login:password@host:3306/?charset=utf-8"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_with_port_and_empty_host(self, mock_connect):
-        self.connection.host = None
-        self.connection.port = '3306'
-        self.connection.extra = json.dumps({'charset': 'utf-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://login:password@:3306/?charset=utf-8"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_with_port_and_schema(self, mock_connect):
-        self.connection.port = '3306'
-        self.connection.schema = 'schema'
-        self.connection.extra = json.dumps({'charset': 'utf-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://login:password@host:3306/schema?charset=utf-8"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_without_password(self, mock_connect):
-        self.connection.port = '3306'
-        self.connection.schema = 'schema'
-        self.connection._password = None
-        self.connection.extra = json.dumps({'charset': 'utf-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://login@host:3306/schema?charset=utf-8"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_without_auth(self, mock_connect):
-        self.connection.port = '3306'
-        self.connection.schema = 'schema'
-        self.connection.login = None
-        self.connection._password = None
-        self.connection.extra = json.dumps({'charset': 'utf-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://host:3306/schema?charset=utf-8"
-
-    @mock.patch('MySQLdb.connect')
-    def test_get_uri_without_auth_and_empty_host(self, mock_connect):
-        self.connection.port = '3306'
-        self.connection.schema = 'schema'
-        self.connection.host = None
-        self.connection.login = None
-        self.connection._password = None
-        self.connection.extra = json.dumps({'charset': 'utf-8'})
-        self.db_hook.get_conn()
-        assert mock_connect.call_count == 1
-        assert self.db_hook.get_uri() == "mysql://:3306/schema?charset=utf-8"
 
     @mock.patch('MySQLdb.connect')
     def test_get_conn_from_connection(self, mock_connect):
@@ -230,7 +156,6 @@ class TestMySqlHookConn(unittest.TestCase):
     @mock.patch('MySQLdb.connect')
     @mock.patch('airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook.get_client_type')
     def test_get_conn_rds_iam(self, mock_client, mock_connect):
-        self.connection.schema = 'schema'
         self.connection.extra = '{"iam":true}'
         mock_client.return_value.generate_db_auth_token.return_value = 'aws_token'
         self.db_hook.get_conn()
