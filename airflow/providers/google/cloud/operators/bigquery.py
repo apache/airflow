@@ -2163,27 +2163,23 @@ class BigQueryInsertJobOperator(BaseOperator):
             QueryJob._JOB_TYPE: ["destinationTable"],
         }
 
-        for job_type, tables_prop in job_types.items():
-            if job_type in job.to_api_repr()["configuration"]:
-                for table_prop in tables_prop:
-                    if table_prop in job.to_api_repr()["configuration"][job_type]:
-                        table = job.to_api_repr()["configuration"][job_type][table_prop]
-                        if self.project_id:
-                            if isinstance(table, str):
-                                BigQueryTableLink.persist(
-                                    context=context,
-                                    task_instance=self,
-                                    project_id=self.project_id,
-                                    table_id=table,
-                                )
-                            else:
-                                BigQueryTableLink.persist(
-                                    context=context,
-                                    task_instance=self,
-                                    dataset_id=table["datasetId"],
-                                    project_id=self.project_id,
-                                    table_id=table["tableId"],
-                                )
+        if self.project_id:
+            for job_type, tables_prop in job_types.items():
+                if job_type in job.to_api_repr()["configuration"]:
+                    for table_prop in tables_prop:
+                        if table_prop in job.to_api_repr()["configuration"][job_type]:
+                            table = job.to_api_repr()["configuration"][job_type][table_prop]
+                            persist_kwargs = {
+                                "context": context,
+                                "task_instance": self,
+                                "project_id": self.project_id,
+                                "table_id": table,
+                            }
+                            if not isinstance(table, str):
+                                persist_kwargs["table_id"] = table["tableId"]
+                                persist_kwargs["dataset_id"] = table["datasetId"]
+
+                            BigQueryTableLink.persist(**persist_kwargs)
 
         self.job_id = job.job_id
         return job.job_id
