@@ -45,7 +45,7 @@ const InstanceTooltip = ({
       }
     });
   } else if (isMapped && mappedStates) {
-    Object.keys(mappedStates).forEach(stateKey => {
+    Object.keys(mappedStates).forEach((stateKey) => {
       const num = mappedStates[stateKey];
       numMapped += num;
       numMap.set(stateKey || 'no_status', num);
