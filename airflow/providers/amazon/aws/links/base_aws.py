@@ -18,7 +18,6 @@
 
 from datetime import datetime
 from typing import TYPE_CHECKING, ClassVar, Optional
-from urllib.parse import quote_plus
 
 from airflow.models import BaseOperatorLink, XCom
 
@@ -49,6 +48,18 @@ class BaseAwsLink(BaseOperatorLink):
 
         return None
 
+    def format_link(self, **kwargs) -> str:
+        """
+        Format AWS Service Link
+
+        Some AWS Service Link should require additional escaping
+        in this case this method should be overridden.
+        """
+        try:
+            return self.format_str.format(**kwargs)
+        except KeyError:
+            return ""
+
     def get_link(
         self,
         operator,
@@ -74,12 +85,8 @@ class BaseAwsLink(BaseOperatorLink):
                 task_id=operator.task_id,
                 execution_date=dttm,
             )
-        if not conf:
-            return ""
 
-        # urlencode special characters, e.g.: CloudWatch links contains `/` character.
-        quoted_conf = {k: quote_plus(v) if isinstance(v, str) else v for k, v in conf.items()}
-        return self.format_str.format(**quoted_conf)
+        return self.format_link(**conf) if conf else ""
 
     @classmethod
     def persist(
