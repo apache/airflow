@@ -73,7 +73,9 @@ def replace_match(directory: str, file: str, line: str, version: str) -> Optiona
                 console.print(f"[green]Already replaced with URL:[/] {source_file_path}")
                 continue
             github_url = f"https://github.com/apache/airflow/tree/{version}/{source_file_path}"
-            if href.startswith("..") and os.path.exists(os.path.join(directory, href)):
+            if (href.startswith("..") or href.startswith("_modules")) and os.path.exists(
+                os.path.join(directory, href)
+            ):
                 console.print(f"[green]The example source exists:[/] {href}")
                 continue
             if check_if_url_exists(github_url):

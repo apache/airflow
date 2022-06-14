@@ -76,7 +76,9 @@ def replace_match(directory: str, file: str, line: str, provider: str, version: 
                 f"https://github.com/apache/airflow/tree/providers-{provider}/{version}"
                 f"/{source_file_path}"
             )
-            if href.startswith("..") and os.path.exists(os.path.join(directory, href)):
+            if (href.startswith("..") or href.startswith("_modules")) and os.path.exists(
+                os.path.join(directory, href)
+            ):
                 console.print(f"[green]The example source exists:[/] {href}")
                 continue
             if check_if_url_exists(github_url):
