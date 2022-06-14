@@ -800,7 +800,7 @@ def seed_log_template(*, session: Session = NEW_SESSION) -> None:
         return
 
     # The Astronomer chart overrode the default log_id_template to this
-    log_id = "{dag_id}_{task_id}_{run_id}_{try_number}"
+    log_id = "{dag_id}_{task_id}_{execution_date}_{try_number}"
     # While the log_filename_template was the default
     filename = "{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log"
 
