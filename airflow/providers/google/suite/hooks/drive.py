@@ -138,7 +138,8 @@ class GoogleDriveHook(GoogleBaseHook):
         :return: True if the file exists, False otherwise
         :rtype: bool
         """
-        return bool(self.get_file_id(folder_id=folder_id, file_name=file_name, drive_id=drive_id))
+        file_metadata = self.get_file_id(folder_id=folder_id, file_name=file_name, drive_id=drive_id)
+        return bool(file_metadata) and not file_metadata["trashed"]
 
     def get_file_id(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
         """
@@ -160,7 +161,7 @@ class GoogleDriveHook(GoogleBaseHook):
                 .list(
                     q=query,
                     spaces="drive",
-                    fields="files(id, mimeType)",
+                    fields="files(id, mimeType, trashed)",
                     orderBy="modifiedTime desc",
                     driveId=drive_id,
                     includeItemsFromAllDrives=True,
@@ -172,12 +173,13 @@ class GoogleDriveHook(GoogleBaseHook):
         else:
             files = (
                 service.files()
-                .list(q=query, spaces="drive", fields="files(id, mimeType)", orderBy="modifiedTime desc")
+                .list(q=query, spaces="drive", fields="files(id, mimeType, trashed)", orderBy="modifiedTime desc")
                 .execute(num_retries=self.num_retries)
             )
+        print(files)
         file_metadata = {}
         if files['files']:
-            file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType']}
+            file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType'], "trashed": files['files'][0]['trashed']}
         return file_metadata
 
     def upload_file(
