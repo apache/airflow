@@ -252,7 +252,7 @@ class GKECreateClusterOperator(BaseOperator):
 KUBE_CONFIG_ENV_VAR = "KUBECONFIG"
 
 
-class GKEStartPodOperator(KubernetesPodOperator):
+class GKEPodOperator(KubernetesPodOperator):
     """
     Executes a task in a Kubernetes pod in the specified Google Kubernetes
     Engine cluster
@@ -270,7 +270,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:GKEStartPodOperator`
+        :ref:`howto/operator:GKEPodOperator`
 
     :param location: The name of the Google Kubernetes Engine zone or region in which the
         cluster resides, e.g. 'us-central1-a'
@@ -340,9 +340,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "called `google_cloud_default`.",
             )
         # There is no need to manage the kube_config file, as it will be generated automatically.
-        # All Kubernetes parameters (except config_file) are also valid for the GKEStartPodOperator.
+        # All Kubernetes parameters (except config_file) are also valid for the GKEPodOperator.
         if self.config_file:
-            raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
+            raise AirflowException("config_file is not an allowed parameter for the GKEPodOperator.")
 
     @staticmethod
     @contextmanager
@@ -416,7 +416,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
 
     def execute(self, context: 'Context') -> Optional[str]:
 
-        with GKEStartPodOperator.get_gke_config_file(
+        with GKEPodOperator.get_gke_config_file(
             gcp_conn_id=self.gcp_conn_id,
             project_id=self.project_id,
             cluster_name=self.cluster_name,
@@ -430,3 +430,19 @@ class GKEStartPodOperator(KubernetesPodOperator):
             if not self.is_delete_operator_pod:
                 KubernetesEnginePodLink.persist(context=context, task_instance=self)
             return result
+
+
+class GKEStartPodOperator(GKEPodOperator):
+    """
+    This class is deprecated.
+    Please use `airflow.providers.google.cloud.operators.container.GKEPodOperator`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.google.cloud.operators.container.GKEPodOperator`.""",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

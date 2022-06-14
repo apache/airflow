@@ -25,7 +25,7 @@ import warnings
 from airflow.providers.google.cloud.operators.kubernetes_engine import (
     GKECreateClusterOperator,
     GKEDeleteClusterOperator,
-    GKEStartPodOperator,
+    GKEPodOperator,
 )
 
 warnings.warn(
@@ -61,22 +61,6 @@ class GKEClusterDeleteOperator(GKEDeleteClusterOperator):
         warnings.warn(
             """This class is deprecated.
             Please use `airflow.providers.google.cloud.operators.container.GKEDeleteClusterOperator`.""",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class GKEPodOperator(GKEStartPodOperator):
-    """
-    This class is deprecated.
-    Please use `airflow.providers.google.cloud.operators.container.GKEStartPodOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            """This class is deprecated.
-            Please use `airflow.providers.google.cloud.operators.container.GKEStartPodOperator`.""",
             DeprecationWarning,
             stacklevel=2,
         )

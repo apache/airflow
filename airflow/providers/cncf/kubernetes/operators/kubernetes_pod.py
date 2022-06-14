@@ -77,7 +77,7 @@ class KubernetesPodOperator(BaseOperator):
     .. note::
         If you use `Google Kubernetes Engine <https://cloud.google.com/kubernetes-engine/>`__
         and Airflow is not running in the same cluster, consider using
-        :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which
+        :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEPodOperator`, which
         simplifies the authorization process.
 
     :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
