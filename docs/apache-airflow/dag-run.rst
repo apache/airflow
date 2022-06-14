@@ -243,7 +243,7 @@ Passing Parameters when triggering dags
 When triggering a DAG from the CLI, the REST API or the UI, it is possible to pass configuration for a DAG Run as
 a JSON blob.
 
-Example of a parameterized DAG:
+Example of a parameterized DAG using a templated field:
 
 .. code-block:: python
 
@@ -265,8 +265,32 @@ Example of a parameterized DAG:
         dag=dag,
     )
 
+Example of a parameterized DAG that reads the configuration from the context:
 
-**Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
+.. code-block:: python
+
+    import pendulum
+
+    from airflow import DAG
+    from airflow.operators.python import PythonOperator
+
+    dag = DAG(
+        "example_parameterized_dag",
+        schedule_interval=None,
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        catchup=False,
+    )
+    
+    def print_conf(**context):
+        conf1 = context['dag_run'].conf['conf1']
+        print(conf1)
+
+    parameterized_task = PythonOperator(
+        task_id="parameterized_task",
+        python_callable=print_conf,
+        dag=dag,
+    )
+
 
 Using CLI
 ^^^^^^^^^^^
