@@ -68,18 +68,39 @@ class PodPhase:
     terminal_states = {FAILED, SUCCEEDED}
 
 
+def get_container_state(pod: V1Pod, container_name: str) -> V1ContainerState:
+    """
+    Examines V1Pod ``pod`` to determine the ``container_name`` state.
+    If that container is present returns the state. Returns None otherwise.
+    """
+    container_statuses = pod.status.container_statuses if pod and pod.status else None
+    if not container_statuses:
+        return None
+    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
+    if not container_status:
+        return None
+    return container_status.state
+
+
 def container_is_running(pod: V1Pod, container_name: str) -> bool:
     """
     Examines V1Pod ``pod`` to determine whether ``container_name`` is running.
     If that container is present and running, returns True.  Returns False otherwise.
     """
-    container_statuses = pod.status.container_statuses if pod and pod.status else None
-    if not container_statuses:
+    container_state = get_container_state(pod=pod, container_name=container_name)
+    return container_state.running is not None if container_state else False
+
+
+def container_is_completed(pod: V1Pod, container_name: str) -> bool:
+    """
+    Examines V1Pod ``pod`` to determine the ``container_name`` state.
+    If that container is terminated and the reason is Completed, returns True. Returns
+    False otherwise.
+    """
+    container_state = get_container_state(pod=pod, container_name=container_name)
+    if container_state.terminated is None:
         return False
-    container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
-    if not container_status:
-        return False
-    return container_status.state.running is not None
+    return True if container_state.terminated.reason == 'Completed' else False
 
 
 def get_container_termination_message(pod: V1Pod, container_name: str):
@@ -256,19 +277,19 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
-        while not self.container_is_running(pod=pod, container_name=container_name):
+        while self.container_is_running(pod=pod, container_name=container_name):
             time.sleep(1)
 
-    def await_pod_completion(self, pod: V1Pod, base_container: str) -> V1Pod:
+    def await_pod_completion(self, pod: V1Pod) -> V1Pod:
         """
-        Monitors the base container in a pod and returns the final state
+        Monitors a pod and returns the final state
 
         :param pod: pod spec that will be monitored
         :return:  Tuple[State, Optional[str]]
         """
         while True:
             remote_pod = self.read_pod(pod)
-            if not self.container_is_running(pod=remote_pod, container_name=base_container):
+            if remote_pod.status.phase in PodPhase.terminal_states:
                 break
             self.log.info('Pod %s has phase %s', pod.metadata.name, remote_pod.status.phase)
             time.sleep(2)
