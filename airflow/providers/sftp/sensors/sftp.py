@@ -71,6 +71,8 @@ class SFTPSensor(BaseSensorOperator):
                 self.actual_file_to_check = file_from_pattern
             else:
                 return False
+        else:
+            self.actual_file_to_check = self.path
 
         try:
             mod_time = self.hook.get_mod_time(self.actual_file_to_check)
