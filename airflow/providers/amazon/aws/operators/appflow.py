@@ -64,8 +64,7 @@ class AppflowBaseOperator(BaseOperator):
     :param region: aws region to use
     """
 
-    BLUE = "#2bccbd"
-    ui_color = BLUE
+    ui_color = "#2bccbd"
 
     def __init__(
         self,
