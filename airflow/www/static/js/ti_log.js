@@ -102,7 +102,8 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
       // Detect urls and log timestamps
       const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
-      const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2}[+-]\d{4}/g;
+      // e.g) '2022-06-15 10:30:06,020' or '2022-06-15 10:30:06+0900'
+      const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2}((,\d{3})|([+-]\d{4}))/g;
 
       res.message.forEach((item) => {
         const logBlockElementId = `try-${tryNumber}-${item[0]}`;
@@ -120,7 +121,16 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         const escapedMessage = escapeHtml(item[1]);
         const linkifiedMessage = escapedMessage
           .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
-          .replaceAll(dateRegex, (date) => `<time datetime="${date}" data-with-tz="true">${formatDateTime(`${date}`)}</time>`);
+          .replaceAll(dateRegex, (date, msecOrUTCOffset) => {
+            if (msecOrUTCOffset.startsWith(',')) { // e.g) date='2022-06-15 10:30:06,020'
+              // for backward compatibility.
+              // keep previous behavior if utcoffset not found.
+              return `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(`${date}+00:00`)}</time>`;
+            }
+            // e.g) date='2022-06-15 10:30:06+0900'
+            // (formatted by airflow.utils.log.timezone_aware.TimezoneAware)
+            return `<time datetime="${date}" data-with-tz="true">${formatDateTime(`${date}`)}</time>`;
+          });
         logBlock.innerHTML += `${linkifiedMessage}\n`;
       });
 
