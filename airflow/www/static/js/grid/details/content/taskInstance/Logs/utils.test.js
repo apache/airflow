@@ -70,7 +70,8 @@ describe('Test Logs Utils.', () => {
   test.each([
     { logLevelFilter: 'INFO', expectedNumberOfLines: 11, expectedNumberOfFileSources: 4 },
     { logLevelFilter: 'WARNING', expectedNumberOfLines: 1, expectedNumberOfFileSources: 1 },
-  ])('Filtering logs on $logLevelFilter level should return $expectedNumberOfLines lines and $expectedNumberOfFileSources file sources',
+  ])(
+    'Filtering logs on $logLevelFilter level should return $expectedNumberOfLines lines and $expectedNumberOfFileSources file sources',
     ({
       logLevelFilter,
       expectedNumberOfLines, expectedNumberOfFileSources,
@@ -86,7 +87,8 @@ describe('Test Logs Utils.', () => {
       const lines = parsedLogs.split('\n');
       expect(lines).toHaveLength(expectedNumberOfLines);
       lines.forEach((line) => expect(line).toContain(logLevelFilter));
-    });
+    },
+  );
 
   test('parseLogs function with file source filter', () => {
     const { parsedLogs, fileSources } = parseLogs(

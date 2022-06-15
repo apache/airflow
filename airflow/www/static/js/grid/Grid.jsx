@@ -56,15 +56,15 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
     setOpenGroupIds(groupIds);
   };
 
-  const scrollOnResize = new ResizeObserver(() => {
-    const runsContainer = scrollRef.current;
-    // Set scroll to top right if it is scrollable
-    if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-      runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
-    }
-  });
-
   useEffect(() => {
+    const scrollOnResize = new ResizeObserver(() => {
+      const runsContainer = scrollRef.current;
+      // Set scroll to top right if it is scrollable
+      if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
+        runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
+      }
+    });
+
     if (tableRef && tableRef.current) {
       const table = tableRef.current;
 
@@ -74,7 +74,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
       };
     }
     return () => {};
-  }, [tableRef, scrollOnResize]);
+  }, [tableRef]);
 
   return (
     <Box

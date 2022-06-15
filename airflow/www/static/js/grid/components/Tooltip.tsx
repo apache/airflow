@@ -41,7 +41,7 @@ export interface TooltipProps
    * The React component to use as the
    * trigger for the tooltip
    */
-  children: React.ReactNode
+  children: React.ReactElement
   /**
    * The label of the tooltip
    */
@@ -128,7 +128,7 @@ const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
    * Let's simply return the children
    */
   if (!label) {
-    return <>{children}</>;
+    return children;
   }
 
   return (
