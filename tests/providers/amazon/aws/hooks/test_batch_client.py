@@ -33,6 +33,7 @@ AWS_ACCESS_KEY_ID = "airflow_dummy_key"
 AWS_SECRET_ACCESS_KEY = "airflow_dummy_secret"
 
 JOB_ID = "8ba9d676-4108-4474-9dca-8bbac1da9b19"
+LOG_STREAM_NAME = "test/stream/d56a66bb98a14c4593defa1548686edf"
 
 
 class TestBatchClient(unittest.TestCase):
@@ -228,6 +229,76 @@ class TestBatchClient(unittest.TestCase):
         response = self.batch_client.terminate_job(JOB_ID, reason)
         self.client_mock.terminate_job.assert_called_once_with(jobId=JOB_ID, reason=reason)
         assert response == {}
+
+    def test_job_awslogs_default(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "container": {"logStreamName": LOG_STREAM_NAME},
+                }
+            ]
+        }
+        self.client_mock.meta.client.meta.region_name = AWS_REGION
+
+        awslogs = self.batch_client.get_job_awslogs_info(JOB_ID)
+        assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
+        assert awslogs["awslogs_group"] == "/aws/batch/job"
+        assert awslogs["awslogs_region"] == AWS_REGION
+
+    def test_job_awslogs_user_defined(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "container": {
+                        "logStreamName": LOG_STREAM_NAME,
+                        "logConfiguration": {
+                            "logDriver": "awslogs",
+                            "options": {
+                                "awslogs-group": "/test/batch/job",
+                                "awslogs-region": "ap-southeast-2",
+                            },
+                        },
+                    },
+                }
+            ]
+        }
+        awslogs = self.batch_client.get_job_awslogs_info(JOB_ID)
+        assert awslogs["awslogs_stream_name"] == LOG_STREAM_NAME
+        assert awslogs["awslogs_group"] == "/test/batch/job"
+        assert awslogs["awslogs_region"] == "ap-southeast-2"
+
+    def test_job_no_awslogs_stream(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "container": {},
+                }
+            ]
+        }
+        with self.assertLogs(level='WARNING') as capture_logs:
+            assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
+            assert len(capture_logs.records) == 1
+
+    def test_job_splunk_logs(self):
+        self.client_mock.describe_jobs.return_value = {
+            "jobs": [
+                {
+                    "jobId": JOB_ID,
+                    "logStreamName": LOG_STREAM_NAME,
+                    "container": {
+                        "logConfiguration": {
+                            "logDriver": "splunk",
+                        }
+                    },
+                }
+            ]
+        }
+        with self.assertLogs(level='WARNING') as capture_logs:
+            assert self.batch_client.get_job_awslogs_info(JOB_ID) is None
+            assert len(capture_logs.records) == 1
 
 
 class TestBatchClientDelays(unittest.TestCase):

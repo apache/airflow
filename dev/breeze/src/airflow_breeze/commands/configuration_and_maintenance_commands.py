@@ -157,9 +157,9 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
         )
         images = command_result.stdout.splitlines() if command_result and command_result.stdout else []
         if images:
-            get_console().print("[light_blue]Removing images:[/]")
+            get_console().print("[info]Removing images:[/]")
             for image in images:
-                get_console().print(f"[light_blue] * {image}[/]")
+                get_console().print(f"[info] * {image}[/]")
             get_console().print()
             docker_rmi_command_to_execute = [
                 'docker',
@@ -173,7 +173,7 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
             elif given_answer == Answer.QUIT:
                 sys.exit(0)
         else:
-            get_console().print("[light_blue]No locally downloaded images to remove[/]\n")
+            get_console().print("[info]No locally downloaded images to remove[/]\n")
     get_console().print("Pruning docker images")
     given_answer = user_confirm("Are you sure with the removal?")
     if given_answer == Answer.YES:

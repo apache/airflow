@@ -57,7 +57,7 @@ from airflow.models import (
 )
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import TaskInstance
+from airflow.models.taskinstance import TaskInstance, _executor_config_comparator
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
@@ -1307,18 +1307,6 @@ class TestTaskInstance:
         assert 1 == ti2.get_num_running_task_instances(session=session)
         assert 1 == ti3.get_num_running_task_instances(session=session)
 
-    # def test_log_url(self):
-    #     now = pendulum.now('Europe/Brussels')
-    #     dag = DAG('dag', start_date=DEFAULT_DATE)
-    #     task = EmptyOperator(task_id='op', dag=dag)
-    #     ti = TI(task=task, execution_date=now)
-    #     d = urllib.parse.parse_qs(
-    #         urllib.parse.urlparse(ti.log_url).query,
-    #         keep_blank_values=True, strict_parsing=True)
-    #     self.assertEqual(d['dag_id'][0], 'dag')
-    #     self.assertEqual(d['task_id'][0], 'op')
-    #     self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
-
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id='dag', task_id='op', execution_date=timezone.datetime(2018, 1, 1))
 
@@ -1327,6 +1315,7 @@ class TestTaskInstance:
             'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
             '&task_id=op'
             '&dag_id=dag'
+            '&map_index=-1'
         )
         assert ti.log_url == expected_url
 
@@ -2859,3 +2848,22 @@ def test_expand_non_templated_field(dag_maker, session):
 
     echo_task = dag.get_task("echo")
     assert "get_extra_env" in echo_task.upstream_task_ids
+
+
+def test_executor_config_comparator():
+    """
+    When comparison raises AttributeError, return False.
+    This can happen when executor config contains kubernetes objects pickled
+    under older kubernetes library version.
+    """
+
+    class MockAttrError:
+        def __eq__(self, other):
+            raise AttributeError('hello')
+
+    a = MockAttrError()
+    with pytest.raises(AttributeError):
+        # just verify for ourselves that this throws
+        assert a == a
+    assert _executor_config_comparator(a, a) is False
+    assert _executor_config_comparator('a', 'a') is True

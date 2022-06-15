@@ -24,7 +24,7 @@ from daemon.pidfile import TimeoutPIDLockFile
 from airflow import settings
 from airflow.jobs.triggerer_job import TriggererJob
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import setup_locations, setup_logging, sigquit_handler
+from airflow.utils.cli import setup_locations, setup_logging, sigint_handler, sigquit_handler
 
 
 @cli_utils.action_cli
@@ -50,19 +50,7 @@ def triggerer(args):
                 job.run()
 
     else:
-        # There is a bug in CPython (fixed in March 2022 but not yet released) that
-        # makes async.io handle SIGTERM improperly by using async unsafe
-        # functions and hanging the triggerer receive SIGPIPE while handling
-        # SIGTERN/SIGINT and deadlocking itself. Until the bug is handled
-        # we should rather rely on standard handling of the signals rather than
-        # adding our own signal handlers. Seems that even if our signal handler
-        # just run exit(0) - it caused a race condition that led to the hanging.
-        #
-        # More details:
-        #   * https://bugs.python.org/issue39622
-        #   * https://github.com/python/cpython/issues/83803
-        #
-        # signal.signal(signal.SIGINT, sigint_handler)
-        # signal.signal(signal.SIGTERM, sigint_handler)
+        signal.signal(signal.SIGINT, sigint_handler)
+        signal.signal(signal.SIGTERM, sigint_handler)
         signal.signal(signal.SIGQUIT, sigquit_handler)
         job.run()

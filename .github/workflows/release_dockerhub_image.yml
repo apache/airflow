@@ -1,0 +1,125 @@
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+#   http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing,
+# software distributed under the License is distributed on an
+# "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+# KIND, either express or implied.  See the License for the
+# specific language governing permissions and limitations
+# under the License.
+#
+---
+name: "Release PROD image"
+on:  # yamllint disable-line rule:truthy
+  workflow_dispatch:
+    inputs:
+      airflowVersion:
+        description: 'Airflow version'
+        required: true
+      skipLatest:
+        description: 'Skip Latest: Set to true if not latest.'
+        default: ''
+        required: false
+jobs:
+  build-info:
+    timeout-minutes: 10
+    name: "Build Info"
+    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    outputs:
+      pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
+      allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
+      defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
+      skipLatest: ${{ github.event.inputs.skipLatest == '' && ' ' || '--skip-latest' }}
+      limitPlatform: ${{ github.repository == 'apache/airflow' && ' ' || '--limit-platform linux/amd64' }}
+    env:
+      GITHUB_CONTEXT: ${{ toJson(github) }}
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+          submodules: recursive
+      - name: Selective checks
+        id: selective-checks
+        run: ./scripts/ci/selective_ci_checks.sh
+  release-images:
+    timeout-minutes: 120
+    name: "Release images"
+    runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    needs: [build-info]
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+    env:
+      RUNS_ON: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
+    if: contains(fromJSON('[
+      "ashb",
+      "ephraimbuddy",
+      "jedcunningham",
+      "kaxil",
+      "potiuk",
+      ]'), github.event.sender.login)
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+        uses: actions/checkout@v2
+        with:
+          persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: ./scripts/ci/install_breeze.sh
+      - name: "Free space"
+        run: breeze free-space
+      - name: Build CI image for PROD build ${{ needs.build-info.outputs.defaultPythonVersion }}
+        run: breeze build-image
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      - name: "Cleanup dist and context file"
+        run: rm -fv ./dist/* ./docker-context-files/*
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: github.repository == 'apache/airflow'
+      - name: "Login to docker"
+        run: >
+          echo ${{ secrets.DOCKERHUB_TOKEN }} |
+          docker login --password-stdin --username ${{ secrets.DOCKERHUB_USER }}
+      - name: "Release regular images"
+        run: >
+          breeze release-prod-images
+          --dockerhub-repo ${{ github.repository }}
+          --airflow-version  ${{ github.event.inputs.airflowVersion }}
+          ${{ needs.build-info.outputs.skipLatest }}
+          ${{ needs.build-info.outputs.limitPlatform }}
+          --limit-python ${{ matrix.python-version }}
+      - name: "Release slim images"
+        run: >
+          breeze release-prod-images
+          --dockerhub-repo ${{ github.repository }}
+          --airflow-version  ${{ github.event.inputs.airflowVersion }}
+          ${{ needs.build-info.outputs.skipLatest }}
+          ${{ needs.build-info.outputs.limitPlatform }}
+          --limit-python ${{ matrix.python-version }} --slim-images
+      - name: "Docker logout"
+        run: docker logout
+        if: always()
+      - name: "Stop ARM instance"
+        run: ./scripts/ci/images/ci_stop_arm_instance.sh
+        if: always() && github.repository == 'apache/airflow'
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()

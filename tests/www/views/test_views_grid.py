@@ -16,15 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import List
+
 import freezegun
 import pendulum
 import pytest
 
 from airflow.models import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.state import DagRunState, TaskInstanceState
 from airflow.utils.task_group import TaskGroup
 from airflow.utils.types import DagRunType
+from airflow.www.views import dag_to_grid
+from tests.test_utils.asserts import assert_queries_count
+from tests.test_utils.db import clear_db_runs
 from tests.test_utils.mock_operators import MockOperator
 
 DAG_ID = 'test'
@@ -35,6 +41,13 @@ CURRENT_TIME = pendulum.DateTime(2021, 9, 7)
 def examples_dag_bag():
     # Speed up: We don't want example dags for this module
     return DagBag(include_examples=False, read_dags_from_db=True)
+
+
+@pytest.fixture(autouse=True)
+def clean():
+    clear_db_runs()
+    yield
+    clear_db_runs()
 
 
 @pytest.fixture
@@ -48,7 +61,7 @@ def dag_without_runs(dag_maker, session, app, monkeypatch):
         with dag_maker(dag_id=DAG_ID, serialized=True, session=session):
             EmptyOperator(task_id="task1")
             with TaskGroup(group_id='group'):
-                MockOperator.partial(task_id='mapped').expand(arg1=['a', 'b', 'c'])
+                MockOperator.partial(task_id='mapped').expand(arg1=['a', 'b', 'c', 'd'])
 
         m.setattr(app, 'dag_bag', dag_maker.dagbag)
         yield dag_maker
@@ -108,11 +121,29 @@ def test_no_runs(admin_client, dag_without_runs):
     }
 
 
-def test_one_run(admin_client, dag_with_runs, session):
+def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
+    """
+    Test a DAG with complex interaction of states:
+    - One run successful
+    - One run partly success, partly running
+    - One TI not yet finished
+    """
     run1, run2 = dag_with_runs
 
     for ti in run1.task_instances:
         ti.state = TaskInstanceState.SUCCESS
+    for ti in sorted(run2.task_instances, key=lambda ti: (ti.task_id, ti.map_index)):
+        if ti.task_id == "task1":
+            ti.state = TaskInstanceState.SUCCESS
+        elif ti.task_id == "group.mapped":
+            if ti.map_index == 0:
+                ti.state = TaskInstanceState.SUCCESS
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 1, 0, 0, tzinfo=pendulum.UTC)
+                ti.end_date = pendulum.DateTime(2021, 7, 1, 1, 2, 3, tzinfo=pendulum.UTC)
+            elif ti.map_index == 1:
+                ti.state = TaskInstanceState.RUNNING
+                ti.start_date = pendulum.DateTime(2021, 7, 1, 2, 3, 4, tzinfo=pendulum.UTC)
+                ti.end_date = None
 
     session.flush()
 
@@ -150,20 +181,18 @@ def test_one_run(admin_client, dag_with_runs, session):
                     'id': 'task1',
                     'instances': [
                         {
-                            'end_date': None,
-                            'map_index': -1,
                             'run_id': 'run_1',
                             'start_date': None,
+                            'end_date': None,
                             'state': 'success',
                             'task_id': 'task1',
                             'try_number': 1,
                         },
                         {
-                            'end_date': None,
-                            'map_index': -1,
                             'run_id': 'run_2',
                             'start_date': None,
-                            'state': None,
+                            'end_date': None,
+                            'state': 'success',
                             'task_id': 'task1',
                             'try_number': 1,
                         },
@@ -178,22 +207,20 @@ def test_one_run(admin_client, dag_with_runs, session):
                             'id': 'group.mapped',
                             'instances': [
                                 {
-                                    'end_date': None,
-                                    'mapped_states': ['success', 'success', 'success'],
                                     'run_id': 'run_1',
+                                    'mapped_states': {'success': 4},
                                     'start_date': None,
+                                    'end_date': None,
                                     'state': 'success',
                                     'task_id': 'group.mapped',
-                                    'try_number': 1,
                                 },
                                 {
-                                    'end_date': None,
-                                    'mapped_states': [None, None, None],
                                     'run_id': 'run_2',
-                                    'start_date': None,
-                                    'state': None,
+                                    'mapped_states': {'no_status': 2, 'running': 1, 'success': 1},
+                                    'start_date': '2021-07-01T01:00:00+00:00',
+                                    'end_date': '2021-07-01T01:02:03+00:00',
+                                    'state': 'running',
                                     'task_id': 'group.mapped',
-                                    'try_number': 1,
                                 },
                             ],
                             'is_mapped': True,
@@ -210,10 +237,10 @@ def test_one_run(admin_client, dag_with_runs, session):
                             'task_id': 'group',
                         },
                         {
-                            'end_date': None,
                             'run_id': 'run_2',
-                            'start_date': None,
-                            'state': None,
+                            'start_date': '2021-07-01T01:00:00+00:00',
+                            'end_date': '2021-07-01T01:02:03+00:00',
+                            'state': 'running',
                             'task_id': 'group',
                         },
                     ],
@@ -230,9 +257,21 @@ def test_one_run(admin_client, dag_with_runs, session):
                     'state': 'success',
                     'task_id': None,
                 },
-                {'end_date': None, 'run_id': 'run_2', 'start_date': None, 'state': None, 'task_id': None},
+                {
+                    'end_date': '2021-07-01T01:02:03+00:00',
+                    'run_id': 'run_2',
+                    'start_date': '2021-07-01T01:00:00+00:00',
+                    'state': 'running',
+                    'task_id': None,
+                },
             ],
             'label': None,
             'tooltip': '',
         },
     }
+
+
+def test_query_count(dag_with_runs, session):
+    run1, run2 = dag_with_runs
+    with assert_queries_count(1):
+        dag_to_grid(run1.dag, (run1, run2), session)

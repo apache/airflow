@@ -35,7 +35,7 @@ from kubernetes.client import Configuration, models as k8s
 from kubernetes.client.rest import ApiException
 from urllib3.exceptions import ReadTimeoutError
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, PodReconciliationError
 from airflow.executors.base_executor import NOT_STARTED_MESSAGE, BaseExecutor, CommandType
 from airflow.kubernetes import pod_generator
 from airflow.kubernetes.kube_client import get_kube_client
@@ -300,8 +300,9 @@ class AirflowKubernetesScheduler(LoggingMixin):
         and store relevant info in the current_jobs map so we can track the job's
         status
         """
-        self.log.info('Kubernetes job is %s', str(next_job).replace("\n", " "))
         key, command, kube_executor_config, pod_template_file = next_job
+        self.log.info('Kubernetes job is %s', key)
+
         dag_id, task_id, run_id, try_number, map_index = key
 
         if command[0:3] != ["airflow", "tasks", "run"]:
@@ -617,6 +618,13 @@ class KubernetesExecutor(BaseExecutor):
                 task = self.task_queue.get_nowait()
                 try:
                     self.kube_scheduler.run_next(task)
+                except PodReconciliationError as e:
+                    self.log.error(
+                        "Pod reconciliation failed, likely due to kubernetes library upgrade. "
+                        "Try clearing the task to re-run.",
+                        exc_info=True,
+                    )
+                    self.fail(task[0], e)
                 except ApiException as e:
 
                     # These codes indicate something is wrong with pod definition; otherwise we assume pod
