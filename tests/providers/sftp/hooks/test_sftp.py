@@ -23,10 +23,13 @@ from io import StringIO
 from unittest import mock
 
 import paramiko
+import pytest
 from parameterized import parameterized
 
+from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.sftp.hooks.sftp import SFTPHook
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.utils.session import provide_session
 
 
@@ -44,6 +47,7 @@ SUB_DIR = "sub_dir"
 TMP_FILE_FOR_TESTS = 'test_file.txt'
 ANOTHER_FILE_FOR_TESTS = 'test_file_1.txt'
 LOG_FILE_FOR_TESTS = 'test_log.log'
+FIFO_FOR_TESTS = 'test_fifo'
 
 SFTP_CONNECTION_USER = "root"
 
@@ -76,6 +80,7 @@ class TestSFTPHook(unittest.TestCase):
                 file.write('Test file')
         with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), 'a') as file:
             file.write('Test file')
+        os.mkfifo(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS))
 
     def test_get_conn(self):
         output = self.hook.get_conn()
@@ -93,13 +98,24 @@ class TestSFTPHook(unittest.TestCase):
 
     def test_list_directory(self):
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        assert output == [SUB_DIR]
+        assert output == [SUB_DIR, FIFO_FOR_TESTS]
+
+    def test_mkdir(self):
+        new_dir_name = 'mk_dir'
+        self.hook.mkdir(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
+        output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
+        assert new_dir_name in output
 
     def test_create_and_delete_directory(self):
         new_dir_name = 'new_dir'
         self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         assert new_dir_name in output
+        # test directory already exists for code coverage, should not raise an exception
+        self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
+        # test path already exists and is a file, should raise an exception
+        with pytest.raises(AirflowException, match="already exists and is a file"):
+            self.hook.create_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS))
         self.hook.delete_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, new_dir_name))
         output = self.hook.describe_directory(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
         assert new_dir_name not in output
@@ -125,7 +141,7 @@ class TestSFTPHook(unittest.TestCase):
             local_full_path=os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS),
         )
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        assert output == [SUB_DIR, TMP_FILE_FOR_TESTS]
+        assert output == [SUB_DIR, FIFO_FOR_TESTS, TMP_FILE_FOR_TESTS]
         retrieved_file_name = 'retrieved.txt'
         self.hook.retrieve_file(
             remote_full_path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS),
@@ -135,7 +151,7 @@ class TestSFTPHook(unittest.TestCase):
         os.remove(os.path.join(TMP_PATH, retrieved_file_name))
         self.hook.delete_file(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, TMP_FILE_FOR_TESTS))
         output = self.hook.list_directory(path=os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        assert output == [SUB_DIR]
+        assert output == [SUB_DIR, FIFO_FOR_TESTS]
 
     def test_get_mod_time(self):
         self.hook.store_file(
@@ -301,7 +317,7 @@ class TestSFTPHook(unittest.TestCase):
 
         assert files == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS)]
         assert dirs == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)]
-        assert unknowns == []
+        assert unknowns == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, FIFO_FOR_TESTS)]
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_connection_failure(self, mock_get_connection):
@@ -353,6 +369,21 @@ class TestSFTPHook(unittest.TestCase):
         assert SFTPHook(ssh_conn_id='sftp_default').ssh_conn_id == 'sftp_default'
         # Default is 'sftp_default
         assert SFTPHook().ssh_conn_id == 'sftp_default'
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_invalid_ssh_hook(self, mock_get_connection):
+        with pytest.raises(AirflowException, match="ssh_hook must be an instance of SSHHook"):
+            connection = Connection(conn_id='sftp_default', login='root', host='localhost')
+            mock_get_connection.return_value = connection
+            SFTPHook(ssh_hook='invalid_hook')  # type: ignore
+
+    @mock.patch('airflow.providers.ssh.hooks.ssh.SSHHook.get_connection')
+    def test_valid_ssh_hook(self, mock_get_connection):
+        connection = Connection(conn_id='sftp_test', login='root', host='localhost')
+        mock_get_connection.return_value = connection
+        hook = SFTPHook(ssh_hook=SSHHook(ssh_conn_id='sftp_test'))
+        assert hook.ssh_conn_id == 'sftp_test'
+        assert isinstance(hook.get_conn(), paramiko.SFTPClient)
 
     def test_get_suffix_pattern_match(self):
         output = self.hook.get_file_by_pattern(TMP_PATH, "*.txt")
