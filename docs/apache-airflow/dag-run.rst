@@ -270,26 +270,25 @@ Example of a parameterized DAG that reads the configuration from the context:
 .. code-block:: python
 
     import pendulum
+    from airflow.decorators import dag, task
+    from airflow.operators.python import get_current_context
 
-    from airflow import DAG
-    from airflow.operators.python import PythonOperator
-
-    dag = DAG(
-        "example_parameterized_dag",
+    @dag(
         schedule_interval=None,
-        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+        start_date=pendulum.datetime(2022, 6, 14, tz="UTC"),
         catchup=False,
     )
-    
-    def print_conf(**context):
-        conf1 = context['dag_run'].conf['conf1']
-        print(conf1)
 
-    parameterized_task = PythonOperator(
-        task_id="parameterized_task",
-        python_callable=print_conf,
-        dag=dag,
-    )
+    def example_parameterized_dag():
+        @task
+        def print_conf():
+            context = get_current_context()
+            conf1 = context['dag_run'].conf['conf1']
+            print(conf1)
+        
+        print_conf()
+
+    param_dag = example_parameterized_dag()
 
 
 Using CLI
