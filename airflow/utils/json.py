@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 from datetime import date, datetime
 from decimal import Decimal
 
@@ -32,6 +33,8 @@ except ImportError:
     k8s = None
 
 # Dates and JSON encoding/decoding
+
+log = logging.getLogger(__name__)
 
 
 class AirflowJsonEncoder(JSONEncoder):
@@ -81,6 +84,21 @@ class AirflowJsonEncoder(JSONEncoder):
         elif k8s is not None and isinstance(obj, (k8s.V1Pod, k8s.V1ResourceRequirements)):
             from airflow.kubernetes.pod_generator import PodGenerator
 
-            return PodGenerator.serialize_pod(obj)
+            def safe_get_name(pod):
+                """
+                We're running this in an except block, so we don't want it to
+                fail under any circumstances, e.g. by accessing an attribute that isn't there
+                """
+                try:
+                    return pod.metadata.name
+                except Exception:
+                    return None
+
+            try:
+                return PodGenerator.serialize_pod(obj)
+            except Exception:
+                log.warning("JSON encoding failed for pod %s", safe_get_name(obj))
+                log.debug("traceback for pod JSON encode error", exc_info=True)
+                return {}
 
         raise TypeError(f"Object of type '{obj.__class__.__name__}' is not JSON serializable")
