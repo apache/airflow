@@ -381,6 +381,8 @@ class BigQueryGetDataOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :param query: (Optional) A sql query to execute instead
+    :param as_dict: if True returns the result as a list of dictionaries. default to False
     """
 
     template_fields: Sequence[str] = (
@@ -395,14 +397,16 @@ class BigQueryGetDataOperator(BaseOperator):
     def __init__(
         self,
         *,
-        dataset_id: str,
-        table_id: str,
-        max_results: int = 100,
+        dataset_id: Optional[str] = None,
+        table_id: Optional[str] = None,
+        max_results: Optional[int] = 100,
         selected_fields: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        query: Optional[str] = None,
+        as_dict: bool = False,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -415,6 +419,11 @@ class BigQueryGetDataOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.query = query
+        self.as_dict = as_dict
+
+        if not query and not table_id:
+            self.log.error('Table_id or query not set. Please provide either a dataset_id + table_id or a query string')
 
     def execute(self, context: 'Context') -> list:
         self.log.info(
@@ -425,27 +434,39 @@ class BigQueryGetDataOperator(BaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             impersonation_chain=self.impersonation_chain,
-        )
-
-        if not self.selected_fields:
-            schema: Dict[str, list] = hook.get_schema(
-                dataset_id=self.dataset_id,
-                table_id=self.table_id,
-            )
-            if "fields" in schema:
-                self.selected_fields = ','.join([field["name"] for field in schema["fields"]])
-
-        rows = hook.list_rows(
-            dataset_id=self.dataset_id,
-            table_id=self.table_id,
-            max_results=self.max_results,
-            selected_fields=self.selected_fields,
             location=self.location,
         )
 
-        self.log.info('Total extracted rows: %s', len(rows))
+        if not self.query:
+            if not self.selected_fields:
+                schema: Dict[str, list] = hook.get_schema(
+                    dataset_id=self.dataset_id,
+                    table_id=self.table_id,
+                )
+                if "fields" in schema:
+                    self.selected_fields = ','.join([field["name"] for field in schema["fields"]])
 
-        table_data = [row.values() for row in rows]
+            with hook.list_rows(
+                dataset_id=self.dataset_id,
+                table_id=self.table_id,
+                max_results=self.max_results,
+                selected_fields=self.selected_fields
+            ) as rows:
+
+                if self.as_dict:
+                    table_data = [json.dumps(dict(zip(self.selected_fields, row))).encode('utf-8') for row in rows]
+                else:
+                    table_data = [row.values() for row in rows]    
+        
+        else:
+            with hook.get_conn().cursor().execute(self.query) as cursor:
+                if self.as_dict:
+                    table_data = [json.dumps(dict(zip(self.keys,row))).encode('utf-8') for row in cursor.fetchmany(self.max_results)]
+                else:
+                    table_data = [row for row in cursor.fetchmany(self.max_results)]
+
+        self.log.info('Total extracted rows: %s', len(table_data))
+
         return table_data
 
 
