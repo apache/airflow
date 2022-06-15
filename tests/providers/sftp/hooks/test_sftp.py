@@ -58,6 +58,7 @@ class TestSFTPHook(unittest.TestCase):
         connection = session.query(Connection).filter(Connection.conn_id == "sftp_default").first()
         old_login = connection.login
         connection.login = login
+        connection.extra = ''  # clear out extra so it doesn't look for a key file
         session.commit()
         return old_login
 
@@ -149,15 +150,15 @@ class TestSFTPHook(unittest.TestCase):
         connection = Connection(login='login', host='host')
         get_connection.return_value = connection
         hook = SFTPHook()
-        assert hook.no_host_key_check is False
+        assert hook.no_host_key_check is True
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_enabled(self, get_connection):
-        connection = Connection(login='login', host='host', extra='{"no_host_key_check": true}')
+        connection = Connection(login='login', host='host', extra='{"no_host_key_check": false}')
 
         get_connection.return_value = connection
         hook = SFTPHook()
-        assert hook.no_host_key_check is True
+        assert hook.no_host_key_check is False
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_no_host_key_check_disabled(self, get_connection):
@@ -190,14 +191,6 @@ class TestSFTPHook(unittest.TestCase):
         get_connection.return_value = connection
         hook = SFTPHook()
         assert hook.no_host_key_check is True
-
-    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
-    def test_no_host_key_check_no_ignore(self, get_connection):
-        connection = Connection(login='login', host='host', extra='{"ignore_hostkey_verification": false}')
-
-        get_connection.return_value = connection
-        hook = SFTPHook()
-        assert hook.no_host_key_check is False
 
     @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
     def test_host_key_default(self, get_connection):
@@ -318,7 +311,9 @@ class TestSFTPHook(unittest.TestCase):
         )
         mock_get_connection.return_value = connection
         with mock.patch.object(SFTPHook, 'get_conn') as get_conn:
-            type(get_conn.return_value).pwd = mock.PropertyMock(side_effect=Exception('Connection Error'))
+            type(get_conn.return_value).normalize = mock.PropertyMock(
+                side_effect=Exception('Connection Error')
+            )
 
             hook = SFTPHook()
             status, msg = hook.test_connection()
