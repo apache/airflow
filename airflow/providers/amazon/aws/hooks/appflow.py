@@ -31,8 +31,8 @@ if TYPE_CHECKING:
 
 class AppflowHook(AwsBaseHook):
     """
-    Interact with Amazon Appflow, using the boto3 library
-    Hook attribute `conn` has all methods that listed in documentation
+    Interact with Amazon Appflow, using the boto3 library.
+    Hook attribute ``conn`` has all methods that listed in documentation.
 
     .. seealso::
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/appflow.html
