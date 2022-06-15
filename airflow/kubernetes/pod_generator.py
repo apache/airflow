@@ -34,7 +34,7 @@ from dateutil import parser
 from kubernetes.client import models as k8s
 from kubernetes.client.api_client import ApiClient
 
-from airflow.exceptions import AirflowConfigException, PodReconciliationError
+from airflow.exceptions import AirflowConfigException
 from airflow.kubernetes.pod_generator_deprecated import PodDefaults, PodGenerator as PodGeneratorDeprecated
 from airflow.utils import yaml
 from airflow.version import version as airflow_version
@@ -389,10 +389,7 @@ class PodGenerator:
         # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
         pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
 
-        try:
-            return reduce(PodGenerator.reconcile_pods, pod_list)
-        except Exception as e:
-            raise PodReconciliationError from e
+        return reduce(PodGenerator.reconcile_pods, pod_list)
 
     @staticmethod
     def serialize_pod(pod: k8s.V1Pod) -> dict:
