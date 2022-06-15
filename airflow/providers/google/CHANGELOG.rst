@@ -23,6 +23,30 @@
 Changelog
 ---------
 
+8.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update Oracle library to latest version (#24311)``
+* ``Expose SQL to GCS Metadata (#24382)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix typo in google provider additional extras (#24431)``
+* ``Use insert_job in the BigQueryToGCPOpertor and adjust links (#24416)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix links to sources for examples (#24386)``
+   * ``Deprecate remaining occurrences of 'bigquery_conn_id' in favor of 'gcp_conn_id' (#24376)``
+   * ``Migrate Google calendar example DAG to new design AIP-47 (#24333)``
+   * ``Migrate Google azure_fileshare example DAG to new design AIP-47 (#24349)``
+   * ``Remove bigquery example already migrated to AIP-47 (#24379)``
+   * ``Migrate Google sheets example DAG to new design AIP-47 (#24351)``
+
 8.0.0
 .....
 
