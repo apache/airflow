@@ -177,7 +177,6 @@ class GoogleDriveHook(GoogleBaseHook):
                 .list(q=query, spaces="drive", fields="files(id, mimeType, trashed)", orderBy="modifiedTime desc")
                 .execute(num_retries=self.num_retries)
             )
-        print(files)
         file_metadata = {}
         if files['files']:
             file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType'], "trashed": files['files'][0]['trashed']}
