@@ -877,7 +877,7 @@ class DagRun(Base, LoggingMixin):
             except AirflowException:
                 if ti.state == State.REMOVED:
                     pass  # ti has already been removed, just ignore it
-                elif self.state != State.RUNNING and not dag.partial:
+                elif ti.state != State.RUNNING and not dag.partial:
                     self.log.warning("Failed to get task '%s' for dag '%s'. Marking it as removed.", ti, dag)
                     Stats.incr(f"task_removed_from_dag.{dag.dag_id}", 1, 1)
                     ti.state = State.REMOVED
