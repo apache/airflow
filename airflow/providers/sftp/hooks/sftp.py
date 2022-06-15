@@ -87,6 +87,7 @@ class SFTPHook(SSHHook):
                     f'ssh_hook must be an instance of SSHHook, but got {type(self.ssh_hook)}'
                 )
             self.log.info('ssh_hook is provided. It will be used to generate SFTP connection.')
+            self.ssh_conn_id = self.ssh_hook.ssh_conn_id
             return
 
         ftp_conn_id = kwargs.pop('ftp_conn_id', None)
@@ -98,7 +99,9 @@ class SFTPHook(SSHHook):
             )
             ssh_conn_id = ftp_conn_id
 
+        kwargs['ssh_conn_id'] = ssh_conn_id
         self.ssh_conn_id = ssh_conn_id
+
         super().__init__(*args, **kwargs)
 
     def get_conn(self) -> paramiko.SFTPClient:  # type: ignore[override]
@@ -146,7 +149,7 @@ class SFTPHook(SSHHook):
         :param path: full path to the remote directory to list
         """
         conn = self.get_conn()
-        files = conn.listdir(path)
+        files = sorted(conn.listdir(path))
         return files
 
     def mkdir(self, path: str, mode: int = 777) -> None:
@@ -227,7 +230,7 @@ class SFTPHook(SSHHook):
         conn = self.get_conn()
         conn.get(remote_full_path, local_full_path)
 
-    def store_file(self, remote_full_path: str, local_full_path: str) -> None:
+    def store_file(self, remote_full_path: str, local_full_path: str, confirm: bool = True) -> None:
         """
         Transfers a local file to the remote location.
         If local_full_path_or_buffer is a string path, the file will be read
@@ -237,7 +240,7 @@ class SFTPHook(SSHHook):
         :param local_full_path: full path to the local file
         """
         conn = self.get_conn()
-        conn.put(local_full_path, remote_full_path)
+        conn.put(local_full_path, remote_full_path, confirm=confirm)
 
     def delete_file(self, path: str) -> None:
         """
