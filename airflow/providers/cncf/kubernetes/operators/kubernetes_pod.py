@@ -48,7 +48,7 @@ from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
     PodManager,
-    container_is_terminated,
+    container_is_completed,
     get_container_termination_message,
 )
 from airflow.settings import pod_mutation_hook
@@ -431,7 +431,7 @@ class KubernetesPodOperator(BaseOperator):
         if not self.is_delete_operator_pod:
             with _suppress(Exception):
                 self.patch_already_checked(remote_pod)
-        if not container_is_terminated(remote_pod, self.BASE_CONTAINER_NAME):
+        if not container_is_completed(remote_pod, self.BASE_CONTAINER_NAME):
             if self.log_events_on_failure:
                 with _suppress(Exception):
                     for event in self.pod_manager.read_pod_events(pod).items:

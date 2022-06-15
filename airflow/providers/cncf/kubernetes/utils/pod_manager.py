@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Iterable, Optional, Tuple, cast
 import pendulum
 import tenacity
 from kubernetes import client, watch
+from kubernetes.client.models import V1ContainerState
 from kubernetes.client.models.v1_pod import V1Pod
 from kubernetes.client.rest import ApiException
 from kubernetes.stream import stream as kubernetes_stream
