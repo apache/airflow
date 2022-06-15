@@ -15,9 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from providers.core.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
-
 from airflow import DAG
+from airflow.providers.core.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
 from airflow.utils.dates import datetime
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
