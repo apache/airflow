@@ -56,7 +56,7 @@ class AppflowBaseOperator(BaseOperator):
 
     :param source: The source name (Supported: salesforce, zendesk)
     :param name: The flow name
-    :param flow_update: A boolean to enable/disable the a flow update before the run
+    :param flow_update: A boolean to enable/disable a flow update before the run
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
