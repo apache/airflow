@@ -31,7 +31,7 @@ from setproctitle import setproctitle
 from sqlalchemy import exc, func, or_
 from sqlalchemy.orm.session import Session
 
-from airflow import models, settings
+from airflow import settings
 from airflow.callbacks.callback_requests import (
     CallbackRequest,
     DagCallbackRequest,
@@ -55,8 +55,9 @@ from airflow.utils.state import State
 if TYPE_CHECKING:
     from airflow.models.operator import Operator
 
-DR = models.DagRun
-TI = models.TaskInstance
+
+from airflow.models.dagrun import DagRun as DR
+from airflow.models.taskinstance import TaskInstance as TI
 
 
 class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):

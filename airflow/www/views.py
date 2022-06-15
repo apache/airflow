@@ -106,17 +106,7 @@ from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import (
-    Connection,
-    DagModel,
-    DagOwnerAttributes,
-    DagTag,
-    Log,
-    SlaMiss,
-    TaskFail,
-    XCom,
-    errors,
-)
+from airflow.models import Connection, DagModel, DagTag, Log, SlaMiss, TaskFail, XCom, errors
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.dag import DAG, get_dataset_triggered_next_run_info
 from airflow.models.dagcode import DagCode
@@ -775,6 +765,8 @@ class Airflow(AirflowBaseView):
     )
     def index(self):
         """Home view."""
+        from airflow.models.dag import DagOwnerAttributes
+
         hide_paused_dags_by_default = conf.getboolean('webserver', 'hide_paused_dags_by_default')
         default_dag_run = conf.getint('webserver', 'default_dag_run_display_number')
 

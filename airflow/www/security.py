@@ -29,10 +29,7 @@ from airflow.models import DagBag, DagModel
 from airflow.security import permissions
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import provide_session
-from airflow.www.fab_security.sqla.manager import SecurityManager
-from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
-from airflow.www.utils import CustomSQLAInterface
-from airflow.www.views import (
+from airflow.www.fab_security.security_views import (
     ActionModelView,
     CustomResetMyPasswordView,
     CustomResetPasswordView,
@@ -47,6 +44,9 @@ from airflow.www.views import (
     PermissionPairModelView,
     ResourceModelView,
 )
+from airflow.www.fab_security.sqla.manager import SecurityManager
+from airflow.www.fab_security.sqla.models import Permission, Resource, Role, User
+from airflow.www.utils import CustomSQLAInterface
 
 EXISTING_ROLES = {
     'Admin',

@@ -33,6 +33,7 @@ from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
 
 from airflow import settings
 from airflow.exceptions import AirflowException
+from airflow.models import import_all_models
 from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
@@ -87,6 +88,7 @@ def action_cli(func=None, check_db=True):
             :param kwargs: A passthrough keyword argument
             """
             _check_cli_args(args)
+            import_all_models()
             metrics = _build_metrics(f.__name__, args[0])
             cli_action_loggers.on_pre_execution(**metrics)
             try:
