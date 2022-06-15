@@ -331,7 +331,8 @@ class DAG(LoggingMixin):
         end_date: Optional[datetime] = None,
         full_filepath: Optional[str] = None,
         template_searchpath: Optional[Union[str, Iterable[str]]] = None,
-        template_undefined: Type[jinja2.StrictUndefined] = jinja2.StrictUndefined,
+        # TODO after resolving unset template variables usage, set this back to jinja2.StrictUndefined
+        template_undefined: Type[jinja2.Undefined] = jinja2.Undefined,
         user_defined_macros: Optional[Dict] = None,
         user_defined_filters: Optional[Dict] = None,
         default_args: Optional[Dict] = None,
