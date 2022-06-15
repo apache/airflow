@@ -111,14 +111,29 @@ class SystemTestContextBuilder:
     as any external resources requested (e.g.g IAM Roles, VPC, etc)"""
 
     def __init__(self):
-        self.variables = []
+        self.variables = set()
+        self.variables_to_split = {}
         self.variable_defaults = {}
         self.test_name = _get_test_name()
         self.env_id = set_env_id()
 
-    def add_variable(self, variable_name: str, **kwargs):
+    def add_variable(
+        self,
+        variable_name: str,
+        split_string: bool = False,
+        delimiter: Optional[str] = None,
+        **kwargs,
+    ):
         """Register a variable to fetch from environment or cloud parameter store"""
-        self.variables.append(variable_name)
+        if variable_name in self.variables:
+            raise ValueError(f'Variable name {variable_name} already exists in the fetched variables list.')
+        if delimiter and not split_string:
+            raise ValueError(f'Variable {variable_name} has a delimiter but split_string is set to False.')
+
+        self.variables.add(variable_name)
+        if split_string:
+            self.variables_to_split[variable_name] = delimiter
+
         # default_value is accepted via kwargs so that it is completely optional and no
         # default value needs to be provided in the method stub (otherwise we wouldn't
         # be able to tell the difference between our default value and one provided by
@@ -139,6 +154,8 @@ class SystemTestContextBuilder:
             for variable in self.variables:
                 default_value = self.variable_defaults.get(variable, None)
                 value = fetch_variable(variable, default_value, test_name=self.test_name)
+                if variable in self.variables_to_split:
+                    value = value.split(self.variables_to_split[variable])
                 ti.xcom_push(variable, value)
 
             # Fetch/generate ENV_ID and store it in XCOM
