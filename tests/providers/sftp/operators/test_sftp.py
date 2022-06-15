@@ -23,7 +23,9 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
+from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.providers.sftp.operators.sftp import SFTPOperation, SFTPOperator
+from airflow.providers.ssh.hooks.ssh import SSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
@@ -35,7 +37,6 @@ TEST_CONN_ID = "conn_id_for_testing"
 
 class TestSFTPOperator:
     def setup_method(self):
-        from airflow.providers.ssh.hooks.ssh import SSHHook
 
         hook = SSHHook(ssh_conn_id='ssh_default')
         hook.no_host_key_check = True
@@ -378,3 +379,60 @@ class TestSFTPOperator:
         except Exception:
             pass
         assert task_3.sftp_hook.ssh_conn_id == self.hook.ssh_conn_id
+
+        # Exception should be raised if operation is invalid
+        with pytest.raises(TypeError, match="Unsupported operation value invalid_operation, "):
+            task_4 = SFTPOperator(
+                task_id="test_sftp_4",
+                local_filepath=self.test_local_filepath,
+                remote_filepath=self.test_remote_filepath,
+                operation='invalid_operation',
+                dag=dag,
+            )
+            task_4.execute(None)
+
+        # Exception should be raised if both ssh_conn_id and sftp_conn_id are provided
+        with pytest.raises(
+            AirflowException, match="Parameters `ssh_conn_id` and `sftp_conn_id` are both provided."
+        ):
+            task_5 = SFTPOperator(
+                task_id="test_sftp_5",
+                ssh_conn_id=TEST_CONN_ID,
+                sftp_conn_id=TEST_CONN_ID,
+                local_filepath=self.test_local_filepath,
+                remote_filepath=self.test_remote_filepath,
+                operation=SFTPOperation.PUT,
+                dag=dag,
+            )
+            task_5.execute(None)
+
+        # Exception should be raised if both ssh_hook and sftp_hook are provided
+        with pytest.raises(
+            AirflowException,
+            match="Both `ssh_hook` and `sftp_hook` are defined. Please use only one of them.",
+        ):
+            task_6 = SFTPOperator(
+                task_id="test_sftp_6",
+                ssh_hook=self.hook,
+                sftp_hook=SFTPHook(),
+                local_filepath=self.test_local_filepath,
+                remote_filepath=self.test_remote_filepath,
+                operation=SFTPOperation.PUT,
+                dag=dag,
+            )
+            task_6.execute(None)
+
+        task_7 = SFTPOperator(
+            task_id="test_sftp_7",
+            ssh_conn_id=TEST_CONN_ID,
+            remote_host='remotehost',
+            local_filepath=self.test_local_filepath,
+            remote_filepath=self.test_remote_filepath,
+            operation=SFTPOperation.PUT,
+            dag=dag,
+        )
+        try:
+            task_7.execute(None)
+        except Exception:
+            pass
+        assert task_7.sftp_hook.remote_host == 'remotehost'
