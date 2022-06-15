@@ -18,8 +18,8 @@
 Package apache-airflow-providers-core-sql
 ------------------------------------------
 
-`Core SQL Provider`__
+`Core SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-This is detailed commit list of changes for versions provider package: ``core-sql``.
+This is detailed commit list of changes for versions provider package: ``core.sql``.
 For high-level changelog, see :doc:`package information including changelog <index>`.

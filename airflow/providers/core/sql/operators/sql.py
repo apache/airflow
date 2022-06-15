@@ -62,6 +62,10 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLColumnCheckOperator`
     """
 
     column_checks = {
@@ -227,6 +231,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:SQLTableCheckOperator`
     """
 
     sql_check_template = "CASE WHEN check_statement THEN 1 ELSE 0 END AS check_name"
