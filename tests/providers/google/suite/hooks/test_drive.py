@@ -207,7 +207,12 @@ class TestGoogleDriveHook(unittest.TestCase):
         file_name = "abc123.csv"
 
         mock_get_conn.return_value.files.return_value.list.return_value.execute.side_effect = [
-            {"files": [{"id": "ID_1", "mimeType": "text/plain", "trashed": False}, {"id": "ID_2", "mimeType": "text/plain", "trashed": False}]}
+            {
+                "files": [
+                    {"id": "ID_1", "mimeType": "text/plain", "trashed": False},
+                    {"id": "ID_2", "mimeType": "text/plain", "trashed": False},
+                ]
+            }
         ]
 
         result_value = self.gdrive_hook.get_file_id(folder_id, file_name, drive_id)

@@ -128,7 +128,13 @@ class GoogleDriveHook(GoogleBaseHook):
         request = service.files().get_media(fileId=file_id)
         return request
 
-    def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None, include_trashed: Optional[bool] = False):
+    def exists(
+        self,
+        folder_id: str,
+        file_name: str,
+        drive_id: Optional[str] = None,
+        include_trashed: Optional[bool] = False,
+    ):
         """
         Checks to see if a file exists within a Google Drive folder
 
@@ -174,12 +180,21 @@ class GoogleDriveHook(GoogleBaseHook):
         else:
             files = (
                 service.files()
-                .list(q=query, spaces="drive", fields="files(id, mimeType, trashed)", orderBy="modifiedTime desc")
+                .list(
+                    q=query,
+                    spaces="drive",
+                    fields="files(id, mimeType, trashed)",
+                    orderBy="modifiedTime desc",
+                )
                 .execute(num_retries=self.num_retries)
             )
         file_metadata = {}
         if files['files']:
-            file_metadata = {"id": files['files'][0]['id'], "mime_type": files['files'][0]['mimeType'], "trashed": files['files'][0]['trashed']}
+            file_metadata = {
+                "id": files['files'][0]['id'],
+                "mime_type": files['files'][0]['mimeType'],
+                "trashed": files['files'][0]['trashed'],
+            }
         return file_metadata
 
     def upload_file(
