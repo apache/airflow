@@ -219,7 +219,12 @@ class EcsOperator(BaseOperator):
     """
 
     ui_color = '#f0ede4'
-    template_fields: Sequence[str] = ('overrides',)
+    template_fields: Sequence[str] = (
+        'cluster',
+        'task_definition',
+        'overrides',
+        'network_configuration',
+    )
     template_fields_renderers = {
         "overrides": "json",
         "network_configuration": "json",
