@@ -28,9 +28,6 @@
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
   - [Prepare production Docker Image](#prepare-production-docker-image)
-  - [Prerequisites](#prerequisites)
-  - [Setting environment with emulation](#setting-environment-with-emulation)
-  - [Setting up cache refreshing with hardware ARM/AMD support](#setting-up-cache-refreshing-with-hardware-armamd-support)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
@@ -493,76 +490,23 @@ is not supposed to be used by and advertised to the end-users who do not read th
 
 Production Docker images should be manually prepared and pushed by the release manager or another committer
 who has access to Airflow's DockerHub. Note that we started releasing a multi-platform build, so you need
-to have an environment prepared to build multi-platform images. You can achieve it with either emulation
-(very slow) or if you have two types of hardware (AMD64 and ARM64) you can configure Hardware builders.
+to have an environment prepared to build multi-platform images. You can achieve it with:
 
-## Prerequisites
+* GitHub Actions Manual Job (easiest)
+* Emulation (very slow)
+* Hardware builders if you have both AMD64 and ARM64 hardware locally
 
-You need to have buildx plugin installed to run the build. Also, you need to have regctl
-installed from https://github.com/regclient/regclient in order to tag the multi-platform images in
-DockerHub. The script to build images will refuse to work if you do not have those two installed.
+Building the image is triggered by running the `Release PROD image` workflow via
+[GitHub Actions](https://github.com/apache/airflow/actions).
 
-You also need to have the right permissions to push the images, so you should run
-`docker login` before and authenticate with your DockerHub token.
+When you trigger it you need to pass:
 
-## Setting environment with emulation
+* Airflow Version
+* Optional "true" in skip latest field if you do not want to retag the latest image
 
-According to the [official installation instructions](https://docs.docker.com/buildx/working-with-buildx/#build-multi-platform-images)
-this can be achieved via:
+![Release prod image](images/release_prod_image.png)
 
-```shell
-docker run --privileged --rm tonistiigi/binfmt --install all
-```
-
-More information can be found [here](https://docs.docker.com/engine/reference/commandline/buildx_create/)
-
-However, emulation is very slow - more than 10x slower than hardware-backed builds.
-
-## Setting up cache refreshing with hardware ARM/AMD support
-
-If you plan to build  a number of images, probably better solution is to set up a hardware remote builder
-for your ARM or AMD builds (depending which platform you build images on - the "other" platform should be
-remote.
-
-This  can be achieved by settings build as described in
-[this guideline](https://www.docker.com/blog/speed-up-building-with-docker-buildx-and-graviton2-ec2/) and
-adding it to docker buildx `airflow_cache` builder.
-
-This usually can be done with those two commands:
-
-```bash
-docker buildx create --name airflow_cache   # your local builder
-docker buildx create --name airflow_cache --append HOST:PORT  # your remote builder
-```
-
-One of the ways to have HOST:PORT is to login to the remote machine via SSH and forward the port to
-the docker engine running on the remote machine.
-
-When everything is fine you should see both local and remote builder configured and reporting status:
-
-```bash
-docker buildx ls
-
-  airflow_cache          docker-container
-       airflow_cache0    unix:///var/run/docker.sock
-       airflow_cache1    tcp://127.0.0.1:2375
-```
-
-Preparing regular images:
-
-```shell script
-breeze release-prod-images --airflow-version "${VERSION}"
-```
-
-Preparing slim images:
-
-```shell script
-breeze release-prod-images --airflow-version "${VERSION}" --slim-images
-```
-
-This will wipe Breeze cache and docker-context-files in order to make sure the build is "clean". It
-also performs image verification after pushing the images.
-
+The manual building is described in [MANUALLY_BUILDING_IMAGES.md](MANUALLY_BUILDING_IMAGES.md).
 
 ## Prepare issue for testing status of rc
 
@@ -1013,33 +957,22 @@ At this point we release an official package:
 
 ## Manually prepare production Docker Image
 
-Note that this scripts prepares multi-platform image, so you need to fulfill prerequisites as
-described above in the preparation of RC images.
+Building the image is triggered by running the `Release PROD image` workflow via
+[GitHub Actions](https://github.com/apache/airflow/actions).
+
+When you trigger it you need to pass:
+
+* Airflow Version
+* Optional "true" in skip latest field if you do not want to retag the latest image
+
+![Release prod image](images/release_prod_image.png)
 
 Note that by default the `latest` images tagged are aliased to the just released image which is the usual
 way we release. For example when you are releasing 2.3.N image and 2.3 is our latest branch the new image is
 marked as "latest".
 
 In case we are releasing (which almost never happens so far) a critical bugfix release in one of
-the older branches, you should add the `--skip-latest` flag.
-
-Preparing regular images:
-
-```shell script
-breeze release-prod-images --airflow-version "${VERSION}"
-```
-
-Preparing slim images:
-
-```shell script
-breeze release-prod-images --airflow-version "${VERSION}" --slim-images
-```
-
-Preparing a release that is not in the latest branch:
-
-```shell script
-breeze release-prod-images --airflow-version "${VERSION}" --slim-images --skip-latest
-```
+the older branches, you should set the "skip" field to true.
 
 
 ## Publish documentation
