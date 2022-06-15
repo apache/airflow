@@ -264,6 +264,8 @@ Example of a parameterized DAG using a templated field:
         bash_command="echo value: {{ dag_run.conf['conf1'] }}",
         dag=dag,
     )
+    
+**Note**: The parameters from ``dag_run.conf`` can only be used in a template field of an operator.
 
 Example of a parameterized DAG that reads the configuration from the context:
 
@@ -289,7 +291,6 @@ Example of a parameterized DAG that reads the configuration from the context:
         print_conf()
 
     param_dag = example_parameterized_dag()
-
 
 Using CLI
 ^^^^^^^^^^^
