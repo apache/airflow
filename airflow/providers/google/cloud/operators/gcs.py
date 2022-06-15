@@ -306,8 +306,9 @@ class GCSDeleteObjectsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
 
         if objects is None and prefix is None:
-            err_message = "(Task {task_id})".format(**kwargs) + \
-                " Either object or prefix should be set. Both are None."
+            err_message = "(Task {task_id}) Either object or prefix should be set. Both are None.".format(
+                **kwargs
+            )
             raise ValueError(err_message)
 
         super().__init__(**kwargs)
