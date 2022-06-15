@@ -305,3 +305,7 @@ class TaskDeferred(BaseException):
 
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
+
+
+class PodReconciliationError(AirflowException):
+    """Raised when an error is encountered while trying to merge pod configs."""
