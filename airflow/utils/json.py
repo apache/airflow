@@ -22,6 +22,8 @@ from decimal import Decimal
 
 from flask.json import JSONEncoder
 
+from airflow.utils.timezone import convert_to_utc, is_naive
+
 try:
     import numpy as np
 except ImportError:
@@ -48,7 +50,9 @@ class AirflowJsonEncoder(JSONEncoder):
     def _default(obj):
         """Convert dates and numpy objects in a json serializable format."""
         if isinstance(obj, datetime):
-            return obj.strftime('%Y-%m-%dT%H:%M:%SZ')
+            if is_naive(obj):
+                obj = convert_to_utc(obj)
+            return obj.isoformat()
         elif isinstance(obj, date):
             return obj.strftime('%Y-%m-%d')
         elif isinstance(obj, Decimal):
