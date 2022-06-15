@@ -47,6 +47,7 @@ class BigQueryToGCSOperator(BaseOperator):
         Storage URI (e.g. gs://some-bucket/some-file.txt). (templated) Follows
         convention defined here:
         https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
+    :param project_id: Google Cloud Project where the job is running
     :param compression: Type of compression to use.
     :param export_format: File format to export.
     :param field_delimiter: The delimiter to use when extracting to a CSV.
@@ -191,7 +192,7 @@ class BigQueryToGCSOperator(BaseOperator):
         )
 
         try:
-            self.log.info(f"Executing: {configuration}")
+            self.log.info("Executing: %s", configuration)
             job: ExtractJob = hook.insert_job(
                 job_id=job_id,
                 configuration=configuration,

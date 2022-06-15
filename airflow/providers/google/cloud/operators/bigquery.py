@@ -2165,10 +2165,11 @@ class BigQueryInsertJobOperator(BaseOperator):
 
         if self.project_id:
             for job_type, tables_prop in job_types.items():
-                if job_type in job.to_api_repr()["configuration"]:
+                job_configuration = job.to_api_repr()["configuration"]
+                if job_type in job_configuration:
                     for table_prop in tables_prop:
-                        if table_prop in job.to_api_repr()["configuration"][job_type]:
-                            table = job.to_api_repr()["configuration"][job_type][table_prop]
+                        if table_prop in job_configuration[job_type]:
+                            table = job_configuration[job_type][table_prop]
                             persist_kwargs = {
                                 "context": context,
                                 "task_instance": self,
