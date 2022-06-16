@@ -39,7 +39,7 @@ const dagId = getMetaValue('dag_id');
 const Header: React.FC = () => {
   const { data: gridData } = useGridData();
   const { data: taskData } = useTasks();
-  const dagRuns: DagRun[] = (gridData as any)?.dagRuns || [];
+  const dagRuns: DagRun[] = gridData?.dagRuns || [];
   const tasks: any[] = (taskData as any)?.tasks || [];
 
   const { selected: { taskId, runId }, onSelect, clearSelection } = useSelection();

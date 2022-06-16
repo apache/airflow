@@ -41,7 +41,7 @@ const DurationTick: React.FC<TextProps> = ({ children, ...rest }) => (
 
 const DagRuns: React.FC = () => {
   const { data } = useGridData();
-  const dagRuns: DagRun[] = (data as any)?.dagRuns || [];
+  const dagRuns: DagRun[] = data?.dagRuns || [];
   const { selected, onSelect } = useSelection();
   const durations: number[] = [];
   const runs = dagRuns.map((dagRun) => {

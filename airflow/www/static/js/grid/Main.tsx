@@ -40,7 +40,7 @@ const detailsPanelKey = 'hideDetailsPanel';
 
 const Main: React.FC = () => {
   const { data, isLoading } = useGridData();
-  const groups = (data as any)?.groups || {};
+  const groups = data?.groups || {};
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
