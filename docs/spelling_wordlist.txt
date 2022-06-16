@@ -975,6 +975,7 @@ isfile
 ish
 isn
 iterable
+iterables
 iteratively
 iterm
 itertools
