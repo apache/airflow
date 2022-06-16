@@ -20,7 +20,7 @@ Reference for package extras
 
 Here's the list of all the extra dependencies of Apache Airflow.
 
-The entries with ``*`` in the ``Preinstalled`` column indicate that These extras (providers) are always
+The entries with ``*`` in the ``Preinstalled`` column indicate that those extras (providers) are always
 pre-installed when Airflow is installed.
 
 .. note::
@@ -99,7 +99,7 @@ with a consistent set of dependencies based on constraint files provided by Airf
       --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt"
 
 Note, that this will install providers in the versions that were released at the time of Airflow |version| release. You can later
-upgrade These providers manually if you want to use latest versions of the providers.
+upgrade those providers manually if you want to use latest versions of the providers.
 
 
 Apache Software extras
@@ -296,7 +296,7 @@ These are extras that provide support for integration with external systems via 
 Bundle extras
 -------------
 
-These are extras that install one ore more extras as a bundle. Note that These extras should only be used for "development" version
+These are extras that install one ore more extras as a bundle. Note that these extras should only be used for "development" version
 of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
 work when airflow is installed from 'PyPI`.
 
