@@ -64,7 +64,6 @@ const config = {
     flash: `${CSS_DIR}/flash.css`,
     gantt: [`${CSS_DIR}/gantt.css`, `${JS_DIR}/gantt.js`],
     graph: [`${CSS_DIR}/graph.css`, `${JS_DIR}/graph.js`],
-    ie: `${JS_DIR}/ie.js`,
     loadingDots: `${CSS_DIR}/loading-dots.css`,
     main: [`${CSS_DIR}/main.css`, `${JS_DIR}/main.js`],
     materialIcons: `${CSS_DIR}/material-icons.css`,
