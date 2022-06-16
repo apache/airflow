@@ -19,10 +19,10 @@ import unittest
 from unittest.mock import Mock, patch
 
 from airflow.providers.salesforce.operators.salesforce_bulk import (
+    SalesforceBulkDeleteOperator,
     SalesforceBulkInsertOperator,
     SalesforceBulkUpdateOperator,
     SalesforceBulkUpsertOperator,
-    SalesforceBulkDeleteOperator
 )
 
 

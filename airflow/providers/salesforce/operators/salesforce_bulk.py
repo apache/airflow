@@ -68,7 +68,8 @@ class SalesforceBulkInsertOperator(BaseOperator):
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
         execution_result = conn.bulk.__getattr__(self.object_name).insert(
-            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial)
+            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
+        )
 
         if self.do_xcom_push:
             result = execution_result
@@ -121,7 +122,8 @@ class SalesforceBulkUpdateOperator(BaseOperator):
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
         execution_result = conn.bulk.__getattr__(self.object_name).update(
-            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial)
+            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
+        )
 
         if self.do_xcom_push:
             result = execution_result
@@ -177,8 +179,11 @@ class SalesforceBulkUpsertOperator(BaseOperator):
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
         execution_result = conn.bulk.__getattr__(self.object_name).upsert(
-            data=self.payload, external_id_field=self.external_id_field,
-            batch_size=self.batch_size, use_serial=self.use_serial)
+            data=self.payload,
+            external_id_field=self.external_id_field,
+            batch_size=self.batch_size,
+            use_serial=self.use_serial,
+        )
 
         if self.do_xcom_push:
             result = execution_result
@@ -231,7 +236,8 @@ class SalesforceBulkDeleteOperator(BaseOperator):
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
         execution_result = conn.bulk.__getattr__(self.object_name).delete(
-            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial)
+            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
+        )
 
         if self.do_xcom_push:
             result = execution_result

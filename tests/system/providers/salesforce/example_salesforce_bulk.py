@@ -19,10 +19,10 @@ from datetime import datetime
 
 from airflow import DAG
 from airflow.providers.salesforce.operators.salesforce_bulk import (
+    SalesforceBulkDeleteOperator,
     SalesforceBulkInsertOperator,
     SalesforceBulkUpdateOperator,
     SalesforceBulkUpsertOperator,
-    SalesforceBulkDeleteOperator
 )
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
@@ -87,7 +87,6 @@ with DAG(
         use_serial=False,
     )
     # [END howto_salesforce_bulk_delete_operator]
-
 
 
 from tests.system.utils import get_test_run  # noqa: E402
