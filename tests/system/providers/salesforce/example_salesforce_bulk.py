@@ -18,12 +18,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.salesforce.operators.salesforce_bulk import (
-    SalesforceBulkDeleteOperator,
-    SalesforceBulkInsertOperator,
-    SalesforceBulkUpdateOperator,
-    SalesforceBulkUpsertOperator,
-)
+from airflow.providers.salesforce.operators.salesforce_bulk import SalesforceBulkOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_salesforce_bulk"
@@ -36,21 +31,24 @@ with DAG(
 ) as dag:
 
     # [START howto_salesforce_bulk_insert_operator]
-    bulk_insert = SalesforceBulkInsertOperator(
-        task_id="bulk_insert",
+    bulk_insert = SalesforceBulkOperator(
+        task_id="bulk_upsert",
+        operation="insert",
         object_name="Account",
         payload=[
-            {'Name': 'account1'},
+            {'Id': '000000000000000AAA', 'Name': 'account1'},
             {'Name': 'account2'},
         ],
+        external_id_field='Id',
         batch_size=10000,
         use_serial=False,
     )
     # [END howto_salesforce_bulk_insert_operator]
 
     # [START howto_salesforce_bulk_update_operator]
-    bulk_update = SalesforceBulkUpdateOperator(
+    bulk_update = SalesforceBulkOperator(
         task_id="bulk_update",
+        operation="update",
         object_name="Account",
         payload=[
             {'Id': '000000000000000AAA', 'Name': 'account1'},
@@ -62,8 +60,9 @@ with DAG(
     # [END howto_salesforce_bulk_update_operator]
 
     # [START howto_salesforce_bulk_upsert_operator]
-    bulk_upsert = SalesforceBulkUpsertOperator(
+    bulk_upsert = SalesforceBulkOperator(
         task_id="bulk_upsert",
+        operation="upsert",
         object_name="Account",
         payload=[
             {'Id': '000000000000000AAA', 'Name': 'account1'},
@@ -76,8 +75,9 @@ with DAG(
     # [END howto_salesforce_bulk_upsert_operator]
 
     # [START howto_salesforce_bulk_delete_operator]
-    bulk_delete = SalesforceBulkDeleteOperator(
+    bulk_delete = SalesforceBulkOperator(
         task_id="bulk_delete",
+        operation="delete",
         object_name="Account",
         payload=[
             {'Id': '000000000000000AAA'},

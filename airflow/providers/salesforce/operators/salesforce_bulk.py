@@ -18,127 +18,21 @@ from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-class SalesforceBulkInsertOperator(BaseOperator):
+class SalesforceBulkOperator(BaseOperator):
     """
-    Execute a Bulk Insert API and pushes results to xcom.
+    Execute a Salesforce Bulk API and pushes results to xcom.
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SalesforceBulkInsertOperator`
+        :ref:`howto/operator:SalesforceBulkOperator`
 
-    :param object_name: The name of the Salesforce object
-    :param payload: list of dict to be passed as a batch
-    :param batch_size: number of records to assign for each batch in the job
-    :param use_serial: Process batches in serial mode
-    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
-    """
-
-    def __init__(
-        self,
-        *,
-        object_name: str,
-        payload: list,
-        batch_size: int = 10000,
-        use_serial: bool = False,
-        salesforce_conn_id: str = 'salesforce_default',
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.object_name = object_name
-        self.payload = payload
-        self.batch_size = batch_size
-        self.use_serial = use_serial
-        self.salesforce_conn_id = salesforce_conn_id
-
-    def execute(self, context: 'Context') -> dict:
-        """
-        Makes an HTTP request to a Bulk Insert API.
-
-        :param context: The task context during execution.
-        :return: API response if do_xcom_push is True
-        :rtype: dict
-        """
-        result: dict = {}
-
-        sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
-        conn = sf_hook.get_conn()
-        execution_result = conn.bulk.__getattr__(self.object_name).insert(
-            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
-        )
-
-        if self.do_xcom_push:
-            result = execution_result
-
-        return result
-
-
-class SalesforceBulkUpdateOperator(BaseOperator):
-    """
-    Execute a Bulk Update API and pushes results to xcom.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SalesforceBulkUpdateOperator`
-
-    :param object_name: The name of the Salesforce object
-    :param payload: list of dict to be passed as a batch
-    :param batch_size: number of records to assign for each batch in the job
-    :param use_serial: Process batches in serial mode
-    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
-    """
-
-    def __init__(
-        self,
-        *,
-        object_name: str,
-        payload: list,
-        batch_size: int = 10000,
-        use_serial: bool = False,
-        salesforce_conn_id: str = 'salesforce_default',
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.object_name = object_name
-        self.payload = payload
-        self.batch_size = batch_size
-        self.use_serial = use_serial
-        self.salesforce_conn_id = salesforce_conn_id
-
-    def execute(self, context: 'Context') -> dict:
-        """
-        Makes an HTTP request to a Bulk Update API.
-
-        :param context: The task context during execution.
-        :return: API response if do_xcom_push is True
-        :rtype: dict
-        """
-        result: dict = {}
-
-        sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
-        conn = sf_hook.get_conn()
-        execution_result = conn.bulk.__getattr__(self.object_name).update(
-            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
-        )
-
-        if self.do_xcom_push:
-            result = execution_result
-
-        return result
-
-
-class SalesforceBulkUpsertOperator(BaseOperator):
-    """
-    Execute a Bulk Upsert API and pushes results to xcom.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SalesforceBulkUpsertOperator`
-
+    :param operation: Bulk operation to be performed
     :param object_name: The name of the Salesforce object
     :param payload: list of dict to be passed as a batch
     :param external_id_field: unique identifier field for upsert operations
@@ -150,15 +44,17 @@ class SalesforceBulkUpsertOperator(BaseOperator):
     def __init__(
         self,
         *,
+        operation: str,
         object_name: str,
         payload: list,
-        external_id_field: str,
+        external_id_field: str = 'Id',
         batch_size: int = 10000,
         use_serial: bool = False,
         salesforce_conn_id: str = 'salesforce_default',
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
+        self.operation = operation
         self.object_name = object_name
         self.payload = payload
         self.external_id_field = external_id_field
@@ -168,78 +64,43 @@ class SalesforceBulkUpsertOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> dict:
         """
-        Makes an HTTP request to a Bulk API.
+        Makes an HTTP request to Salesforce Bulk API.
 
         :param context: The task context during execution.
         :return: API response if do_xcom_push is True
         :rtype: dict
         """
-        result: dict = {}
+
+        available_operations = ['insert', 'update', 'upsert', 'delete']
+        if self.operation not in available_operations:
+            raise AirflowException(
+                f'Operation not found! Available methods are {available_operations}'
+            )
 
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
-        execution_result = conn.bulk.__getattr__(self.object_name).upsert(
-            data=self.payload,
-            external_id_field=self.external_id_field,
-            batch_size=self.batch_size,
-            use_serial=self.use_serial,
-        )
+
+        if self.operation == 'insert':
+            result = conn.bulk.__getattr__(self.object_name).insert(
+                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
+            )
+        elif self.operation == 'update':
+            result = conn.bulk.__getattr__(self.object_name).update(
+                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial,
+            )
+        elif self.operation == 'upsert':
+            result = conn.bulk.__getattr__(self.object_name).upsert(
+                data=self.payload,
+                external_id_field=self.external_id_field,
+                batch_size=self.batch_size,
+                use_serial=self.use_serial,
+            )
+        else:
+            result = conn.bulk.__getattr__(self.object_name).delete(
+                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial,
+            )
 
         if self.do_xcom_push:
-            result = execution_result
-
-        return result
-
-
-class SalesforceBulkDeleteOperator(BaseOperator):
-    """
-    Execute a Bulk Delete API and pushes results to xcom.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:SalesforceBulkDeleteOperator`
-
-    :param object_name: The name of the Salesforce object
-    :param payload: list of dict to be passed as a batch
-    :param batch_size: number of records to assign for each batch in the job
-    :param use_serial: Process batches in serial mode
-    :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
-    """
-
-    def __init__(
-        self,
-        *,
-        object_name: str,
-        payload: list,
-        batch_size: int = 10000,
-        use_serial: bool = False,
-        salesforce_conn_id: str = 'salesforce_default',
-        **kwargs,
-    ) -> None:
-        super().__init__(**kwargs)
-        self.object_name = object_name
-        self.payload = payload
-        self.batch_size = batch_size
-        self.use_serial = use_serial
-        self.salesforce_conn_id = salesforce_conn_id
-
-    def execute(self, context: 'Context') -> dict:
-        """
-        Makes an HTTP request to a Bulk Delete API and pushes results to xcom.
-
-        :param context: The task context during execution.
-        :return: API response if do_xcom_push is True
-        :rtype: dict
-        """
-        result: dict = {}
-
-        sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
-        conn = sf_hook.get_conn()
-        execution_result = conn.bulk.__getattr__(self.object_name).delete(
-            data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
-        )
-
-        if self.do_xcom_push:
-            result = execution_result
-
-        return result
+            return result
+        else:
+            return {}
