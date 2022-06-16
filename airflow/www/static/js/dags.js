@@ -108,14 +108,16 @@ $.each($('[id^=toggle]'), function toggleId() {
 
 $('.typeahead').typeahead({
   source(query, callback) {
-    return $.ajax(autocompleteUrl,
+    return $.ajax(
+      autocompleteUrl,
       {
         data: {
           query: encodeURIComponent(query),
           status: statusFilter,
         },
         success: callback,
-      });
+      },
+    );
   },
   autoSelect: false,
   afterSelect(value) {
