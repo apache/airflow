@@ -180,7 +180,6 @@ class KubernetesHook(BaseHook):
 
     def get_conn(self) -> Any:
         """Returns kubernetes api session for use with requests"""
-
         in_cluster = self._coalesce_param(
             self.in_cluster, self.conn_extras.get("extra__kubernetes__in_cluster") or None
         )

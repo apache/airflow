@@ -58,9 +58,11 @@ class TestElasticsearchTaskHandler:
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
     JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1'
+    FILENAME_TEMPLATE = '{try_number}.log'
 
     @pytest.fixture()
-    def ti(self, create_task_instance):
+    def ti(self, create_task_instance, create_log_template):
+        create_log_template(self.FILENAME_TEMPLATE, '{dag_id}-{task_id}-{execution_date}-{try_number}')
         yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
@@ -73,8 +75,6 @@ class TestElasticsearchTaskHandler:
     @elasticmock
     def setup(self):
         self.local_log_location = 'local/log/location'
-        self.filename_template = '{try_number}.log'
-        self.log_id_template = '{dag_id}-{task_id}-{execution_date}-{try_number}'
         self.end_of_log_mark = 'end_of_log\n'
         self.write_stdout = False
         self.json_format = False
@@ -82,15 +82,13 @@ class TestElasticsearchTaskHandler:
         self.host_field = 'host'
         self.offset_field = 'offset'
         self.es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
         )
 
         self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
@@ -115,15 +113,13 @@ class TestElasticsearchTaskHandler:
         assert es_conf == expected_dict
         # ensure creating with configs does not fail
         ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
             es_kwargs=es_conf,
         )
 
@@ -395,7 +391,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             # end_of_log_mark may contain characters like '\n' which is needed to
             # have the log uploaded but will not be stored in elasticsearch.
@@ -409,7 +405,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert self.end_of_log_mark not in log_file.read()
         assert self.es_task_handler.closed
@@ -419,7 +415,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert 0 == len(log_file.read())
 
@@ -428,7 +424,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.handler = None
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert 0 == len(log_file.read())
         assert self.es_task_handler.closed
@@ -438,7 +434,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.handler.stream = None
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert self.end_of_log_mark in log_file.read()
         assert self.es_task_handler.closed
@@ -447,7 +443,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.handler.stream.close()
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert self.end_of_log_mark in log_file.read()
         assert self.es_task_handler.closed
@@ -478,15 +474,13 @@ class TestElasticsearchTaskHandler:
     )
     def test_get_external_log_url(self, ti, json_format, es_frontend, expected_url):
         es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
             frontend=es_frontend,
         )
         url = es_task_handler.get_external_log_url(ti, ti.try_number)
@@ -508,8 +502,6 @@ class TestElasticsearchTaskHandler:
         # arrange
         handler = ElasticsearchTaskHandler(
             base_log_folder=self.local_log_location,
-            filename_template=self.filename_template,
-            log_id_template=self.log_id_template,
             end_of_log_mark=self.end_of_log_mark,
             write_stdout=True,
             json_format=True,

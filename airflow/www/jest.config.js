@@ -20,7 +20,7 @@
 const config = {
   verbose: true,
   transform: {
-    '^.+\\.jsx?$': 'babel-jest',
+    '^.+\\.[jt]sx?$': 'babel-jest',
   },
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['./jest-setup.js'],

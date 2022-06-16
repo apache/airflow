@@ -92,6 +92,7 @@ REVISION_HEADS_MAP = {
     "2.2.5": "587bdf053233",
     "2.3.0": "b1b348e02d07",
     "2.3.1": "1de7bc13c950",
+    "2.3.2": "3c94c427fdf6",
 }
 
 
@@ -534,6 +535,16 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="salesforce_default",
+            conn_type="salesforce",
+            login="username",
+            password="password",
+            extra='{"security_token": "security_token"}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="segment_default",
             conn_type="segment",
             extra='{"write_key": "my-segment-write-key"}',
@@ -691,6 +702,7 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
+    timeout = timeout or 1  # run the loop at least 1
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
@@ -859,7 +871,6 @@ def reflect_tables(tables: List[Union[Base, str]], session):
     This function gets the current state of each table in the set of models provided and returns
     a SqlAlchemy metadata object containing them.
     """
-
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -1171,7 +1182,6 @@ def _move_duplicate_data_to_new_table(
         building the DELETE FROM join condition.
     :param target_table_name: name of the table in which to park the duplicate rows
     """
-
     bind = session.get_bind()
     dialect_name = bind.dialect.name
     query = (

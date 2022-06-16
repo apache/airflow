@@ -36,10 +36,16 @@ Content
     Python API <_api/airflow/providers/microsoft/mssql/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/microsoft/mssql/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/microsoft/mssql/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-mssql/3.0.0/tests/system/providers/microsoft/mssql>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-mssql/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +65,7 @@ Package apache-airflow-providers-microsoft-mssql
 `Microsoft SQL Server (MSSQL) <https://www.microsoft.com/en-us/sql-server/sql-server-downloads>`__
 
 
-Release: 2.1.3
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -70,16 +76,17 @@ are in ``airflow.providers.microsoft.mssql`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-microsoft-mssql``
 
-PIP requirements
-----------------
+Requirements
+------------
 
 ==================  ==========================================
 PIP package         Version required
 ==================  ==========================================
-``apache-airflow``  ``>=2.1.0``
+``apache-airflow``  ``>=2.2.0``
 ``pymssql``         ``>=2.1.5; platform_machine != "aarch64"``
 ==================  ==========================================
 

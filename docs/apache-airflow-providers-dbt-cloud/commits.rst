@@ -20,13 +20,45 @@
 Package apache-airflow-providers-dbt-cloud
 ------------------------------------------------------
 
-`dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__).
+`dbt Cloud <https://www.getdbt.com/product/what-is-dbt/>`__
 
 
 This is detailed commit list of changes for versions provider package: ``dbt.cloud``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
 
 
+
+2.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`7498fba826 <https://github.com/apache/airflow/commit/7498fba826ec477b02a40a2e23e1c685f148e20f>`_  2022-06-06   ``Enable dbt Cloud provider to interact with single tenant instances (#24264)``
+`5e6997ed45 <https://github.com/apache/airflow/commit/5e6997ed45be0972bf5ea7dc06e4e1cef73b735a>`_  2022-06-06   ``Update dbt.py (#24218)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`8f2213fcd0 <https://github.com/apache/airflow/commit/8f2213fcd0b8f775792bf2fd4931607992649046>`_  2022-06-05   ``AIP-47 - Migrate dbt DAGs to new design #22472 (#24202)``
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+`f935c9f163 <https://github.com/apache/airflow/commit/f935c9f163bbc2de9034ddf4c0a0cc960a031661>`_  2022-04-23   ``Fix typo in dbt Cloud provider description (#23179)``
+`49e336ae03 <https://github.com/apache/airflow/commit/49e336ae0302b386a2f47269a6d13988382d975f>`_  2022-04-13   ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
+`6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
+=================================================================================================  ===========  ==================================================================================
+
+1.0.2
+.....
+
+Latest change: 2022-03-22
+
+=================================================================================================  ===========  ==============================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==============================================================
+`d7dbfb7e26 <https://github.com/apache/airflow/commit/d7dbfb7e26a50130d3550e781dc71a5fbcaeb3d2>`_  2022-03-22   ``Add documentation for bugfix release of Providers (#22383)``
+=================================================================================================  ===========  ==============================================================
 
 1.0.1
 .....

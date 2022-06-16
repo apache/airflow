@@ -20,14 +20,15 @@
 /* global document */
 
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider, extendTheme } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import Main from './Main';
+import theme from './theme';
 import { ContainerRefProvider } from './context/containerRef';
 import { TimezoneProvider } from './context/timezone';
 import { AutoRefreshProvider } from './context/autorefresh';
@@ -45,24 +46,17 @@ shadowRoot.appendChild(mainElement);
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
+      notifyOnChangeProps: 'tracked',
       refetchOnWindowFocus: false,
       retry: 1,
       retryDelay: 500,
       refetchOnMount: true, // Refetches stale queries, not "always"
+      staleTime: 5 * 60 * 1000, // 5 minutes
+      initialDataUpdatedAt: new Date().setMinutes(-6), // make sure initial data is already expired
     },
     mutations: {
       retry: 1,
       retryDelay: 500,
-    },
-  },
-});
-
-const theme = extendTheme({
-  components: {
-    Tooltip: {
-      baseStyle: {
-        fontSize: 'md',
-      },
     },
   },
 });
@@ -89,4 +83,5 @@ function App() {
   );
 }
 
-ReactDOM.render(<App />, mainElement);
+const reactRoot = createRoot(mainElement);
+reactRoot.render(<App />);

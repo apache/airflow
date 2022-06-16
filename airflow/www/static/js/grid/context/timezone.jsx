@@ -22,13 +22,13 @@
 import React, { useContext, useEffect, useState } from 'react';
 import { TimezoneEvent } from '../../datetime_utils';
 
-const TimezoneContext = React.createContext(null);
+const TimezoneContext = React.createContext({ timezone: 'UTC' });
 
 export const TimezoneProvider = ({ children }) => {
   const [timezone, setTimezone] = useState((moment.defaultZone && moment.defaultZone.name) || 'UTC');
 
   const handleChange = (e) => {
-    if (e.value && e.value !== timezone) setTimezone(e.value);
+    if (e.detail && e.detail !== timezone) setTimezone(e.detail);
   };
 
   useEffect(() => {

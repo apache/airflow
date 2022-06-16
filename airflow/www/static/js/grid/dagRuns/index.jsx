@@ -57,7 +57,6 @@ const DagRuns = () => {
   return (
     <Tr
       borderBottomWidth={3}
-      borderBottomColor="gray.200"
       position="relative"
     >
       <Td

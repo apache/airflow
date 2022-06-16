@@ -50,6 +50,7 @@ const Details = ({ instance, group, operator }) => {
   } = group;
 
   const numMap = finalStatesMap();
+  let numMapped = 0;
   if (isGroup) {
     children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
@@ -59,9 +60,10 @@ const Details = ({ instance, group, operator }) => {
       }
     });
   } else if (isMapped && mappedStates) {
-    mappedStates.forEach((s) => {
-      const stateKey = s || 'no_status';
-      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+    Object.keys(mappedStates).forEach((stateKey) => {
+      const num = mappedStates[stateKey];
+      numMapped += num;
+      numMap.set(stateKey || 'no_status', num);
     });
   }
 
@@ -92,11 +94,11 @@ const Details = ({ instance, group, operator }) => {
             <br />
           </>
         )}
-        {mappedStates && mappedStates.length > 0 && (
+        {mappedStates && numMapped > 0 && (
         <Text>
-          {mappedStates.length}
+          {numMapped}
           {' '}
-          {mappedStates.length === 1 ? 'Task ' : 'Tasks '}
+          {numMapped === 1 ? 'Task ' : 'Tasks '}
           Mapped
         </Text>
         )}

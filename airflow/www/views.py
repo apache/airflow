@@ -18,17 +18,17 @@
 #
 import collections
 import copy
+import itertools
 import json
 import logging
 import math
 import re
-import socket
 import sys
 import traceback
 import warnings
 from bisect import insort_left
 from collections import defaultdict
-from datetime import timedelta
+from datetime import datetime, timedelta
 from functools import wraps
 from json import JSONDecodeError
 from operator import itemgetter
@@ -39,6 +39,7 @@ import lazy_object_proxy
 import markupsafe
 import nvd3
 import sqlalchemy as sqla
+from croniter import croniter
 from flask import (
     Response,
     abort,
@@ -117,12 +118,14 @@ from airflow.security import permissions
 from airflow.ti_deps.dep_context import DepContext
 from airflow.ti_deps.dependencies_deps import RUNNING_DEPS, SCHEDULER_QUEUED_DEPS
 from airflow.timetables.base import DataInterval, TimeRestriction
+from airflow.timetables.interval import CronDataIntervalTimetable
 from airflow.utils import json as utils_json, timezone, yaml
 from airflow.utils.dates import infer_time_unit, scale_time_units
 from airflow.utils.docs import get_doc_url_for_provider, get_docs_url
 from airflow.utils.helpers import alchemy_to_dict
 from airflow.utils.log import secrets_masker
 from airflow.utils.log.log_reader import TaskLogReader
+from airflow.utils.net import get_hostname
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
@@ -250,62 +253,151 @@ def _safe_parse_datetime(v):
         abort(400, f"Invalid datetime: {v!r}")
 
 
-def task_group_to_grid(task_item_or_group, dag, dag_runs, session):
+def dag_to_grid(dag, dag_runs, session):
     """
-    Create a nested dict representation of this TaskGroup and its children used to construct
-    the Graph.
+    Create a nested dict representation of the DAG's TaskGroup and its children
+    used to construct the Graph and Grid views.
     """
-    if isinstance(task_item_or_group, AbstractOperator):
+    query = (
+        session.query(
+            TaskInstance.task_id,
+            TaskInstance.run_id,
+            TaskInstance.state,
+            sqla.func.count(sqla.func.coalesce(TaskInstance.state, sqla.literal('no_status'))).label(
+                'state_count'
+            ),
+            sqla.func.min(TaskInstance.start_date).label('start_date'),
+            sqla.func.max(TaskInstance.end_date).label('end_date'),
+            sqla.func.max(TaskInstance._try_number).label('_try_number'),
+        )
+        .filter(
+            TaskInstance.dag_id == dag.dag_id,
+            TaskInstance.run_id.in_([dag_run.run_id for dag_run in dag_runs]),
+        )
+        .group_by(TaskInstance.task_id, TaskInstance.run_id, TaskInstance.state)
+        .order_by(TaskInstance.task_id, TaskInstance.run_id)
+    )
+
+    grouped_tis = {task_id: list(tis) for task_id, tis in itertools.groupby(query, key=lambda ti: ti.task_id)}
+
+    def task_group_to_grid(item, dag_runs, grouped_tis):
+        if isinstance(item, AbstractOperator):
+
+            def _get_summary(task_instance):
+                try_count = (
+                    task_instance._try_number
+                    if task_instance._try_number != 0 or task_instance.state in State.running
+                    else task_instance._try_number + 1
+                )
+
+                return {
+                    'task_id': task_instance.task_id,
+                    'run_id': task_instance.run_id,
+                    'state': task_instance.state,
+                    'start_date': task_instance.start_date,
+                    'end_date': task_instance.end_date,
+                    'try_number': try_count,
+                }
+
+            def _mapped_summary(ti_summaries):
+                run_id = None
+                record = None
+
+                def set_overall_state(record):
+                    for state in wwwutils.priority:
+                        if state in record['mapped_states']:
+                            record['state'] = state
+                            break
+                    if None in record['mapped_states']:
+                        # When turnong the dict into JSON we can't have None as a key, so use the string that
+                        # the UI does
+                        record['mapped_states']['no_status'] = record['mapped_states'].pop(None)
+
+                for ti_summary in ti_summaries:
+                    if ti_summary.state is None:
+                        ti_summary.state == 'no_status'
+                    if run_id != ti_summary.run_id:
+                        run_id = ti_summary.run_id
+                        if record:
+                            set_overall_state(record)
+                            yield record
+                        record = {
+                            'task_id': ti_summary.task_id,
+                            'run_id': run_id,
+                            'start_date': ti_summary.start_date,
+                            'end_date': ti_summary.end_date,
+                            'mapped_states': {ti_summary.state: ti_summary.state_count},
+                            'state': None,  # We change this before yielding
+                        }
+                        continue
+                    record['start_date'] = min(
+                        filter(None, [record['start_date'], ti_summary.start_date]), default=None
+                    )
+                    record['end_date'] = max(
+                        filter(None, [record['end_date'], ti_summary.end_date]), default=None
+                    )
+                    record['mapped_states'][ti_summary.state] = ti_summary.state_count
+                if record:
+                    set_overall_state(record)
+                    yield record
+
+            if item.is_mapped:
+                instances = list(_mapped_summary(grouped_tis.get(item.task_id, [])))
+            else:
+                instances = list(map(_get_summary, grouped_tis.get(item.task_id, [])))
+
+            return {
+                'id': item.task_id,
+                'instances': instances,
+                'label': item.label,
+                'extra_links': item.extra_links,
+                'is_mapped': item.is_mapped,
+            }
+
+        # Task Group
+        task_group = item
+
+        children = [
+            task_group_to_grid(child, dag_runs, grouped_tis) for child in task_group.topological_sort()
+        ]
+
+        def get_summary(dag_run, children):
+            child_instances = [child['instances'] for child in children if 'instances' in child]
+            child_instances = [
+                item for sublist in child_instances for item in sublist if item['run_id'] == dag_run.run_id
+            ]
+
+            children_start_dates = (item['start_date'] for item in child_instances if item)
+            children_end_dates = (item['end_date'] for item in child_instances if item)
+            children_states = {item['state'] for item in child_instances if item}
+
+            group_state = None
+            for state in wwwutils.priority:
+                if state in children_states:
+                    group_state = state
+                    break
+            group_start_date = min(filter(None, children_start_dates), default=None)
+            group_end_date = max(filter(None, children_end_dates), default=None)
+
+            return {
+                'task_id': task_group.group_id,
+                'run_id': dag_run.run_id,
+                'state': group_state,
+                'start_date': group_start_date,
+                'end_date': group_end_date,
+            }
+
+        group_summaries = [get_summary(dr, children) for dr in dag_runs]
+
         return {
-            'id': task_item_or_group.task_id,
-            'instances': wwwutils.get_task_summaries(task_item_or_group, dag_runs, session),
-            'label': task_item_or_group.label,
-            'extra_links': task_item_or_group.extra_links,
-            'is_mapped': task_item_or_group.is_mapped,
+            'id': task_group.group_id,
+            'label': task_group.label,
+            'children': children,
+            'tooltip': task_group.tooltip,
+            'instances': group_summaries,
         }
 
-    # Task Group
-    task_group = task_item_or_group
-
-    children = [task_group_to_grid(child, dag, dag_runs, session) for child in task_group.topological_sort()]
-
-    def get_summary(dag_run, children):
-        child_instances = [child['instances'] for child in children if 'instances' in child]
-        child_instances = [item for sublist in child_instances for item in sublist]
-
-        children_start_dates = [item['start_date'] for item in child_instances if item]
-        children_end_dates = [item['end_date'] for item in child_instances if item]
-        children_states = [item['state'] for item in child_instances if item]
-
-        group_state = None
-        for state in wwwutils.priority:
-            if state in children_states:
-                group_state = state
-                break
-        group_start_date = wwwutils.datetime_to_string(
-            min((timezone.parse(date) for date in children_start_dates if date), default=None)
-        )
-        group_end_date = wwwutils.datetime_to_string(
-            max((timezone.parse(date) for date in children_end_dates if date), default=None)
-        )
-
-        return {
-            'task_id': task_group.group_id,
-            'run_id': dag_run.run_id,
-            'state': group_state,
-            'start_date': group_start_date,
-            'end_date': group_end_date,
-        }
-
-    group_summaries = [get_summary(dr, children) for dr in dag_runs]
-
-    return {
-        'id': task_group.group_id,
-        'label': task_group.label,
-        'children': children,
-        'tooltip': task_group.tooltip,
-        'instances': group_summaries,
-    }
+    return task_group_to_grid(dag.task_group, dag_runs, grouped_tis)
 
 
 def task_group_to_dict(task_item_or_group):
@@ -549,7 +641,7 @@ def not_found(error):
     return (
         render_template(
             'airflow/not_found.html',
-            hostname=socket.getfqdn()
+            hostname=get_hostname()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
         ),
@@ -564,7 +656,7 @@ def show_traceback(error):
             'airflow/traceback.html',
             python_version=sys.version.split(" ")[0],
             airflow_version=version,
-            hostname=socket.getfqdn()
+            hostname=get_hostname()
             if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
             else 'redact',
             info=traceback.format_exc()
@@ -2611,8 +2703,6 @@ class Airflow(AirflowBaseView):
             .limit(num_runs)
             .all()
         )
-        dag_runs.reverse()
-        encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
         dag_run_dates = {dr.execution_date: alchemy_to_dict(dr) for dr in dag_runs}
 
         max_date = max(dag_run_dates, default=None)
@@ -2632,14 +2722,6 @@ class Airflow(AirflowBaseView):
         else:
             external_log_name = None
 
-        data = {
-            'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
-            'dag_runs': encoded_runs,
-        }
-
-        # avoid spaces to reduce payload size
-        data = htmlsafe_json_dumps(data, separators=(',', ':'))
-
         default_dag_run_display_number = conf.getint('webserver', 'default_dag_run_display_number')
 
         num_runs_options = [5, 25, 50, 100, 365]
@@ -2654,7 +2736,6 @@ class Airflow(AirflowBaseView):
             form=form,
             dag=dag,
             doc_md=doc_md,
-            data=data,
             num_runs=num_runs,
             show_external_log_redirect=task_log_reader.supports_external_link,
             external_log_name=external_log_name,
@@ -2751,18 +2832,28 @@ class Airflow(AirflowBaseView):
             restriction = TimeRestriction(dag.start_date, dag.end_date, False)
             dates = collections.Counter()
 
-            while True:
-                info = dag.timetable.next_dagrun_info(
-                    last_automated_data_interval=last_automated_data_interval, restriction=restriction
-                )
-                if info is None:
-                    break
-
-                if info.logical_date.year != year:
-                    break
-
-                last_automated_data_interval = info.data_interval
-                dates[info.logical_date] += 1
+            if isinstance(dag.timetable, CronDataIntervalTimetable):
+                for next in croniter(
+                    dag.timetable.summary, start_time=last_automated_data_interval.end, ret_type=datetime
+                ):
+                    if next is None:
+                        break
+                    if next.year != year:
+                        break
+                    if dag.end_date and next > dag.end_date:
+                        break
+                    dates[next.date()] += 1
+            else:
+                while True:
+                    info = dag.timetable.next_dagrun_info(
+                        last_automated_data_interval=last_automated_data_interval, restriction=restriction
+                    )
+                    if info is None:
+                        break
+                    if info.logical_date.year != year:
+                        break
+                    last_automated_data_interval = info.data_interval
+                    dates[info.logical_date] += 1
 
             data_dag_states.extend(
                 {'date': date.isoformat(), 'state': 'planned', 'count': count}
@@ -3532,12 +3623,14 @@ class Airflow(AirflowBaseView):
             dag_runs.reverse()
             encoded_runs = [wwwutils.encode_dag_run(dr) for dr in dag_runs]
             data = {
-                'groups': task_group_to_grid(dag.task_group, dag, dag_runs, session),
+                'groups': dag_to_grid(dag, dag_runs, session),
                 'dag_runs': encoded_runs,
             }
-
         # avoid spaces to reduce payload size
-        return htmlsafe_json_dumps(data, separators=(',', ':'))
+        return (
+            htmlsafe_json_dumps(data, separators=(',', ':'), cls=utils_json.AirflowJsonEncoder),
+            {'Content-Type': 'application/json; charset=utf-8'},
+        )
 
     @expose('/robots.txt')
     @action_logging
@@ -3573,7 +3666,6 @@ class Airflow(AirflowBaseView):
             query = query.filter(Log.event.notin_(excluded_events))
 
         dag_audit_logs = query.all()
-
         content = self.render_template(
             'airflow/dag_audit_log.html',
             dag=dag,
