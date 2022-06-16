@@ -26,7 +26,7 @@ Create Date: 2022-06-15 18:04:54.081789
 
 """
 
-from alembic import op
+from alembic import context, op
 
 # revision identifiers, used by Alembic.
 revision = 'f5fcbda3e651'
@@ -60,7 +60,7 @@ def upgrade():
     tables_to_skip = set()
 
     # mysql requires indexes for FKs, so adding had the effect of renaming, and we cannot remove.
-    if conn.dialect.name == 'mysql':
+    if conn.dialect.name == 'mysql' and not context.is_offline_mode():
         tables_to_skip.update(_mysql_tables_where_indexes_already_present(conn))
 
     if 'task_fail' not in tables_to_skip:
