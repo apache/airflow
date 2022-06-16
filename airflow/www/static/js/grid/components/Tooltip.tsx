@@ -32,7 +32,6 @@ import {
   Portal,
   PortalProps,
 } from '@chakra-ui/react';
-import { AnimatePresence, motion } from 'framer-motion';
 
 export interface TooltipProps
   extends HTMLChakraProps<'div'>,
@@ -69,8 +68,6 @@ export interface TooltipProps
    */
   portalProps?: Pick<PortalProps, 'appendToParentPortal' | 'containerRef'>
 }
-
-const StyledTooltip = chakra(motion.div);
 
 const styles = {
   '--popper-arrow-bg': ['var(--tooltip-bg)'],
@@ -137,41 +134,42 @@ const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
   return (
     <>
       {trigger}
-      <AnimatePresence>
-        {tooltip.isOpen && (
-          <Portal {...portalProps}>
+      {/* TODO: put back in AnimatePresence when we can upgrade framer-motion without ts errors */}
+      {/* <AnimatePresence> */}
+      {tooltip.isOpen && (
+      <Portal {...portalProps}>
+        <chakra.div
+          {...tooltip.getTooltipPositionerProps()}
+          __css={{
+            zIndex: styles.zIndex,
+            pointerEvents: 'none',
+          }}
+        >
+          <chakra.div
+            {...(tooltipProps as any)}
+            initial="exit"
+            animate="enter"
+            exit="exit"
+            __css={styles}
+          >
+            {label}
+            {hasArrow && (
             <chakra.div
-              {...tooltip.getTooltipPositionerProps()}
-              __css={{
-                zIndex: styles.zIndex,
-                pointerEvents: 'none',
-              }}
+              data-popper-arrow
+              className="chakra-tooltip__arrow-wrapper"
             >
-              <StyledTooltip
-                {...(tooltipProps as any)}
-                initial="exit"
-                animate="enter"
-                exit="exit"
-                __css={styles}
-              >
-                {label}
-                {hasArrow && (
-                  <chakra.div
-                    data-popper-arrow
-                    className="chakra-tooltip__arrow-wrapper"
-                  >
-                    <chakra.div
-                      data-popper-arrow-inner
-                      className="chakra-tooltip__arrow"
-                      __css={{ bg: styles.bg }}
-                    />
-                  </chakra.div>
-                )}
-              </StyledTooltip>
+              <chakra.div
+                data-popper-arrow-inner
+                className="chakra-tooltip__arrow"
+                __css={{ bg: styles.bg }}
+              />
             </chakra.div>
-          </Portal>
-        )}
-      </AnimatePresence>
+            )}
+          </chakra.div>
+        </chakra.div>
+      </Portal>
+      )}
+      {/* </AnimatePresence> */}
     </>
   );
 });
