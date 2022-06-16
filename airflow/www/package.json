@@ -104,10 +104,5 @@
     "react-table": "^7.8.0",
     "redoc": "^2.0.0-rc.72",
     "url-search-params-polyfill": "^8.1.0"
-  },
-  "resolutions": {
-    "css-what": ">=5.0.1",
-    "glob-parent": ">=5.1.2",
-    "nth-check": ">=2.0.1"
   }
 }
