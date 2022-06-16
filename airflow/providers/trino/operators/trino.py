@@ -34,8 +34,8 @@ class TrinoOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:TrinoOperator`
 
-    :param sql: the SQL code to be executed as a single string, or a reference
-        to a template file.Template references are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
     :param trino_conn_id: id of the connection config for the target Trino
         environment
     :param autocommit: What to set the connection's autocommit setting to

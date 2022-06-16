@@ -19,8 +19,10 @@ import json
 import os
 import warnings
 from contextlib import closing
+from itertools import chain
 from typing import Any, Callable, Iterable, Optional, Tuple, overload
 
+import sqlparse
 import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
@@ -293,8 +295,7 @@ class TrinoHook(DbApiHook):
                 self.set_autocommit(conn, autocommit)
 
             if scalar:
-                sql = sql.split(";")
-                sql = list(filter(None, sql))
+                sql = sqlparse.split(sql)
 
             with closing(conn.cursor()) as cur:
                 results = []
@@ -308,6 +309,8 @@ class TrinoHook(DbApiHook):
             # or if db does not supports autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
+
+        self.log.info("Query Execution Result: %s", str(list(chain.from_iterable(results))))
 
         if handler is None:
             return None
