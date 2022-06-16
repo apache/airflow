@@ -45,7 +45,7 @@ def upgrade():
         sa.Column('dag_id', StringID(), primary_key=True),
         sa.Column('warning_type', sa.String(length=50), primary_key=True),
         sa.Column('message', sa.String(1000), nullable=False),
-        sa.Column('timestamp', sa.DateTime(), nullable=False),
+        sa.Column('timestamp', sa.TIMESTAMP, nullable=False),
         sa.ForeignKeyConstraint(
             ('dag_id',),
             ['dag.dag_id'],
