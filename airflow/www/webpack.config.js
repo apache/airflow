@@ -24,7 +24,7 @@ const cwplg = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
-const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const LicensePlugin = require('webpack-license-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 
@@ -54,10 +54,6 @@ Foundation (http://www.apache.org/).
 };
 
 const config = {
-  node: {
-    Buffer: false,
-    process: false,
-  },
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
@@ -89,6 +85,7 @@ const config = {
     chunkFilename: '[name].[chunkhash].js',
     library: ['Airflow', '[name]'],
     libraryTarget: 'umd',
+    publicPath: '',
   },
   resolve: {
     extensions: [
@@ -272,7 +269,7 @@ const config = {
   optimization: {
     minimize: process.env.NODE_ENV === 'production',
     minimizer: [
-      new OptimizeCSSAssetsPlugin({}),
+      new CssMinimizerPlugin({}),
       new TerserPlugin(),
     ],
   },
