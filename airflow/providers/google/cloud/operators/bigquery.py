@@ -330,7 +330,7 @@ class BigQueryIntervalCheckOperator(_BigQueryDbHookMixin, SQLIntervalCheckOperat
         self.labels = labels
 
 
-class BigQueryGetDataOperatorX(BaseOperator):
+class BigQueryGetDataOperator(BaseOperator):
     """
     Fetches the data from a BigQuery table (alternatively fetch data for selected columns)
     and returns data in a python list. The number of elements in the returned list will
