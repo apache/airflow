@@ -49,11 +49,8 @@ class SFTPHook(SSHHook):
     Errors that may occur throughout but should be handled downstream.
 
     For consistency reasons with SSHHook, the preferred parameter is "ssh_conn_id".
-    Please note that it is still possible to use the parameter "ftp_conn_id"
-    to initialize the hook, but it will be removed in future Airflow versions.
 
     :param ssh_conn_id: The :ref:`sftp connection id<howto/connection:sftp>`
-    :param ftp_conn_id (Outdated): The :ref:`sftp connection id<howto/connection:sftp>`
     :param ssh_hook: Optional SSH hook (included to support passing of an SSH hook to the SFTP operator)
     """
 
@@ -79,9 +76,16 @@ class SFTPHook(SSHHook):
         **kwargs,
     ) -> None:
         self.conn: Optional[paramiko.SFTPClient] = None
+
+        # TODO: remove support for ssh_hook when it is removed from SFTPOperator
         self.ssh_hook = ssh_hook
 
         if self.ssh_hook is not None:
+            warnings.warn(
+                'Parameter `ssh_hook` is deprecated and will be removed in a future version.',
+                DeprecationWarning,
+                stacklevel=2,
+            )
             if not isinstance(self.ssh_hook, SSHHook):
                 raise AirflowException(
                     f'ssh_hook must be an instance of SSHHook, but got {type(self.ssh_hook)}'
@@ -111,6 +115,7 @@ class SFTPHook(SSHHook):
         :rtype: paramiko.SFTPClient
         """
         if self.conn is None:
+            # TODO: remove support for ssh_hook when it is removed from SFTPOperator
             if self.ssh_hook is not None:
                 self.conn = self.ssh_hook.get_conn().open_sftp()
             else:

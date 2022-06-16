@@ -322,9 +322,7 @@ class TestSFTPOperator:
     def test_arg_checking(self):
         dag = DAG(dag_id="unit_tests_sftp_op_arg_checking", default_args={"start_date": DEFAULT_DATE})
         # Exception should be raised if neither ssh_hook nor ssh_conn_id is provided
-        with pytest.raises(
-            AirflowException, match="Cannot operate without sftp_hook or sftp_conn_id/ssh_conn_id."
-        ):
+        with pytest.raises(AirflowException, match="Cannot operate without sftp_hook or ssh_conn_id."):
             task_0 = SFTPOperator(
                 task_id="test_sftp_0",
                 local_filepath=self.test_local_filepath,
@@ -337,7 +335,7 @@ class TestSFTPOperator:
         # if ssh_hook is invalid/not provided, use ssh_conn_id to create SSHHook
         task_1 = SFTPOperator(
             task_id="test_sftp_1",
-            ssh_hook="string_rather_than_SSHHook",  # invalid ssh_hook
+            ssh_hook="string_rather_than_SSHHook",  # type: ignore
             ssh_conn_id=TEST_CONN_ID,
             local_filepath=self.test_local_filepath,
             remote_filepath=self.test_remote_filepath,
@@ -391,28 +389,13 @@ class TestSFTPOperator:
             )
             task_4.execute(None)
 
-        # Exception should be raised if both ssh_conn_id and sftp_conn_id are provided
-        with pytest.raises(
-            AirflowException, match="Parameters `ssh_conn_id` and `sftp_conn_id` are both provided."
-        ):
-            task_5 = SFTPOperator(
-                task_id="test_sftp_5",
-                ssh_conn_id=TEST_CONN_ID,
-                sftp_conn_id=TEST_CONN_ID,
-                local_filepath=self.test_local_filepath,
-                remote_filepath=self.test_remote_filepath,
-                operation=SFTPOperation.PUT,
-                dag=dag,
-            )
-            task_5.execute(None)
-
         # Exception should be raised if both ssh_hook and sftp_hook are provided
         with pytest.raises(
             AirflowException,
             match="Both `ssh_hook` and `sftp_hook` are defined. Please use only one of them.",
         ):
-            task_6 = SFTPOperator(
-                task_id="test_sftp_6",
+            task_5 = SFTPOperator(
+                task_id="test_sftp_5",
                 ssh_hook=self.hook,
                 sftp_hook=SFTPHook(),
                 local_filepath=self.test_local_filepath,
@@ -420,10 +403,10 @@ class TestSFTPOperator:
                 operation=SFTPOperation.PUT,
                 dag=dag,
             )
-            task_6.execute(None)
+            task_5.execute(None)
 
-        task_7 = SFTPOperator(
-            task_id="test_sftp_7",
+        task_6 = SFTPOperator(
+            task_id="test_sftp_6",
             ssh_conn_id=TEST_CONN_ID,
             remote_host='remotehost',
             local_filepath=self.test_local_filepath,
@@ -432,7 +415,7 @@ class TestSFTPOperator:
             dag=dag,
         )
         try:
-            task_7.execute(None)
+            task_6.execute(None)
         except Exception:
             pass
-        assert task_7.sftp_hook.remote_host == 'remotehost'
+        assert task_6.sftp_hook.remote_host == 'remotehost'

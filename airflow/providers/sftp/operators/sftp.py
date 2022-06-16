@@ -40,17 +40,16 @@ class SFTPOperator(BaseOperator):
     This operator uses sftp_hook to open sftp transport channel that serve as basis
     for file transfer.
 
-    :param sftp_hook: predefined SFTPHook object to use
-        Either `sftp_hook` or `sftp_conn_id` needs to be provided.
-    :param sftp_conn_id: :ref:`sftp connection id<howto/connection:sftp>`
-        `sftp_conn_id` will be ignored if `sftp_hook` or `ssh_hook` is provided.
     :param ssh_conn_id: :ref:`ssh connection id<howto/connection:ssh>`
         from airflow Connections. `ssh_conn_id` will be ignored if `ssh_hook`
-        or 'sftp_hook'is provided.
-    :param ssh_hook: Deprecated - predefined ssh_hook to use for remote execution
+        or `sftp_hook` is provided.
+    :param sftp_hook: predefined SFTPHook to use
+        Either `sftp_hook` or `ssh_conn_id` needs to be provided.
+    :param ssh_hook: Deprecated - predefined SSHHook to use for remote execution
+        Use `sftp_hook` instead.
     :param remote_host: remote host to connect (templated)
         Nullable. If provided, it will replace the `remote_host` which was
-        defined in `ssh_hook` or predefined in the connection of `ssh_conn_id`.
+        defined in `sftp_hook`/`ssh_hook` or predefined in the connection of `ssh_conn_id`.
     :param local_filepath: local file path to get or put. (templated)
     :param remote_filepath: remote file path to get or put. (templated)
     :param operation: specify operation 'get' or 'put', defaults to put
@@ -83,7 +82,6 @@ class SFTPOperator(BaseOperator):
         ssh_hook: Optional[SSHHook] = None,
         sftp_hook: Optional[SFTPHook] = None,
         ssh_conn_id: Optional[str] = None,
-        sftp_conn_id: Optional[str] = None,
         remote_host: Optional[str] = None,
         local_filepath: str,
         remote_filepath: str,
@@ -96,7 +94,6 @@ class SFTPOperator(BaseOperator):
         self.ssh_hook = ssh_hook
         self.sftp_hook = sftp_hook
         self.ssh_conn_id = ssh_conn_id
-        self.sftp_conn_id = sftp_conn_id
         self.remote_host = remote_host
         self.local_filepath = local_filepath
         self.remote_filepath = remote_filepath
@@ -110,15 +107,7 @@ class SFTPOperator(BaseOperator):
                 f"expected {SFTPOperation.GET} or {SFTPOperation.PUT}."
             )
 
-        if self.ssh_conn_id is not None:
-            if self.sftp_conn_id is None:
-                self.sftp_conn_id = self.ssh_conn_id
-            else:
-                raise AirflowException(
-                    'Parameters `ssh_conn_id` and `sftp_conn_id` are both provided.'
-                    'Must provide no more than one of these parameters.'
-                )
-
+        # TODO: remove support for ssh_hook in next major provider version in hook and operator
         if self.ssh_hook is not None and self.sftp_hook is not None:
             raise AirflowException(
                 'Both `ssh_hook` and `sftp_hook` are defined. Please use only one of them.'
@@ -126,7 +115,7 @@ class SFTPOperator(BaseOperator):
 
         if self.ssh_hook is not None:
             if not isinstance(self.ssh_hook, SSHHook):
-                self.log.info('ssh_hook is invalid. Trying sftp_conn_id to create SFTPHook.')
+                self.log.info('ssh_hook is invalid. Trying ssh_conn_id to create SFTPHook.')
                 self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
             if self.sftp_hook is None:
                 warnings.warn(
@@ -141,24 +130,23 @@ class SFTPOperator(BaseOperator):
     def execute(self, context: Any) -> Optional[str]:
         file_msg = None
         try:
-            if self.sftp_conn_id:
+            if self.ssh_conn_id:
                 if self.sftp_hook and isinstance(self.sftp_hook, SFTPHook):
-                    self.log.info("ssh_conn_id/sftp_conn_id is ignored when sftp_hook/ssh_hook is provided.")
+                    self.log.info("ssh_conn_id is ignored when sftp_hook/ssh_hook is provided.")
                 else:
                     self.log.info(
-                        'sftp_hook/ssh_hook not provided or invalid.'
-                        'Trying sftp_conn_id to create SFTPHook.'
+                        'sftp_hook/ssh_hook not provided or invalid. Trying ssh_conn_id to create SFTPHook.'
                     )
-                    self.sftp_hook = SFTPHook(ssh_conn_id=self.sftp_conn_id)
+                    self.sftp_hook = SFTPHook(ssh_conn_id=self.ssh_conn_id)
 
             if not self.sftp_hook:
-                raise AirflowException("Cannot operate without sftp_hook or sftp_conn_id/ssh_conn_id.")
+                raise AirflowException("Cannot operate without sftp_hook or ssh_conn_id.")
 
             if self.remote_host is not None:
                 self.log.info(
                     "remote_host is provided explicitly. "
                     "It will replace the remote_host which was defined "
-                    "in sftp_hook or predefined in connection of sftp_conn_id/ssh_conn_id."
+                    "in sftp_hook or predefined in connection of ssh_conn_id."
                 )
                 self.sftp_hook.remote_host = self.remote_host
 
