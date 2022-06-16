@@ -98,6 +98,8 @@ def container_is_completed(pod: V1Pod, container_name: str) -> bool:
     If that container is terminated and the reason is Completed, returns True. Returns
     False otherwise.
     """
+    if pod is None:
+        return False
     container_state = get_container_state(pod=pod, container_name=container_name)
     if container_state.terminated is None:
         return False
