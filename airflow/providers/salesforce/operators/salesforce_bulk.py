@@ -16,9 +16,9 @@
 # under the License.
 from typing import TYPE_CHECKING
 
+from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
-from airflow.exceptions import AirflowException
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -70,12 +70,9 @@ class SalesforceBulkOperator(BaseOperator):
         :return: API response if do_xcom_push is True
         :rtype: dict
         """
-
         available_operations = ['insert', 'update', 'upsert', 'delete']
         if self.operation not in available_operations:
-            raise AirflowException(
-                f'Operation not found! Available methods are {available_operations}'
-            )
+            raise AirflowException(f'Operation not found! Available operations are {available_operations}')
 
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
@@ -86,7 +83,7 @@ class SalesforceBulkOperator(BaseOperator):
             )
         elif self.operation == 'update':
             result = conn.bulk.__getattr__(self.object_name).update(
-                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial,
+                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
         elif self.operation == 'upsert':
             result = conn.bulk.__getattr__(self.object_name).upsert(
@@ -97,7 +94,7 @@ class SalesforceBulkOperator(BaseOperator):
             )
         else:
             result = conn.bulk.__getattr__(self.object_name).delete(
-                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial,
+                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
 
         if self.do_xcom_push:
