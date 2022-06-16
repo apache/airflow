@@ -439,25 +439,24 @@ class KubernetesPodOperator(BaseOperator):
                 with _suppress(Exception):
                     for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
-            if remote_pod is not None:
-                with _suppress(Exception):
-                    self.process_pod_deletion(pod)
+            with _suppress(Exception):
+                self.process_pod_deletion(remote_pod)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
                 f'Pod {pod and pod.metadata.name} returned a failure:{error_message}\n{remote_pod}'
             )
         else:
-            if remote_pod is not None:
-                with _suppress(Exception):
-                    self.process_pod_deletion(pod)
+            with _suppress(Exception):
+                self.process_pod_deletion(remote_pod)
 
     def process_pod_deletion(self, pod):
-        if self.is_delete_operator_pod:
-            self.log.info("Deleting pod: %s", pod.metadata.name)
-            self.pod_manager.delete_pod(pod)
-        else:
-            self.log.info("skipping deleting pod: %s", pod.metadata.name)
+        if pod is not None:
+            if self.is_delete_operator_pod:
+                self.log.info("Deleting pod: %s", pod.metadata.name)
+                self.pod_manager.delete_pod(pod)
+            else:
+                self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
     def _build_find_pod_label_selector(self, context: Optional[dict] = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)

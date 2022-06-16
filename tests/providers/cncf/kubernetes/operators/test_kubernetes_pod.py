@@ -268,8 +268,6 @@ class TestKubernetesPodOperator:
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
     @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.find_pod")
     def test_pod_delete_even_on_launcher_error(self, find_pod_mock, delete_pod_mock):
-        remote_pod_mock = MagicMock()
-        find_pod_mock.return_value = remote_pod_mock
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
