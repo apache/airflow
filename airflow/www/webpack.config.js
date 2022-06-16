@@ -54,10 +54,6 @@ Foundation (http://www.apache.org/).
 };
 
 const config = {
-  node: {
-    Buffer: false,
-    process: false,
-  },
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
