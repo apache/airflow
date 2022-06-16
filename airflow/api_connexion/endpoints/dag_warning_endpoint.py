@@ -36,16 +36,16 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)])
 @provide_session
-def get_dag_warning(*, dag_warning_id: int, session: Session = NEW_SESSION) -> APIResponse:
+def get_dag_warning(*, dag_id: str, warning_type: str, session: Session = NEW_SESSION) -> APIResponse:
     """Get a DAG warning"""
-    error = session.query(DagWarningModel).get(dag_warning_id)
+    entity = session.query(DagWarningModel).get((dag_id, warning_type))
 
-    if error is None:
+    if entity is None:
         raise NotFound(
             "Dag warning not found",
-            detail=f"The DagWarning with dag_warning_id: `{dag_warning_id}` was not found",
+            detail=f"The DagWarning with (dag_id, warning_type) = {(dag_id, warning_type)} was not found",
         )
-    return dag_warning_schema.dump(error)
+    return dag_warning_schema.dump(entity)
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)])
@@ -55,15 +55,14 @@ def get_dag_warnings(
     *,
     limit: int,
     offset: Optional[int] = None,
-    order_by: str = "dag_warning_id",
+    order_by: str = "timestamp",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
     """Get all import errors"""
-    to_replace = {"dag_warning_id": 'id'}
-    allowed_filter_attrs = ['dag_warning_id', "timestamp", "warning_type", "message"]
-    total_entries = session.query(func.count(DagWarningModel.id)).scalar()
+    allowed_filter_attrs = ["dag_id", "warning_type", "message", "timestamp"]
+    total_entries = session.query(func.count(DagWarningModel.dag_id)).scalar()
     query = session.query(DagWarningModel)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_filter_attrs)
     dag_warnings = query.offset(offset).limit(limit).all()
     return dag_warning_collection_schema.dump(
         DagWarningCollection(dag_warnings=dag_warnings, total_entries=total_entries)
