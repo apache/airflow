@@ -90,7 +90,7 @@
     "datatables.net": "^1.11.4",
     "datatables.net-bs": "^1.11.4",
     "eonasdan-bootstrap-datetimepicker": "^4.17.47",
-    "framer-motion": "4.1.17",
+    "framer-motion": "^6.0.0",
     "jquery": ">=3.5.0",
     "jshint": "^2.13.4",
     "lodash": "^4.17.21",
