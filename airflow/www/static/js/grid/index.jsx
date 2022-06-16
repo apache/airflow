@@ -29,7 +29,7 @@ import { QueryClient, QueryClientProvider } from 'react-query';
 
 import Main from './Main';
 import theme from './theme';
-import { ContainerRefProvider } from './context/containerRef';
+import { ContainerRefProvider, useContainerRef } from './context/containerRef';
 import { TimezoneProvider } from './context/timezone';
 import { AutoRefreshProvider } from './context/autorefresh';
 
@@ -61,23 +61,31 @@ const queryClient = new QueryClient({
   },
 });
 
+// Chakra needs to access the containerRef provider so our tooltips pick up the correct styles
+const ChakraApp = () => {
+  const containerRef = useContainerRef();
+  return (
+    <ChakraProvider theme={theme} toastOptions={{ portalProps: { containerRef } }}>
+      <QueryClientProvider client={queryClient}>
+        <TimezoneProvider>
+          <AutoRefreshProvider>
+            <BrowserRouter>
+              <Main />
+            </BrowserRouter>
+          </AutoRefreshProvider>
+        </TimezoneProvider>
+      </QueryClientProvider>
+    </ChakraProvider>
+  );
+};
+
 function App() {
   return (
     <React.StrictMode>
       <CacheProvider value={myCache}>
-        <ChakraProvider theme={theme}>
-          <ContainerRefProvider>
-            <QueryClientProvider client={queryClient}>
-              <TimezoneProvider>
-                <AutoRefreshProvider>
-                  <BrowserRouter>
-                    <Main />
-                  </BrowserRouter>
-                </AutoRefreshProvider>
-              </TimezoneProvider>
-            </QueryClientProvider>
-          </ContainerRefProvider>
-        </ChakraProvider>
+        <ContainerRefProvider>
+          <ChakraApp />
+        </ContainerRefProvider>
       </CacheProvider>
     </React.StrictMode>
   );
