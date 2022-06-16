@@ -319,6 +319,16 @@ extraEnvFrom: ~
 # Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
+  # These secrets must be created manually, eg:
+  #
+  # kind: Secret
+  # apiVersion: v1
+  # metadata:
+  #   name: custom-airflow-metadata-secret
+  # type: Opaque
+  # data:
+  #   connection: base64_encoded_connection_string
+
   metadataSecretName: ~
   resultBackendSecretName: ~
   brokerUrlSecretName: ~
