@@ -18,6 +18,8 @@
 
 """Add indexes for CASCADE deletes
 
+Some databases don't add indexes on the FK columns so we have to add them for performance on CASCADE deletes.
+
 Revision ID: f5fcbda3e651
 Revises: 3c94c427fdf6
 Create Date: 2022-06-15 18:04:54.081789
@@ -36,6 +38,12 @@ airflow_version = '2.3.3'
 
 def upgrade():
     """Apply Add indexes for CASCADE deletes"""
+    conn = op.get_bind()
+
+    # mysql adds indexes for FKs so we don't have to
+    if conn.dialect.name == 'mysql':
+        return
+
     with op.batch_alter_table('task_fail', schema=None) as batch_op:
         batch_op.create_index('idx_task_fail_task_instance', ['dag_id', 'task_id', 'run_id', 'map_index'])
 
@@ -47,6 +55,12 @@ def upgrade():
 
 
 def downgrade():
+    conn = op.get_bind()
+
+    # mysql adds indexes for FKs so we didn't have to
+    if conn.dialect.name == 'mysql':
+        return
+
     """Unapply Add indexes for CASCADE deletes"""
     with op.batch_alter_table('xcom', schema=None) as batch_op:
         batch_op.drop_index('idx_xcom_task_instance')
