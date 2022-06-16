@@ -19,7 +19,7 @@
 
 const webpack = require('webpack');
 const path = require('path');
-const ManifestPlugin = require('webpack-manifest-plugin');
+const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 const cwplg = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
@@ -54,6 +54,10 @@ Foundation (http://www.apache.org/).
 };
 
 const config = {
+  node: {
+    Buffer: false,
+    process: false,
+  },
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
@@ -99,15 +103,23 @@ const config = {
     rules: [
       {
         test: /datatables\.net.*/,
-        loader: 'imports-loader?define=>false',
+        use: [
+          {
+            loader: 'imports-loader?define=>false',
+          },
+        ],
       },
       {
         test: /\.[j|t]sx?$/,
         exclude: /node_modules/,
-        loader: 'babel-loader',
-        options: {
-          presets: ['@babel/preset-react', '@babel/preset-typescript'],
-        },
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-react', '@babel/preset-typescript'],
+            },
+          },
+        ],
       },
       // Extract css files
       {
@@ -150,12 +162,19 @@ const config = {
       },
       {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        loader: 'file-loader',
+        use: [
+          {
+            loader: 'file-loader',
+          },
+        ],
       },
     ],
   },
   plugins: [
-    new ManifestPlugin(),
+    new WebpackManifestPlugin({
+      // d3-tip is named index.js in its dist folder which was confusing the manifest
+      map: (file) => (file.path === 'd3-tip.js' ? { ...file, name: 'd3-tip.js' } : file),
+    }),
     new cwplg.CleanWebpackPlugin({
       verbose: true,
     }),
