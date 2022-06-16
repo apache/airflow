@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-16T09:41:36Z
+# This constraints file was automatically generated on 2022-06-16T17:26:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -198,7 +198,7 @@ click==8.1.3
 clickclick==20.10.2
 cloudant==2.15.0
 cloudpickle==2.1.0
-colorama==0.4.4
+colorama==0.4.5
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.13.1
@@ -556,7 +556,7 @@ toolz==0.11.2
 tornado==6.1
 towncrier==21.9.0
 tqdm==4.64.0
-traitlets==5.2.2.post1
+traitlets==5.3.0
 trino==0.313.0
 twine==4.0.1
 typed-ast==1.5.4
@@ -571,7 +571,7 @@ types-cryptography==3.3.21
 types-docutils==0.18.3
 types-freezegun==1.1.10
 types-paramiko==2.10.0
-types-protobuf==3.19.21
+types-protobuf==3.19.22
 types-python-dateutil==2.8.17
 types-python-slugify==5.0.4
 types-pytz==2021.3.8
