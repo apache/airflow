@@ -26,13 +26,13 @@ Create Date: 2022-04-27 15:57:36.736743
 import sqlalchemy as sa
 from alembic import op
 
-# revision identifiers, used by Alembic.
-from sqlalchemy import Column, Integer
-
 from airflow.migrations.db_types import StringID
 
+# revision identifiers, used by Alembic.
+
+
 revision = '424117c37d18'
-down_revision = '3c94c427fdf6'
+down_revision = 'f5fcbda3e651'
 branch_labels = None
 depends_on = None
 airflow_version = '2.4.0'
@@ -42,15 +42,8 @@ def upgrade():
     """Apply Add DagWarning model"""
     op.create_table(
         'dag_warning',
-        Column(
-            'id',
-            Integer,
-            nullable=False,
-            autoincrement=True,
-            primary_key=True,
-        ),
-        sa.Column('dag_id', StringID(), nullable=False),
-        sa.Column('warning_type', sa.String(length=50), nullable=False),
+        sa.Column('dag_id', StringID(), primary_key=True),
+        sa.Column('warning_type', sa.String(length=50), primary_key=True),
         sa.Column('message', sa.String(1000), nullable=False),
         sa.Column('timestamp', sa.DateTime(), nullable=False),
         sa.ForeignKeyConstraint(
@@ -59,14 +52,7 @@ def upgrade():
             name='dcw_dag_id_fkey',
             ondelete='CASCADE',
         ),
-        sqlite_autoincrement=True,
     )
-    op.create_index(
-        'idx_dag_id_error_type',
-        table_name='dag_warning',
-        columns=['dag_id', 'warning_type'],
-        unique=True,
-    ),
 
 
 def downgrade():

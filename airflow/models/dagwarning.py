@@ -17,7 +17,7 @@
 # under the License.
 from enum import Enum
 
-from sqlalchemy import Column, ForeignKeyConstraint, Integer, String, Text, false
+from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
 
 from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
@@ -34,9 +34,6 @@ class DagWarning(Base):
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
-    id = Column(
-        Integer, autoincrement=True, server_default='id'
-    )  # this default just signals to SQLA to defer to server
     dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
     warning_type = Column(String(50), primary_key=True, nullable=False)
     message = Column(Text, nullable=False)
@@ -50,8 +47,6 @@ class DagWarning(Base):
             name='dcw_dag_id_fkey',
             ondelete='CASCADE',
         ),
-        # in a actuality we have a unique index, but we tell sqlalchemy it's the PK so we can use `merge`
-        {'sqlite_autoincrement': True},
     )
 
     def __init__(self, dag_id, error_type, message, **kwargs):
