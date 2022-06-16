@@ -31,6 +31,12 @@ from typing import TYPE_CHECKING, Any, Optional, Sequence
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
+from airflow.providers.amazon.aws.links.batch import (
+    BatchJobDefinitionLink,
+    BatchJobDetailsLink,
+    BatchJobQueueLink,
+)
+from airflow.providers.amazon.aws.links.logs import CloudWatchEventsLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -94,6 +100,15 @@ class BatchOperator(BaseOperator):
         "parameters",
     )
     template_fields_renderers = {"overrides": "json", "parameters": "json"}
+
+    @property
+    def operator_extra_links(self):
+        op_extra_links = [BatchJobDetailsLink(), BatchJobDefinitionLink(), BatchJobQueueLink()]
+        if not self.array_properties:
+            # There is no CloudWatch Link to the parent Batch Job available.
+            op_extra_links.append(CloudWatchEventsLink())
+
+        return tuple(op_extra_links)
 
     def __init__(
         self,
@@ -167,12 +182,23 @@ class BatchOperator(BaseOperator):
                 containerOverrides=self.overrides,
                 tags=self.tags,
             )
-            self.job_id = response["jobId"]
-
-            self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
         except Exception as e:
-            self.log.error("AWS Batch job (%s) failed submission", self.job_id)
+            self.log.error(
+                "AWS Batch job failed submission - job definition: %s - on queue %s",
+                self.job_definition,
+                self.job_queue,
+            )
             raise AirflowException(e)
+
+        self.job_id = response["jobId"]
+        self.log.info("AWS Batch job (%s) started: %s", self.job_id, response)
+        BatchJobDetailsLink.persist(
+            context=context,
+            operator=self,
+            region_name=self.hook.conn_region_name,
+            aws_partition=self.hook.conn_partition,
+            job_id=self.job_id,
+        )
 
     def monitor_job(self, context: 'Context'):
         """
@@ -186,10 +212,49 @@ class BatchOperator(BaseOperator):
         if not self.job_id:
             raise AirflowException('AWS Batch job - job_id was not found')
 
+        try:
+            job_desc = self.hook.get_job_description(self.job_id)
+            job_definition_arn = job_desc["jobDefinition"]
+            job_queue_arn = job_desc["jobQueue"]
+            self.log.info(
+                "AWS Batch job (%s) Job Definition ARN: %r, Job Queue ARN: %r",
+                self.job_id,
+                job_definition_arn,
+                job_queue_arn,
+            )
+        except KeyError:
+            self.log.warning("AWS Batch job (%s) can't get Job Definition ARN and Job Queue ARN", self.job_id)
+        else:
+            BatchJobDefinitionLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                job_definition_arn=job_definition_arn,
+            )
+            BatchJobQueueLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                job_queue_arn=job_queue_arn,
+            )
+
         if self.waiters:
             self.waiters.wait_for_job(self.job_id)
         else:
             self.hook.wait_for_job(self.job_id)
+
+        awslogs = self.hook.get_job_awslogs_info(self.job_id)
+        if awslogs:
+            self.log.info("AWS Batch job (%s) CloudWatch Events details found: %s", self.job_id, awslogs)
+            CloudWatchEventsLink.persist(
+                context=context,
+                operator=self,
+                region_name=self.hook.conn_region_name,
+                aws_partition=self.hook.conn_partition,
+                **awslogs,
+            )
 
         self.hook.check_job_success(self.job_id)
         self.log.info("AWS Batch job (%s) succeeded", self.job_id)

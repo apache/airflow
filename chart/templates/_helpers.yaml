@@ -620,7 +620,7 @@ Create the name of the cleanup service account to use
 
 {{define "scheduler_liveness_check_command"}}
 
-  {{- if semverCompare ">=2.0.0" .Values.airflowVersion }}
+  {{- if semverCompare ">=2.1.0" .Values.airflowVersion }}
   - sh
   - -c
   - |
