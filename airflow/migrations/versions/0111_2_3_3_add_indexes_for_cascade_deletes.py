@@ -36,32 +36,54 @@ depends_on = None
 airflow_version = '2.3.3'
 
 
+def _mysql_tables_where_indexes_already_present(conn):
+    """
+    If user downgraded and is upgrading again, we have to check for existing
+    indexes on mysql because we can't (and don't) drop them as part of the
+    downgrade.
+    """
+    to_check = [
+        ('xcom', 'idx_xcom_task_instance'),
+        ('task_reschedule', 'idx_task_reschedule_dag_run'),
+        ('task_fail', 'idx_task_fail_task_instance'),
+    ]
+    tables = set()
+    for tbl, idx in to_check:
+        if conn.execute(f"show indexes from {tbl} where Key_name = '{idx}'").first():
+            tables.add(tbl)
+    return tables
+
+
 def upgrade():
     """Apply Add indexes for CASCADE deletes"""
     conn = op.get_bind()
+    tables_to_skip = set()
 
-    # mysql adds indexes for FKs so we don't have to
+    # mysql requires indexes for FKs, so adding had the effect of renaming, and we cannot remove.
     if conn.dialect.name == 'mysql':
-        return
+        tables_to_skip.update(_mysql_tables_where_indexes_already_present(conn))
 
-    with op.batch_alter_table('task_fail', schema=None) as batch_op:
-        batch_op.create_index('idx_task_fail_task_instance', ['dag_id', 'task_id', 'run_id', 'map_index'])
+    if 'task_fail' not in tables_to_skip:
+        with op.batch_alter_table('task_fail', schema=None) as batch_op:
+            batch_op.create_index('idx_task_fail_task_instance', ['dag_id', 'task_id', 'run_id', 'map_index'])
 
-    with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
-        batch_op.create_index('idx_task_reschedule_dag_run', ['dag_id', 'run_id'])
+    if 'task_reschedule' not in tables_to_skip:
+        with op.batch_alter_table('task_reschedule', schema=None) as batch_op:
+            batch_op.create_index('idx_task_reschedule_dag_run', ['dag_id', 'run_id'])
 
-    with op.batch_alter_table('xcom', schema=None) as batch_op:
-        batch_op.create_index('idx_xcom_task_instance', ['dag_id', 'task_id', 'run_id', 'map_index'])
+    if 'xcom' not in tables_to_skip:
+        with op.batch_alter_table('xcom', schema=None) as batch_op:
+            batch_op.create_index('idx_xcom_task_instance', ['dag_id', 'task_id', 'run_id', 'map_index'])
 
 
 def downgrade():
+    """Unapply Add indexes for CASCADE deletes"""
     conn = op.get_bind()
 
-    # mysql adds indexes for FKs so we didn't have to
+    # mysql requires indexes for FKs, so adding had the effect of renaming, and we cannot remove.
     if conn.dialect.name == 'mysql':
         return
 
-    """Unapply Add indexes for CASCADE deletes"""
     with op.batch_alter_table('xcom', schema=None) as batch_op:
         batch_op.drop_index('idx_xcom_task_instance')
 
