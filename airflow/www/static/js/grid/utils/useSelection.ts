@@ -23,8 +23,8 @@ const RUN_ID = 'dag_run_id';
 const TASK_ID = 'task_id';
 
 export interface SelectionProps {
-  runId?: string;
-  taskId?: string;
+  runId?: string | null ;
+  taskId?: string | null;
 }
 
 const useSelection = () => {

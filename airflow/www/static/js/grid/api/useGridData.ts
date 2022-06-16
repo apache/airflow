@@ -84,7 +84,8 @@ const useGridData = () => {
         });
         throw (error);
       }
-    }, {
+    },
+    {
       placeholderData: emptyData,
       // only refetch if the refresh switch is on
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,

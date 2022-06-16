@@ -51,8 +51,8 @@ describe('Test useSelection hook', () => {
 
   test.each([
     { taskId: 'task_1', runId: 'run_1' },
-    { runId: 'run_1' },
-    { taskId: 'task_1' },
+    { runId: 'run_1', taskId: null },
+    { taskId: 'task_1', runId: null },
   ])('Test onSelect() and clearSelection()', async (selected) => {
     const { result } = renderHook(() => useSelection(), { wrapper: Wrapper });
 
