@@ -15,11 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import copy
-import json
 import sys
-from datetime import datetime, timedelta, timezone
-from time import sleep
+from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional, cast
 
 if sys.version_info >= (3, 8):
@@ -36,15 +33,13 @@ from airflow.providers.amazon.aws.utils import datetime_to_epoch_ms, get_airflow
 if TYPE_CHECKING:
     from mypy_boto3_appflow.type_defs import (
         DescribeFlowExecutionRecordsResponseTypeDef,
-        DescribeFlowResponseTypeDef,
         ExecutionRecordTypeDef,
         TaskTypeDef,
     )
 
     from airflow.utils.context import Context
 
-EVENTUAL_CONSISTENCY_OFFSET: int = 15  # seconds
-EVENTUAL_CONSISTENCY_POLLING: int = 10  # seconds
+
 SUPPORTED_SOURCES = {"salesforce", "zendesk"}
 MANDATORY_FILTER_DATE_MSG = "The filter_date argument is mandatory for {entity}!"
 NOT_SUPPORTED_SOURCE_MSG = "Source {source} is not supported for {entity}!"
@@ -55,7 +50,7 @@ class AppflowBaseOperator(BaseOperator):
     Amazon Appflow Base Operator class (not supposed to be used directly in DAGs).
 
     :param source: The source name (Supported: salesforce, zendesk)
-    :param name: The flow name
+    :param flow_name: The flow name
     :param flow_update: A boolean to enable/disable a flow update before the run
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
@@ -69,7 +64,7 @@ class AppflowBaseOperator(BaseOperator):
     def __init__(
         self,
         source: str,
-        name: str,
+        flow_name: str,
         flow_update: bool,
         source_field: Optional[str] = None,
         filter_date: Optional[str] = None,
@@ -82,7 +77,7 @@ class AppflowBaseOperator(BaseOperator):
         if source not in SUPPORTED_SOURCES:
             raise ValueError(f"{source} is not a supported source (options: {SUPPORTED_SOURCES})!")
         self.filter_date = filter_date
-        self.name = name
+        self.flow_name = flow_name
         self.source = source
         self.source_field = source_field
         self.poll_interval = poll_interval
@@ -99,85 +94,26 @@ class AppflowBaseOperator(BaseOperator):
         self.filter_date_parsed: Optional[datetime] = (
             datetime.fromisoformat(self.filter_date) if self.filter_date else None
         )
+        self.connector_type = self._get_connector_type()
         if self.flow_update:
             self._update_flow()
         self._run_flow(context)
 
-    def _get_connector_type(self, response: "DescribeFlowResponseTypeDef") -> str:
+    def _get_connector_type(self) -> str:
+        response = self.hook.conn.describe_flow(flowName=self.flow_name)
         connector_type = response["sourceFlowConfig"]["connectorType"]
         if self.source != connector_type.lower():
             raise ValueError(f"Incompatible source ({self.source} and connector type ({connector_type})!")
         return connector_type
 
     def _update_flow(self) -> None:
-        response = self.hook.conn.describe_flow(flowName=self.name)
-        connector_type = self._get_connector_type(response)
-
-        # cleanup
-        tasks: List["TaskTypeDef"] = []
-        for task in response["tasks"]:
-            if (
-                task["taskType"] == "Filter"
-                and task.get("connectorOperator", {}).get(connector_type) != "PROJECTION"
-            ):
-                self.log.info("Removing task: %s", task)
-            else:
-                tasks.append(task)  # List of non-filter tasks
-
-        self._add_filter(connector_type, tasks)
-
-        # Clean up to force on-demand trigger
-        trigger_config = copy.deepcopy(response["triggerConfig"])
-        del trigger_config["triggerProperties"]
-
-        self.hook.conn.update_flow(
-            flowName=response["flowName"],
-            destinationFlowConfigList=response["destinationFlowConfigList"],
-            sourceFlowConfig=response["sourceFlowConfig"],
-            triggerConfig=trigger_config,
-            description=response.get("description", "Flow description."),
-            tasks=tasks,
-        )
-
-    def _add_filter(self, connector_type: str, tasks: List["TaskTypeDef"]) -> None:  # Interface
-        pass
+        self.hook.update_flow_filter(flow_name=self.flow_name, filter_tasks=[], set_trigger_ondemand=True)
 
     def _run_flow(self, context) -> str:
-        ts_before: datetime = datetime.now(timezone.utc)
-        sleep(EVENTUAL_CONSISTENCY_OFFSET)
-        response = self.hook.conn.start_flow(flowName=self.name)
+        execution_id = self.hook.run_flow(flow_name=self.flow_name, poll_interval=self.poll_interval)
         task_instance = context["task_instance"]
-        task_instance.xcom_push("execution_id", response["executionId"])
-        self.log.info("executionId: %s", response["executionId"])
-
-        response = self.hook.conn.describe_flow(flowName=self.name)
-
-        # Wait Appflow eventual consistence
-        self.log.info("Waiting for Appflow eventual consistence...")
-        while (
-            response.get("lastRunExecutionDetails", {}).get(
-                "mostRecentExecutionTime", datetime(1970, 1, 1, tzinfo=timezone.utc)
-            )
-            < ts_before
-        ):
-            sleep(EVENTUAL_CONSISTENCY_POLLING)
-            response = self.hook.conn.describe_flow(flowName=self.name)
-
-        # Wait flow stops
-        self.log.info("Waiting for flow run...")
-        while (
-            "mostRecentExecutionStatus" not in response["lastRunExecutionDetails"]
-            or response["lastRunExecutionDetails"]["mostRecentExecutionStatus"] == "InProgress"
-        ):
-            sleep(self.poll_interval)
-            response = self.hook.conn.describe_flow(flowName=self.name)
-
-        self.log.info("lastRunExecutionDetails: %s", response["lastRunExecutionDetails"])
-
-        if response["lastRunExecutionDetails"]["mostRecentExecutionStatus"] == "Error":
-            raise Exception(f"Flow error:\n{json.dumps(response, default=str)}")
-
-        return response["lastRunExecutionDetails"]["mostRecentExecutionStatus"]
+        task_instance.xcom_push("execution_id", execution_id)
+        return execution_id
 
 
 class AppflowRunOperator(AppflowBaseOperator):
@@ -189,7 +125,7 @@ class AppflowRunOperator(AppflowBaseOperator):
         :ref:`howto/operator:AppflowRunOperator`
 
     :param source: The source name (Supported: salesforce, zendesk)
-    :param name: The flow name
+    :param flow_name: The flow name
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
@@ -198,7 +134,7 @@ class AppflowRunOperator(AppflowBaseOperator):
     def __init__(
         self,
         source: str,
-        name: str,
+        flow_name: str,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
@@ -208,7 +144,7 @@ class AppflowRunOperator(AppflowBaseOperator):
             raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunOperator"))
         super().__init__(
             source=source,
-            name=name,
+            flow_name=flow_name,
             flow_update=False,
             source_field=None,
             filter_date=None,
@@ -228,7 +164,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
         :ref:`howto/operator:AppflowRunFullOperator`
 
     :param source: The source name (Supported: salesforce, zendesk)
-    :param name: The flow name
+    :param flow_name: The flow name
     :param poll_interval: how often in seconds to check the query status
     :param aws_conn_id: aws connection to use
     :param region: aws region to use
@@ -237,7 +173,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
     def __init__(
         self,
         source: str,
-        name: str,
+        flow_name: str,
         poll_interval: int = 20,
         aws_conn_id: str = "aws_default",
         region: Optional[str] = None,
@@ -247,7 +183,7 @@ class AppflowRunFullOperator(AppflowBaseOperator):
             raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunFullOperator"))
         super().__init__(
             source=source,
-            name=name,
+            flow_name=flow_name,
             flow_update=True,
             source_field=None,
             filter_date=None,
@@ -267,7 +203,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
         :ref:`howto/operator:AppflowRunBeforeOperator`
 
     :param source: The source name (Supported: salesforce)
-    :param name: The flow name
+    :param flow_name: The flow name
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
@@ -280,7 +216,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
     def __init__(
         self,
         source: str,
-        name: str,
+        flow_name: str,
         source_field: str,
         filter_date: str,
         poll_interval: int = 20,
@@ -296,7 +232,7 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
             )
         super().__init__(
             source=source,
-            name=name,
+            flow_name=flow_name,
             flow_update=True,
             source_field=source_field,
             filter_date=filter_date,
@@ -306,21 +242,23 @@ class AppflowRunBeforeOperator(AppflowBaseOperator):
             **kwargs,
         )
 
-    def _add_filter(self, connector_type: str, tasks: List["TaskTypeDef"]) -> None:
+    def _update_flow(self) -> None:
         if not self.filter_date_parsed:
             raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
-            "connectorOperator": {connector_type: "LESS_THAN"},  # type: ignore
+            "connectorOperator": {self.connector_type: "LESS_THAN"},  # type: ignore
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
                 "VALUE": str(datetime_to_epoch_ms(self.filter_date_parsed)),
             },  # NOT inclusive
         }
-        tasks.append(filter_task)
+        self.hook.update_flow_filter(
+            flow_name=self.flow_name, filter_tasks=[filter_task], set_trigger_ondemand=True
+        )
 
 
 class AppflowRunAfterOperator(AppflowBaseOperator):
@@ -332,7 +270,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
         :ref:`howto/operator:AppflowRunAfterOperator`
 
     :param source: The source name (Supported: salesforce, zendesk)
-    :param name: The flow name
+    :param flow_name: The flow name
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
@@ -345,7 +283,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
     def __init__(
         self,
         source: str,
-        name: str,
+        flow_name: str,
         source_field: str,
         filter_date: str,
         poll_interval: int = 20,
@@ -359,7 +297,7 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
             raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunAfterOperator"))
         super().__init__(
             source=source,
-            name=name,
+            flow_name=flow_name,
             flow_update=True,
             source_field=source_field,
             filter_date=filter_date,
@@ -369,21 +307,23 @@ class AppflowRunAfterOperator(AppflowBaseOperator):
             **kwargs,
         )
 
-    def _add_filter(self, connector_type: str, tasks: List["TaskTypeDef"]) -> None:
+    def _update_flow(self) -> None:
         if not self.filter_date_parsed:
             raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
             raise ValueError(f"Invalid source_field argument value: {self.source_field}")
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
-            "connectorOperator": {connector_type: "GREATER_THAN"},  # type: ignore
+            "connectorOperator": {self.connector_type: "GREATER_THAN"},  # type: ignore
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
                 "VALUE": str(datetime_to_epoch_ms(self.filter_date_parsed)),
             },  # NOT inclusive
         }
-        tasks.append(filter_task)
+        self.hook.update_flow_filter(
+            flow_name=self.flow_name, filter_tasks=[filter_task], set_trigger_ondemand=True
+        )
 
 
 class AppflowRunDailyOperator(AppflowBaseOperator):
@@ -395,7 +335,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
         :ref:`howto/operator:AppflowRunDailyOperator`
 
     :param source: The source name (Supported: salesforce)
-    :param name: The flow name
+    :param flow_name: The flow name
     :param source_field: The field name to apply filters
     :param filter_date: The date value (or template) to be used in filters.
     :param poll_interval: how often in seconds to check the query status
@@ -408,7 +348,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
     def __init__(
         self,
         source: str,
-        name: str,
+        flow_name: str,
         source_field: str,
         filter_date: str,
         poll_interval: int = 20,
@@ -422,7 +362,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
             raise ValueError(NOT_SUPPORTED_SOURCE_MSG.format(source=source, entity="AppflowRunDailyOperator"))
         super().__init__(
             source=source,
-            name=name,
+            flow_name=flow_name,
             flow_update=True,
             source_field=source_field,
             filter_date=filter_date,
@@ -432,7 +372,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
             **kwargs,
         )
 
-    def _add_filter(self, connector_type: str, tasks: List["TaskTypeDef"]) -> None:
+    def _update_flow(self) -> None:
         if not self.filter_date_parsed:
             raise ValueError(f"Invalid filter_date argument parser value: {self.filter_date_parsed}")
         if not self.source_field:
@@ -441,7 +381,7 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
         end_filter_date = self.filter_date_parsed + timedelta(days=1)
         filter_task: "TaskTypeDef" = {
             "taskType": "Filter",
-            "connectorOperator": {connector_type: "BETWEEN"},  # type: ignore
+            "connectorOperator": {self.connector_type: "BETWEEN"},  # type: ignore
             "sourceFields": [self.source_field],
             "taskProperties": {
                 "DATA_TYPE": "datetime",
@@ -449,7 +389,9 @@ class AppflowRunDailyOperator(AppflowBaseOperator):
                 "UPPER_BOUND": str(datetime_to_epoch_ms(end_filter_date)),  # NOT inclusive
             },
         }
-        tasks.append(filter_task)
+        self.hook.update_flow_filter(
+            flow_name=self.flow_name, filter_tasks=[filter_task], set_trigger_ondemand=True
+        )
 
 
 class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
@@ -467,8 +409,7 @@ class AppflowRecordsShortCircuitOperator(ShortCircuitOperator):
     :param region: aws region to use
     """
 
-    LIGHT_BLUE = "#33ffec"
-    ui_color = LIGHT_BLUE
+    ui_color = "#33ffec"  # Light blue
 
     def __init__(
         self,

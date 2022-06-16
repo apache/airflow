@@ -40,7 +40,7 @@ EXECUTION_ID = "ex_id"
 CONNECTION_TYPE = "Salesforce"
 SOURCE = "salesforce"
 
-DUMP_COMMON_ARGS = {"aws_conn_id": CONN_ID, "task_id": TASK_ID, "source": SOURCE, "name": FLOW_NAME}
+DUMP_COMMON_ARGS = {"aws_conn_id": CONN_ID, "task_id": TASK_ID, "source": SOURCE, "flow_name": FLOW_NAME}
 
 
 @pytest.fixture
@@ -77,7 +77,7 @@ def appflow_conn():
 
 def run_assertions_base(appflow_conn, tasks):
     appflow_conn.describe_flow.assert_called_with(flowName=FLOW_NAME)
-    assert appflow_conn.describe_flow.call_count == 2
+    assert appflow_conn.describe_flow.call_count == 3
     appflow_conn.update_flow.assert_called_once_with(
         flowName=FLOW_NAME,
         tasks=tasks,
@@ -93,7 +93,7 @@ def test_run(appflow_conn, ctx):
     operator = AppflowRunOperator(**DUMP_COMMON_ARGS)
     operator.execute(ctx)  # type: ignore
     appflow_conn.describe_flow.assert_called_with(flowName=FLOW_NAME)
-    assert appflow_conn.describe_flow.call_count == 1
+    assert appflow_conn.describe_flow.call_count == 2
     appflow_conn.start_flow.assert_called_once_with(flowName=FLOW_NAME)
 
 

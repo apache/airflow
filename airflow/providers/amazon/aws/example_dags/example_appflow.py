@@ -44,7 +44,7 @@ with DAG(
     campaign_dump = AppflowRunOperator(
         task_id="campaign_dump",
         source=SOURCE_NAME,
-        name=FLOW_NAME,
+        flow_name=FLOW_NAME,
     )
     # [END howto_operator_appflow_run]
 
@@ -52,7 +52,7 @@ with DAG(
     campaign_dump_full = AppflowRunFullOperator(
         task_id="campaign_dump_full",
         source=SOURCE_NAME,
-        name=FLOW_NAME,
+        flow_name=FLOW_NAME,
     )
     # [END howto_operator_appflow_run_full]
 
@@ -60,7 +60,7 @@ with DAG(
     campaign_dump_daily = AppflowRunDailyOperator(
         task_id="campaign_dump_daily",
         source=SOURCE_NAME,
-        name=FLOW_NAME,
+        flow_name=FLOW_NAME,
         source_field="LastModifiedDate",
         filter_date="{{ ds }}",
     )
@@ -70,7 +70,7 @@ with DAG(
     campaign_dump_before = AppflowRunBeforeOperator(
         task_id="campaign_dump_before",
         source=SOURCE_NAME,
-        name=FLOW_NAME,
+        flow_name=FLOW_NAME,
         source_field="LastModifiedDate",
         filter_date="{{ ds }}",
     )
@@ -80,7 +80,7 @@ with DAG(
     campaign_dump_after = AppflowRunAfterOperator(
         task_id="campaign_dump_after",
         source=SOURCE_NAME,
-        name=FLOW_NAME,
+        flow_name=FLOW_NAME,
         source_field="LastModifiedDate",
         filter_date="3000-01-01",  # Future date, so no records to dump
     )
