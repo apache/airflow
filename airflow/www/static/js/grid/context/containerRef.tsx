@@ -19,12 +19,17 @@
 
 import React, { useContext, useRef } from 'react';
 
-const ContainerRefContext = React.createContext(null);
+// eslint-disable-next-line max-len
+const ContainerRefContext = React.createContext<React.RefObject<HTMLDivElement> | undefined>(undefined);
+
+interface Props {
+  children: React.ReactNode;
+}
 
 // containerRef is necessary to render for tooltips, modals, and dialogs
 // This provider allows the containerRef to be accessed by any react component
-export const ContainerRefProvider = ({ children }) => {
-  const containerRef = useRef();
+export const ContainerRefProvider: React.FC<Props> = ({ children }) => {
+  const containerRef = useRef<HTMLDivElement>(null);
 
   return (
     <ContainerRefContext.Provider value={containerRef}>

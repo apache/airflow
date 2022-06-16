@@ -29,7 +29,8 @@ type TaskState = RunState
 | 'upstream_failed'
 | 'skipped'
 | 'sensing'
-| 'deferred';
+| 'deferred'
+| null;
 
 interface DagRun {
   runId: string;
@@ -45,9 +46,12 @@ interface DagRun {
 interface GridTaskInstance {
   runId: string;
   taskId: string;
-  startDate: string;
-  endDate?: string;
+  startDate: string | null;
+  endDate: string | null;
   state: TaskState;
+  mappedStates?: {
+    [key: string]: number;
+  }
 }
 
 interface GridTask {

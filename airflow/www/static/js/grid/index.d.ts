@@ -21,6 +21,9 @@
 
 declare global {
   const autoRefreshInterval: number | undefined;
+  const stateColors: {
+    [key: string]: string;
+  };
 }
 
 export {};

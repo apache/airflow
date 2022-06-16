@@ -27,7 +27,7 @@ import Time from './Time';
 const InstanceTooltip = ({
   group,
   instance: {
-    startDate, endDate, state, runId, mappedStates,
+    startDate, endDate, state, runId, mappedStates = {},
   },
 }) => {
   const isGroup = !!group.children;

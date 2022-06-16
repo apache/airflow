@@ -17,34 +17,46 @@
  * under the License.
  */
 
-/* global stateColors */
-
 import React from 'react';
 import { isEqual } from 'lodash';
 import {
   Box,
   useTheme,
+  BoxProps,
 } from '@chakra-ui/react';
 
 import Tooltip from './Tooltip';
 import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from '../context/containerRef';
+import type { GridTask, GridTaskInstance, TaskState } from '../types';
+import type { SelectionProps } from '../utils/useSelection';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
 
-export const SimpleStatus = ({ state, ...rest }) => (
+interface SimpleStatusProps extends BoxProps {
+  state: TaskState;
+}
+
+export const SimpleStatus: React.FC<SimpleStatusProps> = ({ state, ...rest }) => (
   <Box
     width={boxSizePx}
     height={boxSizePx}
-    backgroundColor={stateColors[state] || 'white'}
+    backgroundColor={state && stateColors[state] ? stateColors[state] : 'white'}
     borderRadius="2px"
     borderWidth={state ? 0 : 1}
     {...rest}
   />
 );
 
-const StatusBox = ({
+interface Props {
+  group: GridTask;
+  instance: GridTaskInstance;
+  onSelect: (selection: SelectionProps) => void;
+  isActive: boolean;
+}
+
+const StatusBox: React.FC<Props> = ({
   group, instance, onSelect, isActive,
 }) => {
   const containerRef = useContainerRef();
@@ -54,15 +66,19 @@ const StatusBox = ({
 
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
-    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
-      .forEach((e) => {
-        // Don't apply hover if it is already selected
-        if (e.getAttribute('data-selected') === 'false') e.style.backgroundColor = hoverBlue;
-      });
+    if (containerRef && containerRef.current) {
+      ([...containerRef.current.getElementsByClassName(`js-${runId}`)] as HTMLElement[])
+        .forEach((e) => {
+          // Don't apply hover if it is already selected
+          if (e.getAttribute('data-selected') === 'false') e.style.backgroundColor = hoverBlue;
+        });
+    }
   };
   const onMouseLeave = () => {
-    [...containerRef.current.getElementsByClassName(`js-${runId}`)]
-      .forEach((e) => { e.style.backgroundColor = null; });
+    if (containerRef && containerRef.current) {
+      ([...containerRef.current.getElementsByClassName(`js-${runId}`)] as HTMLElement[])
+        .forEach((e) => { e.style.backgroundColor = ''; });
+    }
   };
 
   const onClick = () => {
@@ -97,8 +113,8 @@ const StatusBox = ({
 // The default equality function is a shallow comparison and json objects will return false
 // This custom compare function allows us to do a deeper comparison
 const compareProps = (
-  prevProps,
-  nextProps,
+  prevProps: Props,
+  nextProps: Props,
 ) => (
   isEqual(prevProps.group, nextProps.group)
   && isEqual(prevProps.instance, nextProps.instance)
