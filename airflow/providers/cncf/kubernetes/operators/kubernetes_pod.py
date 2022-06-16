@@ -400,7 +400,7 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
-            # finding remote pod to ensure it exists
+            # get remote pod for use in cleanup methods
             remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
 
