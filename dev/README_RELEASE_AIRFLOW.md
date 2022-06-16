@@ -27,7 +27,7 @@
   - [Build RC artifacts](#build-rc-artifacts)
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
-  - [Prepare production Docker Image](#prepare-production-docker-image)
+  - [Prepare production Docker Image RC](#prepare-production-docker-image-rc)
   - [Prepare issue for testing status of rc](#prepare-issue-for-testing-status-of-rc)
   - [Prepare Vote email on the Apache Airflow release candidate](#prepare-vote-email-on-the-apache-airflow-release-candidate)
 - [Verify the release candidate by PMCs](#verify-the-release-candidate-by-pmcs)
@@ -486,7 +486,7 @@ is not supposed to be used by and advertised to the end-users who do not read th
     git push origin tag ${VERSION}
     ```
 
-## Prepare production Docker Image
+## Prepare production Docker Image RC
 
 Production Docker images should be manually prepared and pushed by the release manager or another committer
 who has access to Airflow's DockerHub. Note that we started releasing a multi-platform build, so you need
@@ -496,15 +496,15 @@ to have an environment prepared to build multi-platform images. You can achieve 
 * Emulation (very slow)
 * Hardware builders if you have both AMD64 and ARM64 hardware locally
 
-Building the image is triggered by running the `Release PROD image` workflow via
-[GitHub Actions](https://github.com/apache/airflow/actions).
+Building the image is triggered by running the
+[Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
 When you trigger it you need to pass:
 
-* Airflow Version
-* Optional "true" in skip latest field if you do not want to retag the latest image
+* Airflow Version (including the right rc suffix)
+* Optional "true" in the "Skip latest:" field if you do not want to re-tag the latest image
 
-![Release prod image](images/release_prod_image.png)
+![Release prod image](images/release_prod_image_rc.png)
 
 The manual building is described in [MANUALLY_BUILDING_IMAGES.md](MANUALLY_BUILDING_IMAGES.md).
 
@@ -957,8 +957,8 @@ At this point we release an official package:
 
 ## Manually prepare production Docker Image
 
-Building the image is triggered by running the `Release PROD image` workflow via
-[GitHub Actions](https://github.com/apache/airflow/actions).
+Building the image is triggered by running the
+[Release PROD Images](https://github.com/apache/airflow/actions/workflows/release_dockerhub_image.yml) workflow.
 
 When you trigger it you need to pass:
 
