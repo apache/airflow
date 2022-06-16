@@ -34,7 +34,7 @@ class DagWarning(Base):
     when parsing DAG and displayed on the Webserver in a flash message.
     """
 
-    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
     warning_type = Column(String(50), primary_key=True, nullable=False)
     message = Column(Text, nullable=False)
     timestamp = Column(UtcDateTime, nullable=False, default=timezone.utcnow)
