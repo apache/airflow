@@ -557,15 +557,15 @@ class EmrServerlessStartJobOperator(BaseOperator):
         if app_state not in {'CREATED', 'STARTED'}:
             self.hook.conn.start_application(applicationId=self.application_id)
 
-        self.hook.waiter(
-            get_state_callable=self.hook.conn.get_application,
-            get_state_args={'applicationId': self.application_id},
-            parse_response=['application', 'state'],
-            desired_state={'STARTED'},
-            failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
-            object_type='application',
-            action='started',
-        )
+            self.hook.waiter(
+                get_state_callable=self.hook.conn.get_application,
+                get_state_args={'applicationId': self.application_id},
+                parse_response=['application', 'state'],
+                desired_state={'STARTED'},
+                failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+                object_type='application',
+                action='started',
+            )
 
         response = self.hook.conn.start_job_run(
             clientToken=self.client_request_token,
