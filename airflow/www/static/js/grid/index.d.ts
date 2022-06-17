@@ -17,8 +17,7 @@
  * under the License.
  */
 
-/* eslint-disable no-var */
-
+// define global variables that come from FAB
 declare global {
   const autoRefreshInterval: number | undefined;
   const stateColors: {

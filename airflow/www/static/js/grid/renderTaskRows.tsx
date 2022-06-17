@@ -31,15 +31,16 @@ import StatusBox, { boxSize, boxSizePx } from './components/StatusBox';
 import TaskName from './components/TaskName';
 
 import useSelection, { SelectionProps } from './utils/useSelection';
+import type { Task, DagRun } from './types';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
 const columnWidth = boxSize + 2 * boxPadding;
 
 interface RowProps {
-  task: any
+  task: Task;
+  dagRunIds: DagRun['runId'][];
   level?: number;
-  dagRunIds: string[];
   openParentCount?: number;
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
@@ -48,18 +49,22 @@ interface RowProps {
 
 const renderTaskRows: React.FC<RowProps> = ({
   task, level = 0, ...rest
-}) => task.children && task.children.map((t: any) => (
-  // eslint-disable-next-line @typescript-eslint/no-use-before-define
-  <Row
-    {...rest}
-    key={t.id}
-    task={t}
-    level={level}
-  />
-));
+}) => (
+  <>
+    {(task?.children || []).map((t) => (
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      <Row
+        {...rest}
+        key={t.id}
+        task={t}
+        level={level}
+      />
+    ))}
+  </>
+);
 
 interface TaskInstancesProps {
-  task: any;
+  task: Task;
   dagRunIds: string[];
   selectedRunId?: string | null;
   onSelect: (selection: SelectionProps) => void;
@@ -72,7 +77,7 @@ const TaskInstances: React.FC<TaskInstancesProps> = ({
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId: string) => {
       // Check if an instance exists for the run, or return an empty box
-      const instance = task.instances.find((ti: any) => ti && ti.runId === runId);
+      const instance = task.instances.find((ti) => ti && ti.runId === runId);
       const isSelected = selectedRunId === runId;
       return (
         <Box
@@ -122,7 +127,7 @@ const Row: React.FC<RowProps> = (props) => {
   // assure the function is the same across renders
   const memoizedToggle = useCallback(
     () => {
-      if (isGroup) {
+      if (isGroup && task.label) {
         let newGroupIds = [];
         if (!isOpen) {
           newGroupIds = [...openGroupIds, task.label];
