@@ -256,7 +256,7 @@ class AirflowConfigParser(ConfigParser):
         },
         'elasticsearch': {
             'log_id_template': (
-                re.compile('^' + re.escape('{dag_id}-{task_id}-{run_id}-{try_number}') + '$'),
+                re.compile('^' + re.escape('{dag_id}-{task_id}-{execution_date}-{try_number}') + '$'),
                 '{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}',
                 '3.0',
             )
