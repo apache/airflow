@@ -136,7 +136,7 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
         }
 
     def test_should_raises_401_unauthenticated(self):
-        response = self.client.get(f"/api/v1/dagWarnings")
+        response = self.client.get("/api/v1/dagWarnings")
         assert_401(response)
 
     def test_should_raise_403_forbidden(self):
