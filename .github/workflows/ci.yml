@@ -923,6 +923,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -996,6 +997,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1068,6 +1070,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1138,6 +1141,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1206,6 +1210,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()

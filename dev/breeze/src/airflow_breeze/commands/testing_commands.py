@@ -23,7 +23,7 @@ import sys
 import tempfile
 from threading import Event, Thread
 from time import sleep
-from typing import Dict, List, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import click
 
@@ -40,6 +40,7 @@ from airflow_breeze.utils.common_options import (
     option_image_name,
     option_image_tag,
     option_integration,
+    option_mount_sources,
     option_mssql_version,
     option_mysql_version,
     option_postgres_version,
@@ -77,7 +78,6 @@ TESTING_PARAMETERS = {
             "options": [
                 "--integration",
                 "--test-type",
-                "--limit-progress-output",
                 "--db-reset",
                 "--backend",
                 "--python",
@@ -85,7 +85,15 @@ TESTING_PARAMETERS = {
                 "--mysql-version",
                 "--mssql-version",
             ],
-        }
+        },
+        {
+            "name": "Advanced flag for tests command",
+            "options": [
+                "--limit-progress-output",
+                "--image-tag",
+                "--mount-sources",
+            ],
+        },
     ],
 }
 
@@ -235,7 +243,8 @@ def run_with_progress(
     help="Limit progress to percentage only and just show the summary when tests complete.",
     is_flag=True,
 )
-@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
+@option_image_tag
+@option_mount_sources
 @click.option(
     "--test-type",
     help="Type of test to run.",
@@ -243,6 +252,7 @@ def run_with_progress(
     type=BetterChoice(ALLOWED_TEST_TYPES),
 )
 @option_db_reset
+@click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def tests(
     dry_run: bool,
     verbose: bool,
@@ -256,6 +266,8 @@ def tests(
     extra_pytest_args: Tuple,
     test_type: str,
     db_reset: bool,
+    image_tag: Optional[str],
+    mount_sources: str,
 ):
     os.environ["RUN_TESTS"] = "true"
     if test_type:
@@ -274,6 +286,8 @@ def tests(
         postgres_version=postgres_version,
         mysql_version=mysql_version,
         mssql_version=mssql_version,
+        image_tag=image_tag,
+        mount_sources=mount_sources,
     )
     env_variables = get_env_variables_for_docker_commands(exec_shell_params)
     perform_environment_checks(verbose=verbose)

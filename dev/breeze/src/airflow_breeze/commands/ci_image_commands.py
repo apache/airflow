@@ -319,7 +319,6 @@ def pull_image(
             verbose=verbose,
             wait_for_image=wait_for_image,
             tag_as_latest=tag_as_latest,
-            poll_time=10.0,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when pulling CI image: {info}[/]")
@@ -530,26 +529,41 @@ def build_ci_image_in_parallel(
     pool.close()
 
 
-def rebuild_ci_image_if_needed(
-    build_params: Union[ShellParams, BuildCiParams], dry_run: bool, verbose: bool
+def rebuild_or_pull_ci_image_if_needed(
+    command_params: Union[ShellParams, BuildCiParams], dry_run: bool, verbose: bool
 ) -> None:
     """
     Rebuilds CI image if needed and user confirms it.
 
-    :param build_params: parameters of the shell
+    :param command_params: parameters of the command to execute
     :param dry_run: whether it's a dry_run
     :param verbose: should we print verbose messages
     """
     build_ci_image_check_cache = Path(
-        BUILD_CACHE_DIR, build_params.airflow_branch, f".built_{build_params.python}"
+        BUILD_CACHE_DIR, command_params.airflow_branch, f".built_{command_params.python}"
     )
-    ci_image_params = BuildCiParams(python=build_params.python, upgrade_to_newer_dependencies=False)
+    ci_image_params = BuildCiParams(
+        python=command_params.python, upgrade_to_newer_dependencies=False, image_tag=command_params.image_tag
+    )
+    if command_params.image_tag is not None:
+        return_code, message = run_pull_image(
+            image_params=ci_image_params,
+            dry_run=dry_run,
+            verbose=verbose,
+            parallel=False,
+            wait_for_image=True,
+            tag_as_latest=False,
+        )
+        if return_code != 0:
+            get_console().print(f"[error]Pulling image with {command_params.image_tag} failed! {message}[/]")
+            sys.exit(return_code)
+        return
     if build_ci_image_check_cache.exists():
         if verbose:
-            get_console().print(f'[info]{build_params.image_type} image already built locally.[/]')
+            get_console().print(f'[info]{command_params.image_type} image already built locally.[/]')
     else:
         get_console().print(
-            f'[warning]{build_params.image_type} image was never built locally or deleted. '
+            f'[warning]{command_params.image_type} image was never built locally or deleted. '
             'Forcing build.[/]'
         )
         ci_image_params.force_build = True

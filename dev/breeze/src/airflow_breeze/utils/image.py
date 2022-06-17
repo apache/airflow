@@ -88,7 +88,7 @@ def run_pull_image(
     verbose: bool,
     wait_for_image: bool,
     tag_as_latest: bool,
-    poll_time: float,
+    poll_time: float = 10.0,
     parallel: bool = False,
 ) -> Tuple[int, str]:
     """
@@ -98,7 +98,7 @@ def run_pull_image(
     :param verbose: whether it's verbose
     :param wait_for_image: whether we should wait for the image to be available
     :param tag_as_latest: tag the image as latest
-    :param poll_time: what's the polling time between checks if images are there
+    :param poll_time: what's the polling time between checks if images are there (default 10 s)
     :param parallel: whether the pull is run as part of parallel execution
     :return: Tuple of return code and description of the image pulled
     """
