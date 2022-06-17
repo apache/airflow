@@ -387,6 +387,15 @@ def dag_to_grid(dag, dag_runs, session):
                 'end_date': group_end_date,
             }
 
+        # We don't need to calculate summaries for the root
+        if task_group.group_id is None:
+            return {
+                'id': task_group.group_id,
+                'label': task_group.label,
+                'children': children,
+                'instances': [],
+            }
+
         group_summaries = [get_summary(dr, children) for dr in dag_runs]
 
         return {
