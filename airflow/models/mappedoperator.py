@@ -566,7 +566,7 @@ class MappedOperator(AbstractOperator):
         """
         # TODO: Find a way to cache this.
         from airflow.models.taskmap import TaskMap
-        from airflow.models.xcom import XCom
+        from airflow.models.xcom import XCom, XCOM_RETURN_KEY
         from airflow.models.xcom_arg import XComArg
 
         expansion_kwargs = self._get_expansion_kwargs()
@@ -609,6 +609,7 @@ class MappedOperator(AbstractOperator):
             .filter(
                 XCom.dag_id == self.dag_id,
                 XCom.run_id == run_id,
+                XCom.key == XCOM_RETURN_KEY,
                 XCom.task_id.in_(mapped_dep_keys),
                 XCom.map_index >= 0,
             )
