@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-16T17:26:11Z
+# This constraints file was automatically generated on 2022-06-17T21:55:45Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -36,7 +36,7 @@ PyGithub==1.54.1
 PyHive==0.6.5
 PyJWT==1.7.1
 PyNaCl==1.5.0
-PyYAML==5.4.1
+PyYAML==6.0
 Pygments==2.12.0
 Rx==3.2.0
 SQLAlchemy-JSONField==1.0.0
@@ -174,9 +174,9 @@ billiard==3.6.4.0
 black==22.3.0
 bleach==5.0.0
 blinker==1.4
-boto3==1.24.10
+boto3==1.24.12
 boto==2.49.0
-botocore==1.27.10
+botocore==1.27.12
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.8.0
@@ -250,7 +250,7 @@ geomet==0.2.1.post1
 gevent==21.12.0
 gitdb==4.0.9
 github3.py==3.0.0
-google-ads==16.0.0
+google-ads==17.0.0
 google-api-core==2.8.2
 google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
@@ -371,7 +371,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
 mypy-boto3-rds==1.24.0
-mypy-boto3-redshift-data==1.24.0
+mypy-boto3-redshift-data==1.24.11.post3
 mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.29
