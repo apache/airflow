@@ -39,7 +39,6 @@ from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow import models
 from airflow.models import errors
-from airflow.models.dagrun import DagRun
 from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
