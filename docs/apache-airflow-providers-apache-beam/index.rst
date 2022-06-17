@@ -26,8 +26,19 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/apache/beam/index>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/beam/index>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Resources
+
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-beam/>
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/apache/beam>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-beam/4.0.0/tests/system/providers/apache/beam>
 
 .. toctree::
     :maxdepth: 1

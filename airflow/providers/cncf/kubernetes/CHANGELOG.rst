@@ -24,14 +24,11 @@
 Changelog
 ---------
 
-5.0.0
+4.1.0
 .....
 
-Breaking changes
-~~~~~~~~~~~~~~~~
-
-* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
-  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+Features
+~~~~~~~~
 
 * Previously, KubernetesPodOperator relied on core Airflow configuration (namely setting for kubernetes
   executor) for certain settings used in client generation.  Now KubernetesPodOperator
@@ -40,9 +37,6 @@ Breaking changes
 * If you are using the Airflow configuration settings (e.g. as opposed to operator params) to
   configure the kubernetes client, then prior to the next major release you will need to
   add an Airflow connection and set your KPO tasks to use that connection.
-
-Features
-~~~~~~~~
 
 * ``Use KubernetesHook to create api client in KubernetesPodOperator (#20578)``
 * ``[FEATURE] KPO use K8S hook (#22086)``
@@ -66,6 +60,7 @@ Misc
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``pydocstyle D202 added (#24221)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 4.0.2
 .....

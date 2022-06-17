@@ -38,10 +38,16 @@ Content
     Python API <_api/airflow/providers/microsoft/azure/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/microsoft/azure/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/microsoft/azure>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-azure/4.0.0/tests/system/providers/microsoft/azure>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-azure/>
     Installing from sources <installing-providers-from-sources>
 

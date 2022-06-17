@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~~
+
+* ``Update Oracle library to latest version (#24311)``
+
 3.0.0
 .....
 
@@ -49,6 +57,7 @@ Misc
    * ``Prepare provider documentation 2022.05.11 (#23631)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.2.3
 .....

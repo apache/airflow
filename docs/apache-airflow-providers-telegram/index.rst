@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/telegram/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/telegram/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/telegram>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-telegram/3.0.0/tests/system/providers/telegram>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-telegram/>
     Installing from sources <installing-providers-from-sources>
 

@@ -37,6 +37,12 @@ Content
     Python API <_api/airflow/providers/amazon/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/amazon/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

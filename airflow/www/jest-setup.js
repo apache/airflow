@@ -23,6 +23,9 @@ import '@testing-library/jest-dom';
 import axios from 'axios';
 import { setLogger } from 'react-query';
 
+// eslint-disable-next-line import/no-extraneous-dependencies
+import moment from 'moment-timezone';
+
 axios.defaults.adapter = require('axios/lib/adapters/http');
 
 axios.interceptors.response.use(
@@ -51,3 +54,5 @@ global.stateColors = {
 };
 
 global.defaultDagRunDisplayNumber = 245;
+
+global.moment = moment;

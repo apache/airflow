@@ -36,15 +36,16 @@ Content
     Python API <_api/airflow/providers/elasticsearch/index>
 
 .. toctree::
-    :maxdepth: 1
-    :caption: Resources
+    :hidden:
+    :caption: System tests
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/elasticsearch/example_dags>
+    System Tests <_api/tests/system/providers/elasticsearch/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-elasticsearch/4.0.0/system/tests/elasticsearch/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-elasticsearch/>
     Installing from sources <installing-providers-from-sources>
 

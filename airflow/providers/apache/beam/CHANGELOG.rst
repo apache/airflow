@@ -49,6 +49,7 @@ Misc
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``AIP-47 - Migrate beam DAGs to new design #22439 (#24211)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 3.4.0
 .....

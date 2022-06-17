@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/dingding/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/dingding/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/dingding>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-dingding/3.0.0/tests/system/providers/dingding>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-dingding/>
     Installing from sources <installing-providers-from-sources>
 

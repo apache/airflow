@@ -36,21 +36,16 @@ Content
     Python API <_api/airflow/providers/influxdb/index>
 
 .. toctree::
-    :maxdepth: 1
-    :caption: Resources
+    :hidden:
+    :caption: System tests
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/influxdb>
-
-.. toctree::
-    :maxdepth: 1
-    :caption: Resources
-
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
+    System Tests <_api/tests/system/providers/influxdb/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
+    Example DAGs <https://github.com/apache/airflow/tree/providers-influxdb/2.0.0/tests/system/providers/influxdb>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-influxdb/>
     Installing from sources <installing-providers-from-sources>
 

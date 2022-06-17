@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/apache/cassandra/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/cassandra/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/apache/cassandra>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-cassandra/3.0.0/tests/system/providers/apache/cassandra>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-cassandra/>
     Installing from sources <installing-providers-from-sources>
 

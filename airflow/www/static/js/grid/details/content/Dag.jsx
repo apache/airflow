@@ -99,7 +99,7 @@ const Dag = () => {
         <Tbody>
           {durations.length > 0 && (
           <>
-            <Tr borderBottomWidth={2} borderBottomColor="gray.300" borderBottomStyle="solid">
+            <Tr borderBottomWidth={2} borderBottomColor="gray.300">
               <Td><Heading size="sm">DAG Runs Summary</Heading></Td>
               <Td />
             </Tr>
@@ -142,7 +142,7 @@ const Dag = () => {
             </Tr>
           </>
           )}
-          <Tr borderBottomWidth={2} borderBottomColor="gray.300" borderBottomStyle="solid">
+          <Tr borderBottomWidth={2} borderBottomColor="gray.300">
             <Td>
               <Heading size="sm">DAG Summary</Heading>
             </Td>

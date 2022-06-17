@@ -29,10 +29,16 @@ Content
     Python API <_api/airflow/providers/apache/kylin/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/kylin/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/apache/kylin>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-kylin/3.0.0/tests/system/providers/apache/kylin>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-kylin/>
     Installing from sources <installing-providers-from-sources>
 

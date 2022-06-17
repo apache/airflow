@@ -38,6 +38,7 @@ Breaking changes
    * ``Clean up f-strings in logging calls (#23597)``
    * ``Add explanatory note for contributors about updating Changelog (#24229)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 1.0.0
 .....

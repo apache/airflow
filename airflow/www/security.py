@@ -631,7 +631,6 @@ class AirflowSecurityManager(SecurityManager, LoggingMixin):
         :param access_control: a dict where each key is a rolename and
             each value is a set() of action names (e.g. {'can_read'})
         """
-
         dag_resource_name = permissions.resource_name_for_dag(dag_id)
 
         def _get_or_create_dag_permission(action_name: str) -> Optional[Permission]:

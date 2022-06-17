@@ -36,10 +36,16 @@ Content
     Python API <_api/airflow/providers/cncf/kubernetes/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/cncf/kubernetes/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/cncf/kubernetes>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-cncf-kubernetes/4.1.0/tests/system/providers/cncf/kubernetes>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-cncf-kubernetes/>
     Installing from sources <installing-providers-from-sources>
 
@@ -59,7 +65,7 @@ Package apache-airflow-providers-cncf-kubernetes
 `Kubernetes <https://kubernetes.io/>`__
 
 
-Release: 5.0.0
+Release: 4.1.0
 
 Provider package
 ----------------

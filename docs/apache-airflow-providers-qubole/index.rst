@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/qubole/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/qubole/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/qubole>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-qubole/3.0.0/tests/system/providers/qubole>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-qubole/>
     Installing from sources <installing-providers-from-sources>
 

@@ -33,16 +33,17 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 Latest change: 2022-06-07
 
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b4a5783a2a <https://github.com/apache/airflow/commit/b4a5783a2a90d9a0dc8abe5f2a47e639bfb61646>`_  2022-06-06   ``chore: Refactoring and Cleaning Apache Providers (#24219)``
 `027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
 `34e0ab9b23 <https://github.com/apache/airflow/commit/34e0ab9b23e0dcf416169777240b97f4de08f772>`_  2022-06-05   ``AIP-47 - Migrate beam DAGs to new design #22439 (#24211)``
 `41e94b475e <https://github.com/apache/airflow/commit/41e94b475e06f63db39b0943c9d9a7476367083c>`_  2022-05-31   ``Support impersonation service account parameter for Dataflow runner (#23961)``
 `4a5250774b <https://github.com/apache/airflow/commit/4a5250774be8f48629294785801879277f42cc62>`_  2022-05-30   ``Added missing project_id to the wait_for_job (#24020)``
-=================================================================================================  ===========  ================================================================================
+=================================================================================================  ===========  ==================================================================================
 
 3.4.0
 .....

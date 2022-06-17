@@ -53,6 +53,7 @@ Bug Fixes
    * ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
    * ``Update dbt.py (#24218)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 1.0.2
 .....

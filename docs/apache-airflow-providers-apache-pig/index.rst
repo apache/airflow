@@ -34,10 +34,16 @@ Content
     Python API <_api/airflow/providers/apache/pig/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/pig/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/apache/pig>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-pig/3.0.0/tests/system/providers/apache/pig>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-pig/>
     Installing from sources <installing-providers-from-sources>
 

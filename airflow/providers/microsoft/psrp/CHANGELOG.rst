@@ -39,6 +39,7 @@ Breaking changes
    * ``Ensure @contextmanager decorates generator func (#23103)``
    * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 1.1.4
 .....

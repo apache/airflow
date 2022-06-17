@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/microsoft/winrm/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/microsoft/winrm/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/microsoft/winrm>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-microsoft-winrm/3.0.0/tests/system/providers/microsoft/winrm>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-microsoft-winrm/>
     Installing from sources <installing-providers-from-sources>
 

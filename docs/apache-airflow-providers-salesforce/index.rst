@@ -36,10 +36,16 @@ Content
     Python API <_api/airflow/providers/salesforce/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/salesforce/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/salesforce/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-salesforce/4.0.0/tests/system/providers/salesforce>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-salesforce/>
     Installing from sources <installing-providers-from-sources>
 

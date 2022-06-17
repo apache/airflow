@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/apache/spark/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/apache/spark/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/apache/spark>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-apache-spark/3.0.0/tests/system/providers/apache/spark>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-apache-spark/>
     Installing from sources <installing-providers-from-sources>
 

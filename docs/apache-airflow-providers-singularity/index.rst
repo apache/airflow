@@ -29,10 +29,16 @@ Content
     Python API <_api/airflow/providers/singularity/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/singularity/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/singularity/example_singularity.py>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-singularity/3.0.0/tests/system/providers/singularity/example_singularity.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-singularity/>
     Installing from sources <installing-providers-from-sources>
 

@@ -49,7 +49,7 @@ describe('Test Task InstanceTooltip', () => {
     const { getByText } = render(
       <InstanceTooltip
         group={{ isMapped: true }}
-        instance={{ ...instance, mappedStates: ['success', 'success'] }}
+        instance={{ ...instance, mappedStates: { success: 2 } }}
       />,
       { wrapper: Wrapper },
     );

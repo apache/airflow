@@ -36,10 +36,16 @@ Content
     Python API <_api/airflow/providers/jdbc/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/jdbc/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/jdbc>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-jdbc/3.0.0/tests/system/providers/jdbc/>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-jdbc/>
     Installing from sources <installing-providers-from-sources>
 

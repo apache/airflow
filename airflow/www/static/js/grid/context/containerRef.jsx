@@ -18,7 +18,6 @@
  */
 
 import React, { useContext, useRef } from 'react';
-import { Box } from '@chakra-ui/react';
 
 const ContainerRefContext = React.createContext(null);
 
@@ -29,9 +28,9 @@ export const ContainerRefProvider = ({ children }) => {
 
   return (
     <ContainerRefContext.Provider value={containerRef}>
-      <Box position="relative" ref={containerRef}>
+      <div ref={containerRef}>
         {children}
-      </Box>
+      </div>
     </ContainerRefContext.Provider>
   );
 };

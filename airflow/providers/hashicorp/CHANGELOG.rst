@@ -38,6 +38,9 @@ Breaking changes
    * ``pydocstyle D202 added (#24221)``
    * ``Prepare docs for May 2022 provider's release (#24231)``
 
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Update package description to remove double min-airflow specification (#24292)``
 
 2.2.0
 .....

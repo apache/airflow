@@ -31,11 +31,13 @@ For high-level changelog, see :doc:`package information including changelog <ind
 4.0.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-08
 
-=================================================================================================  ===========  ====================================================================================================
+=================================================================================================  ===========  ===========================================================================================================
 Commit                                                                                             Committed    Subject
-=================================================================================================  ===========  ====================================================================================================
+=================================================================================================  ===========  ===========================================================================================================
+`dc9c083a4b <https://github.com/apache/airflow/commit/dc9c083a4b696ec5ed4e7059de2fb98222e1ab62>`_  2022-06-08   ``fix: patches #24215. Won't raise KeyError when 'create_job_kwargs' contains the 'Command' key. (#24308)``
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `b88ce95188 <https://github.com/apache/airflow/commit/b88ce951881914e51058ad71858874fdc00a3cbe>`_  2022-06-07   ``Update doc and sample dag for EMR Containers (#24087)``
@@ -59,7 +61,7 @@ Commit                                                                          
 `ca25436108 <https://github.com/apache/airflow/commit/ca2543610872ccf62ccb085c5e0b6f9b8717c1aa>`_  2022-05-16   ``Add doc and sample dag for GCSToS3Operator (#23730)``
 `1a8f1ee276 <https://github.com/apache/airflow/commit/1a8f1ee27687492a69a8000bbec99ac31e7b0d33>`_  2022-05-12   ``Update doc and sample dag for Quicksight (#23653)``
 `094e50eb43 <https://github.com/apache/airflow/commit/094e50eb439e1c22e14ee78f375b7e00c71e9269>`_  2022-05-12   ``Replace "absolute()" with "resolve()" in pathlib objects (#23675)``
-=================================================================================================  ===========  ====================================================================================================
+=================================================================================================  ===========  ===========================================================================================================
 
 3.4.0
 .....

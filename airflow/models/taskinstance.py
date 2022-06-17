@@ -401,6 +401,20 @@ class TaskInstanceKey(NamedTuple):
         return self
 
 
+def _executor_config_comparator(x, y):
+    """
+    The TaskInstance.executor_config attribute is a pickled object that may contain
+    kubernetes objects.  If the installed library version has changed since the
+    object was originally pickled, due to the underlying ``__eq__`` method on these
+    objects (which converts them to JSON), we may encounter attribute errors. In this
+    case we should replace the stored object.
+    """
+    try:
+        return x == y
+    except AttributeError:
+        return False
+
+
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance. This table is the
@@ -443,7 +457,7 @@ class TaskInstance(Base, LoggingMixin):
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
-    executor_config = Column(PickleType(pickler=dill))
+    executor_config = Column(PickleType(pickler=dill, comparator=_executor_config_comparator))
 
     external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
 
@@ -772,7 +786,13 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + f"/log?execution_date={iso}&task_id={self.task_id}&dag_id={self.dag_id}"
+        return (
+            f"{base_url}/log"
+            f"?execution_date={iso}"
+            f"&task_id={self.task_id}"
+            f"&dag_id={self.dag_id}"
+            f"&map_index={self.map_index}"
+        )
 
     @property
     def mark_success_url(self):

@@ -41,10 +41,16 @@ Content
     Python API <_api/airflow/providers/presto/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/presto/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/presto>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-presto/3.0.0/tests/system/providers/presto>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-presto/>
     Installing from sources <installing-providers-from-sources>
 
@@ -87,7 +93,7 @@ PIP package               Version required
 ========================  ==================
 ``apache-airflow``        ``>=2.2.0``
 ``pandas``                ``>=0.17.1``
-``presto-python-client``  ``>=0.7.0,<0.8``
+``presto-python-client``  ``>=0.8.2``
 ========================  ==================
 
 Cross provider package dependencies

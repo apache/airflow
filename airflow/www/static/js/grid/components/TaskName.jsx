@@ -40,7 +40,7 @@ const TaskName = ({
     <Text
       display="inline"
       ml={level * 4 + 4}
-      isTruncated
+      noOfLines={1}
     >
       {label}
       {isMapped && (

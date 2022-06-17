@@ -35,10 +35,16 @@ Content
     Python API <_api/airflow/providers/opsgenie/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/opsgenie/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/opsgenie>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-opsgenie/4.0.0/tests/system/providers/opsgenie>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-opsgenie/>
     Installing from sources <installing-providers-from-sources>
 

@@ -40,10 +40,16 @@ Content
     Python API <_api/airflow/providers/dbt/cloud/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/dbt/cloud/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/tests/system/providers/dbt>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-dbt-cloud/2.0.0/tests/system/providers/dbt/cloud/example_dbt_cloud.py>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-dbt-cloud/>
     Installing from sources <installing-providers-from-sources>
 

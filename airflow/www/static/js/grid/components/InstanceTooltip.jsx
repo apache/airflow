@@ -35,6 +35,7 @@ const InstanceTooltip = ({
   const summary = [];
 
   const numMap = finalStatesMap();
+  let numMapped = 0;
   if (isGroup) {
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
@@ -44,9 +45,10 @@ const InstanceTooltip = ({
       }
     });
   } else if (isMapped && mappedStates) {
-    mappedStates.forEach((s) => {
-      const stateKey = s || 'no_status';
-      if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+    Object.keys(mappedStates).forEach((stateKey) => {
+      const num = mappedStates[stateKey];
+      numMapped += num;
+      numMap.set(stateKey || 'no_status', num);
     });
   }
 
@@ -68,12 +70,12 @@ const InstanceTooltip = ({
       {group.tooltip && (
         <Text>{group.tooltip}</Text>
       )}
-      {isMapped && !!mappedStates.length && (
+      {isMapped && numMapped > 0 && (
         <Text>
-          {mappedStates.length}
+          {numMapped}
           {' '}
           mapped task
-          {mappedStates.length > 1 && 's'}
+          {numMapped > 1 && 's'}
         </Text>
       )}
       <Text>
