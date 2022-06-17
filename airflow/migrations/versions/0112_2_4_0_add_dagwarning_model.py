@@ -26,7 +26,7 @@ Create Date: 2022-04-27 15:57:36.736743
 import sqlalchemy as sa
 from alembic import op
 
-from airflow.migrations.db_types import StringID
+from airflow.migrations.db_types import TIMESTAMP, StringID
 
 # revision identifiers, used by Alembic.
 
@@ -45,7 +45,7 @@ def upgrade():
         sa.Column('dag_id', StringID(), primary_key=True),
         sa.Column('warning_type', sa.String(length=50), primary_key=True),
         sa.Column('message', sa.String(1000), nullable=False),
-        sa.Column('timestamp', sa.TIMESTAMP, nullable=False),
+        sa.Column('timestamp', TIMESTAMP, nullable=False),
         sa.ForeignKeyConstraint(
             ('dag_id',),
             ['dag.dag_id'],
