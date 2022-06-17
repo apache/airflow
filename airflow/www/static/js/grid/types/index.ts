@@ -52,7 +52,8 @@ interface TaskInstance {
   state: TaskState | null;
   mappedStates?: {
     [key: string]: number;
-  }
+  },
+  tryNumber?: number;
 }
 
 interface Task {

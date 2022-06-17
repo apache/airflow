@@ -41,7 +41,7 @@ const Details: React.FC = () => {
         {runId && !taskId && (
           <DagRunContent runId={runId} />
         )}
-        {taskId && (
+        {taskId && runId && (
         <TaskInstanceContent
           runId={runId}
           taskId={taskId}

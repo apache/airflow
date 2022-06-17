@@ -17,19 +17,25 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 import { getMetaValue } from '../../utils';
 
+interface TaskData {
+  tasks: any[];
+  totalEntries: number;
+}
+
 export default function useTasks() {
-  return useQuery(
+  const query = useQuery<TaskData>(
     'tasks',
     () => {
       const tasksUrl = getMetaValue('tasks_api');
-      return axios.get(tasksUrl);
-    },
-    {
-      initialData: { tasks: [], totalEntries: 0 },
+      return axios.get<AxiosResponse, TaskData>(tasksUrl || '');
     },
   );
+  return {
+    ...query,
+    data: query.data || { tasks: [], totalEntries: 0 },
+  };
 }

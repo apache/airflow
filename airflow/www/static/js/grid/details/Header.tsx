@@ -32,15 +32,12 @@ import useSelection from '../utils/useSelection';
 import Time from '../components/Time';
 import { useTasks, useGridData } from '../api';
 import BreadcrumbText from './BreadcrumbText';
-import type { DagRun } from '../types';
 
 const dagId = getMetaValue('dag_id');
 
 const Header: React.FC = () => {
-  const { data: gridData } = useGridData();
-  const { data: taskData } = useTasks();
-  const dagRuns: DagRun[] = gridData?.dagRuns || [];
-  const tasks: any[] = (taskData as any)?.tasks || [];
+  const { data: { dagRuns } } = useGridData();
+  const { data: { tasks } } = useTasks();
 
   const { selected: { taskId, runId }, onSelect, clearSelection } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);

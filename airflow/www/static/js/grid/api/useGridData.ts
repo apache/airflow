@@ -40,7 +40,7 @@ interface GridData {
   groups: Task;
 }
 
-const emptyData: GridData = {
+const emptyGridData: GridData = {
   dagRuns: [],
   groups: {
     id: null,
@@ -60,38 +60,40 @@ const useGridData = () => {
     },
   } = useFilters();
 
-  return useQuery<GridData>(
+  const query = useQuery(
     ['gridData', baseDate, numRuns, runType, runState],
     async () => {
-      try {
-        const params = {
-          root: urlRoot || undefined,
-          [DAG_ID_PARAM]: dagId,
-          [BASE_DATE_PARAM]: baseDate === now ? undefined : baseDate,
-          [NUM_RUNS_PARAM]: numRuns,
-          [RUN_TYPE_PARAM]: runType,
-          [RUN_STATE_PARAM]: runState,
-        };
-        const response = await axios.get<AxiosResponse, GridData>(gridDataUrl, { params });
-        // turn off auto refresh if there are no active runs
-        if (!areActiveRuns(response.dagRuns)) stopRefresh();
-        return response;
-      } catch (error) {
+      const params = {
+        root: urlRoot || undefined,
+        [DAG_ID_PARAM]: dagId,
+        [BASE_DATE_PARAM]: baseDate === now ? undefined : baseDate,
+        [NUM_RUNS_PARAM]: numRuns,
+        [RUN_TYPE_PARAM]: runType,
+        [RUN_STATE_PARAM]: runState,
+      };
+      const response = await axios.get<AxiosResponse, GridData>(gridDataUrl, { params });
+      // turn off auto refresh if there are no active runs
+      if (!areActiveRuns(response.dagRuns)) stopRefresh();
+      return response;
+    },
+    {
+      // only refetch if the refresh switch is on
+      refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+      keepPreviousData: true,
+      onError: (error) => {
         stopRefresh();
         errorToast({
           title: 'Auto-refresh Error',
           error,
         });
         throw (error);
-      }
-    },
-    {
-      placeholderData: emptyData,
-      // only refetch if the refresh switch is on
-      refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
-      keepPreviousData: true,
+      },
     },
   );
+  return {
+    ...query,
+    data: query.data ?? emptyGridData,
+  };
 };
 
 export default useGridData;
