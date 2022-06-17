@@ -798,6 +798,21 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
 
+    # First check if we have an empty table. If so, and the default values exist,
+    # we will seed the table with the values from pre 2.3.0, so old logs will
+    # still be retrievable.
+    if not session.query(LogTemplate.id).first():
+        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
+        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        if is_default_log_id and is_default_filename:
+            session.add(
+                LogTemplate(
+                    filename="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+                    elasticsearch_id="{dag_id}-{task_id}-{execution_date}-{try_number}",
+                )
+            )
+            session.flush()
+
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
     pre_upgrade_filename = conf.upgraded_values.get(("logging", "log_filename_template"), filename)
