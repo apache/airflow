@@ -17,16 +17,13 @@
 
 from typing import Optional
 
-from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
-from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dag_warning_schema import (
     DagWarningCollection,
     dag_warning_collection_schema,
-    dag_warning_schema,
 )
 from airflow.api_connexion.types import APIResponse
 from airflow.models.dagwarning import DagWarning as DagWarningModel
@@ -35,33 +32,29 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)])
-@provide_session
-def get_dag_warning(*, dag_id: str, warning_type: str, session: Session = NEW_SESSION) -> APIResponse:
-    """Get a DAG warning"""
-    entity = session.query(DagWarningModel).get((dag_id, warning_type))
-
-    if entity is None:
-        raise NotFound(
-            "Dag warning not found",
-            detail=f"The DagWarning with (dag_id, warning_type) = {(dag_id, warning_type)} was not found",
-        )
-    return dag_warning_schema.dump(entity)
-
-
-@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_WARNING)])
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_dag_warnings(
     *,
     limit: int,
+    dag_id: Optional[str] = None,
+    warning_type: Optional[str] = None,
     offset: Optional[int] = None,
     order_by: str = "timestamp",
     session: Session = NEW_SESSION,
 ) -> APIResponse:
-    """Get all import errors"""
+    """Get DAG warnings.
+
+    :param dag_id: the dag_id to optionally filter by
+    :param warning_type: the warning type to optionally filter by
+    """
     allowed_filter_attrs = ["dag_id", "warning_type", "message", "timestamp"]
-    total_entries = session.query(func.count(DagWarningModel.dag_id)).scalar()
     query = session.query(DagWarningModel)
+    if dag_id:
+        query = query.filter(DagWarningModel.dag_id == dag_id)
+    if warning_type:
+        query = query.filter(DagWarningModel.warning_type == warning_type)
+    total_entries = query.count()
     query = apply_sorting(query=query, order_by=order_by, allowed_attrs=allowed_filter_attrs)
     dag_warnings = query.offset(offset).limit(limit).all()
     return dag_warning_collection_schema.dump(

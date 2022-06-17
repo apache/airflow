@@ -19,7 +19,7 @@ from enum import Enum
 
 from sqlalchemy import Column, ForeignKeyConstraint, String, Text, false
 
-from airflow.models.base import ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import UtcDateTime
@@ -85,4 +85,4 @@ class DagWarningType(str, Enum):
     in the DagWarning model.
     """
 
-    NONEXISTENT_POOL = 'nonexistent_pool'
+    NONEXISTENT_POOL = 'non-existent pool'

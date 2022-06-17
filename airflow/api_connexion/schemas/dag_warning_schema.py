@@ -34,7 +34,6 @@ class DagWarningSchema(SQLAlchemySchema):
     warning_type = auto_field()
     message = auto_field()
     timestamp = auto_field(format="iso")
-    stack_trace = auto_field("stacktrace")
 
 
 class DagWarningCollection(NamedTuple):
