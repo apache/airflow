@@ -391,6 +391,7 @@ def dag_to_grid(dag, dag_runs, session):
         if task_group.group_id is None:
             return {
                 'id': task_group.group_id,
+                'label': task_group.label,
                 'children': children,
                 'instances': [],
             }
