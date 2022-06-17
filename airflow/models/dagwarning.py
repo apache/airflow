@@ -71,9 +71,13 @@ class DagWarning(Base):
         """
         from airflow.models.dag import DagModel
 
-        session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false()).delete(
-            synchronize_session=False
-        )
+        if session.get_bind().dialect.name == 'sqlite':
+            dag_ids = session.query(DagModel).filter(DagModel.is_active == false()).all()
+            session.query(cls).filter(cls.dag_id.in_(dag_ids)).delete(synchronize_session=False)
+        else:
+            session.query(cls).filter(cls.dag_id == DagModel.dag_id, DagModel.is_active == false()).delete(
+                synchronize_session=False
+            )
         session.commit()
 
 

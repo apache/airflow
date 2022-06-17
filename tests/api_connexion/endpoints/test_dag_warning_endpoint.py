@@ -76,7 +76,7 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
 
     def test_response_one(self):
         response = self.client.get(
-            f"/api/v1/dagWarnings",
+            "/api/v1/dagWarnings",
             environ_overrides={'REMOTE_USER': "test"},
             query_string={'dag_id': 'dag1', 'warning_type': 'non-existent pool'},
         )
@@ -96,7 +96,7 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
 
     def test_response_some(self):
         response = self.client.get(
-            f"/api/v1/dagWarnings",
+            "/api/v1/dagWarnings",
             environ_overrides={'REMOTE_USER': "test"},
             query_string={'warning_type': 'non-existent pool'},
         )
@@ -110,7 +110,7 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
 
     def test_response_none(self, session):
         response = self.client.get(
-            f"/api/v1/dagWarnings",
+            "/api/v1/dagWarnings",
             environ_overrides={'REMOTE_USER': "test"},
             query_string={'dag_id': 'missing_dag'},
         )
@@ -123,7 +123,7 @@ class TestGetDagWarningEndpoint(TestBaseDagWarning):
 
     def test_response_all(self):
         response = self.client.get(
-            f"/api/v1/dagWarnings",
+            "/api/v1/dagWarnings",
             environ_overrides={'REMOTE_USER': "test"},
         )
 
