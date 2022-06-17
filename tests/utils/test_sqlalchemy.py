@@ -17,12 +17,14 @@
 # under the License.
 #
 import datetime
+import pickle
 import unittest
 from copy import copy
 from unittest import mock
 from unittest.mock import MagicMock
 
 import pytest
+from kubernetes.client import models as k8s
 from parameterized import parameterized
 from pytest import param
 from sqlalchemy.exc import StatementError
@@ -35,6 +37,8 @@ from airflow.settings import Session
 from airflow.utils.sqlalchemy import ExecutorConfigType, nowait, prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
+
+TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
 
 class TestSqlAlchemyUtils(unittest.TestCase):
@@ -231,12 +235,6 @@ class TestSqlAlchemyUtils(unittest.TestCase):
     def tearDown(self):
         self.session.close()
         settings.engine.dispose()
-
-
-from kubernetes.client import models as k8s
-
-TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
-import pickle
 
 
 class TestExecutorConfigType:
