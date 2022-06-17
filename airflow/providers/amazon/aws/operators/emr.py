@@ -25,7 +25,6 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook, EmrServerlessHook
 from airflow.providers.amazon.aws.sensors.emr import EmrServerlessApplicationSensor, EmrServerlessJobSensor
-from airflow.providers.amazon.aws.utils.emr_serverless import waiter
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -477,7 +476,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
         self.log.info(f'EMR serverless application created: {application_id}')
 
         # This should be replaced with a boto waiter when available.
-        waiter(
+        self.hook.waiter(
             get_state_callable=self.hook.conn.get_application,
             get_state_args={'applicationId': application_id},
             parse_response=['application', 'state'],
@@ -492,7 +491,7 @@ class EmrServerlessCreateApplicationOperator(BaseOperator):
 
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            waiter(
+            self.hook.waiter(
                 get_state_callable=self.hook.conn.get_application,
                 get_state_args={'applicationId': application_id},
                 parse_response=['application', 'state'],
@@ -554,9 +553,19 @@ class EmrServerlessStartJobOperator(BaseOperator):
     def execute(self, context: 'Context') -> Dict:
         self.log.info(f'Starting job on Application: {self.application_id}')
 
-        job_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
-        if job_state not in {'CREATED', 'STARTING'}:
+        app_state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
+        if app_state not in {'CREATED', 'STARTED'}:
             self.hook.conn.start_application(applicationId=self.application_id)
+
+        self.hook.waiter(
+            get_state_callable=self.hook.conn.get_application,
+            get_state_args={'applicationId': self.application_id},
+            parse_response=['application', 'state'],
+            desired_state={'STARTED'},
+            failure_states=EmrServerlessApplicationSensor.FAILURE_STATES,
+            object_type='application',
+            action='started',
+        )
 
         response = self.hook.conn.start_job_run(
             clientToken=self.client_request_token,
@@ -572,7 +581,7 @@ class EmrServerlessStartJobOperator(BaseOperator):
         self.log.info(f'EMR serverless job started: {response["jobRunId"]}')
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            waiter(
+            self.hook.waiter(
                 get_state_callable=self.hook.conn.get_job_run,
                 get_state_args={
                     'applicationId': self.application_id,
@@ -624,7 +633,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
         self.hook.conn.stop_application(applicationId=self.application_id)
 
         # This should be replaced with a boto waiter when available.
-        waiter(
+        self.hook.waiter(
             get_state_callable=self.hook.conn.get_application,
             get_state_args={
                 'applicationId': self.application_id,
@@ -644,7 +653,7 @@ class EmrServerlessDeleteApplicationOperator(BaseOperator):
 
         if self.wait_for_completion:
             # This should be replaced with a boto waiter when available.
-            waiter(
+            self.hook.waiter(
                 get_state_callable=self.hook.conn.get_application,
                 get_state_args={'applicationId': self.application_id},
                 parse_response=['application', 'state'],

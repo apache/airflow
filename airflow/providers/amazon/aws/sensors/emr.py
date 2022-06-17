@@ -163,11 +163,15 @@ class EmrServerlessJobSensor(BaseSensorOperator):
         state = None
 
         try:
-            state = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)[
-                'jobRun'
-            ]['state']
+            response = self.hook.conn.get_job_run(applicationId=self.application_id, jobRunId=self.job_run_id)
         except Exception:
-            raise AirflowException(f'Unable to get job state: {state}')
+            raise AirflowException(f'Unable to get job state: {response}')
+
+        state = response['jobRun']['state']
+
+        if state in self.FAILURE_STATES:
+            failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
+            raise AirflowException(failure_message)
 
         return state in self.target_states
 
@@ -175,6 +179,17 @@ class EmrServerlessJobSensor(BaseSensorOperator):
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
         return EmrServerlessHook()
+
+    @staticmethod
+    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+        """
+        Get failure message from response dictionary.
+
+        :param response: response from AWS API
+        :return: failure message
+        :rtype: Optional[str]
+        """
+        return response['jobRun']['stateDetails']
 
 
 class EmrServerlessApplicationSensor(BaseSensorOperator):
@@ -218,9 +233,15 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
         state = None
 
         try:
-            state = self.hook.conn.get_application(applicationId=self.application_id)['application']['state']
+            response = self.hook.conn.get_application(applicationId=self.application_id)
         except Exception:
-            raise AirflowException(f'Unable to get application state: {state}')
+            raise AirflowException(f'Unable to get application state: {response}')
+
+        state = response['application']['state']
+
+        if state in self.FAILURE_STATES:
+            failure_message = f"EMR Serverless job failed: {self.failure_message_from_response(response)}"
+            raise AirflowException(failure_message)
 
         return state in self.target_states
 
@@ -228,6 +249,17 @@ class EmrServerlessApplicationSensor(BaseSensorOperator):
     def hook(self) -> EmrServerlessHook:
         """Create and return an EmrServerlessHook"""
         return EmrServerlessHook()
+
+    @staticmethod
+    def failure_message_from_response(response: Dict[str, Any]) -> Optional[str]:
+        """
+        Get failure message from response dictionary.
+
+        :param response: response from AWS API
+        :return: failure message
+        :rtype: Optional[str]
+        """
+        return response['application']['stateDetails']
 
 
 class EmrContainerSensor(BaseSensorOperator):
