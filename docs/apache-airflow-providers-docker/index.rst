@@ -30,6 +30,12 @@ Content
     Python API <_api/airflow/providers/docker/index>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/docker/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 

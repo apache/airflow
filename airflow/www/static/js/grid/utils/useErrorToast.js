@@ -35,10 +35,10 @@ const useErrorToast = () => {
   // Add an error prop and handle it as a description
   return ({ error, ...rest }) => {
     toast({
+      ...rest,
       status: 'error',
       title: getErrorTitle(error),
       description: getErrorDescription(error).slice(0, 500),
-      ...rest,
     });
   };
 };

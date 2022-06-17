@@ -26,15 +26,16 @@ Cloud Platform.
 This DAG relies on the following OS environment variables:
 
 * GCP_VERTEX_AI_BUCKET - Google Cloud Storage bucket where the model will be saved
-after training process was finished.
+  after training process was finished.
 * CUSTOM_CONTAINER_URI - path to container with model.
 * PYTHON_PACKAGE_GSC_URI - path to test model in archive.
 * LOCAL_TRAINING_SCRIPT_PATH - path to local training script.
 * DATASET_ID - ID of dataset which will be used in training process.
 * MODEL_ID - ID of model which will be used in predict process.
 * MODEL_ARTIFACT_URI - The artifact_uri should be the path to a GCS directory containing saved model
-artifacts.
+  artifacts.
 """
+
 import os
 from datetime import datetime
 from uuid import uuid4

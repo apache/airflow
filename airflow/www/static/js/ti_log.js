@@ -33,7 +33,7 @@ const ANIMATION_SPEED = parseInt(getMetaValue('animation_speed'), 10);
 const TOTAL_ATTEMPTS = parseInt(getMetaValue('total_attempts'), 10);
 
 function recurse(delay = DELAY) {
-  return new Promise((resolve) => setTimeout(resolve, delay));
+  return new Promise((resolve) => { setTimeout(resolve, delay); });
 }
 
 // Enable auto tailing only when users scroll down to the bottom
@@ -134,9 +134,7 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
       document.getElementById(`loading-${tryNumber}`).style.display = 'none';
       return;
     }
-    recurse().then(() => autoTailingLog(
-      tryNumber, res.metadata, autoTailing,
-    ));
+    recurse().then(() => autoTailingLog(tryNumber, res.metadata, autoTailing));
   });
 }
 

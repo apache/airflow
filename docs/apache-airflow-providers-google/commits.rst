@@ -35,14 +35,35 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+8.1.0
+.....
+
+Latest change: 2022-06-15
+
+=================================================================================================  ===========  ============================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ============================================================================================
+`ce50d3731a <https://github.com/apache/airflow/commit/ce50d3731a049047d31d09c6d38a470b84cf57e7>`_  2022-06-15   ``Use insert_job in the BigQueryToGCPOpertor and adjust links (#24416)``
+`2a084ee8d7 <https://github.com/apache/airflow/commit/2a084ee8d7fb27cbc3ad28f4845c5d20c82f0cbe>`_  2022-06-14   ``Update Oracle library to latest version (#24311)``
+`69c46252dd <https://github.com/apache/airflow/commit/69c46252dd222fbcbfdd035ce6de1868b719023f>`_  2022-06-14   ``fix typo in google provider additional extras (#24431)``
+`08b675cf66 <https://github.com/apache/airflow/commit/08b675cf6642171cb1c5ddfb09607b541db70b29>`_  2022-06-13   ``Fix links to sources for examples (#24386)``
+`94257f48f4 <https://github.com/apache/airflow/commit/94257f48f4a3f123918b0d55c34753c7c413eb74>`_  2022-06-13   ``Expose SQL to GCS Metadata (#24382)``
+`8e0bddaea6 <https://github.com/apache/airflow/commit/8e0bddaea69db4d175f03fa99951f6d82acee84d>`_  2022-06-12   ``Deprecate remaining occurrences of 'bigquery_conn_id' in favor of 'gcp_conn_id' (#24376)``
+`6eb60f816c <https://github.com/apache/airflow/commit/6eb60f816cb6103d42c023ce5fba9ac31a64f9ce>`_  2022-06-12   ``Migrate Google calendar example DAG to new design AIP-47 (#24333)``
+`bc3fc8c9fc <https://github.com/apache/airflow/commit/bc3fc8c9fcb5d1291797aa5f4fc8da954573c694>`_  2022-06-12   ``Migrate Google azure_fileshare example DAG to new design AIP-47 (#24349)``
+`6ab02b69a0 <https://github.com/apache/airflow/commit/6ab02b69a0bbc398e9e41c70d78487d3255b0585>`_  2022-06-12   ``Remove bigquery example already migrated to AIP-47 (#24379)``
+`cb90ca7afb <https://github.com/apache/airflow/commit/cb90ca7afbbca9911fc2104f331354b6d1a63758>`_  2022-06-12   ``Migrate Google sheets example DAG to new design AIP-47 (#24351)``
+=================================================================================================  ===========  ============================================================================================
+
 8.0.0
 .....
 
-Latest change: 2022-06-08
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  =======================================================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =======================================================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `047a6162b0 <https://github.com/apache/airflow/commit/047a6162b0b4cbf07fe2fd978e335839a7d3900b>`_  2022-06-08   ``Workaround job race bug on biguery to gcs transfer (#24330)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
