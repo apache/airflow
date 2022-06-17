@@ -133,7 +133,7 @@ option_use_airflow_version = click.option(
     '--use-airflow-version',
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or `sdist`"
     " if Airflow should be removed, installed from wheel packages or sdist packages available in dist "
-    "folder respectively. Implies --mount-sources `none`.",
+    "folder respectively. Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar='USE_AIRFLOW_VERSION',
 )
@@ -149,7 +149,7 @@ option_mount_sources = click.option(
     type=BetterChoice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
     show_default=True,
-    help="Choose scope of local sources should be mounted (default = selected).",
+    help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
 option_force_build = click.option(
     '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
@@ -186,16 +186,11 @@ option_github_username = click.option(
     help='The user name used to authenticate to GitHub.',
     envvar='GITHUB_USERNAME',
 )
-option_github_image_id = click.option(
-    '-s',
-    '--github-image-id',
-    help='Commit SHA of the image. \
-    Breeze can automatically pull the commit SHA id specified Default: latest',
-)
 option_image_tag = click.option(
     '-t',
     '--image-tag',
-    help='Tag added to the default naming conventions of Airflow CI/PROD images.',
+    help='Tag of the image which is used to pull or run the image (implies --mount-sources=skip'
+    ' when using to run shell or tests) ',
     envvar='IMAGE_TAG',
 )
 option_image_name = click.option(
