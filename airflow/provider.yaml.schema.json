@@ -70,7 +70,6 @@
                 "apache",
                 "aws",
                 "azure",
-                "core.sql",
                 "dbt",
                 "gcp",
                 "gmp",
