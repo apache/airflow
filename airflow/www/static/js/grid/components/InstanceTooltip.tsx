@@ -23,11 +23,11 @@ import { Box, Text } from '@chakra-ui/react';
 import { finalStatesMap } from '../../utils';
 import { formatDuration, getDuration } from '../../datetime_utils';
 import Time from './Time';
-import type { GridTaskInstance, GridTask } from '../types';
+import type { TaskInstance, Task } from '../types';
 
 interface Props {
-  group: GridTask;
-  instance: GridTaskInstance;
+  group: Task;
+  instance: TaskInstance;
 }
 
 const InstanceTooltip: React.FC<Props> = ({

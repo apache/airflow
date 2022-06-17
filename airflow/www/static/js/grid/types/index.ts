@@ -17,7 +17,7 @@
  * under the License.
  */
 
-type RunState = 'success' | 'running' | 'queued' | 'failed' | 'no_status' | '';
+type RunState = 'success' | 'running' | 'queued' | 'failed';
 
 type TaskState = RunState
 | 'removed'
@@ -39,27 +39,28 @@ interface DagRun {
   executionDate: string;
   dataIntervalStart: string;
   dataIntervalEnd: string;
-  startDate: string;
-  endDate: string;
+  startDate: string | null;
+  endDate: string | null;
+  lastSchedulingDecision: string | null;
 }
 
-interface GridTaskInstance {
+interface TaskInstance {
   runId: string;
   taskId: string;
   startDate: string | null;
   endDate: string | null;
-  state: TaskState;
+  state: TaskState | null;
   mappedStates?: {
     [key: string]: number;
   }
 }
 
-interface GridTask {
+interface Task {
   id: string | null;
   label: string | null;
-  instances: GridTaskInstance[];
+  instances: TaskInstance[];
   tooltip?: string;
-  children?: GridTask[];
+  children?: Task[];
   extraLinks?: string[];
   isMapped?: boolean;
 }
@@ -68,6 +69,6 @@ export type {
   DagRun,
   RunState,
   TaskState,
-  GridTaskInstance,
-  GridTask,
+  TaskInstance,
+  Task,
 };

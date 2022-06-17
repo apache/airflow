@@ -28,7 +28,7 @@ import {
 import Tooltip from './Tooltip';
 import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from '../context/containerRef';
-import type { GridTask, GridTaskInstance, TaskState } from '../types';
+import type { Task, TaskInstance, TaskState } from '../types';
 import type { SelectionProps } from '../utils/useSelection';
 
 export const boxSize = 10;
@@ -50,8 +50,8 @@ export const SimpleStatus: React.FC<SimpleStatusProps> = ({ state, ...rest }) =>
 );
 
 interface Props {
-  group: GridTask;
-  instance: GridTaskInstance;
+  group: Task;
+  instance: TaskInstance;
   onSelect: (selection: SelectionProps) => void;
   isActive: boolean;
 }

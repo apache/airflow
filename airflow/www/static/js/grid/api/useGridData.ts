@@ -26,7 +26,7 @@ import useErrorToast from '../utils/useErrorToast';
 import useFilters, {
   BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
 } from '../utils/useFilters';
-import type { GridTask, DagRun } from '../types';
+import type { Task, DagRun } from '../types';
 
 const DAG_ID_PARAM = 'dag_id';
 
@@ -37,7 +37,7 @@ const urlRoot = getMetaValue('root');
 
 interface GridData {
   dagRuns: DagRun[];
-  groups: GridTask;
+  groups: Task;
 }
 
 const emptyData: GridData = {
