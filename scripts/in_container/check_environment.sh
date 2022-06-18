@@ -129,7 +129,7 @@ function startairflow_if_requested() {
         echo
         echo "Starting Airflow"
         echo
-        export AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
+        export AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS=${LOAD_DEFAULT_CONNECTIONS}
         export AIRFLOW__CORE__LOAD_EXAMPLES=${LOAD_EXAMPLES}
 
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
