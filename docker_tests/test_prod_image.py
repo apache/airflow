@@ -162,7 +162,7 @@ class TestPythonPackages:
         "pyodbc": ["pyodbc"],
         "redis": ["redis"],
         "sendgrid": ["sendgrid"],
-        "sftp/ssh": ["paramiko", "pysftp", "sshtunnel"],
+        "sftp/ssh": ["paramiko", "sshtunnel"],
         "slack": ["slack_sdk"],
         "statsd": ["statsd"],
         "virtualenv": ["virtualenv"],

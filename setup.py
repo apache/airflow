@@ -537,7 +537,6 @@ spark = [
 ]
 ssh = [
     'paramiko>=2.6.0',
-    'pysftp>=0.2.9',
     'sshtunnel>=0.3.2',
 ]
 statsd = [
@@ -640,7 +639,6 @@ devel_only = [
     'pre-commit',
     'pypsrp',
     'pygithub',
-    'pysftp',
     # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
     # It contains a number of potential breaking changes but none of them looks breaking our use
     # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
