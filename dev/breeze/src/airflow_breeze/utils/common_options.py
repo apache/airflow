@@ -434,3 +434,9 @@ option_airflow_constraints_mode_prod = click.option(
     show_default=True,
     help='Mode of constraints for PROD image building',
 )
+option_pull_image = click.option(
+    '--pull-image',
+    help="Pull image is missing before attempting to verify it.",
+    is_flag=True,
+    envvar='PULL_IMAGE',
+)
