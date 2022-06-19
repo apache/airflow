@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-18T20:15:36Z
+# This constraints file was automatically generated on 2022-06-19T20:31:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -10,7 +10,7 @@
 #
 # Editable install with no version control (apache-airflow==2.4.0.dev0)
 APScheduler==3.6.3
-Authlib==1.0.1
+Authlib==0.15.5
 Babel==2.10.3
 Deprecated==1.2.13
 Flask-AppBuilder==3.4.5
@@ -235,7 +235,7 @@ hmsclient==0.1.1
 httpcore==0.15.0
 httplib2==0.18.1
 httpx==0.23.0
-humanize==4.1.0
+humanize==4.2.0
 hvac==0.11.2
 identify==2.5.1
 idna==3.3
@@ -287,7 +287,7 @@ mongomock==4.0.0
 monotonic==1.6
 more-itertools==8.13.0
 moreorless==0.4.0
-moto==3.1.13
+moto==3.1.14
 msal-extensions==1.0.0
 msal==1.18.0
 msgpack==1.0.4
@@ -455,7 +455,7 @@ sphinxcontrib-jsmath==1.0.1
 sphinxcontrib-qthelp==1.0.3
 sphinxcontrib-redoc==1.6.0
 sphinxcontrib-serializinghtml==1.1.5
-sphinxcontrib-spelling==7.5.0
+sphinxcontrib-spelling==7.5.1
 spython==0.2.1
 sqlalchemy-bigquery==1.4.4
 sqlalchemy-drill==1.1.2
