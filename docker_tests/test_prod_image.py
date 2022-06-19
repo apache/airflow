@@ -16,6 +16,7 @@
 # under the License.
 
 import json
+import os
 import subprocess
 import tempfile
 from pathlib import Path
@@ -30,6 +31,7 @@ from docker_tests.docker_tests_utils import (
     run_bash_in_docker,
     run_python_in_docker,
 )
+from setup import PREINSTALLED_PROVIDERS
 
 INSTALLED_PROVIDER_PATH = SOURCE_ROOT / "scripts" / "ci" / "installed_providers.txt"
 
@@ -74,8 +76,11 @@ class TestCommands:
 
 class TestPythonPackages:
     def test_required_providers_are_installed(self):
-        lines = (d.strip() for d in INSTALLED_PROVIDER_PATH.read_text().splitlines())
-        lines = (d for d in lines)
+        if os.environ.get("TEST_SLIM_IMAGE"):
+            lines = PREINSTALLED_PROVIDERS
+        else:
+            lines = (d.strip() for d in INSTALLED_PROVIDER_PATH.read_text().splitlines())
+            lines = (d for d in lines)
         packages_to_install = {f"apache-airflow-providers-{d.replace('.', '-')}" for d in lines}
         assert len(packages_to_install) != 0
 
@@ -163,6 +168,7 @@ class TestPythonPackages:
         "virtualenv": ["virtualenv"],
     }
 
+    @pytest.mark.skipif(os.environ.get("TEST_SLIM_IMAGE") == "true", reason="Skipped with slim image")
     @pytest.mark.parametrize("package_name,import_names", PACKAGE_IMPORTS.items())
     def test_check_dependencies_imports(self, package_name, import_names):
         run_python_in_docker(f"import {','.join(import_names)}")

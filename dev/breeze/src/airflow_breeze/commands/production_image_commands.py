@@ -52,6 +52,7 @@ from airflow_breeze.utils.common_options import (
     option_parallelism,
     option_platform,
     option_prepare_buildx_cache,
+    option_pull_image,
     option_push_image,
     option_python,
     option_python_versions,
@@ -184,6 +185,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--image-name",
                 "--python",
                 "--image-tag",
+                "--pull-image",
             ],
         }
     ],
@@ -382,6 +384,12 @@ def pull_prod_image(
 @option_github_repository
 @option_image_tag
 @option_image_name
+@option_pull_image
+@click.option(
+    '--slim-image',
+    help='The image to verify is slim and non-slim tests should be skipped.',
+    is_flag=True,
+)
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def verify_prod_image(
     verbose: bool,
@@ -390,6 +398,8 @@ def verify_prod_image(
     github_repository: str,
     image_name: str,
     image_tag: str,
+    pull_image: bool,
+    slim_image: bool,
     extra_pytest_args: Tuple,
 ):
     """Verify Production image."""
@@ -399,6 +409,9 @@ def verify_prod_image(
             python=python, image_tag=image_tag, github_repository=github_repository
         )
         image_name = build_params.airflow_image_name_with_tag
+    if pull_image:
+        command_to_run = ["docker", "pull", image_name]
+        run_command(command_to_run, verbose=verbose, dry_run=dry_run, check=True)
     get_console().print(f"[info]Verifying PROD image: {image_name}[/]")
     return_code, info = verify_an_image(
         image_name=image_name,
@@ -406,6 +419,7 @@ def verify_prod_image(
         dry_run=dry_run,
         image_type='PROD',
         extra_pytest_args=extra_pytest_args,
+        slim_image=slim_image,
     )
     sys.exit(return_code)
 
