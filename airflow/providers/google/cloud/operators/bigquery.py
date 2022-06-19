@@ -33,7 +33,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
 from airflow.models.xcom import XCom
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
-from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob, _split_tablename
+from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook, BigQueryJob
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url
 from airflow.providers.google.cloud.links.bigquery import BigQueryDatasetLink, BigQueryTableLink
 
@@ -1143,7 +1143,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
 
-        project_id, dataset_id, table_id = _split_tablename(
+        project_id, dataset_id, table_id = bq_hook.split_tablename(
             table_input=self.destination_project_dataset_table,
             default_project_id=bq_hook.project_id or '',
         )
