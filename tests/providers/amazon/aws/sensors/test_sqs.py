@@ -27,7 +27,7 @@ from moto import mock_sqs
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
+from airflow.providers.amazon.aws.sensors.sqs import SqsBatchSensor, SqsSensor
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -305,3 +305,31 @@ class TestSqsSensor(unittest.TestCase):
         )
         self.sensor.poke(self.mock_context)
         assert mock_conn.delete_message_batch.called is False
+
+    @mock_sqs
+    def test_poke_batch_messages(self):
+        messages = ["hello", "brave", "world"]
+
+        self.sqs_hook.create_queue(QUEUE_NAME)
+        # Do publish 3 messages
+        for message in messages:
+            self.sqs_hook.send_message(queue_url=QUEUE_URL, message_body=message)
+
+        # Init batch sensor to get 1 message for each SQS poll
+        # and perform 3 polls
+        self.sensor = SqsBatchSensor(
+            task_id='test_task3',
+            dag=self.dag,
+            sqs_queue=QUEUE_URL,
+            aws_conn_id='aws_default',
+            max_messages=1,
+            batch=3,
+        )
+        result = self.sensor.poke(self.mock_context)
+        assert result
+
+        # expect all messages are retrieved
+        for message in messages:
+            assert f"'Body': '{message}'" in str(
+                self.mock_context['ti'].method_calls
+            ), "context call should contain message '{message}'"
