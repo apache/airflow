@@ -59,7 +59,7 @@ from airflow.models import (  # noqa: F401
 )
 
 # We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 
@@ -789,6 +789,14 @@ def check_and_run_migrations():
 
 
 @provide_session
+def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
+    session.query(SerializedDagModel).delete(synchronize_session=False)
+    dagbag = DagBag()
+    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag.sync_to_db(session=session)
+
+
+@provide_session
 def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     """Synchronize log template configs with table.
 
@@ -879,7 +887,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
-def reflect_tables(tables: List[Union[Base, str]], session):
+def reflect_tables(tables: Optional[List[Union[Base, str]]], session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
     database.
@@ -890,12 +898,15 @@ def reflect_tables(tables: List[Union[Base, str]], session):
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
 
-    for tbl in tables:
-        try:
-            table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-            metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
-        except exc.InvalidRequestError:
-            continue
+    if tables is None:
+        metadata.reflect(resolve_fks=False)
+    else:
+        for tbl in tables:
+            try:
+                table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
+                metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
+            except exc.InvalidRequestError:
+                continue
     return metadata
 
 
@@ -1470,8 +1481,9 @@ def upgradedb(
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
         command.upgrade(config, revision=to_revision or 'heads')
-    add_default_pool_if_not_exists()
-    synchronize_log_template()
+    reserialize_dags(session=session)
+    add_default_pool_if_not_exists(session=session)
+    synchronize_log_template(session=session)
 
 
 @provide_session

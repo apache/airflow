@@ -240,14 +240,14 @@ class TestTrinoHook(unittest.TestCase):
 
         self.cur.execute.assert_called_once_with(statement, None)
 
-    @patch('airflow.hooks.dbapi.DbApiHook.run')
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.run')
     def test_run(self, mock_run):
-        hql = "SELECT 1"
+        sql = "SELECT 1"
         autocommit = False
-        parameters = {"hello": "world"}
-        handler = str
-        self.db_hook.run(hql, autocommit, parameters, handler)
-        mock_run.assert_called_once_with(sql=hql, autocommit=False, parameters=parameters, handler=str)
+        parameters = ("hello", "world")
+        handler = list
+        self.db_hook.run(sql, autocommit, parameters, list)
+        mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
 
 
 class TestTrinoHookIntegration(unittest.TestCase):

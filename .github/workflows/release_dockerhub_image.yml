@@ -119,12 +119,27 @@ jobs:
           ${{ needs.build-info.outputs.skipLatest }}
           ${{ needs.build-info.outputs.limitPlatform }}
           --limit-python ${{ matrix.python-version }} --slim-images
-      - name: "Docker logout"
-        run: docker logout
-        if: always()
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always() && github.repository == 'apache/airflow'
+      - name: >
+          Verify regular AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+        run: >
+          breeze verify-prod-image
+          --pull-image
+          --image-name
+          ${{github.repository}}:${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
+      - name: >
+          Verify slim AMD64 image: ${{ github.event.inputs.airflowVersion }}, ${{ matrix.python-version }}
+        run: >
+          breeze verify-prod-image
+          --pull-image
+          --slim-image
+          --image-name
+          ${{github.repository}}:slim-${{github.event.inputs.airflowVersion}}-python${{matrix.python-version}}
+      - name: "Docker logout"
+        run: docker logout
+        if: always()
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()

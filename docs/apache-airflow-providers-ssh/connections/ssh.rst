@@ -55,6 +55,7 @@ Extra (optional)
     * ``look_for_keys`` - Set to ``false`` if you want to disable searching for discoverable private key files in ``~/.ssh/``
     * ``host_key`` - The base64 encoded ssh-rsa public key of the host or "ssh-<key type> <key data>" (as you would find in the ``known_hosts`` file). Specifying this allows making the connection if and only if the public key of the endpoint matches this value.
     * ``disabled_algorithms`` - A dictionary mapping algorithm type to an iterable of algorithm identifiers, which will be disabled for the lifetime of the transport.
+    * ``ciphers`` - A list of ciphers to use in order of preference.
 
     Example "extras" field:
 
@@ -66,8 +67,9 @@ Extra (optional)
           "compress": "false",
           "look_for_keys": "false",
           "allow_host_key_change": "false",
-          "host_key": "AAAHD...YDWwq=="
-          "disabled_algorithms": {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]}
+          "host_key": "AAAHD...YDWwq==",
+          "disabled_algorithms": {"pubkeys": ["rsa-sha2-256", "rsa-sha2-512"]},
+          "ciphers": ["aes128-ctr", "aes192-ctr", "aes256-ctr"]
        }
 
     When specifying the connection as URI (in :envvar:`AIRFLOW_CONN_{CONN_ID}` variable) you should specify it

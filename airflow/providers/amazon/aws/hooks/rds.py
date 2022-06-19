@@ -19,13 +19,13 @@
 
 from typing import TYPE_CHECKING
 
-from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook
 
 if TYPE_CHECKING:
-    from mypy_boto3_rds import RDSClient
+    from mypy_boto3_rds import RDSClient  # noqa
 
 
-class RdsHook(AwsBaseHook):
+class RdsHook(AwsGenericHook['RDSClient']):
     """
     Interact with AWS RDS using proper client from the boto3 library.
 
@@ -39,7 +39,7 @@ class RdsHook(AwsBaseHook):
     are passed down to the underlying AwsBaseHook.
 
     .. seealso::
-        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
 
     :param aws_conn_id: The Airflow connection used for AWS credentials.
     """
@@ -47,13 +47,3 @@ class RdsHook(AwsBaseHook):
     def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "rds"
         super().__init__(*args, **kwargs)
-
-    @property
-    def conn(self) -> 'RDSClient':
-        """
-        Get the underlying boto3 RDS client (cached)
-
-        :return: boto3 RDS client
-        :rtype: botocore.client.RDS
-        """
-        return super().conn

@@ -17,6 +17,7 @@
 # under the License.
 #
 
+import json
 import unittest
 from unittest import mock
 
@@ -234,6 +235,111 @@ class TestDbApiHook(unittest.TestCase):
             )
         )
         assert "conn-type://host:1/schema" == self.db_hook.get_uri()
+
+    def test_get_uri_extra(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                host="host",
+                login='login',
+                password='password',
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://login:password@host/?charset=utf-8"
+
+    def test_get_uri_extra_with_schema(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                host="host",
+                login='login',
+                password='password',
+                schema="schema",
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://login:password@host/schema?charset=utf-8"
+
+    def test_get_uri_extra_with_port(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                host="host",
+                login='login',
+                password='password',
+                port=3306,
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://login:password@host:3306/?charset=utf-8"
+
+    def test_get_uri_extra_with_port_and_empty_host(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login='login',
+                password='password',
+                port=3306,
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://login:password@:3306/?charset=utf-8"
+
+    def test_get_uri_extra_with_port_and_schema(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                host="host",
+                login='login',
+                password='password',
+                schema="schema",
+                port=3306,
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://login:password@host:3306/schema?charset=utf-8"
+
+    def test_get_uri_without_password(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                host="host",
+                login='login',
+                password=None,
+                schema="schema",
+                port=3306,
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://login@host:3306/schema?charset=utf-8"
+
+    def test_get_uri_without_auth(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                host="host",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://host:3306/schema?charset=utf-8"
+
+    def test_get_uri_without_auth_and_empty_host(self):
+        self.db_hook.get_connection = mock.MagicMock(
+            return_value=Connection(
+                conn_type="conn-type",
+                login=None,
+                password=None,
+                schema="schema",
+                port=3306,
+                extra=json.dumps({'charset': 'utf-8'}),
+            )
+        )
+        assert self.db_hook.get_uri() == "conn-type://@:3306/schema?charset=utf-8"
 
     def test_run_log(self):
         statement = 'SQL'

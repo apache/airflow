@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 from datetime import datetime
-from os import getenv
 
 from airflow import DAG
 from airflow.decorators import task
@@ -23,50 +22,68 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
 from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
+from tests.system.providers.amazon.aws.utils import set_env_id
 
-QUEUE_NAME = getenv('QUEUE_NAME', 'Airflow-Example-Queue')
+ENV_ID = set_env_id()
+DAG_ID = 'example_sqs'
+QUEUE_NAME = f'{ENV_ID}-example-queue'
 
 
-@task(task_id="create_queue")
-def create_queue_fn():
+@task
+def create_queue() -> str:
     """Create the example queue"""
-    hook = SqsHook()
-    result = hook.create_queue(queue_name=QUEUE_NAME)
-    return result['QueueUrl']
+    return SqsHook().create_queue(queue_name=QUEUE_NAME)['QueueUrl']
 
 
-@task(task_id="delete_queue")
-def delete_queue_fn(queue_url):
+@task(trigger_rule='all_done')
+def delete_queue(queue_url):
     """Delete the example queue"""
-    hook = SqsHook()
-    hook.get_conn().delete_queue(QueueUrl=queue_url)
+    SqsHook().conn.delete_queue(QueueUrl=queue_url)
 
 
 with DAG(
-    dag_id='example_sqs',
-    schedule_interval=None,
+    dag_id=DAG_ID,
+    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     tags=['example'],
     catchup=False,
 ) as dag:
 
-    create_queue = create_queue_fn()
+    sqs_queue = create_queue()
 
     # [START howto_operator_sqs]
     publish_to_queue = SqsPublishOperator(
         task_id='publish_to_queue',
-        sqs_queue=create_queue,
-        message_content="{{ task_instance }}-{{ execution_date }}",
+        sqs_queue=sqs_queue,
+        message_content='{{ task_instance }}-{{ logical_date }}',
     )
     # [END howto_operator_sqs]
 
     # [START howto_sensor_sqs]
     read_from_queue = SqsSensor(
         task_id='read_from_queue',
-        sqs_queue=create_queue,
+        sqs_queue=sqs_queue,
     )
     # [END howto_sensor_sqs]
 
-    delete_queue = delete_queue_fn(create_queue)
+    chain(
+        # TEST SETUP
+        sqs_queue,
+        # TEST BODY
+        publish_to_queue,
+        read_from_queue,
+        # TEST TEARDOWN
+        delete_queue(sqs_queue),
+    )
 
-    chain(create_queue, publish_to_queue, read_from_queue, delete_queue)
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
