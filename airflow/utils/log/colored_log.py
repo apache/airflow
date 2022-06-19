@@ -43,6 +43,7 @@ class CustomTTYColoredFormatter(TTYColoredFormatter):
     traceback.
     """
 
+    # copy of airflow.utils.log.timezone_aware.TimezoneAware
     default_time_format = '%Y-%m-%d %H:%M:%S%z'
     default_msec_format = '%s %03dms'
 
