@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.global_constants import DOCKER_DEFAULT_PLATFORM
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
 
@@ -56,7 +57,7 @@ class CommonBuildParams:
     github_username: str = ""
     image_tag: Optional[str] = None
     install_providers_from_sources: bool = False
-    platform: str = f"linux/{os.uname().machine}"
+    platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     push_image: bool = False
     python: str = "3.7"

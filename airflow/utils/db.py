@@ -92,6 +92,7 @@ REVISION_HEADS_MAP = {
     "2.2.5": "587bdf053233",
     "2.3.0": "b1b348e02d07",
     "2.3.1": "1de7bc13c950",
+    "2.3.2": "3c94c427fdf6",
 }
 
 
@@ -534,6 +535,16 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="salesforce_default",
+            conn_type="salesforce",
+            login="username",
+            password="password",
+            extra='{"security_token": "security_token"}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="segment_default",
             conn_type="segment",
             extra='{"write_key": "my-segment-write-key"}',
@@ -691,6 +702,7 @@ def check_migrations(timeout):
     :param timeout: Timeout for the migration in seconds
     :return: None
     """
+    timeout = timeout or 1  # run the loop at least 1
     with _configured_alembic_environment() as env:
         context = env.get_context()
         source_heads = None
@@ -796,6 +808,21 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
 
+    # First check if we have an empty table. If so, and the default values exist,
+    # we will seed the table with the values from pre 2.3.0, so old logs will
+    # still be retrievable.
+    if not session.query(LogTemplate.id).first():
+        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
+        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        if is_default_log_id and is_default_filename:
+            session.add(
+                LogTemplate(
+                    filename="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+                    elasticsearch_id="{dag_id}-{task_id}-{execution_date}-{try_number}",
+                )
+            )
+            session.flush()
+
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
     pre_upgrade_filename = conf.upgraded_values.get(("logging", "log_filename_template"), filename)
@@ -859,7 +886,6 @@ def reflect_tables(tables: List[Union[Base, str]], session):
     This function gets the current state of each table in the set of models provided and returns
     a SqlAlchemy metadata object containing them.
     """
-
     import sqlalchemy.schema
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
@@ -1171,7 +1197,6 @@ def _move_duplicate_data_to_new_table(
         building the DELETE FROM join condition.
     :param target_table_name: name of the table in which to park the duplicate rows
     """
-
     bind = session.get_bind()
     dialect_name = bind.dialect.name
     query = (

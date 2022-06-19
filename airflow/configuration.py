@@ -256,7 +256,7 @@ class AirflowConfigParser(ConfigParser):
         },
         'elasticsearch': {
             'log_id_template': (
-                re.compile('^' + re.escape('{dag_id}-{task_id}-{run_id}-{try_number}') + '$'),
+                re.compile('^' + re.escape('{dag_id}-{task_id}-{execution_date}-{try_number}') + '$'),
                 '{dag_id}-{task_id}-{run_id}-{map_index}-{try_number}',
                 '3.0',
             )
@@ -273,6 +273,7 @@ class AirflowConfigParser(ConfigParser):
         ("logging", "fab_logging_level"): _available_logging_levels,
         # celery_logging_level can be empty, which uses logging_level as fallback
         ("logging", "celery_logging_level"): _available_logging_levels + [''],
+        ("webserver", "analytical_tool"): ['google_analytics', 'metarouter', 'segment', ''],
     }
 
     upgraded_values: Dict[Tuple[str, str], str]

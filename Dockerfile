@@ -44,11 +44,11 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.3.1"
+ARG AIRFLOW_VERSION="2.3.2"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
-ARG AIRFLOW_PIP_VERSION=22.1.1
+ARG AIRFLOW_PIP_VERSION=22.1.2
 ARG AIRFLOW_IMAGE_REPOSITORY="https://github.com/apache/airflow"
 ARG AIRFLOW_IMAGE_README_URL="https://raw.githubusercontent.com/apache/airflow/main/docs/docker-stack/README.md"
 
@@ -367,7 +367,7 @@ function common::get_airflow_version_specification() {
 function common::override_pip_version_if_needed() {
     if [[ -n ${AIRFLOW_VERSION} ]]; then
         if [[ ${AIRFLOW_VERSION} =~ ^2\.0.* || ${AIRFLOW_VERSION} =~ ^1\.* ]]; then
-            export AIRFLOW_PIP_VERSION="22.1.1"
+            export AIRFLOW_PIP_VERSION="22.1.2"
         fi
     fi
 }
@@ -1329,16 +1329,15 @@ ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
 ARG AIRFLOW_IS_IN_CONTEXT="false"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * certifi<2021.0.0 required to keep snowflake happy
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
     AIRFLOW_IS_IN_CONTEXT=${AIRFLOW_IS_IN_CONTEXT} \
     EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS=${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
 
-WORKDIR /opt/airflow
+WORKDIR ${AIRFLOW_HOME}
 
 COPY --from=scripts install_from_docker_context_files.sh install_airflow.sh \
      install_additional_dependencies.sh /scripts/docker/
@@ -1473,7 +1472,7 @@ COPY --from=scripts install_mysql.sh install_mssql.sh install_postgres.sh /scrip
 # We run scripts with bash here to make sure we can execute the scripts. Changing to +x might have an
 # unexpected result - the cache for Dockerfiles might get invalidated in case the host system
 # had different umask set and group x bit was not set. In Azure the bit might be not set at all.
-# That also protects against AUFS Docker backen dproblem where changing the executable bit required sync
+# That also protects against AUFS Docker backend problem where changing the executable bit required sync
 RUN bash /scripts/docker/install_mysql.sh prod \
     && bash /scripts/docker/install_mssql.sh \
     && bash /scripts/docker/install_postgres.sh prod \

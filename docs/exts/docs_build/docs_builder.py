@@ -24,7 +24,7 @@ from typing import List
 
 from rich.console import Console
 
-from docs.exts.docs_build.code_utils import (
+from .code_utils import (
     AIRFLOW_SITE_DIR,
     ALL_PROVIDER_YAMLS,
     CONSOLE_WIDTH,
@@ -32,9 +32,9 @@ from docs.exts.docs_build.code_utils import (
     PROCESS_TIMEOUT,
     pretty_format_path,
 )
-from docs.exts.docs_build.errors import DocBuildError, parse_sphinx_warnings
-from docs.exts.docs_build.helm_chart_utils import chart_version
-from docs.exts.docs_build.spelling_checks import SpellingError, parse_spelling_warnings
+from .errors import DocBuildError, parse_sphinx_warnings
+from .helm_chart_utils import chart_version
+from .spelling_checks import SpellingError, parse_spelling_warnings
 
 console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WIDTH)
 

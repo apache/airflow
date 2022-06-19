@@ -181,6 +181,7 @@ def run_with_debug(
     dry_run: bool,
     debug: bool,
     enable_input: bool = False,
+    enabled_output_group: bool = False,
 ) -> RunCommandResult:
     env_variables = get_env_variables_for_docker_commands(params)
     extra_docker_flags = get_extra_docker_flags(mount_sources=params.mount_sources)
@@ -216,10 +217,18 @@ echo -e '\\e[34mRun this command to debug:
             verbose=verbose,
             dry_run=dry_run,
             env=env_variables,
+            enabled_output_group=enabled_output_group,
         )
     else:
         base_command.extend(command)
-        return run_command(base_command, verbose=verbose, dry_run=dry_run, env=env_variables, check=False)
+        return run_command(
+            base_command,
+            enabled_output_group=enabled_output_group,
+            verbose=verbose,
+            dry_run=dry_run,
+            env=env_variables,
+            check=False,
+        )
 
 
 @main.command(
@@ -258,6 +267,7 @@ def prepare_airflow_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -354,7 +364,7 @@ def prepare_provider_packages(
 
 
 def run_generate_constraints(
-    shell_params: ShellParams, dry_run: bool, verbose: bool, debug: bool
+    shell_params: ShellParams, dry_run: bool, verbose: bool, debug: bool, parallel: bool = False
 ) -> Tuple[int, str]:
     cmd_to_run = [
         "/opt/airflow/scripts/in_container/run_generate_constraints.sh",
@@ -365,6 +375,7 @@ def run_generate_constraints(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=not parallel,
     )
     return (
         generate_constraints_result.returncode,
@@ -388,7 +399,7 @@ def run_generate_constraints_in_parallel(
     results = [
         pool.apply_async(
             run_generate_constraints,
-            args=(shell_param, dry_run, verbose, False),
+            args=(shell_param, dry_run, verbose, False, True),
         )
         for shell_param in shell_params_list
     ]
@@ -486,6 +497,7 @@ def generate_constraints(
             dry_run=dry_run,
             verbose=verbose,
             debug=debug,
+            parallel=False,
         )
         if return_code != 0:
             get_console().print(f"[error]There was an error when generating constraints: {info}[/]")
@@ -539,6 +551,7 @@ def verify_provider_packages(
         verbose=verbose,
         dry_run=dry_run,
         debug=debug,
+        enabled_output_group=True,
     )
     sys.exit(result_command.returncode)
 
@@ -637,12 +650,11 @@ def release_prod_images(
         ["docker", 'buildx', 'inspect', 'airflow_cache'], check=False, dry_run=dry_run, verbose=verbose
     )
     if result_inspect_builder.returncode != 0:
-        get_console().print("[error]Regctl must be installed and on PATH to release the images[/]")
+        get_console().print("[error]Airflow Cache builder must be configured to release the images[/]")
         get_console().print()
         get_console().print(
-            "See https://github.com/apache/airflow/blob/main/dev/README_RELEASE_AIRFLOW.md"
-            "#setting-up-cache-refreshing-with-hardware-armamd-support for "
-            "instructions on setting it up."
+            "See https://github.com/apache/airflow/blob/main/dev/MANUALLY_BUILDING_IMAGES.md"
+            " for instructions on setting it up."
         )
         sys.exit(1)
     result_regctl = run_command(["regctl", 'version'], check=False, dry_run=dry_run, verbose=verbose)

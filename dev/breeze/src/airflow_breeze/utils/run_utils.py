@@ -46,6 +46,7 @@ def run_command(
     env: Optional[Mapping[str, str]] = None,
     cwd: Optional[Path] = None,
     input: Optional[str] = None,
+    enabled_output_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
     """
@@ -68,23 +69,24 @@ def run_command(
     :param env: mapping of environment variables to set for the run command
     :param cwd: working directory to set for the command
     :param input: input string to pass to stdin of the process
+    :param enabled_output_group: if set to true, in CI the logs will be placed in separate, foldable group.
     :param kwargs: kwargs passed to POpen
     """
+    if not title:
+        # Heuristics to get a short but explanatory title showing what the command does
+        # If title is not provided explicitly
+        title = ' '.join(
+            shlex.quote(c)
+            for c in cmd
+            if not c.startswith('-')  # exclude options
+            and len(c) > 0
+            and (c[0] != "/" or c.endswith(".sh"))  # exclude volumes
+            and not c == "never"  # exclude --pull never
+            and not match(r"^[A-Z_]*=.*$", c)
+        )
     workdir: str = str(cwd) if cwd else os.getcwd()
     if verbose or dry_run:
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
-        if not title:
-            # Heuristics to get a short but explanatory title showing what the command does
-            # If title is not provided explicitly
-            title = ' '.join(
-                shlex.quote(c)
-                for c in cmd
-                if not c.startswith('-')  # exclude options
-                and len(c) > 0
-                and (c[0] != "/" or c.endswith(".sh"))  # exclude volumes
-                and not c == "never"  # exclude --pull never
-                and not match(r"^[A-Z_]*=.*$", c)
-            )
         env_to_print = get_environments_to_print(env)
         with ci_group(title=f"Running {title}"):
             get_console().print(f"\n[info]Working directory {workdir} [/]\n")
@@ -94,9 +96,11 @@ def run_command(
             return subprocess.CompletedProcess(cmd, returncode=0)
     try:
         cmd_env = os.environ.copy()
+        cmd_env.setdefault("HOME", str(Path.home()))
         if env:
             cmd_env.update(env)
-        return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
+        with ci_group(title=f"Output of {title}", enabled=enabled_output_group):
+            return subprocess.run(cmd, input=input, check=check, env=cmd_env, cwd=workdir, **kwargs)
     except subprocess.CalledProcessError as ex:
         if not no_output_dump_on_exception:
             if ex.stdout:

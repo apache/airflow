@@ -45,7 +45,7 @@ This operator assumes that CSV does not have headers and the data is correspondi
 pre-existing presto table. Optionally, you can provide schema as tuple/list of strings or as a path to a
 JSON file in the same bucket as the CSV file.
 
-.. exampleinclude:: /../../airflow/providers/trino/example_dags/example_gcs_to_trino.py
+.. exampleinclude:: /../../tests/system/providers/trino/example_gcs_to_trino.py
     :language: python
     :dedent: 4
     :start-after: [START gcs_csv_to_trino_table]

@@ -23,7 +23,9 @@ implementation for BigQuery.
 import hashlib
 import json
 import logging
+import re
 import time
+import uuid
 import warnings
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -361,7 +363,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
         :return: Created table
         """
-
         _table_resource: Dict[str, Any] = {}
 
         if self.location:
@@ -1699,7 +1700,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 f"Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
-        destination_project, destination_dataset, destination_table = _split_tablename(
+        destination_project, destination_dataset, destination_table = self.split_tablename(
             table_input=destination_project_dataset_table,
             default_project_id=self.project_id,
             var_name='destination_project_dataset_table',
@@ -1851,7 +1852,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         source_project_dataset_tables_fixup = []
         for source_project_dataset_table in source_project_dataset_tables:
-            source_project, source_dataset, source_table = _split_tablename(
+            source_project, source_dataset, source_table = self.split_tablename(
                 table_input=source_project_dataset_table,
                 default_project_id=self.project_id,
                 var_name='source_project_dataset_table',
@@ -1860,7 +1861,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 {'projectId': source_project, 'datasetId': source_dataset, 'tableId': source_table}
             )
 
-        destination_project, destination_dataset, destination_table = _split_tablename(
+        destination_project, destination_dataset, destination_table = self.split_tablename(
             table_input=destination_project_dataset_table, default_project_id=self.project_id
         )
         configuration = {
@@ -1895,7 +1896,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         field_delimiter: str = ',',
         print_header: bool = True,
         labels: Optional[Dict] = None,
-    ) -> str:
+        return_full_job: bool = False,
+    ) -> Union[str, BigQueryJob]:
         """
         Executes a BigQuery extract command to copy data from BigQuery to
         Google Cloud Storage. See here:
@@ -1916,6 +1918,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param print_header: Whether to print a header for a CSV file extract.
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
+        :param return_full_job: return full job instead of job id only
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
@@ -1923,7 +1926,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
-        source_project, source_dataset, source_table = _split_tablename(
+        source_project, source_dataset, source_table = self.split_tablename(
             table_input=source_project_dataset_table,
             default_project_id=self.project_id,
             var_name='source_project_dataset_table',
@@ -1954,6 +1957,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
+        if return_full_job:
+            return job
         return job.job_id
 
     def run_query(
@@ -2089,7 +2094,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 )
 
         if destination_dataset_table:
-            destination_project, destination_dataset, destination_table = _split_tablename(
+            destination_project, destination_dataset, destination_table = self.split_tablename(
                 table_input=destination_dataset_table, default_project_id=self.project_id
             )
 
@@ -2176,6 +2181,83 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
         return job.job_id
+
+    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False):
+        if force_rerun:
+            hash_base = str(uuid.uuid4())
+        else:
+            hash_base = json.dumps(configuration, sort_keys=True)
+
+        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+
+        if job_id:
+            return f"{job_id}_{uniqueness_suffix}"
+
+        exec_date = logical_date.isoformat()
+        job_id = f"airflow_{dag_id}_{task_id}_{exec_date}_{uniqueness_suffix}"
+        return re.sub(r"[:\-+.]", "_", job_id)
+
+    def split_tablename(
+        self, table_input: str, default_project_id: str, var_name: Optional[str] = None
+    ) -> Tuple[str, str, str]:
+
+        if '.' not in table_input:
+            raise ValueError(f'Expected table name in the format of <dataset>.<table>. Got: {table_input}')
+
+        if not default_project_id:
+            raise ValueError("INTERNAL: No default project is specified")
+
+        def var_print(var_name):
+            if var_name is None:
+                return ""
+            else:
+                return f"Format exception for {var_name}: "
+
+        if table_input.count('.') + table_input.count(':') > 3:
+            raise Exception(f'{var_print(var_name)}Use either : or . to specify project got {table_input}')
+        cmpt = table_input.rsplit(':', 1)
+        project_id = None
+        rest = table_input
+        if len(cmpt) == 1:
+            project_id = None
+            rest = cmpt[0]
+        elif len(cmpt) == 2 and cmpt[0].count(':') <= 1:
+            if cmpt[-1].count('.') != 2:
+                project_id = cmpt[0]
+                rest = cmpt[1]
+        else:
+            raise Exception(
+                f'{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}'
+            )
+
+        cmpt = rest.split('.')
+        if len(cmpt) == 3:
+            if project_id:
+                raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
+            project_id = cmpt[0]
+            dataset_id = cmpt[1]
+            table_id = cmpt[2]
+
+        elif len(cmpt) == 2:
+            dataset_id = cmpt[0]
+            table_id = cmpt[1]
+        else:
+            raise Exception(
+                f'{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, '
+                f'got {table_input}'
+            )
+
+        if project_id is None:
+            if var_name is not None:
+                self.log.info(
+                    'Project not included in %s: %s; using project "%s"',
+                    var_name,
+                    table_input,
+                    default_project_id,
+                )
+            project_id = default_project_id
+
+        return project_id, dataset_id, table_id
 
 
 class BigQueryConnection:
@@ -2768,7 +2850,7 @@ def _bq_cast(string_field: str, bq_type: str) -> Union[None, int, float, bool, s
         return string_field
 
 
-def _split_tablename(
+def split_tablename(
     table_input: str, default_project_id: str, var_name: Optional[str] = None
 ) -> Tuple[str, str, str]:
 

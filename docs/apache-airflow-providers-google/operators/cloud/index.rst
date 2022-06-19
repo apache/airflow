@@ -29,4 +29,4 @@ Google Cloud Operators
 
 .. note::
     You can learn how to use Google Cloud integrations by analyzing the
-    `source code <https://github.com/apache/airflow/tree/main/airflow/providers/google/cloud/example_dags/>`_ of the particular example DAGs.
+    `source code <https://github.com/apache/airflow/tree/providers-google/8.0.0/tests/system/providers/google/cloud>`_ of the particular example DAGs.

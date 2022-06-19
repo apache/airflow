@@ -341,13 +341,11 @@ Step 4: Prepare PR
      * `doc`
      * `misc`
 
-     To add a newsfragment, simply create an rst file named ``{pr_number}.{type}.rst`` (e.g. ``1234.bugfix.rst``)
+     To add a newsfragment, create an ``rst`` file named ``{pr_number}.{type}.rst`` (e.g. ``1234.bugfix.rst``)
      and place in either `newsfragments <https://github.com/apache/airflow/blob/main/newsfragments>`__ for core newsfragments,
      or `chart/newsfragments <https://github.com/apache/airflow/blob/main/chart/newsfragments>`__ for helm chart newsfragments.
 
-     For significant newsfragments, similar to git commits, the first line is the summary and optionally a
-     body can be added with an empty line separating it.
-     For other newsfragment types, only use a single summary line.
+     In general newsfragments must be one line.  For newsfragment type ``significant``, you may include summary and body separated by a blank line, similar to ``git`` commit messages.
 
 2. Rebase your fork, squash commits, and resolve all conflicts. See `How to rebase PR <#how-to-rebase-pr>`_
    if you need help with rebasing your change. Remember to rebase often if your PR takes a lot of time to
@@ -728,7 +726,7 @@ hashicorp                  google
 microsoft.azure            google,oracle,sftp
 mysql                      amazon,presto,trino,vertica
 postgres                   amazon
-presto                     google
+presto                     google,slack
 salesforce                 tableau
 sftp                       ssh
 slack                      http
@@ -1253,6 +1251,7 @@ commands:
     yarn run prod
 
     # Starts a web server that manages and updates your assets as you modify them
+    # You'll need to run the webserver in debug mode too: `airflow webserver -d`
     yarn run dev
 
 

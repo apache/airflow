@@ -59,7 +59,7 @@ def get_extras_from_setup() -> Set[str]:
 
 def get_extras_from_docs() -> Set[str]:
     """
-    Returns a list of extras from docs.
+    Returns a list of extras from airflow.docs.
     """
     docs_content = get_file_content(DOCS_FILE)
     extras_section_regex = re.compile(
@@ -86,7 +86,7 @@ def get_preinstalled_providers_from_docs() -> List[str]:
 
 def get_deprecated_extras_from_docs() -> Dict[str, str]:
     """
-    Returns dict of deprecated extras from docs (alias -> target extra)
+    Returns dict of deprecated extras from airflow.docs (alias -> target extra)
     """
     deprecated_extras = {}
     docs_content = get_file_content(DOCS_FILE)

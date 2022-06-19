@@ -61,9 +61,9 @@ describe('Test DagRuns', () => {
     const spy = jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
       data,
     }));
-    const { queryAllByTestId, getByText, queryByText } = render(
-      <DagRuns />, { wrapper: TableWrapper },
-    );
+    const {
+      queryAllByTestId, getByText, queryByText,
+    } = render(<DagRuns />, { wrapper: TableWrapper });
 
     expect(queryAllByTestId('run')).toHaveLength(2);
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
@@ -104,26 +104,14 @@ describe('Test DagRuns', () => {
     const spy = jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
       data,
     }));
-    const { getByText } = render(
-      <DagRuns />, { wrapper: TableWrapper },
-    );
+    const { getByText } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(getByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeInTheDocument();
     spy.mockRestore();
   });
 
   test('Handles empty data correctly', () => {
-    global.gridData = null;
-    const { queryByTestId } = render(
-      <DagRuns />, { wrapper: TableWrapper },
-    );
-    expect(queryByTestId('run')).toBeNull();
-  });
-
-  test('Handles no data correctly', () => {
-    global.gridData = {};
-    const { queryByTestId } = render(
-      <DagRuns />, { wrapper: TableWrapper },
-    );
+    global.autoRefreshInterval = 0;
+    const { queryByTestId } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(queryByTestId('run')).toBeNull();
   });
 });

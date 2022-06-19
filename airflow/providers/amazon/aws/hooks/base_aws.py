@@ -37,6 +37,7 @@ import botocore
 import botocore.session
 import requests
 import tenacity
+from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
 from slugify import slugify
@@ -520,6 +521,21 @@ class AwsBaseHook(BaseHook):
         else:
             # Rare possibility - subclasses have not specified a client_type or resource_type
             raise NotImplementedError('Could not get boto3 connection!')
+
+    @cached_property
+    def conn_client_meta(self) -> ClientMeta:
+        conn = self.conn
+        if isinstance(conn, botocore.client.BaseClient):
+            return conn.meta
+        return conn.meta.client.meta
+
+    @property
+    def conn_region_name(self) -> str:
+        return self.conn_client_meta.region_name
+
+    @property
+    def conn_partition(self) -> str:
+        return self.conn_client_meta.partition
 
     def get_conn(self) -> Union[boto3.client, boto3.resource]:
         """

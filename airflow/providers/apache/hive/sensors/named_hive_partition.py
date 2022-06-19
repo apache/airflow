@@ -76,7 +76,7 @@ class NamedHivePartitionSensor(BaseSensorOperator):
             schema, table_partition = first_split
         second_split = table_partition.split('/', 1)
         if len(second_split) == 1:
-            raise ValueError('Could not parse ' + partition + 'into table, partition')
+            raise ValueError(f'Could not parse {partition}into table, partition')
         else:
             table, partition = second_split
         return schema, table, partition

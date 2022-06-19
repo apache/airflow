@@ -25,8 +25,9 @@ from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client, pod_generator
+from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
@@ -101,6 +102,7 @@ class KubernetesPodOperator(BaseOperator):
     :param volume_mounts: volumeMounts for the launched pod.
     :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes.
     :param env_vars: Environment variables initialized in the container. (templated)
+    :param env_from: (Optional) List of sources to populate environment variables in the container.
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
@@ -119,6 +121,8 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param node_selectors: (Deprecated) A dict containing a group of scheduling rules.
+        Please use node_selector instead.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -140,8 +144,15 @@ class KubernetesPodOperator(BaseOperator):
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
     :param priority_class_name: priority class name for the launched Pod
+    :param pod_runtime_info_envs: (Optional) A list of environment variables,
+        to be set in the container.
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
+    :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
+        to populate the environment variables with. The contents of the target
+        ConfigMap's Data field will represent the key-value pairs as environment variables.
+        Extends env_from.
+    :param: kubernetes_conn_id: To retrieve credentials for your k8s cluster from an Airflow connection
     """
 
     BASE_CONTAINER_NAME = 'base'
@@ -209,7 +220,6 @@ class KubernetesPodOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
-
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
@@ -324,19 +334,20 @@ class KubernetesPodOperator(BaseOperator):
     def pod_manager(self) -> PodManager:
         return PodManager(kube_client=self.client)
 
+    def get_hook(self):
+        hook = KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+        self._patch_deprecated_k8s_settings(hook)
+        return hook
+
     @cached_property
     def client(self) -> CoreV1Api:
-        if self.kubernetes_conn_id:
-            hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
-            return hook.core_v1_client
-
-        kwargs: Dict[str, Any] = dict(
-            cluster_context=self.cluster_context,
-            config_file=self.config_file,
-        )
-        if self.in_cluster is not None:
-            kwargs.update(in_cluster=self.in_cluster)
-        return kube_client.get_kube_client(**kwargs)
+        hook = self.get_hook()
+        return hook.core_v1_client
 
     def find_pod(self, namespace, context, *, exclude_checked=True) -> Optional[k8s.V1Pod]:
         """Returns an already-running pod for this task instance if one exists."""
@@ -572,6 +583,38 @@ class KubernetesPodOperator(BaseOperator):
         """
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
+
+    def _patch_deprecated_k8s_settings(self, hook: KubernetesHook):
+        """
+        Here we read config from core Airflow config [kubernetes] section.
+        In a future release we will stop looking at this section and require users
+        to use Airflow connections to configure KPO.
+
+        When we find values there that we need to apply on the hook, we patch special
+        hook attributes here.
+        """
+        # default for enable_tcp_keepalive is True; patch if False
+        if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
+            hook._deprecated_core_disable_tcp_keepalive = True
+
+        # default verify_ssl is True; patch if False.
+        if conf.getboolean('kubernetes', 'verify_ssl') is False:
+            hook._deprecated_core_disable_verify_ssl = True
+
+        # default for in_cluster is True; patch if False and no KPO param.
+        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster')
+        if self.in_cluster is None and conf_in_cluster is False:
+            hook._deprecated_core_in_cluster = conf_in_cluster
+
+        # there's no default for cluster context; if we get something (and no KPO param) patch it.
+        conf_cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+        if not self.cluster_context and conf_cluster_context:
+            hook._deprecated_core_cluster_context = conf_cluster_context
+
+        # there's no default for config_file; if we get something (and no KPO param) patch it.
+        conf_config_file = conf.get('kubernetes', 'config_file', fallback=None)
+        if not self.config_file and conf_config_file:
+            hook._deprecated_core_config_file = conf_config_file
 
 
 class _suppress(AbstractContextManager):

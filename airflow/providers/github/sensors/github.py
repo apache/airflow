@@ -21,7 +21,7 @@ from typing import TYPE_CHECKING, Any, Callable, Optional
 from github import GithubException
 
 from airflow import AirflowException
-from airflow.providers.github.operators.github import GithubOperator
+from airflow.providers.github.hooks.github import GithubHook
 from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
@@ -54,16 +54,15 @@ class GithubSensor(BaseSensorOperator):
             self.result_processor = result_processor
         self.method_name = method_name
         self.method_params = method_params
-        self.github_operator = GithubOperator(
-            task_id=self.task_id,
-            github_conn_id=self.github_conn_id,
-            github_method=self.method_name,
-            github_method_args=self.method_params,
-            result_processor=self.result_processor,
-        )
 
     def poke(self, context: 'Context') -> bool:
-        return self.github_operator.execute(context=context)
+        hook = GithubHook(github_conn_id=self.github_conn_id)
+        github_result = getattr(hook.client, self.method_name)(**self.method_params)
+
+        if self.result_processor:
+            return self.result_processor(github_result)
+
+        return github_result
 
 
 class BaseGithubRepositorySensor(GithubSensor):
