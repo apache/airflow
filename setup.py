@@ -309,8 +309,8 @@ exasol = ['pyexasol>=0.5.1', pandas_requirement]
 facebook = [
     'facebook-business>=6.0.2',
 ]
-flask_appbuilder_authlib = [
-    'authlib',
+flask_appbuilder_oauth = [
+    'flask-appbuilder[oauth]',
 ]
 github = [
     'pygithub',
@@ -768,8 +768,8 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
     'deprecated_api': deprecated_api,
-    'github_enterprise': flask_appbuilder_authlib,
-    'google_auth': flask_appbuilder_authlib,
+    'github_enterprise': flask_appbuilder_oauth,
+    'google_auth': flask_appbuilder_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
     'leveldb': leveldb,
