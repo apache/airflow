@@ -1713,7 +1713,14 @@ def compare_server_default(
     See: (https://alembic.sqlalchemy.org/en/latest/api/runtime.html#alembic.runtime.
         environment.EnvironmentContext.configure.params.compare_server_default)
     """
-    if context.connection.dialect.name in ['mssql', 'sqlite']:
+    dialect_name = context.connection.dialect.name
+    if dialect_name in ['mssql', 'sqlite']:
+        return False
+    if (
+        dialect_name == 'mysql'
+        and metadata_column.name == 'pool_slots'
+        and metadata_column.table.name == 'task_instance'
+    ):
         return False
     return None
 

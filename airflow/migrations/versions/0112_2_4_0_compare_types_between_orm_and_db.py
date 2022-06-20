@@ -51,10 +51,7 @@ def upgrade():
         batch_op.alter_column(
             'created_at', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
         )
-    with op.batch_alter_table('task_instance', schema=None) as batch_op:
-        batch_op.alter_column(
-            'trigger_timeout', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=True
-        )
+
     with op.batch_alter_table('serialized_dag', schema=None) as batch_op:
         # drop server_default
         batch_op.alter_column(
@@ -68,13 +65,6 @@ def upgrade():
         batch_op.alter_column(
             'created_date', existing_type=sa.DateTime(), type_=TIMESTAMP(), existing_nullable=False
         )
-    # pool_slots server_default mistakenly dropped in 7b2661a43ba3 for postgresql.
-    # existing_server_default not used in alter
-    if conn.dialect.name == 'postgresql':
-        with op.batch_alter_table('task_instance', schema=None) as batch_op:
-            batch_op.alter_column(
-                'pool_slots', existing_type=sa.Integer(), server_default=sa.text('1'), existing_nullable=False
-            )
 
     if conn.dialect.name != 'sqlite':
         return
@@ -172,10 +162,6 @@ def downgrade():
     with op.batch_alter_table('log_template', schema=None) as batch_op:
         batch_op.alter_column(
             'created_at', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=False
-        )
-    with op.batch_alter_table('task_instance', schema=None) as batch_op:
-        batch_op.alter_column(
-            'trigger_timeout', existing_type=TIMESTAMP(), type_=sa.DateTime(), existing_nullable=True
         )
     with op.batch_alter_table('trigger', schema=None) as batch_op:
         batch_op.alter_column(
