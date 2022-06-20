@@ -19,6 +19,8 @@
 
 from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence, Union
 
+from trino.exceptions import TrinoQueryError
+
 from airflow.models import BaseOperator
 from airflow.providers.trino.hooks.trino import TrinoHook
 
@@ -79,3 +81,18 @@ class TrinoOperator(BaseOperator):
         self.hook.run(
             sql=self.sql, autocommit=self.autocommit, parameters=self.parameters, handler=self.handler
         )
+
+    def on_kill(self) -> None:
+        if self.hook is not None and isinstance(self.hook, TrinoHook):
+            query_id = "'" + self.hook.query_id + "'"
+            try:
+                self.log.info("Stopping query run with queryId - %s", self.hook.query_id)
+                self.hook.run(
+                    sql=f"CALL system.runtime.kill_query(query_id => {query_id},message => 'Job "
+                    f"killed by "
+                    f"user');",
+                    handler=list,
+                )
+            except TrinoQueryError as e:
+                self.log.info(str(e))
+            self.log.info("Trino query (%s) terminated", query_id)
