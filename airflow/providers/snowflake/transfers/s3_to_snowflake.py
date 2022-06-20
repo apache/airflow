@@ -21,6 +21,7 @@ from typing import Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.snowflake.hooks.snowflake import SnowflakeHook
+from airflow.providers.snowflake.utils.common import enclose_param
 
 
 class S3ToSnowflakeOperator(BaseOperator):
@@ -43,6 +44,9 @@ class S3ToSnowflakeOperator(BaseOperator):
         defined in the connection's extra JSON)
     :param database: reference to a specific database in Snowflake connection
     :param columns_array: reference to a specific columns array in snowflake database
+    :param pattern: regular expression pattern string specifying the file names and/or paths to match.
+        Note: regular expression will be automatically enclose in single quotes
+        and all single quotes in expression will replace by two single quotes.
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
     :param role: name of role (will overwrite any role defined in
@@ -71,6 +75,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         file_format: str,
         schema: Optional[str] = None,
         columns_array: Optional[list] = None,
+        pattern: Optional[str] = None,
         warehouse: Optional[str] = None,
         database: Optional[str] = None,
         autocommit: bool = True,
@@ -90,6 +95,7 @@ class S3ToSnowflakeOperator(BaseOperator):
         self.file_format = file_format
         self.schema = schema
         self.columns_array = columns_array
+        self.pattern = pattern
         self.autocommit = autocommit
         self.snowflake_conn_id = snowflake_conn_id
         self.role = role
@@ -122,7 +128,8 @@ class S3ToSnowflakeOperator(BaseOperator):
             files = ", ".join(f"'{key}'" for key in self.s3_keys)
             sql_parts.append(f"files=({files})")
         sql_parts.append(f"file_format={self.file_format}")
-
+        if self.pattern:
+            sql_parts.append(f"pattern={enclose_param(self.pattern)}")
         copy_query = "\n".join(sql_parts)
 
         self.log.info('Executing COPY command...')
