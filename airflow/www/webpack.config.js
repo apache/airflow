@@ -57,6 +57,7 @@ const config = {
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
+    chart: [`${CSS_DIR}/chart.css`],
     dag: `${JS_DIR}/dag.js`,
     dagCode: `${JS_DIR}/dag_code.js`,
     dagDependencies: `${JS_DIR}/dag_dependencies.js`,
@@ -72,7 +73,7 @@ const config = {
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
-    grid: [`${CSS_DIR}/grid.css`, `${JS_DIR}/grid/index.jsx`],
+    grid: [`${JS_DIR}/grid/index.jsx`],
     calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],
     durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
