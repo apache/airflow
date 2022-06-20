@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-20T09:03:00Z
+# This constraints file was automatically generated on 2022-06-20T13:35:52Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -478,7 +478,7 @@ pytz-deprecation-shim==0.1.0.post0
 pytz==2022.1
 pytzdata==2020.1
 pywinrm==0.4.3
-pyzmq==23.1.0
+pyzmq==23.2.0
 qds-sdk==1.16.1
 readme-renderer==35.0
 redis==3.5.3

@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-20T08:53:51Z
+# This constraints file was automatically generated on 2022-06-20T13:29:42Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -401,7 +401,7 @@ pytz-deprecation-shim==0.1.0.post0
 pytz==2022.1
 pytzdata==2020.1
 pywinrm==0.4.3
-pyzmq==23.1.0
+pyzmq==23.2.0
 qds-sdk==1.16.1
 readme-renderer==35.0
 redis==3.5.3
@@ -520,7 +520,7 @@ volatile==2.1.0
 watchtower==2.0.1
 wcwidth==0.2.5
 webencodings==0.5.1
-websocket-client==1.3.2
+websocket-client==1.3.3
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.26.3
