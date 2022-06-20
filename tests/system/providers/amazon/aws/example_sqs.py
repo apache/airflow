@@ -21,7 +21,7 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
-from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
+from airflow.providers.amazon.aws.sensors.sqs import SqsBatchSensor, SqsSensor
 from tests.system.providers.amazon.aws.utils import set_env_id
 
 ENV_ID = set_env_id()
@@ -65,6 +65,20 @@ with DAG(
         sqs_queue=sqs_queue,
     )
     # [END howto_sensor_sqs]
+
+    # [START howto_sensor_sqs_batch]
+    # batch multiple messages from SQS.
+    # each SQS poll can retrieve no more than 10 messages
+    # due to requirements by AWS SQS
+    read_from_queue_in_batch = SqsBatchSensor(
+        task_id='read_from_queue_in_batch',
+        sqs_queue=create_queue,
+        # get maximum 10 messages each poll
+        max_messages=10,
+        # perform 3 polls before returning results
+        batch=3,
+    )
+    # [END howto_sensor_sqs_batch]
 
     chain(
         # TEST SETUP
