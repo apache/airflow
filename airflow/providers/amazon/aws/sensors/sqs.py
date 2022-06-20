@@ -18,7 +18,7 @@
 """Reads and then deletes the message from SQS queue"""
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Collection, Iterable, List, Optional, Sequence
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
@@ -104,12 +104,12 @@ class SqsSensor(BaseSensorOperator):
 
         self.hook: Optional[SqsHook] = None
 
-    def poll_sqs(self, sqs_conn: Any) -> Iterable:
+    def poll_sqs(self, sqs_conn: Any) -> Collection:
         """Poll SQS queue to retrieve messages
         Args:
             sqs_conn (Any): SQS connection
         Returns:
-            Iterable: list of messages retrieved from SQS
+            Collection: messages retrieved from SQS
         """
 
         self.log.info('SqsSensor checking for message on queue: %s', self.sqs_queue)
@@ -233,7 +233,7 @@ class SqsBatchSensor(SqsSensor):
     Get messages from an Amazon SQS queue in batches and then delete the retrieved messages from the queue.
     If deletion of messages fails an AirflowException is thrown. Otherwise, all messages
     are pushed through XCom with the key ``messages``.
-    The total number of messages retrieved at maxium will be equal to the number of messages retrived for each
+    The total number of messages retrieved at maximum will be equal to the number of messages retrieved for each
     SQS's API call multiplies with total number of call. Each SQS receive_message can get a max 10 messages.
     This sensor is identical to SQSSensor, except the fact that SQSSensor performs one and only one SQS call
     per poke, while SQSBatchSensor performs multiple SQS API calls per poke.
@@ -259,7 +259,7 @@ class SqsBatchSensor(SqsSensor):
         :return: ``True`` if message is available or ``False``
         """
         sqs_conn = self.get_hook().get_conn()
-        message_batch = []
+        message_batch : List[Any] = []
         # perform multiple SQS call to retrieve messages in series
         for _ in range(self.batch):
             messages = self.poll_sqs(sqs_conn=sqs_conn)
