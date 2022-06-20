@@ -43,7 +43,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             operator.execute({})
 
-    @patch('airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn')
+    @patch('airflow.providers.salesforce.operators.salesforce_bulk.SalesforceHook.get_conn')
     def test_execute_salesforce_bulk_insert(self, mock_get_conn):
         """
         Test execute bulk insert
@@ -76,7 +76,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
             use_serial=use_serial,
         )
 
-    @patch('airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn')
+    @patch('airflow.providers.salesforce.operators.salesforce_bulk.SalesforceHook.get_conn')
     def test_execute_salesforce_bulk_update(self, mock_get_conn):
         """
         Test execute bulk update
@@ -109,7 +109,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
             use_serial=use_serial,
         )
 
-    @patch('airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn')
+    @patch('airflow.providers.salesforce.operators.salesforce_bulk.SalesforceHook.get_conn')
     def test_execute_salesforce_bulk_upsert(self, mock_get_conn):
         """
         Test execute bulk upsert
@@ -145,7 +145,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
             use_serial=use_serial,
         )
 
-    @patch('airflow.providers.salesforce.operators.salesforce_apex_rest.SalesforceHook.get_conn')
+    @patch('airflow.providers.salesforce.operators.salesforce_bulk.SalesforceHook.get_conn')
     def test_execute_salesforce_bulk_delete(self, mock_get_conn):
         """
         Test execute bulk delete
