@@ -84,6 +84,7 @@ class DbApiHook(BaseHook):
         # from kwargs and store it on its own. We do not run "pop" here as we want to give the
         # Hook deriving from the DBApiHook to still have access to the field in it's constructor
         self.__schema = schema
+        self.log_sql = kwargs.get('log_sql', True)
 
     def get_conn(self):
         """Returns a connection object"""
@@ -228,7 +229,9 @@ class DbApiHook(BaseHook):
 
     def _run_command(self, cur, sql_statement, parameters):
         """Runs a statement using an already open cursor."""
-        self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+        if self.log_sql:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+
         if parameters:
             cur.execute(sql_statement, parameters)
         else:
