@@ -15,15 +15,28 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+import unittest
+from unittest import mock
+
+from airflow.providers.trino.operators.trino import TrinoOperator
+
+TRINO_CONN_ID = "test_trino"
+TASK_ID = "test_trino_task"
 
 
-class TestRedshiftDataHook:
-    def test_conn_attribute(self):
-        hook = RedshiftDataHook(aws_conn_id='aws_default', region_name='us-east-1')
-        assert hasattr(hook, 'conn')
-        assert hook.conn.__class__.__name__ == 'RedshiftDataAPIService'
-        conn = hook.conn
-        assert conn is hook.conn  # Cached property
-        assert conn is hook.get_conn()  # Same object as returned by `conn` property
+class TestTrinoOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.trino.operators.trino.TrinoHook')
+    def test_execute(self, mock_trino_hook):
+        """Asserts that the run method is called when a TrinoOperator task is executed"""
+
+        op = TrinoOperator(
+            task_id=TASK_ID,
+            sql="SELECT 1;",
+            trino_conn_id=TRINO_CONN_ID,
+            handler=list,
+        )
+        op.execute(None)
+
+        mock_trino_hook.assert_called_once_with(trino_conn_id=TRINO_CONN_ID)
+        mock_run = mock_trino_hook.return_value.run
+        mock_run.assert_called_once()

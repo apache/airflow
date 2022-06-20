@@ -54,6 +54,7 @@ from airflow_breeze.utils.common_options import (
     option_parallelism,
     option_platform,
     option_prepare_buildx_cache,
+    option_pull_image,
     option_push_image,
     option_python,
     option_python_versions,
@@ -181,6 +182,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
                 "--image-name",
                 "--python",
                 "--image-tag",
+                "--pull-image",
             ],
         }
     ],
@@ -270,7 +272,7 @@ def build_image(
 @option_image_tag
 @option_tag_as_latest
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
-def pull_image(
+def pull_ci_image(
     verbose: bool,
     dry_run: bool,
     python: str,
@@ -338,14 +340,16 @@ def pull_image(
 @option_github_repository
 @option_image_tag
 @option_image_name
+@option_pull_image
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
-def verify_image(
+def verify_ci_image(
     verbose: bool,
     dry_run: bool,
     python: str,
     github_repository: str,
     image_name: str,
     image_tag: str,
+    pull_image: bool,
     extra_pytest_args: Tuple,
 ):
     """Verify CI image."""
@@ -353,12 +357,16 @@ def verify_image(
     if image_name is None:
         build_params = BuildCiParams(python=python, image_tag=image_tag, github_repository=github_repository)
         image_name = build_params.airflow_image_name_with_tag
+    if pull_image:
+        command_to_run = ["docker", "pull", image_name]
+        run_command(command_to_run, verbose=verbose, dry_run=dry_run, check=True)
     get_console().print(f"[info]Verifying CI image: {image_name}[/]")
     return_code, info = verify_an_image(
         image_name=image_name,
         verbose=verbose,
         dry_run=dry_run,
         image_type='CI',
+        slim_image=False,
         extra_pytest_args=extra_pytest_args,
     )
     sys.exit(return_code)

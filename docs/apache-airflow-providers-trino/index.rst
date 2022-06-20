@@ -17,7 +17,7 @@
     under the License.
 
 ``apache-airflow-providers-trino``
-===================================
+==================================
 
 Content
 -------
@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     TrinoTransferOperator types <operators/transfer/gcs_to_trino>
+    TrinoOperator <operators/index>
     Connection types <connections>
 
 .. toctree::

@@ -201,6 +201,7 @@ def run_pull_and_verify_image(
         image_type=image_params.image_type,
         dry_run=dry_run,
         verbose=verbose,
+        slim_image=False,
         extra_pytest_args=extra_pytest_args,
     )
 

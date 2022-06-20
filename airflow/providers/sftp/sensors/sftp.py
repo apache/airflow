@@ -59,7 +59,6 @@ class SFTPSensor(BaseSensorOperator):
         self.hook: Optional[SFTPHook] = None
         self.sftp_conn_id = sftp_conn_id
         self.newer_than: Optional[datetime] = newer_than
-        self.actual_file_to_check = self.path
 
     def poke(self, context: 'Context') -> bool:
         self.hook = SFTPHook(self.sftp_conn_id)
@@ -68,13 +67,15 @@ class SFTPSensor(BaseSensorOperator):
         if self.file_pattern:
             file_from_pattern = self.hook.get_file_by_pattern(self.path, self.file_pattern)
             if file_from_pattern:
-                self.actual_file_to_check = file_from_pattern
+                actual_file_to_check = file_from_pattern
             else:
                 return False
+        else:
+            actual_file_to_check = self.path
 
         try:
-            mod_time = self.hook.get_mod_time(self.actual_file_to_check)
-            self.log.info('Found File %s last modified: %s', str(self.actual_file_to_check), str(mod_time))
+            mod_time = self.hook.get_mod_time(actual_file_to_check)
+            self.log.info('Found File %s last modified: %s', str(actual_file_to_check), str(mod_time))
         except OSError as e:
             if e.errno != SFTP_NO_SUCH_FILE:
                 raise e
