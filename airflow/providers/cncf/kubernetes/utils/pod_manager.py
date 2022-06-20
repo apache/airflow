@@ -195,18 +195,18 @@ class PodManager(LoggingMixin):
         )
         return self.fetch_container_logs(pod=pod, container_name=container_name, follow=True)
 
-    def log_iterable(self, logs: Iterable[bytes]) -> Optional[DateTime]:
+    def _log_iterable(self, logs: Iterable[bytes]) -> Optional[DateTime]:
         timestamp = None
         for line in logs:
             timestamp, message = self.parse_log_line(line.decode('utf-8', errors="backslashreplace"))
             self.log.info(message)
         return timestamp
 
-    def consume_container_logs_stream(
+    def _consume_container_logs_stream(
         self, pod: V1Pod, container_name: str, stream: Iterable[bytes]
     ) -> Optional[DateTime]:
         def log_iterable_and_set_value(timestamp):
-            dt = self.log_iterable(stream)
+            dt = self._log_iterable(stream)
             if dt is not None:
                 timestamp.value = dt.timestamp()  # type: ignore[attr-defined]
 
@@ -257,9 +257,9 @@ class PodManager(LoggingMixin):
                     follow=follow,
                 )
                 if follow:
-                    timestamp = self.consume_container_logs_stream(pod, container_name, logs)
+                    timestamp = self._consume_container_logs_stream(pod, container_name, logs)
                 else:
-                    timestamp = self.log_iterable(logs)
+                    timestamp = self._log_iterable(logs)
 
             except BaseHTTPError as e:
                 self.log.warning(
