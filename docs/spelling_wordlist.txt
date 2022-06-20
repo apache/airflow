@@ -346,6 +346,7 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+SFTPClient
 SIGTERM
 SSHClient
 SSHTunnelForwarder
@@ -1250,6 +1251,7 @@ readme
 readthedocs
 realtime
 rebase
+recurse
 recurses
 redbubble
 redis

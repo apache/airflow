@@ -40,7 +40,14 @@ integrations:
   - integration-name: Trino
     external-doc-url: https://trino.io/docs/
     logo: /integration-logos/trino/trino-og.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-trino/operators/trino.rst
     tags: [software]
+
+operators:
+  - integration-name: Trino
+    python-modules:
+      - airflow.providers.trino.operators.trino
 
 hooks:
   - integration-name: Trino
