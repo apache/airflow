@@ -174,7 +174,7 @@ class TestBaseOperator:
             (
                 {"key_{{ foo }}_1": 1, "key_2": "{{ foo }}_2"},
                 {"foo": "bar"},
-                {"key_bar_1": 1, "key_2": "bar_2"},
+                {"key_{{ foo }}_1": 1, "key_2": "bar_2"},
             ),
             (date(2018, 12, 6), {"foo": "bar"}, date(2018, 12, 6)),
             (datetime(2018, 12, 6, 10, 55), {"foo": "bar"}, datetime(2018, 12, 6, 10, 55)),
@@ -233,6 +233,20 @@ class TestBaseOperator:
 
         result = task.render_template(content, context)
         assert result == expected_output
+
+    def test_render_template_with_flag(self):
+        """Test render_template given various input types."""
+        content = {"key_{{ foo }}_1": 1, "key_2": "{{ foo }}_2"}
+        context = {"foo": "bar"}
+        expected_output = {"key_bar_1": 1, "key_2": "bar_2"}
+
+        task = BaseOperator(task_id="op1")
+
+        with mock.patch("airflow.configuration.conf") as conf_mock:
+            conf_mock.getboolean.return_value = True
+            result = task.render_template(content, context)
+            assert result == expected_output
+            conf_mock.getboolean.assert_called_with('core', 'render_dict_keys')
 
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
