@@ -33,6 +33,7 @@ class SalesforceBulkOperator(BaseOperator):
         :ref:`howto/operator:SalesforceBulkOperator`
 
     :param operation: Bulk operation to be performed
+        Available operations are in ['insert', 'update', 'upsert', 'delete']
     :param object_name: The name of the Salesforce object
     :param payload: list of dict to be passed as a batch
     :param external_id_field: unique identifier field for upsert operations
