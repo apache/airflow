@@ -24,6 +24,14 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~~
+
+* ``Update Oracle library to latest version (#24311)``
+
 3.0.0
 .....
 

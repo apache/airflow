@@ -20,15 +20,16 @@
 /* global document */
 
 import React from 'react';
-import ReactDOM from 'react-dom';
+import { createRoot } from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ChakraProvider, extendTheme } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
 import createCache from '@emotion/cache';
 import { QueryClient, QueryClientProvider } from 'react-query';
 
 import Main from './Main';
-import { ContainerRefProvider } from './context/containerRef';
+import theme from './theme';
+import { ContainerRefProvider, useContainerRef } from './context/containerRef';
 import { TimezoneProvider } from './context/timezone';
 import { AutoRefreshProvider } from './context/autorefresh';
 
@@ -60,36 +61,35 @@ const queryClient = new QueryClient({
   },
 });
 
-const theme = extendTheme({
-  components: {
-    Tooltip: {
-      baseStyle: {
-        fontSize: 'md',
-      },
-    },
-  },
-});
+// Chakra needs to access the containerRef provider so our tooltips pick up the correct styles
+const ChakraApp = () => {
+  const containerRef = useContainerRef();
+  return (
+    <ChakraProvider theme={theme} toastOptions={{ portalProps: { containerRef } }}>
+      <QueryClientProvider client={queryClient}>
+        <TimezoneProvider>
+          <AutoRefreshProvider>
+            <BrowserRouter>
+              <Main />
+            </BrowserRouter>
+          </AutoRefreshProvider>
+        </TimezoneProvider>
+      </QueryClientProvider>
+    </ChakraProvider>
+  );
+};
 
 function App() {
   return (
     <React.StrictMode>
       <CacheProvider value={myCache}>
-        <ChakraProvider theme={theme}>
-          <ContainerRefProvider>
-            <QueryClientProvider client={queryClient}>
-              <TimezoneProvider>
-                <AutoRefreshProvider>
-                  <BrowserRouter>
-                    <Main />
-                  </BrowserRouter>
-                </AutoRefreshProvider>
-              </TimezoneProvider>
-            </QueryClientProvider>
-          </ContainerRefProvider>
-        </ChakraProvider>
+        <ContainerRefProvider>
+          <ChakraApp />
+        </ContainerRefProvider>
       </CacheProvider>
     </React.StrictMode>
   );
 }
 
-ReactDOM.render(<App />, mainElement);
+const reactRoot = createRoot(mainElement);
+reactRoot.render(<App />);

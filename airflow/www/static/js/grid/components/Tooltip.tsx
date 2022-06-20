@@ -32,7 +32,7 @@ import {
   Portal,
   PortalProps,
 } from '@chakra-ui/react';
-import { AnimatePresence, motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface TooltipProps
   extends HTMLChakraProps<'div'>,
@@ -42,7 +42,7 @@ export interface TooltipProps
    * The React component to use as the
    * trigger for the tooltip
    */
-  children: React.ReactNode
+  children: React.ReactElement
   /**
    * The label of the tooltip
    */
@@ -69,6 +69,25 @@ export interface TooltipProps
    */
   portalProps?: Pick<PortalProps, 'appendToParentPortal' | 'containerRef'>
 }
+
+const scale = {
+  exit: {
+    scale: 0.85,
+    opacity: 0,
+    transition: {
+      opacity: { duration: 0.15, easings: 'easeInOut' },
+      scale: { duration: 0.2, easings: 'easeInOut' },
+    },
+  },
+  enter: {
+    scale: 1,
+    opacity: 1,
+    transition: {
+      opacity: { easings: 'easeOut', duration: 0.2 },
+      scale: { duration: 0.2, ease: [0.175, 0.885, 0.4, 1.1] },
+    },
+  },
+};
 
 const StyledTooltip = chakra(motion.div);
 
@@ -131,7 +150,7 @@ const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
    * Let's simply return the children
    */
   if (!label) {
-    return <>{children}</>;
+    return children;
   }
 
   return (
@@ -139,37 +158,38 @@ const Tooltip = forwardRef<TooltipProps, 'div'>((props, ref) => {
       {trigger}
       <AnimatePresence>
         {tooltip.isOpen && (
-          <Portal {...portalProps}>
-            <chakra.div
-              {...tooltip.getTooltipPositionerProps()}
-              __css={{
-                zIndex: styles.zIndex,
-                pointerEvents: 'none',
-              }}
+        <Portal {...portalProps}>
+          <chakra.div
+            {...tooltip.getTooltipPositionerProps()}
+            __css={{
+              zIndex: styles.zIndex,
+              pointerEvents: 'none',
+            }}
+          >
+            <StyledTooltip
+              variants={scale}
+              {...(tooltipProps as any)}
+              initial="exit"
+              animate="enter"
+              exit="exit"
+              __css={styles}
             >
-              <StyledTooltip
-                {...(tooltipProps as any)}
-                initial="exit"
-                animate="enter"
-                exit="exit"
-                __css={styles}
+              {label}
+              {hasArrow && (
+              <chakra.div
+                data-popper-arrow
+                className="chakra-tooltip__arrow-wrapper"
               >
-                {label}
-                {hasArrow && (
-                  <chakra.div
-                    data-popper-arrow
-                    className="chakra-tooltip__arrow-wrapper"
-                  >
-                    <chakra.div
-                      data-popper-arrow-inner
-                      className="chakra-tooltip__arrow"
-                      __css={{ bg: styles.bg }}
-                    />
-                  </chakra.div>
-                )}
-              </StyledTooltip>
-            </chakra.div>
-          </Portal>
+                <chakra.div
+                  data-popper-arrow-inner
+                  className="chakra-tooltip__arrow"
+                  __css={{ bg: styles.bg }}
+                />
+              </chakra.div>
+              )}
+            </StyledTooltip>
+          </chakra.div>
+        </Portal>
         )}
       </AnimatePresence>
     </>

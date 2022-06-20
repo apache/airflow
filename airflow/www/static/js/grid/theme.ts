@@ -16,7 +16,24 @@
  * specific language governing permissions and limitations
  * under the License.
  */
-/**
- * Internet Explore only scripts
- */
-import 'url-search-params-polyfill';
+
+import { extendTheme } from '@chakra-ui/react';
+
+const theme = extendTheme({
+  styles: {
+    global: {
+      '*, *::before, &::after': {
+        borderColor: 'gray.200',
+      },
+    },
+  },
+  components: {
+    Tooltip: {
+      baseStyle: {
+        fontSize: 'md',
+      },
+    },
+  },
+});
+
+export default theme;
