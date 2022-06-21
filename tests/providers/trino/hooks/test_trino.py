@@ -249,6 +249,19 @@ class TestTrinoHook(unittest.TestCase):
         self.db_hook.run(sql, autocommit, parameters, list)
         mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
 
+    def test_connection_success(self):
+        status, msg = self.db_hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.get_conn')
+    def test_connection_failure(self, mock_conn):
+        mock_conn.side_effect = Exception('Test')
+        self.db_hook.get_conn = mock_conn
+        status, msg = self.db_hook.test_connection()
+        assert status is False
+        assert msg == 'Test'
+
 
 class TestTrinoHookIntegration(unittest.TestCase):
     @pytest.mark.integration("trino")

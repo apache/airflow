@@ -45,7 +45,7 @@ with models.DAG(
     )
     trino_create_table = TrinoOperator(
         task_id="trino_create_table",
-        sql=f"""CREATE TABLE {SCHEMA}.{TABLE}(
+        sql=f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE}(
         cityid bigint,
         cityname varchar
         )""",
@@ -60,9 +60,9 @@ with models.DAG(
 
     trino_multiple_queries = TrinoOperator(
         task_id="trino_multiple_queries",
-        sql=f"""CREATE TABLE {SCHEMA}.{TABLE1}(cityid bigint,cityname varchar);
+        sql=f"""CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE1}(cityid bigint,cityname varchar);
         INSERT INTO {SCHEMA}.{TABLE1} VALUES (2, 'San Jose');
-        CREATE TABLE {SCHEMA}.{TABLE2}(cityid bigint,cityname varchar);
+        CREATE TABLE IF NOT EXISTS {SCHEMA}.{TABLE2}(cityid bigint,cityname varchar);
         INSERT INTO {SCHEMA}.{TABLE2} VALUES (3, 'San Diego');""",
         handler=list,
     )
