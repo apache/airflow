@@ -24,7 +24,7 @@ from typing import IO, Dict, List, Optional, Tuple
 
 import click
 
-from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     ALLOWED_PLATFORMS,
@@ -260,7 +260,7 @@ def prepare_airflow_packages(
         install_providers_from_sources=False,
         mount_sources=MOUNT_ALL,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     result_command = run_with_debug(
         params=shell_params,
         command=["/opt/airflow/scripts/in_container/run_prepare_airflow_packages.sh"],
@@ -299,7 +299,7 @@ def prepare_provider_documentation(
         answer=answer,
         skip_environment_initialization=True,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_documentation.sh", *packages]
     result_command = run_with_debug(
         params=shell_params,
@@ -351,7 +351,7 @@ def prepare_provider_packages(
         skip_environment_initialization=True,
         version_suffix_for_pypi=version_suffix_for_pypi,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     cmd_to_run = ["/opt/airflow/scripts/in_container/run_prepare_provider_packages.sh", *packages_list]
     result_command = run_with_debug(
         params=shell_params,
@@ -540,7 +540,7 @@ def verify_provider_packages(
         use_packages_from_dist=use_packages_from_dist,
         package_format=package_format,
     )
-    rebuild_ci_image_if_needed(build_params=shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=shell_params, dry_run=dry_run, verbose=verbose)
     cmd_to_run = [
         "-c",
         "python /opt/airflow/scripts/in_container/verify_providers.py",
@@ -621,8 +621,8 @@ def release_prod_images(
     dry_run: bool,
 ):
     perform_environment_checks(verbose=verbose)
-    rebuild_ci_image_if_needed(
-        build_params=ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION),
+    rebuild_or_pull_ci_image_if_needed(
+        command_params=ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION),
         dry_run=dry_run,
         verbose=verbose,
     )

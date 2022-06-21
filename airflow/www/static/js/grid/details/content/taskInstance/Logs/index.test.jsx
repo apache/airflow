@@ -68,8 +68,10 @@ describe('Test Logs Component.', () => {
       />,
     );
     expect(getByText('[2022-06-04, 00:00:01 UTC] {taskinstance.py:1329} INFO -', { exact: false })).toBeDefined();
-    expect(getByText('[2022-06-04, 00:00:01 UTC] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group',
-      { exact: false })).toBeDefined();
+    expect(getByText(
+      '[2022-06-04, 00:00:01 UTC] {standard_task_runner.py:81} INFO - Job 1626: Subtask section_1.get_entry_group',
+      { exact: false },
+    )).toBeDefined();
     expect(getByText('AIRFLOW_CTX_DAG_ID=test_ui_grid', { exact: false })).toBeDefined();
   });
 

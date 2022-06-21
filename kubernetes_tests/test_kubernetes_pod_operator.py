@@ -660,7 +660,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             do_xcom_push=False,
         )
         # THEN
-        await_pod_completion_mock.return_value = None
+        await_pod_completion_mock.side_effect = AirflowException
         context = create_context(k)
         with pytest.raises(AirflowException):
             k.execute(context)

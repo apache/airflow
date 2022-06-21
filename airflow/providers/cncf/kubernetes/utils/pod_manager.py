@@ -87,7 +87,7 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
         container_statuses = pod.status.container_statuses
         container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
         return container_status.state.terminated.message if container_status else None
-    except AttributeError:
+    except (AttributeError, TypeError):
         return None
 
 

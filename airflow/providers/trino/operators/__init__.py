@@ -14,27 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-import os
-from datetime import datetime
-
-from airflow import models
-from airflow.providers.google.cloud.transfers.oracle_to_gcs import OracleToGCSOperator
-
-GCS_BUCKET = os.environ.get("GCP_GCS_BUCKET", "example-airflow-oracle-gcs")
-FILENAME = 'test_file'
-
-SQL_QUERY = "SELECT * from test_table"
-
-with models.DAG(
-    'example_oracle_to_gcs',
-    schedule_interval=None,
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
-    tags=['example'],
-) as dag:
-    # [START howto_operator_oracle_to_gcs]
-    upload = OracleToGCSOperator(
-        task_id='oracle_to_gcs', sql=SQL_QUERY, bucket=GCS_BUCKET, filename=FILENAME, export_format='csv'
-    )
-    # [END howto_operator_oracle_to_gcs]

@@ -188,6 +188,70 @@ class TestProviderManager:
         )
         assert provider_manager.connection_form_widgets['extra__test__my_param'].field == widget_field
 
+    def test_connection_form_widgets_fields_order(self):
+        """Check that order of connection for widgets preserved by original Hook order."""
+        test_conn_type = 'test'
+        field_prefix = f'extra__{test_conn_type}__'
+        field_names = ("yyy_param", "aaa_param", "000_param", "foo", "bar", "spam", "egg")
+
+        expected_field_names_order = tuple(f"{field_prefix}{f}" for f in field_names)
+
+        class TestHook:
+            conn_type = test_conn_type
+
+        provider_manager = ProvidersManager()
+        provider_manager._connection_form_widgets = {}
+        provider_manager._add_widgets(
+            package_name='mock',
+            hook_class=TestHook,
+            widgets={f: BooleanField(lazy_gettext('Dummy param')) for f in expected_field_names_order},
+        )
+        actual_field_names_order = tuple(
+            key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
+        )
+        assert actual_field_names_order == expected_field_names_order, "Not keeping original fields order"
+
+    def test_connection_form_widgets_fields_order_multiple_hooks(self):
+        """
+        Check that order of connection for widgets preserved by original Hooks order.
+        Even if different hooks specified field with the same connection type.
+        """
+        test_conn_type = 'test'
+        field_prefix = f'extra__{test_conn_type}__'
+        field_names_hook_1 = ("foo", "bar", "spam", "egg")
+        field_names_hook_2 = ("yyy_param", "aaa_param", "000_param")
+
+        expected_field_names_order = tuple(
+            f"{field_prefix}{f}" for f in [*field_names_hook_1, *field_names_hook_2]
+        )
+
+        class TestHook1:
+            conn_type = test_conn_type
+
+        class TestHook2:
+            conn_type = 'another'
+
+        provider_manager = ProvidersManager()
+        provider_manager._connection_form_widgets = {}
+        provider_manager._add_widgets(
+            package_name='mock',
+            hook_class=TestHook1,
+            widgets={
+                f"{field_prefix}{f}": BooleanField(lazy_gettext('Dummy param')) for f in field_names_hook_1
+            },
+        )
+        provider_manager._add_widgets(
+            package_name='another_mock',
+            hook_class=TestHook2,
+            widgets={
+                f"{field_prefix}{f}": BooleanField(lazy_gettext('Dummy param')) for f in field_names_hook_2
+            },
+        )
+        actual_field_names_order = tuple(
+            key for key in provider_manager.connection_form_widgets.keys() if key.startswith(field_prefix)
+        )
+        assert actual_field_names_order == expected_field_names_order, "Not keeping original fields order"
+
     def test_field_behaviours(self):
         provider_manager = ProvidersManager()
         connections_with_field_behaviours = list(provider_manager.field_behaviours.keys())

@@ -96,7 +96,7 @@ You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it i
 you to re-create CI environment in your local development instance and interact with it. In its basic
 form, when you do development you can run all the same tests that will be run in CI - but locally,
 before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
-take the full ``COMMIT_SHA`` of the failed build pass it as ``--github-image-id`` parameter of Breeze and it will
+take the full ``COMMIT_SHA`` of the failed build pass it as ``--image-tag`` parameter of Breeze and it will
 download the very same version of image that was used in CI and run it locally. This way, you can very
 easily reproduce any failed test that happens in CI - even if you do not check out the sources
 connected with the run.
@@ -275,7 +275,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | should set it to false, especially              |
 |                                         |             |              |            | in case our local sources are not the           |
 |                                         |             |              |            | ones we intend to use (for example              |
-|                                         |             |              |            | when ``--github-image-id`` is used              |
+|                                         |             |              |            | when ``--image-tag`` is used              |
 |                                         |             |              |            | in Breeze.                                      |
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | In CI jobs it is set to true                    |
@@ -668,12 +668,11 @@ For example knowing that the CI job was for commit ``cd27124534b46c9688a1d89e75f
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or
 enable some integrations. Therefore it is easiest to use `Breeze <BREEZE.rst>`_ for that. For example if
-you need to reproduce a MySQL environment with kerberos integration enabled for commit
-cd27124534b46c9688a1d89e75fcd137ab5137e3, in python 3.8 environment you can run:
+you need to reproduce a MySQL environment in python 3.8 environment you can run:
 
 .. code-block:: bash
 
-  ./breeze-legacy --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
+  breeze --image-tag cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8 --backend mysql
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in

@@ -18,8 +18,11 @@
 import json
 import os
 import warnings
-from typing import Any, Callable, Iterable, Optional, overload
+from contextlib import closing
+from itertools import chain
+from typing import Any, Callable, Iterable, Optional, Tuple, overload
 
+import sqlparse
 import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
@@ -90,6 +93,7 @@ class TrinoHook(DbApiHook):
     default_conn_name = 'trino_default'
     conn_type = 'trino'
     hook_name = 'Trino'
+    query_id = ''
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
@@ -251,9 +255,9 @@ class TrinoHook(DbApiHook):
     @overload
     def run(
         self,
-        sql: str = "",
+        sql,
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Tuple] = None,
         handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
@@ -261,9 +265,9 @@ class TrinoHook(DbApiHook):
     @overload
     def run(
         self,
-        sql: str = "",
+        sql,
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Tuple] = None,
         handler: Optional[Callable] = None,
         hql: str = "",
     ) -> None:
@@ -271,12 +275,12 @@ class TrinoHook(DbApiHook):
 
     def run(
         self,
-        sql: str = "",
+        sql,
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Tuple] = None,
         handler: Optional[Callable] = None,
         hql: str = "",
-    ) -> None:
+    ):
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -285,10 +289,38 @@ class TrinoHook(DbApiHook):
                 stacklevel=2,
             )
             sql = hql
+        scalar = isinstance(sql, str)
 
-        return super().run(
-            sql=self._strip_sql(sql), autocommit=autocommit, parameters=parameters, handler=handler
-        )
+        with closing(self.get_conn()) as conn:
+            if self.supports_autocommit:
+                self.set_autocommit(conn, autocommit)
+
+            if scalar:
+                sql = sqlparse.split(sql)
+
+            with closing(conn.cursor()) as cur:
+                results = []
+                for sql_statement in sql:
+                    self._run_command(cur, self._strip_sql(sql_statement), parameters)
+                    self.query_id = cur.stats["queryId"]
+                    if handler is not None:
+                        result = handler(cur)
+                        results.append(result)
+
+            # If autocommit was set to False for db that supports autocommit,
+            # or if db does not supports autocommit, we do a manual commit.
+            if not self.get_autocommit(conn):
+                conn.commit()
+
+        self.log.info("Query Execution Result: %s", str(list(chain.from_iterable(results))))
+
+        if handler is None:
+            return None
+
+        if scalar:
+            return results[0]
+
+        return results
 
     def insert_rows(
         self,

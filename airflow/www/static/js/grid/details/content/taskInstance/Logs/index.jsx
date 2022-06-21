@@ -94,13 +94,15 @@ const Logs = ({
     execution_date: executionDate,
   }).toString();
 
-  const { parsedLogs, fileSources = [] } = useMemo(() => parseLogs(
-    data,
-    timezone,
-    logLevelFilter,
-    fileSourceFilter,
-  ),
-  [data, fileSourceFilter, logLevelFilter, timezone]);
+  const { parsedLogs, fileSources = [] } = useMemo(
+    () => parseLogs(
+      data,
+      timezone,
+      logLevelFilter,
+      fileSourceFilter,
+    ),
+    [data, fileSourceFilter, logLevelFilter, timezone],
+  );
 
   useEffect(() => {
     // Reset fileSourceFilter and selected attempt when changing to

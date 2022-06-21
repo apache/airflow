@@ -30,7 +30,7 @@ from airflow.models import DagModel, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.utils.db_cleanup import _build_query, _cleanup_table, config_dict, run_cleanup
 from airflow.utils.session import create_session
-from tests.test_utils.db import clear_db_dags, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs, drop_tables_with_prefix
 
 
 @pytest.fixture(autouse=True)
@@ -44,6 +44,10 @@ def clean_database():
 
 
 class TestDBCleanup:
+    @pytest.fixture(autouse=True)
+    def clear_airflow_tables(self):
+        drop_tables_with_prefix('_airflow_')
+
     @pytest.mark.parametrize(
         'kwargs, called',
         [
@@ -67,6 +71,27 @@ class TestDBCleanup:
             confirm_delete_mock.assert_called()
         else:
             confirm_delete_mock.assert_not_called()
+
+    @pytest.mark.parametrize(
+        'kwargs, should_skip',
+        [
+            param(dict(skip_archive=True), True, id='true'),
+            param(dict(), False, id='not supplied'),
+            param(dict(skip_archive=False), False, id='false'),
+        ],
+    )
+    @patch('airflow.utils.db_cleanup._cleanup_table')
+    def test_run_cleanup_skip_archive(self, cleanup_table_mock, kwargs, should_skip):
+        """test that delete confirmation input is called when appropriate"""
+        run_cleanup(
+            clean_before_timestamp=None,
+            table_names=['log'],
+            dry_run=None,
+            verbose=None,
+            confirm=False,
+            **kwargs,
+        )
+        assert cleanup_table_mock.call_args[1]['skip_archive'] is should_skip
 
     @pytest.mark.parametrize(
         'table_names',
@@ -95,12 +120,14 @@ class TestDBCleanup:
         [None, True, False],
     )
     @patch('airflow.utils.db_cleanup._build_query', MagicMock())
-    @patch('airflow.utils.db_cleanup._print_entities', MagicMock())
-    @patch('airflow.utils.db_cleanup._do_delete')
     @patch('airflow.utils.db_cleanup._confirm_delete', MagicMock())
-    def test_run_cleanup_dry_run(self, do_delete, dry_run):
+    @patch('airflow.utils.db_cleanup._check_for_rows')
+    @patch('airflow.utils.db_cleanup._do_delete')
+    def test_run_cleanup_dry_run(self, do_delete, check_rows_mock, dry_run):
         """Delete should only be called when not dry_run"""
+        check_rows_mock.return_value = 10
         base_kwargs = dict(
+            table_names=['log'],
             clean_before_timestamp=None,
             dry_run=dry_run,
             verbose=None,
@@ -135,7 +162,7 @@ class TestDBCleanup:
         dag run is kept.
 
         """
-        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('America/Los_Angeles'))
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('UTC'))
         create_tis(
             base_date=base_date,
             num_tis=10,
@@ -175,7 +202,7 @@ class TestDBCleanup:
         associated dag runs should remain.
 
         """
-        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('America/Los_Angeles'))
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('UTC'))
         num_tis = 10
         create_tis(
             base_date=base_date,
@@ -189,13 +216,14 @@ class TestDBCleanup:
                 clean_before_timestamp=clean_before_date,
                 dry_run=False,
                 session=session,
+                table_names=['dag_run', 'task_instance'],
             )
             model = config_dict[table_name].orm_model
             expected_remaining = num_tis - expected_to_delete
             assert len(session.query(model).all()) == expected_remaining
-            if model == TaskInstance:
+            if model.name == 'task_instance':
                 assert len(session.query(DagRun).all()) == num_tis
-            elif model == DagRun:
+            elif model.name == 'dag_run':
                 assert len(session.query(TaskInstance).all()) == expected_remaining
             else:
                 raise Exception("unexpected")

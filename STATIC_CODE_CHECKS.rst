@@ -294,7 +294,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-breeze-file                                     | Update output of breeze commands in BREEZE.rst                   |         |
+| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
