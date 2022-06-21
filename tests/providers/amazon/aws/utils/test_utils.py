@@ -15,28 +15,30 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import re
 from datetime import datetime
-from typing import Tuple
 
-from airflow.version import version
+from airflow.providers.amazon.aws.utils import (
+    datetime_to_epoch,
+    datetime_to_epoch_ms,
+    datetime_to_epoch_us,
+    get_airflow_version,
+)
 
-
-def datetime_to_epoch(date_time: datetime) -> int:
-    """Convert a datetime object to an epoch integer (seconds)."""
-    return int(date_time.timestamp())
-
-
-def datetime_to_epoch_ms(date_time: datetime) -> int:
-    """Convert a datetime object to an epoch integer (milliseconds)."""
-    return int(date_time.timestamp() * 1_000)
+DT = datetime(2000, 1, 1)
+EPOCH = 946_684_800
 
 
-def datetime_to_epoch_us(date_time: datetime) -> int:
-    """Convert a datetime object to an epoch integer (microseconds)."""
-    return int(date_time.timestamp() * 1_000_000)
+def test_datetime_to_epoch():
+    assert datetime_to_epoch(DT) == EPOCH
 
 
-def get_airflow_version() -> Tuple[int, ...]:
-    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), version)
-    return tuple(int(x) for x in val.split('.'))
+def test_datetime_to_epoch_ms():
+    assert datetime_to_epoch_ms(DT) == EPOCH * 1000
+
+
+def test_datetime_to_epoch_us():
+    assert datetime_to_epoch_us(DT) == EPOCH * 1_000_000
+
+
+def test_get_airflow_version():
+    assert len(get_airflow_version()) == 3

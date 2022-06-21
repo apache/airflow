@@ -213,6 +213,12 @@ integrations:
     external-doc-url: https://docs.aws.amazon.com/STS/latest/APIReference/welcome.html
     logo: /integration-logos/aws/AWS-STS_light-bg@4x.png
     tags: [aws]
+  - integration-name: Amazon Appflow
+    external-doc-url: https://docs.aws.amazon.com/appflow/1.0/APIReference/Welcome.html
+    logo: /integration-logos/aws/Amazon_AppFlow_light.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-amazon/operators/appflow.rst
+    tags: [aws]
 
 operators:
   - integration-name: Amazon Athena
@@ -311,6 +317,9 @@ operators:
   - integration-name: Amazon QuickSight
     python-modules:
       - airflow.providers.amazon.aws.operators.quicksight
+  - integration-name: Amazon Appflow
+    python-modules:
+      - airflow.providers.amazon.aws.operators.appflow
 
 sensors:
   - integration-name: Amazon Athena
@@ -475,6 +484,9 @@ hooks:
   - integration-name: AWS Security Token Service (STS)
     python-modules:
       - airflow.providers.amazon.aws.hooks.sts
+  - integration-name: Amazon Appflow
+    python-modules:
+      - airflow.providers.amazon.aws.hooks.appflow
 
 transfers:
   - source-integration-name: Amazon DynamoDB
