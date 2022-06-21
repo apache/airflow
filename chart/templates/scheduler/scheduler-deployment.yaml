@@ -183,6 +183,11 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           volumeMounts:
             {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config
@@ -215,6 +220,11 @@ spec:
         - name: scheduler-log-groomer
           resources:
 {{ toYaml .Values.scheduler.logGroomerSidecar.resources | indent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
           image: {{ template "airflow_image" . }}
           imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
           {{- if .Values.scheduler.logGroomerSidecar.command }}
