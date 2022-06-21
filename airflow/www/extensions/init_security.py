@@ -56,5 +56,5 @@ def init_api_experimental_auth(app):
             auth.init_app(app)
             app.api_auth.append(auth)
         except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
+            log.critical("Cannot import %s for API authentication.", backend, exc_info=True)
             raise AirflowException(err)

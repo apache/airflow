@@ -122,7 +122,7 @@ def trigger_dag(dag_id):
     try:
         dr = trigger.trigger_dag(dag_id, run_id, conf, execution_date, replace_microseconds)
     except AirflowException as err:
-        log.error(err)
+        log.exception("Exception occurred when triggering DAG %r for run_id %r.", dag_id, run_id)
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -143,7 +143,7 @@ def delete_dag(dag_id):
     try:
         count = delete.delete_dag(dag_id)
     except AirflowException as err:
-        log.error(err)
+        log.exception("Exception occurred when deleting DAG %r.", dag_id)
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -165,7 +165,9 @@ def dag_runs(dag_id):
         state = request.args.get('state')
         dagruns = get_dag_runs(dag_id, state)
     except AirflowException as err:
-        log.info(err)
+        log.info(
+            "Exception occurred when listing DAG Runs for DAG %r with state %s.", dag_id, state, exc_info=True
+        )
         response = jsonify(error=f"{err}")
         response.status_code = 400
         return response
@@ -194,7 +196,7 @@ def get_dag_code(dag_id):
     try:
         return get_code(dag_id)
     except AirflowException as err:
-        log.info(err)
+        log.info("Exception occurred when retrieving DAG code for DAG %r.", dag_id, exc_info=True)
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -207,7 +209,7 @@ def task_info(dag_id, task_id):
     try:
         t_info = get_task(dag_id, task_id)
     except AirflowException as err:
-        log.info(err)
+        log.info("Exception occurred when retrieving task %r in DAG %r.", task_id, dag_id, exc_info=True)
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -268,7 +270,13 @@ def task_instance_info(dag_id, execution_date, task_id):
     try:
         ti_info = get_task_instance(dag_id, task_id, execution_date)
     except AirflowException as err:
-        log.info(err)
+        log.info(
+            "Exception occurred when retrieving Task Instance for task %r in DAG %r for execution_date %s.",
+            task_id,
+            dag_id,
+            execution_date,
+            exc_info=True,
+        )
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -304,7 +312,12 @@ def dag_run_status(dag_id, execution_date):
     try:
         dr_info = get_dag_run_state(dag_id, execution_date)
     except AirflowException as err:
-        log.info(err)
+        log.info(
+            "Exception occurred when retrieving DAG Run state for DAG %r with execution_date %s.",
+            dag_id,
+            execution_date,
+            exc_info=True,
+        )
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -342,7 +355,7 @@ def get_pool(name):
     try:
         pool = pool_api.get_pool(name=name)
     except AirflowException as err:
-        log.error(err)
+        log.exception("Exception occurred when retrieving pool %r.", name)
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -357,7 +370,7 @@ def get_pools():
     try:
         pools = pool_api.get_pools()
     except AirflowException as err:
-        log.error(err)
+        log.exception("Exception occurred when retrieving all pools.")
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -373,7 +386,7 @@ def create_pool():
     try:
         pool = pool_api.create_pool(**params)
     except AirflowException as err:
-        log.error(err)
+        log.exception("Exception occurred when creating pool.")
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -388,7 +401,7 @@ def delete_pool(name):
     try:
         pool = pool_api.delete_pool(name=name)
     except AirflowException as err:
-        log.error(err)
+        log.exception("Exception occurred when deleting pool %r.", name)
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response
@@ -417,7 +430,11 @@ def get_lineage(dag_id: str, execution_date: str):
     try:
         lineage = get_lineage_api(dag_id=dag_id, execution_date=execution_dt)
     except AirflowException as err:
-        log.error(err)
+        log.exception(
+            "Exception occurred when retrieving lineage details for DAG %r and execution_date %s.",
+            dag_id,
+            execution_date,
+        )
         response = jsonify(error=f"{err}")
         response.status_code = err.status_code
         return response

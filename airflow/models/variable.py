@@ -239,10 +239,13 @@ class Variable(Base, LoggingMixin):
                     var_val = secrets_backend.get_variable(key=key)
                     if var_val is not None:
                         log.warning(
-                            "The variable {key} is defined in the {cls} secrets backend, which takes "
+                            "The variable %s is defined in the %s secrets backend, which takes "
                             "precedence over reading from the database. The value in the database will be "
                             "updated, but to read it you have to delete the conflicting variable "
-                            "from {cls}".format(key=key, cls=secrets_backend.__class__.__name__)
+                            "from %s",
+                            key,
+                            secrets_backend.__class__.__name__,
+                            secrets_backend.__class__.__name__,
                         )
                         return
                 except Exception:

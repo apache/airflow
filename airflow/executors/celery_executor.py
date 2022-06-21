@@ -127,8 +127,8 @@ def _execute_in_fork(command_to_exec: CommandType, celery_task_id: Optional[str]
 
         args.func(args)
         ret = 0
-    except Exception as e:
-        log.exception("[%s] Failed to execute task %s.", celery_task_id, str(e))
+    except Exception:
+        log.exception("[%s] Failed to execute task.", celery_task_id)
         ret = 1
     finally:
         Sentry.flush()
@@ -291,7 +291,7 @@ class CeleryExecutor(BaseExecutor):
             self.queued_tasks.pop(key)
             self.task_publish_retries.pop(key, None)
             if isinstance(result, ExceptionWithTraceback):
-                self.log.error(CELERY_SEND_ERR_MSG_HEADER + ": %s\n%s\n", result.exception, result.traceback)
+                self.log.error("%s: %s\n%s\n", CELERY_SEND_ERR_MSG_HEADER, result.exception, result.traceback)
                 self.event_buffer[key] = (State.FAILED, None)
             elif result is not None:
                 result.backend = cached_celery_backend
@@ -416,8 +416,8 @@ class CeleryExecutor(BaseExecutor):
             if celery_async_result:
                 try:
                     app.control.revoke(celery_async_result.task_id)
-                except Exception as ex:
-                    self.log.error("Error revoking task instance %s from celery: %s", key, ex)
+                except Exception:
+                    self.log.exception("Error revoking task instance %s from celery.", key)
 
     def debug_dump(self) -> None:
         """Called in response to SIGUSR2 by the scheduler"""
@@ -650,7 +650,8 @@ class BulkStateFetcher(LoggingMixin):
             for task_id, state_or_exception, info in task_id_to_states_and_info:
                 if isinstance(state_or_exception, ExceptionWithTraceback):
                     self.log.error(
-                        CELERY_FETCH_ERR_MSG_HEADER + ":%s\n%s\n",
+                        "%s:%s\n%s\n",
+                        CELERY_FETCH_ERR_MSG_HEADER,
                         state_or_exception.exception,
                         state_or_exception.traceback,
                     )

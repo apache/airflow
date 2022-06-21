@@ -91,14 +91,13 @@ class StandardTaskRunner(BaseTaskRunner):
                 dag = get_dag(args.subdir, args.dag_id)
                 args.func(args, dag=dag)
                 return_code = 0
-            except Exception as exc:
+            except Exception:
                 return_code = 1
 
-                self.log.error(
-                    "Failed to execute job %s for task %s (%s; %r)",
+                self.log.exception(
+                    "Failed to execute job %s for task %s (%r)",
                     job_id,
                     self._task_instance.task_id,
-                    exc,
                     os.getpid(),
                 )
             except SystemExit as sys_ex:

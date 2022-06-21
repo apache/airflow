@@ -356,8 +356,8 @@ def _upload_text_to_fileio(content):
     try:
         return resp.json()["link"]
     except ValueError as e:
-        log.debug(e)
-        raise FileIoException("Failed to send report to file.io service.")
+        log.debug("Failed to send report to file.io service.")
+        raise FileIoException(e)
 
 
 def _send_report_to_fileio(info):

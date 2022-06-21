@@ -59,8 +59,8 @@ def get_airflow_git_version():
     git_version = None
     try:
         git_version = str(pkgutil.get_data('airflow', 'git_version'), encoding="UTF-8")
-    except Exception as e:
-        log.debug(e)
+    except Exception:
+        log.debug("Exception occurred retrieving git version.", exc_info=True)
 
     return git_version
 

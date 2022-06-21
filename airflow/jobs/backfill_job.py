@@ -589,8 +589,8 @@ class BackfillJob(BaseJob):
 
                         _per_task_process(key, ti, session)
                         session.commit()
-            except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached) as e:
-                self.log.debug(e)
+            except (NoAvailablePoolSlot, DagConcurrencyLimitReached, TaskConcurrencyLimitReached):
+                self.log.debug("Unable to schedule Task Instance.", exc_info=True)
 
             self.heartbeat(only_if_necessary=is_unit_test)
             # execute the tasks in the queue

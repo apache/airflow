@@ -101,8 +101,8 @@ def default_action_log(log, **_):
     try:
         with create_session() as session:
             session.add(log)
-    except Exception as error:
-        logging.warning("Failed to log action with %s", error)
+    except Exception:
+        logging.warning("Failed to log action.", exc_info=True)
 
 
 __pre_exec_callbacks = []  # type: List[Callable]

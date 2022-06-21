@@ -91,8 +91,8 @@ class LocalWorkerBase(Process, LoggingMixin):
         try:
             subprocess.check_call(command, close_fds=True)
             return State.SUCCESS
-        except subprocess.CalledProcessError as e:
-            self.log.error("Failed to execute task %s.", str(e))
+        except subprocess.CalledProcessError:
+            self.log.exception("Failed to execute task.")
             return State.FAILED
 
     def _execute_work_in_fork(self, command: CommandType) -> str:
@@ -124,8 +124,8 @@ class LocalWorkerBase(Process, LoggingMixin):
             args.func(args)
             ret = 0
             return State.SUCCESS
-        except Exception as e:
-            self.log.exception("Failed to execute task %s.", e)
+        except Exception:
+            self.log.exception("Failed to execute task.")
             return State.FAILED
         finally:
             Sentry.flush()

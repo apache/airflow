@@ -471,8 +471,8 @@ class ProvidersManager(LoggingMixin):
         try:
             for path in airflow.providers.__path__:  # type: ignore[attr-defined]
                 self._add_provider_info_from_local_source_files_on_path(path)
-        except Exception as e:
-            log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
+        except Exception:
+            log.warning("Error when loading 'provider.yaml' files from airflow sources.", exc_info=True)
 
     def _add_provider_info_from_local_source_files_on_path(self, path) -> None:
         """
@@ -761,12 +761,12 @@ class ProvidersManager(LoggingMixin):
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
-        except Exception as e:
+        except Exception:
             log.warning(
-                "Exception when importing '%s' from '%s' package: %s",
+                "Exception when importing '%s' from '%s' package.",
                 hook_class_name,
                 package_name,
-                e,
+                exc_info=True,
             )
             return None
         hook_connection_type = self._get_attr(hook_class, 'conn_type')
@@ -837,12 +837,12 @@ class ProvidersManager(LoggingMixin):
                 )
                 return
             self._field_behaviours[connection_type] = customized_fields
-        except Exception as e:
+        except Exception:
             log.warning(
-                "Error when loading customized fields from package '%s' hook class '%s': %s",
+                "Error when loading customized fields from package %r hook class %r.",
                 package_name,
                 hook_class.__name__,
-                e,
+                exc_info=True,
             )
 
     def _discover_extra_links(self) -> None:

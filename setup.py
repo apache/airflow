@@ -103,8 +103,8 @@ class CleanCommand(Command):
         for file in files:
             try:
                 os.remove(file)
-            except Exception as e:
-                logger.warning("Error when removing %s: %s", file, e)
+            except Exception:
+                logger.warning("Error when removing %s", file, exc_info=True)
 
     def run(self) -> None:
         """Remove temporary files and directories."""

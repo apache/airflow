@@ -2137,8 +2137,8 @@ class DAG(LoggingMixin):
             pickled = pickle.dumps(self)
             d['pickle_len'] = len(pickled)
             d['pickling_duration'] = str(timezone.utcnow() - dttm)
-        except Exception as e:
-            self.log.debug(e)
+        except Exception:
+            self.log.debug("Error while getting pickle info.", exc_info=True)
             d['is_picklable'] = False
             d['stacktrace'] = traceback.format_exc()
         return d

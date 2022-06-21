@@ -213,9 +213,8 @@ class GunicornMonitor(LoggingMixin):
                 # Throttle loop
                 sleep(1)
 
-        except (AirflowWebServerTimeout, OSError) as err:
-            self.log.error(err)
-            self.log.error("Shutting down webserver")
+        except (AirflowWebServerTimeout, OSError):
+            self.log.exception("Shutting down webserver")
             try:
                 self.gunicorn_master_proc.terminate()
                 self.gunicorn_master_proc.wait()

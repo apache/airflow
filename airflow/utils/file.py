@@ -61,8 +61,8 @@ class _RegexpIgnoreRule(NamedTuple):
         """Build an ignore rule from the supplied regexp pattern and log a useful warning if it is invalid"""
         try:
             return _RegexpIgnoreRule(re.compile(pattern), base_dir)
-        except re.error as e:
-            log.warning("Ignoring invalid regex '%s' from %s: %s", pattern, definition_file, e)
+        except re.error:
+            log.warning("Ignoring invalid regex '%s' from %s.", pattern, definition_file, exc_info=True)
             return None
 
     @staticmethod

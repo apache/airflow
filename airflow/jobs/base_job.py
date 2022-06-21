@@ -152,8 +152,8 @@ class BaseJob(Base, LoggingMixin):
         job.end_date = timezone.utcnow()
         try:
             self.on_kill()
-        except Exception as e:
-            self.log.error('on_kill() method failed: %s', str(e))
+        except Exception:
+            self.log.exception('on_kill() method failed.')
         session.merge(job)
         session.commit()
         raise AirflowException("Job shut down externally.")

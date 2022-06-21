@@ -350,7 +350,7 @@ class BaseOperatorMeta(abc.ABCMeta):
                 return dir(self.warnings)
 
             def warn(self, message, category=None, stacklevel=1, source=None):
-                self.warnings.warn(message, category, stacklevel + 2, source)
+                self.warnings.warn(message, category, stacklevel + 2, source)  # noqa: G010
 
         if func.__globals__.get('warnings') is sys.modules['warnings']:
             # Yes, this is slightly hacky, but it _automatically_ sets the right

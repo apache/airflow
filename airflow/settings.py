@@ -450,8 +450,8 @@ def validate_session():
         try:
             session.execute("select 1")
             conn_status = True
-        except exc.DBAPIError as err:
-            log.error(err)
+        except exc.DBAPIError:
+            log.exception("A database operation has failed.")
             conn_status = False
         session.close()
         return conn_status

@@ -1382,7 +1382,8 @@ class TaskInstance(Base, LoggingMixin):
             params.append(self.map_index)
             message += 'map_index=%d, '
         self.log.info(
-            message + 'execution_date=%s, start_date=%s, end_date=%s',
+            '%sexecution_date=%s, start_date=%s, end_date=%s',
+            message,
             *params,
             self._date_or_empty('execution_date'),
             self._date_or_empty('start_date'),
@@ -1457,14 +1458,14 @@ class TaskInstance(Base, LoggingMixin):
                 session.merge(self)
                 session.commit()
             return
-        except AirflowSmartSensorException as e:
-            self.log.info(e)
+        except AirflowSmartSensorException:
+            self.log.info("Task successfully registered in smart sensor.", exc_info=True)
             return
         except AirflowSkipException as e:
             # Recording SKIP
             # log only if exception has any arguments to prevent log flooding
             if e.args:
-                self.log.info(e)
+                self.log.info("Skipping task.", exc_info=True)
             if not test_mode:
                 self.refresh_from_db(lock_for_update=True, session=session)
             self.state = State.SKIPPED
@@ -1638,7 +1639,7 @@ class TaskInstance(Base, LoggingMixin):
             if callback:
                 callback(context)
         except Exception:  # pylint: disable=broad-except
-            self.log.exception(f"Error when executing {callback_type} callback")
+            self.log.exception("Error when executing %s callback", callback_type)
 
     def _execute_task(self, context, task_orig):
         """Executes Task (optionally with a Timeout) and pushes Xcom results"""
@@ -1865,7 +1866,7 @@ class TaskInstance(Base, LoggingMixin):
         if error:
             if isinstance(error, BaseException):
                 tb = self.get_truncated_error_traceback(error, truncate_to=self._execute_task)
-                self.log.error("Task failed with exception", exc_info=(type(error), error, tb))
+                self.log.error("Task failed with exception", exc_info=(type(error), error, tb))  # noqa: G201
             else:
                 self.log.error("%s", error)
         if not test_mode:

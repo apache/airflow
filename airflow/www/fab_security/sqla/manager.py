@@ -106,7 +106,7 @@ class SecurityManager(BaseSecurityManager):
                 log.info(c.LOGMSG_INF_SEC_ADD_DB)
             super().create_db()
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_CREATE_DB.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_CREATE_DB.format(str(e)))  # noqa: G001
             exit(1)
 
     def find_register_user(self, registration_hash):
@@ -137,7 +137,7 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.commit()
             return register_user
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_ADD_REGISTER_USER.format(str(e)))  # noqa: G001
             self.appbuilder.get_session.rollback()
             return None
 
@@ -152,7 +152,7 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_REGISTER_USER.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_DEL_REGISTER_USER.format(str(e)))  # noqa: G001
             self.get_session.rollback()
             return False
 
@@ -210,10 +210,10 @@ class SecurityManager(BaseSecurityManager):
                 user.password = generate_password_hash(password)
             self.get_session.add(user)
             self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_ADD_USER.format(username))
+            log.info(c.LOGMSG_INF_SEC_ADD_USER.format(username))  # noqa: G001
             return user
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_ADD_USER.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_ADD_USER.format(str(e)))  # noqa: G001
             self.get_session.rollback()
             return False
 
@@ -224,9 +224,9 @@ class SecurityManager(BaseSecurityManager):
         try:
             self.get_session.merge(user)
             self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_UPD_USER.format(user))
+            log.info(c.LOGMSG_INF_SEC_UPD_USER.format(user))  # noqa: G001
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_UPD_USER.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_UPD_USER.format(str(e)))  # noqa: G001
             self.get_session.rollback()
             return False
 
@@ -241,10 +241,10 @@ class SecurityManager(BaseSecurityManager):
                 role.name = name
                 self.get_session.add(role)
                 self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_ADD_ROLE.format(name))
+                log.info(c.LOGMSG_INF_SEC_ADD_ROLE.format(name))  # noqa: G001
                 return role
             except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))
+                log.error(c.LOGMSG_ERR_SEC_ADD_ROLE.format(str(e)))  # noqa: G001
                 self.get_session.rollback()
         return role
 
@@ -256,9 +256,9 @@ class SecurityManager(BaseSecurityManager):
             role.name = name
             self.get_session.merge(role)
             self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_UPD_ROLE.format(role))
+            log.info(c.LOGMSG_INF_SEC_UPD_ROLE.format(role))  # noqa: G001
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_UPD_ROLE.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_UPD_ROLE.format(str(e)))  # noqa: G001
             self.get_session.rollback()
             return None
         return role
@@ -348,7 +348,7 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.commit()
                 return action
             except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_PERMISSION.format(str(e)))
+                log.error(c.LOGMSG_ERR_SEC_ADD_PERMISSION.format(str(e)))  # noqa: G001
                 self.get_session.rollback()
         return action
 
@@ -362,7 +362,7 @@ class SecurityManager(BaseSecurityManager):
         """
         action = self.get_action(name)
         if not action:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))
+            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMISSION.format(name))  # noqa: G001
             return False
         try:
             perms = (
@@ -371,13 +371,13 @@ class SecurityManager(BaseSecurityManager):
                 .all()
             )
             if perms:
-                log.warning(c.LOGMSG_WAR_SEC_DEL_PERM_PVM.format(action, perms))
+                log.warning(c.LOGMSG_WAR_SEC_DEL_PERM_PVM.format(action, perms))  # noqa: G001
                 return False
             self.get_session.delete(action)
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))  # noqa: G001
             self.get_session.rollback()
             return False
 
@@ -417,7 +417,7 @@ class SecurityManager(BaseSecurityManager):
                 self.get_session.commit()
                 return resource
             except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))
+                log.error(c.LOGMSG_ERR_SEC_ADD_VIEWMENU.format(str(e)))  # noqa: G001
                 self.get_session.rollback()
         return resource
 
@@ -430,7 +430,7 @@ class SecurityManager(BaseSecurityManager):
         """
         resource = self.get_resource(name)
         if not resource:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))
+            log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU.format(name))  # noqa: G001
             return False
         try:
             perms = (
@@ -439,13 +439,13 @@ class SecurityManager(BaseSecurityManager):
                 .all()
             )
             if perms:
-                log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM.format(resource, perms))
+                log.warning(c.LOGMSG_WAR_SEC_DEL_VIEWMENU_PVM.format(resource, perms))  # noqa: G001
                 return False
             self.get_session.delete(resource)
             self.get_session.commit()
             return True
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_DEL_PERMISSION.format(str(e)))  # noqa: G001
             self.get_session.rollback()
             return False
 
@@ -505,10 +505,10 @@ class SecurityManager(BaseSecurityManager):
         try:
             self.get_session.add(perm)
             self.get_session.commit()
-            log.info(c.LOGMSG_INF_SEC_ADD_PERMVIEW.format(str(perm)))
+            log.info(c.LOGMSG_INF_SEC_ADD_PERMVIEW.format(str(perm)))  # noqa: G001
             return perm
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_ADD_PERMVIEW.format(str(e)))  # noqa: G001
             self.get_session.rollback()
             return None
 
@@ -531,7 +531,7 @@ class SecurityManager(BaseSecurityManager):
             self.get_session.query(self.role_model).filter(self.role_model.permissions.contains(perm)).first()
         )
         if roles:
-            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles))
+            log.warning(c.LOGMSG_WAR_SEC_DEL_PERMVIEW.format(resource_name, action_name, roles))  # noqa: G001
             return
         try:
             # delete permission on resource
@@ -540,9 +540,9 @@ class SecurityManager(BaseSecurityManager):
             # if no more permission on permission view, delete permission
             if not self.get_session.query(self.permission_model).filter_by(action=perm.action).all():
                 self.delete_action(perm.action.name)
-            log.info(c.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))
+            log.info(c.LOGMSG_INF_SEC_DEL_PERMVIEW.format(action_name, resource_name))  # noqa: G001
         except Exception as e:
-            log.error(c.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(str(e)))
+            log.error(c.LOGMSG_ERR_SEC_DEL_PERMVIEW.format(str(e)))  # noqa: G001
             self.get_session.rollback()
 
     def perms_include_action(self, perms, action_name):
@@ -565,9 +565,9 @@ class SecurityManager(BaseSecurityManager):
                 role.permissions.append(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(permission), role.name))
+                log.info(c.LOGMSG_INF_SEC_ADD_PERMROLE.format(str(permission), role.name))  # noqa: G001
             except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))
+                log.error(c.LOGMSG_ERR_SEC_ADD_PERMROLE.format(str(e)))  # noqa: G001
                 self.get_session.rollback()
 
     def remove_permission_from_role(self, role: Role, permission: Permission) -> None:
@@ -582,7 +582,7 @@ class SecurityManager(BaseSecurityManager):
                 role.permissions.remove(permission)
                 self.get_session.merge(role)
                 self.get_session.commit()
-                log.info(c.LOGMSG_INF_SEC_DEL_PERMROLE.format(str(permission), role.name))
+                log.info(c.LOGMSG_INF_SEC_DEL_PERMROLE.format(str(permission), role.name))  # noqa: G001
             except Exception as e:
-                log.error(c.LOGMSG_ERR_SEC_DEL_PERMROLE.format(str(e)))
+                log.error(c.LOGMSG_ERR_SEC_DEL_PERMROLE.format(str(e)))  # noqa: G001
                 self.get_session.rollback()

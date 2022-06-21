@@ -797,8 +797,8 @@ class SchedulerJob(BaseJob):
                     if callback_to_run:
                         self._send_dag_callbacks_to_processor(dag, callback_to_run)
                 self._paused_dag_without_running_dagruns.add(dag_id)
-        except Exception as e:  # should not fail the scheduler
-            self.log.exception('Failed to update dag run state for paused dags due to %s', str(e))
+        except Exception:  # should not fail the scheduler
+            self.log.exception('Failed to update dag run state for paused dags.')
 
     def _run_scheduler_loop(self) -> None:
         """

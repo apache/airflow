@@ -47,9 +47,9 @@ def init_jinja_globals(app):
 
     try:
         airflow_version = airflow.__version__
-    except Exception as e:
+    except Exception:
         airflow_version = None
-        logging.error(e)
+        logging.exception("Exception occurred when retrieving Airflow version.")
 
     git_version = get_airflow_git_version()
 

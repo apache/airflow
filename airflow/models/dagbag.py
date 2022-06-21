@@ -279,8 +279,8 @@ class DagBag(LoggingMixin):
                 and file_last_changed_on_disk == self.file_last_changed[filepath]
             ):
                 return []
-        except Exception as e:
-            self.log.exception(e)
+        except Exception:
+            self.log.exception("Exception occurred when processing filepath %r.", filepath)
             return []
 
         if filepath.endswith(".py") or not zipfile.is_zipfile(filepath):
@@ -532,8 +532,8 @@ class DagBag(LoggingMixin):
                         dags=str([dag.dag_id for dag in found_dags]),
                     )
                 )
-            except Exception as e:
-                self.log.exception(e)
+            except Exception:
+                self.log.exception("Exception occurred when collecting DAGs from %s", dag_folder)
 
         self.dagbag_stats = sorted(stats, key=lambda x: x.duration, reverse=True)
 

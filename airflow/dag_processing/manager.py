@@ -674,8 +674,8 @@ class DagFileProcessorManager(LoggingMixin):
                 try:
                     self._add_callback_to_queue(callback.get_callback_request())
                     session.delete(callback)
-                except Exception as e:
-                    self.log.warning("Error adding callback for execution: %s, %s", callback, e)
+                except Exception:
+                    self.log.warning("Error adding %r callback for execution.", callback, exc_info=True)
             guard.commit()
 
     def _add_callback_to_queue(self, request: CallbackRequest):

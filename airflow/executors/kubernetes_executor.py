@@ -597,10 +597,9 @@ class KubernetesExecutor(BaseExecutor):
                     self.log.info('Changing state of %s to %s', results, state)
                     try:
                         self._change_state(key, state, pod_id, namespace)
-                    except Exception as e:
+                    except Exception:
                         self.log.exception(
-                            "Exception: %s when attempting to change state of %s to %s, re-queueing.",
-                            e,
+                            "Exception when attempting to change state of %s to %s, re-queueing.",
                             results,
                             state,
                         )
@@ -619,10 +618,9 @@ class KubernetesExecutor(BaseExecutor):
                 try:
                     self.kube_scheduler.run_next(task)
                 except PodReconciliationError as e:
-                    self.log.error(
+                    self.log.exception(
                         "Pod reconciliation failed, likely due to kubernetes library upgrade. "
                         "Try clearing the task to re-run.",
-                        exc_info=True,
                     )
                     self.fail(task[0], e)
                 except ApiException as e:
@@ -741,8 +739,8 @@ class KubernetesExecutor(BaseExecutor):
             )
             pod_ids.pop(pod_id)
             self.running.add(pod_id)
-        except ApiException as e:
-            self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+        except ApiException:
+            self.log.info("Failed to adopt pod %s.", pod.metadata.name, exc_info=True)
 
     def _adopt_completed_pods(self, kube_client: client.CoreV1Api) -> None:
         """
@@ -767,8 +765,8 @@ class KubernetesExecutor(BaseExecutor):
                     namespace=pod.metadata.namespace,
                     body=PodGenerator.serialize_pod(pod),
                 )
-            except ApiException as e:
-                self.log.info("Failed to adopt pod %s. Reason: %s", pod.metadata.name, e)
+            except ApiException:
+                self.log.info("Failed to adopt pod %s.", pod.metadata.name, exc_info=True)
 
     def _flush_task_queue(self) -> None:
         if not self.task_queue:
@@ -798,10 +796,9 @@ class KubernetesExecutor(BaseExecutor):
                     )
                     try:
                         self._change_state(key, state, pod_id, namespace)
-                    except Exception as e:
+                    except Exception:
                         self.log.exception(
-                            'Ignoring exception: %s when attempting to change state of %s to %s.',
-                            e,
+                            'Ignoring the following exception when attempting to change state of %s to %s.',
                             results,
                             state,
                         )

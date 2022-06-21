@@ -674,11 +674,14 @@ class AirflowConfigParser(ConfigParser):
         try:
             return import_string(full_qualified_path)
         except ImportError as e:
-            log.error(e)
-            raise AirflowConfigException(
-                f'The object could not be loaded. Please check "{key}" key in "{section}" section. '
-                f'Current value: "{full_qualified_path}".'
+            log.error(
+                'The object could not be loaded. Please check %r key in %r section. '
+                'Current value: %r.',
+                key,
+                section,
+                full_qualified_path,
             )
+            raise AirflowConfigException(e)
 
     def getjson(
         self, section: str, key: str, fallback=_UNSET, **kwargs

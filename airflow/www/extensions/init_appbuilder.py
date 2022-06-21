@@ -62,8 +62,8 @@ def dynamic_class_import(class_path):
         package = __import__(module_path)
         return reduce(getattr, tmp[1:], package)
     except Exception as e:
-        log.exception(e)
-        log.error(LOGMSG_ERR_FAB_ADDON_IMPORT.format(class_path, e))
+        log.exception("Dynamic import of %r has failed.", module_path)
+        log.error(LOGMSG_ERR_FAB_ADDON_IMPORT.format(class_path, e))  # noqa: G001
 
 
 class AirflowAppBuilder:
@@ -323,10 +323,10 @@ class AirflowAppBuilder:
                     addon_class.register_views()
                     addon_class.post_process()
                     self.addon_managers[addon] = addon_class
-                    log.info(LOGMSG_INF_FAB_ADDON_ADDED.format(str(addon)))
+                    log.info(LOGMSG_INF_FAB_ADDON_ADDED.format(str(addon)))  # noqa: G001
                 except Exception as e:
-                    log.exception(e)
-                    log.error(LOGMSG_ERR_FAB_ADDON_PROCESS.format(addon, e))
+                    log.exception("Failed to register addons.")
+                    log.error(LOGMSG_ERR_FAB_ADDON_PROCESS.format(addon, e))  # noqa: G001
 
     def _check_and_init(self, baseview):
         if hasattr(baseview, 'datamodel'):
@@ -412,7 +412,7 @@ class AirflowAppBuilder:
             appbuilder.add_link("google", href="www.google.com", icon = "fa-google-plus")
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, name))
+        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, name))  # noqa: G001
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
@@ -512,7 +512,7 @@ class AirflowAppBuilder:
             A BaseView type class instantiated.
         """
         baseview = self._check_and_init(baseview)
-        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, ""))
+        log.info(LOGMSG_INF_FAB_ADD_VIEW.format(baseview.__class__.__name__, ""))  # noqa: G001
 
         if not self._view_exists(baseview):
             baseview.appbuilder = self
@@ -522,7 +522,7 @@ class AirflowAppBuilder:
                 self.register_blueprint(baseview, endpoint=endpoint, static_folder=static_folder)
                 self._add_permission(baseview)
         else:
-            log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS.format(baseview.__class__.__name__))
+            log.warning(LOGMSG_WAR_FAB_VIEW_EXISTS.format(baseview.__class__.__name__))  # noqa: G001
         return baseview
 
     def security_cleanup(self):
@@ -584,16 +584,16 @@ class AirflowAppBuilder:
             try:
                 self.sm.add_permissions_view(baseview.base_permissions, baseview.class_permission_name)
             except Exception as e:
-                log.exception(e)
-                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW.format(str(e)))
+                log.exception("Adding permission(s) to a view failed.")
+                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_VIEW.format(str(e)))  # noqa: G001
 
     def _add_permissions_menu(self, name, update_perms=False):
         if self.update_perms or update_perms:
             try:
                 self.sm.add_permissions_menu(name)
             except Exception as e:
-                log.exception(e)
-                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU.format(str(e)))
+                log.exception("Adding permission(s) to a menu failed.")
+                log.error(LOGMSG_ERR_FAB_ADD_PERMISSION_MENU.format(str(e)))  # noqa: G001
 
     def _add_menu_permissions(self, update_perms=False):
         if self.update_perms or update_perms:

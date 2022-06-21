@@ -93,7 +93,7 @@ def template_field_role(
         template_fields = get_template_field(app.env, text)
     except RoleException as e:
         msg = inliner.reporter.error(
-            f"invalid class name {text} \n{e}",
+            f"invalid class name {text} \n{e}",  # noqa: G004
             line=lineno,
         )
         prb = inliner.problematic(rawtext, rawtext, msg)
