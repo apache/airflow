@@ -60,7 +60,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).insert = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_insert',
+            task_id='salesforce_bulk_insert',
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -93,7 +93,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).update = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_update',
+            task_id='salesforce_bulk_update',
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -127,7 +127,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).upsert = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_upsert',
+            task_id='salesforce_bulk_upsert',
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -162,7 +162,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).delete = Mock()
         operator = SalesforceBulkOperator(
-            task_id='bulk_delete',
+            task_id='salesforce_bulk_delete',
             operation=operation,
             object_name=object_name,
             payload=payload,
