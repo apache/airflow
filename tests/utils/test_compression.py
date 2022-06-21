@@ -54,8 +54,8 @@ class TestCompression(unittest.TestCase):
                 f_bz2.writelines([header, line1, line2])
 
         # Base Exception so it catches Keyboard Interrupt
-        except BaseException as e:
-            logging.error(e)
+        except BaseException:
+            logging.exception("An exception has occurred.")
             self.tearDown()
 
     def tearDown(self):

@@ -107,8 +107,8 @@ class TestS3ToHiveTransfer(unittest.TestCase):
                 self._set_fn(fn_bz2, '.bz2', False)
                 f_bz2_nh.writelines([line1, line2])
         # Base Exception so it catches Keyboard Interrupt
-        except BaseException as e:
-            logging.error(e)
+        except BaseException:
+            logging.exception("An exception occurred.")
             self.tearDown()
 
     def tearDown(self):

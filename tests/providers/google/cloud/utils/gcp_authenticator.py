@@ -107,8 +107,8 @@ class GcpAuthenticator(CommandExecutor):
             extras[PROJECT_EXTRA] = self.project_extra if self.project_extra else self.project_id
             conn.extra = json.dumps(extras)
             session.commit()
-        except BaseException as ex:
-            self.log.error('Airflow DB Session error: %s', str(ex))
+        except BaseException:
+            self.log.error('Airflow DB Session error.')
             session.rollback()
             raise
         finally:
@@ -133,8 +133,8 @@ class GcpAuthenticator(CommandExecutor):
             extras[PROJECT_EXTRA] = self.project_extra
             conn.extra = json.dumps(extras)
             session.commit()
-        except BaseException as ex:
-            self.log.error('Airflow DB Session error: %s', str(ex))
+        except BaseException:
+            self.log.error('Airflow DB Session error.')
             session.rollback()
             raise
         finally:
