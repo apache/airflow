@@ -19,7 +19,7 @@
 package-name: apache-airflow-providers-core-sql
 name: Core SQL
 description: |
-    `Core SQL Provider`__
+    `Core SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 versions:
   - 1.0.0
