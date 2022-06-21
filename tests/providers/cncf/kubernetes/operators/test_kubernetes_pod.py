@@ -266,7 +266,8 @@ class TestKubernetesPodOperator:
         assert pod.spec.containers[0].image_pull_policy == "Always"
 
     @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
-    def test_pod_delete_even_on_launcher_error(self, delete_pod_mock):
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.find_pod")
+    def test_pod_delete_even_on_launcher_error(self, find_pod_mock, delete_pod_mock):
         k = KubernetesPodOperator(
             namespace="default",
             image="ubuntu:16.04",
@@ -285,6 +286,30 @@ class TestKubernetesPodOperator:
             context = create_context(k)
             k.execute(context=context)
         assert delete_pod_mock.called
+
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.delete_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesPodOperator.find_pod")
+    def test_pod_not_deleting_non_existing_pod(self, find_pod_mock, delete_pod_mock):
+
+        find_pod_mock.return_value = None
+        k = KubernetesPodOperator(
+            namespace="default",
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            arguments=["echo 10"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            in_cluster=False,
+            do_xcom_push=False,
+            cluster_context="default",
+            is_delete_operator_pod=True,
+        )
+        self.create_mock.side_effect = AirflowException("fake failure")
+        with pytest.raises(AirflowException):
+            context = create_context(k)
+            k.execute(context=context)
+        delete_pod_mock.assert_not_called()
 
     @pytest.mark.parametrize('randomize', [True, False])
     def test_provided_pod_name(self, randomize):
@@ -790,7 +815,6 @@ class TestKubernetesPodOperator:
             task_id="task",
         )
         self.run_pod(k)
-        k.client.list_namespaced_pod.assert_called_once()
         _, kwargs = k.client.list_namespaced_pod.call_args
         assert 'already_checked!=True' in kwargs['label_selector']
 
