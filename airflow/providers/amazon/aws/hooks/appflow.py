@@ -67,24 +67,24 @@ class AppflowHook(AwsBaseHook):
         """
         ts_before: datetime = datetime.now(timezone.utc)
         sleep(self.EVENTUAL_CONSISTENCY_OFFSET)
-        response = self.conn.start_flow(flowName=flow_name)
-        execution_id = response["executionId"]
+        response_start = self.conn.start_flow(flowName=flow_name)
+        execution_id = response_start["executionId"]
         self.log.info("executionId: %s", execution_id)
 
-        response = self.conn.describe_flow(flowName=flow_name)
-        last_exec_details = response["lastRunExecutionDetails"]
+        response_desc = self.conn.describe_flow(flowName=flow_name)
+        last_exec_details = response_desc["lastRunExecutionDetails"]
 
         # Wait Appflow eventual consistence
         self.log.info("Waiting for Appflow eventual consistence...")
         while (
-            response.get("lastRunExecutionDetails", {}).get(
+            response_desc.get("lastRunExecutionDetails", {}).get(
                 "mostRecentExecutionTime", datetime(1970, 1, 1, tzinfo=timezone.utc)
             )
             < ts_before
         ):
             sleep(self.EVENTUAL_CONSISTENCY_POLLING)
-            response = self.conn.describe_flow(flowName=flow_name)
-            last_exec_details = response["lastRunExecutionDetails"]
+            response_desc = self.conn.describe_flow(flowName=flow_name)
+            last_exec_details = response_desc["lastRunExecutionDetails"]
 
         # Wait flow stops
         self.log.info("Waiting for flow run...")
@@ -93,13 +93,13 @@ class AppflowHook(AwsBaseHook):
             or last_exec_details["mostRecentExecutionStatus"] == "InProgress"
         ):
             sleep(poll_interval)
-            response = self.conn.describe_flow(flowName=flow_name)
-            last_exec_details = response["lastRunExecutionDetails"]
+            response_desc = self.conn.describe_flow(flowName=flow_name)
+            last_exec_details = response_desc["lastRunExecutionDetails"]
 
         self.log.info("lastRunExecutionDetails: %s", last_exec_details)
 
         if last_exec_details["mostRecentExecutionStatus"] == "Error":
-            raise Exception(f"Flow error:\n{json.dumps(response, default=str)}")
+            raise Exception(f"Flow error:\n{json.dumps(response_desc, default=str)}")
 
         return execution_id
 
