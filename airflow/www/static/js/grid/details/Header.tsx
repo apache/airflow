@@ -35,7 +35,7 @@ import BreadcrumbText from './BreadcrumbText';
 
 const dagId = getMetaValue('dag_id');
 
-const Header: React.FC = () => {
+const Header = () => {
   const { data: { dagRuns } } = useGridData();
   const { data: { tasks } } = useTasks();
 

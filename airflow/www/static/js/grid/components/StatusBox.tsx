@@ -38,7 +38,7 @@ interface SimpleStatusProps extends BoxProps {
   state: TaskState;
 }
 
-export const SimpleStatus: React.FC<SimpleStatusProps> = ({ state, ...rest }) => (
+export const SimpleStatus = ({ state, ...rest }: SimpleStatusProps) => (
   <Box
     width={boxSizePx}
     height={boxSizePx}
@@ -56,9 +56,9 @@ interface Props {
   isActive: boolean;
 }
 
-const StatusBox: React.FC<Props> = ({
+const StatusBox = ({
   group, instance, onSelect, isActive,
-}) => {
+}: Props) => {
   const containerRef = useContainerRef();
   const { runId, taskId } = instance;
   const { colors } = useTheme();

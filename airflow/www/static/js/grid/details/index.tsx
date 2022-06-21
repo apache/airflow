@@ -30,7 +30,7 @@ import DagRunContent from './content/dagRun';
 import DagContent from './content/Dag';
 import useSelection from '../utils/useSelection';
 
-const Details: React.FC = () => {
+const Details = () => {
   const { selected: { runId, taskId } } = useSelection();
   return (
     <Flex flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">

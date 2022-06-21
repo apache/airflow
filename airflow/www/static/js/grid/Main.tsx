@@ -38,7 +38,7 @@ import { useGridData } from './api';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
-const Main: React.FC = () => {
+const Main = () => {
   const { data: { groups }, isLoading } = useGridData();
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });

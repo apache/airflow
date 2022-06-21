@@ -73,7 +73,7 @@ const getTask = ({ taskId, runId, task }: GetTaskProps) => {
   return null;
 };
 
-const TaskInstance: React.FC<Props> = ({ taskId, runId }) => {
+const TaskInstance = ({ taskId, runId }: Props) => {
   const [selectedRows, setSelectedRows] = useState([]);
   const { data: { dagRuns, groups } } = useGridData();
   const { data: { tasks } } = useTasks();

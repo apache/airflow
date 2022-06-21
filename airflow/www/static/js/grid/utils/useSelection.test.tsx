@@ -29,7 +29,7 @@ interface Props {
   children: React.ReactNode;
 }
 
-const Wrapper: React.FC<Props> = ({ children }) => (
+const Wrapper = ({ children }: Props) => (
   <MemoryRouter>
     {children}
   </MemoryRouter>

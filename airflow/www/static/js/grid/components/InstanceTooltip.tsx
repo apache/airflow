@@ -30,12 +30,12 @@ interface Props {
   instance: TaskInstance;
 }
 
-const InstanceTooltip: React.FC<Props> = ({
+const InstanceTooltip = ({
   group,
   instance: {
     startDate, endDate, state, runId, mappedStates,
   },
-}) => {
+}: Props) => {
   if (!group) return null;
   const isGroup = !!group.children;
   const summary: React.ReactNode[] = [];

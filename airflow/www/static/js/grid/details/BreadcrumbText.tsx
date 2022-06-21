@@ -28,7 +28,7 @@ interface Props {
   value: React.ReactNode | string;
 }
 
-const BreadcrumbText: React.FC<Props> = ({ label, value }) => (
+const BreadcrumbText = ({ label, value }: Props) => (
   <Box position="relative">
     <Heading as="h5" size="sm" color="gray.300" position="absolute" top="-12px">{label}</Heading>
     <Heading as="h3" size="md">{value}</Heading>

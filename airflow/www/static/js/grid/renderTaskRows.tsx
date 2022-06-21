@@ -47,9 +47,9 @@ interface RowProps {
   hoveredTaskState?: string;
 }
 
-const renderTaskRows: React.FC<RowProps> = ({
+const renderTaskRows = ({
   task, level = 0, ...rest
-}) => (
+}: RowProps) => (
   <>
     {(task?.children || []).map((t) => (
       // eslint-disable-next-line @typescript-eslint/no-use-before-define
@@ -71,9 +71,9 @@ interface TaskInstancesProps {
   hoveredTaskState?: string;
 }
 
-const TaskInstances: React.FC<TaskInstancesProps> = ({
+const TaskInstances = ({
   task, dagRunIds, selectedRunId, onSelect, hoveredTaskState,
-}) => (
+}: TaskInstancesProps) => (
   <Flex justifyContent="flex-end">
     {dagRunIds.map((runId: string) => {
       // Check if an instance exists for the run, or return an empty box
@@ -105,7 +105,7 @@ const TaskInstances: React.FC<TaskInstancesProps> = ({
   </Flex>
 );
 
-const Row: React.FC<RowProps> = (props) => {
+const Row = (props: RowProps) => {
   const {
     task,
     level = 0,

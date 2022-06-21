@@ -33,13 +33,13 @@ import { getDuration, formatDuration } from '../../datetime_utils';
 import useSelection from '../utils/useSelection';
 import type { DagRun } from '../types';
 
-const DurationTick: React.FC<TextProps> = ({ children, ...rest }) => (
+const DurationTick = ({ children, ...rest }: TextProps) => (
   <Text fontSize="sm" color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
     {children}
   </Text>
 );
 
-const DagRuns: React.FC = () => {
+const DagRuns = () => {
   const { data: { dagRuns } } = useGridData();
   const { selected, onSelect } = useSelection();
   const durations: number[] = [];

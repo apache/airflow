@@ -28,7 +28,7 @@ interface Props {
 
 // containerRef is necessary to render for tooltips, modals, and dialogs
 // This provider allows the containerRef to be accessed by any react component
-export const ContainerRefProvider: React.FC<Props> = ({ children }) => {
+export const ContainerRefProvider = ({ children }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   return (
