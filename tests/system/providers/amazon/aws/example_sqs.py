@@ -67,16 +67,15 @@ with DAG(
     # [END howto_sensor_sqs]
 
     # [START howto_sensor_sqs_batch]
-    # batch multiple messages from SQS.
-    # each SQS poll can retrieve no more than 10 messages
-    # due to requirements by AWS SQS
+    # Retrieve multiple batches of messages from SQS.
+    # The SQS API only returns a maximum of 10 messages per poll.
     read_from_queue_in_batch = SqsBatchSensor(
         task_id='read_from_queue_in_batch',
         sqs_queue=create_queue,
-        # get maximum 10 messages each poll
+        # Get maximum 10 messages each poll
         max_messages=10,
-        # perform 3 polls before returning results
-        batch=3,
+        # Combine 3 polls before returning results
+        num_batch=3,
     )
     # [END howto_sensor_sqs_batch]
 

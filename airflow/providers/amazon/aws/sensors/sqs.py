@@ -18,7 +18,7 @@
 """Reads and then deletes the message from SQS queue"""
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Collection, Iterable, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Collection, List, Optional, Sequence
 
 from jsonpath_ng import parse
 from typing_extensions import Literal
@@ -36,6 +36,8 @@ class SqsSensor(BaseSensorOperator):
     Get messages from an Amazon SQS queue and then delete the messages from the queue.
     If deletion of messages fails an AirflowException is thrown. Otherwise, the messages
     are pushed through XCom with the key ``messages``.
+
+    This sensor performs one and only one SQS call per poke, which limits the result to a maximum of 10 messages
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -105,11 +107,11 @@ class SqsSensor(BaseSensorOperator):
         self.hook: Optional[SqsHook] = None
 
     def poll_sqs(self, sqs_conn: Any) -> Collection:
-        """Poll SQS queue to retrieve messages
-        Args:
-            sqs_conn (Any): SQS connection
-        Returns:
-            Collection: messages retrieved from SQS
+        """
+        Poll SQS queue to retrieve messages.
+
+        :param sqs_conn: SQS connection
+        :return: A list of messages retrieved from SQS
         """
 
         self.log.info('SqsSensor checking for message on queue: %s', self.sqs_queue)
@@ -139,12 +141,12 @@ class SqsSensor(BaseSensorOperator):
 
     def poke(self, context: 'Context'):
         """
-        Check for message on subscribed queue and write to xcom the message with key ``messages``
+        Check subscribed queue for messages and write them to xcom with the ``messages`` key.
 
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
-        sqs_conn = self.get_hook().get_conn()
+        sqs_conn = self.get_hook().conn
 
         messages = self.poll_sqs(sqs_conn=sqs_conn)
 
@@ -233,33 +235,36 @@ class SqsBatchSensor(SqsSensor):
     Get messages from an Amazon SQS queue in batches and then delete the retrieved messages from the queue.
     If deletion of messages fails an AirflowException is thrown. Otherwise, all messages
     are pushed through XCom with the key ``messages``.
-    The total number of messages retrieved at maximum will be equal to the number of messages retrieved for each
-    SQS's API call multiplies with total number of call. Each SQS receive_message can get a max 10 messages.
-    This sensor is identical to SQSSensor, except the fact that SQSSensor performs one and only one SQS call
-    per poke, while SQSBatchSensor performs multiple SQS API calls per poke.
+
+    This sensor is identical to SqsSensor, except that SqsSensor performs one and only one SQS call
+    per poke, which limits the result to a maximum of 10 messages, while SqsBatchSensor performs multiple
+    SQS API calls per poke and combines the results into one list.
+
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SqsBatchSensor`
-    :param batch: The number of time the sensor will call the SQS to receive messages (default: 1)
+
+    :param num_batch: The number of times the sensor will call the SQS API to receive messages (default: 1)
     """
 
     def __init__(
         self,
         *,
-        batch: int = 1,
+        num_batch: int = 1,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.batch = batch
+        self.batch = num_batch
 
     def poke(self, context: 'Context'):
         """
-        Check for message on subscribed queue and write to xcom the message with key ``messages``
+        Check subscribed queue for messages and write them to xcom with the ``messages`` key.
+
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
         sqs_conn = self.get_hook().get_conn()
-        message_batch : List[Any] = []
+        message_batch: List[Any] = []
         # perform multiple SQS call to retrieve messages in series
         for _ in range(self.batch):
             messages = self.poll_sqs(sqs_conn=sqs_conn)

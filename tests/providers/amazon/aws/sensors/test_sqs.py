@@ -323,7 +323,7 @@ class TestSqsSensor(unittest.TestCase):
             sqs_queue=QUEUE_URL,
             aws_conn_id='aws_default',
             max_messages=1,
-            batch=3,
+            num_batch=3,
         )
         result = self.sensor.poke(self.mock_context)
         assert result
