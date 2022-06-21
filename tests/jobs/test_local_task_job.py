@@ -462,7 +462,7 @@ class TestLocalTaskJob:
         assert len(lines) == 1  # invoke once
         assert lines[0].startswith(ti.key.primary)
         this_pid = str(os.getpid())
-        assert this_pid not in lines[0]
+        assert f"pid: {this_pid}" not in lines[0]
 
     def test_mark_success_on_success_callback(self, caplog, get_test_dag):
         """
@@ -568,7 +568,7 @@ class TestLocalTaskJob:
             assert lines[0].startswith(ti.key.primary)
 
             this_pid = str(os.getpid())
-            assert this_pid not in lines[0]  # ensures callback is NOT run by LocalTaskJob
+            assert f"pid: {this_pid}" not in lines[0]  # ensures callback is NOT run by LocalTaskJob
             assert (
                 str(ti.pid) in lines[0]
             )  # ensures callback is run by airflow run --raw (TaskInstance#_run_raw_task)
