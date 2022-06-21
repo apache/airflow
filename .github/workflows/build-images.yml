@@ -57,6 +57,7 @@ jobs:
       pythonVersions: "${{ steps.selective-checks.python-versions }}"
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
+      allPythonVersionsListAsString: ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
@@ -155,19 +156,14 @@ jobs:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build CI image ${{matrix.python-version}}"
+    name: "Build CI images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
@@ -226,20 +222,25 @@ jobs:
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze free-space
-      - name: Build & Push CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        run: breeze build-image --push-image --tag-as-latest
+      - name: >
+          Build & Push CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+        run: breeze build-image --push-image --tag-as-latest --run-in-parallel
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
-        run: breeze build-image --push-image --empty-image
+        run: breeze build-image --push-image --empty-image --run-in-parallel
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
+      - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
-        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+        run: >
+          breeze find-newer-dependencies --max-age 1
+          --python "${{ needs.build-info.outputs.defaultPythonVersion }}"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -248,19 +249,14 @@ jobs:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build PROD image ${{matrix.python-version}}"
+    name: "Build PROD images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-ci-images]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       BACKEND: sqlite
     steps:
       - name: Cleanup repo
@@ -320,7 +316,7 @@ jobs:
         run: breeze free-space
       - name: >
           Pull CI image for PROD build:
-          ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.defaultPythonVersion }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
           # Always use default Python version of CI image for preparing packages
@@ -338,9 +334,12 @@ jobs:
         run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: >
+          Build & Push PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         run: >
           breeze build-prod-image
+          --run-in-parallel
           --tag-as-latest
           --push-image
           --install-packages-from-context
@@ -350,9 +349,10 @@ jobs:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - name: Push empty PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+      - name: Push empty PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
-        run: breeze build-prod-image --cleanup-context --push-image --empty-image
+        run: breeze build-prod-image --cleanup-context --push-image --empty-image --run-in-parallel
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Fix ownership"

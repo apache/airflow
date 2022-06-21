@@ -132,6 +132,7 @@ jobs:
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
+      allPythonVersionsListAsString: ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       kubernetesVersions: ${{ steps.selective-checks.outputs.kubernetes-versions }}
       kubernetesVersionsListAsString: ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
@@ -285,13 +286,11 @@ jobs:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "${{needs.build-info.outputs.buildJobDescription}} CI image ${{matrix.python-version}}"
+    name: >
+      ${{needs.build-info.outputs.buildJobDescription}} CI images
+      ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
     steps:
@@ -311,7 +310,7 @@ jobs:
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # any code that comes from the sources coming from the PR. Therefore, we extract the
         # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
@@ -331,17 +330,21 @@ jobs:
       - name: "Free space"
         run: breeze free-space
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: Build & Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        run: breeze build-image --push-image --tag-as-latest
+      - name: >
+          Build & Push CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+        run: breeze build-image --push-image --tag-as-latest --run-in-parallel
         env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
+      - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
-        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+        run: >
+          breeze find-newer-dependencies --max-age 1
+          --python "${{ needs.build-info.outputs.defaultPythonVersion }}"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always() && needs.build-info.outputs.inWorkflowBuild == 'true'
@@ -350,17 +353,14 @@ jobs:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "${{needs.build-info.outputs.buildJobDescription}} PROD image ${{matrix.python-version}}"
+    name: >
+      ${{needs.build-info.outputs.buildJobDescription}} PROD images
+      ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-ci-images]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
@@ -424,10 +424,13 @@ jobs:
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: >
+          Build & Push PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         run: >
           breeze build-prod-image
           --tag-as-latest
+          --run-in-parallel
           --push-image
           --install-packages-from-context
           --disable-airflow-repo-cache
@@ -436,6 +439,7 @@ jobs:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Fix ownership"
         run: breeze fix-ownership
@@ -1385,7 +1389,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
-        # or from build-prod-image above.
+        # or from build-prod-images above.
         # We are utilising single job to wait for all images because this job merely waits
         # For the images to be available and test them.
         run: breeze pull-prod-image --verify-image --wait-for-image --run-in-parallel
