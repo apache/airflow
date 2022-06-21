@@ -62,6 +62,15 @@ class SalesforceBulkOperator(BaseOperator):
         self.batch_size = batch_size
         self.use_serial = use_serial
         self.salesforce_conn_id = salesforce_conn_id
+        self._validate_inputs()
+
+    def _validate_inputs(self) -> None:
+        if not self.object_name:
+            raise AirflowException("The required parameter 'object_name' is missing.")
+
+        available_operations = ['insert', 'update', 'upsert', 'delete']
+        if self.operation not in available_operations:
+            raise AirflowException(f"Operation not found! Available operations are f{available_operations}.")
 
     def execute(self, context: 'Context') -> dict:
         """
@@ -74,6 +83,7 @@ class SalesforceBulkOperator(BaseOperator):
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
 
+        result: dict = {}
         if self.operation == 'insert':
             result = conn.bulk.__getattr__(self.object_name).insert(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
@@ -92,10 +102,6 @@ class SalesforceBulkOperator(BaseOperator):
         elif self.operation == 'delete':
             result = conn.bulk.__getattr__(self.object_name).delete(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
-            )
-        else:
-            raise AirflowException(
-                "Operation not found! Available operations are 'insert', 'update', 'upsert', and 'delete'."
             )
 
         if self.do_xcom_push:

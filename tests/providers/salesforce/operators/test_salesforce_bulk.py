@@ -33,15 +33,24 @@ class TestSalesforceBulkOperator(unittest.TestCase):
         """
         Test execute missing operation
         """
-        operator = SalesforceBulkOperator(
-            task_id='missing_operation',
-            operation='operation',
-            object_name='Account',
-            payload=[],
-        )
-
         with pytest.raises(AirflowException):
-            operator.execute({})
+            SalesforceBulkOperator(
+                task_id='missing_operation',
+                operation='operation',
+                object_name='Account',
+                payload=[],
+            )
+
+    def test_execute_missing_object_name(self):
+        """
+        Test execute missing object_name
+        """
+        with pytest.raises(AirflowException):
+            SalesforceBulkOperator(
+                task_id='missing_object_name',
+                operation='insert',
+                payload=[],
+            )
 
     @patch('airflow.providers.salesforce.operators.salesforce_bulk.SalesforceHook.get_conn')
     def test_execute_salesforce_bulk_insert(self, mock_get_conn):
