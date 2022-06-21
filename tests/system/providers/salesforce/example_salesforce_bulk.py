@@ -32,7 +32,7 @@ with DAG(
 
     # [START howto_salesforce_bulk_insert_operator]
     bulk_insert = SalesforceBulkOperator(
-        task_id="bulk_upsert",
+        task_id="bulk_insert",
         operation="insert",
         object_name="Account",
         payload=[
