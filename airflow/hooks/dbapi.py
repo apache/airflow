@@ -56,6 +56,7 @@ class DbApiHook(BaseHook):
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
         should be done before calling the ``DBApiHook.__init__()``.
+    :param log_sql: Whether to log SQL query during `run`. Defaults to True.
     """
 
     # Override to provide the connection name.
@@ -69,7 +70,7 @@ class DbApiHook(BaseHook):
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
 
-    def __init__(self, *args, schema: Optional[str] = None, **kwargs):
+    def __init__(self, *args, schema: Optional[str] = None, log_sql: Optional[bool] = True, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
@@ -84,7 +85,7 @@ class DbApiHook(BaseHook):
         # from kwargs and store it on its own. We do not run "pop" here as we want to give the
         # Hook deriving from the DBApiHook to still have access to the field in it's constructor
         self.__schema = schema
-        self.log_sql = kwargs.get('log_sql', True)
+        self.log_sql = log_sql
 
     def get_conn(self):
         """Returns a connection object"""
