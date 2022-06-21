@@ -105,11 +105,11 @@ class SqsSensor(BaseSensorOperator):
         self.hook: Optional[SqsHook] = None
 
     def poll_sqs(self, sqs_conn: Any) -> Iterable:
-        """Poll SQS queue to retrieve messages
-        Args:
-            sqs_conn (Any): SQS connection
-        Returns:
-            Iterable: list of messages retrieved from SQS
+        """
+        Poll SQS queue to retrieve messages.
+        
+        :param sqs_conn: SQS connection
+        :return: A list of messages retrieved from SQS
         """
 
         self.log.info('SqsSensor checking for message on queue: %s', self.sqs_queue)
@@ -139,12 +139,12 @@ class SqsSensor(BaseSensorOperator):
 
     def poke(self, context: 'Context'):
         """
-        Check for message on subscribed queue and write to xcom the message with key ``messages``
+        Check subscribed queue for messages and write them to xcom with the ``messages`` key.
 
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
-        sqs_conn = self.get_hook().get_conn()
+        sqs_conn = self.get_hook().conn
 
         messages = self.poll_sqs(sqs_conn=sqs_conn)
 
@@ -233,14 +233,15 @@ class SqsBatchSensor(SqsSensor):
     Get messages from an Amazon SQS queue in batches and then delete the retrieved messages from the queue.
     If deletion of messages fails an AirflowException is thrown. Otherwise, all messages
     are pushed through XCom with the key ``messages``.
-    The total number of messages retrieved at maxium will be equal to the number of messages retrived for each
-    SQS's API call multiplies with total number of call. Each SQS receive_message can get a max 10 messages.
-    This sensor is identical to SQSSensor, except the fact that SQSSensor performs one and only one SQS call
-    per poke, while SQSBatchSensor performs multiple SQS API calls per poke.
+    
+    This sensor is identical to SqsSensor, except that SqsSensor performs one and only one SQS call
+    per poke, which limits the result to a maximum of 10 messages, while SqsBatchSensor performs multiple SQS API calls per poke and combines the results into one list.
+    
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SqsBatchSensor`
-    :param batch: The number of time the sensor will call the SQS to receive messages (default: 1)
+        
+    :param batch: The number of times the sensor will call the SQS API to receive messages (default: 1)
     """
 
     def __init__(
@@ -254,7 +255,8 @@ class SqsBatchSensor(SqsSensor):
 
     def poke(self, context: 'Context'):
         """
-        Check for message on subscribed queue and write to xcom the message with key ``messages``
+        Check subscribed queue for messages and write them to xcom with the ``messages`` key.
+        
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
