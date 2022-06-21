@@ -40,9 +40,10 @@ DEFAULT_NODEGROUP_NAME = 'nodegroup'
 DEFAULT_POD_NAME = 'pod'
 
 ABORT_MSG = "{compute} are still active after the allocated time limit.  Aborting."
-CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached {compute}.  Deleting {count} {compute}."
+CAN_NOT_DELETE_MSG = "A cluster can not be deleted with attached %s.  Deleting %d %s."
 MISSING_ARN_MSG = "Creating an {compute} requires {requirement} to be passed in."
-SUCCESS_MSG = "No {compute} remain, deleting cluster."
+# SUCCESS_MSG = "No {compute} remain, deleting cluster."
+SUCCESS_MSG = "No %s remain, deleting cluster."
 
 SUPPORTED_COMPUTE_VALUES = frozenset({'nodegroup', 'fargate'})
 NODEGROUP_FULL_NAME = 'Amazon EKS managed node groups'
@@ -438,7 +439,7 @@ class EksDeleteClusterOperator(BaseOperator):
         """
         nodegroups = eks_hook.list_nodegroups(clusterName=self.cluster_name)
         if nodegroups:
-            self.log.info(CAN_NOT_DELETE_MSG.format(compute=NODEGROUP_FULL_NAME, count=len(nodegroups)))
+            self.log.info(CAN_NOT_DELETE_MSG, NODEGROUP_FULL_NAME, len(nodegroups), NODEGROUP_FULL_NAME)
             for group in nodegroups:
                 eks_hook.delete_nodegroup(clusterName=self.cluster_name, nodegroupName=group)
 
@@ -457,7 +458,7 @@ class EksDeleteClusterOperator(BaseOperator):
                     )
                 else:
                     raise RuntimeError(ABORT_MSG.format(compute=NODEGROUP_FULL_NAME))
-        self.log.info(SUCCESS_MSG.format(compute=NODEGROUP_FULL_NAME))
+        self.log.info(SUCCESS_MSG, NODEGROUP_FULL_NAME)
 
     def delete_any_fargate_profiles(self, eks_hook) -> None:
         """
@@ -468,7 +469,7 @@ class EksDeleteClusterOperator(BaseOperator):
         """
         fargate_profiles = eks_hook.list_fargate_profiles(clusterName=self.cluster_name)
         if fargate_profiles:
-            self.log.info(CAN_NOT_DELETE_MSG.format(compute=FARGATE_FULL_NAME, count=len(fargate_profiles)))
+            self.log.info(CAN_NOT_DELETE_MSG, FARGATE_FULL_NAME, len(fargate_profiles), FARGATE_FULL_NAME)
             for profile in fargate_profiles:
                 # The API will return a (cluster) ResourceInUseException if you try
                 # to delete Fargate profiles in parallel the way we can with nodegroups,
@@ -493,7 +494,7 @@ class EksDeleteClusterOperator(BaseOperator):
                         )
                     else:
                         raise RuntimeError(ABORT_MSG.format(compute=FARGATE_FULL_NAME))
-        self.log.info(SUCCESS_MSG.format(compute=FARGATE_FULL_NAME))
+        self.log.info(SUCCESS_MSG, FARGATE_FULL_NAME)
 
 
 class EksDeleteNodegroupOperator(BaseOperator):

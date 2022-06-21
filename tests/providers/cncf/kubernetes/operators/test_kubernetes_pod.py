@@ -895,9 +895,9 @@ class TestKubernetesPodOperator:
 
 
 def test__suppress():
-    with mock.patch('logging.Logger.error') as mock_error:
+    with mock.patch('logging.Logger.exception') as mock_exception:
 
         with _suppress(ValueError):
             raise ValueError("failure")
 
-        mock_error.assert_called_once_with("failure", exc_info=True)
+        mock_exception.assert_called_once_with("failure")

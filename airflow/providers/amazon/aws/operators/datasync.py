@@ -356,8 +356,8 @@ class DataSyncOperator(BaseOperator):
         self.log.info("Waiting for TaskExecutionArn %s", self.task_execution_arn)
         try:
             result = hook.wait_for_task_execution(self.task_execution_arn, max_iterations=self.max_iterations)
-        except (AirflowTaskTimeout, AirflowException) as e:
-            self.log.error('Cancelling TaskExecution after Exception: %s', e)
+        except (AirflowTaskTimeout, AirflowException):
+            self.log.error('Cancelling TaskExecution after Exception')
             self._cancel_datasync_task_execution()
             raise
         self.log.info("Completed TaskExecutionArn %s", self.task_execution_arn)

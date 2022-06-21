@@ -111,8 +111,8 @@ class GoogleAdsToGcsOperator(BaseOperator):
         try:
             getter = attrgetter(*self.attributes)
             converted_rows = [getter(row) for row in rows]
-        except Exception as e:
-            self.log.error("An error occurred in converting the Google Ad Rows. \n Error %s", e)
+        except Exception:
+            self.log.error("An error occurred in converting the Google Ad Rows.")
             raise
 
         with NamedTemporaryFile("w", suffix=".csv") as csvfile:

@@ -139,8 +139,8 @@ class WasbTaskHandler(FileTaskHandler, LoggingMixin):
         try:
             return self.hook.check_for_blob(self.wasb_container, remote_log_location)
 
-        except Exception as e:
-            self.log.debug('Exception when trying to check remote location: "%s"', e)
+        except Exception:
+            self.log.debug('Exception when trying to check remote location.', exc_info=True)
         return False
 
     def wasb_read(self, remote_log_location: str, return_error: bool = False):

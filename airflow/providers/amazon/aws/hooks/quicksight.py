@@ -87,8 +87,8 @@ class QuickSightHook(AwsBaseHook):
                     check_interval=check_interval,
                 )
             return create_ingestion_response
-        except Exception as general_error:
-            self.log.error("Failed to run Amazon QuickSight create_ingestion API, error: %s", general_error)
+        except Exception:
+            self.log.error("Failed to run Amazon QuickSight create_ingestion API.")
             raise
 
     def get_status(self, aws_account_id: str, data_set_id: str, ingestion_id: str):

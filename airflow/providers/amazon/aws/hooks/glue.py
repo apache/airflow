@@ -107,8 +107,8 @@ class GlueJobHook(AwsBaseHook):
             glue_execution_role = iam_client.get_role(RoleName=self.role_name)
             self.log.info("Iam Role Name: %s", self.role_name)
             return glue_execution_role
-        except Exception as general_error:
-            self.log.error("Failed to create aws glue job, error: %s", general_error)
+        except Exception:
+            self.log.error("Failed to create aws glue job.")
             raise
 
     def initialize_job(
@@ -129,8 +129,8 @@ class GlueJobHook(AwsBaseHook):
             job_name = self.get_or_create_glue_job()
             return glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
 
-        except Exception as general_error:
-            self.log.error("Failed to run aws glue job, error: %s", general_error)
+        except Exception:
+            self.log.error("Failed to run aws glue job.")
             raise
 
     def get_job_state(self, job_name: str, run_id: str) -> str:
@@ -280,8 +280,8 @@ class GlueJobHook(AwsBaseHook):
                         **self.create_job_kwargs,
                     )
                 return create_job_response['Name']
-            except Exception as general_error:
-                self.log.error("Failed to create aws glue job, error: %s", general_error)
+            except Exception:
+                self.log.error("Failed to create aws glue job.")
                 raise
 
 

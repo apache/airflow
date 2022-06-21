@@ -169,10 +169,10 @@ class GCSTaskHandler(FileTaskHandler, LoggingMixin):
         except Exception as e:
             if not hasattr(e, 'resp') or e.resp.get('status') != '404':
                 log = f'*** Previous log discarded: {str(e)}\n\n' + log
-                self.log.info("Previous log discarded: %s", e)
+                self.log.info("Previous log discarded.", exc_info=True)
 
         try:
             blob = storage.Blob.from_string(remote_log_location, self.client)
             blob.upload_from_string(log, content_type="text/plain")
-        except Exception as e:
-            self.log.error('Could not write logs to %s: %s', remote_log_location, e)
+        except Exception:
+            self.log.exception('Could not write logs to %s', remote_log_location)

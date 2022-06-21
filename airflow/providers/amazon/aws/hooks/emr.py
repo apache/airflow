@@ -195,8 +195,8 @@ class EmrContainerHook(AwsBaseHook):
             reason = f"{failure_reason} - {state_details}"
         except KeyError:
             self.log.error('Could not get status of the EMR on EKS job')
-        except ClientError as ex:
-            self.log.error('AWS request failed, check logs for more info: %s', ex)
+        except ClientError:
+            self.log.exception('AWS request failed, check logs for more info.')
 
         return reason
 
@@ -216,9 +216,9 @@ class EmrContainerHook(AwsBaseHook):
         except self.conn.exceptions.ResourceNotFoundException:
             # If the job is not found, we raise an exception as something fatal has happened.
             raise AirflowException(f'Job ID {job_id} not found on Virtual Cluster {self.virtual_cluster_id}')
-        except ClientError as ex:
+        except ClientError:
             # If we receive a generic ClientError, we swallow the exception so that the
-            self.log.error('AWS request failed, check logs for more info: %s', ex)
+            self.log.exception('AWS request failed, check logs for more info.')
             return None
 
     def poll_query_status(

@@ -382,8 +382,8 @@ class WasbHook(BaseHook):
                 e.response,
                 self.conn_id,
             )
-        except Exception as e:
-            self.log.info('Error while attempting to create container %r: %s', container_name, e)
+        except Exception:
+            self.log.info('Error while attempting to create container %r.', container_name)
             raise
 
     def delete_container(self, container_name: str) -> None:

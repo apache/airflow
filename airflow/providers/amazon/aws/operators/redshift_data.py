@@ -153,5 +153,5 @@ class RedshiftDataOperator(BaseOperator):
 
             try:
                 self.hook.conn.cancel_statement(Id=self.statement_id)
-            except Exception as ex:
-                self.log.error('Unable to cancel query. Exiting. %s', ex)
+            except Exception:
+                self.log.exception('Unable to cancel query. Exiting.')

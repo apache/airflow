@@ -945,6 +945,6 @@ class SageMakerHook(AwsBaseHook):
         """
         try:
             self.get_conn().delete_model(ModelName=model_name)
-        except Exception as general_error:
-            self.log.error("Failed to delete model, error: %s", general_error)
+        except Exception:
+            self.log.error("Failed to delete model.")
             raise

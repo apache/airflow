@@ -19,7 +19,6 @@
 import contextlib
 import os
 from unittest import mock
-from unittest.mock import ANY
 
 import pytest
 from botocore.exceptions import ClientError
@@ -107,9 +106,8 @@ class TestS3TaskHandler:
 
             mock_error.assert_called_once_with(
                 'Could not create an S3Hook with connection id "%s". Please make '
-                'sure that apache-airflow[aws] is installed and the S3 connection exists. Exception : "%s"',
+                'sure that apache-airflow[aws] is installed and the S3 connection exists.',
                 'aws_default',
-                ANY,
                 exc_info=True,
             )
 

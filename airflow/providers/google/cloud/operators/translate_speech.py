@@ -183,5 +183,4 @@ class CloudTranslateSpeechOperator(BaseOperator):
             return translation
         except ValueError as e:
             self.log.error('An error has been thrown from translate speech method:')
-            self.log.error(e)
             raise AirflowException(e)

@@ -55,13 +55,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
             from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 
             return AwsLogsHook(aws_conn_id=remote_conn_id, region_name=self.region_name)
-        except Exception as e:
-            self.log.error(
+        except Exception:
+            self.log.exception(
                 'Could not create an AwsLogsHook with connection id "%s". '
                 'Please make sure that apache-airflow[aws] is installed and '
-                'the Cloudwatch logs connection exists. Exception: "%s"',
+                'the Cloudwatch logs connection exists.',
                 remote_conn_id,
-                e,
             )
             return None
 

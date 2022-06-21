@@ -172,7 +172,7 @@ class TestGCSTaskHandler:
             (
                 "airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler",
                 logging.ERROR,
-                "Could not write logs to gs://bucket/remote/log/location/1.log: Failed to connect",
+                "Could not write logs to gs://bucket/remote/log/location/1.log",
             ),
         ]
         mock_blob.assert_has_calls(

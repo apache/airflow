@@ -74,7 +74,7 @@ class FTPSensor(BaseSensorOperator):
                 self.log.info('Found File %s last modified: %s', str(self.path), str(mod_time))
 
             except ftplib.error_perm as e:
-                self.log.error('Ftp error encountered: %s', str(e))
+                self.log.exception('Ftp error encountered.')
                 error_code = self._get_error_code(e)
                 if (error_code != 550) and (
                     self.fail_on_transient_errors or (error_code not in self.transient_errors)

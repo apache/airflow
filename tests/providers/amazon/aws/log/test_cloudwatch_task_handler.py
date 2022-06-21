@@ -18,7 +18,7 @@
 import time
 from datetime import datetime as dt
 from unittest import mock
-from unittest.mock import ANY, call
+from unittest.mock import call
 
 import pytest
 from watchtower import CloudWatchLogHandler
@@ -114,9 +114,9 @@ class TestCloudwatchTaskHandler:
             mock_error.assert_called_once_with(
                 'Could not create an AwsLogsHook with connection id "%s". Please make '
                 'sure that apache-airflow[aws] is installed and the Cloudwatch '
-                'logs connection exists. Exception: "%s"',
+                'logs connection exists.',
                 'aws_default',
-                ANY,
+                exc_info=True,
             )
 
     def test_handler(self):

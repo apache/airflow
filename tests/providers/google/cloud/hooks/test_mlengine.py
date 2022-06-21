@@ -470,7 +470,7 @@ class TestMLEngineHook(unittest.TestCase):
                 mock.call().projects().models().delete().execute(num_retries=5),
             ]
         )
-        mock_log.error.assert_called_once_with('Model was not found: %s', http_error)
+        mock_log.exception.assert_called_once_with('Model was not found.')
 
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.time.sleep")
     @mock.patch("airflow.providers.google.cloud.hooks.mlengine.MLEngineHook.get_conn")

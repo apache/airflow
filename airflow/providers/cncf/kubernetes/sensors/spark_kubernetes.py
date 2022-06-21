@@ -85,13 +85,12 @@ class SparkKubernetesSensor(BaseSensorOperator):
             for line in self.hook.get_pod_logs(driver_pod_name, namespace=namespace):
                 log += line.decode()
             log_method(log)
-        except client.rest.ApiException as e:
+        except client.rest.ApiException:
             self.log.warning(
                 "Could not read logs for pod %s. It may have been disposed.\n"
-                "Make sure timeToLiveSeconds is set on your SparkApplication spec.\n"
-                "underlying exception: %s",
+                "Make sure timeToLiveSeconds is set on your SparkApplication spec.",
                 driver_pod_name,
-                e,
+                exc_info=True,
             )
 
     def poke(self, context: 'Context') -> bool:

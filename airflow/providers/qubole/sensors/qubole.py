@@ -57,8 +57,10 @@ class QuboleSensor(BaseSensorOperator):
         status = False
         try:
             status = self.sensor_class.check(self.data)  # type: ignore[attr-defined]
-        except Exception as e:
-            self.log.exception(e)
+        except Exception:
+            self.log.exception(
+                "Exception occurred while poking for status. Will attempt to poke for status again later."
+            )
             status = False
 
         self.log.info('Status of this Poke: %s', status)

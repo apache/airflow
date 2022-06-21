@@ -934,9 +934,9 @@ class S3Hook(AwsBaseHook):
             result = s3_client.get_bucket_tagging(Bucket=bucket_name)['TagSet']
             self.log.info("S3 Bucket Tag Info: %s", result)
             return result
-        except ClientError as e:
-            self.log.error(e)
-            raise e
+        except ClientError:
+            self.log.error("Unable to retrieve tags.")
+            raise
 
     @provide_bucket_name
     def put_bucket_tagging(
@@ -969,9 +969,9 @@ class S3Hook(AwsBaseHook):
         try:
             s3_client = self.get_conn()
             s3_client.put_bucket_tagging(Bucket=bucket_name, Tagging={'TagSet': tag_set})
-        except ClientError as e:
-            self.log.error(e)
-            raise e
+        except ClientError:
+            self.log.error("Unable to apply tag(s) to bucket.")
+            raise
 
     @provide_bucket_name
     def delete_bucket_tagging(self, bucket_name: Optional[str] = None) -> None:

@@ -224,11 +224,11 @@ class PodManager(LoggingMixin):
                     line = raw_line.decode('utf-8', errors="backslashreplace")
                     timestamp, message = self.parse_log_line(line)
                     self.log.info(message)
-            except BaseHTTPError as e:
+            except BaseHTTPError:
                 self.log.warning(
                     "Reading of logs interrupted with error %r; will retry. "
                     "Set log level to DEBUG for traceback.",
-                    e,
+                    exc_info=True,
                 )
                 self.log.debug(
                     "Traceback for interrupted logs read for pod %r",

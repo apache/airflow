@@ -149,8 +149,8 @@ class GlueCatalogHook(AwsBaseHook):
                 DatabaseName=database_name, TableName=table_name, PartitionValues=partition_values
             )
             return response["Partition"]
-        except ClientError as e:
-            self.log.error("Client error: %s", e)
+        except ClientError:
+            self.log.error("Client error.")
             raise AirflowException("AWS request failed, check logs for more info")
 
     def create_partition(self, database_name: str, table_name: str, partition_input: Dict) -> Dict:
@@ -175,8 +175,8 @@ class GlueCatalogHook(AwsBaseHook):
             return self.get_conn().create_partition(
                 DatabaseName=database_name, TableName=table_name, PartitionInput=partition_input
             )
-        except ClientError as e:
-            self.log.error("Client error: %s", e)
+        except ClientError:
+            self.log.error("Client error.")
             raise AirflowException("AWS request failed, check logs for more info")
 
 

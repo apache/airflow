@@ -168,13 +168,13 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             # ADC uses the service account that is attached to the resource that is running your code.
             return create_engine(self.get_uri(), **engine_kwargs)
         except Exception as e:
-            self.log.error(e)
-            raise AirflowException(
+            self.log.error(
                 "For now, we only support instantiating SQLAlchemy engine by"
                 " using ADC"
                 ", extra__google_cloud_platform__key_path"
                 "and extra__google_cloud_platform__keyfile_dict"
             )
+            raise AirflowException(e)
 
     def get_records(self, sql, parameters=None):
         if self.location is None:

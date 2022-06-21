@@ -181,6 +181,6 @@ class AzureKeyVaultBackend(BaseSecretsBackend, LoggingMixin):
         try:
             secret = self.client.get_secret(name=name)
             return secret.value
-        except ResourceNotFoundError as ex:
-            self.log.debug('Secret %s not found: %s', name, ex)
+        except ResourceNotFoundError:
+            self.log.debug('Secret %s not found.', name, exc_info=True)
             return None

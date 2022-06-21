@@ -159,6 +159,6 @@ class OpsgenieAlertHook(BaseHook):
                 source=source,
             )
             return api_response
-        except OpenApiException as e:
-            self.log.exception('Exception when calling AlertApi->delete_alert: %s\n', e)
-            raise e
+        except OpenApiException:
+            self.log.error('Exception when calling AlertApi->delete_alert:')
+            raise

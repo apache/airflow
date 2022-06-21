@@ -124,8 +124,8 @@ class JiraTicketSensor(JiraSensor):
                             self.field,
                         )
 
-        except JIRAError as jira_error:
-            self.log.error("Jira error while checking with expected value: %s", jira_error)
+        except JIRAError:
+            self.log.exception("Jira error while checking with expected value.")
         except Exception:
             self.log.exception("Error while checking with expected value %s:", self.expected_value)
         if result is True:

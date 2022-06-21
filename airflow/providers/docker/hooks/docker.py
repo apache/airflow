@@ -107,5 +107,5 @@ class DockerHook(BaseHook, LoggingMixin):
             )
             self.log.debug('Login successful')
         except APIError as docker_error:
-            self.log.error('Docker login failed: %s', str(docker_error))
-            raise AirflowException(f'Docker login failed: {docker_error}')
+            self.log.error('Docker login failed.')
+            raise AirflowException(docker_error)

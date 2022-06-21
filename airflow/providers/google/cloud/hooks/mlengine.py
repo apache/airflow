@@ -139,7 +139,7 @@ class MLEngineHook(GoogleBaseHook):
                         raise
                 self.log.info('Job with job_id %s already exist. Will waiting for it to finish', job_id)
             else:
-                self.log.error('Failed to create MLEngine job: %s', e)
+                self.log.error('Failed to create MLEngine job.')
                 raise
 
         return self._wait_for_job_done(project_id, job_id)
@@ -176,7 +176,7 @@ class MLEngineHook(GoogleBaseHook):
                 self.log.info('Job with job_id %s is already complete, cancellation aborted.', job_id)
                 return {}
             else:
-                self.log.error('Failed to cancel MLEngine job: %s', e)
+                self.log.error('Failed to cancel MLEngine job.')
                 raise
 
     def _get_job(self, project_id: str, job_id: str) -> dict:
@@ -201,7 +201,7 @@ class MLEngineHook(GoogleBaseHook):
                     # polling after 30 seconds when quota failure occurs
                     time.sleep(30)
                 else:
-                    self.log.error('Failed to get MLEngine job: %s', e)
+                    self.log.error('Failed to get MLEngine job.')
                     raise
 
     def _wait_for_job_done(self, project_id: str, job_id: str, interval: int = 30):
@@ -293,8 +293,8 @@ class MLEngineHook(GoogleBaseHook):
             response = request.execute(num_retries=self.num_retries)
             self.log.info('Successfully set version: %s to default', response)
             return response
-        except HttpError as e:
-            self.log.error('Something went wrong: %s', e)
+        except HttpError:
+            self.log.error('Something went wrong!')
             raise
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -441,7 +441,7 @@ class MLEngineHook(GoogleBaseHook):
             return request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
-                self.log.error('Model was not found: %s', e)
+                self.log.exception('Model was not found.')
                 return None
             raise
 
@@ -475,7 +475,7 @@ class MLEngineHook(GoogleBaseHook):
             request.execute(num_retries=self.num_retries)
         except HttpError as e:
             if e.resp.status == 404:
-                self.log.error('Model was not found: %s', e)
+                self.log.exception('Model was not found.')
                 return
             raise
 

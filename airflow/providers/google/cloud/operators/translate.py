@@ -127,6 +127,5 @@ class CloudTranslateTextOperator(BaseOperator):
             self.log.debug("Translation %s", translation)
             return translation
         except ValueError as e:
-            self.log.error('An error has been thrown from translate method:')
-            self.log.error(e)
+            self.log.error('An error has been thrown from translate method.')
             raise AirflowException(e)

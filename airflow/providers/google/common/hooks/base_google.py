@@ -291,12 +291,12 @@ class GoogleBaseHook(BaseHook):
         if isinstance(credentials, compute_engine.Credentials):
             try:
                 credentials.refresh(_http_client.Request())
-            except RefreshError as msg:
+            except RefreshError:
                 """
                 If the Compute Engine metadata service can't be reached in this case the instance has not
                 credentials.
                 """
-                self.log.debug(msg)
+                self.log.debug("Refreshing the credentials' access token has failed.", exc_info=True)
 
         service_account_email = getattr(credentials, 'service_account_email', None)
         if service_account_email:

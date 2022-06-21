@@ -78,7 +78,7 @@ class DataprocJobSensor(BaseSensorOperator):
                 job = hook.get_job(
                     job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id
                 )
-            except ServerError as err:
+            except ServerError:
                 duration = self._duration()
                 self.log.info("DURATION RUN: %f", duration)
                 if duration > self.wait_timeout:
@@ -86,7 +86,9 @@ class DataprocJobSensor(BaseSensorOperator):
                         f"Timeout: dataproc job {self.dataproc_job_id} "
                         f"is not ready after {self.wait_timeout}s"
                     )
-                self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
+                self.log.info(
+                    "Retrying. Dataproc API returned server error when waiting for job.", exc_info=True
+                )
                 return False
         else:
             job = hook.get_job(job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id)

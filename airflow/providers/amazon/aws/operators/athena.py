@@ -121,8 +121,8 @@ class AthenaOperator(BaseOperator):
             http_status_code = None
             try:
                 http_status_code = response['ResponseMetadata']['HTTPStatusCode']
-            except Exception as ex:
-                self.log.error('Exception while cancelling query: %s', ex)
+            except Exception:
+                self.log.exception('Exception while cancelling query.')
             finally:
                 if http_status_code is None or http_status_code != 200:
                     self.log.error('Unable to request query cancel on athena. Exiting')

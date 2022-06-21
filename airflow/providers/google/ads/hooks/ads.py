@@ -164,8 +164,8 @@ class GoogleAdsHook(BaseHook):
             try:
                 client = GoogleAdsClient.load_from_dict(self.google_ads_config)
                 return client
-            except GoogleAuthError as e:
-                self.log.error("Google Auth Error: %s", e)
+            except GoogleAuthError:
+                self.log.error("Google Auth Error!")
                 raise
 
     @cached_property
@@ -177,8 +177,8 @@ class GoogleAdsHook(BaseHook):
             try:
                 client = GoogleAdsClient.load_from_dict(self.google_ads_config)
                 return client.get_service("CustomerService", version=self.api_version)
-            except GoogleAuthError as e:
-                self.log.error("Google Auth Error: %s", e)
+            except GoogleAuthError:
+                self.log.error("Google Auth Error!")
                 raise
 
     def _get_config(self) -> None:

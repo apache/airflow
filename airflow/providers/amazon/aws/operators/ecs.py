@@ -136,11 +136,11 @@ class EcsTaskLogFetcher(Thread):
             yield from self.hook.get_log_events(self.log_group, self.log_stream_name, skip=skip)
         except ClientError as error:
             if error.response['Error']['Code'] != 'ResourceNotFoundException':
-                self.logger.warning('Error on retrieving Cloudwatch log events', error)
+                self.logger.warning('Error on retrieving Cloudwatch log events', exc_info=True)
 
             yield from ()
-        except ConnectionClosedError as error:
-            self.logger.warning('ConnectionClosedError on retrieving Cloudwatch log events', error)
+        except ConnectionClosedError:
+            self.logger.warning('ConnectionClosedError on retrieving Cloudwatch log events', exc_info=True)
             yield from ()
 
     def _event_to_str(self, event: dict) -> str:

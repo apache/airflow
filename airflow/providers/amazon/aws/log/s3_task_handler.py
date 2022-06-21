@@ -48,13 +48,12 @@ class S3TaskHandler(FileTaskHandler, LoggingMixin):
             from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 
             return S3Hook(remote_conn_id, transfer_config_args={"use_threads": False})
-        except Exception as e:
+        except Exception:
             self.log.exception(
                 'Could not create an S3Hook with connection id "%s". '
                 'Please make sure that apache-airflow[aws] is installed and '
-                'the S3 connection exists. Exception : "%s"',
+                'the S3 connection exists.',
                 remote_conn_id,
-                e,
             )
             return None
 

@@ -90,8 +90,8 @@ class WebHDFSHook(BaseHook):
                     return client
                 else:
                     self.log.warning("Could not connect to %s:%s", namenode, connection.port)
-            except HdfsError as hdfs_error:
-                self.log.info('Read operation on namenode %s failed with error: %s', namenode, hdfs_error)
+            except HdfsError:
+                self.log.info('Read operation on namenode %s failed.', namenode, exc_info=True)
         return None
 
     def _get_client(
