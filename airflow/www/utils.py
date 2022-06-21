@@ -39,6 +39,7 @@ from sqlalchemy.ext.associationproxy import AssociationProxy
 
 from airflow import models
 from airflow.models import errors
+from airflow.models.dagwarning import DagWarning
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -150,6 +151,13 @@ def check_import_errors(fileloc, session):
     if import_errors:
         for import_error in import_errors:
             flash("Broken DAG: [{ie.filename}] {ie.stacktrace}".format(ie=import_error), "dag_import_error")
+
+
+def check_dag_warnings(dag_id, session):
+    dag_warnings = session.query(DagWarning).filter(DagWarning.dag_id == dag_id).all()
+    if dag_warnings:
+        for dag_warning in dag_warnings:
+            flash(dag_warning.message, "warning")
 
 
 def get_sensitive_variables_fields():
