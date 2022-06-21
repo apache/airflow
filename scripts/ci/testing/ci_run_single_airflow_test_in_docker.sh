@@ -89,7 +89,7 @@ function run_airflow_testing_in_docker() {
     echo
     docker-compose -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
         "${INTEGRATIONS[@]}" \
-        --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+        --project-name "airflow-${TEST_TYPE,,}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
     docker-compose --log-level INFO \
@@ -97,7 +97,7 @@ function run_airflow_testing_in_docker() {
       "${BACKEND_DOCKER_COMPOSE[@]}" \
       "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
-      --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+      --project-name "airflow-${TEST_TYPE,,}-${BACKEND}" \
          run airflow "${@}"
     exit_code=$?
     docker ps
@@ -112,7 +112,7 @@ function run_airflow_testing_in_docker() {
 
     docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
         "${INTEGRATIONS[@]}" \
-        --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
+        --project-name "airflow-${TEST_TYPE,,}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
     set -u
