@@ -62,8 +62,6 @@ Extra (optional)
     * ``session_parameters``: Specify `session level parameters <https://docs.snowflake.com/en/user-guide/python-connector-example.html#setting-session-parameters>`_.
     * ``insecure_mode``: Turn off OCSP certificate checks. For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`_.
 
-Note that all components of the URI should be URL-encoded.
-
 URI format example
 ^^^^^^^^^^^^^^^^^^
 
@@ -74,6 +72,8 @@ If serializing with Airflow URI:
    export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='snowflake://user:password@/db-schema?account=account&database=snow-db&region=us-east&warehouse=snow-warehouse'
 
 When specifying the connection as an environment variable in Airflow versions prior to 2.3.0, you need to specify the connection using URI syntax.
+
+Note that all components of the URI should be URL-encoded.
 
 JSON format example
 ^^^^^^^^^^^^^^^^^^^
