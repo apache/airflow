@@ -92,6 +92,7 @@ PIP package                   Version required
 ``jsonpath_ng``               ``>=1.5.3``
 ``mypy-boto3-rds``            ``>=1.21.0``
 ``mypy-boto3-redshift-data``  ``>=1.21.0``
+``mypy-boto3-appflow``        ``>=1.21.0``
 ``pandas``                    ``>=0.17.1``
 ``redshift_connector``        ``>=2.0.888``
 ``sqlalchemy_redshift``       ``>=0.8.6``
