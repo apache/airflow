@@ -547,7 +547,14 @@ def regenerate_command_images(verbose: bool, dry_run: bool):
     except FileNotFoundError:
         # when we go to Python 3.8+ we can add missing_ok = True instead of try/except
         pass
-    command_to_execute = [sys.executable, "-m", "pre_commit", 'run', 'update-breeze-file', '--all-files']
+    command_to_execute = [
+        sys.executable,
+        "-m",
+        "pre_commit",
+        'run',
+        'update-breeze-cmd-output',
+        '--all-files',
+    ]
     env = os.environ.copy()
     run_command(
         command_to_execute,
