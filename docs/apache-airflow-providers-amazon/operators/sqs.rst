@@ -71,7 +71,7 @@ To read messages from an Amazon SQS queue until exhausted use the
 .. _howto/sensor:SqsBatchSensor:
 
 Read messages from an Amazon SQS queue in batches
-======================================
+=================================================
 
 To read messages from an Amazon SQS queue in multiple batches
 :class:`~airflow.providers.amazon.aws.sensors.sqs.SqsBatchSensor`

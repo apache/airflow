@@ -24,6 +24,7 @@ from jsonpath_ng import parse
 from typing_extensions import Literal
 
 from airflow.exceptions import AirflowException
+from airflow.providers.amazon.aws.hooks.base_aws import BaseAwsConnection
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
 from airflow.sensors.base import BaseSensorOperator
 
@@ -37,7 +38,8 @@ class SqsSensor(BaseSensorOperator):
     If deletion of messages fails an AirflowException is thrown. Otherwise, the messages
     are pushed through XCom with the key ``messages``.
 
-    This sensor performs one and only one SQS call per poke, which limits the result to a maximum of 10 messages
+    This sensor performs one and only one SQS call per poke, which limits the result to
+    a maximum of 10 messages
 
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
@@ -106,14 +108,13 @@ class SqsSensor(BaseSensorOperator):
 
         self.hook: Optional[SqsHook] = None
 
-    def poll_sqs(self, sqs_conn: Any) -> Collection:
+    def poll_sqs(self, sqs_conn: BaseAwsConnection) -> Collection:
         """
         Poll SQS queue to retrieve messages.
 
         :param sqs_conn: SQS connection
         :return: A list of messages retrieved from SQS
         """
-
         self.log.info('SqsSensor checking for message on queue: %s', self.sqs_queue)
 
         receive_message_kwargs = {
@@ -146,7 +147,7 @@ class SqsSensor(BaseSensorOperator):
         :param context: the context object
         :return: ``True`` if message is available or ``False``
         """
-        sqs_conn = self.get_hook().conn
+        sqs_conn = self.get_hook().get_conn()
 
         messages = self.poll_sqs(sqs_conn=sqs_conn)
 
@@ -244,17 +245,17 @@ class SqsBatchSensor(SqsSensor):
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SqsBatchSensor`
 
-    :param num_batch: The number of times the sensor will call the SQS API to receive messages (default: 1)
+    :param num_batches: The number of times the sensor will call the SQS API to receive messages (default: 1)
     """
 
     def __init__(
         self,
         *,
-        num_batch: int = 1,
+        num_batches: int = 1,
         **kwargs,
     ):
         super().__init__(**kwargs)
-        self.batch = num_batch
+        self.num_batches = num_batches
 
     def poke(self, context: 'Context'):
         """
@@ -266,7 +267,7 @@ class SqsBatchSensor(SqsSensor):
         sqs_conn = self.get_hook().get_conn()
         message_batch: List[Any] = []
         # perform multiple SQS call to retrieve messages in series
-        for _ in range(self.batch):
+        for _ in range(self.num_batches):
             messages = self.poll_sqs(sqs_conn=sqs_conn)
 
             if not len(messages):
