@@ -153,10 +153,10 @@ class SetTaskInstanceStateFormSchema(Schema):
 class RunTaskInstanceFormSchema(Schema):
     """Schema for handling the request of running a task instance of a DAG"""
 
-    ignore_all_deps = fields.Boolean(required=True)
-    ignore_task_deps = fields.Boolean(required=True)
-    ignore_ti_state = fields.Boolean(required=True)
-    map_index = fields.Integer(required=True)
+    ignore_all_deps = fields.Boolean(load_default=False)
+    ignore_task_deps = fields.Boolean(load_default=False)
+    ignore_ti_state = fields.Boolean(load_default=False)
+    map_index = fields.Integer(load_default=-1)
 
 
 class TaskInstanceReferenceSchema(Schema):

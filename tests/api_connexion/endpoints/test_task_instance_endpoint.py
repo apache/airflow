@@ -1537,43 +1537,6 @@ class TestTaskInstanceRunEndpoint(TestTaskInstanceEndpoint):
         assert response.json == expected
 
     @pytest.mark.parametrize(
-        "payload, error_message",
-        [
-            [
-                {"ignore_ti_state": True, "ignore_task_deps": True, "map_index": 1},
-                "'ignore_all_deps' is a required property",
-            ],
-            [
-                {"ignore_ti_state": True, "ignore_all_deps": True, "map_index": 1},
-                "'ignore_task_deps' is a required property",
-            ],
-            [
-                {"ignore_ti_state": True, "ignore_all_deps": True, "ignore_task_deps": True},
-                "'map_index' is a required property",
-            ],
-            [
-                {"ignore_all_deps": True, "ignore_task_deps": True, "map_index": 1},
-                "'ignore_ti_state' is a required property",
-            ],
-        ],
-    )
-    def test_task_instance_run_required_fields(self, executor, session, payload, error_message):
-        self.ti_init["state"] = State.NONE
-        self.create_task_instances(session)
-        dag_id = "example_python_operator"
-        run_id = "TEST_DAG_RUN_ID"
-        task_id = "print_the_context"
-
-        response = self.client.post(
-            f"/api/v1/dags/{dag_id}/dagRuns/{run_id}/taskInstances/{task_id}/run",
-            environ_overrides={"REMOTE_USER": "test"},
-            json=payload,
-        )
-
-        assert response.status_code == 400
-        assert response.json['detail'] == error_message
-
-    @pytest.mark.parametrize(
         "dag_id, run_id, task_id, error",
         [
             ["example_python_operator", "TEST_DAG_RUN_ID", "invalid_task", "Task ID invalid_task not found"],
