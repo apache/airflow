@@ -186,3 +186,36 @@ class TestSalesforceBulkOperator(unittest.TestCase):
             batch_size=batch_size,
             use_serial=use_serial,
         )
+
+    @patch('airflow.providers.salesforce.operators.salesforce_bulk.SalesforceHook.get_conn')
+    def test_execute_salesforce_bulk_hard_delete(self, mock_get_conn):
+        """
+        Test execute bulk hard_delete
+        """
+
+        operation = 'hard_delete'
+        object_name = 'Account'
+        payload = [
+            {'Id': '000000000000000AAA'},
+            {'Id': '000000000000000BBB'},
+        ]
+        batch_size = 10000
+        use_serial = True
+
+        mock_get_conn.return_value.bulk.__getattr__(object_name).hard_delete = Mock()
+        operator = SalesforceBulkOperator(
+            task_id='salesforce_bulk_hard_delete',
+            operation=operation,
+            object_name=object_name,
+            payload=payload,
+            batch_size=batch_size,
+            use_serial=use_serial,
+        )
+
+        operator.execute(context={})
+
+        mock_get_conn.return_value.bulk.__getattr__(object_name).hard_delete.assert_called_once_with(
+            data=payload,
+            batch_size=batch_size,
+            use_serial=use_serial,
+        )

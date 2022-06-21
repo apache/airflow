@@ -33,7 +33,7 @@ class SalesforceBulkOperator(BaseOperator):
         :ref:`howto/operator:SalesforceBulkOperator`
 
     :param operation: Bulk operation to be performed
-        Available operations are in ['insert', 'update', 'upsert', 'delete']
+        Available operations are in ['insert', 'update', 'upsert', 'delete', 'hard_delete']
     :param object_name: The name of the Salesforce object
     :param payload: list of dict to be passed as a batch
     :param external_id_field: unique identifier field for upsert operations
@@ -68,7 +68,7 @@ class SalesforceBulkOperator(BaseOperator):
         if not self.object_name:
             raise AirflowException("The required parameter 'object_name' is missing.")
 
-        available_operations = ['insert', 'update', 'upsert', 'delete']
+        available_operations = ['insert', 'update', 'upsert', 'delete', 'hard_delete']
         if self.operation not in available_operations:
             raise AirflowException(f"Operation not found! Available operations are f{available_operations}.")
 
@@ -101,6 +101,10 @@ class SalesforceBulkOperator(BaseOperator):
             )
         elif self.operation == 'delete':
             result = conn.bulk.__getattr__(self.object_name).delete(
+                data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
+            )
+        elif self.operation == 'hard_delete':
+            result = conn.bulk.__getattr__(self.object_name).hard_delete(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
 
