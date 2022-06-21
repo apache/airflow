@@ -1,5 +1,3 @@
-#!/usr/bin/env python
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -16,9 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""Version command"""
+from rich.console import Console
 
+import airflow
 from airflow.cli import airflow_cmd
-from airflow.cli.commands import version  # noqa: F401
 
-if __name__ == '__main__':
-    airflow_cmd(obj={})
+
+@airflow_cmd.command('version')
+def version():
+    """Displays Airflow version at the command line"""
+    console = Console()
+    console.print(airflow.__version__)
