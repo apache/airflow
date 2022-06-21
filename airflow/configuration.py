@@ -362,7 +362,9 @@ class AirflowConfigParser(ConfigParser):
             )
 
     def _upgrade_postgres_metastore_conn(self):
-        """As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres` must be replaced with `postgresql`"""
+        """
+        As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres` must be replaced with `postgresql`.
+        """
         section, key = 'database', 'sql_alchemy_conn'
         old_value = self.get(section, key)
         bad_schemes = ['postgres+psycopg2', 'postgres']
