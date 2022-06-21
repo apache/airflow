@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-20T19:34:18Z
+# This constraints file was automatically generated on 2022-06-21T08:31:10Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -574,8 +574,8 @@ types-paramiko==2.11.0
 types-protobuf==3.19.22
 types-python-dateutil==2.8.17
 types-python-slugify==5.0.4
-types-pytz==2021.3.8
-types-redis==4.2.8
+types-pytz==2022.1.0
+types-redis==4.3.0
 types-requests==2.27.30
 types-setuptools==57.4.17
 types-six==1.16.16
@@ -601,7 +601,7 @@ websocket-client==1.3.3
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.26.3
-yandexcloud==0.165.0
+yandexcloud==0.166.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24
