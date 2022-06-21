@@ -41,7 +41,8 @@ describe('Test LegendRow', () => {
     { state: 'success', expectedSetValue: 'success' },
     { state: 'failed', expectedSetValue: 'failed' },
     { state: 'no_status', expectedSetValue: null },
-  ])('Hovering $state badge should trigger setHoverdTaskState function with $expectedSetValue',
+  ])(
+    'Hovering $state badge should trigger setHoverdTaskState function with $expectedSetValue',
     async ({ state, expectedSetValue }) => {
       const setHoveredTaskState = jest.fn();
       const { getByText } = render(
@@ -52,5 +53,6 @@ describe('Test LegendRow', () => {
       expect(setHoveredTaskState).toHaveBeenCalledWith(expectedSetValue);
       fireEvent.mouseLeave(successElement);
       expect(setHoveredTaskState).toHaveBeenLastCalledWith();
-    });
+    },
+  );
 });

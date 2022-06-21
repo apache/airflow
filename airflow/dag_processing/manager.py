@@ -217,7 +217,7 @@ class DagFileProcessorAgent(LoggingMixin, MultiprocessingStartMethodMixin):
         # Make this process start as a new process group - that makes it easy
         # to kill all sub-process of this at the OS-level, rather than having
         # to iterate the child processes
-        os.setpgid(0, 0)
+        set_new_process_group()
 
         setproctitle("airflow scheduler -- DagFileProcessorManager")
         # Reload configurations and settings to avoid collision with parent process.

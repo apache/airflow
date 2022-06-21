@@ -18,11 +18,11 @@
 import os
 from contextlib import contextmanager
 
-from airflow_breeze.utils.console import get_console
+from airflow_breeze.utils.console import MessageType, get_console
 
 
 @contextmanager
-def ci_group(title: str, enabled: bool = True):
+def ci_group(title: str, enabled: bool = True, message_type: MessageType = MessageType.INFO):
     """
     If used in GitHub Action, creates an expandable group in the GitHub Action log.
     Otherwise, display simple text groups.
@@ -34,9 +34,9 @@ def ci_group(title: str, enabled: bool = True):
         yield
         return
     if os.environ.get('GITHUB_ACTIONS', 'false') != "true":
-        get_console().print(f"[info]{title}[/]")
+        get_console().print(f"[{message_type.value}]{title}[/]")
         yield
         return
-    get_console().print(f"::group::<CLICK_TO_EXPAND>: [info]{title}[/]")
+    get_console().print(f"::group::<CLICK_TO_EXPAND>: [{message_type.value}]{title}[/]")
     yield
     get_console().print("::endgroup::")

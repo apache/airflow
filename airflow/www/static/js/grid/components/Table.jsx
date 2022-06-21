@@ -79,6 +79,7 @@ const Table = ({
         hooks.visibleColumns.push((cols) => [
           {
             id: 'selection',
+            // eslint-disable-next-line react/no-unstable-nested-components
             Cell: ({ row }) => (
               <div>
                 <IndeterminateCheckbox {...row.getToggleRowSelectedProps()} />

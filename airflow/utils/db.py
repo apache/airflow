@@ -59,7 +59,7 @@ from airflow.models import (  # noqa: F401
 )
 
 # We need to add this model manually to get reset working well
-from airflow.models.serialized_dag import SerializedDagModel  # noqa: F401
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.tasklog import LogTemplate
 from airflow.utils import helpers
 
@@ -535,6 +535,16 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="salesforce_default",
+            conn_type="salesforce",
+            login="username",
+            password="password",
+            extra='{"security_token": "security_token"}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="segment_default",
             conn_type="segment",
             extra='{"write_key": "my-segment-write-key"}',
@@ -779,6 +789,14 @@ def check_and_run_migrations():
 
 
 @provide_session
+def reserialize_dags(*, session: Session = NEW_SESSION) -> None:
+    session.query(SerializedDagModel).delete(synchronize_session=False)
+    dagbag = DagBag()
+    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag.sync_to_db(session=session)
+
+
+@provide_session
 def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
     """Synchronize log template configs with table.
 
@@ -797,6 +815,21 @@ def synchronize_log_template(*, session: Session = NEW_SESSION) -> None:
 
     filename = conf.get("logging", "log_filename_template")
     elasticsearch_id = conf.get("elasticsearch", "log_id_template")
+
+    # First check if we have an empty table. If so, and the default values exist,
+    # we will seed the table with the values from pre 2.3.0, so old logs will
+    # still be retrievable.
+    if not session.query(LogTemplate.id).first():
+        is_default_log_id = elasticsearch_id == conf.airflow_defaults.get("elasticsearch", "log_id_template")
+        is_default_filename = filename == conf.airflow_defaults.get("logging", "log_filename_template")
+        if is_default_log_id and is_default_filename:
+            session.add(
+                LogTemplate(
+                    filename="{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts }}/{{ try_number }}.log",
+                    elasticsearch_id="{dag_id}-{task_id}-{execution_date}-{try_number}",
+                )
+            )
+            session.flush()
 
     # Before checking if the _current_ value exists, we need to check if the old config value we upgraded in
     # place exists!
@@ -854,7 +887,7 @@ def check_conn_id_duplicates(session: Session) -> Iterable[str]:
         )
 
 
-def reflect_tables(tables: List[Union[Base, str]], session):
+def reflect_tables(tables: Optional[List[Union[Base, str]]], session):
     """
     When running checks prior to upgrades, we use reflection to determine current state of the
     database.
@@ -865,12 +898,15 @@ def reflect_tables(tables: List[Union[Base, str]], session):
 
     metadata = sqlalchemy.schema.MetaData(session.bind)
 
-    for tbl in tables:
-        try:
-            table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
-            metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
-        except exc.InvalidRequestError:
-            continue
+    if tables is None:
+        metadata.reflect(resolve_fks=False)
+    else:
+        for tbl in tables:
+            try:
+                table_name = tbl if isinstance(tbl, str) else tbl.__tablename__
+                metadata.reflect(only=[table_name], extend_existing=True, resolve_fks=False)
+            except exc.InvalidRequestError:
+                continue
     return metadata
 
 
@@ -1445,8 +1481,9 @@ def upgradedb(
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
         command.upgrade(config, revision=to_revision or 'heads')
-    add_default_pool_if_not_exists()
-    synchronize_log_template()
+    reserialize_dags(session=session)
+    add_default_pool_if_not_exists(session=session)
+    synchronize_log_template(session=session)
 
 
 @provide_session

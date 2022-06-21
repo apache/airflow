@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 import unittest
 from unittest import mock
 from unittest.mock import MagicMock
@@ -25,7 +24,6 @@ from google.cloud.bigquery import DEFAULT_RETRY
 from google.cloud.exceptions import Conflict
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
 from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryCheckOperator,
     BigQueryConsoleIndexableLink,
@@ -786,13 +784,11 @@ class TestBigQueryUpsertTableOperator(unittest.TestCase):
 
 
 class TestBigQueryInsertJobOperator:
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_query_success(self, mock_hook, mock_md5):
+    def test_execute_query_success(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
-        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "query": {
@@ -801,6 +797,7 @@ class TestBigQueryInsertJobOperator:
             }
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -822,13 +819,11 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_copy_success(self, mock_hook, mock_md5):
+    def test_execute_copy_success(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
-        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "copy": {
@@ -841,7 +836,7 @@ class TestBigQueryInsertJobOperator:
             "jobReference": "a",
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
-
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
         mock_hook.return_value.insert_job.return_value.to_api_repr.return_value = mock_configuration
 
         op = BigQueryInsertJobOperator(
@@ -864,13 +859,11 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_on_kill(self, mock_hook, mock_md5):
+    def test_on_kill(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
-        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "query": {
@@ -879,6 +872,7 @@ class TestBigQueryInsertJobOperator:
             }
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=False)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -901,13 +895,11 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
 
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_failure(self, mock_hook, mock_md5):
+    def test_execute_failure(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
-        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "query": {
@@ -916,6 +908,7 @@ class TestBigQueryInsertJobOperator:
             }
         }
         mock_hook.return_value.insert_job.return_value = MagicMock(job_id=real_job_id, error_result=True)
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -925,15 +918,13 @@ class TestBigQueryInsertJobOperator:
             project_id=TEST_GCP_PROJECT_ID,
         )
         with pytest.raises(AirflowException):
-            op.execute({})
+            op.execute(context=MagicMock())
 
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_reattach(self, mock_hook, mock_md5):
+    def test_execute_reattach(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
-        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "query": {
@@ -950,6 +941,7 @@ class TestBigQueryInsertJobOperator:
             done=lambda: False,
         )
         mock_hook.return_value.get_job.return_value = job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -974,14 +966,11 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.uuid')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_force_rerun(self, mock_hook, mock_uuid, mock_md5):
+    def test_execute_force_rerun(self, mock_hook):
         job_id = "123456"
-        hash_ = mock_uuid.uuid4.return_value.encode.return_value
+        hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
-        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "query": {
@@ -995,6 +984,7 @@ class TestBigQueryInsertJobOperator:
             error_result=False,
         )
         mock_hook.return_value.insert_job.return_value = job
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
 
         op = BigQueryInsertJobOperator(
             task_id="insert_query_job",
@@ -1017,13 +1007,11 @@ class TestBigQueryInsertJobOperator:
 
         assert result == real_job_id
 
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
     @mock.patch('airflow.providers.google.cloud.operators.bigquery.BigQueryHook')
-    def test_execute_no_force_rerun(self, mock_hook, mock_md5):
+    def test_execute_no_force_rerun(self, mock_hook):
         job_id = "123456"
         hash_ = "hash"
         real_job_id = f"{job_id}_{hash_}"
-        mock_md5.return_value.hexdigest.return_value = hash_
 
         configuration = {
             "query": {
@@ -1033,6 +1021,7 @@ class TestBigQueryInsertJobOperator:
         }
 
         mock_hook.return_value.insert_job.return_value.result.side_effect = Conflict("any")
+        mock_hook.return_value.generate_job_id.return_value = real_job_id
         job = MagicMock(
             job_id=real_job_id,
             error_result=False,
@@ -1051,26 +1040,4 @@ class TestBigQueryInsertJobOperator:
         )
         # No force rerun
         with pytest.raises(AirflowException):
-            op.execute({})
-
-    @mock.patch('airflow.providers.google.cloud.operators.bigquery.hashlib.md5')
-    @pytest.mark.parametrize(
-        "test_dag_id, expected_job_id",
-        [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_00_00_hash")],
-        ids=["test-dag-id-1.1"],
-    )
-    def test_job_id_validity(self, mock_md5, test_dag_id, expected_job_id):
-        hash_ = "hash"
-        mock_md5.return_value.hexdigest.return_value = hash_
-        context = {"logical_date": datetime(2020, 1, 23)}
-        configuration = {
-            "query": {
-                "query": "SELECT * FROM any",
-                "useLegacySql": False,
-            }
-        }
-        with DAG(dag_id=test_dag_id, start_date=datetime(2020, 1, 23)):
-            op = BigQueryInsertJobOperator(
-                task_id="test_job_id", configuration=configuration, project_id=TEST_GCP_PROJECT_ID
-            )
-        assert op._job_id(context) == expected_job_id
+            op.execute(context=MagicMock())

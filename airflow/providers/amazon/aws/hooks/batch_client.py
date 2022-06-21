@@ -410,6 +410,45 @@ class BatchClientHook(AwsBaseHook):
 
         return matching_jobs[0]
 
+    def get_job_awslogs_info(self, job_id: str) -> Optional[Dict[str, str]]:
+        """
+        Parse job description to extract AWS CloudWatch information.
+
+        :param job_id: AWS Batch Job ID
+        """
+        job_container_desc = self.get_job_description(job_id=job_id).get("container", {})
+        log_configuration = job_container_desc.get("logConfiguration", {})
+
+        # In case if user select other "logDriver" rather than "awslogs"
+        # than CloudWatch logging should be disabled.
+        # If user not specify anything than expected that "awslogs" will use
+        # with default settings:
+        #   awslogs-group = /aws/batch/job
+        #   awslogs-region = `same as AWS Batch Job region`
+        log_driver = log_configuration.get("logDriver", "awslogs")
+        if log_driver != "awslogs":
+            self.log.warning(
+                "AWS Batch job (%s) uses logDriver (%s). AWS CloudWatch logging disabled.", job_id, log_driver
+            )
+            return None
+
+        awslogs_stream_name = job_container_desc.get("logStreamName")
+        if not awslogs_stream_name:
+            # In case of call this method on very early stage of running AWS Batch
+            # there is possibility than AWS CloudWatch Stream Name not exists yet.
+            # AWS CloudWatch Stream Name also not created in case of misconfiguration.
+            self.log.warning("AWS Batch job (%s) doesn't create AWS CloudWatch Stream.", job_id)
+            return None
+
+        # Try to get user-defined log configuration options
+        log_options = log_configuration.get("options", {})
+
+        return {
+            "awslogs_stream_name": awslogs_stream_name,
+            "awslogs_group": log_options.get("awslogs-group", "/aws/batch/job"),
+            "awslogs_region": log_options.get("awslogs-region", self.conn_region_name),
+        }
+
     @staticmethod
     def add_jitter(
         delay: Union[int, float], width: Union[int, float] = 1, minima: Union[int, float] = 0

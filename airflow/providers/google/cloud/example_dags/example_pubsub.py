@@ -56,7 +56,7 @@ with models.DAG(
     catchup=False,
 ) as example_sensor_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
-    create_topic = PubSubCreateTopicOperator(
+    create_topic1 = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC_FOR_SENSOR_DAG, project_id=GCP_PROJECT_ID, fail_if_exists=False
     )
     # [END howto_operator_gcp_pubsub_create_topic]
@@ -105,7 +105,7 @@ with models.DAG(
     )
     # [END howto_operator_gcp_pubsub_delete_topic]
 
-    create_topic >> subscribe_task >> publish_task
+    create_topic1 >> subscribe_task >> publish_task
     pull_messages >> pull_messages_result >> unsubscribe_task >> delete_topic
 
     # Task dependencies created via `XComArgs`:
@@ -120,7 +120,7 @@ with models.DAG(
     catchup=False,
 ) as example_operator_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
-    create_topic = PubSubCreateTopicOperator(
+    create_topic2 = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC_FOR_OPERATOR_DAG, project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_gcp_pubsub_create_topic]
@@ -170,7 +170,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_delete_topic]
 
     (
-        create_topic
+        create_topic2
         >> subscribe_task
         >> publish_task
         >> pull_messages_operator

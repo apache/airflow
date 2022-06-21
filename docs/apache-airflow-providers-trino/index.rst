@@ -17,7 +17,7 @@
     under the License.
 
 ``apache-airflow-providers-trino``
-===================================
+==================================
 
 Content
 -------
@@ -27,6 +27,7 @@ Content
     :caption: Guides
 
     TrinoTransferOperator types <operators/transfer/gcs_to_trino>
+    TrinoOperator <operators/index>
     Connection types <connections>
 
 .. toctree::
@@ -34,6 +35,12 @@ Content
     :caption: References
 
     Python API <_api/airflow/providers/trino/index>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/trino/index>
 
 .. toctree::
     :maxdepth: 1

@@ -21,3 +21,4 @@ Example DAGs
 You can learn how to use Amazon AWS integrations by analyzing the source code of the example DAGs:
 
 * `Amazon AWS <https://github.com/apache/airflow/tree/providers-amazon/4.0.0/tests/system/providers/amazon/aws>`__
+* `Amazon AWS (legacy) <https://github.com/apache/airflow/tree/providers-amazon/4.0.0/airflow/providers/amazon/aws/example_dags>`__
