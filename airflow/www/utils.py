@@ -21,7 +21,6 @@ import time
 from typing import Any, Dict, List, Optional, Union
 from urllib.parse import urlencode
 
-import markdown
 import sqlalchemy as sqla
 from flask import Response, request, url_for
 from flask.helpers import flash
@@ -31,6 +30,7 @@ from flask_appbuilder.models.sqla import filters as fab_sqlafilters
 from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
 from flask_babel import lazy_gettext
+from markdown_it import MarkdownIt
 from markupsafe import Markup
 from pendulum.datetime import DateTime
 from pygments import highlight, lexers
@@ -476,10 +476,11 @@ def json_render(obj, lexer):
 
 def wrapped_markdown(s, css_class='rich_doc'):
     """Convert a Markdown string to HTML."""
+    md = MarkdownIt("gfm-like")
     if s is None:
         return None
     s = textwrap.dedent(s)
-    return Markup(f'<div class="{css_class}" >' + markdown.markdown(s, extensions=['tables']) + "</div>")
+    return Markup(f'<div class="{css_class}" >{md.render(s)}</div>')
 
 
 def get_attr_renderer():
