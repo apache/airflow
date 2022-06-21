@@ -296,15 +296,7 @@ These are extras that provide support for integration with external systems via 
 Bundle extras
 -------------
 
-<<<<<<< HEAD
-<<<<<<< HEAD
 These are extras that install one ore more extras as a bundle. Note that these extras should only be used for "development" version
-=======
-These are extras that install one ore more extras as a bundle. Note that These extras should only be used for "development" version
->>>>>>> ac92d838d (Add Core SQL Provider)
-=======
-These are extras that install one ore more extras as a bundle. Note that these extras should only be used for "development" version
->>>>>>> ddd1da038 (Fix capitalization and grammar errors in doc)
 of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
 work when airflow is installed from 'PyPI`.
 
