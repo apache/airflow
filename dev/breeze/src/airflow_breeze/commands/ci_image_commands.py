@@ -37,7 +37,6 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
     option_answer,
-    option_build_multiple_images,
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -115,9 +114,10 @@ CI_IMAGE_TOOLS_PARAMETERS = {
             ],
         },
         {
-            "name": "Building multiple images",
+            "name": "Building images in parallel",
             "options": [
-                "--build-multiple-images",
+                "--run-in-parallel",
+                "--parallelism",
                 "--python-versions",
             ],
         },
@@ -189,13 +189,46 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 }
 
 
+def start_building(ci_image_params: BuildCiParams, dry_run: bool, verbose: bool) -> bool:
+    """Starts building attempt. Returns false if we should not continue"""
+    if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
+        if not should_we_run_the_build(build_ci_params=ci_image_params):
+            return False
+    if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
+        login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
+    return True
+
+
+def run_build_in_parallel(
+    image_params_list: List[BuildCiParams],
+    python_version_list: List[str],
+    parallelism: int,
+    dry_run: bool,
+    verbose: bool,
+) -> None:
+    get_console().print(
+        f"\n[info]Building with parallelism = {parallelism} for the images: {python_version_list}:"
+    )
+    pool = mp.Pool(parallelism)
+    results = [
+        pool.apply_async(
+            run_build_ci_image,
+            args=(verbose, dry_run, image_param, True),
+        )
+        for image_param in image_params_list
+    ]
+    check_async_run_results(results)
+    pool.close()
+
+
 @main.command(name='build-image')
 @option_github_repository
 @option_verbose
 @option_dry_run
 @option_answer
 @option_python
-@option_build_multiple_images
+@option_run_in_parallel
+@option_parallelism
 @option_python_versions
 @option_upgrade_to_newer_dependencies
 @option_platform
@@ -228,7 +261,8 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 def build_image(
     verbose: bool,
     dry_run: bool,
-    build_multiple_images: bool,
+    run_in_parallel: bool,
+    parallelism: int,
     python_versions: str,
     answer: str,
     **kwargs,
@@ -236,7 +270,7 @@ def build_image(
     """Build CI image. Include building multiple images for all python versions (sequentially)."""
 
     def run_build(ci_image_params: BuildCiParams) -> None:
-        return_code, info = build_ci_image(
+        return_code, info = run_build_ci_image(
             verbose=verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False
         )
         if return_code != 0:
@@ -246,15 +280,26 @@ def build_image(
     perform_environment_checks(verbose=verbose)
     parameters_passed = filter_out_none(**kwargs)
     parameters_passed['force_build'] = True
-    if build_multiple_images:
+    fix_group_permissions(verbose=verbose)
+    if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
+        params_list: List[BuildCiParams] = []
         for python in python_version_list:
             params = BuildCiParams(**parameters_passed)
             params.python = python
             params.answer = answer
-            run_build(ci_image_params=params)
+            params_list.append(params)
+        start_building(params_list[0], dry_run=dry_run, verbose=verbose)
+        run_build_in_parallel(
+            image_params_list=params_list,
+            python_version_list=python_version_list,
+            parallelism=parallelism,
+            dry_run=dry_run,
+            verbose=verbose,
+        )
     else:
         params = BuildCiParams(**parameters_passed)
+        start_building(params, dry_run=dry_run, verbose=verbose)
         run_build(ci_image_params=params)
 
 
@@ -434,7 +479,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
         sys.exit(1)
 
 
-def build_ci_image(
+def run_build_ci_image(
     verbose: bool, dry_run: bool, ci_image_params: BuildCiParams, parallel: bool
 ) -> Tuple[int, str]:
     """
@@ -465,17 +510,11 @@ def build_ci_image(
             "preparing buildx cache![/]\n"
         )
         return 1, "Error: building multi-platform image without --push-image."
-    fix_group_permissions(verbose=verbose)
     if verbose or dry_run:
         get_console().print(
             f"\n[info]Building CI image of airflow from {AIRFLOW_SOURCES_ROOT} "
             f"python version: {ci_image_params.python}[/]\n"
         )
-    if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
-        if not should_we_run_the_build(build_ci_params=ci_image_params):
-            return 0, f"Image build: {ci_image_params.python}"
-    if ci_image_params.prepare_buildx_cache or ci_image_params.push_image:
-        login_to_github_docker_registry(image_params=ci_image_params, dry_run=dry_run, verbose=verbose)
     if ci_image_params.prepare_buildx_cache:
         build_command_result = build_cache(
             image_params=ci_image_params, dry_run=dry_run, verbose=verbose, parallel=parallel
@@ -522,19 +561,6 @@ def build_ci_image(
     return build_command_result.returncode, f"Image build: {ci_image_params.python}"
 
 
-def build_ci_image_in_parallel(
-    verbose: bool, dry_run: bool, parallelism: int, python_version_list: List[str], **kwargs
-):
-    """Run CI image builds in parallel."""
-    get_console().print(
-        f"\n[info]Running with parallelism = {parallelism} for the images: {python_version_list}:"
-    )
-    pool = mp.Pool(parallelism)
-    results = [pool.apply_async(build_ci_image, args=(verbose, dry_run, False), kwds=kwargs)]
-    check_async_run_results(results)
-    pool.close()
-
-
 def rebuild_or_pull_ci_image_if_needed(
     command_params: Union[ShellParams, BuildCiParams], dry_run: bool, verbose: bool
 ) -> None:
@@ -573,4 +599,4 @@ def rebuild_or_pull_ci_image_if_needed(
             'Forcing build.[/]'
         )
         ci_image_params.force_build = True
-    build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False)
+    run_build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False)

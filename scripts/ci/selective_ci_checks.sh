@@ -55,6 +55,7 @@ function output_all_basic_variables() {
             "$(initialization::parameters_to_json "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
         initialization::ga_output all-python-versions \
             "$(initialization::parameters_to_json "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[@]}")"
+        initialization::ga_output all-python-versions-list-as-string "${ALL_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
         initialization::ga_output python-versions-list-as-string "${CURRENT_PYTHON_MAJOR_MINOR_VERSIONS[*]}"
         initialization::ga_output kubernetes-versions-list-as-string "${CURRENT_KUBERNETES_VERSIONS[*]}"
     else
@@ -64,6 +65,7 @@ function output_all_basic_variables() {
         # all-python-versions are used in BuildImage Workflow
         initialization::ga_output all-python-versions \
             "$(initialization::parameters_to_json "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}")"
+        initialization::ga_output all-python-versions-list-as-string "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
         initialization::ga_output python-versions-list-as-string "${DEFAULT_PYTHON_MAJOR_MINOR_VERSION}"
         initialization::ga_output kubernetes-versions-list-as-string "${DEFAULT_KUBERNETES_VERSION}"
     fi

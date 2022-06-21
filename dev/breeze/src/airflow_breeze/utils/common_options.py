@@ -377,12 +377,6 @@ option_parallelism = click.option(
     envvar='PARALLELISM',
     show_default=True,
 )
-option_build_multiple_images = click.option(
-    '--build-multiple-images',
-    help="Run the operation sequentially on all or selected subset of Python versions.",
-    is_flag=True,
-    envvar='BUILD_MULTIPLE_IMAGES',
-)
 argument_packages = click.argument(
     "packages",
     nargs=-1,
