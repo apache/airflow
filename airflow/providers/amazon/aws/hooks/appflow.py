@@ -16,17 +16,12 @@
 # under the License.
 
 import json
-import sys
 from datetime import datetime, timezone
 from time import sleep
 from typing import TYPE_CHECKING, List
 
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 if TYPE_CHECKING:
     from mypy_boto3_appflow.client import AppflowClient

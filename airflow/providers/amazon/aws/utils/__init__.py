@@ -22,19 +22,19 @@ from typing import Tuple
 from airflow.version import version
 
 
-def datetime_to_epoch(dt: datetime) -> int:
+def datetime_to_epoch(date_time: datetime) -> int:
     """Convert a datetime object to an epoch integer (seconds)."""
-    return int(dt.timestamp())
+    return int(date_time.timestamp())
 
 
-def datetime_to_epoch_ms(dt: datetime) -> int:
+def datetime_to_epoch_ms(date_time: datetime) -> int:
     """Convert a datetime object to an epoch integer (milliseconds)."""
-    return int(dt.timestamp() * 1_000)
+    return int(date_time.timestamp() * 1_000)
 
 
-def datetime_to_epoch_us(dt: datetime) -> int:
+def datetime_to_epoch_us(date_time: datetime) -> int:
     """Convert a datetime object to an epoch integer (microseconds)."""
-    return int(dt.timestamp() * 1_000_000)
+    return int(date_time.timestamp() * 1_000_000)
 
 
 def get_airflow_version() -> Tuple[int, ...]:

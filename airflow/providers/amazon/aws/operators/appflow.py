@@ -15,15 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 from datetime import datetime, timedelta
 from typing import TYPE_CHECKING, List, Optional, cast
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.operators.python import ShortCircuitOperator
