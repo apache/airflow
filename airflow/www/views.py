@@ -928,9 +928,7 @@ class Airflow(AirflowBaseView):  # noqa: D101  pylint: disable=too-many-public-m
                     content = json.dumps(content, sort_keys=True, indent=4)
                 html_dict[template_field] = renderers[renderer](content)
             else:
-                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(
-                    pformat(content)
-                )  # noqa
+                html_dict[template_field] = Markup("<pre><code>{}</pre></code>").format(content)  # noqa
 
         return self.render_template(
             'airflow/ti_code.html',
