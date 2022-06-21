@@ -259,6 +259,7 @@ class TestDBCleanup:
             'dag_tag',  # not a significant source of data; age not indicative of staleness,
             'dag_pickle',  # unsure of consequences
             'dag_code',  # self-maintaining
+            'dag_warning',  # self-maintaining
             'connection',  # leave alone
             'slot_pool',  # leave alone
         }

@@ -1252,6 +1252,7 @@ class Airflow(AirflowBaseView):
             )
 
         wwwutils.check_import_errors(dag_orm.fileloc, session)
+        wwwutils.check_dag_warnings(dag_orm.dag_id, session)
 
         return self.render_template(
             'airflow/dag_code.html',
@@ -1291,6 +1292,7 @@ class Airflow(AirflowBaseView):
         root = request.args.get('root', '')
 
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         states = (
             session.query(TaskInstance.state, sqla.func.count(TaskInstance.dag_id))
@@ -2691,6 +2693,7 @@ class Airflow(AirflowBaseView):
             flash(f'DAG "{dag_id}" seems to be missing from DagBag.', "error")
             return redirect(url_for('Airflow.index'))
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         root = request.args.get('root')
         if root:
@@ -2801,6 +2804,7 @@ class Airflow(AirflowBaseView):
             return redirect(url_for('Airflow.index'))
 
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         root = request.args.get('root')
         if root:
@@ -2924,6 +2928,7 @@ class Airflow(AirflowBaseView):
             flash(f'DAG "{dag_id}" seems to be missing.', "error")
             return redirect(url_for('Airflow.index'))
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         root = request.args.get('root')
         if root:
@@ -3036,6 +3041,7 @@ class Airflow(AirflowBaseView):
             return redirect(url_for('Airflow.index'))
 
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         base_date = request.args.get('base_date')
         num_runs = request.args.get('num_runs', default=default_dag_run, type=int)
@@ -3193,6 +3199,7 @@ class Airflow(AirflowBaseView):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         root = request.args.get('root')
         if root:
@@ -3283,6 +3290,7 @@ class Airflow(AirflowBaseView):
             base_date = dag.get_latest_execution_date() or timezone.utcnow()
 
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         root = request.args.get('root')
         if root:
@@ -3397,6 +3405,7 @@ class Airflow(AirflowBaseView):
             dag = dag.partial_subset(task_ids_or_regex=root, include_upstream=True, include_downstream=False)
 
         wwwutils.check_import_errors(dag.fileloc, session)
+        wwwutils.check_dag_warnings(dag.dag_id, session)
 
         dt_nr_dr_data = get_date_time_num_runs_dag_runs_form_data(request, session, dag)
         dttm = dt_nr_dr_data['dttm']
