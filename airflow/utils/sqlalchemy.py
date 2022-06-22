@@ -186,6 +186,26 @@ class ExecutorConfigType(PickleType):
 
         return process
 
+    def compare_values(self, x, y):
+        """
+        The TaskInstance.executor_config attribute is a pickled object that may contain
+        kubernetes objects.  If the installed library version has changed since the
+        object was originally pickled, due to the underlying ``__eq__`` method on these
+        objects (which converts them to JSON), we may encounter attribute errors. In this
+        case we should replace the stored object.
+
+        From https://github.com/apache/airflow/pull/24356 we use our serializer to store
+        k8s objects, but there could still be raw pickled k8s objects in the database,
+        stored from earlier version, so we still compare them defensively here.
+        """
+        if self.comparator:
+            return self.comparator(x, y)
+        else:
+            try:
+                return x == y
+            except AttributeError:
+                return False
+
 
 class Interval(TypeDecorator):
     """Base class representing a time interval."""
