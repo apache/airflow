@@ -31,7 +31,8 @@ ENTRY_GROUP_LINK = (
 )
 ENTRY_LINK = (
     DATACATALOG_BASE_LINK
-    + "/projects/{project_id}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}?project={project_id}"
+    + "/projects/{project_id}/locations/{location_id}/entryGroups/{entry_group_id}/entries/{entry_id}\
+    ?project={project_id}"
 )
 TAG_TEMPLATE_LINK = (
     DATACATALOG_BASE_LINK

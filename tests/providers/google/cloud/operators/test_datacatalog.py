@@ -117,6 +117,10 @@ TEST_TAG_TEMPLATE_FIELD_DICT: Dict = {
     'name': TEST_TAG_TEMPLATE_FIELD_ID,
     'order': 0,
 }
+TEST_ENTRY_LINK = "projects/{project_id}/locations/{location}/entryGroups/{entry_group_id}/entries/{entry_id}"
+TEST_TAG_TEMPLATE_LINK = "projects/{project_id}/locations/{location}/tagTemplates/{tag_template_id}"
+TEST_TAG_TEMPLATE_FIELD_LINK = "projects/{project_id}/locations/{location}/tagTemplates/{tag_template_id}\
+    /fields/{tag_template_field_id}"
 
 
 class TestCloudDataCatalogCreateEntryOperator(TestCase):
@@ -804,7 +808,12 @@ class TestCloudDataCatalogSearchCatalogOperator(TestCase):
 class TestCloudDataCatalogUpdateEntryOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
     def test_assert_valid_hook_call(self, mock_hook) -> None:
-        mock_hook.return_value.update_entry.return_value.name = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}"
+        mock_hook.return_value.update_entry.return_value.name = TEST_ENTRY_LINK.format(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            entry_group_id=TEST_ENTRY_GROUP_ID,
+            entry_id=TEST_ENTRY_ID,
+        )
         task = CloudDataCatalogUpdateEntryOperator(
             task_id="task_id",
             entry=TEST_ENTRY,
@@ -840,7 +849,12 @@ class TestCloudDataCatalogUpdateEntryOperator(TestCase):
 class TestCloudDataCatalogUpdateTagOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
     def test_assert_valid_hook_call(self, mock_hook) -> None:
-        mock_hook.return_value.update_tag.return_value.name = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/entryGroups/{TEST_ENTRY_GROUP_ID}/entries/{TEST_ENTRY_ID}"
+        mock_hook.return_value.update_tag.return_value.name = TEST_ENTRY_LINK.format(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            entry_group_id=TEST_ENTRY_GROUP_ID,
+            entry_id=TEST_ENTRY_ID,
+        )
         task = CloudDataCatalogUpdateTagOperator(
             task_id="task_id",
             tag=Tag(name=TEST_TAG_ID),
@@ -878,8 +892,10 @@ class TestCloudDataCatalogUpdateTagOperator(TestCase):
 class TestCloudDataCatalogUpdateTagTemplateOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
     def test_assert_valid_hook_call(self, mock_hook) -> None:
-        mock_hook.return_value.update_tag_template.return_value.name = (
-            f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/tagTemplates/{TEST_TAG_TEMPLATE_ID}"
+        mock_hook.return_value.update_tag_template.return_value.name = TEST_TAG_TEMPLATE_LINK.format(
+            project_id=TEST_PROJECT_ID,
+            location=TEST_LOCATION,
+            tag_template_id=TEST_TAG_TEMPLATE_ID,
         )
         task = CloudDataCatalogUpdateTagTemplateOperator(
             task_id="task_id",
@@ -914,7 +930,14 @@ class TestCloudDataCatalogUpdateTagTemplateOperator(TestCase):
 class TestCloudDataCatalogUpdateTagTemplateFieldOperator(TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.datacatalog.CloudDataCatalogHook")
     def test_assert_valid_hook_call(self, mock_hook) -> None:
-        mock_hook.return_value.update_tag_template_field.return_value.name = f"projects/{TEST_PROJECT_ID}/locations/{TEST_LOCATION}/tagTemplates/{TEST_TAG_TEMPLATE_ID}/fields/{TEST_TAG_TEMPLATE_FIELD_ID}"
+        mock_hook.return_value.update_tag_template_field.return_value.name = (
+            TEST_TAG_TEMPLATE_FIELD_LINK.format(
+                project_id=TEST_PROJECT_ID,
+                location=TEST_LOCATION,
+                tag_template_id=TEST_TAG_TEMPLATE_ID,
+                tag_template_field_id=TEST_TAG_TEMPLATE_FIELD_ID,
+            )
+        )
         task = CloudDataCatalogUpdateTagTemplateFieldOperator(
             task_id="task_id",
             tag_template_field=TEST_TAG_TEMPLATE_FIELD,
