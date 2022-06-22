@@ -25,7 +25,7 @@ import {
 
 interface Props {
   label: string;
-  value: React.ReactNode | string;
+  value: React.ReactNode;
 }
 
 const BreadcrumbText = ({ label, value }: Props) => (
