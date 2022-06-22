@@ -18,7 +18,7 @@ import os
 from datetime import datetime
 
 from airflow import DAG
-from airflow.providers.salesforce.operators.salesforce_bulk import SalesforceBulkOperator
+from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_salesforce_bulk"

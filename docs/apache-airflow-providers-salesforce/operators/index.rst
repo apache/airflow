@@ -24,4 +24,4 @@ Salesforce Operators
     :maxdepth: 1
 
     salesforce_apex_rest
-    salesforce_bulk
+    bulk
