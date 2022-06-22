@@ -19,7 +19,6 @@
 import fnmatch
 import os
 import re
-import sys
 import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
@@ -27,12 +26,7 @@ from typing import TYPE_CHECKING, Callable, List, Optional, Sequence, Set, Union
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.sensors.base import BaseSensorOperator, poke_mode_only

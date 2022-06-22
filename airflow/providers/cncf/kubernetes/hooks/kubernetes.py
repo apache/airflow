@@ -14,21 +14,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 import tempfile
 import warnings
 from typing import Any, Dict, Generator, List, Optional, Tuple, Union
 
+from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
 
+from airflow.compat.functools import cached_property
 from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
-from kubernetes import client, config, watch
 
 try:
     import airflow.utils.yaml as yaml

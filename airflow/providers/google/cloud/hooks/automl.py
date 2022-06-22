@@ -23,21 +23,7 @@ This module contains a Google AutoML hook.
 
     PredictResponse
 """
-import sys
 from typing import Dict, Optional, Sequence, Tuple, Union
-
-from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
-    ListColumnSpecsPager,
-    ListDatasetsPager,
-    ListTableSpecsPager,
-)
-
-from airflow.providers.google.common.consts import CLIENT_INFO
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.operation import Operation
@@ -54,8 +40,15 @@ from google.cloud.automl_v1beta1 import (
     PredictionServiceClient,
     PredictResponse,
 )
+from google.cloud.automl_v1beta1.services.auto_ml.pagers import (
+    ListColumnSpecsPager,
+    ListDatasetsPager,
+    ListTableSpecsPager,
+)
 from google.protobuf.field_mask_pb2 import FieldMask
 
+from airflow.compat.functools import cached_property
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
 
 

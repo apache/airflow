@@ -15,19 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 import shlex
-import sys
 import time
 from io import StringIO
 from typing import Any, Dict, Optional
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
 from google.api_core.retry import exponential_sleep_generator
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.hooks.os_login import OSLoginHook
 from airflow.providers.ssh.hooks.ssh import SSHHook

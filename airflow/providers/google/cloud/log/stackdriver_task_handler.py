@@ -16,16 +16,8 @@
 # under the License.
 """Handler that integrates with Stackdriver"""
 import logging
-import sys
 from typing import Collection, Dict, List, Optional, Tuple, Type, Union
 from urllib.parse import urlencode
-
-from airflow.providers.google.common.consts import CLIENT_INFO
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 from google.auth.credentials import Credentials
 from google.cloud import logging as gcp_logging
@@ -34,8 +26,10 @@ from google.cloud.logging.handlers.transports import BackgroundThreadTransport, 
 from google.cloud.logging_v2.services.logging_service_v2 import LoggingServiceV2Client
 from google.cloud.logging_v2.types import ListLogEntriesRequest, ListLogEntriesResponse
 
+from airflow.compat.functools import cached_property
 from airflow.models import TaskInstance
 from airflow.providers.google.cloud.utils.credentials_provider import get_credentials_and_project_id
+from airflow.providers.google.common.consts import CLIENT_INFO
 
 DEFAULT_LOGGER_NAME = "airflow"
 _GLOBAL_RESOURCE = Resource(type="global", labels={})

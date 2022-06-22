@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 from typing import TYPE_CHECKING, Optional
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.quicksight import QuickSightHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
@@ -26,11 +26,6 @@ from airflow.sensors.base import BaseSensorOperator
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 
 class QuickSightSensor(BaseSensorOperator):
