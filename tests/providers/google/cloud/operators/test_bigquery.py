@@ -198,6 +198,12 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             autodetect=True,
         )
 
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
         operator.execute(context=MagicMock())
         mock_hook.return_value.create_empty_table.assert_called_once_with(
             table_resource={
