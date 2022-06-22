@@ -294,3 +294,23 @@ class TestExecutorConfigType:
             # it was serialized with BaseSerialization (which is the behavior added in #24356
             expected['pod_override'] = BaseSerialization()._deserialize(expected['pod_override'])
         assert result == expected
+
+    def test_compare_values(self):
+        """
+        When comparison raises AttributeError, return False.
+        This can happen when executor config contains kubernetes objects pickled
+        under older kubernetes library version.
+        """
+
+        class MockAttrError:
+            def __eq__(self, other):
+                raise AttributeError('hello')
+
+        a = MockAttrError()
+        with pytest.raises(AttributeError):
+            # just verify for ourselves that comparing directly will throw AttributeError
+            assert a == a
+
+        instance = ExecutorConfigType()
+        assert instance.compare_values(a, a) is False
+        assert instance.compare_values('a', 'a') is True
