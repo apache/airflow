@@ -190,12 +190,12 @@ class LocalTaskJob(BaseJob):
                     ti.hostname,
                     fqdn,
                 )
-                raise AirflowException("Hostname of job runner does not match")            
+                raise AirflowException("Hostname of job runner does not match")
             current_pid = self.task_runner.process.pid
             recorded_pid = ti.pid
             same_process = recorded_pid == current_pid
 
-            if recorded_pid is not None and ti.run_as_user or self.task_runner.run_as_user:                
+            if recorded_pid is not None and ti.run_as_user or self.task_runner.run_as_user:
                 # when running as another user, compare the task runner pid to the parent of 
                 # the recorded pid because user delegation becomes an extra process level.
                 
@@ -203,7 +203,7 @@ class LocalTaskJob(BaseJob):
                 recorded_pid = psutil.Process(ti.pid).ppid()
                 same_process = recorded_pid == current_pid
 
-            if recorded_pid is not None and not same_process:                
+            if recorded_pid is not None and not same_process:
                 self.log.warning(
                     "Recorded pid %s does not match the current pid %s", recorded_pid, current_pid
                 )
