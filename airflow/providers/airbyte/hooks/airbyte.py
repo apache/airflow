@@ -111,9 +111,7 @@ class AirbyteHook(HttpHook):
     def cancel_job(self, job_id: int) -> Any:
         """
         Cancel the job
-
         :param job_id: Required. Id of the Airbyte job
-        :type job_id: int
         """
         return self.run(
             endpoint=f"api/{self.api_version}/jobs/cancel",
