@@ -71,7 +71,7 @@ If serializing with Airflow URI:
 
    export AIRFLOW_CONN_SNOWFLAKE_DEFAULT='snowflake://user:password@/db-schema?account=account&database=snow-db&region=us-east&warehouse=snow-warehouse'
 
-When specifying the connection as an environment variable in Airflow versions prior to 2.3.0, you need to specify the connection using URI syntax.
+When specifying the connection as an environment variable in Airflow versions prior to 2.3.0, you need to specify the connection using the URI format.
 
 Note that all components of the URI should be URL-encoded.
 
