@@ -19,7 +19,7 @@
 """compare types between ORM and DB
 
 Revision ID: 44b7034f6bdc
-Revises: 3c94c427fdf6
+Revises: 424117c37d18
 Create Date: 2022-05-31 09:16:44.558754
 
 """
@@ -31,7 +31,7 @@ from airflow.migrations.db_types import TIMESTAMP
 
 # revision identifiers, used by Alembic.
 revision = '44b7034f6bdc'
-down_revision = 'f5fcbda3e651'
+down_revision = '424117c37d18'
 branch_labels = None
 depends_on = None
 airflow_version = '2.4.0'
