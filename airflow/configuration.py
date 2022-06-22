@@ -362,21 +362,24 @@ class AirflowConfigParser(ConfigParser):
             )
 
     def _upgrade_postgres_metastore_conn(self):
-        """As of sqlalchemy 1.4, scheme `postgres+psycopg2` must be replaced with `postgresql`"""
+        """
+        As of SQLAlchemy 1.4, schemes `postgres+psycopg2` and `postgres`
+        must be replaced with `postgresql`.
+        """
         section, key = 'database', 'sql_alchemy_conn'
         old_value = self.get(section, key)
-        bad_scheme = 'postgres+psycopg2'
+        bad_schemes = ['postgres+psycopg2', 'postgres']
         good_scheme = 'postgresql'
         parsed = urlparse(old_value)
-        if parsed.scheme == bad_scheme:
+        if parsed.scheme in bad_schemes:
             warnings.warn(
-                f"Bad scheme in Airflow configuration core > sql_alchemy_conn: `{bad_scheme}`. "
-                "As of SqlAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
+                f"Bad scheme in Airflow configuration core > sql_alchemy_conn: `{parsed.scheme}`. "
+                "As of SQLAlchemy 1.4 (adopted in Airflow 2.3) this is no longer supported.  You must "
                 f"change to `{good_scheme}` before the next Airflow release.",
                 FutureWarning,
             )
             self.upgraded_values[(section, key)] = old_value
-            new_value = re.sub('^' + re.escape(f"{bad_scheme}://"), f"{good_scheme}://", old_value)
+            new_value = re.sub('^' + re.escape(f"{parsed.scheme}://"), f"{good_scheme}://", old_value)
             self._update_env_var(section=section, name=key, new_value=new_value)
 
             # if the old value is set via env var, we need to wipe it
