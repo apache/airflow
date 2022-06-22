@@ -35,24 +35,9 @@ depends_on = None
 airflow_version = '2.0.2'
 
 
-# Minimal required schema
-task_instance = sa.table(
-    'task_instance',
-    sa.column('pool_slots', sa.Integer),
-)
-
-
 def upgrade():
     """Change default ``pool_slots`` to ``1`` and make pool_slots not nullable"""
-    connection = op.get_bind()
-    sessionmaker = sa.orm.sessionmaker()
-    session = sessionmaker(bind=connection)
-
-    session.query(task_instance) \
-        .filter(task_instance.c.pool_slots.is_(None)) \
-        .update({task_instance.c.pool_slots: 1}, synchronize_session=False)
-    session.commit()
-
+    op.execute("UPDATE task_instance SET pool_slots = 1 WHERE pool_slots IS NULL")
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=False, server_default='1')
 
