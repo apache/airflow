@@ -83,8 +83,7 @@ class DAGSchema(SQLAlchemySchema):
     @staticmethod
     def get_token(obj: DagModel):
         """Return file token"""
-        # the secret key is always available, so we can ignore Optional here
-        serializer = URLSafeSerializer(conf.get('webserver', 'secret_key'))  # type: ignore[arg-type]
+        serializer = URLSafeSerializer(conf.get_mandatory_value('webserver', 'secret_key'))
         return serializer.dumps(obj.fileloc)
 
 

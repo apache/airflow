@@ -1457,18 +1457,17 @@ class Airflow(AirflowBaseView):
             abort(404)
         dag_id = request.args.get('dag_id')
         task_id = request.args.get('task_id')
+        if task_id is None:
+            logging.warning("Task id not passed in the request")
+            abort(400)
         execution_date = request.args.get('execution_date')
         dttm = _safe_parse_datetime(execution_date)
-
         form = DateTimeForm(data={'execution_date': dttm})
         root = request.args.get('root', '')
         map_index = request.args.get('map_index', -1, type=int)
         logging.info("Retrieving rendered templates.")
 
         dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
-        if task_id is None:
-            logging.warning("Task id not passed in the request")
-            abort(400)
         task = dag.get_task(task_id)
         dag_run = dag.get_dagrun(execution_date=dttm, session=session)
         ti = dag_run.get_task_instance(task_id=task.task_id, map_index=map_index, session=session)
@@ -3527,7 +3526,6 @@ class Airflow(AirflowBaseView):
         task_id = request.args.get('task_id')
         map_index = request.args.get('map_index', -1, type=int)
         execution_date = request.args.get('execution_date')
-        link_name = request.args.get('link_name')
         dttm = _safe_parse_datetime(execution_date)
         dag = get_airflow_app().dag_bag.get_dag(dag_id)
 
@@ -3542,6 +3540,11 @@ class Airflow(AirflowBaseView):
             return response
 
         task: "AbstractOperator" = dag.get_task(task_id)
+        link_name = request.args.get('link_name')
+        if link_name is None:
+            response = jsonify({'url': None, 'error': 'Link name not passed'})
+            response.status_code = 400
+            return response
 
         ti = (
             session.query(TaskInstance)
@@ -3552,10 +3555,6 @@ class Airflow(AirflowBaseView):
         if not ti:
             response = jsonify({'url': None, 'error': 'Task Instances not found'})
             response.status_code = 404
-            return response
-        if link_name is None:
-            response = jsonify({'url': None, 'error': 'Link name not passed'})
-            response.status_code = 400
             return response
         try:
             url = task.get_extra_links(ti, link_name)

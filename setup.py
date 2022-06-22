@@ -648,7 +648,7 @@ devel_only = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
-    'rich_click',
+    'rich-click>=1.5',
     'semver',
     'towncrier',
     'twine',

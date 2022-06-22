@@ -18,7 +18,7 @@
 from typing import Any, Mapping, cast
 
 
-def get_mapping_from_request() -> Mapping[str, Any]:
+def get_json_request_dict() -> Mapping[str, Any]:
     from flask import request
 
     return cast(Mapping[str, Any], request.get_json())

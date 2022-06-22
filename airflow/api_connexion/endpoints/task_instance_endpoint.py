@@ -24,7 +24,7 @@ from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import ClauseElement
 
 from airflow.api_connexion import security
-from airflow.api_connexion.endpoints.mapping_from_request import get_mapping_from_request
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
@@ -365,7 +365,7 @@ def get_task_instances(
 @provide_session
 def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     """Get list of task instances."""
-    body = get_mapping_from_request()
+    body = get_json_request_dict()
     try:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
@@ -424,7 +424,7 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear task instances."""
-    body = get_mapping_from_request()
+    body = get_json_request_dict()
     try:
         data = clear_task_instance_form.load(body)
     except ValidationError as err:
@@ -461,7 +461,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
 @provide_session
 def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of task instances."""
-    body = get_mapping_from_request()
+    body = get_json_request_dict()
     try:
         data = set_task_instance_state_form.load(body)
     except ValidationError as err:

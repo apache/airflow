@@ -30,7 +30,7 @@ from airflow.api.common.mark_tasks import (
     set_dag_run_state_to_success,
 )
 from airflow.api_connexion import security
-from airflow.api_connexion.endpoints.mapping_from_request import get_mapping_from_request
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
@@ -201,7 +201,7 @@ def get_dag_runs(
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     """Get list of DAG Runs"""
-    body = get_mapping_from_request()
+    body = get_json_request_dict()
     try:
         data = dagruns_batch_form_schema.load(body)
     except ValidationError as err:
@@ -254,7 +254,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             detail=f"DAG with dag_id: '{dag_id}' has import errors",
         )
     try:
-        post_body = dagrun_schema.load(get_mapping_from_request(), session=session)
+        post_body = dagrun_schema.load(get_json_request_dict(), session=session)
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
@@ -312,7 +312,7 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
         raise NotFound(error_message)
     try:
-        post_body = set_dagrun_state_form_schema.load(get_mapping_from_request())
+        post_body = set_dagrun_state_form_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
@@ -344,7 +344,7 @@ def clear_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSIO
         error_message = f'Dag Run id {dag_run_id} not found in dag   {dag_id}'
         raise NotFound(error_message)
     try:
-        post_body = clear_dagrun_form_schema.load(get_mapping_from_request())
+        post_body = clear_dagrun_form_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
