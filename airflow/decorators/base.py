@@ -39,7 +39,7 @@ from typing import (
 import attr
 import typing_extensions
 
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
@@ -426,14 +426,6 @@ class DecoratedMappedOperator(MappedOperator):
 
     def __hash__(self):
         return id(self)
-
-    @classmethod
-    @cache
-    def get_serialized_fields(cls):
-        # The magic super() doesn't work here, so we use the explicit form.
-        # Not using super(..., cls) to work around pyupgrade bug.
-        sup = super(DecoratedMappedOperator, DecoratedMappedOperator)
-        return sup.get_serialized_fields() | {"mapped_op_kwargs"}
 
     def __attrs_post_init__(self):
         # The magic super() doesn't work here, so we use the explicit form.

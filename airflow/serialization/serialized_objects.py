@@ -16,7 +16,7 @@
 # under the License.
 
 """Serialized DAG and BaseOperator"""
-import contextlib
+
 import datetime
 import enum
 import logging
@@ -593,6 +593,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
         serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
 
+        # Handle mapped_kwargs and mapped_op_kwargs.
+        serialized_op[op._expansion_kwargs_attr] = cls._serialize(op._get_expansion_kwargs())
+
         # Simplify partial_kwargs by comparing it to the most barebone object.
         # Remove all entries that are simply default values.
         serialized_partial = serialized_op["partial_kwargs"]
@@ -603,20 +606,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             if v == default:
                 del serialized_partial[k]
-
-        # Simplify op_kwargs format. It must be a dict, so we flatten it.
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["mapped_kwargs"]["op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["mapped_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["partial_kwargs"]["op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["mapped_op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["mapped_op_kwargs"] = op_kwargs[Encoding.VAR]
 
         serialized_op["_is_mapped"] = True
         return serialized_op
@@ -753,15 +742,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k in ("mapped_kwargs", "partial_kwargs"):
-                if "op_kwargs" not in v:
-                    op_kwargs: Optional[dict] = None
-                else:
-                    op_kwargs = {arg: cls._deserialize(value) for arg, value in v.pop("op_kwargs").items()}
-                v = {arg: cls._deserialize(value) for arg, value in v.items()}
-                if op_kwargs is not None:
-                    v["op_kwargs"] = op_kwargs
-            elif k == "mapped_op_kwargs":
+            elif k == "partial_kwargs":
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
