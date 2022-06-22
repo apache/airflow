@@ -20,7 +20,6 @@ from unittest.mock import Mock, patch
 
 import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 
@@ -33,7 +32,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
         """
         Test execute missing operation
         """
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             SalesforceBulkOperator(
                 task_id='missing_operation',
                 operation='operation',
@@ -45,7 +44,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
         """
         Test execute missing object_name
         """
-        with pytest.raises(AirflowException):
+        with pytest.raises(ValueError):
             SalesforceBulkOperator(
                 task_id='missing_object_name',
                 operation='insert',
@@ -69,7 +68,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).insert = Mock()
         operator = SalesforceBulkOperator(
-            task_id='salesforce_bulk_insert',
+            task_id='bulk_insert',
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -102,7 +101,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).update = Mock()
         operator = SalesforceBulkOperator(
-            task_id='salesforce_bulk_update',
+            task_id='bulk_update',
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -136,7 +135,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).upsert = Mock()
         operator = SalesforceBulkOperator(
-            task_id='salesforce_bulk_upsert',
+            task_id='bulk_upsert',
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -171,7 +170,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).delete = Mock()
         operator = SalesforceBulkOperator(
-            task_id='salesforce_bulk_delete',
+            task_id='bulk_delete',
             operation=operation,
             object_name=object_name,
             payload=payload,
@@ -204,7 +203,7 @@ class TestSalesforceBulkOperator(unittest.TestCase):
 
         mock_get_conn.return_value.bulk.__getattr__(object_name).hard_delete = Mock()
         operator = SalesforceBulkOperator(
-            task_id='salesforce_bulk_hard_delete',
+            task_id='bulk_hard_delete',
             operation=operation,
             object_name=object_name,
             payload=payload,
