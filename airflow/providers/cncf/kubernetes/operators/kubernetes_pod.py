@@ -28,7 +28,7 @@ from kubernetes.client import CoreV1Api, models as k8s
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_generator
-from airflow.kubernetes.pod_generator import PodGenerator
+from airflow.kubernetes.pod_generator import PodDefaults, PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters import (
@@ -415,6 +415,9 @@ class KubernetesPodOperator(BaseOperator):
 
             if self.do_xcom_push:
                 result = self.extract_xcom(pod=self.pod)
+                self.pod_manager.await_container_completion(
+                    pod=self.pod, container_name=PodDefaults.SIDECAR_CONTAINER_NAME
+                )
             remote_pod = self.pod_manager.read_pod(pod=self.pod)
         finally:
             self.cleanup(
