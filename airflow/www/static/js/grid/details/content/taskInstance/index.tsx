@@ -38,10 +38,20 @@ import Details from './Details';
 import { useGridData, useTasks } from '../../../api';
 import MappedInstances from './MappedInstances';
 import { getMetaValue } from '../../../../utils';
+import type { Task, DagRun } from '../../../types';
 
 const dagId = getMetaValue('dag_id');
 
-const getTask = ({ taskId, runId, task }) => {
+interface Props {
+  taskId: Task['id'];
+  runId: DagRun['runId'];
+}
+
+interface GetTaskProps extends Props {
+  task: Task;
+}
+
+const getTask = ({ taskId, runId, task }: GetTaskProps) => {
   if (task.id === taskId) return task;
   if (task.children) {
     let foundTask;
@@ -54,10 +64,10 @@ const getTask = ({ taskId, runId, task }) => {
   return null;
 };
 
-const TaskInstance = ({ taskId, runId }) => {
+const TaskInstance = ({ taskId, runId }: Props) => {
   const [selectedRows, setSelectedRows] = useState([]);
-  const { data: { groups, dagRuns } } = useGridData();
-  const { data: { tasks } } = useTasks(dagId);
+  const { data: { dagRuns, groups } } = useGridData();
+  const { data: { tasks } } = useTasks();
 
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
@@ -65,11 +75,11 @@ const TaskInstance = ({ taskId, runId }) => {
   if (!group || !run) return null;
 
   const { executionDate } = run;
-  const task = tasks.find((t) => t.taskId === taskId);
-  const operator = task && task.classRef && task.classRef.className ? task.classRef.className : '';
+  const task: any = tasks.find((t: any) => t.taskId === taskId);
+  const operator = (task?.classRef && task?.classRef?.className) ?? '';
 
-  const isGroup = !!group.children;
-  const { isMapped, extraLinks } = group;
+  const isGroup = !!group?.children;
+  const isMapped = !!group?.isMapped;
 
   const instance = group.instances.find((ti) => ti.runId === runId);
 
@@ -128,7 +138,7 @@ const TaskInstance = ({ taskId, runId }) => {
           dagId={dagId}
           taskId={taskId}
           executionDate={executionDate}
-          tryNumber={instance.tryNumber}
+          tryNumber={instance?.tryNumber}
         />
       )}
       <Details instance={instance} group={group} operator={operator} />
@@ -136,7 +146,7 @@ const TaskInstance = ({ taskId, runId }) => {
         taskId={taskId}
         dagId={dagId}
         executionDate={executionDate}
-        extraLinks={extraLinks}
+        extraLinks={group?.extraLinks || []}
       />
       {isMapped && (
         <MappedInstances
