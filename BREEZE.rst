@@ -1019,7 +1019,7 @@ you have auto-complete setup you should see auto-completable list of all checks 
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy
+     breeze static-checks -t run-mypy
 
 The above will run mypy check for currently staged files.
 
@@ -1027,7 +1027,7 @@ You can also pass specific pre-commit flags for example ``--all-files`` :
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --all-files
+     breeze static-checks -t run-mypy --all-files
 
 The above will run mypy check for all files.
 
@@ -1035,7 +1035,7 @@ There is a convenience ``--last-commit`` flag that you can use to run static che
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --last-commit
+     breeze static-checks -t run-mypy --last-commit
 
 The above will run mypy check for all files in the last commit.
 
@@ -1043,7 +1043,7 @@ There is another convenience ``--commit-ref`` flag that you can use to run stati
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks -t run-mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
