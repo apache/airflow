@@ -27,7 +27,7 @@ BUILD_DOCS = "BUILDING_AIRFLOW_DOCS" in os.environ
 
 click_color = click.option(
     '--color',
-    type=click.Choice({ColorMode.ON, ColorMode.OFF, ColorMode.AUTO}),
+    type=click.Choice([ColorMode.ON, ColorMode.OFF, ColorMode.AUTO]),
     default=ColorMode.AUTO,
     help="Do emit colored output (default: auto)",
 )

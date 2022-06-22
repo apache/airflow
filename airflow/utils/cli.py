@@ -298,10 +298,10 @@ class ColorMode:
     AUTO = "auto"
 
 
-def should_use_colors(args_or_color) -> bool:
+def should_use_colors(args_or_color):
     """Processes arguments and decides whether to enable color in output"""
     # args.color is from argparse, Click CLI will pass in the color directly
-    color = args.color if hasattr(args, 'color') else args_or_color
+    color = args_or_color.color if hasattr(args_or_color, 'color') else args_or_color
     if color == ColorMode.ON:
         return True
     if color == ColorMode.OFF:

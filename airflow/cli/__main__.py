@@ -19,6 +19,5 @@
 
 from airflow.cli import airflow_cmd
 
-
 if __name__ == '__main__':
     airflow_cmd(obj={})
