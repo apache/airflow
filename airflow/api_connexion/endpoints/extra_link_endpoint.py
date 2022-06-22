@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from flask import current_app
 from sqlalchemy.orm.session import Session
 
 from airflow import DAG
@@ -25,6 +24,7 @@ from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
 from airflow.models.dagbag import DagBag
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
@@ -46,7 +46,7 @@ def get_extra_links(
     """Get extra links for task instance"""
     from airflow.models.taskinstance import TaskInstance
 
-    dagbag: DagBag = current_app.dag_bag
+    dagbag: DagBag = get_airflow_app().dag_bag
     dag: DAG = dagbag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f'DAG with ID = "{dag_id}" not found')

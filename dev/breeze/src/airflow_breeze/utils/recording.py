@@ -53,10 +53,10 @@ def enable_recording_of_help_output(path: str, title: Optional[str], width: Opti
 
     atexit.register(save_ouput_as_svg)
     click.rich_click.MAX_WIDTH = width_int
-    click.formatting.FORCED_WIDTH = width_int - 2
+    click.formatting.FORCED_WIDTH = width_int - 2  # type: ignore[attr-defined]
     click.rich_click.COLOR_SYSTEM = "standard"
     # monkeypatch rich_click console to record help (rich_click does not allow passing extra args to console)
-    click.rich_click.Console = RecordingConsole
+    click.rich_click.Console = RecordingConsole  # type: ignore[misc]
 
 
 if output_file_for_recording and not in_autocomplete():

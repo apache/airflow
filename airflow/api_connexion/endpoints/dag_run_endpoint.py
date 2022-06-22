@@ -18,13 +18,14 @@ from typing import List, Optional, Tuple
 
 import pendulum
 from connexion import NoContent
-from flask import current_app, g, request
+from flask import g
 from marshmallow import ValidationError
 from sqlalchemy import or_
 from sqlalchemy.orm import Query, Session
 
 from airflow.api.common.mark_tasks import set_dag_run_state_to_failed, set_dag_run_state_to_success
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_datetime, format_parameters
 from airflow.api_connexion.schemas.dag_run_schema import (
@@ -37,6 +38,7 @@ from airflow.api_connexion.schemas.dag_run_schema import (
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagModel, DagRun
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState
 from airflow.utils.types import DagRunType
@@ -157,7 +159,7 @@ def get_dag_runs(
 
     #  This endpoint allows specifying ~ as the dag_id to retrieve DAG Runs for all DAGs.
     if dag_id == "~":
-        appbuilder = current_app.appbuilder
+        appbuilder = get_airflow_app().appbuilder
         query = query.filter(DagRun.dag_id.in_(appbuilder.sm.get_readable_dag_ids(g.user)))
     else:
         query = query.filter(DagRun.dag_id == dag_id)
@@ -189,13 +191,13 @@ def get_dag_runs(
 @provide_session
 def get_dag_runs_batch(*, session: Session = NEW_SESSION) -> APIResponse:
     """Get list of DAG Runs"""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = dagruns_batch_form_schema.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    appbuilder = current_app.appbuilder
+    appbuilder = get_airflow_app().appbuilder
     readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
     query = session.query(DagRun)
     if data.get("dag_ids"):
@@ -242,7 +244,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
             detail=f"DAG with dag_id: '{dag_id}' has import errors",
         )
     try:
-        post_body = dagrun_schema.load(request.json, session=session)
+        post_body = dagrun_schema.load(get_json_request_dict(), session=session)
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
@@ -258,7 +260,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     )
     if not dagrun_instance:
         try:
-            dag = current_app.dag_bag.get_dag(dag_id)
+            dag = get_airflow_app().dag_bag.get_dag(dag_id)
             dag_run = dag.create_dagrun(
                 run_type=DagRunType.MANUAL,
                 run_id=run_id,
@@ -267,7 +269,7 @@ def post_dag_run(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
                 state=DagRunState.QUEUED,
                 conf=post_body.get("conf"),
                 external_trigger=True,
-                dag_hash=current_app.dag_bag.dags_hash.get(dag_id),
+                dag_hash=get_airflow_app().dag_bag.dags_hash.get(dag_id),
             )
             return dagrun_schema.dump(dag_run)
         except ValueError as ve:
@@ -300,12 +302,12 @@ def update_dag_run_state(*, dag_id: str, dag_run_id: str, session: Session = NEW
         error_message = f'Dag Run id {dag_run_id} not found in dag {dag_id}'
         raise NotFound(error_message)
     try:
-        post_body = set_dagrun_state_form_schema.load(request.json)
+        post_body = set_dagrun_state_form_schema.load(get_json_request_dict())
     except ValidationError as err:
         raise BadRequest(detail=str(err))
 
     state = post_body['state']
-    dag = current_app.dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if state == DagRunState.SUCCESS:
         set_dag_run_state_to_success(dag=dag, run_id=dag_run.run_id, commit=True)
     else:
