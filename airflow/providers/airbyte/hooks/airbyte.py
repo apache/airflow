@@ -110,7 +110,7 @@ class AirbyteHook(HttpHook):
 
     def cancel_job(self, job_id: int) -> Any:
         """
-        Cancelling the job
+        Cancel the job
 
         :param job_id: Required. Id of the Airbyte job
         :type job_id: int

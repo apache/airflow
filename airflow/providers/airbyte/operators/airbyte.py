@@ -74,7 +74,7 @@ class AirbyteTriggerSyncOperator(BaseOperator):
         self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
         if not self.asynchronous:
             self.log.info('Waiting for job %s to complete', self.job_id)
-            hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+            self.hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
             self.log.info('Job %s completed successfully', self.job_id)
 
         return self.job_id
@@ -82,5 +82,5 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     def on_kill(self):
         if (self.job_id):
-            self.log.info('on_kill: cancelling airbyte Job %s', self.job_id)
+            self.log.info('on_kill: cancel the airbyte Job %s', self.job_id)
             self.hook.cancel_job(self.job_id)

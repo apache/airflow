@@ -77,7 +77,7 @@ class TestAirbyteHook(unittest.TestCase):
         m.post(self.get_job_endpoint, status_code=200, json=self._mock_job_status_success_response_body)
         resp = self.hook.cancel_job(job_id=self.job_id)
         assert resp.status_code == 200
-        assert resp.json() ['job']['status']==_mock_job_cancel_status
+        assert resp.json() ['job']['status']==self._mock_job_cancel_status
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.get_job')
     def test_wait_for_job_succeeded(self, mock_get_job):
