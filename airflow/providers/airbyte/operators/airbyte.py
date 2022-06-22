@@ -83,7 +83,6 @@ class AirbyteTriggerSyncOperator(BaseOperator):
     def on_kill(self):
         """
         Cancel the job if task is cancelled
-
         """
         if (self.job_id):
             self.log.info('on_kill: cancel the airbyte Job %s', self.job_id)
