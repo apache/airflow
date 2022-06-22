@@ -15,16 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""
-Hooks for Cloud Memorystore service.
-
-.. spelling::
-
-    DataProtectionMode
-    FieldMask
-    pb
-    memcache
-"""
+"""Hooks for Cloud Memorystore service"""
 from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core import path_template
@@ -43,7 +34,7 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import version
 from airflow.exceptions import AirflowException
-from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
+from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
 class CloudMemorystoreHook(GoogleBaseHook):
@@ -54,9 +45,11 @@ class CloudMemorystoreHook(GoogleBaseHook):
     keyword arguments rather than positional.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -65,6 +58,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -96,8 +90,11 @@ class CloudMemorystoreHook(GoogleBaseHook):
 
         :param instance: The proto to append resource_label airflow
             version to
+        :type instance: google.cloud.container_v1.types.Cluster
         :param key: The key label
+        :type key: str
         :param val:
+        :type val: str
         :return: The cluster proto updated with new label
         """
         val = val.replace(".", "-").replace("+", "-")
@@ -110,10 +107,10 @@ class CloudMemorystoreHook(GoogleBaseHook):
         location: str,
         instance_id: str,
         instance: Union[Dict, Instance],
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Creates a Redis instance based on the specified tier and memory size.
@@ -122,6 +119,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
         <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance_id: Required. The logical name of the Redis instance in the customer project with the
             following restrictions:
 
@@ -130,17 +128,23 @@ class CloudMemorystoreHook(GoogleBaseHook):
             -  Must be between 1-40 characters.
             -  Must end with a number or a letter.
             -  Must be unique within the customer project / location
+        :type instance_id: str
         :param instance: Required. A Redis [Instance] resource
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.redis_v1.types.Instance`
+        :type instance: Union[Dict, google.cloud.redis_v1.types.Instance]
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         if isinstance(instance, dict):
@@ -166,7 +170,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'parent': parent, 'instance_id': instance_id, 'instance': instance},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance created.")
@@ -179,23 +183,29 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self,
         location: str,
         instance: str,
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Deletes a specific Redis instance.  Instance stops serving and data is deleted.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance: The logical name of the Redis instance in the customer project.
+        :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
@@ -204,7 +214,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'name': name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
         if not instance:
@@ -215,7 +225,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'name': name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance deleted: %s", name)
@@ -226,10 +236,10 @@ class CloudMemorystoreHook(GoogleBaseHook):
         location: str,
         instance: str,
         output_config: Union[Dict, OutputConfig],
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Export Redis instance data into a Redis RDB format file in Cloud Storage.
@@ -237,18 +247,25 @@ class CloudMemorystoreHook(GoogleBaseHook):
         Redis will continue serving during this operation.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance: The logical name of the Redis instance in the customer project.
+        :type instance: str
         :param output_config: Required. Specify data to be exported.
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.redis_v1.types.OutputConfig`
+        :type output_config: Union[Dict, google.cloud.redis_v1.types.OutputConfig]
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
@@ -257,7 +274,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'name': name, 'output_config': output_config},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance exported: %s", name)
@@ -268,27 +285,34 @@ class CloudMemorystoreHook(GoogleBaseHook):
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Initiates a failover of the primary node to current replica node for a specific STANDARD tier Cloud
         Memorystore for Redis instance.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance: The logical name of the Redis instance in the customer project.
+        :type instance: str
         :param data_protection_mode: Optional. Available data protection modes that the user can choose. If
             it's unspecified, data protection mode will be LIMITED_DATA_LOSS by default.
+        :type data_protection_mode: google.cloud.redis_v1.gapic.enums.FailoverInstanceRequest
             .DataProtectionMode
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
@@ -298,7 +322,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'name': name, 'data_protection_mode': data_protection_mode},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance failovered: %s", name)
@@ -308,23 +332,29 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self,
         location: str,
         instance: str,
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Gets the details of a specific Redis instance.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance: The logical name of the Redis instance in the customer project.
+        :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
@@ -332,7 +362,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'name': name},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         self.log.info("Fetched Instance: %s", name)
         return result
@@ -343,10 +373,10 @@ class CloudMemorystoreHook(GoogleBaseHook):
         location: str,
         instance: str,
         input_config: Union[Dict, InputConfig],
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Import a Redis RDB snapshot file from Cloud Storage into a Redis instance.
@@ -355,18 +385,25 @@ class CloudMemorystoreHook(GoogleBaseHook):
         When complete, the instance will contain only data from the imported file.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance: The logical name of the Redis instance in the customer project.
+        :type instance: str
         :param input_config: Required. Specify data to be imported.
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.redis_v1.types.InputConfig`
+        :type input_config: Union[Dict, google.cloud.redis_v1.types.InputConfig]
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         name = f"projects/{project_id}/locations/{location}/instances/{instance}"
@@ -375,7 +412,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'name': name, 'input_config': input_config},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance imported: %s", name)
@@ -385,10 +422,10 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self,
         location: str,
         page_size: int,
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Lists all Redis instances owned by a project in either the specified location (region) or all
@@ -398,16 +435,22 @@ class CloudMemorystoreHook(GoogleBaseHook):
 
                 If it is specified as ``-`` (wildcard), then all regions available to the project are
                 queried, and the results are aggregated.
+        :type location: str
         :param page_size: The maximum number of resources contained in the underlying API response. If page
             streaming is performed per- resource, this parameter does not affect the return value. If page
             streaming is performed per-page, this determines the maximum number of resources in a page.
+        :type page_size: int
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         parent = f"projects/{project_id}/locations/{location}"
@@ -415,7 +458,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'parent': parent, 'page_size': page_size},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         self.log.info("Fetched instances")
         return result
@@ -425,12 +468,12 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self,
         update_mask: Union[Dict, FieldMask],
         instance: Union[Dict, Instance],
-        project_id: str = PROVIDE_PROJECT_ID,
+        project_id: str,
         location: Optional[str] = None,
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the metadata and configuration of a specific Redis instance.
@@ -445,19 +488,27 @@ class CloudMemorystoreHook(GoogleBaseHook):
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.protobuf.field_mask_pb2.FieldMask`
+        :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
         :param instance: Required. Update description. Only fields specified in ``update_mask`` are updated.
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.redis_v1.types.Instance`
+        :type instance: Union[Dict, google.cloud.redis_v1.types.Instance]
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance_id: The logical name of the Redis instance in the customer project.
+        :type instance_id: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
 
@@ -475,7 +526,7 @@ class CloudMemorystoreHook(GoogleBaseHook):
             request={'update_mask': update_mask, 'instance': instance},
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance updated: %s", instance.name)
@@ -489,9 +540,11 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     keyword arguments rather than positional.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -500,6 +553,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -533,8 +587,11 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
         :param instance: The proto to append resource_label airflow
             version to
+        :type instance: google.cloud.memcache_v1beta2.types.cloud_memcache.Instance
         :param key: The key label
+        :type key: str
         :param val:
+        :type val: str
         :return: The cluster proto updated with new label
         """
         val = val.replace(".", "-").replace("+", "-")
@@ -551,24 +608,32 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Will update current set of Parameters to the set of specified nodes of the Memcached Instance.
 
         :param node_ids: Nodes to which we should apply the instance-level parameter group.
+        :type node_ids: Sequence[str]
         :param apply_all: Whether to apply instance-level parameter group to all nodes. If set to true,
             will explicitly restrict users from specifying any nodes, and apply parameter group updates
             to all nodes within the instance.
+        :type apply_all: bool
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance_id: The logical name of the Memcached instance in the customer project.
+        :type instance_id: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         metadata = metadata or ()
@@ -581,7 +646,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             apply_all=apply_all,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance updated: %s", instance_id)
@@ -595,7 +660,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Creates a Memcached instance based on the specified tier and memory size.
@@ -604,6 +669,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         <https://cloud.google.com/compute/docs/networks-and-firewalls#networks>`__.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance_id: Required. The logical name of the Memcached instance in the customer project
             with the following restrictions:
 
@@ -612,17 +678,23 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             -  Must be between 1-40 characters.
             -  Must end with a number or a letter.
             -  Must be unique within the customer project / location
+        :type instance_id: str
         :param instance: Required. A Memcached [Instance] resource
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.Instance`
+        :type instance: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.Instance]
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         metadata = metadata or ()
@@ -652,7 +724,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             resource=instance,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance created.")
@@ -660,7 +732,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             name=instance_name,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
@@ -671,20 +743,26 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Deletes a specific Memcached instance.  Instance stops serving and data is deleted.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance: The logical name of the Memcached instance in the customer project.
+        :type instance: str
         :param project_id:  Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         metadata = metadata or ()
@@ -694,7 +772,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             name=name,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
         if not instance:
@@ -705,7 +783,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             name=name,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Instance deleted: %s", name)
@@ -718,20 +796,26 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Gets the details of a specific Memcached instance.
 
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance: The logical name of the Memcached instance in the customer project.
+        :type instance: str
         :param project_id:  Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         metadata = metadata or ()
@@ -747,7 +831,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Lists all Memcached instances owned by a project in either the specified location (region) or all
@@ -757,13 +841,18 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
                 If it is specified as ``-`` (wildcard), then all regions available to the project are
                 queried, and the results are aggregated.
+        :type location: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the GCP connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         metadata = metadata or ()
@@ -774,7 +863,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             parent=parent,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         self.log.info("Fetched instances")
         return result
@@ -789,7 +878,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the metadata and configuration of a specific Memcached instance.
@@ -801,20 +890,28 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.protobuf.field_mask_pb2.FieldMask`)
+        :type update_mask:
             Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
         :param instance: Required. Update description. Only fields specified in ``update_mask`` are updated.
 
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.Instance`
+        :type instance: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.Instance]
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance_id: The logical name of the Memcached instance in the customer project.
+        :type instance_id: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         metadata = metadata or ()
@@ -842,10 +939,10 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         parameters: Union[Dict, cloud_memcache.MemcacheParameters],
         project_id: str,
         location: str,
-        instance_id: str,
+        instance_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ):
         """
         Updates the defined Memcached Parameters for an existing Instance. This method only stages the
@@ -855,19 +952,27 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         :param update_mask: Required. Mask of fields to update.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.protobuf.field_mask_pb2.FieldMask`
+        :type update_mask:
             Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
         :param parameters: The parameters to apply to the instance.
             If a dict is provided, it must be of the same form as the protobuf message
             :class:`~google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters`
+        :type parameters: Union[Dict, google.cloud.memcache_v1beta2.types.cloud_memcache.MemcacheParameters]
         :param location: The location of the Cloud Memorystore instance (for example europe-west1)
+        :type location: str
         :param instance_id: The logical name of the Memcached instance in the customer project.
+        :type instance_id: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             ``retry`` is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Sequence[Tuple[str, str]]
         """
         client = self.get_conn()
         metadata = metadata or ()
@@ -885,7 +990,7 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
             parameters=parameters,
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
         result.result()
         self.log.info("Update staged for instance: %s", instance_id)

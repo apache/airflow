@@ -16,14 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 from enum import Enum
-from typing import TYPE_CHECKING, Any, Sequence
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glacier import GlacierHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class JobStatus(Enum):
@@ -42,10 +39,14 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         :ref:`howto/operator:GlacierJobOperationSensor`
 
     :param aws_conn_id: The reference to the AWS connection details
+    :type aws_conn_id: str
     :param vault_name: name of Glacier vault on which job is executed
+    :type vault_name: str
     :param job_id: the job ID was returned by retrieve_inventory()
+    :type job_id: str
     :param poke_interval: Time in seconds that the job should wait in
         between each tries
+    :type poke_interval: float
     :param mode: How the sensor operates.
         Options are: ``{ poke | reschedule }``, default is ``poke``.
         When set to ``poke`` the sensor is taking up a worker slot for its
@@ -58,9 +59,10 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         this mode if the time before the criteria is met is expected to be
         quite long. The poke interval should be more than one minute to
         prevent too much load on the scheduler.
+    :type mode: str
     """
 
-    template_fields: Sequence[str] = ("vault_name", "job_id")
+    template_fields = ["vault_name", "job_id"]
 
     def __init__(
         self,
@@ -79,7 +81,7 @@ class GlacierJobOperationSensor(BaseSensorOperator):
         self.poke_interval = poke_interval
         self.mode = mode
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context) -> bool:
         hook = GlacierHook(aws_conn_id=self.aws_conn_id)
         response = hook.describe_job(vault_name=self.vault_name, job_id=self.job_id)
 

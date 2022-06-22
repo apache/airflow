@@ -34,6 +34,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryIntervalCheckOperator,
     BigQueryValueCheckOperator,
 )
+from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset")
@@ -64,8 +65,7 @@ for index, location in enumerate(locations, 1):
     with models.DAG(
         dag_id,
         schedule_interval='@once',  # Override to match your needs
-        start_date=datetime(2021, 1, 1),
-        catchup=False,
+        start_date=days_ago(1),
         tags=["example"],
         user_defined_macros={"DATASET": DATASET, "TABLE": TABLE_1},
     ) as dag_with_locations:
@@ -138,7 +138,10 @@ for index, location in enumerate(locations, 1):
             task_id="execute_multi_query",
             configuration={
                 "query": {
-                    "query": f"SELECT * FROM {DATASET}.{TABLE_2};SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
+                    "query": [
+                        f"SELECT * FROM {DATASET}.{TABLE_2}",
+                        f"SELECT COUNT(*) FROM {DATASET}.{TABLE_2}",
+                    ],
                     "useLegacySql": False,
                 }
             },

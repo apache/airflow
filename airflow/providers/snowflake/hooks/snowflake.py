@@ -18,24 +18,15 @@
 import os
 from contextlib import closing
 from io import StringIO
-from typing import Any, Callable, Dict, Iterable, List, Optional, Union
+from typing import Any, Dict, Optional, Tuple, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
 from snowflake.connector import DictCursor, SnowflakeConnection
 from snowflake.connector.util_text import split_statements
-from snowflake.sqlalchemy import URL
-from sqlalchemy import create_engine
 
 from airflow.hooks.dbapi import DbApiHook
-from airflow.utils.strings import to_boolean
-
-
-def _try_to_boolean(value: Any):
-    if isinstance(value, (str, type(None))):
-        return to_boolean(value)
-    return value
 
 
 class SnowflakeHook(DbApiHook):
@@ -49,7 +40,9 @@ class SnowflakeHook(DbApiHook):
 
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
+    :type snowflake_conn_id: str
     :param account: snowflake account name
+    :type account: Optional[str]
     :param authenticator: authenticator for Snowflake.
         'snowflake' (default) to use the internal Snowflake authenticator
         'externalbrowser' to authenticate using your web browser and
@@ -57,16 +50,20 @@ class SnowflakeHook(DbApiHook):
         (IdP) that has been defined for your account
         'https://<your_okta_account_name>.okta.com' to authenticate
         through native Okta.
+    :type authenticator: Optional[str]
     :param warehouse: name of snowflake warehouse
+    :type warehouse: Optional[str]
     :param database: name of snowflake database
+    :type database: Optional[str]
     :param region: name of snowflake region
+    :type region: Optional[str]
     :param role: name of snowflake role
+    :type role: Optional[str]
     :param schema: name of snowflake schema
+    :type schema: Optional[str]
     :param session_parameters: You can set session-level parameters at
         the time you connect to Snowflake
-    :param insecure_mode: Turns off OCSP certificate checks.
-        For details, see: `How To: Turn Off OCSP Checking in Snowflake Client Drivers - Snowflake Community
-        <https://community.snowflake.com/s/article/How-to-turn-off-OCSP-checking-in-Snowflake-client-drivers>`__
+    :type session_parameters: Optional[dict]
 
     .. note::
         get_sqlalchemy_engine() depends on snowflake-sqlalchemy
@@ -85,9 +82,9 @@ class SnowflakeHook(DbApiHook):
     @staticmethod
     def get_connection_form_widgets() -> Dict[str, Any]:
         """Returns connection widgets to add to connection form"""
-        from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
+        from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
-        from wtforms import BooleanField, StringField
+        from wtforms import PasswordField, StringField
 
         return {
             "extra__snowflake__account": StringField(lazy_gettext('Account'), widget=BS3TextFieldWidget()),
@@ -96,14 +93,17 @@ class SnowflakeHook(DbApiHook):
             ),
             "extra__snowflake__database": StringField(lazy_gettext('Database'), widget=BS3TextFieldWidget()),
             "extra__snowflake__region": StringField(lazy_gettext('Region'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
-            "extra__snowflake__insecure_mode": BooleanField(
-                label=lazy_gettext('Insecure mode'), description="Turns off OCSP certificate checks"
+            "extra__snowflake__aws_access_key_id": StringField(
+                lazy_gettext('AWS Access Key'), widget=BS3TextFieldWidget()
             ),
+            "extra__snowflake__aws_secret_access_key": PasswordField(
+                lazy_gettext('AWS Secret Key'), widget=BS3PasswordFieldWidget()
+            ),
+            "extra__snowflake__role": StringField(lazy_gettext('Role'), widget=BS3TextFieldWidget()),
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
         import json
 
@@ -119,6 +119,7 @@ class SnowflakeHook(DbApiHook):
                     },
                     indent=1,
                 ),
+                'host': 'snowflake hostname',
                 'schema': 'snowflake schema',
                 'login': 'snowflake username',
                 'password': 'snowflake password',
@@ -126,8 +127,9 @@ class SnowflakeHook(DbApiHook):
                 'extra__snowflake__warehouse': 'snowflake warehouse name',
                 'extra__snowflake__database': 'snowflake db name',
                 'extra__snowflake__region': 'snowflake hosted region',
+                'extra__snowflake__aws_access_key_id': 'aws access key id (S3ToSnowflakeOperator)',
+                'extra__snowflake__aws_secret_access_key': 'aws secret access key (S3ToSnowflakeOperator)',
                 'extra__snowflake__role': 'snowflake role',
-                'extra__snowflake__insecure_mode': 'insecure mode',
             },
         }
 
@@ -141,7 +143,7 @@ class SnowflakeHook(DbApiHook):
         self.schema = kwargs.pop("schema", None)
         self.authenticator = kwargs.pop("authenticator", None)
         self.session_parameters = kwargs.pop("session_parameters", None)
-        self.query_ids: List[str] = []
+        self.query_ids = []
 
     def _get_conn_params(self) -> Dict[str, Optional[str]]:
         """
@@ -163,11 +165,6 @@ class SnowflakeHook(DbApiHook):
         schema = conn.schema or ''
         authenticator = conn.extra_dejson.get('authenticator', 'snowflake')
         session_parameters = conn.extra_dejson.get('session_parameters')
-        insecure_mode = _try_to_boolean(
-            conn.extra_dejson.get(
-                'extra__snowflake__insecure_mode', conn.extra_dejson.get('insecure_mode', None)
-            )
-        )
 
         conn_config = {
             "user": conn.login,
@@ -183,8 +180,6 @@ class SnowflakeHook(DbApiHook):
             # application is used to track origin of the requests
             "application": os.environ.get("AIRFLOW_SNOWFLAKE_PARTNER", "AIRFLOW"),
         }
-        if insecure_mode:
-            conn_config['insecure_mode'] = insecure_mode
 
         # If private_key_file is specified in the extra json, load the contents of the file as a private
         # key and specify that in the connection configuration. The connection password then becomes the
@@ -215,17 +210,12 @@ class SnowflakeHook(DbApiHook):
 
     def get_uri(self) -> str:
         """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
-        conn_params = self._get_conn_params()
-        return self._conn_params_to_sqlalchemy_uri(conn_params)
-
-    def _conn_params_to_sqlalchemy_uri(self, conn_params: Dict) -> str:
-        return URL(
-            **{
-                k: v
-                for k, v in conn_params.items()
-                if v and k not in ['session_parameters', 'insecure_mode', 'private_key']
-            }
+        conn_config = self._get_conn_params()
+        uri = (
+            'snowflake://{user}:{password}@{account}.{region}/{database}/{schema}'
+            '?warehouse={warehouse}&role={role}&authenticator={authenticator}'
         )
+        return uri.format(**conn_config)
 
     def get_conn(self) -> SnowflakeConnection:
         """Returns a snowflake.connection object"""
@@ -233,23 +223,23 @@ class SnowflakeHook(DbApiHook):
         conn = connector.connect(**conn_config)
         return conn
 
-    def get_sqlalchemy_engine(self, engine_kwargs=None):
+    def _get_aws_credentials(self) -> Tuple[Optional[Any], Optional[Any]]:
         """
-        Get an sqlalchemy_engine object.
+        Returns aws_access_key_id, aws_secret_access_key
+        from extra
 
-        :param engine_kwargs: Kwargs used in :func:`~sqlalchemy.create_engine`.
-        :return: the created engine.
+        intended to be used by external import and export statements
         """
-        engine_kwargs = engine_kwargs or {}
-        conn_params = self._get_conn_params()
-        if 'insecure_mode' in conn_params:
-            engine_kwargs.setdefault('connect_args', dict())
-            engine_kwargs['connect_args']['insecure_mode'] = True
-        for key in ['session_parameters', 'private_key']:
-            if conn_params.get(key):
-                engine_kwargs.setdefault('connect_args', dict())
-                engine_kwargs['connect_args'][key] = conn_params[key]
-        return create_engine(self._conn_params_to_sqlalchemy_uri(conn_params), **engine_kwargs)
+        if self.snowflake_conn_id:  # type: ignore[attr-defined]
+            connection_object = self.get_connection(self.snowflake_conn_id)  # type: ignore[attr-defined]
+            if 'aws_secret_access_key' in connection_object.extra_dejson:
+                aws_access_key_id = connection_object.extra_dejson.get(
+                    'aws_access_key_id'
+                ) or connection_object.extra_dejson.get('aws_access_key_id')
+                aws_secret_access_key = connection_object.extra_dejson.get(
+                    'aws_secret_access_key'
+                ) or connection_object.extra_dejson.get('aws_secret_access_key')
+        return aws_access_key_id, aws_secret_access_key
 
     def set_autocommit(self, conn, autocommit: Any) -> None:
         conn.autocommit(autocommit)
@@ -258,13 +248,7 @@ class SnowflakeHook(DbApiHook):
     def get_autocommit(self, conn):
         return getattr(conn, 'autocommit_mode', False)
 
-    def run(
-        self,
-        sql: Union[str, list],
-        autocommit: bool = False,
-        parameters: Optional[Union[dict, Iterable]] = None,
-        handler: Optional[Callable] = None,
-    ):
+    def run(self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -275,14 +259,17 @@ class SnowflakeHook(DbApiHook):
 
         :param sql: the sql string to be executed with possibly multiple statements,
           or a list of sql statements to execute
+        :type sql: str or list
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
+        :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
-        :param handler: The result handler which is called with the result of each statement.
+        :type parameters: dict or iterable
         """
         self.query_ids = []
 
-        with closing(self.get_conn()) as conn:
+        with self.get_conn() as conn:
+            conn = self.get_conn()
             self.set_autocommit(conn, autocommit)
 
             if isinstance(sql, str):
@@ -301,16 +288,13 @@ class SnowflakeHook(DbApiHook):
                         cur.execute(sql_statement)
 
                     execution_info = []
-                    if handler is not None:
-                        cur = handler(cur)
                     for row in cur:
                         self.log.info("Statement execution info - %s", row)
                         execution_info.append(row)
 
-                    query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)
-                    self.log.info("Snowflake query id: %s", query_id)
-                    self.query_ids.append(query_id)
+                    self.log.info("Snowflake query id: %s", cur.sfqid)
+                    self.query_ids.append(cur.sfqid)
 
             # If autocommit was set to False for db that supports autocommit,
             # or if db does not supports autocommit, we do a manual commit.
@@ -318,11 +302,3 @@ class SnowflakeHook(DbApiHook):
                 conn.commit()
 
         return execution_info
-
-    def test_connection(self):
-        """Test the Snowflake connection by running a simple query."""
-        try:
-            self.run(sql="select 1")
-        except Exception as e:
-            return False, str(e)
-        return True, "Connection successfully tested"

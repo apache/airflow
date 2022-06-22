@@ -1,0 +1,10 @@
+[
+  {
+    "Name": "test_step1",
+    "ActionOnFailure": "CONTINUE",
+    "HadoopJarStep": {
+      "Jar": "command-runner.jar",
+      "Args": {% include 'args.json' %}
+    }
+  }
+]

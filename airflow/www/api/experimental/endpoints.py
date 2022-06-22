@@ -45,8 +45,7 @@ def requires_authentication(function: T):
 
     @wraps(function)
     def decorated(*args, **kwargs):
-        auth = current_app.api_auth[0]
-        return auth.requires_authentication(function)(*args, **kwargs)
+        return current_app.api_auth.requires_authentication(function)(*args, **kwargs)
 
     return cast(T, decorated)
 
@@ -106,8 +105,8 @@ def trigger_dag(dag_id):
         except ValueError:
             log.error("Given execution date could not be identified as a date.")
             error_message = (
-                f'Given execution date, {execution_date}, could not be identified as a date. '
-                f'Example date format: 2015-11-16T14:34:15+00:00'
+                'Given execution date, {}, could not be identified '
+                'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
             )
             response = jsonify({'error': error_message})
             response.status_code = 400
@@ -256,8 +255,8 @@ def task_instance_info(dag_id, execution_date, task_id):
     except ValueError:
         log.error("Given execution date could not be identified as a date.")
         error_message = (
-            f'Given execution date, {execution_date}, could not be identified as a date. '
-            f'Example date format: 2015-11-16T14:34:15+00:00'
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
         )
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -292,8 +291,8 @@ def dag_run_status(dag_id, execution_date):
     except ValueError:
         log.error("Given execution date could not be identified as a date.")
         error_message = (
-            f'Given execution date, {execution_date}, could not be identified as a date. '
-            f'Example date format: 2015-11-16T14:34:15+00:00'
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
         )
         response = jsonify({'error': error_message})
         response.status_code = 400
@@ -405,8 +404,8 @@ def get_lineage(dag_id: str, execution_date: str):
     except ValueError:
         log.error("Given execution date could not be identified as a date.")
         error_message = (
-            f'Given execution date, {execution_date}, could not be identified as a date. '
-            f'Example date format: 2015-11-16T14:34:15+00:00'
+            'Given execution date, {}, could not be identified '
+            'as a date. Example date format: 2015-11-16T14:34:15+00:00'.format(execution_date)
         )
         response = jsonify({'error': error_message})
         response.status_code = 400

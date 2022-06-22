@@ -18,7 +18,7 @@
 try:
     import importlib_metadata
 except ImportError:
-    from importlib import metadata as importlib_metadata  # type: ignore
+    from importlib import metadata as importlib_metadata
 
 
 def entry_points_with_dist(group: str):

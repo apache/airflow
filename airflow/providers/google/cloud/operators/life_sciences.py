@@ -17,14 +17,11 @@
 # under the License.
 """Operators that interact with Google Cloud Life Sciences service."""
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.life_sciences import LifeSciencesHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class LifeSciencesRunPipelineOperator(BaseOperator):
@@ -36,11 +33,16 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         :ref:`howto/operator:LifeSciencesRunPipelineOperator`
 
     :param body: The request body
+    :type body: dict
     :param location: The location of the project
+    :type location: str
     :param project_id: ID of the Google Cloud project if None then
         default project_id is used.
+    :type project_id: str
     :param gcp_conn_id: The connection ID to use to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param api_version: API version used (for example v2beta).
+    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -49,9 +51,10 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "body",
         "gcp_conn_id",
         "api_version",
@@ -84,7 +87,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context) -> dict:
         hook = LifeSciencesHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

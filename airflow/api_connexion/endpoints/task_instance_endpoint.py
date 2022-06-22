@@ -14,14 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Iterable, List, Optional, Tuple, TypeVar
+from typing import Any, List, Optional, Tuple
 
 from flask import current_app, request
 from marshmallow import ValidationError
-from sqlalchemy import and_, func, or_
-from sqlalchemy.orm import Session
-from sqlalchemy.orm.query import Query
-from sqlalchemy.sql import ClauseElement
+from sqlalchemy import and_, func
+from sqlalchemy.orm.exc import NoResultFound
+from sqlalchemy.sql.expression import or_
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
@@ -36,15 +35,12 @@ from airflow.api_connexion.schemas.task_instance_schema import (
     task_instance_reference_collection_schema,
     task_instance_schema,
 )
-from airflow.api_connexion.types import APIResponse
 from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
-from airflow.utils.session import NEW_SESSION, provide_session
-from airflow.utils.state import DagRunState, State
-
-T = TypeVar("T")
+from airflow.utils.session import provide_session
+from airflow.utils.state import State
 
 
 @security.requires_access(
@@ -52,16 +48,10 @@ T = TypeVar("T")
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
+    ]
 )
 @provide_session
-def get_task_instance(
-    *,
-    dag_id: str,
-    dag_run_id: str,
-    task_id: str,
-    session: Session = NEW_SESSION,
-) -> APIResponse:
+def get_task_instance(dag_id: str, dag_run_id: str, task_id: str, session=None):
     """Get task instance"""
     query = (
         session.query(TI)
@@ -84,20 +74,20 @@ def get_task_instance(
     return task_instance_schema.dump(task_instance)
 
 
-def _convert_state(states: Optional[Iterable[str]]) -> Optional[List[Optional[str]]]:
+def _convert_state(states):
     if not states:
         return None
     return [State.NONE if s == "none" else s for s in states]
 
 
-def _apply_array_filter(query: Query, key: ClauseElement, values: Optional[Iterable[Any]]) -> Query:
+def _apply_array_filter(query, key, values):
     if values is not None:
         cond = ((key == v) for v in values)
         query = query.filter(or_(*cond))
     return query
 
 
-def _apply_range_filter(query: Query, key: ClauseElement, value_range: Tuple[T, T]) -> Query:
+def _apply_range_filter(query, key, value_range: Tuple[Any, Any]):
     gte_value, lte_value = value_range
     if gte_value is not None:
         query = query.filter(key >= gte_value)
@@ -114,18 +104,17 @@ def _apply_range_filter(query: Query, key: ClauseElement, value_range: Tuple[T, 
         "start_date_lte": format_datetime,
         "end_date_gte": format_datetime,
         "end_date_lte": format_datetime,
-    },
+    }
 )
 @security.requires_access(
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
+    ]
 )
 @provide_session
 def get_task_instances(
-    *,
     limit: int,
     dag_id: Optional[str] = None,
     dag_run_id: Optional[str] = None,
@@ -141,8 +130,8 @@ def get_task_instances(
     pool: Optional[List[str]] = None,
     queue: Optional[List[str]] = None,
     offset: Optional[int] = None,
-    session: Session = NEW_SESSION,
-) -> APIResponse:
+    session=None,
+):
     """Get list of task instances."""
     # Because state can be 'none'
     states = _convert_state(state)
@@ -192,10 +181,10 @@ def get_task_instances(
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ],
+    ]
 )
 @provide_session
-def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
+def get_task_instances_batch(session=None):
     """Get list of task instances."""
     body = request.get_json()
     try:
@@ -251,10 +240,10 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
+    ]
 )
 @provide_session
-def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def post_clear_task_instances(dag_id: str, session=None):
     """Clear task instances."""
     body = request.get_json()
     try:
@@ -272,10 +261,7 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
     if not dry_run:
         clear_task_instances(
-            task_instances.all(),
-            session,
-            dag=dag,
-            dag_run_state=DagRunState.QUEUED if reset_dag_runs else False,
+            task_instances.all(), session, dag=dag, dag_run_state=State.QUEUED if reset_dag_runs else False
         )
 
     return task_instance_reference_collection_schema.dump(
@@ -288,10 +274,10 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
         (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_TASK_INSTANCE),
-    ],
+    ]
 )
 @provide_session
-def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def post_set_task_instances_state(dag_id, session):
     """Set a state of task instances."""
     body = request.get_json()
     try:
@@ -311,30 +297,14 @@ def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION
         error_message = f"Task ID {task_id} not found"
         raise NotFound(error_message)
 
-    execution_date = data.get('execution_date')
-    run_id = data.get('dag_run_id')
-    if (
-        execution_date
-        and (
-            session.query(TI)
-            .filter(TI.task_id == task_id, TI.dag_id == dag_id, TI.execution_date == execution_date)
-            .one_or_none()
-        )
-        is None
-    ):
-        raise NotFound(
-            detail=f"Task instance not found for task {task_id!r} on execution_date {execution_date}"
-        )
-
-    if run_id and not session.query(TI).get(
-        {'task_id': task_id, 'dag_id': dag_id, 'run_id': run_id, 'map_index': -1}
-    ):
-        error_message = f"Task instance not found for task {task_id!r} on DAG run with ID {run_id!r}"
-        raise NotFound(detail=error_message)
+    execution_date = data['execution_date']
+    try:
+        session.query(TI).filter_by(execution_date=execution_date, task_id=task_id, dag_id=dag_id).one()
+    except NoResultFound:
+        raise NotFound(f"Task instance not found for task {task_id} on execution_date {execution_date}")
 
     tis = dag.set_task_instance_state(
         task_id=task_id,
-        dag_run_id=run_id,
         execution_date=execution_date,
         state=data["new_state"],
         upstream=data["include_upstream"],

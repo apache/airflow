@@ -15,14 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-"""This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_registry`."""
+"""
+This module is deprecated.
+Please use `airflow.providers.microsoft.azure.hooks.azure_container_registry`.
+"""
 
 import warnings
 
-from airflow.providers.microsoft.azure.hooks.container_registry import AzureContainerRegistryHook  # noqa
+from airflow.providers.microsoft.azure.hooks.azure_container_registry import (  # noqa
+    AzureContainerRegistryHook,
+)
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.microsoft.azure.hooks.container_registry`.",
+    "This module is deprecated. "
+    "Please use `airflow.providers.microsoft.azure.hooks.azure_container_registry`.",
     DeprecationWarning,
     stacklevel=2,
 )

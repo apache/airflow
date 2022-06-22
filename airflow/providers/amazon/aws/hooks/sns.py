@@ -18,7 +18,6 @@
 
 """This module contains AWS SNS hook"""
 import json
-import warnings
 from typing import Dict, Optional, Union
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -38,7 +37,7 @@ def _get_message_attribute(o):
     )
 
 
-class SnsHook(AwsBaseHook):
+class AwsSnsHook(AwsBaseHook):
     """
     Interact with Amazon Simple Notification Service.
 
@@ -63,9 +62,11 @@ class SnsHook(AwsBaseHook):
         Publish a message to a topic or an endpoint.
 
         :param target_arn: either a TopicArn or an EndpointArn
+        :type target_arn: str
         :param message: the default message you want to send
         :param message: str
         :param subject: subject of message
+        :type subject: str
         :param message_attributes: additional attributes to publish for message filtering. This should be
             a flat dict; the DataType to be sent depends on the type of the value:
 
@@ -74,6 +75,7 @@ class SnsHook(AwsBaseHook):
             - int, float = Number
             - iterable = String.Array
 
+        :type message_attributes: dict
         """
         publish_kwargs: Dict[str, Union[str, dict]] = {
             'TargetArn': target_arn,
@@ -90,18 +92,3 @@ class SnsHook(AwsBaseHook):
             }
 
         return self.get_conn().publish(**publish_kwargs)
-
-
-class AwsSnsHook(SnsHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. " "Please use :class:`airflow.providers.amazon.aws.hooks.sns.SnsHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

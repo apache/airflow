@@ -41,7 +41,7 @@ def users_list(args):
     )
 
 
-@cli_utils.action_cli(check_db=True)
+@cli_utils.action_logging
 def users_create(args):
     """Creates new user in the DB"""
     appbuilder = cached_app().appbuilder
@@ -85,7 +85,7 @@ def _find_user(args):
     return user
 
 
-@cli_utils.action_cli
+@cli_utils.action_logging
 def users_delete(args):
     """Deletes user from DB"""
     user = _find_user(args)
@@ -98,7 +98,7 @@ def users_delete(args):
         raise SystemExit('Failed to delete user')
 
 
-@cli_utils.action_cli
+@cli_utils.action_logging
 def users_manage_role(args, remove=False):
     """Deletes or appends user roles"""
     user = _find_user(args)
@@ -152,7 +152,7 @@ def users_export(args):
         print(f"{len(users)} users successfully exported to {file.name}")
 
 
-@cli_utils.action_cli
+@cli_utils.action_logging
 def users_import(args):
     """Imports users from the json file"""
     json_file = getattr(args, 'import')
@@ -199,8 +199,9 @@ def _import_users(users_list):
             print(f"Found existing user with email '{user['email']}'")
             if existing_user.username != user['username']:
                 raise SystemExit(
-                    f"Error: Changing the username is not allowed - please delete and recreate the user with"
-                    f" email {user['email']!r}"
+                    "Error: Changing the username is not allowed - "
+                    "please delete and recreate the user with "
+                    "email '{}'".format(user['email'])
                 )
 
             existing_user.roles = roles

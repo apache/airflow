@@ -20,7 +20,6 @@
 Example Airflow DAG for Google BigQuery service.
 """
 import os
-from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -29,6 +28,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryDeleteDatasetOperator,
 )
 from airflow.providers.google.cloud.transfers.bigquery_to_mssql import BigQueryToMsSqlOperator
+from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_dataset_transfer")
@@ -39,13 +39,12 @@ destination_table = "mssql_table_test"
 with models.DAG(
     "example_bigquery_to_mssql",
     schedule_interval=None,  # Override to match your needs
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     bigquery_to_mssql = BigQueryToMsSqlOperator(
         task_id="bigquery_to_mssql",
-        source_project_dataset_table=f'{PROJECT_ID}.{DATASET_NAME}.{TABLE}',
+        source_project_dataset_table=f'{DATASET_NAME}.{TABLE}',
         mssql_table=destination_table,
         replace=False,
     )

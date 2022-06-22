@@ -59,8 +59,7 @@ class _PostgresServerSideCursorDecorator:
         """Fetch first row to initialize cursor description when using server side cursor."""
         if not self.initialized:
             element = self.cursor.fetchone()
-            if element is not None:
-                self.rows.append(element)
+            self.rows.append(element)
             self.initialized = True
         return self.cursor.description
 
@@ -70,9 +69,12 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     Copy data from Postgres to Google Cloud Storage in JSON or CSV format.
 
     :param postgres_conn_id: Reference to a specific Postgres hook.
+    :type postgres_conn_id: str
     :param use_server_side_cursor: If server-side cursor should be used for querying postgres.
         For detailed info, check https://www.psycopg.org/docs/usage.html#server-side-cursors
+    :type use_server_side_cursor: bool
     :param cursor_itersize: How many records are fetched at a time in case of server-side cursor.
+    :type cursor_itersize: int
     """
 
     ui_color = '#a0e08c'

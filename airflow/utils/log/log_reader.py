@@ -18,14 +18,11 @@
 import logging
 from typing import Dict, Iterator, List, Optional, Tuple
 
-from sqlalchemy.orm.session import Session
-
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.models import TaskInstance
 from airflow.utils.helpers import render_log_filename
 from airflow.utils.log.logging_mixin import ExternalLoggingMixin
-from airflow.utils.session import NEW_SESSION, provide_session
 
 
 class TaskLogReader:
@@ -38,9 +35,12 @@ class TaskLogReader:
         Reads chunks of Task Instance logs.
 
         :param ti: The taskInstance
+        :type ti: TaskInstance
         :param try_number: If provided, logs for the given try will be returned.
             Otherwise, logs from all attempts are returned.
+        :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task log
+        :type metadata: dict
         :rtype: Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]
 
         The following is an example of how to use this method to read log:
@@ -63,8 +63,11 @@ class TaskLogReader:
         Used to continuously read log to the end
 
         :param ti: The Task Instance
+        :type ti: TaskInstance
         :param try_number: the task try number
+        :type try_number: Optional[int]
         :param metadata: A dictionary containing information about how to read the task log
+        :type metadata: dict
         :rtype: Iterator[str]
         """
         if try_number is None:
@@ -79,7 +82,7 @@ class TaskLogReader:
             while 'end_of_log' not in metadata or not metadata['end_of_log']:
                 logs, metadata = self.read_log_chunks(ti, current_try_number, metadata)
                 for host, log in logs[0]:
-                    yield "\n".join([host or '', log]) + "\n"
+                    yield "\n".join([host, log]) + "\n"
 
     @cached_property
     def log_handler(self):
@@ -102,25 +105,18 @@ class TaskLogReader:
 
         return self.log_handler.supports_external_link
 
-    @provide_session
-    def render_log_filename(
-        self,
-        ti: TaskInstance,
-        try_number: Optional[int] = None,
-        *,
-        session: Session = NEW_SESSION,
-    ):
+    def render_log_filename(self, ti: TaskInstance, try_number: Optional[int] = None):
         """
         Renders the log attachment filename
 
         :param ti: The task instance
+        :type ti: TaskInstance
         :param try_number: The task try number
+        :type try_number: Optional[int]
         :rtype: str
         """
-        dagrun = ti.get_dagrun(session=session)
+        filename_template = conf.get('logging', 'LOG_FILENAME_TEMPLATE')
         attachment_filename = render_log_filename(
-            ti=ti,
-            try_number="all" if try_number is None else try_number,
-            filename_template=dagrun.get_log_filename_template(session=session),
+            ti=ti, try_number="all" if try_number is None else try_number, filename_template=filename_template
         )
         return attachment_filename

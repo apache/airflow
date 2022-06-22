@@ -19,34 +19,6 @@
 Changelog
 ---------
 
-2.3.0
-.....
-
-Misc
-~~~~
-
-* ``Fix: pin pymongo < 4.0.0 (#20511)``
-* ``add mongo_db param to function doc string (#19280)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Fix duplicate changelog entries (#19759)``
-   * ``Update documentation for November 2021 provider's release (#19882)``
-   * ``Use typed Context EVERYWHERE (#20565)``
-   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
-   * ``Update documentation for provider December 2021 release (#20523)``
-
-2.2.0
-.....
-
-Features
-~~~~~~~~
-
-* ``#19223 add mongo_db param to MongoSensor (#19276)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-
 2.1.0
 .....
 
@@ -63,6 +35,7 @@ Misc
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``Update description about the new ''connection-types'' provider meta-data (#17767)``
+   * ``Import Hooks lazily individually in providers manager (#17682)``
 
 2.0.0
 .....

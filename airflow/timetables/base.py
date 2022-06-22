@@ -33,7 +33,7 @@ class DataInterval(NamedTuple):
     end: DateTime
 
     @classmethod
-    def exact(cls, at: DateTime) -> "DataInterval":
+    def exact(cls, at: DateTime) -> "DagRunInfo":
         """Represent an "interval" containing only an exact time."""
         return cls(start=at, end=at)
 
@@ -91,7 +91,7 @@ class DagRunInfo(NamedTuple):
         return cls(run_after=end, data_interval=DataInterval(start, end))
 
     @property
-    def logical_date(self: "DagRunInfo") -> DateTime:
+    def logical_date(self) -> DateTime:
         """Infer the logical date to represent a DagRun.
 
         This replaces ``execution_date`` in Airflow 2.1 and prior. The idea is
@@ -102,13 +102,6 @@ class DagRunInfo(NamedTuple):
 
 class Timetable(Protocol):
     """Protocol that all Timetable classes are expected to implement."""
-
-    description: str = ""
-    """Human-readable description of the timetable.
-
-    For example, this can produce something like ``'At 21:30, only on Friday'``
-    from the cron expression ``'30 21 * * 5'``. This is used in the webserver UI.
-    """
 
     periodic: bool = True
     """Whether this timetable runs periodically.

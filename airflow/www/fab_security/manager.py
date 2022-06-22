@@ -24,10 +24,9 @@ import datetime
 import json
 import logging
 import re
-from typing import Any, Dict, List, Optional, Set, Tuple, Type
+from typing import Dict, List, Set, Tuple
 
-from flask import current_app, g, session, url_for
-from flask_appbuilder import AppBuilder
+from flask import g, session, url_for
 from flask_appbuilder.const import (
     AUTH_DB,
     AUTH_LDAP,
@@ -40,7 +39,9 @@ from flask_appbuilder.const import (
     LOGMSG_WAR_SEC_LOGIN_FAILED,
     LOGMSG_WAR_SEC_NO_USER,
     LOGMSG_WAR_SEC_NOLDAP_OBJ,
+    PERMISSION_PREFIX,
 )
+from flask_appbuilder.security.api import SecurityApi
 from flask_appbuilder.security.registerviews import (
     RegisterUserDBView,
     RegisterUserOAuthView,
@@ -53,6 +54,7 @@ from flask_appbuilder.security.views import (
     AuthOIDView,
     AuthRemoteUserView,
     PermissionModelView,
+    PermissionViewModelView,
     RegisterUserModelView,
     ResetMyPasswordView,
     ResetPasswordView,
@@ -64,14 +66,12 @@ from flask_appbuilder.security.views import (
     UserOIDModelView,
     UserRemoteUserModelView,
     UserStatsChartView,
+    ViewMenuModelView,
 )
 from flask_babel import lazy_gettext as _
 from flask_jwt_extended import JWTManager, current_user as current_user_jwt
-from flask_login import AnonymousUserMixin, LoginManager, current_user
+from flask_login import LoginManager, current_user
 from werkzeug.security import check_password_hash, generate_password_hash
-
-from airflow.www.fab_security.sqla.models import Action, Permission, RegisterUser, Resource, Role, User
-from airflow.www.views import ResourceModelView
 
 log = logging.getLogger(__name__)
 
@@ -86,37 +86,10 @@ def _oauth_tokengetter(token=None):
     return token
 
 
-class AnonymousUser(AnonymousUserMixin):
-    """User object used when no active user is logged in."""
-
-    _roles: Set[Tuple[str, str]] = set()
-    _perms: Set[Tuple[str, str]] = set()
-
-    @property
-    def roles(self):
-        if not self._roles:
-            public_role = current_app.appbuilder.get_app.config["AUTH_ROLE_PUBLIC"]
-            self._roles = {current_app.appbuilder.sm.find_role(public_role)} if public_role else set()
-        return self._roles
-
-    @roles.setter
-    def roles(self, roles):
-        self._roles = roles
-        self._perms = set()
-
-    @property
-    def perms(self):
-        if not self._perms:
-            self._perms = set()
-            for role in self.roles:
-                self._perms.update({(perm.action.name, perm.resource.name) for perm in role.permissions})
-        return self._perms
-
-
 class BaseSecurityManager:
     """Base class to define the Security Manager interface."""
 
-    appbuilder: AppBuilder
+    appbuilder = None
     """The appbuilder instance for the current security manager."""
     auth_view = None
     """ The obj instance for authentication view """
@@ -132,31 +105,25 @@ class BaseSecurityManager:
     """ Flask-OpenID OpenID """
     oauth = None
     """ Flask-OAuth """
-    oauth_remotes: Dict[str, Any]
+    oauth_remotes = None
     """ OAuth email whitelists """
-    oauth_whitelists: Dict[str, List] = {}
+    oauth_whitelists = {}
     """ Initialized (remote_app) providers dict {'provider_name', OBJ } """
-
-    @staticmethod
-    def oauth_tokengetter(token=None):
-        """Authentication (OAuth) token getter function.
-        Override to implement your own token getter method
-        """
-        return _oauth_tokengetter(token)
-
+    oauth_tokengetter = _oauth_tokengetter
+    """ OAuth tokengetter function override to implement your own tokengetter method """
     oauth_user_info = None
 
-    user_model: Type[User]
+    user_model = None
     """ Override to set your own User Model """
-    role_model: Type[Role]
+    role_model = None
     """ Override to set your own Role Model """
-    action_model: Type[Action]
-    """ Override to set your own Action Model """
-    resource_model: Type[Resource]
-    """ Override to set your own Resource Model """
-    permission_model: Type[Permission]
+    permission_model = None
     """ Override to set your own Permission Model """
-    registeruser_model: Type[RegisterUser]
+    viewmenu_model = None
+    """ Override to set your own ViewMenu Model """
+    permissionview_model = None
+    """ Override to set your own PermissionView Model """
+    registeruser_model = None
     """ Override to set your own RegisterUser Model """
 
     userdbmodelview = UserDBModelView
@@ -196,11 +163,15 @@ class BaseSecurityManager:
     userinfoeditview = UserInfoEditView
     """ Override if you want your own User information edit view """
 
+    # API
+    security_api = SecurityApi
+    """ Override if you want your own Security API login endpoint """
+
     rolemodelview = RoleModelView
-    actionmodelview = PermissionModelView
-    userstatschartview = UserStatsChartView
-    resourcemodelview = ResourceModelView
     permissionmodelview = PermissionModelView
+    userstatschartview = UserStatsChartView
+    viewmenumodelview = ViewMenuModelView
+    permissionviewmodelview = PermissionViewModelView
 
     def __init__(self, appbuilder):
         self.appbuilder = appbuilder
@@ -280,7 +251,6 @@ class BaseSecurityManager:
         :param app: Flask app
         """
         lm = LoginManager(app)
-        lm.anonymous_user = AnonymousUser
         lm.login_view = "login"
         lm.user_loader(self.load_user)
         return lm
@@ -300,7 +270,7 @@ class BaseSecurityManager:
         """Returns FAB builtin roles."""
         return self.appbuilder.get_app.config.get("FAB_ROLES", {})
 
-    def get_roles_from_keys(self, role_keys: List[str]) -> Set[RoleModelView]:
+    def get_roles_from_keys(self, role_keys: List[str]) -> Set[role_model]:
         """
         Construct a list of FAB role objects, from a list of keys.
 
@@ -693,6 +663,8 @@ class BaseSecurityManager:
     def register_views(self):
         if not self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEWS", True):
             return
+        # Security APIs
+        self.appbuilder.add_api(self.security_api)
 
         if self.auth_user_registration:
             if self.auth_type == AUTH_DB:
@@ -770,26 +742,26 @@ class BaseSecurityManager:
         self.appbuilder.menu.add_separator("Security")
         if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEW", True):
             self.appbuilder.add_view(
-                self.actionmodelview,
-                "Actions",
+                self.permissionmodelview,
+                "Base Permissions",
                 icon="fa-lock",
-                label=_("Actions"),
+                label=_("Base Permissions"),
                 category="Security",
             )
         if self.appbuilder.app.config.get("FAB_ADD_SECURITY_VIEW_MENU_VIEW", True):
             self.appbuilder.add_view(
-                self.resourcemodelview,
-                "Resources",
+                self.viewmenumodelview,
+                "Views/Menus",
                 icon="fa-list-alt",
-                label=_("Resources"),
+                label=_("Views/Menus"),
                 category="Security",
             )
         if self.appbuilder.app.config.get("FAB_ADD_SECURITY_PERMISSION_VIEWS_VIEW", True):
             self.appbuilder.add_view(
-                self.permissionmodelview,
-                "Permissions",
+                self.permissionviewmodelview,
+                "Permission on Views/Menus",
                 icon="fa-link",
-                label=_("Permissions"),
+                label=_("Permission on Views/Menus"),
                 category="Security",
             )
 
@@ -886,7 +858,9 @@ class BaseSecurityManager:
 
         # build the filter string for the LDAP search
         if self.auth_ldap_search_filter:
-            filter_str = f"(&{self.auth_ldap_search_filter}({self.auth_ldap_uid_field}={username}))"
+            filter_str = "(&{}({}={}))".format(
+                self.auth_ldap_search_filter, self.auth_ldap_uid_field, username
+            )
         else:
             filter_str = f"({self.auth_ldap_uid_field}={username})"
 
@@ -899,9 +873,10 @@ class BaseSecurityManager:
         if len(self.auth_roles_mapping) > 0:
             request_fields.append(self.auth_ldap_group_field)
 
-        # perform the LDAP search
+        # preform the LDAP search
         log.debug(
-            f"LDAP search for '{filter_str}' with fields {request_fields} in scope '{self.auth_ldap_search}'"
+            "LDAP search for '%s' with fields %s in scope '%s'"
+            % (filter_str, request_fields, self.auth_ldap_search)
         )
         raw_search_result = con.search_s(
             self.auth_ldap_search, ldap.SCOPE_SUBTREE, filter_str, request_fields
@@ -916,8 +891,8 @@ class BaseSecurityManager:
         # only continue if 0 or 1 results were returned
         if len(search_result) > 1:
             log.error(
-                f"LDAP search for '{filter_str}' in scope "
-                f"'{self.auth_ldap_search!a}' returned multiple results"
+                "LDAP search for '%s' in scope '%a' returned multiple results"
+                % (filter_str, self.auth_ldap_search)
             )
             return None, None
 
@@ -931,7 +906,7 @@ class BaseSecurityManager:
         except (IndexError, NameError):
             return None, None
 
-    def _ldap_calculate_user_roles(self, user_attributes: Dict[str, List[bytes]]) -> List[str]:
+    def _ldap_calculate_user_roles(self, user_attributes: Dict[str, bytes]) -> List[str]:
         user_role_objects = set()
 
         # apply AUTH_ROLES_MAPPING
@@ -984,13 +959,13 @@ class BaseSecurityManager:
             return False
 
     @staticmethod
-    def ldap_extract(ldap_dict: Dict[str, List[bytes]], field_name: str, fallback: str) -> str:
+    def ldap_extract(ldap_dict: Dict[str, bytes], field_name: str, fallback: str) -> str:
         raw_value = ldap_dict.get(field_name, [bytes()])
         # decode - if empty string, default to fallback, otherwise take first element
         return raw_value[0].decode("utf-8") or fallback
 
     @staticmethod
-    def ldap_extract_list(ldap_dict: Dict[str, List[bytes]], field_name: str) -> List[str]:
+    def ldap_extract_list(ldap_dict: Dict[str, bytes], field_name: str) -> List[str]:
         raw_list = ldap_dict.get(field_name, [])
         # decode - removing empty strings
         return [x.decode("utf-8") for x in raw_list if x.decode("utf-8")]
@@ -1058,7 +1033,7 @@ class BaseSecurityManager:
             user_attributes = {}
 
             # Flow 1 - (Indirect Search Bind):
-            #  - in this flow, special bind credentials are used to perform the
+            #  - in this flow, special bind credentials are used to preform the
             #    LDAP search
             #  - in this flow, AUTH_LDAP_SEARCH must be set
             if self.auth_ldap_bind_user:
@@ -1092,7 +1067,7 @@ class BaseSecurityManager:
 
             # Flow 2 - (Direct Search Bind):
             #  - in this flow, the credentials provided by the end-user are used
-            #    to perform the LDAP search
+            #    to preform the LDAP search
             #  - in this flow, we only search LDAP if AUTH_LDAP_SEARCH is set
             #     - features like AUTH_USER_REGISTRATION & AUTH_ROLES_SYNC_AT_LOGIN
             #       will only work if AUTH_LDAP_SEARCH is set
@@ -1183,6 +1158,7 @@ class BaseSecurityManager:
         Openid user Authentication
 
         :param email: user's email to authenticate
+        :type self: User model
         """
         user = self.find_user(email=email)
         if user is None or (not user.is_active):
@@ -1197,6 +1173,7 @@ class BaseSecurityManager:
         REMOTE_USER user Authentication
 
         :param username: user's username for remote auth
+        :type self: User model
         """
         user = self.find_user(username=username)
 
@@ -1308,25 +1285,82 @@ class BaseSecurityManager:
         else:
             return None
 
-    def _has_access_builtin_roles(self, role, action_name: str, resource_name: str) -> bool:
+    def is_item_public(self, permission_name, view_name):
+        """
+        Check if view has public permissions
+
+        :param permission_name:
+            the permission: can_show, can_edit...
+        :param view_name:
+            the name of the class view (child of BaseView)
+        """
+        permissions = self.get_public_permissions()
+        if permissions:
+            for i in permissions:
+                if (view_name == i.view_menu.name) and (permission_name == i.permission.name):
+                    return True
+            return False
+        else:
+            return False
+
+    def _has_access_builtin_roles(self, role, permission_name: str, view_name: str) -> bool:
         """Checks permission on builtin role"""
-        perms = self.builtin_roles.get(role.name, [])
-        for (_resource_name, _action_name) in perms:
-            if re.match(_resource_name, resource_name) and re.match(_action_name, action_name):
+        builtin_pvms = self.builtin_roles.get(role.name, [])
+        for pvm in builtin_pvms:
+            _view_name = pvm[0]
+            _permission_name = pvm[1]
+            if re.match(_view_name, view_name) and re.match(_permission_name, permission_name):
                 return True
         return False
 
-    def _get_user_permission_resources(
-        self, user: Optional[User], action_name: str, resource_names: Optional[List[str]] = None
+    def _has_view_access(self, user: object, permission_name: str, view_name: str) -> bool:
+        roles = user.roles
+        db_role_ids = []
+        # First check against builtin (statically configured) roles
+        # because no database query is needed
+        for role in roles:
+            if role.name in self.builtin_roles:
+                if self._has_access_builtin_roles(role, permission_name, view_name):
+                    return True
+            else:
+                db_role_ids.append(role.id)
+
+        # If it's not a builtin role check against database store roles
+        return self.exist_permission_on_roles(view_name, permission_name, db_role_ids)
+
+    def get_user_roles(self, user) -> List[object]:
+        """Get current user roles, if user is not authenticated returns the public role"""
+        if not user.is_authenticated:
+            return [self.get_public_role()]
+        return user.roles
+
+    def get_role_permissions(self, role) -> Set[Tuple[str, str]]:
+        """Get all permissions for a certain role"""
+        result = set()
+        if role.name in self.builtin_roles:
+            for permission in self.builtin_roles[role.name]:
+                result.add((permission[1], permission[0]))
+        else:
+            for permission in self.get_db_role_permissions(role.id):
+                result.add((permission.permission.name, permission.view_menu.name))
+        return result
+
+    def get_user_permissions(self, user) -> Set[Tuple[str, str]]:
+        """Get all permissions from the current user"""
+        roles = self.get_user_roles(user)
+        result = set()
+        for role in roles:
+            result.update(self.get_role_permissions(role))
+        return result
+
+    def _get_user_permission_view_menus(
+        self, user: object, permission_name: str, view_menus_name: List[str]
     ) -> Set[str]:
         """
-        Return a set of resource names with a certain action name
+        Return a set of view menu names with a certain permission name
         that a user has access to. Mainly used to fetch all menu permissions
         on a single db call, will also check public permissions and builtin roles
         """
-        if not resource_names:
-            resource_names = []
-
         db_role_ids = []
         if user is None:
             # include public role
@@ -1338,88 +1372,98 @@ class BaseSecurityManager:
         result = set()
         for role in roles:
             if role.name in self.builtin_roles:
-                for resource_name in resource_names:
-                    if self._has_access_builtin_roles(role, action_name, resource_name):
-                        result.add(resource_name)
+                for view_menu_name in view_menus_name:
+                    if self._has_access_builtin_roles(role, permission_name, view_menu_name):
+                        result.add(view_menu_name)
             else:
                 db_role_ids.append(role.id)
         # Then check against database-stored roles
-        role_resource_names = [
-            perm.resource.name for perm in self.filter_roles_by_perm_with_action(action_name, db_role_ids)
+        pvms_names = [
+            pvm.view_menu.name for pvm in self.find_roles_permission_view_menus(permission_name, db_role_ids)
         ]
-        result.update(role_resource_names)
+        result.update(pvms_names)
         return result
 
-    def get_user_menu_access(self, menu_names: Optional[List[str]] = None) -> Set[str]:
+    def has_access(self, permission_name, view_name):
+        """Check if current user or public has access to view or menu"""
         if current_user.is_authenticated:
-            return self._get_user_permission_resources(g.user, "menu_access", resource_names=menu_names)
+            return self._has_view_access(g.user, permission_name, view_name)
         elif current_user_jwt:
-            return self._get_user_permission_resources(
-                current_user_jwt, "menu_access", resource_names=menu_names
+            return self._has_view_access(current_user_jwt, permission_name, view_name)
+        else:
+            return self.is_item_public(permission_name, view_name)
+
+    def get_user_menu_access(self, menu_names: List[str] = None) -> Set[str]:
+        if current_user.is_authenticated:
+            return self._get_user_permission_view_menus(g.user, "menu_access", view_menus_name=menu_names)
+        elif current_user_jwt:
+            return self._get_user_permission_view_menus(
+                current_user_jwt, "menu_access", view_menus_name=menu_names
             )
         else:
-            return self._get_user_permission_resources(None, "menu_access", resource_names=menu_names)
+            return self._get_user_permission_view_menus(None, "menu_access", view_menus_name=menu_names)
 
-    def add_permissions_view(self, base_action_names, resource_name):  # Keep name for compatibility with FAB.
+    def add_permissions_view(self, base_permissions, view_menu):
         """
-        Adds an action on a resource to the backend
+        Adds a permission on a view menu to the backend
 
-        :param base_action_names:
+        :param base_permissions:
             list of permissions from view (all exposed methods):
              'can_add','can_edit' etc...
-        :param resource_name:
-            name of the resource to add
+        :param view_menu:
+            name of the view or menu to add
         """
-        resource = self.create_resource(resource_name)
-        perms = self.get_resource_permissions(resource)
+        view_menu_db = self.add_view_menu(view_menu)
+        perm_views = self.find_permissions_view_menu(view_menu_db)
 
-        if not perms:
+        if not perm_views:
             # No permissions yet on this view
-            for action_name in base_action_names:
-                action = self.create_permission(action_name, resource_name)
+            for permission in base_permissions:
+                pv = self.add_permission_view_menu(permission, view_menu)
                 if self.auth_role_admin not in self.builtin_roles:
-                    admin_role = self.find_role(self.auth_role_admin)
-                    self.add_permission_to_role(admin_role, action)
+                    role_admin = self.find_role(self.auth_role_admin)
+                    self.add_permission_role(role_admin, pv)
         else:
             # Permissions on this view exist but....
-            admin_role = self.find_role(self.auth_role_admin)
-            for action_name in base_action_names:
+            role_admin = self.find_role(self.auth_role_admin)
+            for permission in base_permissions:
                 # Check if base view permissions exist
-                if not self.perms_include_action(perms, action_name):
-                    action = self.create_permission(action_name, resource_name)
+                if not self.exist_permission_on_views(perm_views, permission):
+                    pv = self.add_permission_view_menu(permission, view_menu)
                     if self.auth_role_admin not in self.builtin_roles:
-                        self.add_permission_to_role(admin_role, action)
-            for perm in perms:
-                if perm.action is None:
-                    # Skip this perm, it has a null permission
+                        self.add_permission_role(role_admin, pv)
+            for perm_view in perm_views:
+                if perm_view.permission is None:
+                    # Skip this perm_view, it has a null permission
                     continue
-                if perm.action.name not in base_action_names:
+                if perm_view.permission.name not in base_permissions:
                     # perm to delete
                     roles = self.get_all_roles()
+                    perm = self.find_permission(perm_view.permission.name)
                     # del permission from all roles
                     for role in roles:
-                        # TODO: An action can't be removed from a role.
-                        # This is a bug in FAB. It has been reported.
-                        self.remove_permission_from_role(role, perm)
-                    self.delete_permission(perm.action.name, resource_name)
-                elif self.auth_role_admin not in self.builtin_roles and perm not in admin_role.permissions:
+                        self.del_permission_role(role, perm)
+                    self.del_permission_view_menu(perm_view.permission.name, view_menu)
+                elif (
+                    self.auth_role_admin not in self.builtin_roles and perm_view not in role_admin.permissions
+                ):
                     # Role Admin must have all permissions
-                    self.add_permission_to_role(admin_role, perm)
+                    self.add_permission_role(role_admin, perm_view)
 
-    def add_permissions_menu(self, resource_name):
+    def add_permissions_menu(self, view_menu_name):
         """
-        Adds menu_access to resource on permission_resource
+        Adds menu_access to menu on permission_view_menu
 
-        :param resource_name:
-            The resource name
+        :param view_menu_name:
+            The menu name
         """
-        self.create_resource(resource_name)
-        perm = self.get_permission("menu_access", resource_name)
-        if not perm:
-            perm = self.create_permission("menu_access", resource_name)
+        self.add_view_menu(view_menu_name)
+        pv = self.find_permission_view_menu("menu_access", view_menu_name)
+        if not pv:
+            pv = self.add_permission_view_menu("menu_access", view_menu_name)
         if self.auth_role_admin not in self.builtin_roles:
             role_admin = self.find_role(self.auth_role_admin)
-            self.add_permission_to_role(role_admin, perm)
+            self.add_permission_role(role_admin, pv)
 
     def security_cleanup(self, baseviews, menus):
         """
@@ -1428,23 +1472,170 @@ class BaseSecurityManager:
         :param baseviews: A list of BaseViews class
         :param menus: Menu class
         """
-        resources = self.get_all_resources()
+        viewsmenus = self.get_all_view_menu()
         roles = self.get_all_roles()
-        for resource in resources:
+        for viewmenu in viewsmenus:
             found = False
             for baseview in baseviews:
-                if resource.name == baseview.class_permission_name:
+                if viewmenu.name == baseview.class_permission_name:
                     found = True
                     break
-            if menus.find(resource.name):
+            if menus.find(viewmenu.name):
                 found = True
             if not found:
-                permissions = self.get_resource_permissions(resource)
+                permissions = self.find_permissions_view_menu(viewmenu)
                 for permission in permissions:
                     for role in roles:
-                        self.remove_permission_from_role(role, permission)
-                    self.delete_permission(permission.action.name, resource.name)
-                self.delete_resource(resource.name)
+                        self.del_permission_role(role, permission)
+                    self.del_permission_view_menu(permission.permission.name, viewmenu.name)
+                self.del_view_menu(viewmenu.name)
+        self.security_converge(baseviews, menus)
+
+    @staticmethod
+    def _get_new_old_permissions(baseview) -> Dict:
+        ret = {}
+        for method_name, permission_name in baseview.method_permission_name.items():
+            old_permission_name = baseview.previous_method_permission_name.get(method_name)
+            # Actions do not get prefix when normally defined
+            if hasattr(baseview, "actions") and baseview.actions.get(old_permission_name):
+                permission_prefix = ""
+            else:
+                permission_prefix = PERMISSION_PREFIX
+            if old_permission_name:
+                if PERMISSION_PREFIX + permission_name not in ret:
+                    ret[PERMISSION_PREFIX + permission_name] = {permission_prefix + old_permission_name}
+                else:
+                    ret[PERMISSION_PREFIX + permission_name].add(permission_prefix + old_permission_name)
+        return ret
+
+    @staticmethod
+    def _add_state_transition(
+        state_transition: Dict,
+        old_view_name: str,
+        old_perm_name: str,
+        view_name: str,
+        perm_name: str,
+    ) -> None:
+        old_pvm = state_transition["add"].get((old_view_name, old_perm_name))
+        if old_pvm:
+            state_transition["add"][(old_view_name, old_perm_name)].add((view_name, perm_name))
+        else:
+            state_transition["add"][(old_view_name, old_perm_name)] = {(view_name, perm_name)}
+        state_transition["del_role_pvm"].add((old_view_name, old_perm_name))
+        state_transition["del_views"].add(old_view_name)
+        state_transition["del_perms"].add(old_perm_name)
+
+    @staticmethod
+    def _update_del_transitions(state_transitions: Dict, baseviews: List) -> None:
+        """
+        Mutates state_transitions, loop baseviews and prunes all
+        views and permissions that are not to delete because references
+        exist.
+
+        :param baseview:
+        :param state_transitions:
+        :return:
+        """
+        for baseview in baseviews:
+            state_transitions["del_views"].discard(baseview.class_permission_name)
+            for permission in baseview.base_permissions:
+                state_transitions["del_role_pvm"].discard((baseview.class_permission_name, permission))
+                state_transitions["del_perms"].discard(permission)
+
+    def create_state_transitions(self, baseviews: List, menus: List) -> Dict:
+        """
+        Creates a Dict with all the necessary vm/permission transitions
+
+        Dict: {
+                "add": {(<VM>, <PERM>): ((<VM>, PERM), ... )}
+                "del_role_pvm": ((<VM>, <PERM>), ...)
+                "del_views": (<VM>, ... )
+                "del_perms": (<PERM>, ... )
+              }
+
+        :param baseviews: List with all the registered BaseView, BaseApi
+        :param menus: List with all the menu entries
+        :return: Dict with state transitions
+        """
+        state_transitions = {
+            "add": {},
+            "del_role_pvm": set(),
+            "del_views": set(),
+            "del_perms": set(),
+        }
+        for baseview in baseviews:
+            add_all_flag = False
+            new_view_name = baseview.class_permission_name
+            permission_mapping = self._get_new_old_permissions(baseview)
+            if baseview.previous_class_permission_name:
+                old_view_name = baseview.previous_class_permission_name
+                add_all_flag = True
+            else:
+                new_view_name = baseview.class_permission_name
+                old_view_name = new_view_name
+            for new_perm_name in baseview.base_permissions:
+                if add_all_flag:
+                    old_perm_names = permission_mapping.get(new_perm_name)
+                    old_perm_names = old_perm_names or (new_perm_name,)
+                    for old_perm_name in old_perm_names:
+                        self._add_state_transition(
+                            state_transitions,
+                            old_view_name,
+                            old_perm_name,
+                            new_view_name,
+                            new_perm_name,
+                        )
+                else:
+                    old_perm_names = permission_mapping.get(new_perm_name) or set()
+                    for old_perm_name in old_perm_names:
+                        self._add_state_transition(
+                            state_transitions,
+                            old_view_name,
+                            old_perm_name,
+                            new_view_name,
+                            new_perm_name,
+                        )
+        self._update_del_transitions(state_transitions, baseviews)
+        return state_transitions
+
+    def security_converge(self, baseviews: List, menus: List, dry=False) -> Dict:
+        """
+        Converges overridden permissions on all registered views/api
+        will compute all necessary operations from `class_permissions_name`,
+        `previous_class_permission_name`, method_permission_name`,
+        `previous_method_permission_name` class attributes.
+
+        :param baseviews: List of registered views/apis
+        :param menus: List of menu items
+        :param dry: If True will not change DB
+        :return: Dict with the necessary operations (state_transitions)
+        """
+        state_transitions = self.create_state_transitions(baseviews, menus)
+        if dry:
+            return state_transitions
+        if not state_transitions:
+            log.info("No state transitions found")
+            return {}
+        log.debug(f"State transitions: {state_transitions}")
+        roles = self.get_all_roles()
+        for role in roles:
+            permissions = list(role.permissions)
+            for pvm in permissions:
+                new_pvm_states = state_transitions["add"].get((pvm.view_menu.name, pvm.permission.name))
+                if not new_pvm_states:
+                    continue
+                for new_pvm_state in new_pvm_states:
+                    new_pvm = self.add_permission_view_menu(new_pvm_state[1], new_pvm_state[0])
+                    self.add_permission_role(role, new_pvm)
+                if (pvm.view_menu.name, pvm.permission.name) in state_transitions["del_role_pvm"]:
+                    self.del_permission_role(role, pvm)
+        for pvm in state_transitions["del_role_pvm"]:
+            self.del_permission_view_menu(pvm[1], pvm[0], cascade=False)
+        for view_name in state_transitions["del_views"]:
+            self.del_view_menu(view_name)
+        for permission_name in state_transitions["del_perms"]:
+            self.del_permission(permission_name)
+        return state_transitions
 
     def find_register_user(self, registration_hash):
         """Generic function to return user registration"""
@@ -1470,7 +1661,7 @@ class BaseSecurityManager:
         """Generic function that returns all existing users"""
         raise NotImplementedError
 
-    def get_role_permissions_from_db(self, role_id: int) -> List[Permission]:
+    def get_db_role_permissions(self, role_id: int) -> List[object]:
         """Get all DB permissions from a role id"""
         raise NotImplementedError
 
@@ -1506,26 +1697,22 @@ class BaseSecurityManager:
         """Returns all permissions from public role"""
         raise NotImplementedError
 
-    def get_action(self, name: str):
-        """
-        Gets an existing action record.
-
-        :param name: name
-        :return: Action record, if it exists
-        :rtype: Action
-        """
+    def get_public_permissions(self):
+        """Returns all permissions from public role"""
         raise NotImplementedError
 
-    def filter_roles_by_perm_with_action(self, permission_name: str, role_ids: List[int]):
+    def find_permission(self, name):
+        """Finds and returns a Permission by name"""
         raise NotImplementedError
 
-    def permission_exists_in_one_or_more_roles(
-        self, resource_name: str, action_name: str, role_ids: List[int]
-    ) -> bool:
+    def find_roles_permission_view_menus(self, permission_name: str, role_ids: List[int]):
+        raise NotImplementedError
+
+    def exist_permission_on_roles(self, view_name: str, permission_name: str, role_ids: List[int]) -> bool:
         """Finds and returns permission views for a group of roles"""
         raise NotImplementedError
 
-    def create_action(self, name):
+    def add_permission(self, name):
         """
         Adds a permission to the backend, model permission
 
@@ -1534,13 +1721,12 @@ class BaseSecurityManager:
         """
         raise NotImplementedError
 
-    def delete_action(self, name: str) -> bool:
+    def del_permission(self, name):
         """
-        Deletes a permission action.
+        Deletes a permission from the backend, model permission
 
-        :param name: Name of action to delete (e.g. can_read).
-        :return: Whether or not delete was successful.
-        :rtype: bool
+        :param name:
+            name of the permission: 'can_add','can_edit' etc...
         """
         raise NotImplementedError
 
@@ -1550,37 +1736,27 @@ class BaseSecurityManager:
     ----------------------
     """
 
-    def get_resource(self, name: str):
-        """
-        Returns a resource record by name, if it exists.
+    def find_view_menu(self, name):
+        """Finds and returns a ViewMenu by name"""
+        raise NotImplementedError
 
-        :param name: Name of resource
+    def get_all_view_menu(self):
+        raise NotImplementedError
+
+    def add_view_menu(self, name):
+        """
+        Adds a view or menu to the backend, model view_menu
+        :param name:
+            name of the view menu to add
         """
         raise NotImplementedError
 
-    def get_all_resources(self):
+    def del_view_menu(self, name):
         """
-        Gets all existing resource records.
-
-        :return: List of all resources
-        :rtype: List[Resource]
-        """
-        raise NotImplementedError
-
-    def create_resource(self, name):
-        """
-        Create a resource with the given name.
-
-        :param name: The name of the resource to create created.
-        """
-        raise NotImplementedError
-
-    def delete_resource(self, name):
-        """
-        Deletes a Resource from the backend
+        Deletes a ViewMenu from the backend
 
         :param name:
-            name of the Resource
+            name of the ViewMenu
         """
         raise NotImplementedError
 
@@ -1590,70 +1766,58 @@ class BaseSecurityManager:
     ----------------------
     """
 
-    def get_permission(self, action_name: str, resource_name: str):
-        """
-        Gets a permission made with the given action->resource pair, if the permission already exists.
+    def find_permission_view_menu(self, permission_name, view_menu_name):
+        """Finds and returns a PermissionView by names"""
+        raise NotImplementedError
 
-        :param action_name: Name of action
-        :param resource_name: Name of resource
-        :return: The existing permission
-        :rtype: Permission
+    def find_permissions_view_menu(self, view_menu):
+        """
+        Finds all permissions from ViewMenu, returns list of PermissionView
+
+        :param view_menu: ViewMenu object
+        :return: list of PermissionView objects
         """
         raise NotImplementedError
 
-    def get_resource_permissions(self, resource):
+    def add_permission_view_menu(self, permission_name, view_menu_name):
         """
-        Retrieve permission pairs associated with a specific resource object.
+        Adds a permission on a view or menu to the backend
 
-        :param resource: Object representing a single resource.
-        :return: Action objects representing resource->action pair
-        :rtype: Permission
-        """
-        raise NotImplementedError
-
-    def create_permission(self, action_name: str, resource_name: str):
-        """
-        Creates a permission linking an action and resource.
-
-        :param action_name: Name of existing action
-        :param resource_name: Name of existing resource
-        :return: Resource created
-        :rtype: Permission
+        :param permission_name:
+            name of the permission to add: 'can_add','can_edit' etc...
+        :param view_menu_name:
+            name of the view menu to add
         """
         raise NotImplementedError
 
-    def delete_permission(self, action_name: str, resource_name: str) -> None:
-        """
-        Deletes the permission linking an action->resource pair. Doesn't delete the
-        underlying action or resource.
+    def del_permission_view_menu(self, permission_name, view_menu_name, cascade=True):
+        raise NotImplementedError
 
-        :param action_name: Name of existing action
-        :param resource_name: Name of existing resource
-        :return: None
-        :rtype: None
+    def exist_permission_on_views(self, lst, item):
+        raise NotImplementedError
+
+    def exist_permission_on_view(self, lst, permission, view_menu):
+        raise NotImplementedError
+
+    def add_permission_role(self, role, perm_view):
+        """
+        Add permission-ViewMenu object to Role
+
+        :param role:
+            The role object
+        :param perm_view:
+            The PermissionViewMenu object
         """
         raise NotImplementedError
 
-    def perms_include_action(self, perms, action_name):
-        raise NotImplementedError
-
-    def add_permission_to_role(self, role, permission) -> None:
+    def del_permission_role(self, role, perm_view):
         """
-        Add an existing permission pair to a role.
+        Remove permission-ViewMenu object to Role
 
-        :param role: The role about to get a new permission.
-        :param permission: The permission pair to add to a role.
-        :return: None
-        :rtype: None
-        """
-        raise NotImplementedError
-
-    def remove_permission_from_role(self, role, permission) -> None:
-        """
-        Remove a permission pair from a role.
-
-        :param role: User role containing permissions.
-        :param permission: Object representing resource-> action pair
+        :param role:
+            The role object
+        :param perm_view:
+            The PermissionViewMenu object
         """
         raise NotImplementedError
 

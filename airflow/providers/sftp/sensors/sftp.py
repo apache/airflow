@@ -16,15 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains SFTP sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 
-from paramiko.sftp import SFTP_NO_SUCH_FILE
+from paramiko import SFTP_NO_SUCH_FILE
 
 from airflow.providers.sftp.hooks.sftp import SFTPHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SFTPSensor(BaseSensorOperator):
@@ -32,10 +29,12 @@ class SFTPSensor(BaseSensorOperator):
     Waits for a file or directory to be present on SFTP.
 
     :param path: Remote file or directory path
+    :type path: str
     :param sftp_conn_id: The connection to run the sensor against
+    :type sftp_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('path',)
+    template_fields = ('path',)
 
     def __init__(self, *, path: str, sftp_conn_id: str = 'sftp_default', **kwargs) -> None:
         super().__init__(**kwargs)
@@ -43,7 +42,7 @@ class SFTPSensor(BaseSensorOperator):
         self.hook: Optional[SFTPHook] = None
         self.sftp_conn_id = sftp_conn_id
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: dict) -> bool:
         self.hook = SFTPHook(self.sftp_conn_id)
         self.log.info('Poking for %s', self.path)
         try:

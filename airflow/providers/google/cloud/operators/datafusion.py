@@ -16,158 +16,14 @@
 # under the License.
 
 """This module contains Google DataFusion operators."""
-from datetime import datetime
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Optional, Sequence, Union
 
 from google.api_core.retry import exponential_sleep_generator
 from googleapiclient.errors import HttpError
 
-from airflow.models import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datafusion import SUCCESS_STATES, DataFusionHook, PipelineStates
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
-
-BASE_LINK = "https://console.cloud.google.com/data-fusion"
-DATAFUSION_INSTANCE_LINK = BASE_LINK + "/locations/{region}/instances/{instance_name}?project={project_id}"
-DATAFUSION_PIPELINES_LINK = "{uri}/cdap/ns/default/pipelines"
-DATAFUSION_PIPELINE_LINK = "{uri}/pipelines/ns/default/view/{pipeline_name}"
-
-
-class DataFusionPipelineLinkHelper:
-    """Helper class for Pipeline links"""
-
-    @staticmethod
-    def get_project_id(instance):
-        instance = instance["name"]
-        project_id = [x for x in instance.split("/") if x.startswith("airflow")][0]
-        return project_id
-
-
-class DataFusionInstanceLink(BaseOperatorLink):
-    """Helper class for constructing Data Fusion Instance link"""
-
-    name = "Data Fusion Instance"
-    key = "instance_conf"
-
-    @staticmethod
-    def persist(
-        context: "Context",
-        task_instance: Union[
-            "CloudDataFusionRestartInstanceOperator",
-            "CloudDataFusionCreateInstanceOperator",
-            "CloudDataFusionUpdateInstanceOperator",
-            "CloudDataFusionGetInstanceOperator",
-        ],
-        project_id: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataFusionInstanceLink.key,
-            value={
-                "region": task_instance.location,
-                "instance_name": task_instance.instance_name,
-                "project_id": project_id,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        instance_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataFusionInstanceLink.key,
-        )
-        return (
-            DATAFUSION_INSTANCE_LINK.format(
-                region=instance_conf["region"],
-                instance_name=instance_conf["instance_name"],
-                project_id=instance_conf["project_id"],
-            )
-            if instance_conf
-            else ""
-        )
-
-
-class DataFusionPipelineLink(BaseOperatorLink):
-    """Helper class for constructing Data Fusion Pipeline link"""
-
-    name = "Data Fusion Pipeline"
-    key = "pipeline_conf"
-
-    @staticmethod
-    def persist(
-        context: "Context",
-        task_instance: Union[
-            "CloudDataFusionCreatePipelineOperator",
-            "CloudDataFusionStartPipelineOperator",
-            "CloudDataFusionStopPipelineOperator",
-        ],
-        uri: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataFusionPipelineLink.key,
-            value={
-                "uri": uri,
-                "pipeline_name": task_instance.pipeline_name,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        pipeline_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataFusionPipelineLink.key,
-        )
-        return (
-            DATAFUSION_PIPELINE_LINK.format(
-                uri=pipeline_conf["uri"],
-                pipeline_name=pipeline_conf["pipeline_name"],
-            )
-            if pipeline_conf
-            else ""
-        )
-
-
-class DataFusionPipelinesLink(BaseOperatorLink):
-    """Helper class for constructing list of Data Fusion Pipelines link"""
-
-    name = "Data Fusion Pipelines"
-    key = "pipelines_conf"
-
-    @staticmethod
-    def persist(
-        context: "Context",
-        task_instance: "CloudDataFusionListPipelinesOperator",
-        uri: str,
-    ):
-        task_instance.xcom_push(
-            context=context,
-            key=DataFusionPipelinesLink.key,
-            value={
-                "uri": uri,
-            },
-        )
-
-    def get_link(self, operator: BaseOperator, dttm: datetime):
-        pipelines_conf = XCom.get_one(
-            dag_id=operator.dag.dag_id,
-            task_id=operator.task_id,
-            execution_date=dttm,
-            key=DataFusionPipelinesLink.key,
-        )
-        return (
-            DATAFUSION_PIPELINES_LINK.format(
-                uri=pipelines_conf["uri"],
-            )
-            if pipelines_conf
-            else ""
-        )
 
 
 class CloudDataFusionRestartInstanceOperator(BaseOperator):
@@ -180,13 +36,19 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionRestartInstanceOperator`
 
     :param instance_name: The name of the instance to restart.
+    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
+    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -195,13 +57,13 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -224,7 +86,7 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -237,11 +99,8 @@ class CloudDataFusionRestartInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        instance = hook.wait_for_operation(operation)
+        hook.wait_for_operation(operation)
         self.log.info("Instance %s restarted successfully", self.instance_name)
-
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
 
 
 class CloudDataFusionDeleteInstanceOperator(BaseOperator):
@@ -253,13 +112,19 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionDeleteInstanceOperator`
 
     :param instance_name: The name of the instance to restart.
+    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
+    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -268,9 +133,10 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "impersonation_chain",
     )
@@ -296,7 +162,7 @@ class CloudDataFusionDeleteInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -322,15 +188,22 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionCreateInstanceOperator`
 
     :param instance_name: The name of the instance to create.
+    :type instance_name: str
     :param instance: An instance of Instance.
         https://cloud.google.com/data-fusion/docs/reference/rest/v1beta1/projects.locations.instances#Instance
+    :type instance: Dict[str, Any]
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
+    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -339,14 +212,14 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "instance",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -371,7 +244,7 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -403,9 +276,6 @@ class CloudDataFusionCreateInstanceOperator(BaseOperator):
                 instance = hook.get_instance(
                     instance_name=self.instance_name, location=self.location, project_id=self.project_id
                 )
-
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
         return instance
 
 
@@ -418,21 +288,29 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionUpdateInstanceOperator`
 
     :param instance_name: The name of the instance to create.
+    :type instance_name: str
     :param instance: An instance of Instance.
         https://cloud.google.com/data-fusion/docs/reference/rest/v1beta1/projects.locations.instances#Instance
+    :type instance: Dict[str, Any]
     :param update_mask: Field mask is used to specify the fields that the update will overwrite
         in an instance resource. The fields specified in the updateMask are relative to the resource,
         not the full request. A field will be overwritten if it is in the mask. If the user does not
         provide a mask, all the supported fields (labels and options currently) will be overwritten.
         A comma-separated list of fully qualified names of fields. Example: "user.displayName,photo".
         https://developers.google.com/protocol-buffers/docs/reference/google.protobuf?_ga=2.205612571.-968688242.1573564810#google.protobuf.FieldMask
+    :type update_mask: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
+    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -441,14 +319,14 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "instance",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -475,7 +353,7 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -490,11 +368,8 @@ class CloudDataFusionUpdateInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-        instance = hook.wait_for_operation(operation)
+        hook.wait_for_operation(operation)
         self.log.info("Instance %s updated successfully", self.instance_name)
-
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
 
 
 class CloudDataFusionGetInstanceOperator(BaseOperator):
@@ -506,13 +381,19 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionGetInstanceOperator`
 
     :param instance_name: The name of the instance.
+    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
+    :type project_id: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -521,13 +402,13 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionInstanceLink(),)
 
     def __init__(
         self,
@@ -550,7 +431,7 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -563,9 +444,6 @@ class CloudDataFusionGetInstanceOperator(BaseOperator):
             location=self.location,
             project_id=self.project_id,
         )
-
-        project_id = self.project_id or DataFusionPipelineLinkHelper.get_project_id(instance)
-        DataFusionInstanceLink.persist(context=context, task_instance=self, project_id=project_id)
         return instance
 
 
@@ -578,18 +456,26 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionCreatePipelineOperator`
 
     :param pipeline_name: Your pipeline name.
+    :type pipeline_name: str
     :param pipeline: The pipeline definition. For more information check:
         https://docs.cdap.io/cdap/current/en/developer-manual/pipelines/developing-pipelines.html#pipeline-configuration-file-format
+    :type pipeline: Dict[str, Any]
     :param instance_name: The name of the instance.
+    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
+    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -598,14 +484,14 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "pipeline_name",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -634,7 +520,7 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -654,8 +540,6 @@ class CloudDataFusionCreatePipelineOperator(BaseOperator):
             instance_url=api_url,
             namespace=self.namespace,
         )
-
-        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
         self.log.info("Pipeline created")
 
 
@@ -668,17 +552,25 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionDeletePipelineOperator`
 
     :param pipeline_name: Your pipeline name.
+    :type pipeline_name: str
     :param version_id: Version of pipeline to delete
+    :type version_id: Optional[str]
     :param instance_name: The name of the instance.
+    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
+    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -687,9 +579,10 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "version_id",
         "pipeline_name",
@@ -723,7 +616,7 @@ class CloudDataFusionDeletePipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -756,17 +649,25 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
 
 
     :param instance_name: The name of the instance.
+    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param artifact_version: Artifact version to filter instances
+    :type artifact_version: Optional[str]
     :param artifact_name: Artifact name to filter instances
+    :type artifact_name: Optional[str]
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
+    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -775,15 +676,15 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "artifact_name",
         "artifact_version",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionPipelinesLink(),)
 
     def __init__(
         self,
@@ -812,7 +713,7 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -833,8 +734,6 @@ class CloudDataFusionListPipelinesOperator(BaseOperator):
             artifact_name=self.artifact_name,
         )
         self.log.info("%s", pipelines)
-
-        DataFusionPipelinesLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
         return pipelines
 
 
@@ -847,21 +746,31 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionStartPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
+    :type pipeline_name: str
     :param instance_name: The name of the instance.
+    :type instance_name: str
     :param success_states: If provided the operator will wait for pipeline to be in one of
         the provided states.
+    :type success_states: List[str]
     :param pipeline_timeout: How long (in seconds) operator should wait for the pipeline to be in one of
         ``success_states``. Works only if ``success_states`` are provided.
+    :type pipeline_timeout: int
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param runtime_args: Optional runtime args to be passed to the pipeline
+    :type runtime_args: dict
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
+    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -870,18 +779,19 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     :param asynchronous: Flag to return after submitting the pipeline Id to the Data Fusion API.
         This is useful for submitting long running pipelines and
         waiting on them asynchronously using the CloudDataFusionPipelineStateSensor
+    :type asynchronous: bool
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "pipeline_name",
         "runtime_args",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -892,7 +802,7 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         runtime_args: Optional[Dict[str, Any]] = None,
         success_states: Optional[List[str]] = None,
         namespace: str = "default",
-        pipeline_timeout: int = 5 * 60,
+        pipeline_timeout: int = 10 * 60,
         project_id: Optional[str] = None,
         api_version: str = "v1beta1",
         gcp_conn_id: str = "google_cloud_default",
@@ -913,14 +823,15 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
         self.asynchronous = asynchronous
-        self.pipeline_timeout = pipeline_timeout
 
         if success_states:
             self.success_states = success_states
+            self.pipeline_timeout = pipeline_timeout
         else:
             self.success_states = SUCCESS_STATES + [PipelineStates.RUNNING]
+            self.pipeline_timeout = 5 * 60
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: dict) -> str:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
@@ -941,8 +852,6 @@ class CloudDataFusionStartPipelineOperator(BaseOperator):
             runtime_args=self.runtime_args,
         )
         self.log.info("Pipeline %s submitted successfully.", pipeline_id)
-
-        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
 
         if not self.asynchronous:
             self.log.info("Waiting when pipeline %s will be in one of the success states", pipeline_id)
@@ -967,16 +876,23 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         :ref:`howto/operator:CloudDataFusionStopPipelineOperator`
 
     :param pipeline_name: Your pipeline name.
+    :type pipeline_name: str
     :param instance_name: The name of the instance.
+    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
+    :type location: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
+    :type namespace: str
     :param api_version: The version of the api that will be requested for example 'v3'.
+    :type api_version: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -985,14 +901,14 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "instance_name",
         "pipeline_name",
         "impersonation_chain",
     )
-    operator_extra_links = (DataFusionPipelineLink(),)
 
     def __init__(
         self,
@@ -1019,25 +935,23 @@ class CloudDataFusionStopPipelineOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = DataFusionHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
         )
-        self.log.info("Data Fusion pipeline: %s is going to be stopped", self.pipeline_name)
+        self.log.info("Starting Data Fusion pipeline: %s", self.pipeline_name)
         instance = hook.get_instance(
             instance_name=self.instance_name,
             location=self.location,
             project_id=self.project_id,
         )
         api_url = instance["apiEndpoint"]
-
-        DataFusionPipelineLink.persist(context=context, task_instance=self, uri=instance["serviceEndpoint"])
         hook.stop_pipeline(
             pipeline_name=self.pipeline_name,
             instance_url=api_url,
             namespace=self.namespace,
         )
-        self.log.info("Pipeline stopped")
+        self.log.info("Pipeline started")

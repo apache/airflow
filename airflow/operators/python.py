@@ -24,7 +24,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Union
 
 import dill
 
@@ -32,7 +32,7 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
 from airflow.models.taskinstance import _CURRENT_CONTEXT
-from airflow.utils.context import Context, context_copy_partial, context_merge
+from airflow.utils.context import Context
 from airflow.utils.operator_helpers import KeywordParameters
 from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
@@ -49,13 +49,17 @@ def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[
     def my_task()
 
     :param python_callable: A reference to an object that is callable
+    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function (templated)
+    :type op_kwargs: dict
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable (templated)
+    :type op_args: list
     :param multiple_outputs: if set, function return value will be
         unrolled to multiple XCom values. Dict will unroll to xcom values with keys as keys.
         Defaults to False.
+    :type multiple_outputs: bool
     :return:
     """
     # To maintain backwards compatibility, we import the task object into this file
@@ -105,30 +109,31 @@ class PythonOperator(BaseOperator):
 
 
     :param python_callable: A reference to an object that is callable
+    :type python_callable: python callable
     :param op_kwargs: a dictionary of keyword arguments that will get unpacked
         in your function
+    :type op_kwargs: dict (templated)
     :param op_args: a list of positional arguments that will get unpacked when
         calling your callable
+    :type op_args: list (templated)
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied. (templated)
+    :type templates_dict: dict[str]
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
-    :param show_return_value_in_logs: a bool value whether to show return_value
-        logs. Defaults to True, which allows return value log output.
-        It can be set to False to prevent log output of return value when you return huge data
-        such as transmission a large amount of XCom to TaskAPI.
+    :type templates_exts: list[str]
     """
 
-    template_fields: Sequence[str] = ('templates_dict', 'op_args', 'op_kwargs')
+    template_fields = ('templates_dict', 'op_args', 'op_kwargs')
     template_fields_renderers = {"templates_dict": "json", "op_args": "py", "op_kwargs": "py"}
     BLUE = '#ffefeb'
     ui_color = BLUE
 
     # since we won't mutate the arguments, we should just do the shallow copy
     # there are some cases we can't deepcopy the objects(e.g protobuf).
-    shallow_copy_attrs: Sequence[str] = (
+    shallow_copy_attrs = (
         'python_callable',
         'op_kwargs',
     )
@@ -139,9 +144,8 @@ class PythonOperator(BaseOperator):
         python_callable: Callable,
         op_args: Optional[Collection[Any]] = None,
         op_kwargs: Optional[Mapping[str, Any]] = None,
-        templates_dict: Optional[Dict[str, Any]] = None,
-        templates_exts: Optional[Sequence[str]] = None,
-        show_return_value_in_logs: bool = True,
+        templates_dict: Optional[Dict] = None,
+        templates_exts: Optional[List[str]] = None,
         **kwargs,
     ) -> None:
         if kwargs.get("provide_context"):
@@ -160,18 +164,15 @@ class PythonOperator(BaseOperator):
         self.templates_dict = templates_dict
         if templates_exts:
             self.template_ext = templates_exts
-        self.show_return_value_in_logs = show_return_value_in_logs
 
-    def execute(self, context: Context) -> Any:
-        context_merge(context, self.op_kwargs, templates_dict=self.templates_dict)
+    def execute(self, context: Dict):
+        context.update(self.op_kwargs)
+        context['templates_dict'] = self.templates_dict
+
         self.op_kwargs = self.determine_kwargs(context)
 
         return_value = self.execute_callable()
-        if self.show_return_value_in_logs:
-            self.log.info("Done. Returned value was: %s", return_value)
-        else:
-            self.log.info("Done. Returned value not shown")
-
+        self.log.info("Done. Returned value was: %s", return_value)
         return return_value
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -201,7 +202,7 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
     to be inferred.
     """
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Dict):
         branch = super().execute(context)
         # TODO: The logic should be moved to SkipMixin to be available to all branch operators.
         if isinstance(branch, str):
@@ -222,57 +223,32 @@ class BranchPythonOperator(PythonOperator, SkipMixin):
 
 class ShortCircuitOperator(PythonOperator, SkipMixin):
     """
-    Allows a pipeline to continue based on the result of a ``python_callable``.
+    Allows a workflow to continue only if a condition is met. Otherwise, the
+    workflow "short-circuits" and downstream tasks are skipped.
 
-    The ShortCircuitOperator is derived from the PythonOperator and evaluates the result of a
-    ``python_callable``. If the returned result is False or a falsy value, the pipeline will be
-    short-circuited. Downstream tasks will be marked with a state of "skipped" based on the short-circuiting
-    mode configured. If the returned result is True or a truthy value, downstream tasks proceed as normal and
-    an ``XCom`` of the returned result is pushed.
+    The ShortCircuitOperator is derived from the PythonOperator. It evaluates a
+    condition and short-circuits the workflow if the condition is False. Any
+    downstream tasks are marked with a state of "skipped". If the condition is
+    True, downstream tasks proceed as normal.
 
-    The short-circuiting can be configured to either respect or ignore the ``trigger_rule`` set for
-    downstream tasks. If ``ignore_downstream_trigger_rules`` is set to True, the default setting, all
-    downstream tasks are skipped without considering the ``trigger_rule`` defined for tasks. However, if this
-    parameter is set to False, the direct downstream tasks are skipped but the specified ``trigger_rule`` for
-    other subsequent downstream tasks are respected. In this mode, the operator assumes the direct downstream
-    tasks were purposely meant to be skipped but perhaps not other subsequent tasks.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:ShortCircuitOperator`
-
-    :param ignore_downstream_trigger_rules: If set to True, all downstream tasks from this operator task will
-        be skipped. This is the default behavior. If set to False, the direct, downstream task(s) will be
-        skipped but the ``trigger_rule`` defined for a other downstream tasks will be respected.
+    The condition is determined by the result of `python_callable`.
     """
 
-    def __init__(self, *, ignore_downstream_trigger_rules: bool = True, **kwargs) -> None:
-        super().__init__(**kwargs)
-        self.ignore_downstream_trigger_rules = ignore_downstream_trigger_rules
-
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Dict):
         condition = super().execute(context)
         self.log.info("Condition result is %s", condition)
 
         if condition:
             self.log.info('Proceeding with downstream tasks...')
-            return condition
+            return
 
-        downstream_tasks = context['task'].get_flat_relatives(upstream=False)
-        self.log.debug("Downstream task IDs %s", downstream_tasks)
+        self.log.info('Skipping downstream tasks...')
+
+        downstream_tasks = context["task"].get_flat_relatives(upstream=False)
+        self.log.debug("Downstream task_ids %s", downstream_tasks)
 
         if downstream_tasks:
-            dag_run = context["dag_run"]
-            execution_date = dag_run.execution_date
-
-            if self.ignore_downstream_trigger_rules is True:
-                self.log.info("Skipping all downstream tasks...")
-                self.skip(dag_run, execution_date, downstream_tasks)
-            else:
-                self.log.info("Skipping downstream tasks while respecting trigger rules...")
-                # Explicitly setting the state of the direct, downstream task(s) to "skipped" and letting the
-                # Scheduler handle the remaining downstream task(s) appropriately.
-                self.skip(dag_run, execution_date, context["task"].get_direct_relatives(upstream=False))
+            self.skip(context["dag_run"], context["logical_date"], downstream_tasks)
 
         self.log.info("Done.")
 
@@ -298,31 +274,38 @@ class PythonVirtualenvOperator(PythonOperator):
 
     :param python_callable: A python function with no references to outside variables,
         defined with def, which will be run in a virtualenv
-    :param requirements: Either a list of requirement strings, or a (templated)
-        "requirements file" as specified by pip.
+    :type python_callable: function
+    :param requirements: A list of requirements as specified in a pip install command
+    :type requirements: list[str]
     :param python_version: The Python version to run the virtualenv with. Note that
         both 2 and 2.7 are acceptable forms.
+    :type python_version: Optional[Union[str, int, float]]
     :param use_dill: Whether to use dill to serialize
         the args and result (pickle is default). This allow more complex types
         but requires you to include dill in your requirements.
+    :type use_dill: bool
     :param system_site_packages: Whether to include
         system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
+    :type system_site_packages: bool
     :param op_args: A list of positional arguments to pass to python_callable.
+    :type op_args: list
     :param op_kwargs: A dict of keyword arguments to pass to python_callable.
+    :type op_kwargs: dict
     :param string_args: Strings that are present in the global var virtualenv_string_args,
         available to python_callable at runtime as a list[str]. Note that args are split
         by newline.
+    :type string_args: list[str]
     :param templates_dict: a dictionary where the values are templates that
         will get templated by the Airflow engine sometime between
         ``__init__`` and ``execute`` takes place and are made available
         in your callable's context after the template has been applied
+    :type templates_dict: dict of str
     :param templates_exts: a list of file extensions to resolve while
         processing templated fields, for examples ``['.sql', '.hql']``
+    :type templates_exts: list[str]
     """
 
-    template_fields: Sequence[str] = ('requirements',)
-    template_ext: Sequence[str] = ('.txt',)
     BASE_SERIALIZABLE_CONTEXT_KEYS = {
         'ds',
         'ds_nodash',
@@ -361,7 +344,7 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Union[None, Iterable[str], str] = None,
+        requirements: Optional[Iterable[str]] = None,
         python_version: Optional[Union[str, int, float]] = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
@@ -397,21 +380,19 @@ class PythonVirtualenvOperator(PythonOperator):
             templates_exts=templates_exts,
             **kwargs,
         )
-        if not requirements:
-            self.requirements: Union[List[str], str] = []
-        elif isinstance(requirements, str):
-            self.requirements = requirements
-        else:
-            self.requirements = list(requirements)
+        self.requirements = list(requirements or [])
         self.string_args = string_args or []
         self.python_version = python_version
         self.use_dill = use_dill
         self.system_site_packages = system_site_packages
+        if not self.system_site_packages:
+            if self.use_dill and 'dill' not in self.requirements:
+                self.requirements.append('dill')
         self.pickling_library = dill if self.use_dill else pickle
 
-    def execute(self, context: Context) -> Any:
+    def execute(self, context: Context):
         serializable_keys = set(self._iter_serializable_context_keys())
-        serializable_context = context_copy_partial(context, serializable_keys)
+        serializable_context = context.copy_only(serializable_keys)
         return super().execute(context=serializable_context)
 
     def determine_kwargs(self, context: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -419,19 +400,6 @@ class PythonVirtualenvOperator(PythonOperator):
 
     def execute_callable(self):
         with TemporaryDirectory(prefix='venv') as tmp_dir:
-            requirements_file_name = f'{tmp_dir}/requirements.txt'
-
-            if not isinstance(self.requirements, str):
-                requirements_file_contents = "\n".join(str(dependency) for dependency in self.requirements)
-            else:
-                requirements_file_contents = self.requirements
-
-            if not self.system_site_packages and self.use_dill:
-                requirements_file_contents += '\ndill'
-
-            with open(requirements_file_name, 'w') as file:
-                file.write(requirements_file_contents)
-
             if self.templates_dict:
                 self.op_kwargs['templates_dict'] = self.templates_dict
 
@@ -444,7 +412,7 @@ class PythonVirtualenvOperator(PythonOperator):
                 venv_directory=tmp_dir,
                 python_bin=f'python{self.python_version}' if self.python_version else None,
                 system_site_packages=self.system_site_packages,
-                requirements_file_path=requirements_file_name,
+                requirements=self.requirements,
             )
 
             self._write_args(input_filename)

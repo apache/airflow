@@ -19,13 +19,6 @@
 import os
 import subprocess
 import threading
-
-from airflow.utils.platform import IS_WINDOWS
-
-if not IS_WINDOWS:
-    # ignored to avoid flake complaining on Linux
-    from pwd import getpwnam  # noqa
-
 from tempfile import NamedTemporaryFile
 from typing import Optional, Union
 
@@ -47,6 +40,7 @@ class BaseTaskRunner(LoggingMixin):
 
     :param local_task_job: The local task job associated with running the
         associated task instance.
+    :type local_task_job: airflow.jobs.local_task_job.LocalTaskJob
     """
 
     def __init__(self, local_task_job):
@@ -132,6 +126,7 @@ class BaseTaskRunner(LoggingMixin):
         Run the task command.
 
         :param run_with: list of tokens to run the task command with e.g. ``['bash', '-c']``
+        :type run_with: list
         :return: the process that was run
         :rtype: subprocess.Popen
         """
@@ -141,25 +136,15 @@ class BaseTaskRunner(LoggingMixin):
         self.log.info("Running on host: %s", get_hostname())
         self.log.info('Running: %s', full_cmd)
 
-        if IS_WINDOWS:
-            proc = subprocess.Popen(
-                full_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True,
-                close_fds=True,
-                env=os.environ.copy(),
-            )
-        else:
-            proc = subprocess.Popen(
-                full_cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
-                universal_newlines=True,
-                close_fds=True,
-                env=os.environ.copy(),
-                preexec_fn=os.setsid,
-            )
+        proc = subprocess.Popen(
+            full_cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            universal_newlines=True,
+            close_fds=True,
+            env=os.environ.copy(),
+            preexec_fn=os.setsid,
+        )
 
         # Start daemon thread to read subprocess logging output
         log_reader = threading.Thread(

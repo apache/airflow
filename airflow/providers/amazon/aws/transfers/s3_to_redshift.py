@@ -16,17 +16,13 @@
 # under the License.
 
 import warnings
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import List, Optional, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
+from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 AVAILABLE_METHODS = ['APPEND', 'REPLACE', 'UPSERT']
 
@@ -40,14 +36,20 @@ class S3ToRedshiftOperator(BaseOperator):
         :ref:`howto/operator:S3ToRedshiftOperator`
 
     :param schema: reference to a specific schema in redshift database
+    :type schema: str
     :param table: reference to a specific table in redshift database
+    :type table: str
     :param s3_bucket: reference to a specific S3 bucket
+    :type s3_bucket: str
     :param s3_key: reference to a specific S3 key
+    :type s3_key: str
     :param redshift_conn_id: reference to a specific redshift database
+    :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
         https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
+    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -58,14 +60,19 @@ class S3ToRedshiftOperator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
+    :type verify: bool or str
     :param column_list: list of column names to load
+    :type column_list: List[str]
     :param copy_options: reference to a list of COPY options
+    :type copy_options: list
     :param method: Action to be performed on execution. Available ``APPEND``, ``UPSERT`` and ``REPLACE``.
+    :type method: str
     :param upsert_keys: List of fields to use as key on upsert action
+    :type upsert_keys: List[str]
     """
 
-    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
-    template_ext: Sequence[str] = ()
+    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'column_list', 'copy_options')
+    template_ext = ()
     ui_color = '#99e699'
 
     def __init__(
@@ -123,8 +130,32 @@ class S3ToRedshiftOperator(BaseOperator):
                     {copy_options};
         """
 
-    def execute(self, context: 'Context') -> None:
-        redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
+    def _get_table_primary_key(self, postgres_hook):
+        sql = """
+            select kcu.column_name
+            from information_schema.table_constraints tco
+                    join information_schema.key_column_usage kcu
+                        on kcu.constraint_name = tco.constraint_name
+                            and kcu.constraint_schema = tco.constraint_schema
+                            and kcu.constraint_name = tco.constraint_name
+            where tco.constraint_type = 'PRIMARY KEY'
+            and kcu.table_schema = %s
+            and kcu.table_name = %s
+        """
+
+        result = postgres_hook.get_records(sql, (self.schema, self.table))
+
+        if len(result) == 0:
+            raise AirflowException(
+                f"""
+                No primary key on {self.schema}.{self.table}.
+                Please provide keys on 'upsert_keys' parameter.
+                """
+            )
+        return [row[0] for row in result]
+
+    def execute(self, context) -> None:
+        postgres_hook = PostgresHook(postgres_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
 
         credentials_block = None
@@ -141,30 +172,31 @@ class S3ToRedshiftOperator(BaseOperator):
 
         copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
 
-        sql: Union[list, str]
-
         if self.method == 'REPLACE':
-            sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]
+            sql = f"""
+            BEGIN;
+            DELETE FROM {destination};
+            {copy_statement}
+            COMMIT
+            """
         elif self.method == 'UPSERT':
-            keys = self.upsert_keys or redshift_hook.get_table_primary_key(self.table, self.schema)
+            keys = self.upsert_keys or postgres_hook.get_table_primary_key(self.table, self.schema)
             if not keys:
                 raise AirflowException(
                     f"No primary key on {self.schema}.{self.table}. Please provide keys on 'upsert_keys'"
                 )
             where_statement = ' AND '.join([f'{self.table}.{k} = {copy_destination}.{k}' for k in keys])
-
-            sql = [
-                f"CREATE TABLE {copy_destination} (LIKE {destination});",
-                copy_statement,
-                "BEGIN;",
-                f"DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};",
-                f"INSERT INTO {destination} SELECT * FROM {copy_destination};",
-                "COMMIT",
-            ]
-
+            sql = f"""
+            CREATE TABLE {copy_destination} (LIKE {destination});
+            {copy_statement}
+            BEGIN;
+            DELETE FROM {destination} USING {copy_destination} WHERE {where_statement};
+            INSERT INTO {destination} SELECT * FROM {copy_destination};
+            COMMIT
+            """
         else:
             sql = copy_statement
 
         self.log.info('Executing COPY command...')
-        redshift_hook.run(sql, autocommit=self.autocommit)
+        postgres_hook.run(sql, self.autocommit)
         self.log.info("COPY command complete...")

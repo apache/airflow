@@ -41,8 +41,6 @@ https://airflow.apache.org/concepts.html#variables
 """
 
 import os
-from datetime import datetime
-from typing import Any, Dict
 
 from airflow import models
 from airflow.providers.google.cloud.operators.functions import (
@@ -50,18 +48,22 @@ from airflow.providers.google.cloud.operators.functions import (
     CloudFunctionDeployFunctionOperator,
     CloudFunctionInvokeFunctionOperator,
 )
+from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_LOCATION = os.environ.get('GCP_LOCATION', 'europe-west1')
-# make sure there are no dashes in function name (!)
-GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello').replace("-", "_")
-FUNCTION_NAME = f'projects/{GCP_PROJECT_ID}/locations/{GCP_LOCATION}/functions/{GCF_SHORT_FUNCTION_NAME}'
+GCF_SHORT_FUNCTION_NAME = os.environ.get('GCF_SHORT_FUNCTION_NAME', 'hello').replace(
+    "-", "_"
+)  # make sure there are no dashes in function name (!)
+FUNCTION_NAME = 'projects/{}/locations/{}/functions/{}'.format(
+    GCP_PROJECT_ID, GCP_LOCATION, GCF_SHORT_FUNCTION_NAME
+)
 GCF_SOURCE_ARCHIVE_URL = os.environ.get('GCF_SOURCE_ARCHIVE_URL', '')
 GCF_SOURCE_UPLOAD_URL = os.environ.get('GCF_SOURCE_UPLOAD_URL', '')
 GCF_SOURCE_REPOSITORY = os.environ.get(
     'GCF_SOURCE_REPOSITORY',
-    f'https://source.developers.google.com/projects/{GCP_PROJECT_ID}/'
-    f'repos/hello-world/moveable-aliases/master',
+    'https://source.developers.google.com/'
+    'projects/{}/repos/hello-world/moveable-aliases/master'.format(GCP_PROJECT_ID),
 )
 GCF_ZIP_PATH = os.environ.get('GCF_ZIP_PATH', '')
 GCF_ENTRYPOINT = os.environ.get('GCF_ENTRYPOINT', 'helloWorld')
@@ -73,7 +75,7 @@ body = {"name": FUNCTION_NAME, "entryPoint": GCF_ENTRYPOINT, "runtime": GCF_RUNT
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
-default_args: Dict[str, Any] = {'retries': 3}
+default_args = {'retries': '3'}
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]
@@ -95,8 +97,7 @@ with models.DAG(
     'example_gcp_function',
     default_args=default_args,
     schedule_interval='@once',  # Override to match your needs
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_gcf_deploy]

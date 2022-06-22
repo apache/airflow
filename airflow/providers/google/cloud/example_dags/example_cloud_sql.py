@@ -28,7 +28,6 @@ https://airflow.apache.org/concepts.html#variables
 """
 
 import os
-from datetime import datetime
 from urllib.parse import urlsplit
 
 from airflow import models
@@ -46,6 +45,7 @@ from airflow.providers.google.cloud.operators.gcs import (
     GCSBucketCreateAclEntryOperator,
     GCSObjectCreateAclEntryOperator,
 )
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 INSTANCE_NAME = os.environ.get('GCSQL_MYSQL_INSTANCE_NAME', 'test-mysql')
@@ -139,8 +139,7 @@ db_patch_body = {"charset": "utf16", "collation": "utf16_general_ci"}
 with models.DAG(
     'example_gcp_sql',
     schedule_interval='@once',  # Override to match your needs
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # ############################################## #

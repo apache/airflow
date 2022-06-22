@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+
 """
-A client for AWS Batch services
+A client for AWS batch services
 
 .. seealso::
 
@@ -24,7 +25,7 @@ A client for AWS Batch services
     - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     - https://docs.aws.amazon.com/batch/latest/APIReference/Welcome.html
 """
-import warnings
+
 from random import uniform
 from time import sleep
 from typing import Dict, List, Optional, Union
@@ -39,10 +40,10 @@ from airflow.typing_compat import Protocol, runtime_checkable
 
 
 @runtime_checkable
-class BatchProtocol(Protocol):
+class AwsBatchProtocol(Protocol):
     """
     A structured Protocol for ``boto3.client('batch') -> botocore.client.Batch``.
-    This is used for type hints on :py:meth:`.BatchClient.client`; it covers
+    This is used for type hints on :py:meth:`.AwsBatchClient.client`; it covers
     only the subset of client methods required.
 
     .. seealso::
@@ -53,9 +54,10 @@ class BatchProtocol(Protocol):
 
     def describe_jobs(self, jobs: List[str]) -> Dict:
         """
-        Get job descriptions from AWS Batch
+        Get job descriptions from AWS batch
 
         :param jobs: a list of JobId to describe
+        :type jobs: List[str]
 
         :return: an API response to describe jobs
         :rtype: Dict
@@ -69,12 +71,13 @@ class BatchProtocol(Protocol):
         :param waiterName: The name of the waiter.  The name should match
             the name (including the casing) of the key name in the waiter
             model file (typically this is CamelCasing).
+        :type waiterName: str
 
-        :return: a waiter object for the named AWS Batch service
+        :return: a waiter object for the named AWS batch service
         :rtype: botocore.waiter.Waiter
 
         .. note::
-            AWS Batch might not have any waiters (until botocore PR-1307 is released).
+            AWS batch might not have any waiters (until botocore PR-1307 is released).
 
             .. code-block:: python
 
@@ -100,21 +103,28 @@ class BatchProtocol(Protocol):
         tags: Dict,
     ) -> Dict:
         """
-        Submit a Batch job
+        Submit a batch job
 
-        :param jobName: the name for the AWS Batch job
+        :param jobName: the name for the AWS batch job
+        :type jobName: str
 
         :param jobQueue: the queue name on AWS Batch
+        :type jobQueue: str
 
         :param jobDefinition: the job definition name on AWS Batch
+        :type jobDefinition: str
 
         :param arrayProperties: the same parameter that boto3 will receive
+        :type arrayProperties: Dict
 
         :param parameters: the same parameter that boto3 will receive
+        :type parameters: Dict
 
         :param containerOverrides: the same parameter that boto3 will receive
+        :type containerOverrides: Dict
 
         :param tags: the same parameter that boto3 will receive
+        :type tags: Dict
 
         :return: an API response
         :rtype: Dict
@@ -123,11 +133,13 @@ class BatchProtocol(Protocol):
 
     def terminate_job(self, jobId: str, reason: str) -> Dict:
         """
-        Terminate a Batch job
+        Terminate a batch job
 
         :param jobId: a job ID to terminate
+        :type jobId: str
 
         :param reason: a reason to terminate job ID
+        :type reason: str
 
         :return: an API response
         :rtype: Dict
@@ -139,15 +151,17 @@ class BatchProtocol(Protocol):
 # all the Airflow wrappers of boto3 clients should not adopt invalid-names to match boto3.
 
 
-class BatchClientHook(AwsBaseHook):
+class AwsBatchClientHook(AwsBaseHook):
     """
-    A client for AWS Batch services.
+    A client for AWS batch services.
 
     :param max_retries: exponential back-off retries, 4200 = 48 hours;
         polling is only used when waiters is None
+    :type max_retries: Optional[int]
 
     :param status_retries: number of HTTP retries to get job status, 10;
         polling is only used when waiters is None
+    :type status_retries: Optional[int]
 
     .. note::
         Several methods use a default random delay to check or poll for job status, i.e.
@@ -156,17 +170,17 @@ class BatchClientHook(AwsBaseHook):
         when many concurrent tasks request job-descriptions.
 
         To modify the global defaults for the range of jitter allowed when a
-        random delay is used to check Batch job status, modify these defaults, e.g.:
+        random delay is used to check batch job status, modify these defaults, e.g.:
         .. code-block::
 
-            BatchClient.DEFAULT_DELAY_MIN = 0
-            BatchClient.DEFAULT_DELAY_MAX = 5
+            AwsBatchClient.DEFAULT_DELAY_MIN = 0
+            AwsBatchClient.DEFAULT_DELAY_MAX = 5
 
         When explicit delay values are used, a 1 second random jitter is applied to the
         delay (e.g. a delay of 0 sec will be a ``random.uniform(0, 1)`` delay.  It is
         generally recommended that random jitter is added to API requests.  A
         convenience method is provided for this, e.g. to get a random delay of
-        10 sec +/- 5 sec: ``delay = BatchClient.add_jitter(10, width=5, minima=0)``
+        10 sec +/- 5 sec: ``delay = AwsBatchClient.add_jitter(10, width=5, minima=0)``
 
     .. seealso::
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/batch.html
@@ -181,17 +195,6 @@ class BatchClientHook(AwsBaseHook):
     DEFAULT_DELAY_MIN = 1
     DEFAULT_DELAY_MAX = 10
 
-    FAILURE_STATE = 'FAILED'
-    SUCCESS_STATE = 'SUCCEEDED'
-    RUNNING_STATE = 'RUNNING'
-    INTERMEDIATE_STATES = (
-        'SUBMITTED',
-        'PENDING',
-        'RUNNABLE',
-        'STARTING',
-        RUNNING_STATE,
-    )
-
     def __init__(
         self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
     ) -> None:
@@ -201,22 +204,24 @@ class BatchClientHook(AwsBaseHook):
         self.status_retries = status_retries or self.STATUS_RETRIES
 
     @property
-    def client(self) -> Union[BatchProtocol, botocore.client.BaseClient]:
+    def client(self) -> Union[AwsBatchProtocol, botocore.client.BaseClient]:
         """
-        An AWS API client for Batch services.
+        An AWS API client for batch services.
 
         :return: a boto3 'batch' client for the ``.region_name``
-        :rtype: Union[BatchProtocol, botocore.client.BaseClient]
+        :rtype: Union[AwsBatchProtocol, botocore.client.BaseClient]
         """
         return self.conn
 
     def terminate_job(self, job_id: str, reason: str) -> Dict:
         """
-        Terminate a Batch job
+        Terminate a batch job
 
         :param job_id: a job ID to terminate
+        :type job_id: str
 
         :param reason: a reason to terminate job ID
+        :type reason: str
 
         :return: an API response
         :rtype: Dict
@@ -227,10 +232,11 @@ class BatchClientHook(AwsBaseHook):
 
     def check_job_success(self, job_id: str) -> bool:
         """
-        Check the final status of the Batch job; return True if the job
+        Check the final status of the batch job; return True if the job
         'SUCCEEDED', else raise an AirflowException
 
-        :param job_id: a Batch job ID
+        :param job_id: a batch job ID
+        :type job_id: str
 
         :rtype: bool
 
@@ -239,25 +245,27 @@ class BatchClientHook(AwsBaseHook):
         job = self.get_job_description(job_id)
         job_status = job.get("status")
 
-        if job_status == self.SUCCESS_STATE:
-            self.log.info("AWS Batch job (%s) succeeded: %s", job_id, job)
+        if job_status == "SUCCEEDED":
+            self.log.info("AWS batch job (%s) succeeded: %s", job_id, job)
             return True
 
-        if job_status == self.FAILURE_STATE:
+        if job_status == "FAILED":
             raise AirflowException(f"AWS Batch job ({job_id}) failed: {job}")
 
-        if job_status in self.INTERMEDIATE_STATES:
+        if job_status in ["SUBMITTED", "PENDING", "RUNNABLE", "STARTING", "RUNNING"]:
             raise AirflowException(f"AWS Batch job ({job_id}) is not complete: {job}")
 
         raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
     def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
         """
-        Wait for Batch job to complete
+        Wait for batch job to complete
 
-        :param job_id: a Batch job ID
+        :param job_id: a batch job ID
+        :type job_id: str
 
         :param delay: a delay before polling for job status
+        :type delay: Optional[Union[int, float]]
 
         :raises: AirflowException
         """
@@ -278,14 +286,16 @@ class BatchClientHook(AwsBaseHook):
         changes too quickly for polling to detect a RUNNING status that moves
         quickly from STARTING to RUNNING to completed (often a failure).
 
-        :param job_id: a Batch job ID
+        :param job_id: a batch job ID
+        :type job_id: str
 
         :param delay: a delay before polling for job status
+        :type delay: Optional[Union[int, float]]
 
         :raises: AirflowException
         """
         self.delay(delay)
-        running_status = [self.RUNNING_STATE, self.SUCCESS_STATE, self.FAILURE_STATE]
+        running_status = ["RUNNING", "SUCCEEDED", "FAILED"]
         self.poll_job_status(job_id, running_status)
 
     def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None) -> None:
@@ -296,24 +306,28 @@ class BatchClientHook(AwsBaseHook):
         So the status options that this will wait for are the transitions from:
         'SUBMITTED'>'PENDING'>'RUNNABLE'>'STARTING'>'RUNNING'>'SUCCEEDED'|'FAILED'
 
-        :param job_id: a Batch job ID
+        :param job_id: a batch job ID
+        :type job_id: str
 
         :param delay: a delay before polling for job status
+        :type delay: Optional[Union[int, float]]
 
         :raises: AirflowException
         """
         self.delay(delay)
-        complete_status = [self.SUCCESS_STATE, self.FAILURE_STATE]
+        complete_status = ["SUCCEEDED", "FAILED"]
         self.poll_job_status(job_id, complete_status)
 
     def poll_job_status(self, job_id: str, match_status: List[str]) -> bool:
         """
         Poll for job status using an exponential back-off strategy (with max_retries).
 
-        :param job_id: a Batch job ID
+        :param job_id: a batch job ID
+        :type job_id: str
 
-        :param match_status: a list of job status to match; the Batch job status are:
+        :param match_status: a list of job status to match; the batch job status are:
             'SUBMITTED'|'PENDING'|'RUNNABLE'|'STARTING'|'RUNNING'|'SUCCEEDED'|'FAILED'
+        :type match_status: List[str]
 
         :rtype: bool
 
@@ -352,7 +366,8 @@ class BatchClientHook(AwsBaseHook):
         """
         Get job description (using status_retries).
 
-        :param job_id: a Batch job ID
+        :param job_id: a batch job ID
+        :type job_id: str
 
         :return: an API response for describe jobs
         :rtype: Dict
@@ -375,8 +390,8 @@ class BatchClientHook(AwsBaseHook):
             retries += 1
             if retries >= self.status_retries:
                 raise AirflowException(
-                    f"AWS Batch job ({job_id}) description error: exceeded status_retries "
-                    f"({self.status_retries})"
+                    "AWS Batch job ({}) description error: exceeded "
+                    "status_retries ({})".format(job_id, self.status_retries)
                 )
 
             pause = self.exponential_delay(retries)
@@ -394,9 +409,11 @@ class BatchClientHook(AwsBaseHook):
         """
         Parse job description to extract description for job_id
 
-        :param job_id: a Batch job ID
+        :param job_id: a batch job ID
+        :type job_id: str
 
         :param response: an API response for describe jobs
+        :type response: Dict
 
         :return: an API response to describe job_id
         :rtype: Dict
@@ -418,17 +435,20 @@ class BatchClientHook(AwsBaseHook):
         Use delay +/- width for random jitter
 
         Adding jitter to status polling can help to avoid
-        AWS Batch API limits for monitoring Batch jobs with
+        AWS batch API limits for monitoring batch jobs with
         a high concurrency in Airflow tasks.
 
         :param delay: number of seconds to pause;
             delay is assumed to be a positive number
+        :type delay: Union[int, float]
 
         :param width: delay +/- width for random jitter;
             width is assumed to be a positive number
+        :type width: Union[int, float]
 
         :param minima: minimum delay allowed;
             minima is assumed to be a non-negative number
+        :type minima: Union[int, float]
 
         :return: uniform(delay - width, delay + width) jitter
             and it is a non-negative number
@@ -448,6 +468,7 @@ class BatchClientHook(AwsBaseHook):
 
         :param delay: a delay to pause execution using ``time.sleep(delay)``;
             a small 1 second jitter is applied to the delay.
+        :type delay: Optional[Union[int, float]]
 
         .. note::
             This method uses a default random delay, i.e.
@@ -456,9 +477,9 @@ class BatchClientHook(AwsBaseHook):
             when many concurrent tasks request job-descriptions.
         """
         if delay is None:
-            delay = uniform(BatchClientHook.DEFAULT_DELAY_MIN, BatchClientHook.DEFAULT_DELAY_MAX)
+            delay = uniform(AwsBatchClientHook.DEFAULT_DELAY_MIN, AwsBatchClientHook.DEFAULT_DELAY_MAX)
         else:
-            delay = BatchClientHook.add_jitter(delay)
+            delay = AwsBatchClientHook.add_jitter(delay)
         sleep(delay)
 
     @staticmethod
@@ -469,6 +490,7 @@ class BatchClientHook(AwsBaseHook):
         This is used in the :py:meth:`.poll_for_job_status` method.
 
         :param tries: Number of tries
+        :type tries: int
 
         :rtype: float
 
@@ -506,35 +528,3 @@ class BatchClientHook(AwsBaseHook):
         delay = 1 + pow(tries * 0.6, 2)
         delay = min(max_interval, delay)
         return uniform(delay / 3, delay)
-
-
-class AwsBatchProtocol(BatchProtocol, Protocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchProtocol`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class AwsBatchClientHook(BatchClientHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchClientHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.batch.BatchClientHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

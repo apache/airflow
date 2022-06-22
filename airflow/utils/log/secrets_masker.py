@@ -18,14 +18,14 @@
 import collections
 import logging
 import re
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Tuple, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Set, TypeVar, Union
 
 from airflow.compat.functools import cache, cached_property
 
 if TYPE_CHECKING:
     from airflow.typing_compat import RePatternType
 
-    RedactableItem = Union[str, Dict[Any, Any], Tuple[Any, ...], List[Any]]
+    RedactableItem = TypeVar('RedactableItem')
 
 
 log = logging.getLogger(__name__)
@@ -46,8 +46,6 @@ DEFAULT_SENSITIVE_FIELDS = frozenset(
     }
 )
 """Names of fields (Connection extra, Variable key name etc.) that are deemed sensitive"""
-
-SECRETS_TO_SKIP_MASKING_FOR_TESTS = {'airflow'}
 
 
 @cache
@@ -72,7 +70,7 @@ def should_hide_value_for_key(name):
     return False
 
 
-def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) -> None:
+def mask_secret(secret: Union[str, dict, Iterable], name: str = None) -> None:
     """
     Mask a secret from appearing in the task logs.
 
@@ -93,7 +91,7 @@ def mask_secret(secret: Union[str, dict, Iterable], name: Optional[str] = None) 
     _secrets_masker().add_mask(secret, name)
 
 
-def redact(value: "RedactableItem", name: Optional[str] = None) -> "RedactableItem":
+def redact(value: "RedactableItem", name: str = None) -> "RedactableItem":
     """Redact any secrets found in ``value``."""
     return _secrets_masker().redact(value, name)
 
@@ -234,16 +232,13 @@ class SecretsMasker(logging.Filter):
         """
         return self._redact(item, name, depth=0)
 
-    def add_mask(self, secret: Union[str, dict, Iterable], name: Optional[str] = None):
+    def add_mask(self, secret: Union[str, dict, Iterable], name: str = None):
         """Add a new secret to be masked to this filter instance."""
-        from airflow.configuration import conf
-
-        test_mode: bool = conf.getboolean('core', 'unit_test_mode')
         if isinstance(secret, dict):
             for k, v in secret.items():
                 self.add_mask(v, k)
         elif isinstance(secret, str):
-            if not secret or (test_mode and secret in SECRETS_TO_SKIP_MASKING_FOR_TESTS):
+            if not secret:
                 return
             pattern = re.escape(secret)
             if pattern not in self.patterns and (not name or should_hide_value_for_key(name)):

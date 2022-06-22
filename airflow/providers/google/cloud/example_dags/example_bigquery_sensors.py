@@ -33,6 +33,7 @@ from airflow.providers.google.cloud.sensors.bigquery import (
     BigQueryTableExistenceSensor,
     BigQueryTablePartitionExistenceSensor,
 )
+from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 DATASET_NAME = os.environ.get("GCP_BIGQUERY_DATASET_NAME", "test_sensors_dataset")
@@ -54,8 +55,7 @@ dag_id = "example_bigquery_sensors"
 with models.DAG(
     dag_id,
     schedule_interval='@once',  # Override to match your needs
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=days_ago(1),
     tags=["example"],
     user_defined_macros={"DATASET": DATASET_NAME, "TABLE": TABLE_NAME},
     default_args={"project_id": PROJECT_ID},

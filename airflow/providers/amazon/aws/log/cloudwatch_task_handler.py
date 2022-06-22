@@ -15,14 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
+
 from datetime import datetime
 
 import watchtower
 
-if sys.version_info >= (3, 8):
+try:
     from functools import cached_property
-else:
+except ImportError:
     from cached_property import cached_property
 
 from airflow.configuration import conf
@@ -37,9 +37,12 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     It extends airflow FileTaskHandler and uploads to and reads from Cloudwatch.
 
     :param base_log_folder: base folder to store logs locally
+    :type base_log_folder: str
     :param log_group_arn: ARN of the Cloudwatch log group for remote log storage
         with format ``arn:aws:logs:{region name}:{account id}:log-group:{group name}``
+    :type log_group_arn: str
     :param filename_template: template for file name (local storage) or log stream name (remote)
+    :type filename_template: str
     """
 
     def __init__(self, base_log_folder: str, log_group_arn: str, filename_template: str):
@@ -98,8 +101,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
     def _read(self, task_instance, try_number, metadata=None):
         stream_name = self._render_filename(task_instance, try_number)
         return (
-            f'*** Reading remote log from Cloudwatch log_group: {self.log_group} '
-            f'log_stream: {stream_name}.\n{self.get_cloudwatch_logs(stream_name=stream_name)}\n',
+            '*** Reading remote log from Cloudwatch log_group: {} log_stream: {}.\n{}\n'.format(
+                self.log_group, stream_name, self.get_cloudwatch_logs(stream_name=stream_name)
+            ),
             {'end_of_log': True},
         )
 
@@ -119,7 +123,9 @@ class CloudwatchTaskHandler(FileTaskHandler, LoggingMixin):
 
             return '\n'.join(self._event_to_str(event) for event in events)
         except Exception:
-            msg = f'Could not read remote logs from log_group: {self.log_group} log_stream: {stream_name}.'
+            msg = 'Could not read remote logs from log_group: {} log_stream: {}.'.format(
+                self.log_group, stream_name
+            )
             self.log.exception(msg)
             return msg
 

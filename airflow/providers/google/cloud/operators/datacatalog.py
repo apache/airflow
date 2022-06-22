@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
+from typing import Dict, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, NotFound
 from google.api_core.retry import Retry
@@ -33,9 +33,6 @@ from google.protobuf.field_mask_pb2 import FieldMask
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.datacatalog import CloudDataCatalogHook
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 
 class CloudDataCatalogCreateEntryOperator(BaseOperator):
     """
@@ -50,20 +47,29 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogCreateEntryOperator`
 
     :param location: Required. The location of the entry to create.
+    :type location: str
     :param entry_group: Required. Entry group ID under which the entry is created.
+    :type entry_group: str
     :param entry_id: Required. The id of the entry to create.
+    :type entry_id: str
     :param entry: Required. The entry to create.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.Entry`
+    :type entry: Union[Dict, google.cloud.datacatalog_v1beta1.types.Entry]
     :param project_id: The ID of the Google Cloud project that owns the entry.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If set to ``None`` or missing, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -72,9 +78,10 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "entry_id",
@@ -97,7 +104,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -114,7 +121,7 @@ class CloudDataCatalogCreateEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -157,22 +164,30 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogCreateEntryGroupOperator`
 
     :param location: Required. The location of the entry group to create.
+    :type location: str
     :param entry_group_id: Required. The id of the entry group to create. The id must begin with a letter
         or underscore, contain only English letters, numbers and underscores, and be at most 64
         characters.
+    :type entry_group_id: str
     :param entry_group: The entry group to create. Defaults to an empty entry group.
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.EntryGroup`
+    :type entry_group: Union[Dict, google.cloud.datacatalog_v1beta1.types.EntryGroup]
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -181,9 +196,10 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group_id",
         "entry_group",
@@ -204,7 +220,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -220,7 +236,7 @@ class CloudDataCatalogCreateEntryGroupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -262,21 +278,31 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogCreateTagOperator`
 
     :param location: Required. The location of the tag to create.
+    :type location: str
     :param entry_group: Required. Entry group ID under which the tag is created.
+    :type entry_group: str
     :param entry: Required. Entry group ID under which the tag is created.
+    :type entry: str
     :param tag: Required. The tag to create.
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.Tag`
+    :type tag: Union[Dict, google.cloud.datacatalog_v1beta1.types.Tag]
     :param template_id: Required. Template ID used to create tag
+    :type template_id: Optional[str]
     :param project_id: The ID of the Google Cloud project that owns the tag.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -285,9 +311,10 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "entry",
@@ -312,7 +339,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -330,7 +357,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -348,12 +375,9 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
             )
         except AlreadyExists:
             self.log.info("Tag already exists. Skipping create operation.")
-            project_id = self.project_id or hook.project_id
-            if project_id is None:
-                raise RuntimeError("The project id must be set here")
             if self.template_id:
                 template_name = DataCatalogClient.tag_template_path(
-                    project_id, self.location, self.template_id
+                    self.project_id or hook.project_id, self.location, self.template_id
                 )
             else:
                 if isinstance(self.tag, Tag):
@@ -366,7 +390,7 @@ class CloudDataCatalogCreateTagOperator(BaseOperator):
                 entry_group=self.entry_group,
                 template_name=template_name,
                 entry=self.entry,
-                project_id=project_id,
+                project_id=self.project_id,
                 retry=self.retry,
                 timeout=self.timeout,
                 metadata=self.metadata,
@@ -389,20 +413,28 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogCreateTagTemplateOperator`
 
     :param location: Required. The location of the tag template to create.
+    :type location: str
     :param tag_template_id: Required. The id of the tag template to create.
+    :type tag_template_id: str
     :param tag_template: Required. The tag template to create.
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplate`
+    :type tag_template: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplate]
     :param project_id: The ID of the Google Cloud project that owns the tag template.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -411,9 +443,10 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "tag_template_id",
         "tag_template",
@@ -434,7 +467,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -450,7 +483,7 @@ class CloudDataCatalogCreateTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -491,24 +524,33 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogCreateTagTemplateFieldOperator`
 
     :param location: Required. The location of the tag template field to create.
+    :type location: str
     :param tag_template: Required. The id of the tag template to create.
+    :type tag_template: str
     :param tag_template_field_id: Required. The ID of the tag template field to create. Field ids can
         contain letters (both uppercase and lowercase), numbers (0-9), underscores (\_) and dashes (-).
         Field IDs must be at least 1 character long and at most 128 characters long. Field IDs must also
         be unique within their template.
+    :type tag_template_field_id: str
     :param tag_template_field: Required. The tag template field to create.
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplateField`
+    :type tag_template_field: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplateField]
     :param project_id: The ID of the Google Cloud project that owns the tag template field.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -517,9 +559,10 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "tag_template",
         "tag_template_field_id",
@@ -542,7 +585,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -559,7 +602,7 @@ class CloudDataCatalogCreateTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: dict):
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -600,17 +643,25 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogDeleteEntryOperator`
 
     :param location: Required. The location of the entry to delete.
+    :type location: str
     :param entry_group: Required. Entry group ID for entries that is deleted.
+    :type entry_group: str
     :param entry: Entry ID that is deleted.
+    :type entry: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -619,9 +670,10 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "entry",
@@ -642,7 +694,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -658,7 +710,7 @@ class CloudDataCatalogDeleteEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -687,16 +739,23 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogDeleteEntryGroupOperator`
 
     :param location: Required. The location of the entry group to delete.
+    :type location: str
     :param entry_group: Entry group ID that is deleted.
+    :type entry_group: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -705,9 +764,10 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "project_id",
@@ -726,7 +786,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -741,7 +801,7 @@ class CloudDataCatalogDeleteEntryGroupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -767,18 +827,27 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogDeleteTagOperator`
 
     :param location: Required. The location of the tag to delete.
+    :type location: str
     :param entry_group: Entry group ID for tag that is deleted.
+    :type entry_group: str
     :param entry: Entry  ID for tag that is deleted.
+    :type entry: str
     :param tag: Identifier for TAG that is deleted.
+    :type tag: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -787,9 +856,10 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "entry",
@@ -812,7 +882,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -829,7 +899,7 @@ class CloudDataCatalogDeleteTagOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -857,19 +927,27 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogDeleteTagTemplateOperator`
 
     :param location: Required. The location of the tag template to delete.
+    :type location: str
     :param tag_template: ID for tag template that is deleted.
+    :type tag_template: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param force: Required. Currently, this field must always be set to ``true``. This confirms the
         deletion of any possible tags using this template. ``force = false`` will be supported in the
         future.
+    :type force: bool
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -878,9 +956,10 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "tag_template",
         "force",
@@ -901,7 +980,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -917,7 +996,7 @@ class CloudDataCatalogDeleteTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -944,18 +1023,27 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogDeleteTagTemplateFieldOperator`
 
     :param location: Required. The location of the tag template to delete.
+    :type location: str
     :param tag_template: Tag Template ID for tag template field that is deleted.
+    :type tag_template: str
     :param field: Name of field that is deleted.
+    :type field: str
     :param force: Required. This confirms the deletion of this field from any tags using this field.
+    :type force: bool
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -964,9 +1052,10 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "tag_template",
         "field",
@@ -989,7 +1078,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1006,7 +1095,7 @@ class CloudDataCatalogDeleteTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1034,17 +1123,25 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogGetEntryOperator`
 
     :param location: Required. The location of the entry to get.
+    :type location: str
     :param entry_group: Required. The entry group of the entry to get.
+    :type entry_group: str
     :param entry: The ID of the entry to get.
+    :type entry: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1053,9 +1150,10 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "entry",
@@ -1076,7 +1174,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1092,7 +1190,7 @@ class CloudDataCatalogGetEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1117,20 +1215,28 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogGetEntryGroupOperator`
 
     :param location: Required. The location of the entry group to get.
+    :type location: str
     :param entry_group: The ID of the entry group to get.
+    :type entry_group: str
     :param read_mask: The fields to return. If not set or empty, all fields are returned.
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.protobuf.field_mask_pb2.FieldMask`
+    :type read_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1139,9 +1245,10 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "read_mask",
@@ -1158,11 +1265,11 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         *,
         location: str,
         entry_group: str,
-        read_mask: FieldMask,
+        read_mask: Union[Dict, FieldMask],
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1178,7 +1285,7 @@ class CloudDataCatalogGetEntryGroupOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1203,16 +1310,23 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogGetTagTemplateOperator`
 
     :param location: Required. The location of the tag template to get.
+    :type location: str
     :param tag_template: Required. The ID of the tag template to get.
+    :type tag_template: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1221,9 +1335,10 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "tag_template",
         "project_id",
@@ -1242,7 +1357,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1257,7 +1372,7 @@ class CloudDataCatalogGetTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1281,21 +1396,30 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogListTagsOperator`
 
     :param location: Required. The location of the tags to get.
+    :type location: str
     :param entry_group: Required. The entry group of the tags to get.
+    :type entry_group: str
     :param entry: Required. The entry of the tags to get.
+    :type entry: str
     :param page_size: The maximum number of resources contained in the underlying API response. If page
         streaming is performed per- resource, this parameter does not affect the return value. If page
         streaming is performed per-page, this determines the maximum number of resources in a page.
         (Default: 100)
+    :type page_size: int
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1304,9 +1428,10 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "entry_group",
         "entry",
@@ -1329,7 +1454,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1346,7 +1471,7 @@ class CloudDataCatalogListTagsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> list:
+    def execute(self, context: dict) -> list:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1377,14 +1502,20 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
     :param linked_resource: The full name of the Google Cloud resource the Data Catalog entry
         represents. See: https://cloud.google.com/apis/design/resource\_names#full\_resource\_name. Full
         names are case-sensitive.
+    :type linked_resource: str
     :param sql_resource: The SQL name of the entry. SQL names are case-sensitive.
+    :type sql_resource: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1393,9 +1524,10 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "linked_resource",
         "sql_resource",
         "project_id",
@@ -1414,7 +1546,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1429,7 +1561,7 @@ class CloudDataCatalogLookupEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: dict) -> dict:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1452,20 +1584,29 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         :ref:`howto/operator:CloudDataCatalogRenameTagTemplateFieldOperator`
 
     :param location: Required. The location of the tag template field to rename.
+    :type location: str
     :param tag_template: The tag template ID for field that is renamed.
+    :type tag_template: str
     :param field: Required. The old ID of this tag template field. For example,
         ``my_old_field``.
+    :type field: str
     :param new_tag_template_field_id: Required. The new ID of this tag template field. For example,
         ``my_new_field``.
+    :type new_tag_template_field_id: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1474,9 +1615,10 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "location",
         "tag_template",
         "field",
@@ -1499,7 +1641,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1516,7 +1658,7 @@ class CloudDataCatalogRenameTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1551,6 +1693,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.Scope`
+    :type scope: Union[Dict, google.cloud.datacatalog_v1beta1.types.SearchCatalogRequest.Scope]
     :param query: Required. The query string in search query syntax. The query must be non-empty.
 
         Query strings can be simple as "x" or more qualified as:
@@ -1562,9 +1705,11 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         Note: Query tokens need to have a minimum of 3 characters for substring matching to work
         correctly. See `Data Catalog Search Syntax <https://cloud.google.com/data-catalog/docs/how-
         to/search-reference>`__ for more information.
+    :type query: str
     :param page_size: The maximum number of resources contained in the underlying API response. If page
         streaming is performed per-resource, this parameter does not affect the return value. If page
         streaming is performed per-page, this determines the maximum number of resources in a page.
+    :type page_size: int
     :param order_by: Specifies the ordering of results, currently supported case-sensitive choices are:
 
         -  ``relevance``, only supports descending
@@ -1572,13 +1717,18 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         -  ``last_modified_timestamp [asc|desc]``, defaults to descending if not specified
 
         If not specified, defaults to ``relevance`` descending.
+    :type order_by: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1587,9 +1737,10 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "scope",
         "query",
         "page_size",
@@ -1610,7 +1761,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         order_by: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1626,7 +1777,7 @@ class CloudDataCatalogSearchCatalogOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> list:
+    def execute(self, context: dict) -> list:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1654,23 +1805,33 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.Entry`
+    :type entry: Union[Dict, google.cloud.datacatalog_v1beta1.types.Entry]
     :param update_mask: The fields to update on the entry. If absent or empty, all modifiable fields are
         updated.
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.protobuf.field_mask_pb2.FieldMask`
+    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
     :param location: Required. The location of the entry to update.
+    :type location: str
     :param entry_group: The entry group ID for the entry that is being updated.
+    :type entry_group: str
     :param entry_id: The entry ID that is being updated.
+    :type entry_id: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1679,9 +1840,10 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "entry",
         "update_mask",
         "location",
@@ -1706,7 +1868,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1724,7 +1886,7 @@ class CloudDataCatalogUpdateEntryOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1753,23 +1915,33 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.Tag`
+    :type tag: Union[Dict, google.cloud.datacatalog_v1beta1.types.Tag]
     :param update_mask: The fields to update on the Tag. If absent or empty, all modifiable fields are
         updated. Currently the only modifiable field is the field ``fields``.
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.protobuf.field_mask_pb2.FieldMask`
+    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
     :param location: Required. The location of the tag to rename.
+    :type location: str
     :param entry_group: The entry group ID for the tag that is being updated.
+    :type entry_group: str
     :param entry: The entry ID for the tag that is being updated.
+    :type entry: str
     :param tag_id: The tag ID that is being updated.
+    :type tag_id: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1778,9 +1950,10 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "tag",
         "update_mask",
         "location",
@@ -1807,7 +1980,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1826,7 +1999,7 @@ class CloudDataCatalogUpdateTagOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1860,23 +2033,32 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplate`
+    :type tag_template: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplate]
     :param update_mask: The field mask specifies the parts of the template to overwrite.
 
         If absent or empty, all of the allowed fields above will be updated.
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.protobuf.field_mask_pb2.FieldMask`
+    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
     :param location: Required. The location of the tag template to rename.
+    :type location: str
     :param tag_template_id: Optional. The tag template ID for the entry that is being updated.
+    :type tag_template_id: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1885,9 +2067,10 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "tag_template",
         "update_mask",
         "location",
@@ -1910,7 +2093,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1927,7 +2110,7 @@ class CloudDataCatalogUpdateTagTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1955,6 +2138,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.cloud.datacatalog_v1beta1.types.TagTemplateField`
+    :type tag_template_field: Union[Dict, google.cloud.datacatalog_v1beta1.types.TagTemplateField]
     :param update_mask: The field mask specifies the parts of the template to be updated. Allowed fields:
 
         -  ``display_name``
@@ -1967,19 +2151,29 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
 
         If a dict is provided, it must be of the same form as the protobuf message
         :class:`~google.protobuf.field_mask_pb2.FieldMask`
+    :type update_mask: Union[Dict, google.protobuf.field_mask_pb2.FieldMask]
     :param tag_template_field_name: Optional. The name of the tag template field to rename.
+    :type tag_template_field_name: str
     :param location: Optional. The location of the tag to rename.
+    :type location: str
     :param tag_template: Optional. The tag template ID for tag template field to rename.
+    :type tag_template: str
     :param tag_template_field_id: Optional. The ID of tag template field to rename.
+    :type tag_template_field_id: str
     :param project_id: The ID of the Google Cloud project that owns the entry group.
         If set to ``None`` or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: Optional[str]
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will be
         retried using a default configuration.
+    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
+    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Sequence[Tuple[str, str]]
     :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
         Defaults to 'google_cloud_default'.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1988,9 +2182,10 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "tag_template_field",
         "update_mask",
         "tag_template_field_name",
@@ -2017,7 +2212,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         project_id: Optional[str] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2036,7 +2231,7 @@ class CloudDataCatalogUpdateTagTemplateFieldOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: dict) -> None:
         hook = CloudDataCatalogHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )

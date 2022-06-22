@@ -65,7 +65,7 @@ def unify_bucket_name_and_key(func: T) -> T:
     def wrapper(*args, **kwargs) -> T:
         bound_args = function_signature.bind(*args, **kwargs)
 
-        def get_key() -> str:
+        def get_key() -> Optional[str]:
             if 'key' in bound_args.arguments:
                 return 'key'
             raise ValueError('Missing key parameter!')
@@ -105,7 +105,9 @@ class OSSHook(BaseHook):
         Parses the OSS Url into a bucket name and key.
 
         :param ossurl: The OSS Url to parse.
+        :rtype ossurl: str
         :return: the parsed bucket name and key
+        :rtype: tuple of str
         """
         parsed_url = urlparse(ossurl)
 
@@ -123,7 +125,9 @@ class OSSHook(BaseHook):
         Check if object exists.
 
         :param key: the path of the object
+        :type key: str
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         :return: True if it exists and False if not.
         :rtype: bool
         """
@@ -139,6 +143,7 @@ class OSSHook(BaseHook):
         Returns a oss2.Bucket object
 
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         :return: the bucket object to the bucket name.
         :rtype: oss2.api.Bucket
         """
@@ -151,8 +156,11 @@ class OSSHook(BaseHook):
         Loads a string to OSS
 
         :param key: the path of the object
+        :type key: str
         :param content: str to set as content for the key.
+        :type content: str
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         """
         try:
             self.get_bucket(bucket_name).put_object(key, content)
@@ -170,8 +178,11 @@ class OSSHook(BaseHook):
         Upload a local file to OSS
 
         :param key: the OSS path of the object
+        :type key: str
         :param file: local file to upload.
+        :type file: str
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         """
         try:
             self.get_bucket(bucket_name).put_object_from_file(key, file)
@@ -189,8 +200,11 @@ class OSSHook(BaseHook):
         Download file from OSS
 
         :param key: key of the file-like object to download.
+        :type key: str
         :param local_file: local path + file name to save.
+        :type local_file: str
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         :return: the file name.
         :rtype: str
         """
@@ -211,7 +225,9 @@ class OSSHook(BaseHook):
         Delete object from OSS
 
         :param key: key of the object to delete.
+        :type key: str
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         """
         try:
             self.get_bucket(bucket_name).delete_object(key)
@@ -229,7 +245,9 @@ class OSSHook(BaseHook):
         Delete objects from OSS
 
         :param key: keys list of the objects to delete.
+        :type key: list of str
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         """
         try:
             self.get_bucket(bucket_name).batch_delete_objects(key)
@@ -246,6 +264,7 @@ class OSSHook(BaseHook):
         Delete bucket from OSS
 
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         """
         try:
             self.get_bucket(bucket_name).delete_bucket()
@@ -262,6 +281,7 @@ class OSSHook(BaseHook):
         Create bucket
 
         :param bucket_name: the name of the bucket
+        :type bucket_name: str
         """
         try:
             self.get_bucket(bucket_name).create_bucket()

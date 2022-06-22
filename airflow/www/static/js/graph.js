@@ -32,7 +32,6 @@ import { callModal } from './dag';
 // dagId comes from dag.html
 const dagId = getMetaValue('dag_id');
 const executionDate = getMetaValue('execution_date');
-const dagRunId = getMetaValue('dag_run_id');
 const arrange = getMetaValue('arrange');
 const taskInstancesUrl = getMetaValue('task_instances_url');
 
@@ -58,13 +57,6 @@ const stateFocusMap = {
   deferred: false,
   no_status: false,
 };
-
-const checkRunState = () => {
-  const states = Object.values(taskInstances).map((ti) => ti.state);
-  return !states.some((state) => (
-    ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1));
-};
-
 const taskTip = d3.tip()
   .attr('class', 'tooltip d3-tip')
   .html((toolTipHtml) => toolTipHtml);
@@ -154,8 +146,8 @@ function draw() {
       const task = tasks[nodeId];
       const tryNumber = taskInstances[nodeId].try_number || 0;
 
-      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true, dagRunId);
-      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined, dagRunId);
+      if (task.task_type === 'SubDagOperator') callModal(nodeId, executionDate, task.extra_links, tryNumber, true);
+      else callModal(nodeId, executionDate, task.extra_links, tryNumber, undefined);
     }
   });
 
@@ -370,11 +362,13 @@ function handleRefresh() {
         if (prevTis !== tis) {
         // eslint-disable-next-line no-global-assign
           taskInstances = JSON.parse(tis);
+          const states = Object.values(taskInstances).map((ti) => ti.state);
           updateNodesStates(taskInstances);
 
           // end refresh if all states are final
-          const isFinal = checkRunState();
-          if (isFinal) {
+          if (!states.some((state) => (
+            ['success', 'failed', 'upstream_failed', 'skipped', 'removed'].indexOf(state) === -1))
+          ) {
             $('#auto_refresh').prop('checked', false);
             clearInterval(refreshInterval);
           }
@@ -406,7 +400,7 @@ function startOrStopRefresh() {
 
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
-    // Run an initial refresh before starting interval if manually turned on
+    // Run an initial refesh before starting interval if manually turned on
     handleRefresh();
     localStorage.removeItem('disableAutoRefresh');
   } else {
@@ -416,9 +410,9 @@ $('#auto_refresh').change(() => {
 });
 
 function initRefresh() {
-  const isDisabled = localStorage.getItem('disableAutoRefresh');
-  const isFinal = checkRunState();
-  $('#auto_refresh').prop('checked', !(isDisabled || isFinal));
+  if (localStorage.getItem('disableAutoRefresh')) {
+    $('#auto_refresh').prop('checked', false);
+  }
   startOrStopRefresh();
   d3.select('#refresh_button').on('click', () => handleRefresh());
 }
@@ -433,7 +427,6 @@ function groupTooltip(node, tis) {
     ['up_for_reschedule', 0],
     ['running', 0],
     ['deferred', 0],
-    ['sensing', 0],
     ['queued', 0],
     ['scheduled', 0],
     ['skipped', 0],
@@ -639,7 +632,7 @@ function expandGroup(nodeId, node) {
   edges.forEach((edge) => {
     const sourceId = mapTaskToNode.get(edge.source_id);
     const targetId = mapTaskToNode.get(edge.target_id);
-    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId) && sourceId && targetId) {
+    if (sourceId !== targetId && !g.hasEdge(sourceId, targetId)) {
       g.setEdge(sourceId, targetId, {
         curve: d3.curveBasis,
         arrowheadClass: 'arrowhead',

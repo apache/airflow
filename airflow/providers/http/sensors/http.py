@@ -15,14 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Dict, Optional, Sequence
+from typing import Any, Callable, Dict, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.http.hooks.http import HttpHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class HttpSensor(BaseSensorOperator):
@@ -54,19 +51,27 @@ class HttpSensor(BaseSensorOperator):
 
     :param http_conn_id: The :ref:`http connection<howto/connection:http>` to run the
         sensor against
+    :type http_conn_id: str
     :param method: The HTTP request method to use
+    :type method: str
     :param endpoint: The relative part of the full url
+    :type endpoint: str
     :param request_params: The parameters to be added to the GET url
+    :type request_params: a dictionary of string key/value pairs
     :param headers: The HTTP headers to be added to the GET request
+    :type headers: a dictionary of string key/value pairs
     :param response_check: A check against the 'requests' response object.
         The callable takes the response object as the first positional argument
         and optionally any number of keyword arguments available in the context dictionary.
         It should return True for 'pass' and False otherwise.
+    :type response_check: A lambda or defined function.
     :param extra_options: Extra options for the 'requests' library, see the
         'requests' documentation (options to modify timeout, ssl, etc.)
+    :type extra_options: A dictionary of options, where key is string and value
+        depends on the option that's being modified.
     """
 
-    template_fields: Sequence[str] = ('endpoint', 'request_params', 'headers')
+    template_fields = ('endpoint', 'request_params', 'headers')
 
     def __init__(
         self,
@@ -90,7 +95,7 @@ class HttpSensor(BaseSensorOperator):
 
         self.hook = HttpHook(method=method, http_conn_id=http_conn_id)
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Dict[Any, Any]) -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
 
         self.log.info('Poking: %s', self.endpoint)

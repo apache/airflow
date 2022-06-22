@@ -14,30 +14,27 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import List, Optional
-
 from connexion import NoContent
 from flask import current_app, request
+from flask_appbuilder.security.sqla.models import User
 from marshmallow import ValidationError
-from sqlalchemy import asc, desc, func
+from sqlalchemy import func
 from werkzeug.security import generate_password_hash
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound, Unknown
-from airflow.api_connexion.parameters import check_limit, format_parameters
+from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.user_schema import (
     UserCollection,
     user_collection_item_schema,
     user_collection_schema,
     user_schema,
 )
-from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.security import permissions
-from airflow.www.fab_security.sqla.models import Role, User
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
-def get_user(*, username: str) -> APIResponse:
+def get_user(username):
     """Get a user"""
     ab_security_manager = current_app.appbuilder.sm
     user = ab_security_manager.find_user(username=username)
@@ -47,17 +44,15 @@ def get_user(*, username: str) -> APIResponse:
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
-@format_parameters({"limit": check_limit})
-def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None) -> APIResponse:
+@format_parameters({'limit': check_limit})
+def get_users(limit, order_by='id', offset=None):
     """Get users"""
     appbuilder = current_app.appbuilder
     session = appbuilder.get_session
     total_entries = session.query(func.count(User.id)).scalar()
-    direction = desc if order_by.startswith("-") else asc
     to_replace = {"user_id": "id"}
-    order_param = order_by.strip("-")
-    order_param = to_replace.get(order_param, order_param)
     allowed_filter_attrs = [
+        "user_id",
         'id',
         "first_name",
         "last_name",
@@ -66,20 +61,15 @@ def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None)
         "is_active",
         "role",
     ]
-    if order_by not in allowed_filter_attrs:
-        raise BadRequest(
-            detail=f"Ordering with '{order_by}' is disallowed or "
-            f"the attribute does not exist on the model"
-        )
-
     query = session.query(User)
-    users = query.order_by(direction(getattr(User, order_param))).offset(offset).limit(limit).all()
+    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    users = query.offset(offset).limit(limit).all()
 
     return user_collection_schema.dump(UserCollection(users=users, total_entries=total_entries))
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_USER)])
-def post_user() -> APIResponse:
+def post_user():
     """Create a new user"""
     try:
         data = user_schema.load(request.json)
@@ -122,7 +112,7 @@ def post_user() -> APIResponse:
 
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_USER)])
-def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
+def patch_user(username, update_mask=None):
     """Update a user"""
     try:
         data = user_schema.load(request.json)
@@ -162,7 +152,6 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
             raise BadRequest(detail=detail)
         data = masked_data
 
-    roles_to_update: Optional[List[Role]]
     if "roles" in data:
         roles_to_update = []
         missing_role_names = []
@@ -191,7 +180,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_USER)])
-def delete_user(*, username: str) -> APIResponse:
+def delete_user(username):
     """Delete a user"""
     security_manager = current_app.appbuilder.sm
 
@@ -203,5 +192,4 @@ def delete_user(*, username: str) -> APIResponse:
     user.roles = []  # Clear foreign keys on this user first.
     security_manager.get_session.delete(user)
     security_manager.get_session.commit()
-
     return NoContent, 204

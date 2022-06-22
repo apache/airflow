@@ -19,14 +19,13 @@
 import datetime
 import json
 import time
-from typing import Dict, List, Optional, Sequence, Union
+from typing import Dict, List, Optional, Union
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
 from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
 from airflow.models.xcom import XCom
 from airflow.utils import timezone
-from airflow.utils.context import Context
 from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.state import State
 from airflow.utils.types import DagRunType
@@ -59,22 +58,31 @@ class TriggerDagRunOperator(BaseOperator):
     Triggers a DAG run for a specified ``dag_id``
 
     :param trigger_dag_id: The dag_id to trigger (templated).
+    :type trigger_dag_id: str
     :param trigger_run_id: The run ID to use for the triggered DAG run (templated).
         If not provided, a run ID will be automatically generated.
-    :param conf: Configuration for the DAG run (templated).
+    :type trigger_run_id: str
+    :param conf: Configuration for the DAG run.
+    :type conf: dict
     :param execution_date: Execution date for the dag (templated).
+    :type execution_date: str or datetime.datetime
     :param reset_dag_run: Whether or not clear existing dag run if already exists.
         This is useful when backfill or rerun an existing dag run.
         When reset_dag_run=False and dag run exists, DagRunAlreadyExists will be raised.
         When reset_dag_run=True and dag run exists, existing dag run will be cleared to rerun.
+    :type reset_dag_run: bool
     :param wait_for_completion: Whether or not wait for dag run completion. (default: False)
+    :type wait_for_completion: bool
     :param poke_interval: Poke interval to check dag run status when wait_for_completion=True.
         (default: 60)
+    :type poke_interval: int
     :param allowed_states: List of allowed states, default is ``['success']``.
+    :type allowed_states: list
     :param failed_states: List of failed or dis-allowed states, default is ``None``.
+    :type failed_states: list
     """
 
-    template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
+    template_fields = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
 
@@ -109,7 +117,8 @@ class TriggerDagRunOperator(BaseOperator):
 
         if execution_date is not None and not isinstance(execution_date, (str, datetime.datetime)):
             raise TypeError(
-                f"Expected str or datetime.datetime type for execution_date.Got {type(execution_date)}"
+                "Expected str or datetime.datetime type for execution_date."
+                "Got {}".format(type(execution_date))
             )
 
         self.execution_date = execution_date
@@ -119,7 +128,7 @@ class TriggerDagRunOperator(BaseOperator):
         except TypeError:
             raise AirflowException("conf parameter should be JSON Serializable")
 
-    def execute(self, context: Context):
+    def execute(self, context: Dict):
         if isinstance(self.execution_date, datetime.datetime):
             parsed_execution_date = self.execution_date
         elif isinstance(self.execution_date, str):
@@ -156,8 +165,7 @@ class TriggerDagRunOperator(BaseOperator):
                 dag_run = DagRun.find(dag_id=dag.dag_id, run_id=run_id)[0]
             else:
                 raise e
-        if dag_run is None:
-            raise RuntimeError("The dag_run should be set here!")
+
         # Store the execution date from the dag run (either created or found above) to
         # be used when creating the extra link on the webserver.
         ti = context['task_instance']

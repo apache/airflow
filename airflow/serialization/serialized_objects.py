@@ -16,14 +16,12 @@
 # under the License.
 
 """Serialized DAG and BaseOperator"""
-import contextlib
 import datetime
 import enum
 import logging
-import weakref
 from dataclasses import dataclass
 from inspect import Parameter, signature
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, NamedTuple, Optional, Set, Type, Union
+from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Set, Type, Union
 
 import cattr
 import pendulum
@@ -36,11 +34,7 @@ from airflow.exceptions import AirflowException, SerializationError
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
-from airflow.models.mappedoperator import MappedOperator
-from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
-from airflow.models.taskmixin import DAGNode
-from airflow.models.xcom_arg import XComArg
 from airflow.providers_manager import ProvidersManager
 from airflow.serialization.enums import DagAttributeTypes as DAT, Encoding
 from airflow.serialization.helpers import serialize_template_field
@@ -50,19 +44,20 @@ from airflow.timetables.base import Timetable
 from airflow.utils.code_utils import get_python_source
 from airflow.utils.docs import get_docs_url
 from airflow.utils.module_loading import as_importable_string, import_string
-from airflow.utils.operator_resources import Resources
-from airflow.utils.task_group import MappedTaskGroup, TaskGroup
+from airflow.utils.task_group import TaskGroup
+
+try:
+    # isort: off
+    from kubernetes.client import models as k8s
+    from airflow.kubernetes.pod_generator import PodGenerator
+
+    # isort: on
+    HAS_KUBERNETES = True
+except ImportError:
+    HAS_KUBERNETES = False
 
 if TYPE_CHECKING:
     from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
-
-    HAS_KUBERNETES: bool
-    try:
-        from kubernetes.client import models as k8s
-
-        from airflow.kubernetes.pod_generator import PodGenerator
-    except ImportError:
-        pass
 
 log = logging.getLogger(__name__)
 
@@ -76,26 +71,15 @@ _OPERATOR_EXTRA_LINKS: Set[str] = {
 
 
 @cache
-def get_operator_extra_links() -> Set[str]:
-    """Get the operator extra links.
+def get_operator_extra_links():
+    """
+    Returns operator extra links - both the ones that are built in and the ones that come from
+    the providers.
 
-    This includes both the built-in ones, and those come from the providers.
+    :return: set of extra links
     """
     _OPERATOR_EXTRA_LINKS.update(ProvidersManager().extra_links_class_names)
     return _OPERATOR_EXTRA_LINKS
-
-
-@cache
-def _get_default_mapped_partial() -> Dict[str, Any]:
-    """Get default partial kwargs in a mapped operator.
-
-    This is used to simplify a serialized mapped operator by excluding default
-    values supplied in the implementation from the serialized dict. Since those
-    are defaults, they are automatically supplied on de-serialization, so we
-    don't need to store them.
-    """
-    default_partial_kwargs = BaseOperator.partial(task_id="_").apply().partial_kwargs
-    return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 
 def encode_relativedelta(var: relativedelta.relativedelta) -> Dict[str, Any]:
@@ -138,7 +122,7 @@ def encode_timezone(var: Timezone) -> Union[str, int]:
 
 def decode_timezone(var: Union[str, int]) -> Timezone:
     """Decode a previously serialized Pendulum Timezone."""
-    return pendulum.tz.timezone(var)
+    return pendulum.timezone(var)
 
 
 def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable]]:
@@ -147,10 +131,7 @@ def _get_registered_timetable(importable_string: str) -> Optional[Type[Timetable
     if importable_string.startswith("airflow.timetables."):
         return import_string(importable_string)
     plugins_manager.initialize_timetables_plugins()
-    if plugins_manager.timetable_classes:
-        return plugins_manager.timetable_classes.get(importable_string)
-    else:
-        return None
+    return plugins_manager.timetable_classes.get(importable_string)
 
 
 class _TimetableNotRegistered(ValueError):
@@ -171,7 +152,7 @@ def _encode_timetable(var: Timetable) -> Dict[str, Any]:
     importable_string = as_importable_string(timetable_class)
     if _get_registered_timetable(importable_string) is None:
         raise _TimetableNotRegistered(importable_string)
-    return {Encoding.TYPE: importable_string, Encoding.VAR: var.serialize()}
+    return {"__type": importable_string, "__var": var.serialize()}
 
 
 def _decode_timetable(var: Dict[str, Any]) -> Timetable:
@@ -180,23 +161,11 @@ def _decode_timetable(var: Dict[str, Any]) -> Timetable:
     Most of the deserialization logic is delegated to the actual type, which
     we import from string.
     """
-    importable_string = var[Encoding.TYPE]
+    importable_string = var["__type"]
     timetable_class = _get_registered_timetable(importable_string)
     if timetable_class is None:
         raise _TimetableNotRegistered(importable_string)
-    return timetable_class.deserialize(var[Encoding.VAR])
-
-
-class _XComRef(NamedTuple):
-    """
-    Used to store info needed to create XComArg when deserializing MappedOperator.
-
-    We can't turn it in to a XComArg until we've loaded _all_ the tasks, so when deserializing an operator we
-    need to create _something_, and then post-process it in deserialize_dag
-    """
-
-    task_id: str
-    key: str
+    return timetable_class.deserialize(var["__var"])
 
 
 class BaseSerialization:
@@ -287,7 +256,7 @@ class BaseSerialization:
 
     @classmethod
     def serialize_to_json(
-        cls, object_to_serialize: Union["BaseOperator", "MappedOperator", DAG], decorated_fields: Set
+        cls, object_to_serialize: Union[BaseOperator, DAG], decorated_fields: Set
     ) -> Dict[str, Any]:
         """Serializes an object to json"""
         serialized_object: Dict[str, Any] = {}
@@ -300,12 +269,12 @@ class BaseSerialization:
 
             if key in decorated_fields:
                 serialized_object[key] = cls._serialize(value)
-            elif key == "timetable" and value is not None:
+            elif key == "timetable":
                 serialized_object[key] = _encode_timetable(value)
             else:
                 value = cls._serialize(value)
-                if isinstance(value, dict) and Encoding.TYPE in value:
-                    value = value[Encoding.VAR]
+                if isinstance(value, dict) and "__type" in value:
+                    value = value["__var"]
                 serialized_object[key] = value
         return serialized_object
 
@@ -330,15 +299,11 @@ class BaseSerialization:
             return cls._encode({str(k): cls._serialize(v) for k, v in var.items()}, type_=DAT.DICT)
         elif isinstance(var, list):
             return [cls._serialize(v) for v in var]
-        elif _has_kubernetes() and isinstance(var, k8s.V1Pod):
+        elif HAS_KUBERNETES and isinstance(var, k8s.V1Pod):
             json_pod = PodGenerator.serialize_pod(var)
             return cls._encode(json_pod, type_=DAT.POD)
         elif isinstance(var, DAG):
             return SerializedDAG.serialize_dag(var)
-        elif isinstance(var, Resources):
-            return var.to_dict()
-        elif isinstance(var, MappedOperator):
-            return SerializedBaseOperator.serialize_mapped_operator(var)
         elif isinstance(var, BaseOperator):
             return SerializedBaseOperator.serialize_operator(var)
         elif isinstance(var, cls._datetime_types):
@@ -364,8 +329,6 @@ class BaseSerialization:
             return SerializedTaskGroup.serialize_task_group(var)
         elif isinstance(var, Param):
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
-        elif isinstance(var, XComArg):
-            return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -393,7 +356,7 @@ class BaseSerialization:
         elif type_ == DAT.DATETIME:
             return pendulum.from_timestamp(var)
         elif type_ == DAT.POD:
-            if not _has_kubernetes():
+            if not HAS_KUBERNETES:
                 raise RuntimeError("Cannot deserialize POD objects without kubernetes libraries installed!")
             pod = PodGenerator.deserialize_model_dict(var)
             return pod
@@ -409,8 +372,6 @@ class BaseSerialization:
             return tuple(cls._deserialize(v) for v in var)
         elif type_ == DAT.PARAM:
             return cls._deserialize_param(var)
-        elif type_ == DAT.XCOM_REF:
-            return cls._deserialize_xcomref(var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -482,22 +443,15 @@ class BaseSerialization:
         return class_(**kwargs)
 
     @classmethod
-    def _serialize_params_dict(cls, params: Union[ParamsDict, dict]):
+    def _serialize_params_dict(cls, params: ParamsDict):
         """Serialize Params dict for a DAG/Task"""
         serialized_params = {}
         for k, v in params.items():
-            # TODO: As of now, we would allow serialization of params which are of type Param only.
-            try:
-                class_identity = f"{v.__module__}.{v.__class__.__name__}"
-            except AttributeError:
-                class_identity = ""
-            if class_identity == "airflow.models.param.Param":
+            # TODO: As of now, we would allow serialization of params which are of type Param only
+            if f'{v.__module__}.{v.__class__.__name__}' == 'airflow.models.param.Param':
                 serialized_params[k] = cls._serialize_param(v)
             else:
-                raise ValueError(
-                    f"Params to a DAG or a Task can be only of type airflow.models.param.Param, "
-                    f"but param {k!r} is {v.__class__}"
-                )
+                raise ValueError('Params to a DAG or a Task can be only of type airflow.models.param.Param')
         return serialized_params
 
     @classmethod
@@ -513,20 +467,12 @@ class BaseSerialization:
 
         return ParamsDict(op_params)
 
-    @classmethod
-    def _serialize_xcomarg(cls, arg: XComArg) -> dict:
-        return {"key": arg.key, "task_id": arg.operator.task_id}
-
-    @classmethod
-    def _deserialize_xcomref(cls, encoded: dict) -> _XComRef:
-        return _XComRef(key=encoded['key'], task_id=encoded['task_id'])
-
 
 class DependencyDetector:
     """Detects dependencies between DAGs."""
 
     @staticmethod
-    def detect_task_dependencies(task: Operator) -> Optional['DagDependency']:
+    def detect_task_dependencies(task: BaseOperator) -> Optional['DagDependency']:
         """Detects dependencies caused by tasks"""
         if task.task_type == "TriggerDagRunOperator":
             return DagDependency(
@@ -586,47 +532,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         self._task_type = task_type
 
     @classmethod
-    def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
-        serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
-
-        # Simplify partial_kwargs by comparing it to the most barebone object.
-        # Remove all entries that are simply default values.
-        serialized_partial = serialized_op["partial_kwargs"]
-        for k, default in _get_default_mapped_partial().items():
-            try:
-                v = serialized_partial[k]
-            except KeyError:
-                continue
-            if v == default:
-                del serialized_partial[k]
-
-        # Simplify op_kwargs format. It must be a dict, so we flatten it.
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["mapped_kwargs"]["op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["mapped_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["partial_kwargs"]["op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["mapped_op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["mapped_op_kwargs"] = op_kwargs[Encoding.VAR]
-
-        serialized_op["_is_mapped"] = True
-        return serialized_op
-
-    @classmethod
     def serialize_operator(cls, op: BaseOperator) -> Dict[str, Any]:
-        return cls._serialize_node(op, include_deps=op.deps is not BaseOperator.deps)
-
-    @classmethod
-    def _serialize_node(cls, op: Union[BaseOperator, MappedOperator], include_deps: bool) -> Dict[str, Any]:
         """Serializes operator into a JSON object."""
         serialize_op = cls.serialize_to_json(op, cls._decorated_fields)
-        serialize_op['_task_type'] = getattr(op, "_task_type", type(op).__name__)
-        serialize_op['_task_module'] = getattr(op, "_task_module", type(op).__module__)
+        serialize_op['_task_type'] = op.__class__.__name__
+        serialize_op['_task_module'] = op.__class__.__module__
 
         # Used to determine if an Operator is inherited from DummyOperator
         serialize_op['_is_dummy'] = op.inherits_from_dummy_operator
@@ -636,8 +546,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 op.operator_extra_links
             )
 
-        if include_deps:
-            # Are the deps different to "stock", if so serialize the class names!
+        if op.deps is not BaseOperator.deps:
+            # Are the deps different to BaseOperator, if so serialize the class names!
             # For Airflow 2.0 expediency we _only_ allow built in Dep classes.
             # Fix this for 2.0.x or 2.1
             deps = []
@@ -645,7 +555,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 klass = type(dep)
                 module_name = klass.__module__
                 if not module_name.startswith("airflow.ti_deps.deps."):
-                    assert op.dag  # for type checking
                     raise SerializationError(
                         f"Cannot serialize {(op.dag.dag_id + '.' + op.task_id)!r} with `deps` from non-core "
                         f"module {module_name!r}"
@@ -671,33 +580,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return serialize_op
 
     @classmethod
-    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> Union[BaseOperator, MappedOperator]:
+    def deserialize_operator(cls, encoded_op: Dict[str, Any]) -> BaseOperator:
         """Deserializes an operator from a JSON object."""
-        op: Union[BaseOperator, MappedOperator]
-        if encoded_op.get("_is_mapped", False):
-            # Most of these will be loaded later, these are just some stand-ins.
-            op = MappedOperator(
-                operator_class=f"{encoded_op['_task_module']}.{encoded_op['_task_type']}",
-                mapped_kwargs={},
-                partial_kwargs={},
-                task_id=encoded_op["task_id"],
-                params={},
-                deps=MappedOperator.deps_for(BaseOperator),
-                operator_extra_links=BaseOperator.operator_extra_links,
-                template_ext=BaseOperator.template_ext,
-                template_fields=BaseOperator.template_fields,
-                ui_color=BaseOperator.ui_color,
-                ui_fgcolor=BaseOperator.ui_fgcolor,
-                is_dummy=False,
-                task_module=encoded_op["_task_module"],
-                task_type=encoded_op["_task_type"],
-                dag=None,
-                task_group=None,
-                start_date=None,
-                end_date=None,
-            )
-        else:
-            op = SerializedBaseOperator(task_id=encoded_op['task_id'])
+        op = SerializedBaseOperator(task_id=encoded_op['task_id'])
 
         if "label" not in encoded_op:
             # Handle deserialization of old data before the introduction of TaskGroup
@@ -731,13 +616,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 setattr(op, "operator_extra_links", list(op_extra_links_from_plugin.values()))
 
         for k, v in encoded_op.items():
+
             if k == "_downstream_task_ids":
-                # Upgrade from old format/name
-                k = "downstream_task_ids"
-            if k == "label":
-                # Label shouldn't be set anymore --  it's computed from task_id now
-                continue
-            elif k == "downstream_task_ids":
                 v = set(v)
             elif k == "subdag":
                 v = SerializedDAG.deserialize_dag(v)
@@ -745,8 +625,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_timedelta(v)
             elif k in encoded_op["template_fields"]:
                 pass
-            elif k == "resources":
-                v = Resources.from_dict(v)
             elif k.endswith("_date"):
                 v = cls._deserialize_datetime(v)
             elif k == "_operator_extra_links":
@@ -765,16 +643,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k in ("mapped_kwargs", "partial_kwargs"):
-                if "op_kwargs" not in v:
-                    op_kwargs: Optional[dict] = None
-                else:
-                    op_kwargs = {arg: cls._deserialize(value) for arg, value in v.pop("op_kwargs").items()}
-                v = {arg: cls._deserialize(value) for arg, value in v.items()}
-                if op_kwargs is not None:
-                    v["op_kwargs"] = op_kwargs
-            elif k == "mapped_op_kwargs":
-                v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
             # else use v as it is
@@ -782,10 +650,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             setattr(op, k, v)
 
         for k in op.get_serialized_fields() - encoded_op.keys() - cls._CONSTRUCTOR_PARAMS.keys():
-            # TODO: refactor deserialization of BaseOperator and MappedOperaotr (split it out), then check
-            # could go away.
-            if not hasattr(op, k):
-                setattr(op, k, None)
+            setattr(op, k, None)
 
         # Set all the template_field to None that were not present in Serialized JSON
         for field in op.template_fields:
@@ -798,12 +663,12 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         return op
 
     @classmethod
-    def detect_dependencies(cls, op: Operator) -> Optional['DagDependency']:
+    def detect_dependencies(cls, op: BaseOperator) -> Optional['DagDependency']:
         """Detects between DAG dependencies for the operator."""
         return cls.dependency_detector.detect_task_dependencies(op)
 
     @classmethod
-    def _is_excluded(cls, var: Any, attrname: str, op: "DAGNode"):
+    def _is_excluded(cls, var: Any, attrname: str, op: BaseOperator):
         if var is not None and op.has_dag() and attrname.endswith("_date"):
             # If this date is the same as the matching field in the dag, then
             # don't store it again at the task level.
@@ -904,11 +769,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             op_link_arguments = cattr.unstructure(operator_extra_link)
             if not isinstance(op_link_arguments, dict):
                 op_link_arguments = {}
-
-            module_path = (
-                f"{operator_extra_link.__class__.__module__}.{operator_extra_link.__class__.__name__}"
+            serialize_operator_extra_links.append(
+                {
+                    "{}.{}".format(
+                        operator_extra_link.__class__.__module__, operator_extra_link.__class__.__name__
+                    ): op_link_arguments
+                }
             )
-            serialize_operator_extra_links.append({module_path: op_link_arguments})
 
         return serialize_operator_extra_links
 
@@ -951,33 +818,33 @@ class SerializedDAG(DAG, BaseSerialization):
     def serialize_dag(cls, dag: DAG) -> dict:
         """Serializes a DAG into a JSON object."""
         try:
-            serialized_dag = cls.serialize_to_json(dag, cls._decorated_fields)
+            serialize_dag = cls.serialize_to_json(dag, cls._decorated_fields)
 
             # If schedule_interval is backed by timetable, serialize only
             # timetable; vice versa for a timetable backed by schedule_interval.
             if dag.timetable.summary == dag.schedule_interval:
-                del serialized_dag["schedule_interval"]
+                del serialize_dag["schedule_interval"]
             else:
-                del serialized_dag["timetable"]
+                del serialize_dag["timetable"]
 
-            serialized_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
-            serialized_dag["dag_dependencies"] = [
+            serialize_dag["tasks"] = [cls._serialize(task) for _, task in dag.task_dict.items()]
+            serialize_dag["dag_dependencies"] = [
                 vars(t)
                 for t in (SerializedBaseOperator.detect_dependencies(task) for task in dag.task_dict.values())
                 if t is not None
             ]
-            serialized_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
+            serialize_dag['_task_group'] = SerializedTaskGroup.serialize_task_group(dag.task_group)
 
             # Edge info in the JSON exactly matches our internal structure
-            serialized_dag["edge_info"] = dag.edge_info
-            serialized_dag["params"] = cls._serialize_params_dict(dag.params)
+            serialize_dag["edge_info"] = dag.edge_info
+            serialize_dag["params"] = cls._serialize_params_dict(dag.params)
 
             # has_on_*_callback are only stored if the value is True, as the default is False
             if dag.has_on_success_callback:
-                serialized_dag['has_on_success_callback'] = True
+                serialize_dag['has_on_success_callback'] = True
             if dag.has_on_failure_callback:
-                serialized_dag['has_on_failure_callback'] = True
-            return serialized_dag
+                serialize_dag['has_on_failure_callback'] = True
+            return serialize_dag
         except SerializationError:
             raise
         except Exception as e:
@@ -1049,25 +916,20 @@ class SerializedDAG(DAG, BaseSerialization):
 
         for task in dag.task_dict.values():
             task.dag = dag
+            serializable_task: BaseOperator = task
 
             for date_attr in ["start_date", "end_date"]:
-                if getattr(task, date_attr) is None:
-                    setattr(task, date_attr, getattr(dag, date_attr))
+                if getattr(serializable_task, date_attr) is None:
+                    setattr(serializable_task, date_attr, getattr(dag, date_attr))
 
-            if task.subdag is not None:
-                setattr(task.subdag, 'parent_dag', dag)
+            if serializable_task.subdag is not None:
+                setattr(serializable_task.subdag, 'parent_dag', dag)
+                serializable_task.subdag.is_subdag = True
 
-            if isinstance(task, MappedOperator):
-                for d in (task.mapped_kwargs, task.partial_kwargs):
-                    for k, v in d.items():
-                        if not isinstance(v, _XComRef):
-                            continue
-
-                        d[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
-
-            for task_id in task.downstream_task_ids:
+            for task_id in serializable_task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want
-                dag.task_dict[task_id].upstream_task_ids.add(task.task_id)
+
+                dag.task_dict[task_id]._upstream_task_ids.add(serializable_task.task_id)
 
         return dag
 
@@ -1093,7 +955,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
     """A JSON serializable representation of TaskGroup."""
 
     @classmethod
-    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Dict[str, Any]]:
+    def serialize_task_group(cls, task_group: TaskGroup) -> Optional[Union[Dict[str, Any]]]:
         """Serializes TaskGroup into a JSON object."""
         if not task_group:
             return None
@@ -1108,21 +970,16 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             "ui_color": task_group.ui_color,
             "ui_fgcolor": task_group.ui_fgcolor,
             "children": {
-                label: child.serialize_for_task_group() for label, child in task_group.children.items()
+                label: (DAT.OP, child.task_id)
+                if isinstance(child, BaseOperator)
+                else (DAT.TASK_GROUP, SerializedTaskGroup.serialize_task_group(child))
+                for label, child in task_group.children.items()
             },
             "upstream_group_ids": cls._serialize(sorted(task_group.upstream_group_ids)),
             "downstream_group_ids": cls._serialize(sorted(task_group.downstream_group_ids)),
             "upstream_task_ids": cls._serialize(sorted(task_group.upstream_task_ids)),
             "downstream_task_ids": cls._serialize(sorted(task_group.downstream_task_ids)),
         }
-
-        if isinstance(task_group, MappedTaskGroup):
-            if task_group.mapped_arg:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_arg)
-            if task_group.mapped_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.mapped_kwargs)
-            if task_group.partial_kwargs:
-                serialize_group['mapped_arg'] = cls._serialize(task_group.partial_kwargs)
 
         return serialize_group
 
@@ -1131,7 +988,7 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
         cls,
         encoded_group: Dict[str, Any],
         parent_group: Optional[TaskGroup],
-        task_dict: Dict[str, Operator],
+        task_dict: Dict[str, BaseOperator],
     ) -> Optional[TaskGroup]:
         """Deserializes a TaskGroup from a JSON object."""
         if not encoded_group:
@@ -1143,21 +1000,16 @@ class SerializedTaskGroup(TaskGroup, BaseSerialization):
             for key in ["prefix_group_id", "tooltip", "ui_color", "ui_fgcolor"]
         }
         group = SerializedTaskGroup(group_id=group_id, parent_group=parent_group, **kwargs)
-
-        def set_ref(task: Operator) -> Operator:
-            task.task_group = weakref.proxy(group)
-            return task
-
         group.children = {
-            label: set_ref(task_dict[val])  # type: ignore
+            label: task_dict[val]
             if _type == DAT.OP  # type: ignore
             else SerializedTaskGroup.deserialize_task_group(val, group, task_dict)
             for label, (_type, val) in encoded_group["children"].items()
         }
-        group.upstream_group_ids.update(cls._deserialize(encoded_group["upstream_group_ids"]))
-        group.downstream_group_ids.update(cls._deserialize(encoded_group["downstream_group_ids"]))
-        group.upstream_task_ids.update(cls._deserialize(encoded_group["upstream_task_ids"]))
-        group.downstream_task_ids.update(cls._deserialize(encoded_group["downstream_task_ids"]))
+        group.upstream_group_ids = set(cls._deserialize(encoded_group["upstream_group_ids"]))
+        group.downstream_group_ids = set(cls._deserialize(encoded_group["downstream_group_ids"]))
+        group.upstream_task_ids = set(cls._deserialize(encoded_group["upstream_task_ids"]))
+        group.downstream_task_ids = set(cls._deserialize(encoded_group["downstream_task_ids"]))
         return group
 
 
@@ -1176,25 +1028,3 @@ class DagDependency:
     def node_id(self):
         """Node ID for graph rendering"""
         return f"{self.dependency_type}:{self.source}:{self.target}:{self.dependency_id}"
-
-
-def _has_kubernetes() -> bool:
-    global HAS_KUBERNETES
-    if "HAS_KUBERNETES" in globals():
-        return HAS_KUBERNETES
-
-    # Loading kube modules is expensive, so delay it until the last moment
-
-    try:
-        from kubernetes.client import models as k8s
-
-        from airflow.kubernetes.pod_generator import PodGenerator
-
-        globals()['k8s'] = k8s
-        globals()['PodGenerator'] = PodGenerator
-
-        # isort: on
-        HAS_KUBERNETES = True
-    except ImportError:
-        HAS_KUBERNETES = False
-    return HAS_KUBERNETES

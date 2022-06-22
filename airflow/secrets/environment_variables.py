@@ -38,6 +38,7 @@ class EnvironmentVariablesBackend(BaseSecretsBackend):
         Get Airflow Variable from Environment Variable
 
         :param key: Variable Key
+        :type key: str
         :return: Variable Value
         """
         return os.environ.get(VAR_ENV_PREFIX + key.upper())

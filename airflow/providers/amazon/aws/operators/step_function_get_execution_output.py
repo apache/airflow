@@ -15,16 +15,51 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.sensors.step_function`."""
+import json
+from typing import Optional
 
-import warnings
+from airflow.models import BaseOperator
+from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
 
-from airflow.providers.amazon.aws.operators.step_function import (  # noqa
-    StepFunctionGetExecutionOutputOperator,
-)
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.step_function`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+class StepFunctionGetExecutionOutputOperator(BaseOperator):
+    """
+    An Operator that begins execution of an Step Function State Machine
+
+    Additional arguments may be specified and are passed down to the underlying BaseOperator.
+
+    .. seealso::
+        :class:`~airflow.models.BaseOperator`
+
+    :param execution_arn: ARN of the Step Function State Machine Execution
+    :type execution_arn: str
+    :param aws_conn_id: aws connection to use, defaults to 'aws_default'
+    :type aws_conn_id: str
+    """
+
+    template_fields = ['execution_arn']
+    template_ext = ()
+    ui_color = '#f9c915'
+
+    def __init__(
+        self,
+        *,
+        execution_arn: str,
+        aws_conn_id: str = 'aws_default',
+        region_name: Optional[str] = None,
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.execution_arn = execution_arn
+        self.aws_conn_id = aws_conn_id
+        self.region_name = region_name
+
+    def execute(self, context):
+        hook = StepFunctionHook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
+
+        execution_status = hook.describe_execution(self.execution_arn)
+        execution_output = json.loads(execution_status['output']) if 'output' in execution_status else None
+
+        self.log.info('Got State Machine Execution output for %s', self.execution_arn)
+
+        return execution_output

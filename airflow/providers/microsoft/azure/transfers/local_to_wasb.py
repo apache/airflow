@@ -16,13 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class LocalFilesystemToWasbOperator(BaseOperator):
@@ -30,14 +27,19 @@ class LocalFilesystemToWasbOperator(BaseOperator):
     Uploads a file to Azure Blob Storage.
 
     :param file_path: Path to the file to load. (templated)
+    :type file_path: str
     :param container_name: Name of the container. (templated)
+    :type container_name: str
     :param blob_name: Name of the blob. (templated)
+    :type blob_name: str
     :param wasb_conn_id: Reference to the wasb connection.
+    :type wasb_conn_id: str
     :param load_options: Optional keyword arguments that
         `WasbHook.load_file()` takes.
+    :type load_options: Optional[dict]
     """
 
-    template_fields: Sequence[str] = ('file_path', 'container_name', 'blob_name')
+    template_fields = ('file_path', 'container_name', 'blob_name')
 
     def __init__(
         self,
@@ -58,7 +60,7 @@ class LocalFilesystemToWasbOperator(BaseOperator):
         self.wasb_conn_id = wasb_conn_id
         self.load_options = load_options
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: dict) -> None:
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         self.log.info(

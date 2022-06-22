@@ -66,18 +66,18 @@ class BaseHook(LoggingMixin):
         from airflow.models.connection import Connection
 
         conn = Connection.get_connection_from_secrets(conn_id)
-        log.info("Using connection ID '%s' for task execution.", conn.conn_id)
-        log.debug(
-            "Connection details for '%s':: Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
-            "Extra: %s",
-            conn.conn_id,
-            conn.host,
-            conn.port,
-            conn.schema,
-            conn.login,
-            redact(conn.password),
-            redact(conn.extra_dejson),
-        )
+        if conn.host:
+            log.info(
+                "Using connection to: id: %s. Host: %s, Port: %s, Schema: %s, Login: %s, Password: %s, "
+                "extra: %s",
+                conn.conn_id,
+                conn.host,
+                conn.port,
+                conn.schema,
+                conn.login,
+                redact(conn.password),
+                redact(conn.extra_dejson),
+            )
         return conn
 
     @classmethod
@@ -96,14 +96,6 @@ class BaseHook(LoggingMixin):
     def get_conn(self) -> Any:
         """Returns connection for the hook."""
         raise NotImplementedError()
-
-    @classmethod
-    def get_connection_form_widgets(cls) -> Dict[str, Any]:
-        ...
-
-    @classmethod
-    def get_ui_field_behaviour(cls) -> Dict[str, Any]:
-        ...
 
 
 class DiscoverableHook(Protocol):
@@ -167,7 +159,7 @@ class DiscoverableHook(Protocol):
         ...
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> Dict:
         """
         Returns dictionary describing customizations to implement in javascript handling the
         connection form. Should be compliant with airflow/customized_form_field_behaviours.schema.json'

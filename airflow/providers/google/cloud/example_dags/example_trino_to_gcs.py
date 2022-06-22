@@ -20,7 +20,6 @@ Example DAG using TrinoToGCSOperator.
 """
 import os
 import re
-from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -30,6 +29,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryInsertJobOperator,
 )
 from airflow.providers.google.cloud.transfers.trino_to_gcs import TrinoToGCSOperator
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", 'example-project')
 GCS_BUCKET = os.environ.get("GCP_TRINO_TO_GCS_BUCKET_NAME", "INVALID BUCKET NAME")
@@ -49,8 +49,7 @@ def safe_name(s: str) -> str:
 with models.DAG(
     dag_id="example_trino_to_gcs",
     schedule_interval='@once',  # Override to match your needs
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
 

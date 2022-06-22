@@ -30,11 +30,8 @@ class TaskInstanceState(str, Enum):
     Note that None is also allowed, so always use this in a type hint with Optional.
     """
 
-    # The scheduler sets a TaskInstance state to None when it's created but not
-    # yet run, but we don't list it here since TaskInstance is a string enum.
-    # Use None instead if need this state.
-
     # Set by the scheduler
+    # None - Task is created but should not run yet
     REMOVED = "removed"  # Task vanished from DAG before it ran
     SCHEDULED = "scheduled"  # Task should run and will be handed to executor soon
 
@@ -52,7 +49,7 @@ class TaskInstanceState(str, Enum):
     SENSING = "sensing"  # Smart sensor offloaded to the sensor DAG
     DEFERRED = "deferred"  # Deferrable operator waiting on a trigger
 
-    def __str__(self) -> str:
+    def __str__(self) -> str:  # pylint: disable=invalid-str-returned
         return self.value
 
 

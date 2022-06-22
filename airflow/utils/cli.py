@@ -53,62 +53,51 @@ def _check_cli_args(args):
         )
 
 
-def action_cli(func=None, check_db=True):
-    def action_logging(f: T) -> T:
+def action_logging(f: T) -> T:
+    """
+    Decorates function to execute function at the same time submitting action_logging
+    but in CLI context. It will call action logger callbacks twice,
+    one for pre-execution and the other one for post-execution.
+
+    Action logger will be called with below keyword parameters:
+        sub_command : name of sub-command
+        start_datetime : start datetime instance by utc
+        end_datetime : end datetime instance by utc
+        full_command : full command line arguments
+        user : current user
+        log : airflow.models.log.Log ORM instance
+        dag_id : dag id (optional)
+        task_id : task_id (optional)
+        execution_date : execution date (optional)
+        error : exception instance if there's an exception
+
+    :param f: function instance
+    :return: wrapped function
+    """
+
+    @functools.wraps(f)
+    def wrapper(*args, **kwargs):
         """
-        Decorates function to execute function at the same time submitting action_logging
-        but in CLI context. It will call action logger callbacks twice,
-        one for pre-execution and the other one for post-execution.
+        An wrapper for cli functions. It assumes to have Namespace instance
+        at 1st positional argument
 
-        Action logger will be called with below keyword parameters:
-            sub_command : name of sub-command
-            start_datetime : start datetime instance by utc
-            end_datetime : end datetime instance by utc
-            full_command : full command line arguments
-            user : current user
-            log : airflow.models.log.Log ORM instance
-            dag_id : dag id (optional)
-            task_id : task_id (optional)
-            execution_date : execution date (optional)
-            error : exception instance if there's an exception
-
-        :param f: function instance
-        :return: wrapped function
-        """
-
-        @functools.wraps(f)
-        def wrapper(*args, **kwargs):
-            """
-            An wrapper for cli functions. It assumes to have Namespace instance
+        :param args: Positional argument. It assumes to have Namespace instance
             at 1st positional argument
+        :param kwargs: A passthrough keyword argument
+        """
+        _check_cli_args(args)
+        metrics = _build_metrics(f.__name__, args[0])
+        cli_action_loggers.on_pre_execution(**metrics)
+        try:
+            return f(*args, **kwargs)
+        except Exception as e:
+            metrics['error'] = e
+            raise
+        finally:
+            metrics['end_datetime'] = datetime.utcnow()
+            cli_action_loggers.on_post_execution(**metrics)
 
-            :param args: Positional argument. It assumes to have Namespace instance
-                at 1st positional argument
-            :param kwargs: A passthrough keyword argument
-            """
-            _check_cli_args(args)
-            metrics = _build_metrics(f.__name__, args[0])
-            cli_action_loggers.on_pre_execution(**metrics)
-            try:
-                # Check and run migrations if necessary
-                if check_db:
-                    from airflow.utils.db import check_and_run_migrations, synchronize_log_template
-
-                    check_and_run_migrations()
-                    synchronize_log_template()
-                return f(*args, **kwargs)
-            except Exception as e:
-                metrics['error'] = e
-                raise
-            finally:
-                metrics['end_datetime'] = datetime.utcnow()
-                cli_action_loggers.on_post_execution(**metrics)
-
-        return cast(T, wrapper)
-
-    if func:
-        return action_logging(func)
-    return action_logging
+    return cast(T, wrapper)
 
 
 def _build_metrics(func_name, namespace):
@@ -216,8 +205,8 @@ def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     matched_dags = [dag for dag in dagbag.dags.values() if re.search(dag_id, dag.dag_id)]
     if not matched_dags:
         raise AirflowException(
-            f'dag_id could not be found with regex: {dag_id}. Either the dag did not exist or '
-            f'it failed to parse.'
+            'dag_id could not be found with regex: {}. Either the dag did not exist '
+            'or it failed to parse.'.format(dag_id)
         )
     return matched_dags
 

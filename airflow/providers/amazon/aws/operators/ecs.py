@@ -18,19 +18,18 @@
 import re
 import sys
 import time
-import warnings
 from collections import deque
 from datetime import datetime, timedelta
 from logging import Logger
 from threading import Event, Thread
-from typing import Dict, Generator, Optional, Sequence
+from typing import Dict, Generator, Optional
 
 from botocore.exceptions import ClientError
 from botocore.waiter import Waiter
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, XCom
-from airflow.providers.amazon.aws.exceptions import EcsOperatorError
+from airflow.providers.amazon.aws.exceptions import ECSOperatorError
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.logs import AwsLogsHook
 from airflow.typing_compat import Protocol, runtime_checkable
@@ -39,7 +38,7 @@ from airflow.utils.session import provide_session
 
 def should_retry(exception: Exception):
     """Check if exception is related to ECS resource quota (CPU, MEM)."""
-    if isinstance(exception, EcsOperatorError):
+    if isinstance(exception, ECSOperatorError):
         return any(
             quota_reason in failure['reason']
             for quota_reason in ['RESOURCE:MEMORY', 'RESOURCE:CPU']
@@ -49,10 +48,10 @@ def should_retry(exception: Exception):
 
 
 @runtime_checkable
-class EcsProtocol(Protocol):
+class ECSProtocol(Protocol):
     """
     A structured Protocol for ``boto3.client('ecs')``. This is used for type hints on
-    :py:meth:`.EcsOperator.client`.
+    :py:meth:`.ECSOperator.client`.
 
     .. seealso::
 
@@ -85,7 +84,7 @@ class EcsProtocol(Protocol):
         ...
 
 
-class EcsTaskLogFetcher(Thread):
+class ECSTaskLogFetcher(Thread):
     """
     Fetches Cloudwatch log events with specific interval as a thread
     and sends the log events to the info channel of the provided logger.
@@ -115,11 +114,11 @@ class EcsTaskLogFetcher(Thread):
     def run(self) -> None:
         logs_to_skip = 0
         while not self.is_stopped():
-            time.sleep(self.fetch_interval.total_seconds())
             log_events = self._get_log_events(logs_to_skip)
             for log_event in log_events:
                 self.logger.info(self._event_to_str(log_event))
                 logs_to_skip += 1
+            time.sleep(self.fetch_interval.total_seconds())
 
     def _get_log_events(self, skip: int = 0) -> Generator:
         try:
@@ -152,61 +151,81 @@ class EcsTaskLogFetcher(Thread):
         self._event.set()
 
 
-class EcsOperator(BaseOperator):
+class ECSOperator(BaseOperator):
     """
     Execute a task on AWS ECS (Elastic Container Service)
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:EcsOperator`
+        :ref:`howto/operator:ECSOperator`
 
     :param task_definition: the task definition name on Elastic Container Service
+    :type task_definition: str
     :param cluster: the cluster name on Elastic Container Service
+    :type cluster: str
     :param overrides: the same parameter that boto3 will receive (templated):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task
+    :type overrides: dict
     :param aws_conn_id: connection id of AWS credentials / region name. If None,
         credential boto3 strategy will be used
         (http://boto3.readthedocs.io/en/latest/guide/configuration.html).
+    :type aws_conn_id: str
     :param region_name: region name to use in AWS Hook.
         Override the region_name in connection (if provided)
+    :type region_name: str
     :param launch_type: the launch type on which to run your task ('EC2' or 'FARGATE')
+    :type launch_type: str
     :param capacity_provider_strategy: the capacity provider strategy to use for the task.
         When capacity_provider_strategy is specified, the launch_type parameter is omitted.
         If no capacity_provider_strategy or launch_type is specified,
         the default capacity provider strategy for the cluster is used.
+    :type capacity_provider_strategy: list
     :param group: the name of the task group associated with the task
+    :type group: str
     :param placement_constraints: an array of placement constraint objects to use for
         the task
+    :type placement_constraints: list
     :param placement_strategy: an array of placement strategy objects to use for
         the task
+    :type placement_strategy: list
     :param platform_version: the platform version on which your task is running
+    :type platform_version: str
     :param network_configuration: the network configuration for the task
+    :type network_configuration: dict
     :param tags: a dictionary of tags in the form of {'tagKey': 'tagValue'}.
+    :type tags: dict
     :param awslogs_group: the CloudWatch group where your ECS container logs are stored.
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
+    :type awslogs_group: str
     :param awslogs_region: the region in which your CloudWatch logs are stored.
         If None, this is the same as the `region_name` parameter. If that is also None,
         this is the default AWS region based on your connection settings.
+    :type awslogs_region: str
     :param awslogs_stream_prefix: the stream prefix that is used for the CloudWatch logs.
         This is usually based on some custom name combined with the name of the container.
         Only required if you want logs to be shown in the Airflow UI after your job has
         finished.
+    :type awslogs_stream_prefix: str
     :param awslogs_fetch_interval: the interval that the ECS task log fetcher should wait
         in between each Cloudwatch logs fetches.
+    :type awslogs_fetch_interval: timedelta
     :param quota_retry: Config if and how to retry the launch of a new ECS task, to handle
         transient errors.
+    :type quota_retry: dict
     :param reattach: If set to True, will check if the task previously launched by the task_instance
         is already running. If so, the operator will attach to it instead of starting a new task.
         This is to avoid relaunching a new task when the connection drops between Airflow and ECS while
         the task is running (when the Airflow worker is restarted for example).
+    :type reattach: bool
     :param number_logs_exception: Number of lines from the last Cloudwatch logs to return in the
         AirflowException if an ECS task is stopped (to receive Airflow alerts with the logs of what
         failed in the code running in ECS).
+    :type number_logs_exception: int
     """
 
     ui_color = '#f0ede4'
-    template_fields: Sequence[str] = ('overrides',)
+    template_fields = ('overrides',)
     template_fields_renderers = {
         "overrides": "json",
         "network_configuration": "json",
@@ -270,17 +289,17 @@ class EcsOperator(BaseOperator):
             self.awslogs_region = region_name
 
         self.hook: Optional[AwsBaseHook] = None
-        self.client: Optional[EcsProtocol] = None
+        self.client: Optional[ECSProtocol] = None
         self.arn: Optional[str] = None
         self.retry_args = quota_retry
-        self.task_log_fetcher: Optional[EcsTaskLogFetcher] = None
+        self.task_log_fetcher: Optional[ECSTaskLogFetcher] = None
 
     @provide_session
     def execute(self, context, session=None):
         self.log.info(
             'Running ECS Task - Task definition: %s - on cluster %s', self.task_definition, self.cluster
         )
-        self.log.info('EcsOperator overrides: %s', self.overrides)
+        self.log.info('ECSOperator overrides: %s', self.overrides)
 
         self.client = self.get_hook().get_conn()
 
@@ -352,7 +371,7 @@ class EcsOperator(BaseOperator):
 
         failures = response['failures']
         if len(failures) > 0:
-            raise EcsOperatorError(failures, response)
+            raise ECSOperatorError(failures, response)
         self.log.info('ECS Task started: %s', response)
 
         self.arn = response['tasks'][0]['taskArn']
@@ -374,7 +393,7 @@ class EcsOperator(BaseOperator):
             value=value,
             task_id=task_id,
             dag_id=self.dag_id,
-            run_id=context["run_id"],
+            execution_date=context["ti"].execution_date,
         )
 
     def _try_reattach_task(self, context):
@@ -411,12 +430,10 @@ class EcsOperator(BaseOperator):
     def _aws_logs_enabled(self):
         return self.awslogs_group and self.awslogs_stream_prefix
 
-    def _get_task_log_fetcher(self) -> EcsTaskLogFetcher:
-        if not self.awslogs_group:
-            raise ValueError("must specify awslogs_group to fetch task logs")
+    def _get_task_log_fetcher(self) -> ECSTaskLogFetcher:
         log_stream_name = f"{self.awslogs_stream_prefix}/{self.ecs_task_id}"
 
-        return EcsTaskLogFetcher(
+        return ECSTaskLogFetcher(
             aws_conn_id=self.aws_conn_id,
             region_name=self.awslogs_region,
             log_group=self.awslogs_group,
@@ -452,7 +469,7 @@ class EcsOperator(BaseOperator):
                 )
             containers = task['containers']
             for container in containers:
-                if container.get('lastStatus') == 'STOPPED' and container.get('exitCode', 1) != 0:
+                if container.get('lastStatus') == 'STOPPED' and container['exitCode'] != 0:
                     if self.task_log_fetcher:
                         last_logs = "\n".join(
                             self.task_log_fetcher.get_last_log_messages(self.number_logs_exception)
@@ -491,50 +508,3 @@ class EcsOperator(BaseOperator):
             cluster=self.cluster, task=self.arn, reason='Task killed by the user'
         )
         self.log.info(response)
-
-
-class ECSOperator(EcsOperator):
-    """
-    This operator is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsOperator`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This operator is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsOperator`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class ECSTaskLogFetcher(EcsTaskLogFetcher):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsTaskLogFetcher`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsTaskLogFetcher`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)
-
-
-class ECSProtocol(EcsProtocol):
-    """
-    This class is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.
-    """
-
-    def __init__(self):
-        warnings.warn(
-            "This class is deprecated. "
-            "Please use `airflow.providers.amazon.aws.operators.ecs.EcsProtocol`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )

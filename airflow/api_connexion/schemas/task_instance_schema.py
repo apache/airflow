@@ -19,44 +19,36 @@ from typing import List, NamedTuple, Optional, Tuple
 
 from marshmallow import Schema, ValidationError, fields, validate, validates_schema
 from marshmallow.utils import get_value
-from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
 from airflow.api_connexion.parameters import validate_istimezone
 from airflow.api_connexion.schemas.enum_schemas import TaskInstanceStateField
 from airflow.api_connexion.schemas.sla_miss_schema import SlaMissSchema
 from airflow.models import SlaMiss, TaskInstance
-from airflow.utils.helpers import exactly_one
 from airflow.utils.state import State
 
 
-class TaskInstanceSchema(SQLAlchemySchema):
+class TaskInstanceSchema(Schema):
     """Task instance schema"""
 
-    class Meta:
-        """Meta"""
-
-        model = TaskInstance
-
-    task_id = auto_field()
-    dag_id = auto_field()
-    run_id = auto_field(data_key="dag_run_id")
-    execution_date = auto_field()
-    start_date = auto_field()
-    end_date = auto_field()
-    duration = auto_field()
+    task_id = fields.Str()
+    dag_id = fields.Str()
+    execution_date = fields.DateTime(validate=validate_istimezone)
+    start_date = fields.DateTime(validate=validate_istimezone)
+    end_date = fields.DateTime(validate=validate_istimezone)
+    duration = fields.Float()
     state = TaskInstanceStateField()
-    _try_number = auto_field(data_key="try_number")
-    max_tries = auto_field()
-    hostname = auto_field()
-    unixname = auto_field()
-    pool = auto_field()
-    pool_slots = auto_field()
-    queue = auto_field()
-    priority_weight = auto_field()
-    operator = auto_field()
-    queued_dttm = auto_field(data_key="queued_when")
-    pid = auto_field()
-    executor_config = auto_field()
+    _try_number = fields.Int(data_key="try_number")
+    max_tries = fields.Int()
+    hostname = fields.Str()
+    unixname = fields.Str()
+    pool = fields.Str()
+    pool_slots = fields.Int()
+    queue = fields.Str()
+    priority_weight = fields.Int()
+    operator = fields.Str()
+    queued_dttm = fields.DateTime(data_key="queued_when")
+    pid = fields.Int()
+    executor_config = fields.Str()
     sla_miss = fields.Nested(SlaMissSchema, dump_default=None)
 
     def get_attribute(self, obj, attr, default):
@@ -130,19 +122,12 @@ class SetTaskInstanceStateFormSchema(Schema):
 
     dry_run = fields.Boolean(dump_default=True)
     task_id = fields.Str(required=True)
-    execution_date = fields.DateTime(validate=validate_istimezone)
-    dag_run_id = fields.Str()
+    execution_date = fields.DateTime(required=True, validate=validate_istimezone)
     include_upstream = fields.Boolean(required=True)
     include_downstream = fields.Boolean(required=True)
     include_future = fields.Boolean(required=True)
     include_past = fields.Boolean(required=True)
     new_state = TaskInstanceStateField(required=True, validate=validate.OneOf([State.SUCCESS, State.FAILED]))
-
-    @validates_schema
-    def validate_form(self, data, **kwargs):
-        """Validates set task instance state form"""
-        if not exactly_one(data.get("execution_date"), data.get("dag_run_id")):
-            raise ValidationError("Exactly one of execution_date or dag_run_id must be provided")
 
 
 class TaskInstanceReferenceSchema(Schema):

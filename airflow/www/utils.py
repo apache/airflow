@@ -18,26 +18,20 @@
 import json
 import textwrap
 import time
-from typing import Any, Dict, List, Optional, Union
+from typing import Any, List, Optional, Union
 from urllib.parse import urlencode
 
 import markdown
 import sqlalchemy as sqla
-from flask import Response, request, url_for
+from flask import Markup, Response, request, url_for
 from flask.helpers import flash
 from flask_appbuilder.forms import FieldConverter
-from flask_appbuilder.models.filters import BaseFilter
 from flask_appbuilder.models.sqla import filters as fab_sqlafilters
-from flask_appbuilder.models.sqla.filters import get_field_setup_query, set_value_to_type
 from flask_appbuilder.models.sqla.interface import SQLAInterface
-from flask_babel import lazy_gettext
-from markupsafe import Markup
-from pendulum.datetime import DateTime
 from pygments import highlight, lexers
 from pygments.formatters import HtmlFormatter
 from sqlalchemy.ext.associationproxy import AssociationProxy
 
-from airflow import models
 from airflow.models import errors
 from airflow.utils import timezone
 from airflow.utils.code_utils import get_python_source
@@ -45,47 +39,6 @@ from airflow.utils.json import AirflowJsonEncoder
 from airflow.utils.state import State
 from airflow.www.forms import DateTimeWithTimezoneField
 from airflow.www.widgets import AirflowDateTimePickerWidget
-
-
-def datetime_to_string(value: Optional[DateTime]) -> Optional[str]:
-    if value is None:
-        return None
-    return value.isoformat()
-
-
-def encode_ti(task_instance: Optional[models.TaskInstance]) -> Optional[Dict[str, Any]]:
-    if not task_instance:
-        return None
-
-    return {
-        'task_id': task_instance.task_id,
-        'dag_id': task_instance.dag_id,
-        'run_id': task_instance.run_id,
-        'state': task_instance.state,
-        'duration': task_instance.duration,
-        'start_date': datetime_to_string(task_instance.start_date),
-        'end_date': datetime_to_string(task_instance.end_date),
-        'operator': task_instance.operator,
-        'execution_date': datetime_to_string(task_instance.execution_date),
-        'try_number': task_instance.try_number,
-    }
-
-
-def encode_dag_run(dag_run: Optional[models.DagRun]) -> Optional[Dict[str, Any]]:
-    if not dag_run:
-        return None
-
-    return {
-        'dag_id': dag_run.dag_id,
-        'run_id': dag_run.run_id,
-        'start_date': datetime_to_string(dag_run.start_date),
-        'end_date': datetime_to_string(dag_run.end_date),
-        'state': dag_run.state,
-        'execution_date': datetime_to_string(dag_run.execution_date),
-        'data_interval_start': datetime_to_string(dag_run.data_interval_start),
-        'data_interval_end': datetime_to_string(dag_run.data_interval_end),
-        'run_type': dag_run.run_type,
-    }
 
 
 def check_import_errors(fileloc, session):
@@ -325,20 +278,16 @@ def datetime_f(attr_name):
 
     def dt(attr):
         f = attr.get(attr_name)
-        return datetime_html(f)
+        as_iso = f.isoformat() if f else ''
+        if not as_iso:
+            return Markup('')
+        f = as_iso
+        if timezone.utcnow().isoformat()[:4] == f[:4]:
+            f = f[5:]
+        # The empty title will be replaced in JS code when non-UTC dates are displayed
+        return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, f)
 
     return dt
-
-
-def datetime_html(dttm: Optional[DateTime]) -> str:
-    """Return an HTML formatted string with time element to support timezone changes in UI"""
-    as_iso = dttm.isoformat() if dttm else ''
-    if not as_iso:
-        return Markup('')
-    if timezone.utcnow().isoformat()[:4] == as_iso[:4]:
-        as_iso = as_iso[5:]
-    # The empty title will be replaced in JS code when non-UTC dates are displayed
-    return Markup('<nobr><time title="" datetime="{}">{}</time></nobr>').format(as_iso, as_iso)
 
 
 def json_f(attr_name):
@@ -356,10 +305,8 @@ def dag_link(attr):
     """Generates a URL to the Graph view for a Dag."""
     dag_id = attr.get('dag_id')
     execution_date = attr.get('execution_date')
-    if not dag_id:
-        return Markup('None')
     url = url_for('Airflow.graph', dag_id=dag_id, execution_date=execution_date)
-    return Markup('<a href="{}">{}</a>').format(url, dag_id)
+    return Markup('<a href="{}">{}</a>').format(url, dag_id) if dag_id else Markup('None')
 
 
 def dag_run_link(attr):
@@ -416,24 +363,21 @@ def get_attr_renderer():
     return {
         'bash': lambda x: render(x, lexers.BashLexer),
         'bash_command': lambda x: render(x, lexers.BashLexer),
-        'doc': lambda x: render(x, lexers.TextLexer),
-        'doc_json': lambda x: render(x, lexers.JsonLexer),
-        'doc_md': wrapped_markdown,
-        'doc_rst': lambda x: render(x, lexers.RstLexer),
-        'doc_yaml': lambda x: render(x, lexers.YamlLexer),
         'hql': lambda x: render(x, lexers.SqlLexer),
         'html': lambda x: render(x, lexers.HtmlLexer),
+        'sql': lambda x: render(x, lexers.SqlLexer),
+        'doc': lambda x: render(x, lexers.TextLexer),
+        'doc_json': lambda x: render(x, lexers.JsonLexer),
+        'doc_rst': lambda x: render(x, lexers.RstLexer),
+        'doc_yaml': lambda x: render(x, lexers.YamlLexer),
+        'doc_md': wrapped_markdown,
         'jinja': lambda x: render(x, lexers.DjangoLexer),
         'json': lambda x: json_render(x, lexers.JsonLexer),
         'md': wrapped_markdown,
-        'mysql': lambda x: render(x, lexers.MySqlLexer),
-        'postgresql': lambda x: render(x, lexers.PostgresLexer),
         'powershell': lambda x: render(x, lexers.PowerShellLexer),
         'py': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'python_callable': lambda x: render(get_python_source(x), lexers.PythonLexer),
         'rst': lambda x: render(x, lexers.RstLexer),
-        'sql': lambda x: render(x, lexers.SqlLexer),
-        'tsql': lambda x: render(x, lexers.TransactSqlLexer),
         'yaml': lambda x: render(x, lexers.YamlLexer),
     }
 
@@ -457,46 +401,6 @@ class UtcAwareFilterMixin:
         value = timezone.parse(value, timezone=timezone.utc)
 
         return super().apply(query, value)
-
-
-class FilterGreaterOrEqual(BaseFilter):
-    """Greater than or Equal filter."""
-
-    name = lazy_gettext("Greater than or Equal")
-    arg_name = "gte"
-
-    def apply(self, query, value):
-        query, field = get_field_setup_query(query, self.model, self.column_name)
-        value = set_value_to_type(self.datamodel, self.column_name, value)
-
-        if value is None:
-            return query
-
-        return query.filter(field >= value)
-
-
-class FilterSmallerOrEqual(BaseFilter):
-    """Smaller than or Equal filter."""
-
-    name = lazy_gettext("Smaller than or Equal")
-    arg_name = "lte"
-
-    def apply(self, query, value):
-        query, field = get_field_setup_query(query, self.model, self.column_name)
-        value = set_value_to_type(self.datamodel, self.column_name, value)
-
-        if value is None:
-            return query
-
-        return query.filter(field <= value)
-
-
-class UtcAwareFilterSmallerOrEqual(UtcAwareFilterMixin, FilterSmallerOrEqual):
-    """Smaller than or Equal filter for UTC time."""
-
-
-class UtcAwareFilterGreaterOrEqual(UtcAwareFilterMixin, FilterGreaterOrEqual):
-    """Greater than or Equal filter for UTC time."""
 
 
 class UtcAwareFilterEqual(UtcAwareFilterMixin, fab_sqlafilters.FilterEqual):
@@ -525,14 +429,7 @@ class AirflowFilterConverter(fab_sqlafilters.SQLAFilterConverter):
     conversion_table = (
         (
             'is_utcdatetime',
-            [
-                UtcAwareFilterEqual,
-                UtcAwareFilterGreater,
-                UtcAwareFilterSmaller,
-                UtcAwareFilterNotEqual,
-                UtcAwareFilterSmallerOrEqual,
-                UtcAwareFilterGreaterOrEqual,
-            ],
+            [UtcAwareFilterEqual, UtcAwareFilterGreater, UtcAwareFilterSmaller, UtcAwareFilterNotEqual],
         ),
         # FAB will try to create filters for extendedjson fields even though we
         # exclude them from all UI, so we add this here to make it ignore them.
@@ -617,10 +514,14 @@ class UIAlert:
     Helper for alerts messages shown on the UI
 
     :param message: The message to display, either a string or Markup
+    :type message: Union[str,Markup]
     :param category: The category of the message, one of "info", "warning", "error", or any custom category.
         Defaults to "info".
+    :type category: str
     :param roles: List of roles that should be shown the message. If ``None``, show to all users.
+    :type roles: Optional[List[str]]
     :param html: Whether the message has safe html markup in it. Defaults to False.
+    :type html: bool
 
 
     For example, show a message to all users:
@@ -661,7 +562,7 @@ class UIAlert:
     def should_show(self, securitymanager) -> bool:
         """Determine if the user should see the message based on their role membership"""
         if self.roles:
-            user_roles = {r.name for r in securitymanager.current_user.roles}
+            user_roles = {r.name for r in securitymanager.get_user_roles()}
             if not user_roles.intersection(set(self.roles)):
                 return False
         return True

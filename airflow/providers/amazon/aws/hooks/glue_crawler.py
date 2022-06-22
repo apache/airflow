@@ -15,20 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
-import warnings
+
 from time import sleep
 
-if sys.version_info >= (3, 8):
+try:
     from functools import cached_property
-else:
+except ImportError:
     from cached_property import cached_property
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class GlueCrawlerHook(AwsBaseHook):
+class AwsGlueCrawlerHook(AwsBaseHook):
     """
     Interacts with AWS Glue Crawler.
 
@@ -53,6 +52,7 @@ class GlueCrawlerHook(AwsBaseHook):
         Checks if the crawler already exists
 
         :param crawler_name: unique crawler name per AWS account
+        :type crawler_name: str
         :return: Returns True if the crawler already exists and False if not.
         """
         self.log.info("Checking if crawler already exists: %s", crawler_name)
@@ -68,15 +68,17 @@ class GlueCrawlerHook(AwsBaseHook):
         Gets crawler configurations
 
         :param crawler_name: unique crawler name per AWS account
+        :type crawler_name: str
         :return: Nested dictionary of crawler configurations
         """
         return self.glue_client.get_crawler(Name=crawler_name)['Crawler']
 
-    def update_crawler(self, **crawler_kwargs) -> bool:
+    def update_crawler(self, **crawler_kwargs) -> str:
         """
         Updates crawler configurations
 
         :param crawler_kwargs: Keyword args that define the configurations used for the crawler
+        :type crawler_kwargs: any
         :return: True if crawler was updated and false otherwise
         """
         crawler_name = crawler_kwargs['Name']
@@ -98,6 +100,7 @@ class GlueCrawlerHook(AwsBaseHook):
         Creates an AWS Glue Crawler
 
         :param crawler_kwargs: Keyword args that define the configurations used to create the crawler
+        :type crawler_kwargs: any
         :return: Name of the crawler
         """
         crawler_name = crawler_kwargs['Name']
@@ -110,6 +113,7 @@ class GlueCrawlerHook(AwsBaseHook):
         Triggers the AWS Glue crawler
 
         :param crawler_name: unique crawler name per AWS account
+        :type crawler_name: str
         :return: Empty dictionary
         """
         self.log.info("Starting crawler %s", crawler_name)
@@ -123,7 +127,9 @@ class GlueCrawlerHook(AwsBaseHook):
         Raises AirflowException if the crawler fails or is cancelled.
 
         :param crawler_name: unique crawler name per AWS account
+        :type crawler_name: str
         :param poll_interval: Time (in seconds) to wait between two consecutive calls to check crawler status
+        :type poll_interval: int
         :return: Crawler's status
         """
         failed_status = ['FAILED', 'CANCELLED']
@@ -165,19 +171,3 @@ class GlueCrawlerHook(AwsBaseHook):
                     self.log.info("Crawler should finish soon")
 
                 sleep(poll_interval)
-
-
-class AwsGlueCrawlerHook(GlueCrawlerHook):
-    """
-    This hook is deprecated.
-    Please use :class:`airflow.providers.amazon.aws.hooks.glue_crawler.GlueCrawlerHook`.
-    """
-
-    def __init__(self, *args, **kwargs):
-        warnings.warn(
-            "This hook is deprecated. "
-            "Please use :class:`airflow.providers.amazon.aws.hooks.glue_crawler.GlueCrawlerHook`.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        super().__init__(*args, **kwargs)

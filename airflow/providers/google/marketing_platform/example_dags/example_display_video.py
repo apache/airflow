@@ -19,7 +19,6 @@
 Example Airflow DAG that shows how to use DisplayVideo.
 """
 import os
-from datetime import datetime
 from typing import Dict
 
 from airflow import models
@@ -39,6 +38,7 @@ from airflow.providers.google.marketing_platform.sensors.display_video import (
     GoogleDisplayVideo360GetSDFDownloadOperationSensor,
     GoogleDisplayVideo360ReportSensor,
 )
+from airflow.utils import dates
 
 # [START howto_display_video_env_variables]
 BUCKET = os.environ.get("GMP_DISPLAY_VIDEO_BUCKET", "gs://INVALID BUCKET NAME")
@@ -82,13 +82,10 @@ CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: Dict = {
 DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
 # [END howto_display_video_env_variables]
 
-START_DATE = datetime(2021, 1, 1)
-
 with models.DAG(
     "example_display_video",
     schedule_interval='@once',  # Override to match your needs,
-    start_date=START_DATE,
-    catchup=False,
+    start_date=dates.days_ago(1),
 ) as dag1:
     # [START howto_google_display_video_createquery_report_operator]
     create_report = GoogleDisplayVideo360CreateReportOperator(body=REPORT, task_id="create_report")
@@ -130,8 +127,7 @@ with models.DAG(
 with models.DAG(
     "example_display_video_misc",
     schedule_interval='@once',  # Override to match your needs,
-    start_date=START_DATE,
-    catchup=False,
+    start_date=dates.days_ago(1),
 ) as dag2:
     # [START howto_google_display_video_upload_multiple_entity_read_files_to_big_query]
     upload_erf_to_bq = GCSToBigQueryOperator(
@@ -164,8 +160,7 @@ with models.DAG(
 with models.DAG(
     "example_display_video_sdf",
     schedule_interval='@once',  # Override to match your needs,
-    start_date=START_DATE,
-    catchup=False,
+    start_date=dates.days_ago(1),
 ) as dag3:
     # [START howto_google_display_video_create_sdf_download_task_operator]
     create_sdf_download_task = GoogleDisplayVideo360CreateSDFDownloadTaskOperator(

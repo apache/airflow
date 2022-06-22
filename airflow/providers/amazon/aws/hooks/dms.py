@@ -60,7 +60,9 @@ class DmsHook(AwsBaseHook):
         """
         Find and describe replication tasks by task ARN
         :param replication_task_arn: Replication task arn
+        :type replication_task_arn: str
         :param without_settings: Indicates whether to return task information with settings.
+        :type without_settings: Optional[bool]
 
         :return: list of replication tasks that match the ARN
         """
@@ -81,6 +83,7 @@ class DmsHook(AwsBaseHook):
         Retrieve task status.
 
         :param replication_task_arn: Replication task ARN
+        :type replication_task_arn: str
         :return: Current task status
         """
         replication_tasks = self.find_replication_tasks_by_arn(
@@ -110,11 +113,17 @@ class DmsHook(AwsBaseHook):
         Create DMS replication task
 
         :param replication_task_id: Replication task id
+        :type replication_task_id: str
         :param source_endpoint_arn: Source endpoint ARN
+        :type source_endpoint_arn: str
         :param target_endpoint_arn: Target endpoint ARN
+        :type target_endpoint_arn: str
         :param replication_instance_arn: Replication instance ARN
+        :type replication_instance_arn: str
         :param table_mappings: Table mappings
+        :type table_mappings: dict
         :param migration_type: Migration type ('full-load'|'cdc'|'full-load-and-cdc'), full-load by default.
+        :type migration_type: str
         :return: Replication task ARN
         """
         dms_client = self.get_conn()
@@ -143,8 +152,10 @@ class DmsHook(AwsBaseHook):
         Starts replication task.
 
         :param replication_task_arn: Replication task ARN
-        :param start_replication_task_type: Replication task start type (default='start-replication')
+        :type replication_task_arn: str
+        :param start_replication_task_type: Replication task start type
             ('start-replication'|'resume-processing'|'reload-target')
+        :type start_replication_task_type: str
         """
         dms_client = self.get_conn()
         dms_client.start_replication_task(
@@ -158,6 +169,7 @@ class DmsHook(AwsBaseHook):
         Stops replication task.
 
         :param replication_task_arn: Replication task ARN
+        :type replication_task_arn: str
         """
         dms_client = self.get_conn()
         dms_client.stop_replication_task(ReplicationTaskArn=replication_task_arn)
@@ -167,6 +179,7 @@ class DmsHook(AwsBaseHook):
         Starts replication task deletion and waits for it to be deleted
 
         :param replication_task_arn: Replication task ARN
+        :type replication_task_arn: str
         """
         dms_client = self.get_conn()
         dms_client.delete_replication_task(ReplicationTaskArn=replication_task_arn)
@@ -179,7 +192,9 @@ class DmsHook(AwsBaseHook):
         Supported statuses: deleted, ready, running, stopped.
 
         :param status: Status to wait for
+        :type status: DmsTaskWaiterStatus
         :param replication_task_arn: Replication task ARN
+        :type replication_task_arn: str
         """
         if not isinstance(status, DmsTaskWaiterStatus):
             raise TypeError('Status must be an instance of DmsTaskWaiterStatus')

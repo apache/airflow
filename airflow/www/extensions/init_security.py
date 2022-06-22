@@ -35,27 +35,23 @@ def init_xframe_protection(app):
         return
 
     def apply_caching(response):
-        if not x_frame_enabled:
-            response.headers["X-Frame-Options"] = "DENY"
+        response.headers["X-Frame-Options"] = "DENY"
         return response
 
     app.after_request(apply_caching)
 
 
 def init_api_experimental_auth(app):
-    """Loads authentication backends"""
-    auth_backends = 'airflow.api.auth.backend.default'
+    """Loads authentication backend"""
+    auth_backend = 'airflow.api.auth.backend.default'
     try:
-        auth_backends = conf.get("api", "auth_backends")
+        auth_backend = conf.get("api", "auth_backend")
     except AirflowConfigException:
         pass
 
-    app.api_auth = []
-    for backend in auth_backends.split():
-        try:
-            auth = import_module(backend.strip())
-            auth.init_app(app)
-            app.api_auth.append(auth)
-        except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-            raise AirflowException(err)
+    try:
+        app.api_auth = import_module(auth_backend)
+        app.api_auth.init_app(app)
+    except ImportError as err:
+        log.critical("Cannot import %s for API authentication due to: %s", auth_backend, err)
+        raise AirflowException(err)

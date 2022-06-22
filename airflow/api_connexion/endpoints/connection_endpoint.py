@@ -21,7 +21,6 @@ from connexion import NoContent
 from flask import request
 from marshmallow import ValidationError
 from sqlalchemy import func
-from sqlalchemy.orm import Session
 
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import AlreadyExists, BadRequest, NotFound
@@ -32,17 +31,16 @@ from airflow.api_connexion.schemas.connection_schema import (
     connection_schema,
     connection_test_schema,
 )
-from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.models import Connection
 from airflow.secrets.environment_variables import CONN_ENV_PREFIX
 from airflow.security import permissions
-from airflow.utils.session import NEW_SESSION, provide_session
+from airflow.utils.session import provide_session
 from airflow.utils.strings import get_random_string
 
 
 @security.requires_access([(permissions.ACTION_CAN_DELETE, permissions.RESOURCE_CONNECTION)])
 @provide_session
-def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def delete_connection(connection_id, session):
     """Delete a connection entry"""
     connection = session.query(Connection).filter_by(conn_id=connection_id).one_or_none()
     if connection is None:
@@ -56,7 +54,7 @@ def delete_connection(*, connection_id: str, session: Session = NEW_SESSION) -> 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @provide_session
-def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> APIResponse:
+def get_connection(connection_id, session):
     """Get a connection entry"""
     connection = session.query(Connection).filter(Connection.conn_id == connection_id).one_or_none()
     if connection is None:
@@ -70,13 +68,7 @@ def get_connection(*, connection_id: str, session: Session = NEW_SESSION) -> API
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_CONNECTION)])
 @format_parameters({'limit': check_limit})
 @provide_session
-def get_connections(
-    *,
-    limit: int,
-    offset: int = 0,
-    order_by: str = "id",
-    session: Session = NEW_SESSION,
-) -> APIResponse:
+def get_connections(session, limit, offset=0, order_by="id"):
     """Get all connection entries"""
     to_replace = {"connection_id": "conn_id"}
     allowed_filter_attrs = ['connection_id', 'conn_type', 'description', 'host', 'port', 'id']
@@ -92,12 +84,7 @@ def get_connections(
 
 @security.requires_access([(permissions.ACTION_CAN_EDIT, permissions.RESOURCE_CONNECTION)])
 @provide_session
-def patch_connection(
-    *,
-    connection_id: str,
-    update_mask: UpdateMask = None,
-    session: Session = NEW_SESSION,
-) -> APIResponse:
+def patch_connection(connection_id, session, update_mask=None):
     """Update a connection entry"""
     try:
         data = connection_schema.load(request.json, partial=True)
@@ -131,7 +118,7 @@ def patch_connection(
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
 @provide_session
-def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
+def post_connection(session):
     """Create connection entry"""
     body = request.json
     try:
@@ -150,7 +137,7 @@ def post_connection(*, session: Session = NEW_SESSION) -> APIResponse:
 
 
 @security.requires_access([(permissions.ACTION_CAN_CREATE, permissions.RESOURCE_CONNECTION)])
-def test_connection() -> APIResponse:
+def test_connection():
     """
     To test a connection, this method first creates an in-memory dummy conn_id & exports that to an
     env var, as some hook classes tries to find out the conn from their __init__ method & errors out

@@ -26,8 +26,7 @@ Create Date: 2021-06-29 21:53:48.059438
 
 import sqlalchemy as sa
 from alembic import op
-
-from airflow.migrations.db_types import TIMESTAMP
+from sqlalchemy.dialects import mssql
 
 # revision identifiers, used by Alembic.
 revision = '97cdd93827b8'
@@ -38,7 +37,11 @@ depends_on = None
 
 def upgrade():
     """Apply Add queued_at column to dagrun table"""
-    op.add_column('dag_run', sa.Column('queued_at', TIMESTAMP, nullable=True))
+    conn = op.get_bind()
+    if conn.dialect.name == "mssql":
+        op.add_column('dag_run', sa.Column('queued_at', mssql.DATETIME2(precision=6), nullable=True))
+    else:
+        op.add_column('dag_run', sa.Column('queued_at', sa.DateTime(), nullable=True))
 
 
 def downgrade():

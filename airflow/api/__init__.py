@@ -26,20 +26,17 @@ log = logging.getLogger(__name__)
 
 
 def load_auth():
-    """Loads authentication backends"""
-    auth_backends = 'airflow.api.auth.backend.default'
+    """Loads authentication backend"""
+    auth_backend = 'airflow.api.auth.backend.default'
     try:
-        auth_backends = conf.get("api", "auth_backends")
+        auth_backend = conf.get("api", "auth_backend")
     except AirflowConfigException:
         pass
 
-    backends = []
-    for backend in auth_backends.split():
-        try:
-            auth = import_module(backend)
-            log.info("Loaded API auth backend: %s", backend)
-            backends.append(auth)
-        except ImportError as err:
-            log.critical("Cannot import %s for API authentication due to: %s", backend, err)
-            raise AirflowException(err)
-    return backends
+    try:
+        auth_backend = import_module(auth_backend)
+        log.info("Loaded API auth backend: %s", auth_backend)
+        return auth_backend
+    except ImportError as err:
+        log.critical("Cannot import %s for API authentication due to: %s", auth_backend, err)
+        raise AirflowException(err)

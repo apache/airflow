@@ -113,34 +113,9 @@ function applyFieldBehaviours(connection) {
   }
 }
 
-/**
- * Dynamically enable/disable the Test Connection button as determined by the selected
- * connection type.
- @param {string} connectionType The connection type to change to.
- @param {Array} testableConnections Connection types that currently support testing via
-  Airflow REST API.
- */
-function handleTestConnection(connectionType, testableConnections) {
-  const testButton = document.getElementById('test-connection');
-  const testConnEnabled = testableConnections.includes(connectionType);
-
-  if (testConnEnabled) {
-  // If connection type can be tested in via REST API, enable button and clear toolip.
-    $(testButton).prop('disabled', false).removeAttr('title');
-  } else {
-  // If connection type can NOT be tested via REST API, disable button and display toolip
-  // alerting the user.
-    $(testButton).prop('disabled', true)
-      .attr('title', 'This connection type does not currently support testing via '
-        + 'Airflow REST API.');
-  }
-}
-
 $(document).ready(() => {
   const fieldBehavioursElem = document.getElementById('field_behaviours');
   const config = JSON.parse(decode(fieldBehavioursElem.textContent));
-  const testableConnsElem = document.getElementById('testable_connection_types');
-  const testableConns = decode(testableConnsElem.textContent);
 
   // Prevent login/password fields from triggering browser auth extensions
   const form = document.getElementById('model_form');
@@ -154,11 +129,10 @@ $(document).ready(() => {
   const testConnBtn = $('<button id="test-connection" type="button" class="btn btn-sm btn-primary" '
     + 'style="margin-left: 3px; pointer-events: all">Test\n <i class="fa fa-rocket"></i></button>');
 
-  // Disable the Test Connection button if Airflow REST APIs are not enabled.
   if (!restApiEnabled) {
-    $(testConnBtn).prop('disabled', true)
+    $(testConnBtn).addClass('disabled')
       .attr('title', 'Airflow REST APIs have been disabled. '
-        + 'See api->auth_backends section of the Airflow configuration.');
+        + 'See api->auth_backend section of the Airflow configuration.');
   }
 
   $(testConnBtn).insertAfter($('form#model_form div.well.well-sm button:submit'));
@@ -182,11 +156,29 @@ $(document).ready(() => {
 
     // Apply behaviours to fields.
     applyFieldBehaviours(config[connType]);
+  }
 
-    // Enable/Disable the Test Connection button. Only applicable if Airflow REST APIs are enabled.
-    if (restApiEnabled) {
-      handleTestConnection(connType, testableConns);
-    }
+  /**
+   * Produces JSON stringified data from a html form data
+   *
+   * @param {string} selector Jquery from selector string.
+   * @returns {string} Form data as a JSON string
+   */
+  function getSerializedFormData(selector) {
+    const outObj = {};
+    const inArray = $(selector).serializeArray();
+
+    $.each(inArray, function () {
+      if (this.name === 'conn_id') {
+        outObj.connection_id = this.value;
+      } else if (this.value !== '' && this.name === 'port') {
+        outObj[this.name] = Number(this.value);
+      } else if (this.value !== '' && this.name !== 'csrf_token') {
+        outObj[this.name] = this.value;
+      }
+    });
+
+    return JSON.stringify(outObj);
   }
 
   /**
@@ -209,70 +201,6 @@ $(document).ready(() => {
 
       $('.container .row').prepend(alertBox).show();
     }
-  }
-
-  /**
-   * Produces JSON stringified data from a html form data
-   *
-   * @param {string} selector Jquery from selector string.
-   * @returns {string} Form data as a JSON string
-   */
-  function getSerializedFormData(selector) {
-    const outObj = {};
-    const extrasObj = {};
-    const inArray = $(selector).serializeArray();
-
-    /*
-    Form data fields are processed in the below order:
-        - csrf_token
-        - conn_id
-        - conn_type
-        - description
-        - host
-        - schema
-        - login
-        - password
-        - port
-        - extra
-        - All other custom form fields (i.e. fields that are named ``extra__...``) in
-          alphabetical order
-    */
-    $.each(inArray, function () {
-      if (this.name === 'conn_id') {
-        outObj.connection_id = this.value;
-      } else if (this.value !== '' && this.name === 'port') {
-        outObj[this.name] = Number(this.value);
-      } else if (this.value !== '' && this.name !== 'csrf_token') {
-        // Check if there are values in the classic Extra form field. These values come in
-        // stringified and need to be converted to a JSON object in case there are custom form
-        // field values that also need to be included in the ``extra`` object for the output
-        // payload.
-        if (this.name === 'extra') {
-          let extra;
-          try {
-            extra = JSON.parse(this.value);
-          } catch (e) {
-            if (e instanceof SyntaxError) {
-              displayAlert(false, 'Extra field value is not valid JSON.');
-            }
-            throw e;
-          }
-
-          Object.entries(extra).forEach(([key, val]) => {
-            extrasObj[key] = val;
-          });
-        // Check if field is a custom form field.
-        } else if (this.name.startsWith('extra__')) {
-          extrasObj[this.name] = this.value;
-        } else {
-          outObj[this.name] = this.value;
-        }
-      }
-    });
-
-    // Stringify all extras for the AJAX call payload.
-    outObj.extra = JSON.stringify(extrasObj);
-    return JSON.stringify(outObj);
   }
 
   // Bind click event to Test Connection button & perform an AJAX call via REST API

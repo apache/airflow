@@ -30,7 +30,7 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.sql import and_, column, select, table
 
-from airflow.migrations.db_types import TIMESTAMP, StringID
+from airflow.models.base import COLLATION_ARGS
 
 ID_LEN = 250
 
@@ -39,6 +39,19 @@ revision = '7b2661a43ba3'
 down_revision = '142555e44c17'
 branch_labels = None
 depends_on = None
+
+
+def _datetime_type(dialect_name):
+    if dialect_name == "mssql":
+        from sqlalchemy.dialects import mssql
+
+        return mssql.DATETIME2(precision=6)
+    elif dialect_name == "mysql":
+        from sqlalchemy.dialects import mysql
+
+        return mysql.DATETIME(fsp=6)
+
+    return sa.TIMESTAMP(timezone=True)
 
 
 # Just Enough Table to run the conditions for update.
@@ -76,12 +89,14 @@ def get_table_constraints(conn, table_name):
     :return: a dictionary of ((constraint name, constraint type), column name) of table
     :rtype: defaultdict(list)
     """
-    query = f"""SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
+    query = """SELECT tc.CONSTRAINT_NAME , tc.CONSTRAINT_TYPE, ccu.COLUMN_NAME
      FROM INFORMATION_SCHEMA.TABLE_CONSTRAINTS AS tc
      JOIN INFORMATION_SCHEMA.CONSTRAINT_COLUMN_USAGE AS ccu ON ccu.CONSTRAINT_NAME = tc.CONSTRAINT_NAME
      WHERE tc.TABLE_NAME = '{table_name}' AND
      (tc.CONSTRAINT_TYPE = 'PRIMARY KEY' or UPPER(tc.CONSTRAINT_TYPE) = 'UNIQUE')
-    """
+    """.format(
+        table_name=table_name
+    )
     result = conn.execute(query).fetchall()
     constraint_dict = defaultdict(lambda: defaultdict(list))
     for constraint, constraint_type, col_name in result:
@@ -93,9 +108,9 @@ def upgrade():
     """Apply TaskInstance keyed to DagRun"""
     conn = op.get_bind()
     dialect_name = conn.dialect.name
+    dt_type = _datetime_type(dialect_name)
 
-    dt_type = TIMESTAMP
-    string_id_col_type = StringID()
+    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
     if dialect_name == 'sqlite':
         naming_convention = {
@@ -313,8 +328,8 @@ def upgrade():
 def downgrade():
     """Unapply TaskInstance keyed to DagRun"""
     dialect_name = op.get_bind().dialect.name
-    dt_type = TIMESTAMP
-    string_id_col_type = StringID()
+    dt_type = _datetime_type(dialect_name)
+    string_id_col_type = sa.String(length=ID_LEN, **COLLATION_ARGS)
 
     op.add_column('task_instance', sa.Column('execution_date', dt_type, nullable=True))
     op.add_column('task_reschedule', sa.Column('execution_date', dt_type, nullable=True))

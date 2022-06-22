@@ -16,14 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Spanner operators."""
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.spanner import SpannerHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class SpannerDeployInstanceOperator(BaseOperator):
@@ -36,17 +33,23 @@ class SpannerDeployInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeployInstanceOperator`
 
     :param instance_id: Cloud Spanner instance ID.
+    :type instance_id: str
     :param configuration_name:  The name of the Cloud Spanner instance configuration
       defining how the instance will be created. Required for
       instances that do not yet exist.
+    :type configuration_name: str
     :param node_count: (Optional) The number of nodes allocated to the Cloud Spanner
       instance.
+    :type node_count: int
     :param display_name: (Optional) The display name for the Cloud Spanner  instance in
       the Google Cloud Console. (Must be between 4 and 30 characters.) If this value is not set
       in the constructor, the name is the same as the instance ID.
+    :type display_name: str
     :param project_id: Optional, the ID of the project which owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -55,10 +58,11 @@ class SpannerDeployInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_deploy_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'instance_id',
         'configuration_name',
@@ -96,7 +100,7 @@ class SpannerDeployInstanceOperator(BaseOperator):
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -126,9 +130,12 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeleteInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
+    :type instance_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -137,10 +144,11 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_delete_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'instance_id',
         'gcp_conn_id',
@@ -170,7 +178,7 @@ class SpannerDeleteInstanceOperator(BaseOperator):
         if not self.instance_id:
             raise AirflowException("The required parameter 'instance_id' is empty or None")
 
-    def execute(self, context: 'Context') -> Optional[bool]:
+    def execute(self, context) -> Optional[bool]:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -195,12 +203,17 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerQueryDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
+    :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
+    :type database_id: str
     :param query: The query or list of queries to be executed. Can be a path to a SQL
        file.
+    :type query: str or list
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -209,10 +222,11 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_query_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'instance_id',
         'database_id',
@@ -220,8 +234,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         'gcp_conn_id',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'query': 'sql'}
+    template_ext = ('.sql',)
     # [END gcp_spanner_query_template_fields]
 
     def __init__(
@@ -254,16 +267,15 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         if not self.query:
             raise AirflowException("The required parameter 'query' is empty")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context):
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
         )
+        queries = self.query
         if isinstance(self.query, str):
             queries = [x.strip() for x in self.query.split(';')]
             self.sanitize_queries(queries)
-        else:
-            queries = self.query
         self.log.info(
             "Executing DML query(-ies) on projects/%s/instances/%s/databases/%s",
             self.project_id,
@@ -284,6 +296,7 @@ class SpannerQueryDatabaseInstanceOperator(BaseOperator):
         Drops empty query in queries.
 
         :param queries: queries
+        :type queries: List[str]
         :rtype: None
         """
         if queries and queries[-1] == '':
@@ -300,11 +313,16 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeployDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
+    :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
+    :type database_id: str
     :param ddl_statements: The string list containing DDL for the new database.
+    :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -313,10 +331,11 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_database_deploy_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'instance_id',
         'database_id',
@@ -324,8 +343,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         'gcp_conn_id',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'ddl_statements': 'sql'}
+    template_ext = ('.sql',)
     # [END gcp_spanner_database_deploy_template_fields]
 
     def __init__(
@@ -356,7 +374,7 @@ class SpannerDeployDatabaseInstanceOperator(BaseOperator):
         if not self.database_id:
             raise AirflowException("The required parameter 'database_id' is empty or None")
 
-    def execute(self, context: 'Context') -> Optional[bool]:
+    def execute(self, context) -> Optional[bool]:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -396,13 +414,19 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerUpdateDatabaseInstanceOperator`
 
     :param instance_id: The Cloud Spanner instance ID.
+    :type instance_id: str
     :param database_id: The Cloud Spanner database ID.
+    :type database_id: str
     :param ddl_statements: The string list containing DDL to apply to the database.
+    :type ddl_statements: list[str]
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
     :param operation_id: (Optional) Unique per database operation id that can
            be specified to implement idempotency check.
+    :type operation_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -411,10 +435,11 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_database_update_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'instance_id',
         'database_id',
@@ -422,8 +447,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         'gcp_conn_id',
         'impersonation_chain',
     )
-    template_ext: Sequence[str] = ('.sql',)
-    template_fields_renderers = {'ddl_statements': 'sql'}
+    template_ext = ('.sql',)
     # [END gcp_spanner_database_update_template_fields]
 
     def __init__(
@@ -458,7 +482,7 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
         if not self.ddl_statements:
             raise AirflowException("The required parameter 'ddl_statements' is empty or None")
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -467,9 +491,9 @@ class SpannerUpdateDatabaseInstanceOperator(BaseOperator):
             project_id=self.project_id, instance_id=self.instance_id, database_id=self.database_id
         ):
             raise AirflowException(
-                f"The Cloud Spanner database '{self.database_id}' in project '{self.project_id}' "
-                f"and instance '{self.instance_id}' is missing. "
-                f"Create the database first before you can update it."
+                "The Cloud Spanner database '{}' in project '{}' and "
+                "instance '{}' is missing. Create the database first "
+                "before you can update it.".format(self.database_id, self.project_id, self.instance_id)
             )
         else:
             return hook.update_database(
@@ -490,10 +514,14 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         :ref:`howto/operator:SpannerDeleteDatabaseInstanceOperator`
 
     :param instance_id: Cloud Spanner instance ID.
+    :type instance_id: str
     :param database_id: Cloud Spanner database ID.
+    :type database_id: str
     :param project_id: Optional, the ID of the project that owns the Cloud Spanner
         Database.  If set to None or missing, the default project_id from the Google Cloud connection is used.
+    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -502,10 +530,11 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_spanner_database_delete_template_fields]
-    template_fields: Sequence[str] = (
+    template_fields = (
         'project_id',
         'instance_id',
         'database_id',
@@ -540,7 +569,7 @@ class SpannerDeleteDatabaseInstanceOperator(BaseOperator):
         if not self.database_id:
             raise AirflowException("The required parameter 'database_id' is empty or None")
 
-    def execute(self, context: 'Context') -> bool:
+    def execute(self, context) -> bool:
         hook = SpannerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

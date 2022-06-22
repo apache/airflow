@@ -25,8 +25,6 @@ const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
 const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
-const LicensePlugin = require('webpack-license-plugin');
-const TerserPlugin = require('terser-webpack-plugin');
 
 // Input Directory (airflow/www)
 // noinspection JSUnresolvedVariable
@@ -36,22 +34,6 @@ const JS_DIR = path.resolve(__dirname, './static/js');
 // Output Directory (airflow/www/static/dist)
 // noinspection JSUnresolvedVariable
 const BUILD_DIR = path.resolve(__dirname, './static/dist');
-
-// Convert licenses json into a standard format for LICENSES.txt
-const formatLicenses = (packages) => {
-  let text = `Apache Airflow
-Copyright 2016-2021 The Apache Software Foundation
-
-This product includes software developed at The Apache Software
-Foundation (http://www.apache.org/).
-
-=======================================================================
-`;
-  packages.forEach((p) => {
-    text += `${p.name}|${p.version}:\n-----\n${p.license}\n${p.licenseText || p.author}\n${p.repository || ''}\n\n\n`;
-  });
-  return text;
-};
 
 const config = {
   entry: {
@@ -73,7 +55,7 @@ const config = {
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
-    tree: [`${CSS_DIR}/tree.css`, `${JS_DIR}/tree/index.jsx`],
+    tree: [`${CSS_DIR}/tree.css`, `${JS_DIR}/tree.js`],
     calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],
     durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
@@ -103,9 +85,6 @@ const config = {
         test: /\.jsx?$/,
         exclude: /node_modules/,
         loader: 'babel-loader',
-        options: {
-          presets: ['@babel/preset-react'],
-        },
       },
       // Extract css files
       {
@@ -239,21 +218,9 @@ const config = {
         },
       ],
     }),
-    new LicensePlugin({
-      additionalFiles: {
-        '../../../../licenses/LICENSES-ui.txt': formatLicenses,
-      },
-      unacceptableLicenseTest: (licenseIdentifier) => (
-        ['BCL', 'JSR', 'ASL', 'RSAL', 'SSPL', 'CPOL', 'NPL', 'BSD-4', 'QPL', 'GPL', 'LGPL'].includes(licenseIdentifier)
-      ),
-    }),
   ],
   optimization: {
-    minimize: process.env.NODE_ENV === 'production',
-    minimizer: [
-      new OptimizeCSSAssetsPlugin({}),
-      new TerserPlugin(),
-    ],
+    minimizer: [new OptimizeCSSAssetsPlugin({})],
   },
 };
 
