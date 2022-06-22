@@ -17,22 +17,12 @@
  * under the License.
  */
 
-import React, { useContext, useRef } from 'react';
+// define global variables that come from FAB
+declare global {
+  const autoRefreshInterval: number | undefined;
+  const stateColors: {
+    [key: string]: string;
+  };
+}
 
-const ContainerRefContext = React.createContext(null);
-
-// containerRef is necessary to render for tooltips, modals, and dialogs
-// This provider allows the containerRef to be accessed by any react component
-export const ContainerRefProvider = ({ children }) => {
-  const containerRef = useRef();
-
-  return (
-    <ContainerRefContext.Provider value={containerRef}>
-      <div ref={containerRef}>
-        {children}
-      </div>
-    </ContainerRefContext.Provider>
-  );
-};
-
-export const useContainerRef = () => useContext(ContainerRefContext);
+export {};

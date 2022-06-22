@@ -27,7 +27,7 @@ interface Props {
   format?: string;
 }
 
-const Time: React.FC<Props> = ({ dateTime, format = defaultFormatWithTZ }) => {
+const Time = ({ dateTime, format = defaultFormatWithTZ }: Props) => {
   const { timezone } = useTimezone();
   const time = moment(dateTime);
 

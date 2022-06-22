@@ -17,26 +17,25 @@
  * under the License.
  */
 
-/*
-*  TypeScript config
-*/
-{
-  "compilerOptions": {
-    "strict": true,
-    "allowJs": true,
-    "importsNotUsedAsValues": "error",
-    "target": "ES6",
-    "module": "ES6",
-    "moduleResolution": "node",
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "jsx": "preserve",
-    "types": ["node", "jest"],
-  },
-  "include": [
-    "static/js",
-  ],
-  "exclude": ["node_modules", "static/dist"]
+import axios, { AxiosResponse } from 'axios';
+import { useQuery } from 'react-query';
+import { getMetaValue } from '../../utils';
+
+interface TaskData {
+  tasks: any[];
+  totalEntries: number;
+}
+
+export default function useTasks() {
+  const query = useQuery<TaskData>(
+    'tasks',
+    () => {
+      const tasksUrl = getMetaValue('tasks_api');
+      return axios.get<AxiosResponse, TaskData>(tasksUrl || '');
+    },
+  );
+  return {
+    ...query,
+    data: query.data || { tasks: [], totalEntries: 0 },
+  };
 }

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import camelcaseKeys from 'camelcase-keys';
 
 import useTasks from './useTasks';
@@ -35,7 +35,7 @@ import useGridData from './useGridData';
 import useMappedInstances from './useMappedInstances';
 
 axios.interceptors.response.use(
-  (res) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
+  (res: AxiosResponse) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
 );
 
 axios.defaults.headers.common.Accept = 'application/json';

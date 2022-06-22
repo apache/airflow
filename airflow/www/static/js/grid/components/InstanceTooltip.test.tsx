@@ -24,19 +24,21 @@ import { render } from '@testing-library/react';
 
 import InstanceTooltip from './InstanceTooltip';
 import { Wrapper } from '../utils/testUtils';
+import type { TaskState } from '../types';
 
 const instance = {
-  startDate: new Date(),
-  endDate: new Date(),
-  state: 'success',
+  startDate: new Date().toISOString(),
+  endDate: new Date().toISOString(),
+  state: 'success' as TaskState,
   runId: 'run',
+  taskId: 'task',
 };
 
 describe('Test Task InstanceTooltip', () => {
   test('Displays a normal task', () => {
     const { getByText } = render(
       <InstanceTooltip
-        group={{}}
+        group={{ id: 'task', label: 'task', instances: [] }}
         instance={instance}
       />,
       { wrapper: Wrapper },
@@ -48,7 +50,9 @@ describe('Test Task InstanceTooltip', () => {
   test('Displays a mapped task with overall status', () => {
     const { getByText } = render(
       <InstanceTooltip
-        group={{ isMapped: true }}
+        group={{
+          id: 'task', label: 'task', instances: [], isMapped: true,
+        }}
         instance={{ ...instance, mappedStates: { success: 2 } }}
       />,
       { wrapper: Wrapper },
@@ -63,12 +67,20 @@ describe('Test Task InstanceTooltip', () => {
     const { getByText, queryByText } = render(
       <InstanceTooltip
         group={{
+          id: 'task',
+          label: 'task',
+          instances: [],
           children: [
             {
+              id: 'child_task',
+              label: 'child_task',
               instances: [
                 {
+                  taskId: 'child_task',
                   runId: 'run',
                   state: 'success',
+                  startDate: '',
+                  endDate: '',
                 },
               ],
             },

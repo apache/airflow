@@ -34,14 +34,14 @@ const getGroupIds = (groups) => {
 };
 
 const ToggleGroups = ({ groups, openGroupIds, onToggleGroups }) => {
+  // Don't show button if the DAG has no task groups
+  const hasGroups = groups.children && groups.children.find((c) => !!c.children);
+  if (!hasGroups) return null;
+
   const allGroupIds = getGroupIds(groups.children);
 
   const isExpandDisabled = allGroupIds.length === openGroupIds.length;
   const isCollapseDisabled = !openGroupIds.length;
-
-  // Don't show button if the DAG has no task groups
-  const hasGroups = groups.children.find((c) => !!c.children);
-  if (!hasGroups) return null;
 
   const onExpand = () => {
     onToggleGroups(allGroupIds);

@@ -29,7 +29,13 @@ const autoRefreshKey = 'disabledAutoRefresh';
 const initialIsPaused = getMetaValue('is_paused') === 'True';
 const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
 
-const AutoRefreshContext = React.createContext(null);
+const AutoRefreshContext = React.createContext({
+  isRefreshOn: false,
+  isPaused: true,
+  toggleRefresh: () => {},
+  stopRefresh: () => {},
+  startRefresh: () => {},
+});
 
 export const AutoRefreshProvider = ({ children }) => {
   const [isPaused, setIsPaused] = useState(initialIsPaused);
