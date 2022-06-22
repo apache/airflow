@@ -349,6 +349,7 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+RunSubmitTaskSettings
 SFTPClient
 SIGTERM
 SSHClient
@@ -1318,6 +1319,7 @@ sanitization
 sas
 sasl
 savedModel
+scala
 scalability
 scalable
 scaler
