@@ -67,5 +67,6 @@ class TestAirbyteTriggerSyncOp(unittest.TestCase):
             wait_seconds=self.wait_seconds,
             timeout=self.timeout,
         )
+        op.execute({})
         op.on_kill()
         mock_cancel_job.assert_called_once_with(job_id=self.job_id)
