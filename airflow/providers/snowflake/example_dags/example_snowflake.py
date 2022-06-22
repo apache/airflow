@@ -48,7 +48,6 @@ SNOWFLAKE_SLACK_MESSAGE = (
     "Results in an ASCII table:\n```{{ results_df | tabulate(tablefmt='pretty', headers='keys') }}```"
 )
 
-# [START howto_operator_snowflake]
 
 dag = DAG(
     'example_snowflake',
@@ -58,6 +57,7 @@ dag = DAG(
     catchup=False,
 )
 
+# [START howto_operator_snowflake]
 
 snowflake_op_sql_str = SnowflakeOperator(
     task_id='snowflake_op_sql_str',

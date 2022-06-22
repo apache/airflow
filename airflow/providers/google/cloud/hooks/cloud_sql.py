@@ -34,7 +34,6 @@ import uuid
 from inspect import signature
 from pathlib import Path
 from subprocess import PIPE, Popen
-from tempfile import gettempdir
 from typing import Any, Dict, List, Optional, Sequence, Union
 from urllib.parse import quote_plus
 
@@ -76,10 +75,14 @@ class CloudSQLHook(GoogleBaseHook):
     keyword arguments rather than positional.
 
     :param api_version: This is the version of the api.
+    :type api_version: str
     :param gcp_conn_id: The Airflow connection used for GCP credentials.
+    :type gcp_conn_id: str
     :param delegate_to: This performs a task on one host with reference to other hosts.
+    :type delegate_to: Optional[str]
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
+    :type impersonation_chain: Optional[str]
     """
 
     conn_name_attr = 'gcp_conn_id'
@@ -120,8 +123,10 @@ class CloudSQLHook(GoogleBaseHook):
         Retrieves a resource containing information about a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: A Cloud SQL instance resource.
         :rtype: dict
         """
@@ -140,8 +145,10 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param body: Body required by the Cloud SQL insert API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert#request-body.
+        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: None
         """
         response = (
@@ -164,9 +171,12 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param body: Body required by the Cloud SQL patch API, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body.
+        :type body: dict
         :param instance: Cloud SQL instance ID. This does not include the project ID.
+        :type instance: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: None
         """
         response = (
@@ -186,7 +196,9 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :param instance: Cloud SQL instance ID. This does not include the project ID.
+        :type instance: str
         :return: None
         """
         response = (
@@ -204,9 +216,12 @@ class CloudSQLHook(GoogleBaseHook):
         Retrieves a database resource from a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
         :param database: Name of the database in the instance.
+        :type database: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: A Cloud SQL database resource, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases#resource.
         :rtype: dict
@@ -225,10 +240,13 @@ class CloudSQLHook(GoogleBaseHook):
         Creates a new database inside a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
+        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: None
         """
         response = (
@@ -256,11 +274,15 @@ class CloudSQLHook(GoogleBaseHook):
         See https://cloud.google.com/sql/docs/mysql/admin-api/how-tos/performance#patch.
 
         :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
         :param database: Name of the database to be updated in the instance.
+        :type database: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body.
+        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: None
         """
         response = (
@@ -279,9 +301,12 @@ class CloudSQLHook(GoogleBaseHook):
         Deletes a database from a Cloud SQL instance.
 
         :param instance: Database instance ID. This does not include the project ID.
+        :type instance: str
         :param database: Name of the database to be deleted in the instance.
+        :type database: str
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: None
         """
         response = (
@@ -302,10 +327,13 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param instance: Database instance ID of the Cloud SQL instance. This does not include the
             project ID.
+        :type instance: str
         :param body: The request body, as described in
             https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
+        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: None
         """
         response = (
@@ -325,10 +353,13 @@ class CloudSQLHook(GoogleBaseHook):
 
         :param instance: Database instance ID. This does not include the
             project ID.
+        :type instance: str
         :param body: The request body, as described in
-            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
+            https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
+        :type body: dict
         :param project_id: Project ID of the project that contains the instance. If set
             to None or missing, the default project_id from the Google Cloud connection is used.
+        :type project_id: str
         :return: None
         """
         try:
@@ -349,7 +380,9 @@ class CloudSQLHook(GoogleBaseHook):
         asynchronous call.
 
         :param project_id: Project ID of the project that contains the instance.
+        :type project_id: str
         :param operation_name: Name of the operation.
+        :type operation_name: str
         :return: None
         """
         service = self.get_conn()
@@ -393,21 +426,27 @@ class CloudSqlProxyRunner(LoggingMixin):
 
     :param path_prefix: Unique path prefix where proxy will be downloaded and
         directories created for unix sockets.
+    :type path_prefix: str
     :param instance_specification: Specification of the instance to connect the
         proxy to. It should be specified in the form that is described in
         https://cloud.google.com/sql/docs/mysql/sql-proxy#multiple-instances in
         -instances parameter (typically in the form of ``<project>:<region>:<instance>``
         for UNIX socket connections and in the form of
         ``<project>:<region>:<instance>=tcp:<port>`` for TCP connections.
+    :type instance_specification: str
     :param gcp_conn_id: Id of Google Cloud connection to use for
         authentication
+    :type gcp_conn_id: str
     :param project_id: Optional id of the Google Cloud project to connect to - it overwrites
         default project id taken from the Google Cloud connection.
+    :type project_id: str
     :param sql_proxy_version: Specific version of SQL proxy to download
         (for example 'v1.13'). By default latest version is downloaded.
+    :type sql_proxy_version: str
     :param sql_proxy_binary_path: If specified, then proxy will be
         used from the path specified rather than dynamically generated. This means
         that if the binary is not present in that path it will also be downloaded.
+    :type sql_proxy_binary_path: str
     """
 
     def __init__(
@@ -465,15 +504,15 @@ class CloudSqlProxyRunner(LoggingMixin):
         if "follow_redirects" in signature(httpx.get).parameters.keys():
             response = httpx.get(download_url, follow_redirects=True)
         else:
-            response = httpx.get(download_url, allow_redirects=True)  # type: ignore[call-arg]
+            response = httpx.get(download_url, allow_redirects=True)
         # Downloading to .tmp file first to avoid case where partially downloaded
         # binary is used by parallel operator which uses the same fixed binary path
         with open(proxy_path_tmp, 'wb') as file:
             file.write(response.content)
         if response.status_code != 200:
             raise AirflowException(
-                "The cloud-sql-proxy could not be downloaded. "
-                f"Status code = {response.status_code}. Reason = {response.reason_phrase}"
+                "The cloud-sql-proxy could not be downloaded. Status code = {}. "
+                "Reason = {}".format(response.status_code, response.reason)
             )
 
         self.log.info("Moving sql_proxy binary from %s to %s", proxy_path_tmp, self.sql_proxy_path)
@@ -679,10 +718,13 @@ class CloudSQLDatabaseHook(BaseHook):
     * **sslrootcert** - Path to server's certificate to authenticate when SSL is used.
 
     :param gcp_cloudsql_conn_id: URL of the connection
+    :type gcp_cloudsql_conn_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud for
         cloud-sql-proxy authentication.
+    :type gcp_conn_id: str
     :param default_gcp_project_id: Default project id used if project_id not specified
            in the connection URL
+    :type default_gcp_project_id: str
     """
 
     conn_name_attr = 'gcp_cloudsql_conn_id'
@@ -752,8 +794,9 @@ class CloudSQLDatabaseHook(BaseHook):
             raise AirflowException("The required extra 'instance' is empty or None")
         if self.database_type not in CLOUD_SQL_VALID_DATABASE_TYPES:
             raise AirflowException(
-                f"Invalid database type '{self.database_type}'. "
-                f"Must be one of {CLOUD_SQL_VALID_DATABASE_TYPES}"
+                "Invalid database type '{}'. Must be one of {}".format(
+                    self.database_type, CLOUD_SQL_VALID_DATABASE_TYPES
+                )
             )
         if self.use_proxy and self.use_ssl:
             raise AirflowException(
@@ -784,15 +827,17 @@ class CloudSQLDatabaseHook(BaseHook):
                 suffix = "/.s.PGSQL.5432"
             else:
                 suffix = ""
-            expected_path = (
-                f"{self._generate_unique_path()}/{self.project_id}:{self.instance}:{self.database}{suffix}"
+            expected_path = "{}/{}:{}:{}{}".format(
+                self._generate_unique_path(), self.project_id, self.instance, self.database, suffix
             )
             if len(expected_path) > UNIX_PATH_MAX:
                 self.log.info("Too long (%s) path: %s", len(expected_path), expected_path)
                 raise AirflowException(
-                    f"The UNIX socket path length cannot exceed {UNIX_PATH_MAX} characters on Linux system. "
-                    "Either use shorter instance/database name or switch to TCP connection. "
-                    f"The socket path for Cloud SQL proxy is now:{expected_path}"
+                    "The UNIX socket path length cannot exceed {} characters "
+                    "on Linux system. Either use shorter instance/database "
+                    "name or switch to TCP connection. "
+                    "The socket path for Cloud SQL proxy is now:"
+                    "{}".format(UNIX_PATH_MAX, expected_path)
                 )
 
     @staticmethod
@@ -802,12 +847,12 @@ class CloudSQLDatabaseHook(BaseHook):
         can be close to 60 characters and there is a limitation in
         length of socket path to around 100 characters in total.
         We append project/location/instance to it later and postgres
-        appends its own prefix, so we chose a shorter "${tempdir()}[8 random characters]"
+        appends its own prefix, so we chose a shorter "/tmp/[8 random characters]"
         """
         random.seed()
         while True:
-            candidate = os.path.join(
-                gettempdir(), ''.join(random.choice(string.ascii_lowercase + string.digits) for _ in range(8))
+            candidate = "/tmp/" + ''.join(
+                random.choice(string.ascii_lowercase + string.digits) for _ in range(8)
             )
             if not os.path.exists(candidate):
                 return candidate
@@ -835,7 +880,10 @@ class CloudSQLDatabaseHook(BaseHook):
                 format_string = proxy_uris['tcp']
             else:
                 format_string = proxy_uris['socket']
-                socket_path = f"{self.sql_proxy_unique_path}/{self._get_instance_socket_name()}"
+                socket_path = "{sql_proxy_socket_path}/{instance_socket_name}".format(
+                    sql_proxy_socket_path=self.sql_proxy_unique_path,
+                    instance_socket_name=self._get_instance_socket_name(),
+                )
         else:
             public_uris = database_uris['public']  # type: Dict[str, str]
             if self.use_ssl:

@@ -30,6 +30,7 @@ def failure_callback(context):
     The function that will be executed on failure.
 
     :param context: The context of the executed task.
+    :type context: dict
     """
     message = (
         'AIRFLOW TASK FAILURE TIPS:\n'

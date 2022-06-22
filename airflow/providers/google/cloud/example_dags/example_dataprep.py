@@ -18,7 +18,6 @@
 Example Airflow DAG that shows how to use Google Dataprep.
 """
 import os
-from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.dataprep import (
@@ -26,6 +25,7 @@ from airflow.providers.google.cloud.operators.dataprep import (
     DataprepGetJobsForJobGroupOperator,
     DataprepRunJobGroupOperator,
 )
+from airflow.utils import dates
 
 DATAPREP_JOB_ID = int(os.environ.get('DATAPREP_JOB_ID', 12345677))
 DATAPREP_JOB_RECIPE_ID = int(os.environ.get('DATAPREP_JOB_RECIPE_ID', 12345677))
@@ -53,8 +53,7 @@ DATA = {
 with models.DAG(
     "example_dataprep",
     schedule_interval='@once',
-    start_date=datetime(2021, 1, 1),  # Override to match your needs
-    catchup=False,
+    start_date=dates.days_ago(1),  # Override to match your needs
 ) as dag:
     # [START how_to_dataprep_run_job_group_operator]
     run_job_group = DataprepRunJobGroupOperator(task_id="run_job_group", body_request=DATA)

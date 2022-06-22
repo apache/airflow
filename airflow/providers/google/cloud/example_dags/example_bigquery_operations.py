@@ -21,7 +21,6 @@ Example Airflow DAG for Google BigQuery service.
 """
 import os
 import time
-from datetime import datetime
 from urllib.parse import urlparse
 
 from airflow import models
@@ -39,8 +38,7 @@ from airflow.providers.google.cloud.operators.bigquery import (
     BigQueryUpdateTableSchemaOperator,
     BigQueryUpsertTableOperator,
 )
-
-START_DATE = datetime(2021, 1, 1)
+from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BQ_LOCATION = "europe-north1"
@@ -60,8 +58,7 @@ DATA_SAMPLE_GCS_OBJECT_NAME = DATA_SAMPLE_GCS_URL_PARTS.path[1:]
 with models.DAG(
     "example_bigquery_operations",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag:
     # [START howto_operator_bigquery_create_table]
@@ -155,6 +152,8 @@ with models.DAG(
                 "sourceUris": [DATA_SAMPLE_GCS_URL],
             },
         },
+        bucket=DATA_SAMPLE_GCS_BUCKET_NAME,
+        source_objects=[DATA_SAMPLE_GCS_OBJECT_NAME],
     )
     # [END howto_operator_bigquery_create_external_table]
 
@@ -193,7 +192,10 @@ with models.DAG(
         task_id="update_table",
         dataset_id=DATASET_NAME,
         table_id="test_table",
-        fields=["friendlyName", "description"],
+        fields=[
+            {"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
+            {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"},
+        ],
         table_resource={
             "friendlyName": "Updated Table",
             "description": "Updated Table",
@@ -238,8 +240,7 @@ with models.DAG(
 with models.DAG(
     "example_bigquery_operations_location",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=days_ago(1),
     tags=["example"],
 ) as dag_with_location:
     create_dataset_with_location = BigQueryCreateEmptyDatasetOperator(

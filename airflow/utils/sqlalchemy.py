@@ -114,7 +114,7 @@ class ExtendedJSON(TypeDecorator):
             return None
 
         # First, encode it into our custom JSON-targeted dict format
-        value = BaseSerialization._serialize(value)
+        value = BaseSerialization._serialize(value)  # pylint: disable=protected-access
 
         # Then, if the database does not have native JSON support, encode it again as a string
         if not self.db_supports_json():
@@ -128,11 +128,11 @@ class ExtendedJSON(TypeDecorator):
         if value is None:
             return None
 
-        # Deserialize from a string first if needed
+        # Deserialise from a string first if needed
         if not self.db_supports_json():
             value = json.loads(value)
 
-        return BaseSerialization._deserialize(value)
+        return BaseSerialization._deserialize(value)  # pylint: disable=protected-access
 
 
 class Interval(TypeDecorator):

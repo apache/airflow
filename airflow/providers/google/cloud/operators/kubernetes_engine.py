@@ -20,8 +20,7 @@
 
 import os
 import tempfile
-import warnings
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Union
+from typing import Dict, Optional, Sequence, Union
 
 from google.cloud.container_v1.types import Cluster
 
@@ -31,9 +30,6 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GKEDeleteClusterOperator(BaseOperator):
@@ -60,11 +56,16 @@ class GKEDeleteClusterOperator(BaseOperator):
         :ref:`howto/operator:GKEDeleteClusterOperator`
 
     :param project_id: The Google Developers Console [project ID or project number]
+    :type project_id: str
     :param name: The name of the resource to delete, in this case cluster name
-    :param location: The name of the Google Compute Engine zone or region in which the cluster
+    :type name: str
+    :param location: The name of the Google Compute Engine zone in which the cluster
         resides.
+    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
     :param api_version: The api version to use
+    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -73,16 +74,17 @@ class GKEDeleteClusterOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = [
         'project_id',
         'gcp_conn_id',
         'name',
         'location',
         'api_version',
         'impersonation_chain',
-    )
+    ]
 
     def __init__(
         self,
@@ -110,7 +112,7 @@ class GKEDeleteClusterOperator(BaseOperator):
             self.log.error('One of (project_id, name, location) is missing or incorrect')
             raise AirflowException('Operator has incorrect or missing input.')
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context) -> Optional[str]:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -155,12 +157,17 @@ class GKECreateClusterOperator(BaseOperator):
         :ref:`howto/operator:GKECreateClusterOperator`
 
     :param project_id: The Google Developers Console [project ID or project number]
-    :param location: The name of the Google Compute Engine  or region in which the cluster
+    :type project_id: str
+    :param location: The name of the Google Compute Engine zone in which the cluster
         resides.
+    :type location: str
     :param body: The Cluster definition to create, can be protobuf or python dict, if
         dict it must match protobuf message Cluster
+    :type body: dict or google.cloud.container_v1.types.Cluster
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud.
+    :type gcp_conn_id: str
     :param api_version: The api version to use
+    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -169,16 +176,17 @@ class GKECreateClusterOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = [
         'project_id',
         'gcp_conn_id',
         'location',
         'api_version',
         'body',
         'impersonation_chain',
-    )
+    ]
 
     def __init__(
         self,
@@ -232,7 +240,7 @@ class GKECreateClusterOperator(BaseOperator):
             self.log.error("Only one of body['initial_node_count']) and body['node_pools'] may be specified")
             raise AirflowException("Operator has incorrect or missing input.")
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context) -> str:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -265,32 +273,21 @@ class GKEStartPodOperator(KubernetesPodOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:GKEStartPodOperator`
 
-    :param location: The name of the Google Kubernetes Engine zone or region in which the
+    :param location: The name of the Google Kubernetes Engine zone in which the
         cluster resides, e.g. 'us-central1-a'
+    :type location: str
     :param cluster_name: The name of the Google Kubernetes Engine cluster the pod
         should be spawned in
+    :type cluster_name: str
     :param use_internal_ip: Use the internal IP address as the endpoint.
     :param project_id: The Google Developers Console project id
+    :type project_id: str
     :param gcp_conn_id: The google cloud connection id to use. This allows for
         users to specify a service account.
-    :param impersonation_chain: Optional service account to impersonate using short-term
-        credentials, or list of accounts required to get the access_token
-        of the last account in the list, which will be impersonated in the request.
-        If set as a string, the account must grant the originating account
-        the Service Account Token Creator IAM role.
-        If set as a sequence, the identities from the list must grant
-        Service Account Token Creator IAM role to the directly preceding identity, with first
-        account from the list granting this role to the originating account (templated).
-    :param regional: The location param is region name.
-    :param is_delete_operator_pod: What to do when the pod reaches its final
-        state, or the execution is interrupted. If True, delete the
-        pod; if False, leave the pod.  Current default is False, but this will be
-        changed in the next major release of this provider.
+    :type gcp_conn_id: str
     """
 
-    template_fields: Sequence[str] = tuple(
-        {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
-    )
+    template_fields = {'project_id', 'location', 'cluster_name'} | set(KubernetesPodOperator.template_fields)
 
     def __init__(
         self,
@@ -300,30 +297,14 @@ class GKEStartPodOperator(KubernetesPodOperator):
         use_internal_ip: bool = False,
         project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        regional: bool = False,
-        is_delete_operator_pod: Optional[bool] = None,
         **kwargs,
     ) -> None:
-        if is_delete_operator_pod is None:
-            warnings.warn(
-                f"You have not set parameter `is_delete_operator_pod` in class {self.__class__.__name__}. "
-                "Currently the default for this parameter is `False` but in a future release the default "
-                "will be changed to `True`. To ensure pods are not deleted in the future you will need to "
-                "set `is_delete_operator_pod=False` explicitly.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            is_delete_operator_pod = False
-
-        super().__init__(is_delete_operator_pod=is_delete_operator_pod, **kwargs)
+        super().__init__(**kwargs)
         self.project_id = project_id
         self.location = location
         self.cluster_name = cluster_name
         self.gcp_conn_id = gcp_conn_id
         self.use_internal_ip = use_internal_ip
-        self.impersonation_chain = impersonation_chain
-        self.regional = regional
 
         if self.gcp_conn_id is None:
             raise AirflowException(
@@ -336,7 +317,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
         if self.config_file:
             raise AirflowException("config_file is not an allowed parameter for the GKEStartPodOperator.")
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context) -> Optional[str]:
         hook = GoogleBaseHook(gcp_conn_id=self.gcp_conn_id)
         self.project_id = self.project_id or hook.project_id
 
@@ -364,30 +345,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
                 "clusters",
                 "get-credentials",
                 self.cluster_name,
+                "--zone",
+                self.location,
                 "--project",
                 self.project_id,
             ]
-            if self.impersonation_chain:
-                if isinstance(self.impersonation_chain, str):
-                    impersonation_account = self.impersonation_chain
-                elif len(self.impersonation_chain) == 1:
-                    impersonation_account = self.impersonation_chain[0]
-                else:
-                    raise AirflowException(
-                        "Chained list of accounts is not supported, please specify only one service account"
-                    )
-
-                cmd.extend(
-                    [
-                        '--impersonate-service-account',
-                        impersonation_account,
-                    ]
-                )
-            if self.regional:
-                cmd.append('--region')
-            else:
-                cmd.append('--zone')
-            cmd.append(self.location)
             if self.use_internal_ip:
                 cmd.append('--internal-ip')
             execute_in_subprocess(cmd)

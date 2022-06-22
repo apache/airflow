@@ -18,7 +18,6 @@
 Example Airflow DAG that shows how to use Google Analytics 360.
 """
 import os
-from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.analytics import (
@@ -29,6 +28,7 @@ from airflow.providers.google.marketing_platform.operators.analytics import (
     GoogleAnalyticsModifyFileHeadersDataImportOperator,
     GoogleAnalyticsRetrieveAdsLinksListOperator,
 )
+from airflow.utils import dates
 
 ACCOUNT_ID = os.environ.get("GA_ACCOUNT_ID", "123456789")
 
@@ -41,8 +41,7 @@ DATA_ID = "kjdDu3_tQa6n8Q1kXFtSmg"
 with models.DAG(
     "example_google_analytics",
     schedule_interval='@once',  # Override to match your needs,
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_marketing_platform_list_accounts_operator]
     list_account = GoogleAnalyticsListAccountsOperator(task_id="list_account")

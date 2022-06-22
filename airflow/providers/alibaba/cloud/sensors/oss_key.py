@@ -15,22 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
-
-if sys.version_info >= (3, 8):
+try:
     from functools import cached_property
-else:
+except ImportError:
     from cached_property import cached_property
-
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Optional
 from urllib.parse import urlparse
 
 from airflow.exceptions import AirflowException
 from airflow.providers.alibaba.cloud.hooks.oss import OSSHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class OSSKeySensor(BaseSensorOperator):
@@ -42,12 +36,16 @@ class OSSKeySensor(BaseSensorOperator):
     :param bucket_key: The key being waited on. Supports full oss:// style url
         or relative path from root level. When it's specified as a full oss://
         url, please leave bucket_name as `None`.
+    :type bucket_key: str
     :param region: OSS region
+    :type region: str
     :param bucket_name: OSS bucket name
+    :type bucket_name: str
     :param oss_conn_id: The Airflow connection used for OSS credentials.
+    :type oss_conn_id: Optional[str]
     """
 
-    template_fields: Sequence[str] = ('bucket_key', 'bucket_name')
+    template_fields = ('bucket_key', 'bucket_name')
 
     def __init__(
         self,
@@ -65,7 +63,7 @@ class OSSKeySensor(BaseSensorOperator):
         self.oss_conn_id = oss_conn_id
         self.hook: Optional[OSSHook] = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context):
 
         if self.bucket_name is None:
             parsed_url = urlparse(self.bucket_key)
@@ -78,8 +76,8 @@ class OSSKeySensor(BaseSensorOperator):
             if parsed_url.scheme != '' or parsed_url.netloc != '':
                 raise AirflowException(
                     'If bucket_name is provided, bucket_key'
-                    ' should be relative path from root'
-                    ' level, rather than a full oss:// url'
+                    + ' should be relative path from root'
+                    + ' level, rather than a full oss:// url'
                 )
 
         self.log.info('Poking for key : oss://%s/%s', self.bucket_name, self.bucket_key)

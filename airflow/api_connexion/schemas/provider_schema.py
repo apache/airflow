@@ -19,34 +19,24 @@ from typing import List, NamedTuple
 
 from marshmallow import Schema, fields
 
-from airflow.typing_compat import TypedDict
-
 
 class ProviderSchema(Schema):
-    """Provider schema."""
+    """Provider schema"""
 
     package_name = fields.String(required=True)
     description = fields.String(required=True)
     version = fields.String(required=True)
 
 
-class Provider(TypedDict):
-    """A provider."""
-
-    package_name: str
-    description: str
-    version: str
-
-
 class ProviderCollection(NamedTuple):
-    """List of Providers."""
+    """List of Providers"""
 
-    providers: List[Provider]
+    providers: List[ProviderSchema]
     total_entries: int
 
 
 class ProviderCollectionSchema(Schema):
-    """Provider Collection schema."""
+    """Provider Collection schema"""
 
     providers = fields.List(fields.Nested(ProviderSchema))
     total_entries = fields.Int()

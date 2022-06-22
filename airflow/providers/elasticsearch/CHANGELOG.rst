@@ -19,46 +19,6 @@
 Changelog
 ---------
 
-2.2.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Emit "logs not found" message when ES logs appear to be missing (#21261)``
-* ``Use compat data interval shim in log handlers (#21289)``
-
-Misc
-~~~~
-
-* ``Clarify ElasticsearchTaskHandler docstring (#21255)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
-   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
-   * ``Fix mypy for providers: elasticsearch, oracle, yandex (#20344)``
-   * ``Fix duplicate changelog entries (#19759)``
-   * ``Add pre-commit check for docstring param types (#21398)``
-   * ``Add documentation for January 2021 providers release (#21257)``
-   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
-   * ``Update documentation for provider December 2021 release (#20523)``
-   * ``Update documentation for November 2021 provider's release (#19882)``
-
-2.1.0
-.....
-
-Features
-~~~~~~~~
-
-* ``Add docs for AIP 39: Timetables (#17552)``
-* ``Adds example showing the ES_hook (#17944)``
-
-.. Below changes are excluded from the changelog. Move them to
-   appropriate section above if needed. Do not delete the lines(!):
-   * ``Update documentation for September providers release (#18613)``
-   * ``Updating the Elasticsearch example DAG to use the TaskFlow API (#18565)``
-
 2.0.3
 .....
 
@@ -126,6 +86,7 @@ Bug fixes
    appropriate section above if needed. Do not delete the lines(!):
    * ``Bump pyupgrade v2.13.0 to v2.18.1 (#15991)``
    * ``Updated documentation for June 2021 provider release (#16294)``
+   * ``More documentation update for June providers release (#16405)``
    * ``Docs: Fix url for ''Elasticsearch'' (#16275)``
    * ``Add ElasticSearch Connection Doc (#16436)``
    * ``More documentation update for June providers release (#16405)``

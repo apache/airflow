@@ -14,8 +14,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# Ignore missing args provided by default_args
-# type: ignore[call-arg]
 
 from datetime import datetime
 
@@ -30,7 +28,7 @@ from airflow.providers.alibaba.cloud.operators.oss import (
 with DAG(
     dag_id='oss_object_dag',
     start_date=datetime(2021, 1, 1),
-    default_args={'bucket_name': 'your bucket', 'region': 'your region'},
+    default_args={'region': 'your region', 'bucket_name': 'your bucket'},
     max_active_runs=1,
     tags=['example'],
     catchup=False,

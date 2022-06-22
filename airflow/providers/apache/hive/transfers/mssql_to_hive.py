@@ -16,11 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module contains an operator to move data from MSSQL to Hive."""
+"""This module contains operator to move data from MSSQL to Hive."""
 
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from typing import Dict, Optional
 
 import pymssql
 import unicodecsv as csv
@@ -28,10 +28,6 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.apache.hive.hooks.hive import HiveCliHook
 from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
-from airflow.www import utils as wwwutils
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class MsSqlToHiveOperator(BaseOperator):
@@ -51,23 +47,30 @@ class MsSqlToHiveOperator(BaseOperator):
 
     :param sql: SQL query to execute against the Microsoft SQL Server
         database. (templated)
+    :type sql: str
     :param hive_table: target Hive table, use dot notation to target a specific
         database. (templated)
+    :type hive_table: str
     :param create: whether to create the table if it doesn't exist
+    :type create: bool
     :param recreate: whether to drop and recreate the table at every execution
+    :type recreate: bool
     :param partition: target partition as a dict of partition columns and
         values. (templated)
+    :type partition: dict
     :param delimiter: field delimiter in the file
+    :type delimiter: str
     :param mssql_conn_id: source Microsoft SQL Server connection
+    :type mssql_conn_id: str
     :param hive_cli_conn_id: Reference to the
         :ref:`Hive CLI connection id <howto/connection:hive_cli>`.
+    :type hive_cli_conn_id: str
     :param tblproperties: TBLPROPERTIES of the hive table being created
+    :type tblproperties: dict
     """
 
-    template_fields: Sequence[str] = ('sql', 'partition', 'hive_table')
-    template_ext: Sequence[str] = ('.sql',)
-    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
-    template_fields_renderers = {'sql': 'tsql' if 'tsql' in wwwutils.get_attr_renderer() else 'sql'}
+    template_fields = ('sql', 'partition', 'hive_table')
+    template_ext = ('.sql',)
     ui_color = '#a0e08c'
 
     def __init__(
@@ -106,7 +109,7 @@ class MsSqlToHiveOperator(BaseOperator):
         }
         return map_dict.get(mssql_type, 'STRING')
 
-    def execute(self, context: "Context"):
+    def execute(self, context: Dict[str, str]):
         mssql = MsSqlHook(mssql_conn_id=self.mssql_conn_id)
         self.log.info("Dumping Microsoft SQL Server query results to local file")
         with mssql.get_conn() as conn:

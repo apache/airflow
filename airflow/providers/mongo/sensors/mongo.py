@@ -15,13 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Sequence
-
 from airflow.providers.mongo.hooks.mongo import MongoHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class MongoSensor(BaseSensorOperator):
@@ -32,30 +27,30 @@ class MongoSensor(BaseSensorOperator):
     >>> mongo_sensor = MongoSensor(collection="coll",
     ...                            query={"key": "value"},
     ...                            mongo_conn_id="mongo_default",
-    ...                            mongo_db="admin",
     ...                            task_id="mongo_sensor")
 
     :param collection: Target MongoDB collection.
+    :type collection: str
     :param query: The query to find the target document.
+    :type query: dict
     :param mongo_conn_id: The :ref:`Mongo connection id <howto/connection:mongo>` to use
         when connecting to MongoDB.
-    :param mongo_db: Target MongoDB name.
+    :type mongo_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('collection', 'query')
+    template_fields = ('collection', 'query')
 
     def __init__(
-        self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", mongo_db=None, **kwargs
+        self, *, collection: str, query: dict, mongo_conn_id: str = "mongo_default", **kwargs
     ) -> None:
         super().__init__(**kwargs)
         self.mongo_conn_id = mongo_conn_id
         self.collection = collection
         self.query = query
-        self.mongo_db = mongo_db
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: dict) -> bool:
         self.log.info(
             "Sensor check existence of the document that matches the following query: %s", self.query
         )
         hook = MongoHook(self.mongo_conn_id)
-        return hook.find(self.collection, self.query, mongo_db=self.mongo_db, find_one=True) is not None
+        return hook.find(self.collection, self.query, find_one=True) is not None

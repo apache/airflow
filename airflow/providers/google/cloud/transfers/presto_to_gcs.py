@@ -144,6 +144,7 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from PrestoDB to Google Cloud Storage in JSON or CSV format.
 
     :param presto_conn_id: Reference to a specific Presto hook.
+    :type presto_conn_id: str
     """
 
     ui_color = "#a0e08c"
@@ -200,6 +201,8 @@ class PrestoToGCSOperator(BaseSQLToGCSOperator):
         Do nothing. Presto uses JSON on the transport layer, so types are simple.
 
         :param value: Presto column value
+        :type value: Any
         :param schema_type: BigQuery data type
+        :type schema_type: str
         """
         return value

@@ -66,8 +66,11 @@ class BaseTIDep:
         representing if each of the passed in task's upstream tasks succeeded or not.
 
         :param ti: the task instance to get the dependency status for
+        :type ti: airflow.models.TaskInstance
         :param session: database session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: the context for which this dependency should be evaluated for
+        :type dep_context: DepContext
         """
         raise NotImplementedError
 
@@ -78,8 +81,11 @@ class BaseTIDep:
         checks for all dependencies.
 
         :param ti: the task instance to get the dependency status for
+        :type ti: airflow.models.TaskInstance
         :param session: database session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: the context for which this dependency should be evaluated for
+        :type dep_context: DepContext
         """
         if dep_context is None:
             dep_context = DepContext()
@@ -102,9 +108,12 @@ class BaseTIDep:
         passing.
 
         :param ti: the task instance to see if this dependency is met for
+        :type ti: airflow.models.TaskInstance
         :param session: database session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: The context this dependency is being checked under that stores
             state that can be used by this dependency.
+        :type dep_context: BaseDepContext
         """
         return all(status.passed for status in self.get_dep_statuses(ti, session, dep_context))
 
@@ -114,9 +123,12 @@ class BaseTIDep:
         Returns an iterable of strings that explain why this dependency wasn't met.
 
         :param ti: the task instance to see if this dependency is met for
+        :type ti: airflow.models.TaskInstance
         :param session: database session
+        :type session: sqlalchemy.orm.session.Session
         :param dep_context: The context this dependency is being checked under that stores
             state that can be used by this dependency.
+        :type dep_context: BaseDepContext
         """
         for dep_status in self.get_dep_statuses(ti, session, dep_context):
             if not dep_status.passed:

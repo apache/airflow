@@ -20,12 +20,10 @@ import json
 from datetime import datetime
 from typing import List, Optional, Union
 
-import pendulum
-
 from airflow.exceptions import DagNotFound, DagRunAlreadyExists
 from airflow.models import DagBag, DagModel, DagRun
 from airflow.utils import timezone
-from airflow.utils.state import DagRunState
+from airflow.utils.state import State
 from airflow.utils.types import DagRunType
 
 
@@ -36,7 +34,7 @@ def _trigger_dag(
     conf: Optional[Union[dict, str]] = None,
     execution_date: Optional[datetime] = None,
     replace_microseconds: bool = True,
-) -> List[Optional[DagRun]]:
+) -> List[DagRun]:
     """Triggers DAG run.
 
     :param dag_id: DAG ID
@@ -49,7 +47,7 @@ def _trigger_dag(
     """
     dag = dag_bag.get_dag(dag_id)  # prefetch dag if it is stored serialized
 
-    if dag is None or dag_id not in dag_bag.dags:
+    if dag_id not in dag_bag.dags:
         raise DagNotFound(f"Dag id {dag_id} not found")
 
     execution_date = execution_date if execution_date else timezone.utcnow()
@@ -86,13 +84,10 @@ def _trigger_dag(
         dag_run = _dag.create_dagrun(
             run_id=run_id,
             execution_date=execution_date,
-            state=DagRunState.QUEUED,
+            state=State.QUEUED,
             conf=run_conf,
             external_trigger=True,
             dag_hash=dag_bag.dags_hash.get(dag_id),
-            data_interval=_dag.timetable.infer_manual_data_interval(
-                run_after=pendulum.instance(execution_date)
-            ),
         )
         dag_runs.append(dag_run)
 

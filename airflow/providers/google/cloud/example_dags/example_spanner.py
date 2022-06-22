@@ -33,7 +33,6 @@ This DAG relies on the following environment variables
 """
 
 import os
-from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.spanner import (
@@ -44,6 +43,7 @@ from airflow.providers.google.cloud.operators.spanner import (
     SpannerQueryDatabaseInstanceOperator,
     SpannerUpdateDatabaseInstanceOperator,
 )
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCP_SPANNER_INSTANCE_ID = os.environ.get('GCP_SPANNER_INSTANCE_ID', 'testinstance')
@@ -59,8 +59,7 @@ OPERATION_ID = 'unique_operation_id'
 with models.DAG(
     'example_gcp_spanner',
     schedule_interval='@once',  # Override to match your needs
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=days_ago(1),
     tags=['example'],
 ) as dag:
     # Create

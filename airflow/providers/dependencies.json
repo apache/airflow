@@ -10,6 +10,8 @@
     "google",
     "imap",
     "mongo",
+    "mysql",
+    "postgres",
     "salesforce",
     "ssh"
   ],
@@ -58,8 +60,7 @@
   ],
   "microsoft.azure": [
     "google",
-    "oracle",
-    "sftp"
+    "oracle"
   ],
   "mysql": [
     "amazon",
@@ -67,11 +68,11 @@
     "trino",
     "vertica"
   ],
+  "opsgenie": [
+    "http"
+  ],
   "postgres": [
     "amazon"
-  ],
-  "presto": [
-    "google"
   ],
   "salesforce": [
     "tableau"

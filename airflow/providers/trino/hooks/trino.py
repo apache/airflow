@@ -16,8 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import os
-import warnings
-from typing import Any, Callable, Iterable, Optional, overload
+from typing import Any, Iterable, Optional
 
 import trino
 from trino.exceptions import DatabaseError
@@ -107,93 +106,27 @@ class TrinoHook(DbApiHook):
     def _strip_sql(sql: str) -> str:
         return sql.strip().rstrip(';')
 
-    @overload
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None):
-        """Get a set of records from Trino
-
-        :param sql: SQL statement to be executed.
-        :param parameters: The parameters to render the SQL query with.
-        """
-
-    @overload
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
-        """:sphinx-autoapi-skip:"""
-
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
+    def get_records(self, hql, parameters: Optional[dict] = None):
+        """Get a set of records from Trino"""
         try:
-            return super().get_records(self._strip_sql(sql), parameters)
+            return super().get_records(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
-    @overload
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
-        """Returns only the first row, regardless of how many rows the query returns.
-
-        :param sql: SQL statement to be executed.
-        :param parameters: The parameters to render the SQL query with.
-        """
-
-    @overload
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
-        """:sphinx-autoapi-skip:"""
-
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
+    def get_first(self, hql: str, parameters: Optional[dict] = None) -> Any:
+        """Returns only the first row, regardless of how many rows the query returns."""
         try:
-            return super().get_first(self._strip_sql(sql), parameters)
+            return super().get_first(self._strip_sql(hql), parameters)
         except DatabaseError as e:
             raise TrinoException(e)
 
-    @overload
-    def get_pandas_df(
-        self, sql: str = "", parameters: Optional[dict] = None, **kwargs
-    ):  # type: ignore[override]
-        """Get a pandas dataframe from a sql query.
-
-        :param sql: SQL statement to be executed.
-        :param parameters: The parameters to render the SQL query with.
-        """
-
-    @overload
-    def get_pandas_df(
-        self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
-    ):  # type: ignore[override]
-        """:sphinx-autoapi-skip:"""
-
-    def get_pandas_df(
-        self, sql: str = "", parameters: Optional[dict] = None, hql: str = "", **kwargs
-    ):  # type: ignore[override]
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
+    def get_pandas_df(self, hql, parameters=None, **kwargs):
+        """Get a pandas dataframe from a sql query."""
         import pandas
 
         cursor = self.get_cursor()
         try:
-            cursor.execute(self._strip_sql(sql), parameters)
+            cursor.execute(self._strip_sql(hql), parameters)
             data = cursor.fetchall()
         except DatabaseError as e:
             raise TrinoException(e)
@@ -205,47 +138,14 @@ class TrinoHook(DbApiHook):
             df = pandas.DataFrame(**kwargs)
         return df
 
-    @overload
     def run(
         self,
-        sql: str = "",
+        hql,
         autocommit: bool = False,
         parameters: Optional[dict] = None,
-        handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
-
-    @overload
-    def run(
-        self,
-        sql: str = "",
-        autocommit: bool = False,
-        parameters: Optional[dict] = None,
-        handler: Optional[Callable] = None,
-        hql: str = "",
-    ) -> None:
-        """:sphinx-autoapi-skip:"""
-
-    def run(
-        self,
-        sql: str = "",
-        autocommit: bool = False,
-        parameters: Optional[dict] = None,
-        handler: Optional[Callable] = None,
-        hql: str = "",
-    ) -> None:
-        """:sphinx-autoapi-skip:"""
-        if hql:
-            warnings.warn(
-                "The hql parameter has been deprecated. You should pass the sql parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            sql = hql
-
-        return super().run(
-            sql=self._strip_sql(sql), autocommit=autocommit, parameters=parameters, handler=handler
-        )
+        return super().run(sql=self._strip_sql(hql), parameters=parameters)
 
     def insert_rows(
         self,
@@ -260,11 +160,16 @@ class TrinoHook(DbApiHook):
         A generic way to insert a set of tuples into a table.
 
         :param table: Name of the target table
+        :type table: str
         :param rows: The rows to insert into the table
+        :type rows: iterable of tuples
         :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
+        :type commit_every: int
         :param replace: Whether to replace instead of insert
+        :type replace: bool
         """
         if self.get_isolation_level() == IsolationLevel.AUTOCOMMIT:
             self.log.info(
@@ -274,4 +179,4 @@ class TrinoHook(DbApiHook):
             )
             commit_every = 0
 
-        super().insert_rows(table, rows, target_fields, commit_every, replace)
+        super().insert_rows(table, rows, target_fields, commit_every)

@@ -18,10 +18,11 @@
 """Qubole operator"""
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import Iterable, Optional
 
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator, BaseOperatorLink, XCom
+from airflow.models import BaseOperator, BaseOperatorLink
+from airflow.models.taskinstance import TaskInstance
 from airflow.providers.qubole.hooks.qubole import (
     COMMAND_ARGS,
     HYPHEN_ARGS,
@@ -29,9 +30,6 @@ from airflow.providers.qubole.hooks.qubole import (
     QuboleHook,
     flatten_list,
 )
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class QDSLink(BaseOperatorLink):
@@ -47,6 +45,7 @@ class QDSLink(BaseOperatorLink):
         :param dttm: datetime
         :return: url link
         """
+        ti = TaskInstance(task=operator, execution_date=dttm)
         conn = BaseHook.get_connection(
             getattr(operator, "qubole_conn_id", None)
             or operator.kwargs['qubole_conn_id']  # type: ignore[attr-defined]
@@ -55,9 +54,7 @@ class QDSLink(BaseOperatorLink):
             host = re.sub(r'api$', 'v2/analyze?command_id=', conn.host)
         else:
             host = 'https://api.qubole.com/v2/analyze?command_id='
-        qds_command_id = XCom.get_one(
-            key='qbol_cmd_id', dag_id=operator.dag.dag_id, task_id=operator.task_id, execution_date=dttm
-        )
+        qds_command_id = ti.xcom_pull(task_ids=operator.task_id, key='qbol_cmd_id')
         url = host + str(qds_command_id) if qds_command_id else ''
         return url
 
@@ -66,11 +63,8 @@ class QuboleOperator(BaseOperator):
     """
     Execute tasks (commands) on QDS (https://qubole.com).
 
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:QuboleOperator`
-
     :param qubole_conn_id: Connection id which consists of qds auth_token
+    :type qubole_conn_id: str
 
     kwargs:
         :command_type: type of command to be executed, e.g. hivecmd, shellcmd, hadoopcmd
@@ -185,7 +179,7 @@ class QuboleOperator(BaseOperator):
         handler in task definition.
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         'query',
         'script_location',
         'sub_command',
@@ -216,7 +210,7 @@ class QuboleOperator(BaseOperator):
         'cluster_label',
     )
 
-    template_ext: Sequence[str] = ('.txt',)
+    template_ext: Iterable[str] = ('.txt',)
     ui_color = '#3064A1'
     ui_fgcolor = '#fff'
     qubole_hook_allowed_args_list = ['command_type', 'qubole_conn_id', 'fetch_logs']
@@ -245,7 +239,7 @@ class QuboleOperator(BaseOperator):
         )
         return {key: value for key, value in all_kwargs.items() if key not in qubole_args}
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context) -> None:
         return self.get_hook().execute(context)
 
     def on_kill(self, ti=None) -> None:

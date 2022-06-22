@@ -35,8 +35,11 @@ class BaseSecretsBackend(ABC):
         Given conn_id, build path for Secrets Backend
 
         :param path_prefix: Prefix of the path to get secret
+        :type path_prefix: str
         :param secret_id: Secret id
+        :type secret_id: str
         :param sep: separator used to concatenate connections_prefix and conn_id. Default: "/"
+        :type sep: str
         """
         return f"{path_prefix}{sep}{secret_id}"
 
@@ -45,6 +48,7 @@ class BaseSecretsBackend(ABC):
         Get conn_uri from Secrets Backend
 
         :param conn_id: connection id
+        :type conn_id: str
         """
         raise NotImplementedError()
 
@@ -53,6 +57,7 @@ class BaseSecretsBackend(ABC):
         Return connection object with a given ``conn_id``.
 
         :param conn_id: connection id
+        :type conn_id: str
         """
         from airflow.models.connection import Connection
 
@@ -67,6 +72,7 @@ class BaseSecretsBackend(ABC):
         Return connection object with a given ``conn_id``.
 
         :param conn_id: connection id
+        :type conn_id: str
         """
         warnings.warn(
             "This method is deprecated. Please use "
@@ -84,6 +90,7 @@ class BaseSecretsBackend(ABC):
         Return value for Airflow Variable
 
         :param key: Variable Key
+        :type key: str
         :return: Variable Value
         """
         raise NotImplementedError()

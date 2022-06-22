@@ -17,10 +17,9 @@
 # under the License.
 #
 import datetime as dt
-from typing import Optional, Union, overload
+from typing import Optional, Union
 
 import pendulum
-from dateutil.relativedelta import relativedelta
 from pendulum.datetime import DateTime
 
 from airflow.settings import TIMEZONE
@@ -81,17 +80,7 @@ def utc_epoch() -> dt.datetime:
     return result
 
 
-@overload
-def convert_to_utc(value: None) -> None:
-    ...
-
-
-@overload
-def convert_to_utc(value: dt.datetime) -> DateTime:
-    ...
-
-
-def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
+def convert_to_utc(value):
     """
     Returns the datetime with the default timezone added if timezone
     information was not associated
@@ -99,31 +88,16 @@ def convert_to_utc(value: Optional[dt.datetime]) -> Optional[DateTime]:
     :param value: datetime
     :return: datetime with tzinfo
     """
-    if value is None:
+    if not value:
         return value
 
     if not is_localized(value):
         value = pendulum.instance(value, TIMEZONE)
 
-    return pendulum.instance(value.astimezone(utc))
+    return value.astimezone(utc)
 
 
-@overload
-def make_aware(value: None, timezone: Optional[dt.tzinfo] = None) -> None:
-    ...
-
-
-@overload
-def make_aware(value: DateTime, timezone: Optional[dt.tzinfo] = None) -> DateTime:
-    ...
-
-
-@overload
-def make_aware(value: dt.datetime, timezone: Optional[dt.tzinfo] = None) -> dt.datetime:
-    ...
-
-
-def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = None) -> Optional[dt.datetime]:
+def make_aware(value, timezone=None):
     """
     Make a naive datetime.datetime in a given time zone aware.
 
@@ -134,9 +108,6 @@ def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = Non
     if timezone is None:
         timezone = TIMEZONE
 
-    if not value:
-        return None
-
     # Check that we won't overwrite the timezone of an aware datetime.
     if is_localized(value):
         raise ValueError(f"make_aware expects a naive datetime, got {value}")
@@ -146,16 +117,15 @@ def make_aware(value: Optional[dt.datetime], timezone: Optional[dt.tzinfo] = Non
         # instance of the same clock time rather than the first one.
         # Fold parameter has no impact in other cases so we can safely set it to 1 here
         value = value.replace(fold=1)
-    localized = getattr(timezone, 'localize', None)
-    if localized is not None:
-        # This method is available for pytz time zones
-        return localized(value)
-    convert = getattr(timezone, 'convert', None)
-    if convert is not None:
+    if hasattr(timezone, 'localize'):
+        # This method is available for pytz time zones.
+        return timezone.localize(value)
+    elif hasattr(timezone, 'convert'):
         # For pendulum
-        return convert(value)
-    # This may be wrong around DST changes!
-    return value.replace(tzinfo=timezone)
+        return timezone.convert(value)
+    else:
+        # This may be wrong around DST changes!
+        return value.replace(tzinfo=timezone)
 
 
 def make_naive(value, timezone=None):
@@ -205,61 +175,12 @@ def parse(string: str, timezone=None) -> DateTime:
     return pendulum.parse(string, tz=timezone or TIMEZONE, strict=False)  # type: ignore
 
 
-@overload
-def coerce_datetime(v: None) -> None:
-    ...
-
-
-@overload
-def coerce_datetime(v: DateTime) -> DateTime:
-    ...
-
-
-@overload
-def coerce_datetime(v: dt.datetime) -> DateTime:
-    ...
-
-
-def coerce_datetime(v: Optional[dt.datetime]) -> Optional[DateTime]:
+def coerce_datetime(v: Union[None, dt.datetime, DateTime]) -> Optional[DateTime]:
     """Convert whatever is passed in to an timezone-aware ``pendulum.DateTime``."""
     if v is None:
         return None
+    if v.tzinfo is None:
+        v = make_aware(v)
     if isinstance(v, DateTime):
-        return v if v.tzinfo else make_aware(v)
-    # Only dt.datetime is left here
-    return pendulum.instance(v if v.tzinfo else make_aware(v))
-
-
-def td_format(td_object: Union[None, dt.timedelta, float, int]) -> Optional[str]:
-    """
-    Format a timedelta object or float/int into a readable string for time duration.
-    For example timedelta(seconds=3752) would become `1h:2M:32s`.
-    If the time is less than a second, the return will be `<1s`.
-    """
-    if not td_object:
-        return None
-    if isinstance(td_object, dt.timedelta):
-        delta = relativedelta() + td_object
-    else:
-        delta = relativedelta(seconds=int(td_object))
-    # relativedelta for timedelta cannot convert days to months
-    # so calculate months by assuming 30 day months and normalize
-    months, delta.days = divmod(delta.days, 30)
-    delta = delta.normalized() + relativedelta(months=months)
-
-    def _format_part(key: str) -> str:
-        value = int(getattr(delta, key))
-        if value < 1:
-            return ""
-        # distinguish between month/minute following strftime format
-        # and take first char of each unit, i.e. years='y', days='d'
-        if key == 'minutes':
-            key = key.upper()
-        key = key[0]
-        return f"{value}{key}"
-
-    parts = map(_format_part, ("years", "months", "days", "hours", "minutes", "seconds"))
-    joined = ":".join(part for part in parts if part)
-    if not joined:
-        return "<1s"
-    return joined
+        return v
+    return pendulum.instance(v)

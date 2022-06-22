@@ -49,21 +49,21 @@ def variables_get(args):
         raise SystemExit(str(e).strip("'\""))
 
 
-@cli_utils.action_cli
+@cli_utils.action_logging
 def variables_set(args):
     """Creates new variable with a given name and value"""
     Variable.set(args.key, args.value, serialize_json=args.json)
     print(f"Variable {args.key} created")
 
 
-@cli_utils.action_cli
+@cli_utils.action_logging
 def variables_delete(args):
     """Deletes variable by a given name"""
     Variable.delete(args.key)
     print(f"Variable {args.key} deleted")
 
 
-@cli_utils.action_cli
+@cli_utils.action_logging
 def variables_import(args):
     """Imports variables from a given file"""
     if os.path.exists(args.file):

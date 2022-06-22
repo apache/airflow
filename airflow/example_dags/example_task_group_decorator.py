@@ -33,34 +33,34 @@ def task_start():
 
 
 @task
-def task_1(value: int) -> str:
+def task_1(value):
     """Dummy Task1"""
     return f'[ Task1 {value} ]'
 
 
 @task
-def task_2(value: str) -> str:
+def task_2(value):
     """Dummy Task2"""
     return f'[ Task2 {value} ]'
 
 
 @task
-def task_3(value: str) -> None:
+def task_3(value):
     """Dummy Task3"""
     print(f'[ Task3 {value} ]')
 
 
 @task
-def task_end() -> None:
+def task_end():
     """Dummy Task which is Last Task of Dag"""
     print('[ Task_End  ]')
 
 
 # Creating TaskGroups
 @task_group
-def task_group_function(value: int) -> None:
+def task_group_function(value):
     """TaskGroup for grouping related Tasks"""
-    task_3(task_2(task_1(value)))
+    return task_3(task_2(task_1(value)))
 
 
 # Executing Tasks and TaskGroups

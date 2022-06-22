@@ -25,7 +25,6 @@ from typing import Optional, Sequence, Tuple, Union
 from google.api_core.retry import Retry
 from google.cloud.kms_v1 import KeyManagementServiceClient
 
-from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -44,9 +43,11 @@ class CloudKMSHook(GoogleBaseHook):
     Hook for Google Cloud Key Management service.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
+    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -55,6 +56,7 @@ class CloudKMSHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
+    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -79,7 +81,7 @@ class CloudKMSHook(GoogleBaseHook):
         """
         if not self._conn:
             self._conn = KeyManagementServiceClient(
-                credentials=self._get_credentials(), client_info=CLIENT_INFO
+                credentials=self._get_credentials(), client_info=self.client_info
             )
         return self._conn
 
@@ -90,7 +92,7 @@ class CloudKMSHook(GoogleBaseHook):
         authenticated_data: Optional[bytes] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> str:
         """
         Encrypts a plaintext message using Google Cloud KMS.
@@ -98,14 +100,20 @@ class CloudKMSHook(GoogleBaseHook):
         :param key_name: The Resource Name for the key (or key version)
                          to be used for encryption. Of the form
                          ``projects/*/locations/*/keyRings/*/cryptoKeys/**``
+        :type key_name: str
         :param plaintext: The message to be encrypted.
+        :type plaintext: bytes
         :param authenticated_data: Optional additional authenticated data that
                                    must also be provided to decrypt the message.
+        :type authenticated_data: bytes
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: sequence[tuple[str, str]]]
         :return: The base 64 encoded ciphertext of the original message.
         :rtype: str
         """
@@ -117,7 +125,7 @@ class CloudKMSHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
         ciphertext = _b64encode(response.ciphertext)
@@ -130,21 +138,27 @@ class CloudKMSHook(GoogleBaseHook):
         authenticated_data: Optional[bytes] = None,
         retry: Optional[Retry] = None,
         timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        metadata: Optional[Sequence[Tuple[str, str]]] = None,
     ) -> bytes:
         """
         Decrypts a ciphertext message using Google Cloud KMS.
 
         :param key_name: The Resource Name for the key to be used for decryption.
                          Of the form ``projects/*/locations/*/keyRings/*/cryptoKeys/**``
+        :type key_name: str
         :param ciphertext: The message to be decrypted.
+        :type ciphertext: str
         :param authenticated_data: Any additional authenticated data that was
                                    provided when encrypting the message.
+        :type authenticated_data: bytes
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
+        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
+        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
+        :type metadata: sequence[tuple[str, str]]]
         :return: The original message.
         :rtype: bytes
         """
@@ -156,7 +170,7 @@ class CloudKMSHook(GoogleBaseHook):
             },
             retry=retry,
             timeout=timeout,
-            metadata=metadata,
+            metadata=metadata or (),
         )
 
         return response.plaintext

@@ -54,7 +54,7 @@ class Anonymizer(Protocol):
 class NullAnonymizer(Anonymizer):
     """Do nothing."""
 
-    def _identity(self, value) -> str:
+    def _identity(self, value):
         return value
 
     process_path = process_username = process_url = _identity
@@ -70,19 +70,19 @@ class PiiAnonymizer(Anonymizer):
         username = getuser()
         self._path_replacements = {home_path: "${HOME}", username: "${USER}"}
 
-    def process_path(self, value) -> str:
+    def process_path(self, value):
         if not value:
             return value
         for src, target in self._path_replacements.items():
             value = value.replace(src, target)
         return value
 
-    def process_username(self, value) -> str:
+    def process_username(self, value):
         if not value:
             return value
         return value[0] + "..." + value[-1]
 
-    def process_url(self, value) -> str:
+    def process_url(self, value):
         if not value:
             return value
 

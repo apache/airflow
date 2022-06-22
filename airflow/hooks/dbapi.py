@@ -57,6 +57,7 @@ class DbApiHook(BaseHook):
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
         should be done before calling the ``DBApiHook.__init__()``.
+    :type schema: Optional[str]
     """
 
     # Override to provide the connection name.
@@ -122,8 +123,11 @@ class DbApiHook(BaseHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
         :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        :type kwargs: dict
         """
         try:
             from pandas.io import sql as psql
@@ -139,7 +143,9 @@ class DbApiHook(BaseHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
@@ -155,7 +161,9 @@ class DbApiHook(BaseHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.cursor()) as cur:
@@ -173,10 +181,14 @@ class DbApiHook(BaseHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
+        :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
         :param handler: The result handler which is called with the result of each statement.
+        :type handler: callable
         :return: query results if handler was provided.
         """
         scalar = isinstance(sql, str)
@@ -237,6 +249,7 @@ class DbApiHook(BaseHook):
         does not support autocommit.
 
         :param conn: Connection to get autocommit setting from.
+        :type conn: connection object.
         :return: connection autocommit setting.
         :rtype: bool
         """
@@ -253,9 +266,13 @@ class DbApiHook(BaseHook):
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
+        :type table: str
         :param values: The row to insert into the table
+        :type values: tuple of cell values
         :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
         :param replace: Whether to replace instead of insert
+        :type replace: bool
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """
@@ -282,11 +299,16 @@ class DbApiHook(BaseHook):
         a new transaction is created every commit_every rows
 
         :param table: Name of the target table
+        :type table: str
         :param rows: The rows to insert into the table
+        :type rows: iterable of tuples
         :param target_fields: The names of the columns to fill in the table
+        :type target_fields: iterable of strings
         :param commit_every: The maximum number of rows to insert in one
             transaction. Set to 0 to insert all rows in one transaction.
+        :type commit_every: int
         :param replace: Whether to replace instead of insert
+        :type replace: bool
         """
         i = 0
         with closing(self.get_conn()) as conn:
@@ -317,7 +339,9 @@ class DbApiHook(BaseHook):
         Returns the SQL literal of the cell as a string.
 
         :param cell: The cell to insert into the table
+        :type cell: object
         :param conn: The database connection
+        :type conn: connection object
         :return: The serialized cell
         :rtype: str
         """
@@ -332,7 +356,9 @@ class DbApiHook(BaseHook):
         Dumps a database table into a tab-delimited file
 
         :param table: The name of the source table
+        :type table: str
         :param tmp_file: The path of the target file
+        :type tmp_file: str
         """
         raise NotImplementedError()
 
@@ -341,7 +367,9 @@ class DbApiHook(BaseHook):
         Loads a tab-delimited file into a database table
 
         :param table: The name of the target table
+        :type table: str
         :param tmp_file: The path of the file to load into the table
+        :type tmp_file: str
         """
         raise NotImplementedError()
 
@@ -349,9 +377,12 @@ class DbApiHook(BaseHook):
         """Tests the connection by executing a select 1 query"""
         status, message = False, ''
         try:
-            if self.get_first("select 1"):
-                status = True
-                message = 'Connection successfully tested'
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.execute("select 1")
+                    if cur.fetchone():
+                        status = True
+                        message = 'Connection successfully tested'
         except Exception as e:
             status = False
             message = str(e)

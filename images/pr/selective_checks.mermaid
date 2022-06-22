@@ -1,0 +1,35 @@
+%% Licensed to the Apache Software Foundation (ASF) under one
+%% or more contributor license agreements.  See the NOTICE file
+%% distributed with this work for additional information
+%% regarding copyright ownership.  The ASF licenses this file
+%% to you under the Apache License, Version 2.0 (the
+%% "License"); you may not use this file except in compliance
+%% with the License.  You may obtain a copy of the License at
+%%
+%%   http://www.apache.org/licenses/LICENSE-2.0
+%%
+%% Unless required by applicable law or agreed to in writing,
+%% software distributed under the License is distributed on an
+%% "AS IS" BASIS, WITHOUT WARRANTIES OR CONDITIONS OF ANY
+%% KIND, either express or implied.  See the License for the
+%% specific language governing permissions and limitations
+%% under the License.
+
+graph LR
+A[PR arrives] --> B[Selective check]
+B --> C{direct push merge?}
+C -->|Yes: enable images| D[Run Full tests<br>+Quarantined<br>run full static checks]
+C -->|No| E[Retrieve changed files]
+E --> F{environment files changed?}
+F -->|Yes: enable images| D
+F -->|No| G{docs changed}
+G -->|Yes: enable image building| H{Chart files changed?}
+G -->|No| H
+H -->|Yes: enable helm tests| I{API files changed?}
+H -->|No| I
+I -->|Yes: enable API tests| J{sources changed?}
+I -->|No| J
+J -->|Yes: enable Pytests| K{determine test type}
+J -->|No| L[skip running test<br/>Run subset of static checks]
+K -->|Core files changed: enable images| D
+K -->|No core files changed: enable images| M[Run selected tests +<br/> Heisentest, Integration, Quarantined<br/>Full static checks]

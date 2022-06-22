@@ -19,9 +19,9 @@ from datetime import datetime, timedelta
 
 from airflow import DAG
 from airflow.decorators import task
-from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.aws.operators.sqs import SqsPublishOperator
-from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
+from airflow.providers.amazon.aws.hooks.sqs import SQSHook
+from airflow.providers.amazon.aws.operators.sqs import SQSPublishOperator
+from airflow.providers.amazon.aws.sensors.sqs import SQSSensor
 
 QUEUE_NAME = 'Airflow-Example-Queue'
 AWS_CONN_ID = 'aws_default'
@@ -29,16 +29,18 @@ AWS_CONN_ID = 'aws_default'
 
 @task(task_id="create_queue")
 def create_queue_fn():
-    """This is a Python function that creates an SQS queue"""
-    hook = SqsHook()
-    result = hook.create_queue(queue_name=QUEUE_NAME)
+    """This is a python callback that creates an SQS queue"""
+    hook = SQSHook(aws_conn_id=AWS_CONN_ID)
+    result = hook.create_queue(
+        queue_name=QUEUE_NAME,
+    )
     return result['QueueUrl']
 
 
 @task(task_id="delete_queue")
 def delete_queue_fn(queue_url):
-    """This is a Python function that deletes an SQS queue"""
-    hook = SqsHook()
+    """This is a python callback that deletes an SQS queue"""
+    hook = SQSHook(aws_conn_id=AWS_CONN_ID)
     hook.get_conn().delete_queue(QueueUrl=queue_url)
 
 
@@ -55,15 +57,16 @@ with DAG(
     # Using a task-decorated function to create an SQS queue
     create_queue = create_queue_fn()
 
-    publish_to_queue = SqsPublishOperator(
+    publish_to_queue = SQSPublishOperator(
         task_id='publish_to_queue',
         sqs_queue=create_queue,
         message_content="{{ task_instance }}-{{ execution_date }}",
         message_attributes=None,
         delay_seconds=0,
+        aws_conn_id=AWS_CONN_ID,
     )
 
-    read_from_queue = SqsSensor(
+    read_from_queue = SQSSensor(
         task_id='read_from_queue',
         sqs_queue=create_queue,
         max_messages=5,
@@ -72,6 +75,7 @@ with DAG(
         message_filtering=None,
         message_filtering_match_values=None,
         message_filtering_config=None,
+        aws_conn_id=AWS_CONN_ID,
     )
 
     # Using a task-decorated function to delete the SQS queue we created earlier

@@ -16,16 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Plugin to demonstrate timetable registration and accommodate example DAGs."""
+"""Plugin to demostrate timetable registration and accomdate example DAGs."""
 
 # [START howto_timetable]
 from datetime import timedelta
 from typing import Optional
 
-from pendulum import UTC, Date, DateTime, Time
+from pendulum import Date, DateTime, Time, timezone
 
 from airflow.plugins_manager import AirflowPlugin
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
+
+UTC = timezone("UTC")
 
 
 class AfterWorkdayTimetable(Timetable):

@@ -15,13 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Optional, Sequence
+from typing import Any, Dict, Optional
 
 from airflow.providers.apache.hive.hooks.hive import HiveMetastoreHook
 from airflow.sensors.base import BaseSensorOperator
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class HivePartitionSensor(BaseSensorOperator):
@@ -34,15 +31,18 @@ class HivePartitionSensor(BaseSensorOperator):
 
     :param table: The name of the table to wait for, supports the dot
         notation (my_database.my_table)
+    :type table: str
     :param partition: The partition clause to wait for. This is passed as
         is to the metastore Thrift client ``get_partitions_by_filter`` method,
         and apparently supports SQL like notation as in ``ds='2015-01-01'
         AND type='value'`` and comparison operators as in ``"ds>=2015-01-01"``
+    :type partition: str
     :param metastore_conn_id: reference to the
         :ref: `metastore thrift service connection id <howto/connection:hive_metastore>`
+    :type metastore_conn_id: str
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         'schema',
         'table',
         'partition',
@@ -67,7 +67,7 @@ class HivePartitionSensor(BaseSensorOperator):
         self.partition = partition
         self.schema = schema
 
-    def poke(self, context: "Context") -> bool:
+    def poke(self, context: Dict[str, Any]) -> bool:
         if '.' in self.table:
             self.schema, self.table = self.table.split('.')
         self.log.info('Poking for table %s.%s, partition %s', self.schema, self.table, self.partition)

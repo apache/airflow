@@ -18,7 +18,7 @@
 
 import logging
 from base64 import b64encode
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Union
 
 from winrm.exceptions import WinRMOperationTimeoutError
 
@@ -27,13 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
 
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
-
 # Hide the following error message in urllib3 when making WinRM connections:
 # requests.packages.urllib3.exceptions.HeaderParsingError: [StartBoundaryNotFoundDefect(),
 #   MultipartInvariantViolationDefect()], unparsed data: ''
-
 logging.getLogger('urllib3.connectionpool').setLevel(logging.ERROR)
 
 
@@ -42,16 +38,23 @@ class WinRMOperator(BaseOperator):
     WinRMOperator to execute commands on given remote host using the winrm_hook.
 
     :param winrm_hook: predefined ssh_hook to use for remote execution
+    :type winrm_hook: airflow.providers.microsoft.winrm.hooks.winrm.WinRMHook
     :param ssh_conn_id: connection id from airflow Connections
+    :type ssh_conn_id: str
     :param remote_host: remote host to connect
+    :type remote_host: str
     :param command: command to execute on remote host. (templated)
+    :type command: str
     :param ps_path: path to powershell, `powershell` for v5.1- and `pwsh` for v6+.
         If specified, it will execute the command as powershell script.
+    :type ps_path: str
     :param output_encoding: the encoding used to decode stout and stderr
+    :type output_encoding: str
     :param timeout: timeout for executing the command.
+    :type timeout: int
     """
 
-    template_fields: Sequence[str] = ('command',)
+    template_fields = ('command',)
     template_fields_renderers = {"command": "powershell"}
 
     def __init__(
@@ -75,7 +78,7 @@ class WinRMOperator(BaseOperator):
         self.output_encoding = output_encoding
         self.timeout = timeout
 
-    def execute(self, context: "Context") -> Union[list, str]:
+    def execute(self, context: dict) -> Union[list, str]:
         if self.ssh_conn_id and not self.winrm_hook:
             self.log.info("Hook not found, creating...")
             self.winrm_hook = WinRMHook(ssh_conn_id=self.ssh_conn_id)
@@ -150,8 +153,7 @@ class WinRMOperator(BaseOperator):
             else:
                 return b64encode(b''.join(stdout_buffer)).decode(self.output_encoding)
         else:
-            stderr_output = b''.join(stderr_buffer).decode(self.output_encoding)
-            error_msg = (
-                f"Error running cmd: {self.command}, return code: {return_code}, error: {stderr_output}"
+            error_msg = "Error running cmd: {}, return code: {}, error: {}".format(
+                self.command, return_code, b''.join(stderr_buffer).decode(self.output_encoding)
             )
             raise AirflowException(error_msg)

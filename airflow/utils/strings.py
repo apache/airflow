@@ -18,7 +18,6 @@
 
 import string
 from random import choice
-from typing import Optional
 
 
 def get_random_string(length=8, choices=string.ascii_letters + string.digits):
@@ -26,13 +25,6 @@ def get_random_string(length=8, choices=string.ascii_letters + string.digits):
     return ''.join(choice(choices) for _ in range(length))
 
 
-TRUE_LIKE_VALUES = {"on", "t", "true", "y", "yes", "1"}
-
-
-def to_boolean(astring: Optional[str]) -> bool:
-    """Convert a string to a boolean."""
-    if astring is None:
-        return False
-    if astring.lower() in TRUE_LIKE_VALUES:
-        return True
-    return False
+def to_boolean(astring):
+    """Convert a string to a boolean"""
+    return False if astring is None else astring.lower() in ['true', 't', 'y', 'yes', '1']

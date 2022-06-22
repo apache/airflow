@@ -30,6 +30,7 @@ class YandexCloudBaseHook(BaseHook):
     A base hook for Yandex.Cloud related tasks.
 
     :param yandex_conn_id: The connection ID to use when fetching connection info.
+    :type yandex_conn_id: str
     """
 
     conn_name_attr = 'yandex_conn_id'
@@ -87,15 +88,14 @@ class YandexCloudBaseHook(BaseHook):
 
         try:
             manager = ProvidersManager()
-            provider_name = manager.hooks[cls.conn_type].package_name  # type: ignore[union-attr]
+            provider_name = manager.hooks[cls.conn_type].package_name
             provider = manager.providers[provider_name]
             return f'apache-airflow/{airflow.__version__} {provider_name}/{provider.version}'
         except KeyError:
             warnings.warn(f"Hook '{cls.hook_name}' info is not initialized in airflow.ProviderManager")
-            return None
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> Dict:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['host', 'schema', 'login', 'password', 'port', 'extra'],
@@ -133,7 +133,7 @@ class YandexCloudBaseHook(BaseHook):
         if not (service_account_json or oauth_token or service_account_json_path):
             raise AirflowException(
                 'No credentials are found in connection. Specify either service account '
-                'authentication JSON or user OAuth token in Yandex.Cloud connection'
+                + 'authentication JSON or user OAuth token in Yandex.Cloud connection'
             )
         if service_account_json_path:
             with open(service_account_json_path) as infile:

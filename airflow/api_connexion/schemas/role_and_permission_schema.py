@@ -17,19 +17,18 @@
 
 from typing import List, NamedTuple
 
+from flask_appbuilder.security.sqla.models import Permission, PermissionView, Role, ViewMenu
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow.www.fab_security.sqla.models import Action, Permission, Resource, Role
-
 
 class ActionSchema(SQLAlchemySchema):
-    """Action Action Schema"""
+    """Permission Action Schema"""
 
     class Meta:
         """Meta"""
 
-        model = Action
+        model = Permission
 
     name = auto_field()
 
@@ -40,15 +39,15 @@ class ResourceSchema(SQLAlchemySchema):
     class Meta:
         """Meta"""
 
-        model = Resource
+        model = ViewMenu
 
     name = auto_field()
 
 
 class ActionCollection(NamedTuple):
-    """Action Action Collection"""
+    """Permission Action Collection"""
 
-    actions: List[Action]
+    actions: List[Permission]
     total_entries: int
 
 
@@ -60,15 +59,15 @@ class ActionCollectionSchema(Schema):
 
 
 class ActionResourceSchema(SQLAlchemySchema):
-    """Action View Schema"""
+    """Permission View Schema"""
 
     class Meta:
         """Meta"""
 
-        model = Permission
+        model = PermissionView
 
-    action = fields.Nested(ActionSchema, data_key="action")
-    resource = fields.Nested(ResourceSchema, data_key="resource")
+    permission = fields.Nested(ActionSchema, data_key="action")
+    view_menu = fields.Nested(ResourceSchema, data_key="resource")
 
 
 class RoleSchema(SQLAlchemySchema):

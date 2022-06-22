@@ -72,8 +72,11 @@ class ExasolHook(DbApiHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
         :param kwargs: (optional) passed into pyexasol.ExaConnection.export_to_pandas method
+        :type kwargs: dict
         """
         with closing(self.get_conn()) as conn:
             df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
@@ -87,7 +90,9 @@ class ExasolHook(DbApiHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.execute(sql, parameters)) as cur:
@@ -99,7 +104,9 @@ class ExasolHook(DbApiHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
+        :type parameters: dict or iterable
         """
         with closing(self.get_conn()) as conn:
             with closing(conn.execute(sql, parameters)) as cur:
@@ -116,11 +123,15 @@ class ExasolHook(DbApiHook):
         Exports data to a file.
 
         :param filename: Path to the file to which the data has to be exported
+        :type filename: str
         :param query_or_table: the sql statement to be executed or table name to export
+        :type query_or_table: str
         :param query_params: Query parameters passed to underlying ``export_to_file``
             method of :class:`~pyexasol.connection.ExaConnection`.
+        :type query_params: dict
         :param export_params: Extra parameters passed to underlying ``export_to_file``
             method of :class:`~pyexasol.connection.ExaConnection`.
+        :type export_params: dict
         """
         self.log.info("Getting data from exasol")
         with closing(self.get_conn()) as conn:
@@ -132,9 +143,7 @@ class ExasolHook(DbApiHook):
             )
         self.log.info("Data saved to %s", filename)
 
-    def run(
-        self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None, handler=None
-    ) -> None:
+    def run(self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None) -> None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -142,10 +151,12 @@ class ExasolHook(DbApiHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
+        :type sql: str or list
         :param autocommit: What to set the connection's autocommit setting to
             before executing the query.
+        :type autocommit: bool
         :param parameters: The parameters to render the SQL query with.
-        :param handler: The result handler which is called with the result of each statement.
+        :type parameters: dict or iterable
         """
         if isinstance(sql, str):
             sql = [sql]
@@ -168,7 +179,9 @@ class ExasolHook(DbApiHook):
         Sets the autocommit flag on the connection
 
         :param conn: Connection to set autocommit setting to.
+        :type conn: connection object
         :param autocommit: The autocommit setting to set.
+        :type autocommit: bool
         """
         if not self.supports_autocommit and autocommit:
             self.log.warning(
@@ -185,6 +198,7 @@ class ExasolHook(DbApiHook):
         does not support autocommit.
 
         :param conn: Connection to get autocommit setting from.
+        :type conn: connection object
         :return: connection autocommit setting.
         :rtype: bool
         """
@@ -200,7 +214,9 @@ class ExasolHook(DbApiHook):
         hence we return cell without any conversion.
 
         :param cell: The cell to insert into the table
+        :type cell: object
         :param conn: The database connection
+        :type conn: connection object
         :return: The cell
         :rtype: object
         """

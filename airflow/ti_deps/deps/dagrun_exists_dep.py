@@ -32,5 +32,6 @@ class DagrunRunningDep(BaseTIDep):
         dr = ti.get_dagrun(session)
         if dr.state != State.RUNNING:
             yield self._failing_status(
-                reason=f"Task instance's dagrun was not in the 'running' state but in the state '{dr.state}'."
+                reason="Task instance's dagrun was not in the 'running' state but in "
+                "the state '{}'.".format(dr.state)
             )

@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import datetime
 import itertools
 import logging
 import multiprocessing
@@ -28,19 +29,16 @@ from collections import defaultdict
 from datetime import timedelta
 from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Tuple
 
-from sqlalchemy import and_, func, not_, or_, text, tuple_
+from sqlalchemy import and_, func, not_, or_, tuple_
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm import load_only, selectinload
 from sqlalchemy.orm.session import Session, make_transient
 
 from airflow import models, settings
-from airflow.callbacks.callback_requests import DagCallbackRequest, SlaCallbackRequest, TaskCallbackRequest
-from airflow.callbacks.pipe_callback_sink import PipeCallbackSink
 from airflow.configuration import conf
 from airflow.dag_processing.manager import DagFileProcessorAgent
 from airflow.executors.executor_loader import UNPICKLEABLE_EXECUTORS
 from airflow.jobs.base_job import BaseJob
-from airflow.jobs.local_task_job import LocalTaskJob
 from airflow.models import DAG
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -50,6 +48,7 @@ from airflow.models.taskinstance import SimpleTaskInstance, TaskInstance, TaskIn
 from airflow.stats import Stats
 from airflow.ti_deps.dependencies_states import EXECUTION_STATES
 from airflow.utils import timezone
+from airflow.utils.callback_requests import DagCallbackRequest, TaskCallbackRequest
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
@@ -81,16 +80,22 @@ class SchedulerJob(BaseJob):
 
     :param subdir: directory containing Python files with Airflow DAG
         definitions, or a specific path to a file
+    :type subdir: str
     :param num_runs: The number of times to run the scheduling loop. If you
         have a large number of DAG files this could complete before each file
         has been parsed. -1 for unlimited times.
+    :type num_runs: int
     :param num_times_parse_dags: The number of times to try to parse each DAG file.
         -1 for unlimited times.
+    :type num_times_parse_dags: int
     :param scheduler_idle_sleep_time: The number of seconds to wait between
         polls of running processors
+    :type scheduler_idle_sleep_time: int
     :param do_pickle: once a DAG object is obtained by executing the Python
         file, whether to serialize the DAG object to the DB
+    :type do_pickle: bool
     :param log: override the default Logger
+    :type log: logging.Logger
     """
 
     __mapper_args__ = {'polymorphic_identity': 'SchedulerJob'}
@@ -103,7 +108,7 @@ class SchedulerJob(BaseJob):
         num_times_parse_dags: int = -1,
         scheduler_idle_sleep_time: float = conf.getfloat('scheduler', 'scheduler_idle_sleep_time'),
         do_pickle: bool = False,
-        log: Optional[logging.Logger] = None,
+        log: logging.Logger = None,
         processor_poll_interval: Optional[float] = None,
         *args,
         **kwargs,
@@ -125,8 +130,6 @@ class SchedulerJob(BaseJob):
             )
             scheduler_idle_sleep_time = processor_poll_interval
         self._scheduler_idle_sleep_time = scheduler_idle_sleep_time
-        # How many seconds do we wait for tasks to heartbeat before mark them as zombies.
-        self._zombie_threshold_secs = conf.getint('scheduler', 'scheduler_zombie_task_threshold')
 
         self.do_pickle = do_pickle
         super().__init__(*args, **kwargs)
@@ -139,6 +142,7 @@ class SchedulerJob(BaseJob):
         self.using_sqlite = sql_conn.startswith('sqlite')
         self.using_mysql = sql_conn.startswith('mysql')
 
+        self.max_tis_per_query: int = conf.getint('scheduler', 'max_tis_per_query')
         self.processor_agent: Optional[DagFileProcessorAgent] = None
 
         self.dagbag = DagBag(dag_folder=self.subdir, read_dags_from_db=True, load_op_links=False)
@@ -215,6 +219,7 @@ class SchedulerJob(BaseJob):
         Get the concurrency maps.
 
         :param states: List of states to query for
+        :type states: list[airflow.utils.state.State]
         :return: A map from (dag_id, task_id) to # of task instances and
          a map from (dag_id, task_id) to # of task instances in the given state list
         :rtype: tuple[dict[str, int], dict[tuple[str, str], int]]
@@ -239,26 +244,10 @@ class SchedulerJob(BaseJob):
         dag max_active_tasks, executor state, and priority.
 
         :param max_tis: Maximum number of TIs to queue in this loop.
+        :type max_tis: int
         :return: list[airflow.models.TaskInstance]
         """
-        from airflow.utils.db import DBLocks
-
         executable_tis: List[TI] = []
-
-        if session.get_bind().dialect.name == "postgresql":
-            # Optimization: to avoid littering the DB errors of "ERROR: canceling statement due to lock
-            # timeout", try to take out a transactional advisory lock (unlocks automatically on
-            # COMMIT/ROLLBACK)
-            lock_acquired = session.execute(
-                text("SELECT pg_try_advisory_xact_lock(:id)").bindparams(
-                    id=DBLocks.SCHEDULER_CRITICAL_SECTION.value
-                )
-            ).scalar()
-            if not lock_acquired:
-                # Throw an error like the one that would happen with NOWAIT
-                raise OperationalError(
-                    "Failed to acquire advisory lock", params=None, orig=RuntimeError('55P03')
-                )
 
         # Get the pool settings. We get a lock on the pool rows, treating this as a "critical section"
         # Throws an exception if lock cannot be obtained, rather than blocking
@@ -280,10 +269,10 @@ class SchedulerJob(BaseJob):
         query = (
             session.query(TI)
             .join(TI.dag_run)
-            .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state == DagRunState.RUNNING)
+            .filter(DR.run_type != DagRunType.BACKFILL_JOB, DR.state != DagRunState.QUEUED)
             .join(TI.dag_model)
             .filter(not_(DM.is_paused))
-            .filter(TI.state == TaskInstanceState.SCHEDULED)
+            .filter(TI.state == State.SCHEDULED)
             .options(selectinload('dag_model'))
             .order_by(-TI.priority_weight, DR.execution_date)
         )
@@ -333,19 +322,6 @@ class SchedulerJob(BaseJob):
             if pool not in pools:
                 self.log.warning("Tasks using non-existent pool '%s' will not be scheduled", pool)
                 continue
-
-            pool_total = pools[pool]["total"]
-            for task_instance in task_instances:
-                if task_instance.pool_slots > pool_total:
-                    self.log.warning(
-                        "Not executing %s. Requested pool slots (%s) are greater than "
-                        "total pool slots: '%s' for pool: %s.",
-                        task_instance,
-                        task_instance.pool_slots,
-                        pool_total,
-                        pool,
-                    )
-                    task_instances.remove(task_instance)
 
             open_slots = pools[pool]["open"]
 
@@ -461,11 +437,7 @@ class SchedulerJob(BaseJob):
             session.query(TI).filter(filter_for_tis).update(
                 # TODO[ha]: should we use func.now()? How does that work with DB timezone
                 # on mysql when it's not UTC?
-                {
-                    TI.state: TaskInstanceState.QUEUED,
-                    TI.queued_dttm: timezone.utcnow(),
-                    TI.queued_by_job_id: self.id,
-                },
+                {TI.state: State.QUEUED, TI.queued_dttm: timezone.utcnow(), TI.queued_by_job_id: self.id},
                 synchronize_session=False,
             )
 
@@ -482,7 +454,9 @@ class SchedulerJob(BaseJob):
         with the executor.
 
         :param task_instances: TaskInstances to enqueue
+        :type task_instances: list[TaskInstance]
         :param session: The session object
+        :type session: Session
         """
         # actually enqueue them
         for ti in task_instances:
@@ -522,6 +496,7 @@ class SchedulerJob(BaseJob):
         MariaDB or MySQL 5.x) the other schedulers will wait for the lock before continuing.
 
         :param session:
+        :type session: sqlalchemy.orm.Session
         :return: Number of task instance with state changed.
         """
         if self.max_tis_per_query == 0:
@@ -538,7 +513,7 @@ class SchedulerJob(BaseJob):
         """Respond to executor events."""
         if not self.processor_agent:
             raise ValueError("Processor agent is not started.")
-        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, str, int], int] = {}
+        ti_primary_key_to_try_number_map: Dict[Tuple[str, str, datetime.datetime], int] = {}
         event_buffer = self.executor.get_event_buffer()
         tis_with_right_state: List[TaskInstanceKey] = []
 
@@ -557,7 +532,7 @@ class SchedulerJob(BaseJob):
                 state,
                 ti_key.try_number,
             )
-            if state in (TaskInstanceState.FAILED, TaskInstanceState.SUCCESS, TaskInstanceState.QUEUED):
+            if state in (State.FAILED, State.SUCCESS, State.QUEUED):
                 tis_with_right_state.append(ti_key)
 
         # Return if no finished tasks
@@ -581,7 +556,7 @@ class SchedulerJob(BaseJob):
             state, info = event_buffer.pop(buffer_key)
 
             # TODO: should we fail RUNNING as well, as we do in Backfills?
-            if state == TaskInstanceState.QUEUED:
+            if state == State.QUEUED:
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
                 continue
@@ -634,7 +609,7 @@ class SchedulerJob(BaseJob):
                         simple_task_instance=SimpleTaskInstance(ti),
                         msg=msg % (ti, state, ti.state, info),
                     )
-                    self.executor.send_callback(request)
+                    self.processor_agent.send_callback_to_execute(request)
                 else:
                     ti.handle_failure(error=msg % (ti, state, ti.state, info), session=session)
 
@@ -665,10 +640,6 @@ class SchedulerJob(BaseJob):
 
         try:
             self.executor.job_id = self.id
-            self.executor.callback_sink = PipeCallbackSink(
-                get_sink_pipe=self.processor_agent.get_callbacks_pipe
-            )
-
             self.executor.start()
 
             self.register_signals()
@@ -747,11 +718,6 @@ class SchedulerJob(BaseJob):
             self._emit_pool_metrics,
         )
 
-        timers.call_regular_interval(
-            conf.getfloat('scheduler', 'zombie_detection_interval', fallback=10.0),
-            self._find_zombies,
-        )
-
         for loop_count in itertools.count(start=1):
             with Stats.timer() as timer:
 
@@ -784,7 +750,7 @@ class SchedulerJob(BaseJob):
                 # If the scheduler is doing things, don't sleep. This means when there is work to do, the
                 # scheduler will run "as quick as possible", but when it's stopped, it can sleep, dropping CPU
                 # usage when "idle"
-                time.sleep(min(self._scheduler_idle_sleep_time, next_event if next_event else 0))
+                time.sleep(min(self._scheduler_idle_sleep_time, next_event))
 
             if loop_count >= self.num_runs > 0:
                 self.log.info(
@@ -840,7 +806,7 @@ class SchedulerJob(BaseJob):
 
             self._start_queued_dagruns(session)
             guard.commit()
-            dag_runs = self._get_next_dagruns_to_examine(DagRunState.RUNNING, session)
+            dag_runs = self._get_next_dagruns_to_examine(State.RUNNING, session)
             # Bulk fetch the currently active dag runs for the dags we are
             # examining, rather than making one query per DagRun
 
@@ -963,7 +929,7 @@ class SchedulerJob(BaseJob):
                 dag.create_dagrun(
                     run_type=DagRunType.SCHEDULED,
                     execution_date=dag_model.next_dagrun,
-                    state=DagRunState.QUEUED,
+                    state=State.QUEUED,
                     data_interval=data_interval,
                     external_trigger=False,
                     session=session,
@@ -992,9 +958,9 @@ class SchedulerJob(BaseJob):
     def _start_queued_dagruns(
         self,
         session: Session,
-    ) -> None:
+    ) -> int:
         """Find DagRuns in queued state and decide moving them to running state"""
-        dag_runs = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
+        dag_runs = self._get_next_dagruns_to_examine(State.QUEUED, session)
 
         active_runs_of_dags = defaultdict(
             int,
@@ -1002,7 +968,7 @@ class SchedulerJob(BaseJob):
         )
 
         def _update_state(dag: DAG, dag_run: DagRun):
-            dag_run.state = DagRunState.RUNNING
+            dag_run.state = State.RUNNING
             dag_run.start_date = timezone.utcnow()
             if dag.timetable.periodic:
                 # TODO: Logically, this should be DagRunInfo.run_after, but the
@@ -1044,13 +1010,11 @@ class SchedulerJob(BaseJob):
         :param dag_run: The DagRun to schedule
         :return: Callback that needs to be executed
         """
-        callback: Optional[DagCallbackRequest] = None
-
         dag = dag_run.dag = self.dagbag.get_dag(dag_run.dag_id, session=session)
 
         if not dag:
             self.log.error("Couldn't find dag %s in DagBag/DB!", dag_run.dag_id)
-            return callback
+            return 0
         dag_model = DM.get_dagmodel(dag.dag_id, session)
 
         if (
@@ -1058,7 +1022,7 @@ class SchedulerJob(BaseJob):
             and dag.dagrun_timeout
             and dag_run.start_date < timezone.utcnow() - dag.dagrun_timeout
         ):
-            dag_run.set_state(DagRunState.FAILED)
+            dag_run.set_state(State.FAILED)
             unfinished_task_instances = (
                 session.query(TI)
                 .filter(TI.dag_id == dag_run.dag_id)
@@ -1066,7 +1030,7 @@ class SchedulerJob(BaseJob):
                 .filter(TI.state.in_(State.unfinished))
             )
             for task_instance in unfinished_task_instances:
-                task_instance.state = TaskInstanceState.SKIPPED
+                task_instance.state = State.SKIPPED
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
@@ -1085,12 +1049,12 @@ class SchedulerJob(BaseJob):
 
             # Send SLA & DAG Success/Failure Callbacks to be executed
             self._send_dag_callbacks_to_processor(dag, callback_to_execute)
-            # Because we send the callback here, we need to return None
-            return callback
+
+            return 0
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
             self.log.error("Execution date is in future: %s", dag_run.execution_date)
-            return callback
+            return 0
 
         self._verify_integrity_if_dag_changed(dag_run=dag_run, session=session)
         # TODO[HA]: Rename update_state -> schedule_dag_run, ?? something else?
@@ -1100,6 +1064,7 @@ class SchedulerJob(BaseJob):
             # Work out if we should allow creating a new DagRun now?
             if self._should_update_dag_next_dagruns(dag, dag_model, active_runs):
                 dag_model.calculate_dagrun_date_fields(dag, dag.get_run_data_interval(dag_run))
+
         # This will do one query per dag run. We "could" build up a complex
         # query to update all the TIs across all the execution dates and dag
         # IDs in a single query, but it turns out that can be _very very slow_
@@ -1125,29 +1090,36 @@ class SchedulerJob(BaseJob):
         dag_run.verify_integrity(session=session)
 
     def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
+        if not self.processor_agent:
+            raise ValueError("Processor agent is not started.")
+
         self._send_sla_callbacks_to_processor(dag)
         if callback:
-            self.executor.send_callback(callback)
+            self.processor_agent.send_callback_to_execute(callback)
 
     def _send_sla_callbacks_to_processor(self, dag: DAG):
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
         if not settings.CHECK_SLAS:
             return
 
-        if not any(isinstance(task.sla, timedelta) for task in dag.tasks):
+        if not any(isinstance(ti.sla, timedelta) for ti in dag.tasks):
             self.log.debug("Skipping SLA check for %s because no tasks in DAG have SLAs", dag)
             return
 
-        request = SlaCallbackRequest(full_filepath=dag.fileloc, dag_id=dag.dag_id)
-        self.executor.send_callback(request)
+        if not self.processor_agent:
+            raise ValueError("Processor agent is not started.")
+
+        self.processor_agent.send_sla_callback_request_to_execute(
+            full_filepath=dag.fileloc, dag_id=dag.dag_id
+        )
 
     @provide_session
     def _emit_pool_metrics(self, session: Session = None) -> None:
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
             Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
-            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats["queued"])
-            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats["running"])
+            Stats.gauge(f'pool.queued_slots.{pool_name}', slot_stats[State.QUEUED])  # type: ignore
+            Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats[State.RUNNING])  # type: ignore
 
     @provide_session
     def heartbeat_callback(self, session: Session = None) -> None:
@@ -1188,7 +1160,7 @@ class SchedulerJob(BaseJob):
                         self.log.info("Marked %d SchedulerJob instances as failed", num_failed)
                         Stats.incr(self.__class__.__name__.lower() + '_end', num_failed)
 
-                    resettable_states = [TaskInstanceState.QUEUED, TaskInstanceState.RUNNING]
+                    resettable_states = [State.QUEUED, State.RUNNING]
                     query = (
                         session.query(TI)
                         .filter(TI.state.in_(resettable_states))
@@ -1249,15 +1221,12 @@ class SchedulerJob(BaseJob):
         """
         num_timed_out_tasks = (
             session.query(TaskInstance)
-            .filter(
-                TaskInstance.state == TaskInstanceState.DEFERRED,
-                TaskInstance.trigger_timeout < timezone.utcnow(),
-            )
+            .filter(TaskInstance.state == State.DEFERRED, TaskInstance.trigger_timeout < timezone.utcnow())
             .update(
                 # We have to schedule these to fail themselves so it doesn't
                 # happen inside the scheduler.
                 {
-                    "state": TaskInstanceState.SCHEDULED,
+                    "state": State.SCHEDULED,
                     "next_method": "__fail__",
                     "next_kwargs": {"error": "Trigger/execution timeout"},
                     "trigger_id": None,
@@ -1266,39 +1235,3 @@ class SchedulerJob(BaseJob):
         )
         if num_timed_out_tasks:
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
-
-    @provide_session
-    def _find_zombies(self, session):
-        """
-        Find zombie task instances, which are tasks haven't heartbeated for too long
-        and update the current zombie list.
-        """
-        self.log.debug("Finding 'running' jobs without a recent heartbeat")
-        limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
-
-        zombies = (
-            session.query(TaskInstance, DagModel.fileloc)
-            .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
-            .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
-            .filter(TaskInstance.state == State.RUNNING)
-            .filter(
-                or_(
-                    LocalTaskJob.state != State.RUNNING,
-                    LocalTaskJob.latest_heartbeat < limit_dttm,
-                )
-            )
-            .all()
-        )
-
-        if zombies:
-            self.log.warning("Failing (%s) jobs without heartbeat after %s", len(zombies), limit_dttm)
-
-        for ti, file_loc in zombies:
-            request = TaskCallbackRequest(
-                full_filepath=file_loc,
-                simple_task_instance=SimpleTaskInstance(ti),
-                msg=f"Detected {ti} as zombie",
-            )
-            self.log.error("Detected zombie job: %s", request)
-            self.executor.send_callback(request)
-            Stats.incr('zombies_killed')

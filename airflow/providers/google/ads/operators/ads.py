@@ -18,14 +18,11 @@
 """This module contains Google Ad to GCS operators."""
 import csv
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.ads.hooks.ads import GoogleAdsHook
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
 
 
 class GoogleAdsListAccountsOperator(BaseOperator):
@@ -46,10 +43,15 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         :ref:`howto/operator:GoogleAdsListAccountsOperator`
 
     :param bucket: The GCS bucket to upload to
+    :type bucket: str
     :param object_name: GCS path to save the csv file. Must be the full file path (ex. `path/to/file.csv`)
+    :type object_name: str
     :param gcp_conn_id: Airflow Google Cloud connection ID
+    :type gcp_conn_id: str
     :param google_ads_conn_id: Airflow Google Ads connection ID
+    :type google_ads_conn_id: str
     :param gzip: Option to compress local file or file data for upload
+    :type gzip: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -58,10 +60,12 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type impersonation_chain: Union[str, Sequence[str]]
     :param api_version: Optional Google Ads API version to use.
+    :type api_version: Optional[str]
     """
 
-    template_fields: Sequence[str] = (
+    template_fields = (
         "bucket",
         "object_name",
         "impersonation_chain",
@@ -88,7 +92,7 @@ class GoogleAdsListAccountsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.api_version = api_version
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: dict) -> str:
         uri = f"gs://{self.bucket}/{self.object_name}"
 
         ads_hook = GoogleAdsHook(

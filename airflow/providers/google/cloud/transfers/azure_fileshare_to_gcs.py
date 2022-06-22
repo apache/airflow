@@ -17,15 +17,12 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import Iterable, Optional, Sequence, Union
 
 from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
-from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
 
 
 class AzureFileShareToGCSOperator(BaseOperator):
@@ -34,20 +31,29 @@ class AzureFileShareToGCSOperator(BaseOperator):
     possibly filtered by a prefix, with a Google Cloud Storage destination path.
 
     :param share_name: The Azure FileShare share where to find the objects. (templated)
+    :type share_name: str
     :param directory_name: (Optional) Path to Azure FileShare directory which content is to be transferred.
         Defaults to root directory (templated)
+    :type directory_name: str
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix. (templated)
+    :type prefix: str
     :param azure_fileshare_conn_id: The source WASB connection
+    :type azure_fileshare_conn_id: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
+    :type gcp_conn_id: str
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
+    :type dest_gcs: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
+    :type delegate_to: str
     :param replace: Whether you want to replace existing destination files
         or not.
+    :type replace: bool
     :param gzip: Option to compress file for upload
+    :type gzip: bool
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -56,12 +62,13 @@ class AzureFileShareToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+    :type google_impersonation_chain: Optional[Union[str, Sequence[str]]]
 
     Note that ``share_name``, ``directory_name``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Sequence[str] = (
+    template_fields: Iterable[str] = (
         'share_name',
         'directory_name',
         'prefix',
@@ -96,8 +103,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
         self.gzip = gzip
         self.google_impersonation_chain = google_impersonation_chain
 
-    def _check_inputs(self) -> None:
-        if self.dest_gcs and not gcs_object_is_directory(self.dest_gcs):
+        if dest_gcs and not gcs_object_is_directory(self.dest_gcs):
             self.log.info(
                 'Destination Google Cloud Storage path is not a valid '
                 '"directory", define a path that ends with a slash "/" or '
@@ -107,8 +113,7 @@ class AzureFileShareToGCSOperator(BaseOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: 'Context'):
-        self._check_inputs()
+    def execute(self, context):
         azure_fileshare_hook = AzureFileShareHook(self.azure_fileshare_conn_id)
         files = azure_fileshare_hook.list_files(
             share_name=self.share_name, directory_name=self.directory_name
@@ -145,25 +150,27 @@ class AzureFileShareToGCSOperator(BaseOperator):
 
         if files:
             self.log.info('%s files are going to be synced.', len(files))
-            if self.directory_name is None:
-                raise RuntimeError("The directory_name must be set!.")
-            for file in files:
-                with NamedTemporaryFile() as temp_file:
-                    azure_fileshare_hook.get_file_to_stream(
-                        stream=temp_file,
-                        share_name=self.share_name,
-                        directory_name=self.directory_name,
-                        file_name=file,
-                    )
-                    temp_file.flush()
-
-                    # There will always be a '/' before file because it is
-                    # enforced at instantiation time
-                    dest_gcs_object = dest_gcs_object_prefix + file
-                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
-            self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
         else:
             self.log.info('There are no new files to sync. Have a nice day!')
+
+        for file in files:
+            with NamedTemporaryFile() as temp_file:
+                azure_fileshare_hook.get_file_to_stream(
+                    stream=temp_file,
+                    share_name=self.share_name,
+                    directory_name=self.directory_name,
+                    file_name=file,
+                )
+                temp_file.flush()
+
+                # There will always be a '/' before file because it is
+                # enforced at instantiation time
+                dest_gcs_object = dest_gcs_object_prefix + file
+                gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
+
+        if files:
+            self.log.info("All done, uploaded %d files to Google Cloud Storage.", len(files))
+        else:
             self.log.info('In sync, no files needed to be uploaded to Google Cloud Storage')
 
         return files

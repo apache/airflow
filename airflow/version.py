@@ -22,7 +22,7 @@ __all__ = ['version']
 try:
     import importlib_metadata as metadata
 except ImportError:
-    from importlib import metadata  # type: ignore[no-redef]
+    from importlib import metadata
 
 try:
     version = metadata.version('apache-airflow')

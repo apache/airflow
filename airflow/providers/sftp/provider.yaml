@@ -22,10 +22,6 @@ description: |
     `SSH File Transfer Protocol (SFTP) <https://tools.ietf.org/wg/secsh/draft-ietf-secsh-filexfer/>`__
 
 versions:
-  - 2.4.1
-  - 2.4.0
-  - 2.3.0
-  - 2.2.0
   - 2.1.1
   - 2.1.0
   - 2.0.0

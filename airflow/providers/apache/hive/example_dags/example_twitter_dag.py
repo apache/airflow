@@ -16,6 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 # --------------------------------------------------------------------------------
+# Written By: Ekhtiar Syed
+# Last Update: 8th April 2016
 # Caveat: This Dag will not run because of missing scripts.
 # The purpose of this is to give you a sample of a real world example DAG!
 # --------------------------------------------------------------------------------
@@ -26,12 +28,13 @@
 """
 This is an example dag for managing twitter data.
 """
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 
 from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+from airflow.utils.dates import days_ago
 
 
 @task
@@ -74,16 +77,15 @@ with DAG(
         'retries': 1,
     },
     schedule_interval="@daily",
-    start_date=datetime(2021, 1, 1),
+    start_date=days_ago(5),
     tags=['example'],
-    catchup=False,
 ) as dag:
-    fetch = fetch_tweets()
-    clean = clean_tweets()
-    analyze = analyze_tweets()
+    fetch_tweets = fetch_tweets()
+    clean_tweets = clean_tweets()
+    analyze_tweets = analyze_tweets()
     hive_to_mysql = transfer_to_db()
 
-    fetch >> clean >> analyze
+    fetch_tweets >> clean_tweets >> analyze_tweets
 
     # --------------------------------------------------------------------------------
     # The following tasks are generated using for loop. The first task puts the eight
@@ -113,7 +115,6 @@ with DAG(
             ),
         )
 
-        # [START create_hive]
         load_to_hive = HiveOperator(
             task_id=f"load_{channel}_to_hive",
             hql=(
@@ -122,9 +123,8 @@ with DAG(
                 f"PARTITION(dt='{dt}')"
             ),
         )
-        # [END create_hive]
 
-        analyze >> load_to_hdfs >> load_to_hive >> hive_to_mysql
+        analyze_tweets >> load_to_hdfs >> load_to_hive >> hive_to_mysql
 
     for channel in from_channels:
         file_name = f"from_{channel}_{dt}.csv"
@@ -144,4 +144,4 @@ with DAG(
             ),
         )
 
-        analyze >> load_to_hdfs >> load_to_hive >> hive_to_mysql
+        analyze_tweets >> load_to_hdfs >> load_to_hive >> hive_to_mysql

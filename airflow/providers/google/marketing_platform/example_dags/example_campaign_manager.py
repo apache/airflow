@@ -20,7 +20,6 @@ Example Airflow DAG that shows how to use CampaignManager.
 """
 import os
 import time
-from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
@@ -34,6 +33,8 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
+from airflow.utils import dates
+from airflow.utils.state import State
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
 FLOODLIGHT_ACTIVITY_ID = int(os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345))
@@ -86,21 +87,20 @@ CONVERSION_UPDATE = {
 with models.DAG(
     "example_campaign_manager",
     schedule_interval='@once',  # Override to match your needs,
-    start_date=datetime(2021, 1, 1),
-    catchup=False,
+    start_date=dates.days_ago(1),
 ) as dag:
     # [START howto_campaign_manager_insert_report_operator]
     create_report = GoogleCampaignManagerInsertReportOperator(
         profile_id=PROFILE_ID, report=REPORT, task_id="create_report"
     )
-    report_id = create_report.output["report_id"]
+    report_id = "{{ task_instance.xcom_pull('create_report')['id'] }}"
     # [END howto_campaign_manager_insert_report_operator]
 
     # [START howto_campaign_manager_run_report_operator]
     run_report = GoogleCampaignManagerRunReportOperator(
         profile_id=PROFILE_ID, report_id=report_id, task_id="run_report"
     )
-    file_id = run_report.output["file_id"]
+    file_id = "{{ task_instance.xcom_pull('run_report')['id'] }}"
     # [END howto_campaign_manager_run_report_operator]
 
     # [START howto_campaign_manager_wait_for_operation]
@@ -129,14 +129,7 @@ with models.DAG(
     )
     # [END howto_campaign_manager_delete_report_operator]
 
-    wait_for_report >> get_report >> delete_report
-
-    # Task dependencies created via `XComArgs`:
-    #   create_report >> run_report
-    #   create_report >> wait_for_report
-    #   create_report >> get_report
-    #   run_report >> get_report
-    #   run_report >> wait_for_report
+    create_report >> run_report >> wait_for_report >> get_report >> delete_report
 
     # [START howto_campaign_manager_insert_conversions]
     insert_conversion = GoogleCampaignManagerBatchInsertConversionsOperator(
@@ -163,7 +156,6 @@ with models.DAG(
 
     insert_conversion >> update_conversion
 
-
 if __name__ == "__main__":
-    dag.clear()
+    dag.clear(dag_run_state=State.NONE)
     dag.run()

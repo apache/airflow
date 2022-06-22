@@ -16,13 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains CloudFormation create/delete stack operators."""
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import List, Optional
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.cloud_formation import CloudFormationHook
-
-if TYPE_CHECKING:
-    from airflow.utils.context import Context
+from airflow.providers.amazon.aws.hooks.cloud_formation import AWSCloudFormationHook
 
 
 class CloudFormationCreateStackOperator(BaseOperator):
@@ -30,30 +27,31 @@ class CloudFormationCreateStackOperator(BaseOperator):
     An operator that creates a CloudFormation stack.
 
     :param stack_name: stack name (templated)
-    :param cloudformation_parameters: parameters to be passed to CloudFormation.
+    :type stack_name: str
+    :param params: parameters to be passed to CloudFormation.
 
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.create_stack
+    :type params: dict
     :param aws_conn_id: aws connection to uses
+    :type aws_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
-    template_ext: Sequence[str] = ()
+    template_fields: List[str] = ['stack_name']
+    template_ext = ()
     ui_color = '#6b9659'
 
-    def __init__(
-        self, *, stack_name: str, cloudformation_parameters: dict, aws_conn_id: str = 'aws_default', **kwargs
-    ):
+    def __init__(self, *, stack_name: str, params: dict, aws_conn_id: str = 'aws_default', **kwargs):
         super().__init__(**kwargs)
         self.stack_name = stack_name
-        self.cloudformation_parameters = cloudformation_parameters
+        self.params = params
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
-        self.log.info('CloudFormation parameters: %s', self.cloudformation_parameters)
+    def execute(self, context):
+        self.log.info('Parameters: %s', self.params)
 
-        cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
-        cloudformation_hook.create_stack(self.stack_name, self.cloudformation_parameters)
+        cloudformation_hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id)
+        cloudformation_hook.create_stack(self.stack_name, self.params)
 
 
 class CloudFormationDeleteStackOperator(BaseOperator):
@@ -61,33 +59,31 @@ class CloudFormationDeleteStackOperator(BaseOperator):
     An operator that deletes a CloudFormation stack.
 
     :param stack_name: stack name (templated)
-    :param cloudformation_parameters: parameters to be passed to CloudFormation.
+    :type stack_name: str
+    :param params: parameters to be passed to CloudFormation.
 
         .. seealso::
             https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/cloudformation.html#CloudFormation.Client.delete_stack
+    :type params: dict
     :param aws_conn_id: aws connection to uses
+    :type aws_conn_id: str
     """
 
-    template_fields: Sequence[str] = ('stack_name',)
-    template_ext: Sequence[str] = ()
+    template_fields: List[str] = ['stack_name']
+    template_ext = ()
     ui_color = '#1d472b'
     ui_fgcolor = '#FFF'
 
     def __init__(
-        self,
-        *,
-        stack_name: str,
-        cloudformation_parameters: Optional[dict] = None,
-        aws_conn_id: str = 'aws_default',
-        **kwargs,
+        self, *, stack_name: str, params: Optional[dict] = None, aws_conn_id: str = 'aws_default', **kwargs
     ):
         super().__init__(**kwargs)
-        self.cloudformation_parameters = cloudformation_parameters or {}
+        self.params = params or {}
         self.stack_name = stack_name
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
-        self.log.info('CloudFormation Parameters: %s', self.cloudformation_parameters)
+    def execute(self, context):
+        self.log.info('Parameters: %s', self.params)
 
-        cloudformation_hook = CloudFormationHook(aws_conn_id=self.aws_conn_id)
-        cloudformation_hook.delete_stack(self.stack_name, self.cloudformation_parameters)
+        cloudformation_hook = AWSCloudFormationHook(aws_conn_id=self.aws_conn_id)
+        cloudformation_hook.delete_stack(self.stack_name, self.params)

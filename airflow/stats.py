@@ -20,6 +20,7 @@ import datetime
 import logging
 import socket
 import string
+import textwrap
 import time
 from functools import wraps
 from typing import TYPE_CHECKING, Callable, List, Optional, TypeVar, Union, cast
@@ -189,11 +190,24 @@ def stat_name_default_handler(stat_name, max_length=250) -> str:
         raise InvalidStatsNameException('The stat_name has to be a string')
     if len(stat_name) > max_length:
         raise InvalidStatsNameException(
-            f"The stat_name ({stat_name}) has to be less than {max_length} characters."
+            textwrap.dedent(
+                """\
+            The stat_name ({stat_name}) has to be less than {max_length} characters.
+        """.format(
+                    stat_name=stat_name, max_length=max_length
+                )
+            )
         )
     if not all((c in ALLOWED_CHARACTERS) for c in stat_name):
         raise InvalidStatsNameException(
-            f"The stat name ({stat_name}) has to be composed with characters in {ALLOWED_CHARACTERS}."
+            textwrap.dedent(
+                """\
+            The stat name ({stat_name}) has to be composed with characters in
+            {allowed_characters}.
+            """.format(
+                    stat_name=stat_name, allowed_characters=ALLOWED_CHARACTERS
+                )
+            )
         )
     return stat_name
 

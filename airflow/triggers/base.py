@@ -35,7 +35,7 @@ class BaseTrigger(abc.ABC, LoggingMixin):
     let them be re-instantiated elsewhere.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self):
         pass
 
     @abc.abstractmethod

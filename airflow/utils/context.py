@@ -27,7 +27,6 @@ from typing import (
     Any,
     Container,
     Dict,
-    ItemsView,
     Iterator,
     List,
     Mapping,
@@ -39,52 +38,7 @@ from typing import (
 
 import lazy_object_proxy
 
-from airflow.utils.types import NOTSET
-
-# NOTE: Please keep this in sync with Context in airflow/utils/context.pyi.
-KNOWN_CONTEXT_KEYS = {
-    "conf",
-    "conn",
-    "dag",
-    "dag_run",
-    "data_interval_end",
-    "data_interval_start",
-    "ds",
-    "ds_nodash",
-    "execution_date",
-    "exception",
-    "inlets",
-    "logical_date",
-    "macros",
-    "next_ds",
-    "next_ds_nodash",
-    "next_execution_date",
-    "outlets",
-    "params",
-    "prev_data_interval_start_success",
-    "prev_data_interval_end_success",
-    "prev_ds",
-    "prev_ds_nodash",
-    "prev_execution_date",
-    "prev_execution_date_success",
-    "prev_start_date_success",
-    "run_id",
-    "task",
-    "task_instance",
-    "task_instance_key_str",
-    "test_mode",
-    "templates_dict",
-    "ti",
-    "tomorrow_ds",
-    "tomorrow_ds_nodash",
-    "ts",
-    "ts_nodash",
-    "ts_nodash_with_tz",
-    "try_number",
-    "var",
-    "yesterday_ds",
-    "yesterday_ds_nodash",
-}
+_NOT_SET: Any = object()
 
 
 class VariableAccessor:
@@ -103,10 +57,10 @@ class VariableAccessor:
     def __repr__(self) -> str:
         return str(self.var)
 
-    def get(self, key, default: Any = NOTSET) -> Any:
+    def get(self, key, default: Any = _NOT_SET) -> Any:
         from airflow.models.variable import Variable
 
-        if default is NOTSET:
+        if default is _NOT_SET:
             return Variable.get(key, deserialize_json=self._deserialize_json)
         return Variable.get(key, default, deserialize_json=self._deserialize_json)
 
@@ -234,40 +188,16 @@ class Context(MutableMapping[str, Any]):
     def keys(self) -> AbstractSet[str]:
         return self._context.keys()
 
-    def items(self):
-        return ItemsView(self._context)
+    def items(self) -> AbstractSet[Tuple[str, Any]]:
+        return self._context.items()
 
-    def values(self):
-        return ValuesView(self._context)
+    def values(self) -> ValuesView[Any]:
+        return self._context.values()
 
-
-def context_merge(context: "Context", *args: Any, **kwargs: Any) -> None:
-    """Merge parameters into an existing context.
-
-    Like ``dict.update()`` , this take the same parameters, and updates
-    ``context`` in-place.
-
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
-
-    :meta private:
-    """
-    context.update(*args, **kwargs)
-
-
-def context_copy_partial(source: "Context", keys: Container[str]) -> "Context":
-    """Create a context by copying items under selected keys in ``source``.
-
-    This is implemented as a free function because the ``Context`` type is
-    "faked" as a ``TypedDict`` in ``context.pyi``, which cannot have custom
-    functions.
-
-    :meta private:
-    """
-    new = Context({k: v for k, v in source._context.items() if k in keys})
-    new._deprecation_replacements = source._deprecation_replacements.copy()
-    return new
+    def copy_only(self, keys: Container[str]) -> "Context":
+        new = type(self)({k: v for k, v in self._context.items() if k in keys})
+        new._deprecation_replacements = self._deprecation_replacements.copy()
+        return new
 
 
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]:

@@ -19,7 +19,6 @@
 Example Airflow DAG for Google Cloud Memorystore service.
 """
 import os
-from datetime import datetime
 
 from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
@@ -47,8 +46,7 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator
-
-START_DATE = datetime(2021, 1, 1)
+from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
@@ -82,8 +80,7 @@ MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 
 with models.DAG(
     "gcp_cloud_memorystore_redis",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag:
     # [START howto_operator_create_instance]
@@ -132,9 +129,7 @@ with models.DAG(
         task_id="failover-instance",
         location="europe-north1",
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
-        data_protection_mode=FailoverInstanceRequest.DataProtectionMode(
-            FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS
-        ),
+        data_protection_mode=FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS,
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_failover_instance]
@@ -261,8 +256,7 @@ with models.DAG(
 with models.DAG(
     "gcp_cloud_memorystore_memcached",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=dates.days_ago(1),
     tags=['example'],
 ) as dag_memcache:
     # [START howto_operator_create_instance_memcached]

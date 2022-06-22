@@ -15,11 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import os
-from datetime import datetime
 
 from airflow import models
 from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator
+from airflow.utils.dates import days_ago
 
 S3_BUCKET = os.environ.get("S3_BUCKET", "test-bucket")
 S3_KEY = os.environ.get("S3_KEY", "key")
@@ -27,8 +28,7 @@ S3_KEY = os.environ.get("S3_KEY", "key")
 with models.DAG(
     "example_s3_to_sftp",
     schedule_interval=None,
-    start_date=datetime(2021, 1, 1),  # Override to match your needs
-    catchup=False,
+    start_date=days_ago(1),  # Override to match your needs
 ) as dag:
 
     # [START howto_s3_transfer_data_to_sftp]

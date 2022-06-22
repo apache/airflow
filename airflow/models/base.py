@@ -18,7 +18,7 @@
 
 from typing import Any
 
-from sqlalchemy import MetaData, String
+from sqlalchemy import MetaData
 from sqlalchemy.ext.declarative import declarative_base
 
 from airflow.configuration import conf
@@ -28,9 +28,14 @@ SQL_ALCHEMY_SCHEMA = conf.get("core", "SQL_ALCHEMY_SCHEMA")
 metadata = (
     None if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace() else MetaData(schema=SQL_ALCHEMY_SCHEMA)
 )
-Base: Any = declarative_base(metadata=metadata)
+Base = declarative_base(metadata=metadata)  # type: Any
 
 ID_LEN = 250
+
+
+# used for typing
+class Operator:
+    """Class just used for Typing"""
 
 
 def get_id_collation_args():
@@ -56,7 +61,3 @@ def get_id_collation_args():
 
 
 COLLATION_ARGS = get_id_collation_args()
-
-
-def StringID(*, length=ID_LEN, **kwargs) -> String:
-    return String(length=length, **kwargs, **COLLATION_ARGS)

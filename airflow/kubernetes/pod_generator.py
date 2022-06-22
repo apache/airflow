@@ -94,8 +94,11 @@ class PodGenerator:
     the first container in the list of containers.
 
     :param pod: The fully specified pod. Mutually exclusive with `path_or_string`
+    :type pod: Optional[kubernetes.client.models.V1Pod]
     :param pod_template_file: Path to YAML file. Mutually exclusive with `pod`
+    :type pod_template_file: Optional[str]
     :param extract_xcom: Whether to bring up a container for xcom
+    :type extract_xcom: bool
     """
 
     def __init__(
@@ -222,7 +225,9 @@ class PodGenerator:
         """
         :param base_pod: has the base attributes which are overwritten if they exist
             in the client pod and remain if they do not exist in the client_pod
+        :type base_pod: k8s.V1Pod
         :param client_pod: the pod that the client wants to create.
+        :type client_pod: k8s.V1Pod
         :return: the merged pods
 
         This can't be done recursively as certain fields some overwritten, and some concatenated.
@@ -243,7 +248,9 @@ class PodGenerator:
         Merge kubernetes Metadata objects
         :param base_meta: has the base attributes which are overwritten if they exist
             in the client_meta and remain if they do not exist in the client_meta
+        :type base_meta: k8s.V1ObjectMeta
         :param client_meta: the spec that the client wants to create.
+        :type client_meta: k8s.V1ObjectMeta
         :return: the merged specs
         """
         if base_meta and not client_meta:
@@ -267,7 +274,9 @@ class PodGenerator:
         """
         :param base_spec: has the base attributes which are overwritten if they exist
             in the client_spec and remain if they do not exist in the client_spec
+        :type base_spec: k8s.V1PodSpec
         :param client_spec: the spec that the client wants to create.
+        :type client_spec: k8s.V1PodSpec
         :return: the merged specs
         """
         if base_spec and not client_spec:
@@ -291,7 +300,9 @@ class PodGenerator:
         """
         :param base_containers: has the base attributes which are overwritten if they exist
             in the client_containers and remain if they do not exist in the client_containers
+        :type base_containers: List[k8s.V1Container]
         :param client_containers: the containers that the client wants to create.
+        :type client_containers: List[k8s.V1Container]
         :return: the merged containers
 
         The runs recursively over the list of containers.
@@ -326,7 +337,7 @@ class PodGenerator:
         pod_override_object: Optional[k8s.V1Pod],
         base_worker_pod: k8s.V1Pod,
         namespace: str,
-        scheduler_job_id: str,
+        scheduler_job_id: int,
         run_id: Optional[str] = None,
     ) -> k8s.V1Pod:
         """
@@ -348,7 +359,7 @@ class PodGenerator:
             'try_number': str(try_number),
         }
         labels = {
-            'airflow-worker': make_safe_label_value(scheduler_job_id),
+            'airflow-worker': make_safe_label_value(str(scheduler_job_id)),
             'dag_id': make_safe_label_value(dag_id),
             'task_id': make_safe_label_value(task_id),
             'try_number': str(try_number),
@@ -429,7 +440,7 @@ class PodGenerator:
         return api_client._ApiClient__deserialize_model(pod_dict, k8s.V1Pod)
 
     @staticmethod
-    def make_unique_pod_id(pod_id: str) -> Optional[str]:
+    def make_unique_pod_id(pod_id: str) -> str:
         r"""
         Kubernetes pod names must consist of one or more lowercase
         rfc1035/rfc1123 labels separated by '.' with a maximum length of 253
@@ -448,14 +459,11 @@ class PodGenerator:
             return None
 
         safe_uuid = uuid.uuid4().hex  # safe uuid will always be less than 63 chars
+        # Strip trailing '-' and '.' as they can't be followed by '.'
+        trimmed_pod_id = pod_id[:MAX_LABEL_LEN].rstrip('-.')
 
-        # Get prefix length after subtracting the uuid length. Clean up '.' and '-' from
-        # end of podID ('.' can't be followed by '-').
-        label_prefix_length = MAX_LABEL_LEN - len(safe_uuid) - 1  # -1 for separator
-        trimmed_pod_id = pod_id[:label_prefix_length].rstrip('-.')
-
-        # previously used a '.' as the separator, but this could create errors in some situations
-        return f"{trimmed_pod_id}-{safe_uuid}"
+        safe_pod_id = f"{trimmed_pod_id}.{safe_uuid}"
+        return safe_pod_id
 
 
 def merge_objects(base_obj, client_obj):
@@ -493,6 +501,7 @@ def extend_object_field(base_obj, client_obj, field_name):
     :param client_obj: an object which has a property `field_name` that is a list.
         A copy of this object is returned with `field_name` modified
     :param field_name: the name of the list field
+    :type field_name: str
     :return: the client_obj with the property `field_name` being the two properties appended
     """
     client_obj_cp = copy.deepcopy(client_obj)

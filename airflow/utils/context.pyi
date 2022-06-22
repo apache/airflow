@@ -25,7 +25,7 @@
 # undefined attribute errors from Mypy. Hopefully there will be a mechanism to
 # declare "these are defined, but don't error if others are accessed" someday.
 
-from typing import Any, Container, Iterable, Mapping, Optional, Set, Tuple, Union, overload
+from typing import Any, Mapping, Optional
 
 from pendulum import DateTime
 
@@ -37,21 +37,11 @@ from airflow.models.param import ParamsDict
 from airflow.models.taskinstance import TaskInstance
 from airflow.typing_compat import TypedDict
 
-KNOWN_CONTEXT_KEYS: Set[str]
-
 class _VariableAccessors(TypedDict):
     json: Any
     value: Any
 
-class VariableAccessor:
-    def __init__(self, *, deserialize_json: bool) -> None: ...
-    def get(self, key, default: Any = ...) -> Any: ...
-
-class ConnectionAccessor:
-    def get(self, key: str, default_conn: Any = None) -> Any: ...
-
-# NOTE: Please keep this in sync with KNOWN_CONTEXT_KEYS in airflow/utils/context.py.
-class Context(TypedDict):
+class Context(TypedDict, total=False):
     conf: AirflowConfigParser
     conn: Any
     dag: DAG
@@ -61,7 +51,6 @@ class Context(TypedDict):
     ds: str
     ds_nodash: str
     execution_date: DateTime
-    exception: Union[Exception, str, None]
     inlets: list
     logical_date: DateTime
     macros: Any
@@ -82,25 +71,16 @@ class Context(TypedDict):
     task_instance: TaskInstance
     task_instance_key_str: str
     test_mode: bool
-    templates_dict: Optional[Mapping[str, Any]]
     ti: TaskInstance
     tomorrow_ds: str
     tomorrow_ds_nodash: str
     ts: str
     ts_nodash: str
     ts_nodash_with_tz: str
-    try_number: Optional[int]
     var: _VariableAccessors
     yesterday_ds: str
     yesterday_ds_nodash: str
 
 class AirflowContextDeprecationWarning(DeprecationWarning): ...
 
-@overload
-def context_merge(source: Context, additions: Mapping[str, Any], **kwargs: Any) -> None: ...
-@overload
-def context_merge(source: Context, additions: Iterable[Tuple[str, Any]], **kwargs: Any) -> None: ...
-@overload
-def context_merge(source: Context, **kwargs: Any) -> None: ...
-def context_copy_partial(source: Context, keys: Container[str]) -> Context: ...
 def lazy_mapping_from_context(source: Context) -> Mapping[str, Any]: ...

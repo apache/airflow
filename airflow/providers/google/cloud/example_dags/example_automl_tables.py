@@ -21,7 +21,6 @@ Example Airflow DAG that uses Google AutoML services.
 """
 import os
 from copy import deepcopy
-from datetime import datetime
 from typing import Dict, List
 
 from airflow import models
@@ -41,8 +40,7 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLTablesUpdateDatasetOperator,
     AutoMLTrainModelOperator,
 )
-
-START_DATE = datetime(2021, 1, 1)
+from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
@@ -87,8 +85,7 @@ def get_target_column_spec(columns_specs: List[Dict], column_name: str) -> str:
 with models.DAG(
     "example_create_and_deploy",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=days_ago(1),
     user_defined_macros={
         "get_target_column_spec": get_target_column_spec,
         "target": TARGET,
@@ -200,8 +197,7 @@ with models.DAG(
 with models.DAG(
     "example_automl_dataset",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=days_ago(1),
     user_defined_macros={"extract_object_id": extract_object_id},
 ) as example_dag:
     create_dataset_task = AutoMLCreateDatasetOperator(
@@ -269,8 +265,7 @@ with models.DAG(
 with models.DAG(
     "example_gcp_get_deploy",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=days_ago(1),
     tags=["example"],
 ) as get_deploy_dag:
     # [START howto_operator_get_model]
@@ -295,8 +290,7 @@ with models.DAG(
 with models.DAG(
     "example_gcp_predict",
     schedule_interval='@once',  # Override to match your needs
-    start_date=START_DATE,
-    catchup=False,
+    start_date=days_ago(1),
     tags=["example"],
 ) as predict_dag:
     # [START howto_operator_prediction]

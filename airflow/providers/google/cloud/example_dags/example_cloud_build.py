@@ -29,15 +29,11 @@ This DAG relies on the following OS environment variables:
 """
 
 import os
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
 
-import yaml
 from future.backports.urllib.parse import urlparse
 
 from airflow import models
-from airflow.models.baseoperator import chain
 from airflow.operators.bash import BashOperator
 from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildCancelBuildOperator,
@@ -52,8 +48,7 @@ from airflow.providers.google.cloud.operators.cloud_build import (
     CloudBuildRunBuildTriggerOperator,
     CloudBuildUpdateBuildTriggerOperator,
 )
-
-START_DATE = datetime(2021, 1, 1)
+from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "aitflow-test-project")
 
@@ -101,7 +96,7 @@ create_build_from_storage_body = {
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body: Dict[str, Any] = {
+create_build_from_repo_body = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "main"}},
     "steps": [
         {
@@ -116,9 +111,8 @@ create_build_from_repo_body: Dict[str, Any] = {
 
 with models.DAG(
     "example_gcp_cloud_build",
+    default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval='@once',
-    start_date=START_DATE,
-    catchup=False,
     tags=["example"],
 ) as build_dag:
 
@@ -191,7 +185,7 @@ with models.DAG(
     create_build_from_file = CloudBuildCreateBuildOperator(
         task_id="create_build_from_file",
         project_id=GCP_PROJECT_ID,
-        build=yaml.safe_load((Path(CURRENT_FOLDER) / 'example_cloud_build.yaml').read_text()),
+        build=str(CURRENT_FOLDER.joinpath('example_cloud_build.yaml')),
         params={'name': 'Airflow'},
     )
     # [END howto_operator_gcp_create_build_from_yaml_body]
@@ -205,9 +199,8 @@ with models.DAG(
 
 with models.DAG(
     "example_gcp_cloud_build_trigger",
+    default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval='@once',
-    start_date=START_DATE,
-    catchup=False,
     tags=["example"],
 ) as build_trigger_dag:
 
@@ -257,11 +250,6 @@ with models.DAG(
     )
     # [END howto_operator_list_build_triggers]
 
-    chain(
-        create_build_trigger,
-        run_build_trigger,
-        update_build_trigger,
-        get_build_trigger,
-        delete_build_trigger,
-        list_build_triggers,
-    )
+    create_build_trigger >> run_build_trigger >> update_build_trigger  # pylint: disable=pointless-statement
+    update_build_trigger >> get_build_trigger >> delete_build_trigger  # pylint: disable=pointless-statement
+    delete_build_trigger >> list_build_triggers  # pylint: disable=pointless-statement

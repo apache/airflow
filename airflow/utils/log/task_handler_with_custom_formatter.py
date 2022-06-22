@@ -17,43 +17,39 @@
 """Custom logging formatter for Airflow"""
 
 import logging
-from typing import TYPE_CHECKING, Optional
+from logging import StreamHandler
 
 from airflow.configuration import conf
 from airflow.utils.helpers import parse_template_string, render_template_to_string
 
-if TYPE_CHECKING:
-    from jinja2 import Template
 
-    from airflow.models.taskinstance import TaskInstance
-
-
-class TaskHandlerWithCustomFormatter(logging.StreamHandler):
+class TaskHandlerWithCustomFormatter(StreamHandler):
     """Custom implementation of StreamHandler, a class which writes logging records for Airflow"""
 
-    prefix_jinja_template: Optional["Template"] = None
+    def __init__(self, stream):
+        super().__init__()
+        self.prefix_jinja_template = None
 
-    def set_context(self, ti) -> None:
+    def set_context(self, ti):
         """
         Accept the run-time context (i.e. the current task) and configure the formatter accordingly.
 
         :param ti:
         :return:
         """
-        if ti.raw or self.formatter is None:
+        if ti.raw:
             return
         prefix = conf.get('logging', 'task_log_prefix_template')
 
+        rendered_prefix = ""
         if prefix:
             _, self.prefix_jinja_template = parse_template_string(prefix)
             rendered_prefix = self._render_prefix(ti)
-        else:
-            rendered_prefix = ""
-        formatter = logging.Formatter(f"{rendered_prefix}:{self.formatter._fmt}")
+        formatter = logging.Formatter(rendered_prefix + ":" + self.formatter._fmt)
         self.setFormatter(formatter)
         self.setLevel(self.level)
 
-    def _render_prefix(self, ti: "TaskInstance") -> str:
+    def _render_prefix(self, ti):
         if self.prefix_jinja_template:
             jinja_context = ti.get_template_context()
             return render_template_to_string(self.prefix_jinja_template, jinja_context)

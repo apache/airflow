@@ -49,7 +49,7 @@ def _run_scheduler_job(args):
             sub_proc.terminate()
 
 
-@cli_utils.action_cli
+@cli_utils.action_logging
 def scheduler(args):
     """Starts Airflow Scheduler"""
     print(settings.HEADER)
