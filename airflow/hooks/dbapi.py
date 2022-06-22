@@ -70,7 +70,7 @@ class DbApiHook(BaseHook):
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
 
-    def __init__(self, *args, schema: Optional[str] = None, log_sql: Optional[bool] = True, **kwargs):
+    def __init__(self, *args, schema: Optional[str] = None, log_sql: bool = True, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
