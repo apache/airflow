@@ -15,7 +15,6 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import unittest
 from unittest.mock import Mock, patch
 
 import pytest
@@ -23,7 +22,7 @@ import pytest
 from airflow.providers.salesforce.operators.bulk import SalesforceBulkOperator
 
 
-class TestSalesforceBulkOperator(unittest.TestCase):
+class TestSalesforceBulkOperator:
     """
     Test class for SalesforceBulkOperator
     """
