@@ -56,7 +56,7 @@ class DbApiHook(BaseHook):
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
         should be done before calling the ``DBApiHook.__init__()``.
-    :param log_sql: Whether to log SQL query during `run`. Defaults to True.
+    :param log_sql: Whether to log SQL query when it's executed. Defaults to *True*.
     """
 
     # Override to provide the connection name.
