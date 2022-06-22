@@ -17,10 +17,8 @@
  * under the License.
  */
 
-/* global autoRefreshInterval */
-
 import { useQuery } from 'react-query';
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 
 import { getMetaValue } from '../../utils';
 import { useAutoRefresh } from '../context/autorefresh';
@@ -28,6 +26,7 @@ import useErrorToast from '../utils/useErrorToast';
 import useFilters, {
   BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
 } from '../utils/useFilters';
+import type { Task, DagRun } from '../types';
 
 const DAG_ID_PARAM = 'dag_id';
 
@@ -36,12 +35,21 @@ const dagId = getMetaValue(DAG_ID_PARAM);
 const gridDataUrl = getMetaValue('grid_data_url') || '';
 const urlRoot = getMetaValue('root');
 
-const emptyData = {
+interface GridData {
+  dagRuns: DagRun[];
+  groups: Task;
+}
+
+const emptyGridData: GridData = {
   dagRuns: [],
-  groups: {},
+  groups: {
+    id: null,
+    label: null,
+    instances: [],
+  },
 };
 
-export const areActiveRuns = (runs = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
+export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
 const useGridData = () => {
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
@@ -52,8 +60,9 @@ const useGridData = () => {
     },
   } = useFilters();
 
-  return useQuery(['gridData', baseDate, numRuns, runType, runState], async () => {
-    try {
+  const query = useQuery(
+    ['gridData', baseDate, numRuns, runType, runState],
+    async () => {
       const params = {
         root: urlRoot || undefined,
         [DAG_ID_PARAM]: dagId,
@@ -62,24 +71,29 @@ const useGridData = () => {
         [RUN_TYPE_PARAM]: runType,
         [RUN_STATE_PARAM]: runState,
       };
-      const newData = await axios.get(gridDataUrl, { params });
+      const response = await axios.get<AxiosResponse, GridData>(gridDataUrl, { params });
       // turn off auto refresh if there are no active runs
-      if (!areActiveRuns(newData.dagRuns)) stopRefresh();
-      return newData;
-    } catch (error) {
-      stopRefresh();
-      errorToast({
-        title: 'Auto-refresh Error',
-        error,
-      });
-      throw (error);
-    }
-  }, {
-    placeholderData: emptyData,
-    // only refetch if the refresh switch is on
-    refetchInterval: isRefreshOn && autoRefreshInterval * 1000,
-    keepPreviousData: true,
-  });
+      if (!areActiveRuns(response.dagRuns)) stopRefresh();
+      return response;
+    },
+    {
+      // only refetch if the refresh switch is on
+      refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
+      keepPreviousData: true,
+      onError: (error) => {
+        stopRefresh();
+        errorToast({
+          title: 'Auto-refresh Error',
+          error,
+        });
+        throw (error);
+      },
+    },
+  );
+  return {
+    ...query,
+    data: query.data ?? emptyGridData,
+  };
 };
 
 export default useGridData;

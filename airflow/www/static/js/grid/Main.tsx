@@ -47,10 +47,10 @@ const Main = () => {
 
   const onPanelToggle = () => {
     if (!isOpen) {
-      localStorage.setItem(detailsPanelKey, false);
+      localStorage.setItem(detailsPanelKey, 'false');
     } else {
       clearSelection();
-      localStorage.setItem(detailsPanelKey, true);
+      localStorage.setItem(detailsPanelKey, 'true');
     }
     onToggle();
   };

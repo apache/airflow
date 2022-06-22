@@ -17,19 +17,27 @@
  * under the License.
  */
 
-import axios from 'axios';
-import { useQuery } from 'react-query';
-import { getMetaValue } from '../../utils';
+import React, { useContext, useRef } from 'react';
 
-export default function useTasks() {
-  return useQuery(
-    'tasks',
-    () => {
-      const tasksUrl = getMetaValue('tasks_api');
-      return axios.get(tasksUrl);
-    },
-    {
-      initialData: { tasks: [], totalEntries: 0 },
-    },
-  );
+// eslint-disable-next-line max-len
+const ContainerRefContext = React.createContext<React.RefObject<HTMLDivElement> | undefined>(undefined);
+
+interface Props {
+  children: React.ReactNode;
 }
+
+// containerRef is necessary to render for tooltips, modals, and dialogs
+// This provider allows the containerRef to be accessed by any react component
+export const ContainerRefProvider = ({ children }: Props) => {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  return (
+    <ContainerRefContext.Provider value={containerRef}>
+      <div ref={containerRef}>
+        {children}
+      </div>
+    </ContainerRefContext.Provider>
+  );
+};
+
+export const useContainerRef = () => useContext(ContainerRefContext);
