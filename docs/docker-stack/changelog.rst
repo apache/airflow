@@ -37,8 +37,6 @@ the Airflow team.
 Changes after publishing the images
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Important note!
-
 Occasionally our images need to be regenerated using newer ``Dockerfiles`` or constraints.
 This happens when an issue is found or a breaking change is released by our dependencies
 that invalidates the already released image, and regenerating the image makes it usable again.
