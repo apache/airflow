@@ -22,6 +22,11 @@ import { useSearchParams } from 'react-router-dom';
 const RUN_ID = 'dag_run_id';
 const TASK_ID = 'task_id';
 
+export interface SelectionProps {
+  runId?: string | null ;
+  taskId?: string | null;
+}
+
 const useSelection = () => {
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -32,7 +37,7 @@ const useSelection = () => {
     setSearchParams(searchParams);
   };
 
-  const onSelect = ({ runId, taskId }) => {
+  const onSelect = ({ runId, taskId }: SelectionProps) => {
     const params = new URLSearchParams(searchParams);
 
     if (runId) params.set(RUN_ID, runId);
