@@ -16,7 +16,6 @@
 # under the License.
 from typing import Any, Iterable, List, Optional, Tuple, TypeVar
 
-from flask import current_app, request
 from marshmallow import ValidationError
 from sqlalchemy import and_, func, or_
 from sqlalchemy.exc import MultipleResultsFound
@@ -25,6 +24,7 @@ from sqlalchemy.orm.query import Query
 from sqlalchemy.sql import ClauseElement
 
 from airflow.api_connexion import security
+from airflow.api_connexion.endpoints.request_dict import get_json_request_dict
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.parameters import format_datetime, format_parameters
 from airflow.api_connexion.schemas.task_instance_schema import (
@@ -42,6 +42,7 @@ from airflow.models import SlaMiss
 from airflow.models.dagrun import DagRun as DR
 from airflow.models.taskinstance import TaskInstance as TI, clear_task_instances
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.state import DagRunState, State
 
@@ -188,7 +189,7 @@ def get_mapped_task_instances(
 
     # 0 can mean a mapped TI that expanded to an empty list, so it is not an automatic 404
     if base_query.with_entities(func.count('*')).scalar() == 0:
-        dag = current_app.dag_bag.get_dag(dag_id)
+        dag = get_airflow_app().dag_bag.get_dag(dag_id)
         if not dag:
             error_message = f"DAG {dag_id} not found"
             raise NotFound(error_message)
@@ -364,7 +365,7 @@ def get_task_instances(
 @provide_session
 def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
     """Get list of task instances."""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = task_instance_batch_form.load(body)
     except ValidationError as err:
@@ -423,20 +424,20 @@ def get_task_instances_batch(session: Session = NEW_SESSION) -> APIResponse:
 @provide_session
 def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Clear task instances."""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = clear_task_instance_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
-    dag = current_app.dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
     reset_dag_runs = data.pop('reset_dag_runs')
     dry_run = data.pop('dry_run')
     # We always pass dry_run here, otherwise this would try to confirm on the terminal!
-    task_instances = dag.clear(dry_run=True, dag_bag=current_app.dag_bag, **data)
+    task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, **data)
     if not dry_run:
         clear_task_instances(
             task_instances.all(),
@@ -460,14 +461,14 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
 @provide_session
 def post_set_task_instances_state(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
     """Set a state of task instances."""
-    body = request.get_json()
+    body = get_json_request_dict()
     try:
         data = set_task_instance_state_form.load(body)
     except ValidationError as err:
         raise BadRequest(detail=str(err.messages))
 
     error_message = f"Dag ID {dag_id} not found"
-    dag = current_app.dag_bag.get_dag(dag_id)
+    dag = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound(error_message)
 

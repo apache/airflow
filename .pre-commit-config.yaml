@@ -347,7 +347,7 @@ repos:
         language: python
         files: ^BREEZE\.rst$|^dev/breeze/.*$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py

@@ -81,6 +81,7 @@ class ShellParams:
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     skip_environment_initialization: bool = False
+    skip_constraints: bool = False
     start_airflow: str = "false"
     use_airflow_version: Optional[str] = None
     use_packages_from_dist: bool = False

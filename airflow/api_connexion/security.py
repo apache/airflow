@@ -18,16 +18,17 @@
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
-from flask import Response, current_app
+from flask import Response
 
 from airflow.api_connexion.exceptions import PermissionDenied, Unauthenticated
+from airflow.utils.airflow_flask_app import get_airflow_app
 
 T = TypeVar("T", bound=Callable)
 
 
 def check_authentication() -> None:
     """Checks that the request has valid authorization information."""
-    for auth in current_app.api_auth:
+    for auth in get_airflow_app().api_auth:
         response = auth.requires_authentication(Response)()
         if response.status_code == 200:
             return
@@ -38,7 +39,7 @@ def check_authentication() -> None:
 
 def requires_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Callable[[T], T]:
     """Factory for decorator that checks current user's permissions against required permissions."""
-    appbuilder = current_app.appbuilder
+    appbuilder = get_airflow_app().appbuilder
     appbuilder.sm.sync_resource_permissions(permissions)
 
     def requires_access_decorator(func: T):

@@ -19,12 +19,10 @@ import unittest.mock
 from datetime import datetime
 
 import pytest
-from itsdangerous import URLSafeSerializer
 from parameterized import parameterized
 
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
-from airflow.configuration import conf
 from airflow.models import DagBag, DagModel
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.operators.empty import EmptyOperator
@@ -34,8 +32,12 @@ from tests.test_utils.api_connexion_utils import assert_401, create_user, delete
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs, clear_db_serialized_dags
 
-SERIALIZER = URLSafeSerializer(conf.get('webserver', 'secret_key'))
-FILE_TOKEN = SERIALIZER.dumps(__file__)
+
+@pytest.fixture()
+def current_file_token(url_safe_serializer) -> str:
+    return url_safe_serializer.dumps(__file__)
+
+
 DAG_ID = "test_dag"
 TASK_ID = "op1"
 DAG2_ID = "test_dag2"
@@ -246,7 +248,7 @@ class TestGetDag(TestDagEndpoint):
 
 
 class TestGetDagDetails(TestDagEndpoint):
-    def test_should_respond_200(self):
+    def test_should_respond_200(self, current_file_token):
         response = self.client.get(
             f"/api/v1/dags/{self.dag_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -262,7 +264,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "fileloc": __file__,
-            "file_token": FILE_TOKEN,
+            "file_token": current_file_token,
             "is_paused": None,
             "is_active": None,
             "is_subdag": False,
@@ -294,7 +296,7 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    def test_should_response_200_with_doc_md_none(self):
+    def test_should_response_200_with_doc_md_none(self, current_file_token):
         response = self.client.get(
             f"/api/v1/dags/{self.dag2_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -310,7 +312,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": None,
             "fileloc": __file__,
-            "file_token": FILE_TOKEN,
+            "file_token": current_file_token,
             "is_paused": None,
             "is_active": None,
             "is_subdag": False,
@@ -335,7 +337,7 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    def test_should_response_200_for_null_start_date(self):
+    def test_should_response_200_for_null_start_date(self, current_file_token):
         response = self.client.get(
             f"/api/v1/dags/{self.dag3_id}/details", environ_overrides={'REMOTE_USER': "test"}
         )
@@ -351,7 +353,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": None,
             "fileloc": __file__,
-            "file_token": FILE_TOKEN,
+            "file_token": current_file_token,
             "is_paused": None,
             "is_active": None,
             "is_subdag": False,
@@ -376,7 +378,7 @@ class TestGetDagDetails(TestDagEndpoint):
         }
         assert response.json == expected
 
-    def test_should_respond_200_serialized(self):
+    def test_should_respond_200_serialized(self, current_file_token):
         # Get the dag out of the dagbag before we patch it to an empty one
         SerializedDagModel.write_dag(self.app.dag_bag.get_dag(self.dag_id))
 
@@ -395,7 +397,7 @@ class TestGetDagDetails(TestDagEndpoint):
             "description": None,
             "doc_md": "details",
             "fileloc": __file__,
-            "file_token": FILE_TOKEN,
+            "file_token": current_file_token,
             "is_paused": None,
             "is_active": None,
             "is_subdag": False,
@@ -449,7 +451,7 @@ class TestGetDagDetails(TestDagEndpoint):
             'description': None,
             'doc_md': 'details',
             'fileloc': __file__,
-            "file_token": FILE_TOKEN,
+            "file_token": current_file_token,
             'is_paused': None,
             "is_active": None,
             'is_subdag': False,
@@ -496,7 +498,7 @@ class TestGetDagDetails(TestDagEndpoint):
 
 class TestGetDags(TestDagEndpoint):
     @provide_session
-    def test_should_respond_200(self, session):
+    def test_should_respond_200(self, session, url_safe_serializer):
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
@@ -504,8 +506,8 @@ class TestGetDags(TestDagEndpoint):
         assert len(dags_query.all()) == 3
 
         response = self.client.get("api/v1/dags", environ_overrides={'REMOTE_USER': "test"})
-        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
-        file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        file_token2 = url_safe_serializer.dumps("/tmp/dag_2.py")
 
         assert response.status_code == 200
         assert {
@@ -576,11 +578,11 @@ class TestGetDags(TestDagEndpoint):
             "total_entries": 2,
         } == response.json
 
-    def test_only_active_true_returns_active_dags(self):
+    def test_only_active_true_returns_active_dags(self, url_safe_serializer):
         self._create_dag_models(1)
         self._create_deactivated_dag()
         response = self.client.get("api/v1/dags?only_active=True", environ_overrides={'REMOTE_USER': "test"})
-        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         assert response.status_code == 200
         assert {
             "dags": [
@@ -619,12 +621,12 @@ class TestGetDags(TestDagEndpoint):
             "total_entries": 1,
         } == response.json
 
-    def test_only_active_false_returns_all_dags(self):
+    def test_only_active_false_returns_all_dags(self, url_safe_serializer):
         self._create_dag_models(1)
         self._create_deactivated_dag()
         response = self.client.get("api/v1/dags?only_active=False", environ_overrides={'REMOTE_USER': "test"})
-        file_token = SERIALIZER.dumps("/tmp/dag_1.py")
-        file_token_2 = SERIALIZER.dumps("/tmp/dag_del_1.py")
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        file_token_2 = url_safe_serializer.dumps("/tmp/dag_del_1.py")
         assert response.status_code == 200
         assert {
             "dags": [
@@ -819,10 +821,8 @@ class TestGetDags(TestDagEndpoint):
 
 
 class TestPatchDag(TestDagEndpoint):
-
-    file_token = SERIALIZER.dumps("/tmp/dag_1.py")
-
-    def test_should_respond_200_on_patch_is_paused(self):
+    def test_should_respond_200_on_patch_is_paused(self, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         dag_model = self._create_dag_model()
         response = self.client.patch(
             f"/api/v1/dags/{dag_model.dag_id}",
@@ -832,12 +832,11 @@ class TestPatchDag(TestDagEndpoint):
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
-
         expected_response = {
             "dag_id": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
-            "file_token": self.file_token,
+            "file_token": file_token,
             "is_paused": False,
             "is_active": False,
             "is_subdag": False,
@@ -918,7 +917,8 @@ class TestPatchDag(TestDagEndpoint):
 
         assert_401(response)
 
-    def test_should_respond_200_with_update_mask(self):
+    def test_should_respond_200_with_update_mask(self, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         dag_model = self._create_dag_model()
         payload = {
             "is_paused": False,
@@ -934,7 +934,7 @@ class TestPatchDag(TestDagEndpoint):
             "dag_id": "TEST_DAG_1",
             "description": None,
             "fileloc": "/tmp/dag_1.py",
-            "file_token": self.file_token,
+            "file_token": file_token,
             "is_paused": False,
             "is_active": False,
             "is_subdag": False,
@@ -1006,12 +1006,10 @@ class TestPatchDag(TestDagEndpoint):
 
 
 class TestPatchDags(TestDagEndpoint):
-
-    file_token = SERIALIZER.dumps("/tmp/dag_1.py")
-    file_token2 = SERIALIZER.dumps("/tmp/dag_2.py")
-
     @provide_session
-    def test_should_respond_200_on_patch_is_paused(self, session):
+    def test_should_respond_200_on_patch_is_paused(self, session, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        file_token2 = url_safe_serializer.dumps("/tmp/dag_2.py")
         self._create_dag_models(2)
         self._create_deactivated_dag()
 
@@ -1033,7 +1031,7 @@ class TestPatchDags(TestDagEndpoint):
                     "dag_id": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
-                    "file_token": self.file_token,
+                    "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
                     "is_subdag": False,
@@ -1064,7 +1062,7 @@ class TestPatchDags(TestDagEndpoint):
                     "dag_id": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
-                    "file_token": self.file_token2,
+                    "file_token": file_token2,
                     "is_paused": False,
                     "is_active": True,
                     "is_subdag": False,
@@ -1095,7 +1093,8 @@ class TestPatchDags(TestDagEndpoint):
             "total_entries": 2,
         } == response.json
 
-    def test_only_active_true_returns_active_dags(self):
+    def test_only_active_true_returns_active_dags(self, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(1)
         self._create_deactivated_dag()
         response = self.client.patch(
@@ -1112,7 +1111,7 @@ class TestPatchDags(TestDagEndpoint):
                     "dag_id": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
-                    "file_token": self.file_token,
+                    "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
                     "is_subdag": False,
@@ -1143,7 +1142,8 @@ class TestPatchDags(TestDagEndpoint):
             "total_entries": 1,
         } == response.json
 
-    def test_only_active_false_returns_all_dags(self):
+    def test_only_active_false_returns_all_dags(self, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(1)
         self._create_deactivated_dag()
         response = self.client.patch(
@@ -1154,7 +1154,7 @@ class TestPatchDags(TestDagEndpoint):
             environ_overrides={'REMOTE_USER': "test"},
         )
 
-        file_token_2 = SERIALIZER.dumps("/tmp/dag_del_1.py")
+        file_token_2 = url_safe_serializer.dumps("/tmp/dag_del_1.py")
         assert response.status_code == 200
         assert {
             "dags": [
@@ -1162,7 +1162,7 @@ class TestPatchDags(TestDagEndpoint):
                     "dag_id": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
-                    "file_token": self.file_token,
+                    "file_token": file_token,
                     "is_paused": False,
                     "is_active": True,
                     "is_subdag": False,
@@ -1399,7 +1399,9 @@ class TestPatchDags(TestDagEndpoint):
 
         assert response.status_code == 403
 
-    def test_should_respond_200_and_pause_dags(self):
+    def test_should_respond_200_and_pause_dags(self, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
+        file_token2 = url_safe_serializer.dumps("/tmp/dag_2.py")
         self._create_dag_models(2)
 
         response = self.client.patch(
@@ -1417,7 +1419,7 @@ class TestPatchDags(TestDagEndpoint):
                     "dag_id": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
-                    "file_token": self.file_token,
+                    "file_token": file_token,
                     "is_paused": True,
                     "is_active": True,
                     "is_subdag": False,
@@ -1448,7 +1450,7 @@ class TestPatchDags(TestDagEndpoint):
                     "dag_id": "TEST_DAG_2",
                     "description": None,
                     "fileloc": "/tmp/dag_2.py",
-                    "file_token": self.file_token2,
+                    "file_token": file_token2,
                     "is_paused": True,
                     "is_active": True,
                     "is_subdag": False,
@@ -1480,9 +1482,10 @@ class TestPatchDags(TestDagEndpoint):
         } == response.json
 
     @provide_session
-    def test_should_respond_200_and_pause_dag_pattern(self, session):
+    def test_should_respond_200_and_pause_dag_pattern(self, session, url_safe_serializer):
+        file_token = url_safe_serializer.dumps("/tmp/dag_1.py")
         self._create_dag_models(10)
-        file_token10 = SERIALIZER.dumps("/tmp/dag_10.py")
+        file_token10 = url_safe_serializer.dumps("/tmp/dag_10.py")
 
         response = self.client.patch(
             "/api/v1/dags?dag_id_pattern=TEST_DAG_1",
@@ -1499,7 +1502,7 @@ class TestPatchDags(TestDagEndpoint):
                     "dag_id": "TEST_DAG_1",
                     "description": None,
                     "fileloc": "/tmp/dag_1.py",
-                    "file_token": self.file_token,
+                    "file_token": file_token,
                     "is_paused": True,
                     "is_active": True,
                     "is_subdag": False,

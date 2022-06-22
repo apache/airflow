@@ -23,7 +23,10 @@ from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union, cast
 
 from airflow.api.common.trigger_dag import trigger_dag
 from airflow.exceptions import AirflowException, DagNotFound, DagRunAlreadyExists
-from airflow.models import BaseOperator, BaseOperatorLink, DagBag, DagModel, DagRun
+from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.dag import DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
 from airflow.models.xcom import XCom
 from airflow.utils import timezone
 from airflow.utils.context import Context

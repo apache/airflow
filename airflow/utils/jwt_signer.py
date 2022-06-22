@@ -73,9 +73,7 @@ class JWTSigner:
             algorithms=[self._algorithm],
             options={
                 "verify_signature": True,
-                "require_exp": True,
-                "require_iat": True,
-                "require_nbf": True,
+                "require": ["exp", "iat", "nbf"],
             },
             audience=self._audience,
         )

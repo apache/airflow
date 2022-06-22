@@ -83,8 +83,7 @@ def show_message(entity: str, message: str):
     """
     Show message on the Command Line
     """
-    width, _ = click.get_terminal_size()
-
+    width, _ = click.get_terminal_size()  # type: ignore[attr-defined]
     click.secho("-" * width, fg="blue")
     click.secho(f"{entity} Message:", fg="bright_red", bold=True)
     click.secho("-" * width, fg="blue")
