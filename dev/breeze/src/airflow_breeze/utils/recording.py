@@ -47,7 +47,9 @@ def enable_recording_of_help_output(path: str, title: Optional[str], width: Opti
 
     class RecordingConsole(rich.console.Console):
         def __init__(self, **kwargs):
-            super().__init__(record=True, width=width_int, force_terminal=True, **kwargs)
+            kwargs["force_terminal"] = True
+            kwargs["width"] = width_int
+            super().__init__(record=True, **kwargs)
             global help_console
             help_console = self
 
