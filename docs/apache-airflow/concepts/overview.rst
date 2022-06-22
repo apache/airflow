@@ -37,9 +37,11 @@ An Airflow installation generally consists of the following components:
 
 * A *metadata database*, used by the scheduler, executor and webserver to store state.
 
-.. image:: /img/arch-diag-basic.png
+.. image:: /img/arch-diag-localexecutor.jpg
 
 Most executors will generally also introduce other components to let them talk to their workers - like a task queue - but you can still think of the executor and its workers as a single logical component in Airflow overall, handling the actual task execution.
+
+.. image:: /img/arch-diag-celeryexecutor.jpg
 
 Airflow itself is agnostic to what you're running - it will happily orchestrate and run anything, either with high-level support from one of our providers, or directly as a command using the shell or Python :doc:`operators`.
 
