@@ -24,12 +24,13 @@ from airflow.providers.snowflake.transfers.s3_to_snowflake import S3ToSnowflakeO
 
 
 class TestS3ToSnowflakeTransfer:
+    @pytest.mark.parametrize("pattern", [None, '.*[.]csv'])
     @pytest.mark.parametrize("columns_array", [None, ['col1', 'col2', 'col3']])
     @pytest.mark.parametrize("s3_keys", [None, ['1.csv', '2.csv']])
     @pytest.mark.parametrize("prefix", [None, 'prefix'])
     @pytest.mark.parametrize("schema", [None, 'schema'])
     @mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run")
-    def test_execute(self, mock_run, schema, prefix, s3_keys, columns_array):
+    def test_execute(self, mock_run, schema, prefix, s3_keys, columns_array, pattern):
         table = 'table'
         stage = 'stage'
         file_format = 'file_format'
@@ -42,6 +43,7 @@ class TestS3ToSnowflakeTransfer:
             file_format=file_format,
             schema=schema,
             columns_array=columns_array,
+            pattern=pattern,
             task_id="task_id",
             dag=None,
         ).execute(None)
@@ -61,6 +63,9 @@ class TestS3ToSnowflakeTransfer:
             copy_query += f"\nfiles=({files})"
 
         copy_query += f"\nfile_format={file_format}"
+
+        if pattern:
+            copy_query += f"\npattern='{pattern}'"
 
         mock_run.assert_called_once()
         assert mock_run.call_args[0][0] == copy_query
