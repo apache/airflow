@@ -1670,7 +1670,7 @@
         or insert it into a database (depending of the backend)
         This status is used by the scheduler to update the state of the task
         The use of a database is highly recommended
-        When not specified, sql_alchemy_conn with db+ prefix will be used for connection
+        When not specified, sql_alchemy_conn with a db+ scheme prefix will be used
         http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-result-backend-settings
       version_added: ~
       type: string

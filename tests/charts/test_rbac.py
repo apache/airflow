@@ -118,7 +118,7 @@ class RBACTest(unittest.TestCase):
             ] + DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
         return DEPLOYMENT_NO_RBAC_NO_SA_KIND_NAME_TUPLES
 
-    @parameterized.expand(["2.3.2", "2.3.3", "default"])
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "TEST-RBAC",
@@ -160,7 +160,7 @@ class RBACTest(unittest.TestCase):
             self._get_object_count(version),
         )
 
-    @parameterized.expand(["2.3.2", "2.3.3", "default"])
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_no_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "TEST-RBAC",
@@ -184,7 +184,7 @@ class RBACTest(unittest.TestCase):
             real_list_of_kind_names,
         )
 
-    @parameterized.expand(["2.3.2", "2.3.3", "default"])
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_no_sa(self, version):
         k8s_objects = render_chart(
             "TEST-RBAC",
@@ -225,7 +225,7 @@ class RBACTest(unittest.TestCase):
             real_list_of_kind_names,
         )
 
-    @parameterized.expand(["2.3.2", "2.3.3", "default"])
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_deployments_with_rbac_with_sa(self, version):
         k8s_objects = render_chart(
             "TEST-RBAC",

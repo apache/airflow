@@ -40,7 +40,7 @@ class TestBaseChartTest(unittest.TestCase):
             return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
         return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
 
-    @parameterized.expand(["2.3.2", "2.3.3", "default"])
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_basic_deployments(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
@@ -113,7 +113,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "TEST-LABEL"
             ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
-    @parameterized.expand(["2.3.2", "2.3.3", "default"])
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_default_users(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(

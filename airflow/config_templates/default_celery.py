@@ -37,9 +37,9 @@ if 'visibility_timeout' not in broker_transport_options:
         broker_transport_options['visibility_timeout'] = 21600
 
 if conf.has_option("celery", 'RESULT_BACKEND'):
-    result_backend = str(conf.get('celery', 'RESULT_BACKEND'))
+    result_backend = conf.get_mandatory_value('celery', 'RESULT_BACKEND')
 else:
-    log.info("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
+    log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
     result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
 
 DEFAULT_CELERY_CONFIG = {
