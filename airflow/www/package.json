@@ -64,7 +64,7 @@
     "dagre-d3": "^0.6.4",
     "datatables.net": "^1.10.23",
     "datatables.net-bs": "^1.10.23",
-    "eonasdan-bootstrap-datetimepicker": "^4.17.47",
+    "eonasdan-bootstrap-datetimepicker": "^4.17.49",
     "jquery": ">=3.5.0",
     "jshint": "^2.13.4",
     "moment-timezone": "^0.5.28",
