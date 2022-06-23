@@ -29,47 +29,58 @@
 import subprocess
 from typing import List
 
-import click
+import rich_click as click
 
-PYTHON_VERSIONS = ["3.6", "3.7", "3.8", "3.9"]
+PYTHON_VERSIONS = ["3.7", "3.8", "3.9", "3.10"]
 
-GHCR_IO_PREFIX = "ghcr.io/apache/airflow"
+GHCR_IO_PREFIX = "ghcr.io"
+
 
 GHCR_IO_IMAGES = [
-    "{prefix}/{branch}/ci-manifest/python{python_version}:latest",
-    "{prefix}/{branch}/ci/python{python_version}:latest",
-    "{prefix}/{branch}/prod-build/python{python_version}-build-v2:latest",
-    "{prefix}/{branch}/prod/python{python_version}-build-v2:latest",
-    "{prefix}/{branch}/python:{python_version}-slim-buster",
+    "{prefix}/{repo}/{branch}/ci/python{python}:latest",
+    "{prefix}/{repo}/{branch}/prod/python{python}:latest",
 ]
 
 
 # noinspection StrFormat
 def pull_push_all_images(
-    source_prefix: str, target_prefix: str, images: List[str], source_branch: str, target_branch: str
+    source_prefix: str,
+    target_prefix: str,
+    images: List[str],
+    source_branch: str,
+    source_repo: str,
+    target_branch: str,
+    target_repo: str,
 ):
-    for python_version in PYTHON_VERSIONS:
+    for python in PYTHON_VERSIONS:
         for image in images:
             source_image = image.format(
-                prefix=source_prefix, branch=source_branch, python_version=python_version
+                prefix=source_prefix, branch=source_branch, repo=source_repo, python=python
             )
             target_image = image.format(
-                prefix=target_prefix, branch=target_branch, python_version=python_version
+                prefix=target_prefix, branch=target_branch, repo=target_repo, python=python
             )
             print(f"Copying image: {source_image} -> {target_image}")
-            subprocess.run(["docker", "pull", source_image], check=True)
-            subprocess.run(["docker", "tag", source_image, target_image], check=True)
-            subprocess.run(["docker", "push", target_image], check=True)
+            subprocess.run(
+                ["regctl", "image", "copy", "--force-recursive", "--digest-tags", source_image, target_image],
+                check=True,
+            )
 
 
 @click.group(invoke_without_command=True)
 @click.option("--source-branch", type=str, default="main", help="Source branch name [main]")
 @click.option("--target-branch", type=str, default="main", help="Target branch name [main]")
+@click.option("--source-repo", type=str, default="apache/airflow", help="Source repo")
+@click.option("--target-repo", type=str, default="apache/airflow", help="Target repo")
 def main(
     source_branch: str,
     target_branch: str,
+    source_repo: str,
+    target_repo: str,
 ):
-    pull_push_all_images(GHCR_IO_PREFIX, GHCR_IO_PREFIX, GHCR_IO_IMAGES, source_branch, target_branch)
+    pull_push_all_images(
+        GHCR_IO_PREFIX, GHCR_IO_PREFIX, GHCR_IO_IMAGES, source_branch, source_repo, target_branch, target_repo
+    )
 
 
 if __name__ == "__main__":

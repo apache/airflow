@@ -19,9 +19,10 @@
 Example Airflow DAG for Google Cloud Memorystore service.
 """
 import os
+from datetime import datetime
 
-from google.cloud.memcache_v1beta2.types import cloud_memcache
 from google.cloud.redis_v1 import FailoverInstanceRequest, Instance
+from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -46,7 +47,8 @@ from airflow.providers.google.cloud.operators.cloud_memorystore import (
     CloudMemorystoreUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.operators.gcs import GCSBucketCreateAclEntryOperator
-from airflow.utils import dates
+
+START_DATE = datetime(2021, 1, 1)
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
@@ -80,7 +82,8 @@ MEMCACHED_INSTANCE = {"name": "", "node_count": 1, "node_config": {"cpu_count": 
 with models.DAG(
     "gcp_cloud_memorystore_redis",
     schedule_interval='@once',  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_create_instance]
@@ -129,7 +132,9 @@ with models.DAG(
         task_id="failover-instance",
         location="europe-north1",
         instance=MEMORYSTORE_REDIS_INSTANCE_NAME_2,
-        data_protection_mode=FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS,
+        data_protection_mode=FailoverInstanceRequest.DataProtectionMode(
+            FailoverInstanceRequest.DataProtectionMode.LIMITED_DATA_LOSS
+        ),
         project_id=GCP_PROJECT_ID,
     )
     # [END howto_operator_failover_instance]
@@ -256,7 +261,8 @@ with models.DAG(
 with models.DAG(
     "gcp_cloud_memorystore_memcached",
     schedule_interval='@once',  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag_memcache:
     # [START howto_operator_create_instance_memcached]
@@ -299,7 +305,7 @@ with models.DAG(
         location="europe-north1",
         instance_id=MEMORYSTORE_MEMCACHED_INSTANCE_NAME,
         project_id=GCP_PROJECT_ID,
-        update_mask=cloud_memcache.field_mask.FieldMask(paths=["node_count"]),
+        update_mask=FieldMask(paths=["node_count"]),
         instance={"node_count": 2},
     )
     # [END howto_operator_update_instance_memcached]

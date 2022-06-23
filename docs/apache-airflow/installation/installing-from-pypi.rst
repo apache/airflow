@@ -37,7 +37,7 @@ Typical command to install airflow from PyPI looks like below:
 
 .. code-block::
 
-    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt"
+    pip install "apache-airflow[celery]==|version|" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt"
 
 This is an example, see further for more explanation.
 
@@ -46,19 +46,19 @@ This is an example, see further for more explanation.
 Constraints files
 '''''''''''''''''
 
-Airflow installation might be sometimes tricky because Airflow is a bit of both a library and application.
+Airflow installation can be tricky sometimes because Airflow is both a library and an application.
 Libraries usually keep their dependencies open and applications usually pin them, but we should do neither
 and both at the same time. We decided to keep our dependencies as open as possible
 (in ``setup.cfg`` and ``setup.py``) so users can install different
 version of libraries if needed. This means that from time to time plain ``pip install apache-airflow`` will
-not work or will produce unusable Airflow installation.
+not work or will produce an unusable Airflow installation.
 
-In order to have repeatable installation, we also keep a set of "known-to-be-working" constraint files in the
-``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create tag
-for each released version e.g. :subst-code:`constraints-|version|`. This way, when we keep a tested and working set of dependencies.
+In order to have a repeatable installation, we also keep a set of "known-to-be-working" constraint files in the
+``constraints-main``, ``constraints-2-0``, ``constraints-2-1`` etc. orphan branches and then we create a tag
+for each released version e.g. :subst-code:`constraints-|version|`. This way, we keep a tested and working set of dependencies.
 
 Those "known-to-be-working" constraints are per major/minor Python version. You can use them as constraint
-files when installing Airflow from PyPI. Note that you have to specify correct Airflow version
+files when installing Airflow from PyPI. Note that you have to specify the correct Airflow
 and Python versions in the URL.
 
 You can create the URL to the file substituting the variables in the template below.
@@ -72,14 +72,21 @@ where:
 - ``AIRFLOW_VERSION`` - Airflow version (e.g. :subst-code:`|version|`) or ``main``, ``2-0``, for latest development version
 - ``PYTHON_VERSION`` Python version e.g. ``3.8``, ``3.7``
 
-There is also a no-providers constraint file, which contains just constraints required to install Airflow core. This allows
-to install and upgrade airflow separately and independently from providers.
+There is also a ``constraints-no-providers`` constraint file, which contains just constraints required to
+install Airflow core. This allows to install and upgrade airflow separately and independently from providers.
 
 You can create the URL to the file substituting the variables in the template below.
 
 .. code-block::
 
   https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt
+
+You can also use "latest" as version when you install "latest" stable version of Airflow. The "latest"
+constraints always points to the "latest" released Airflow version constraints:
+
+.. code-block::
+
+  https://raw.githubusercontent.com/apache/airflow/constraints-latest/constraints-3.7.txt
 
 Installation and upgrade scenarios
 ''''''''''''''''''''''''''''''''''
@@ -89,8 +96,8 @@ In order to simplify the installation, we have prepared examples of how to upgra
 Installing Airflow with extras and providers
 ============================================
 
-If you need to install extra dependencies of airflow, you can use the script below to make an installation
-a one-liner (the example below installs postgres and google provider, as well as ``async`` extra.
+If you need to install extra dependencies of Airflow, you can use the script below to make an installation
+a one-liner (the example below installs Postgres and Google providers, as well as ``async`` extra).
 
 .. code-block:: bash
     :substitutions:
@@ -118,7 +125,7 @@ being installed.
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    pip install --upgrade "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
+    pip install "apache-airflow[postgres,google]==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 Installation and upgrading of Airflow providers separately
 ==========================================================
@@ -129,10 +136,13 @@ the time of preparing of the airflow version. However, usually you can use "main
 to install latest version of providers. Usually the providers work with most versions of Airflow, if there
 will be any incompatibilities, it will be captured as package dependencies.
 
+Note that "main" is just an example - you might need to choose a specific airflow version to install providers
+in specific version.
+
 .. code-block:: bash
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.6
+    # For example: 3.7
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --constraint "${CONSTRAINT_URL}"
 
@@ -141,7 +151,7 @@ You can also upgrade the providers to latest versions (you need to use main vers
 .. code-block:: bash
 
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.6
+    # For example: 3.7
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-main/constraints-${PYTHON_VERSION}.txt"
     pip install "apache-airflow-providers-google" --upgrade --constraint "${CONSTRAINT_URL}"
 
@@ -156,9 +166,9 @@ If you don't want to install any extra providers, initially you can use the comm
 
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.6
+    # For example: 3.7
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-no-providers-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-no-providers-3.7.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
 

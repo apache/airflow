@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import flask
+import markupsafe
 import pytest
 
 from airflow.models import Pool
@@ -79,10 +80,10 @@ def test_list(app, admin_client, pool_factory):
     # We should see this link
     with app.test_request_context():
         url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='running')
-        used_tag = flask.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+        used_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
 
         url = flask.url_for('TaskInstanceModelView.list', _flt_3_pool='test-pool', _flt_3_state='queued')
-        queued_tag = flask.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
+        queued_tag = markupsafe.Markup("<a href='{url}'>{slots}</a>").format(url=url, slots=0)
     check_content_in_response(used_tag, resp)
     check_content_in_response(queued_tag, resp)
 

@@ -30,3 +30,10 @@ def post_worker_init(_):
     """
     old_title = setproctitle.getproctitle()
     setproctitle.setproctitle(settings.GUNICORN_WORKER_READY_PREFIX + old_title)
+
+
+def on_starting(server):
+    from airflow.providers_manager import ProvidersManager
+
+    # Load providers before forking workers
+    ProvidersManager().connection_form_widgets

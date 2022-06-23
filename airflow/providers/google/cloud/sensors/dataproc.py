@@ -17,68 +17,81 @@
 # under the License.
 """This module contains a Dataproc Job sensor."""
 # pylint: disable=C0302
-import warnings
-from typing import Optional
+import time
+from typing import TYPE_CHECKING, Optional, Sequence
 
+from google.api_core.exceptions import ServerError
 from google.cloud.dataproc_v1.types import JobStatus
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.dataproc import DataprocHook
 from airflow.sensors.base import BaseSensorOperator
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class DataprocJobSensor(BaseSensorOperator):
     """
     Check for the state of a previously submitted Dataproc job.
 
+    :param dataproc_job_id: The Dataproc job ID to poll. (templated)
+    :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
     :param project_id: The ID of the google cloud project in which
         to create the cluster. (templated)
-    :type project_id: str
-    :param dataproc_job_id: The Dataproc job ID to poll. (templated)
-    :type dataproc_job_id: str
-    :param region: Required. The Cloud Dataproc region in which to handle the request. (templated)
-    :type region: str
-    :param location: (To be deprecated). The Cloud Dataproc region in which to handle the request. (templated)
-    :type location: str
     :param gcp_conn_id: The connection ID to use connecting to Google Cloud Platform.
-    :type gcp_conn_id: str
+    :param wait_timeout: How many seconds wait for job to be ready.
     """
 
-    template_fields = ('project_id', 'region', 'dataproc_job_id')
+    template_fields: Sequence[str] = ('project_id', 'region', 'dataproc_job_id')
     ui_color = '#f0eee4'
 
     def __init__(
         self,
         *,
-        project_id: str,
         dataproc_job_id: str,
-        region: str = None,
-        location: Optional[str] = None,
+        region: str,
+        project_id: Optional[str] = None,
         gcp_conn_id: str = 'google_cloud_default',
+        wait_timeout: Optional[int] = None,
         **kwargs,
     ) -> None:
-        if region is None:
-            if location is not None:
-                warnings.warn(
-                    "Parameter `location` will be deprecated. "
-                    "Please provide value through `region` parameter instead.",
-                    DeprecationWarning,
-                    stacklevel=2,
-                )
-                region = location
-            else:
-                raise TypeError("missing 1 required keyword argument: 'region'")
         super().__init__(**kwargs)
         self.project_id = project_id
         self.gcp_conn_id = gcp_conn_id
         self.dataproc_job_id = dataproc_job_id
         self.region = region
+        self.wait_timeout = wait_timeout
+        self.start_sensor_time: Optional[float] = None
 
-    def poke(self, context: dict) -> bool:
+    def execute(self, context: "Context") -> None:
+        self.start_sensor_time = time.monotonic()
+        super().execute(context)
+
+    def _duration(self):
+        return time.monotonic() - self.start_sensor_time
+
+    def poke(self, context: "Context") -> bool:
         hook = DataprocHook(gcp_conn_id=self.gcp_conn_id)
-        job = hook.get_job(job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id)
-        state = job.status.state
+        if self.wait_timeout:
+            try:
+                job = hook.get_job(
+                    job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id
+                )
+            except ServerError as err:
+                duration = self._duration()
+                self.log.info("DURATION RUN: %f", duration)
+                if duration > self.wait_timeout:
+                    raise AirflowException(
+                        f"Timeout: dataproc job {self.dataproc_job_id} "
+                        f"is not ready after {self.wait_timeout}s"
+                    )
+                self.log.info("Retrying. Dataproc API returned server error when waiting for job: %s", err)
+                return False
+        else:
+            job = hook.get_job(job_id=self.dataproc_job_id, region=self.region, project_id=self.project_id)
 
+        state = job.status.state
         if state == JobStatus.State.ERROR:
             raise AirflowException(f'Job failed:\n{job}')
         elif state in {

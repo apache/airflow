@@ -20,6 +20,12 @@
 
 Content
 -------
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    Operators <operators>
+
 
 .. toctree::
     :maxdepth: 1
@@ -45,7 +51,7 @@ Package apache-airflow-providers-apache-sqoop
 `Apache Sqoop <https://sqoop.apache.org/>`__
 
 
-Release: 2.0.2
+Release: 3.0.0
 
 Provider package
 ----------------
@@ -56,7 +62,8 @@ are in ``airflow.providers.apache.sqoop`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-apache-sqoop``
 
 .. include:: ../../airflow/providers/apache/sqoop/CHANGELOG.rst

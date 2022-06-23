@@ -16,8 +16,84 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix ''SqliteHook'' compatibility with SQLAlchemy engine (#23790)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate SQLite example DAGs to new design #22461 (#24150)``
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+2.1.3
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.2
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Misc. documentation typos and language improvements (#19599)``
+   * ``Prepare documentation for October Provider's release (#19321)``
+   * ``Update documentation for September providers release (#18613)``
+   * ``Static start_date and default arg cleanup for misc. provider example DAGs (#18597)``
+   * ``Updating miscellaneous provider DAGs to use TaskFlow API where applicable (#18278)``
+   * ``Add documentation for January 2021 providers release (#21257)``
 
 2.0.1
 .....

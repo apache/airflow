@@ -58,7 +58,6 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
         MY_CONN_ID=my-conn-type://my-login:my-pa%2Fssword@my-host:5432/my-schema?param1=val1&param2=val2
 
     :param file_path: The location of the file that will be processed.
-    :type file_path: str
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
     with open(file_path) as f:
@@ -75,8 +74,8 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
             # Ignore comments
             continue
 
-        var_parts: List[str] = line.split("=", 2)
-        if len(var_parts) != 2:
+        key, sep, value = line.partition("=")
+        if not sep:
             errors.append(
                 FileSyntaxError(
                     line_no=line_no,
@@ -85,8 +84,7 @@ def _parse_env_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSynt
             )
             continue
 
-        key, value = var_parts
-        if not key:
+        if not value:
             errors.append(
                 FileSyntaxError(
                     line_no=line_no,
@@ -102,7 +100,6 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
     Parse a file in the YAML format.
 
     :param file_path: The location of the file that will be processed.
-    :type file_path: str
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
     with open(file_path) as f:
@@ -112,9 +109,9 @@ def _parse_yaml_file(file_path: str) -> Tuple[Dict[str, List[str]], List[FileSyn
         return {}, [FileSyntaxError(line_no=1, message="The file is empty.")]
     try:
         secrets = yaml.safe_load(content)
-
     except yaml.MarkedYAMLError as e:
-        return {}, [FileSyntaxError(line_no=e.problem_mark.line, message=str(e))]
+        err_line_no = e.problem_mark.line if e.problem_mark else -1
+        return {}, [FileSyntaxError(line_no=err_line_no, message=str(e))]
     if not isinstance(secrets, dict):
         return {}, [FileSyntaxError(line_no=1, message="The file should contain the object.")]
 
@@ -126,7 +123,6 @@ def _parse_json_file(file_path: str) -> Tuple[Dict[str, Any], List[FileSyntaxErr
     Parse a file in the JSON format.
 
     :param file_path: The location of the file that will be processed.
-    :type file_path: str
     :return: Tuple with mapping of key and list of values and list of syntax errors
     """
     with open(file_path) as f:
@@ -148,6 +144,7 @@ FILE_PARSERS = {
     "env": _parse_env_file,
     "json": _parse_json_file,
     "yaml": _parse_yaml_file,
+    "yml": _parse_yaml_file,
 }
 
 
@@ -156,7 +153,6 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
     Based on the file extension format, selects a parser, and parses the file.
 
     :param file_path: The location of the file that will be processed.
-    :type file_path: str
     :return: Map of secret key (e.g. connection ID) and value.
     """
     if not os.path.exists(file_path):
@@ -170,7 +166,8 @@ def _parse_secret_file(file_path: str) -> Dict[str, Any]:
 
     if ext not in FILE_PARSERS:
         raise AirflowException(
-            "Unsupported file format. The file must have the extension .env or .json or .yaml"
+            "Unsupported file format. The file must have one of the following extensions: "
+            ".env .json .yaml .yml"
         )
 
     secrets, parse_errors = FILE_PARSERS[ext](file_path)
@@ -230,7 +227,6 @@ def load_variables(file_path: str) -> Dict[str, str]:
     ``JSON``, `YAML` and ``.env`` files are supported.
 
     :param file_path: The location of the file that will be processed.
-    :type file_path: str
     :rtype: Dict[str, List[str]]
     """
     log.debug("Loading variables from a text file")
@@ -290,9 +286,7 @@ class LocalFilesystemBackend(BaseSecretsBackend, LoggingMixin):
     ``JSON``, `YAML` and ``.env`` files are supported.
 
     :param variables_file_path: File location with variables data.
-    :type variables_file_path: str
     :param connections_file_path: File location with connection data.
-    :type connections_file_path: str
     """
 
     def __init__(

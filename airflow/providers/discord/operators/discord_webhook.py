@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
 from airflow.providers.http.operators.http import SimpleHttpOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DiscordWebhookOperator(SimpleHttpOperator):
@@ -36,24 +39,17 @@ class DiscordWebhookOperator(SimpleHttpOperator):
     :param http_conn_id: Http connection ID with host as "https://discord.com/api/" and
                          default webhook endpoint in the extra field in the form of
                          {"webhook_endpoint": "webhooks/{webhook.id}/{webhook.token}"}
-    :type http_conn_id: str
     :param webhook_endpoint: Discord webhook endpoint in the form of
-                             "webhooks/{webhook.id}/{webhook.token}"
-    :type webhook_endpoint: str
+                             "webhooks/{webhook.id}/{webhook.token}" (templated)
     :param message: The message you want to send to your Discord channel
                     (max 2000 characters). (templated)
-    :type message: str
     :param username: Override the default username of the webhook. (templated)
-    :type username: str
     :param avatar_url: Override the default avatar of the webhook
-    :type avatar_url: str
     :param tts: Is a text-to-speech message
-    :type tts: bool
     :param proxy: Proxy to use to make the Discord webhook call
-    :type proxy: str
     """
 
-    template_fields = ['username', 'message']
+    template_fields: Sequence[str] = ('username', 'message', 'webhook_endpoint')
 
     def __init__(
         self,
@@ -81,7 +77,7 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.proxy = proxy
         self.hook: Optional[DiscordWebhookHook] = None
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         """Call the DiscordWebhookHook to post message"""
         self.hook = DiscordWebhookHook(
             self.http_conn_id,

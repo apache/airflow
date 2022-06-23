@@ -27,12 +27,12 @@ The document below describes the database engine configurations, the necessary c
 Choosing database backend
 -------------------------
 
-If you want to take a real test drive of Airflow, you should consider setting up a database backend to **MySQL**, **PostgreSQL** , **MsSQL**.
+If you want to take a real test drive of Airflow, you should consider setting up a database backend to **PostgreSQL**, **MySQL**, or **MSSQL**.
 By default, Airflow uses **SQLite**, which is intended for development purposes only.
 
 Airflow supports the following database engine versions, so make sure which version you have. Old versions may not support all SQL statements.
 
-* PostgreSQL:  9.6, 10, 11, 12, 13
+* PostgreSQL: 10, 11, 12, 13
 * MySQL: 5.7, 8
 * MsSQL: 2017, 2019
 * SQLite: 3.15.0+
@@ -44,18 +44,18 @@ Database URI
 ------------
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
-You can do this in option ``sql_alchemy_conn`` in section ``[core]``. It is also common to configure
-this option with ``AIRFLOW__CORE__SQL_ALCHEMY_CONN`` environment variable.
+You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
+this option with ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
 
-If you want to check the current value, you can use ``airflow config get-value core sql_alchemy_conn`` command as in
+If you want to check the current value, you can use ``airflow config get-value database sql_alchemy_conn`` command as in
 the example below.
 
 .. code-block:: bash
 
-    $ airflow config get-value core sql_alchemy_conn
+    $ airflow config get-value database sql_alchemy_conn
     sqlite:////tmp/airflow/airflow.db
 
 The exact format description is described in the SQLAlchemy documentation, see `Database Urls <https://docs.sqlalchemy.org/en/14/core/engines.html>`__. We will also show you some examples below.
@@ -64,7 +64,7 @@ Setting up a SQLite Database
 ----------------------------
 
 SQLite database can be used to run Airflow for development purpose as it does not require any database server
-(the database is stored in a local file). There are a few limitations of using the SQLite database (for example
+(the database is stored in a local file). There are many limitations of using the SQLite database (for example
 it only works with Sequential Executor) and it should NEVER be used for production.
 
 There is a minimum version of sqlite3 required to run Airflow 2.0+ - minimum version is 3.15.0. Some of the
@@ -86,7 +86,7 @@ You can make sure which version is used by the interpreter by running this check
 .. code-block:: bash
 
     root@b8a8e73caa2c:/opt/airflow# python
-    Python 3.6.12 (default, Nov 25 2020, 03:59:00)
+    Python 3.8.10 (default, Mar 15 2022, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import sqlite3
@@ -147,49 +147,6 @@ Post install add ``/usr/local/lib`` to library path
 
   export LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH
 
-Setting up a MySQL Database
----------------------------
-
-You need to create a database and a database user that Airflow will use to access this database.
-In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
-
-.. code-block:: sql
-
-   CREATE DATABASE airflow_db CHARACTER SET utf8 COLLATE utf8mb4_unicode_ci;
-   CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
-   GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
-
-
-.. note::
-
-   The database must use a UTF-8 character set. A small caveat that you must be aware of is that utf8 in newer versions of MySQL is really utf8mb4 which
-   causes Airflow indexes to grow too large (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618). Therefore as of Airflow 2.2
-   all MySQL databases have ``sql_engine_collation_for_ids`` set automatically to ``utf8mb3_bin`` (unless you override it). This might
-   lead to a mixture of collation ids for id fields in Airflow Database, but it has no negative consequences since all relevant IDs in Airflow use
-   ASCII characters only.
-
-We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
-Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section
-in your ``my.cnf`` file. You can also activate these options with the ``--explicit-defaults-for-timestamp`` switch passed to ``mysqld`` executable
-
-We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlchemy connection string.
-
-.. code-block:: text
-
-    mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
-
-But we also support the ``mysql-connector-python`` driver, which lets you connect through SSL
-without any cert options provided.
-
-.. code-block:: text
-
-   mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
-
-However if you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
-and setup of the SqlAlchemy connection.
-
-In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
-
 Setting up a PostgreSQL Database
 --------------------------------
 
@@ -211,6 +168,24 @@ You may need to update your Postgres ``pg_hba.conf`` to add the
 the database configuration to load your change. See
 `The pg_hba.conf File <https://www.postgresql.org/docs/current/auth-pg-hba-conf.html>`__
 in the Postgres documentation to learn more.
+
+.. warning::
+
+   When you use SQLAlchemy 1.4.0+, you need to use ``postgresql://`` as the database in the ``sql_alchemy_conn``.
+   In the previous versions of SQLAlchemy it was possible to use ``postgres://``, but using it in
+   SQLAlchemy 1.4.0+ results in:
+
+   .. code-block::
+
+      >       raise exc.NoSuchModuleError(
+                  "Can't load plugin: %s:%s" % (self.group, name)
+              )
+      E       sqlalchemy.exc.NoSuchModuleError: Can't load plugin: sqlalchemy.dialects:postgres
+
+   If you cannot change the prefix of your URL immediately, Airflow continues to work with SQLAlchemy
+   1.3 and you can downgrade SQLAlchemy, but we recommend to update the prefix.
+
+   Details in the `SQLAlchemy Changelog <https://docs.sqlalchemy.org/en/14/changelog/changelog_14.html#change-3687655465c25a39b968b4f5f6e9170b>`_.
 
 We recommend using the ``psycopg2`` driver and specifying it in your SqlAlchemy connection string.
 
@@ -253,11 +228,11 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
    services will close idle connections after some time of inactivity (typically 300 seconds),
    which results with error ``The error: psycopg2.operationalerror: SSL SYSCALL error: EOF detected``.
    The ``keepalive`` settings can be changed via ``sql_alchemy_connect_args`` configuration parameter
-   :doc:`../configurations-ref` in ``[core]`` section. You can configure the args for example in your
+   :doc:`../configurations-ref` in ``[database]`` section. You can configure the args for example in your
    local_settings.py and the ``sql_alchemy_connect_args`` should be a full import path to the dictionary
    that stores the configuration parameters. You can read about
    `Postgres Keepalives <https://www.postgresql.org/docs/current/libpq-connect.html>`_.
-   An example setup for ``keepalives`` that has been observe to fix the problem might be:
+   An example setup for ``keepalives`` that has been observed to fix the problem might be:
 
    .. code-block:: python
 
@@ -268,11 +243,60 @@ For more information regarding setup of the PostgreSQL connection, see `PostgreS
           "keepalives_count": 5,
       }
 
+   Then, if it were placed in ``airflow_local_settings.py``, the config import path would be:
+
+   .. code-block:: text
+
+      sql_alchemy_connect_args = airflow_local_settings.keepalive_kwargs
+
+
 
 .. spelling::
 
      hba
 
+Setting up a MySQL Database
+---------------------------
+
+You need to create a database and a database user that Airflow will use to access this database.
+In the example below, a database ``airflow_db`` and user  with username ``airflow_user`` with password ``airflow_pass`` will be created
+
+.. code-block:: sql
+
+   CREATE DATABASE airflow_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+   CREATE USER 'airflow_user' IDENTIFIED BY 'airflow_pass';
+   GRANT ALL PRIVILEGES ON airflow_db.* TO 'airflow_user';
+
+
+.. note::
+
+   The database must use a UTF-8 character set. A small caveat that you must be aware of is that utf8 in newer versions of MySQL is really utf8mb4 which
+   causes Airflow indexes to grow too large (see https://github.com/apache/airflow/pull/17603#issuecomment-901121618). Therefore as of Airflow 2.2
+   all MySQL databases have ``sql_engine_collation_for_ids`` set automatically to ``utf8mb3_bin`` (unless you override it). This might
+   lead to a mixture of collation ids for id fields in Airflow Database, but it has no negative consequences since all relevant IDs in Airflow use
+   ASCII characters only.
+
+We rely on more strict ANSI SQL settings for MySQL in order to have sane defaults.
+Make sure to have specified ``explicit_defaults_for_timestamp=1`` option under ``[mysqld]`` section
+in your ``my.cnf`` file. You can also activate these options with the ``--explicit-defaults-for-timestamp`` switch passed to ``mysqld`` executable
+
+We recommend using the ``mysqlclient`` driver and specifying it in your SqlAlchemy connection string.
+
+.. code-block:: text
+
+    mysql+mysqldb://<user>:<password>@<host>[:<port>]/<dbname>
+
+But we also support the ``mysql-connector-python`` driver, which lets you connect through SSL
+without any cert options provided.
+
+.. code-block:: text
+
+   mysql+mysqlconnector://<user>:<password>@<host>[:<port>]/<dbname>
+
+However if you want to use other drivers visit the `MySQL Dialect <https://docs.sqlalchemy.org/en/13/dialects/mysql.html>`__  in SQLAlchemy documentation for more information regarding download
+and setup of the SqlAlchemy connection.
+
+In addition, you also should pay particular attention to MySQL's encoding. Although the ``utf8mb4`` character set is more and more popular for MySQL (actually, ``utf8mb4`` becomes default character set in MySQL8.0), using the ``utf8mb4`` encoding requires additional setting in Airflow 2+ (See more details in `#7570 <https://github.com/apache/airflow/pull/7570>`__.). If you use ``utf8mb4`` as character set, you should also set ``sql_engine_collation_for_ids=utf8mb3_bin``.
 
 Setting up a MsSQL Database
 ---------------------------
@@ -307,13 +331,23 @@ Official Docker image we have ODBC driver installed, so you need to specify the 
 
 .. code-block:: text
 
-    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+17+for+SQL+Server]
+    mssql+pyodbc://<user>:<password>@<host>[:port]/<db>[?driver=ODBC+Driver+18+for+SQL+Server]
 
 
 Other configuration options
 ---------------------------
 
 There are more configuration options for configuring SQLAlchemy behavior. For details, see :ref:`reference documentation <config:core>` for ``sqlalchemy_*`` option in ``[core]`` section.
+
+For instance, you can specify a database schema where Airflow will create its required tables. If you want Airflow to install its tables in the ``airflow`` schema of a PostgreSQL database, specify these environment variables:
+
+.. code-block:: bash
+
+    export AIRFLOW__CORE__SQL_ALCHEMY_CONN="postgresql://postgres@localhost:5432/my_database?options=-csearch_path%3Dairflow"
+    export AIRFLOW__CORE__SQL_ALCHEMY_SCHEMA="airflow"
+
+Note the ``search_path`` at the end of the ``SQL_ALCHEMY_CONN`` database URL.
+
 
 Initialize the database
 -----------------------

@@ -72,7 +72,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
     )
     def test_weekday_sensor_true(self, _, week_day):
         op = DayOfWeekSensor(
-            task_id='weekday_sensor_check_true', week_day=week_day, use_task_execution_day=True, dag=self.dag
+            task_id='weekday_sensor_check_true', week_day=week_day, use_task_logical_date=True, dag=self.dag
         )
         op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
         assert op.week_day == week_day
@@ -83,7 +83,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
             poke_interval=1,
             timeout=2,
             week_day='Tuesday',
-            use_task_execution_day=True,
+            use_task_logical_date=True,
             dag=self.dag,
         )
         with pytest.raises(AirflowSensorTimeout):
@@ -95,7 +95,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
             DayOfWeekSensor(
                 task_id='weekday_sensor_invalid_weekday_num',
                 week_day=invalid_week_day,
-                use_task_execution_day=True,
+                use_task_logical_date=True,
                 dag=self.dag,
             )
 
@@ -110,7 +110,7 @@ class TestDayOfWeekSensor(unittest.TestCase):
             DayOfWeekSensor(
                 task_id='weekday_sensor_check_true',
                 week_day=invalid_week_day,
-                use_task_execution_day=True,
+                use_task_logical_date=True,
                 dag=self.dag,
             )
 
@@ -120,8 +120,23 @@ class TestDayOfWeekSensor(unittest.TestCase):
             poke_interval=1,
             timeout=2,
             week_day={WeekDay.MONDAY, WeekDay.TUESDAY},
-            use_task_execution_day=True,
+            use_task_logical_date=True,
             dag=self.dag,
         )
         with pytest.raises(AirflowSensorTimeout):
             op.run(start_date=WEEKDAY_DATE, end_date=WEEKDAY_DATE, ignore_ti_state=True)
+
+    def test_deprecation_warning(self):
+        warning_message = (
+            """Parameter ``use_task_execution_day`` is deprecated. Use ``use_task_logical_date``."""
+        )
+        with pytest.warns(DeprecationWarning) as warnings:
+            DayOfWeekSensor(
+                task_id='week_day_warn',
+                poke_interval=1,
+                timeout=2,
+                week_day='Tuesday',
+                use_task_execution_day=True,
+                dag=self.dag,
+            )
+        assert warning_message == str(warnings[0].message)

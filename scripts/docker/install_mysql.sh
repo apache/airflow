@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,17 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-set -exuo pipefail
+# shellcheck shell=bash
+set -euo pipefail
 declare -a packages
 
 MYSQL_VERSION="8.0"
 readonly MYSQL_VERSION
 
-install_mysql_client() {
-    echo
-    echo Installing mysql client
-    echo
+COLOR_BLUE=$'\e[34m'
+readonly COLOR_BLUE
+COLOR_RESET=$'\e[0m'
+readonly COLOR_RESET
 
+: "${INSTALL_MYSQL_CLIENT:?Should be true or false}"
+
+install_mysql_client() {
     if [[ "${1}" == "dev" ]]; then
         packages=("libmysqlclient-dev" "mysql-client")
     elif [[ "${1}" == "prod" ]]; then
@@ -37,7 +40,11 @@ install_mysql_client() {
         exit 1
     fi
 
-    local key="A4A9406876FCBD3C456770C88C718D3B5072E1F5"
+    echo
+    echo "${COLOR_BLUE}Installing mysql client version ${MYSQL_VERSION}: ${1}${COLOR_RESET}"
+    echo
+
+    local key="467B942D3A79BD29"
     readonly key
 
     GNUPGHOME="$(mktemp -d)"
@@ -46,20 +53,24 @@ install_mysql_client() {
     for keyserver in $(shuf -e ha.pool.sks-keyservers.net hkp://p80.pool.sks-keyservers.net:80 \
                                keyserver.ubuntu.com hkp://keyserver.ubuntu.com:80)
     do
-        gpg --keyserver "${keyserver}" --recv-keys "${key}" && break
+        gpg --keyserver "${keyserver}" --recv-keys "${key}" 2>&1 && break
     done
     set -e
     gpg --export "${key}" > /etc/apt/trusted.gpg.d/mysql.gpg
     gpgconf --kill all
     rm -rf "${GNUPGHOME}"
     unset GNUPGHOME
-    apt-key list > /dev/null 2>&1
-    echo "deb http://repo.mysql.com/apt/debian/ buster mysql-${MYSQL_VERSION}" | tee -a /etc/apt/sources.list.d/mysql.list
+    echo "deb http://repo.mysql.com/apt/debian/ $(lsb_release -cs) mysql-${MYSQL_VERSION}" > /etc/apt/sources.list.d/mysql.list
     apt-get update
     apt-get install --no-install-recommends -y "${packages[@]}"
     apt-get autoremove -yqq --purge
     apt-get clean && rm -rf /var/lib/apt/lists/*
 }
+
+if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+    # disable MYSQL for ARM64
+    INSTALL_MYSQL_CLIENT="false"
+fi
 
 # Install MySQL client from Oracle repositories (Debian installs mariadb)
 # But only if it is not disabled

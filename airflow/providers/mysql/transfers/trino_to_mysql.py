@@ -15,11 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.trino.hooks.trino import TrinoHook
+from airflow.www import utils as wwwutils
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class TrinoToMySqlOperator(BaseOperator):
@@ -29,24 +33,23 @@ class TrinoToMySqlOperator(BaseOperator):
     be used for smallish amount of data.
 
     :param sql: SQL query to execute against Trino. (templated)
-    :type sql: str
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
-    :type mysql_table: str
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param trino_conn_id: source trino connection
-    :type trino_conn_id: str
     :param mysql_preoperator: sql statement to run against mysql prior to
         import, typically use to truncate of delete in place
         of the data coming in, allowing the task to be idempotent (running
         the task twice won't double load data). (templated)
-    :type mysql_preoperator: str
     """
 
-    template_fields = ('sql', 'mysql_table', 'mysql_preoperator')
-    template_ext = ('.sql',)
-    template_fields_renderers = {"sql": "sql", "mysql_preoperator": "sql"}
+    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator')
+    template_ext: Sequence[str] = ('.sql',)
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        "sql": "sql",
+        "mysql_preoperator": "mysql" if "mysql" in wwwutils.get_attr_renderer() else "sql",
+    }
     ui_color = '#a0e08c'
 
     def __init__(
@@ -66,7 +69,7 @@ class TrinoToMySqlOperator(BaseOperator):
         self.mysql_preoperator = mysql_preoperator
         self.trino_conn_id = trino_conn_id
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         trino = TrinoHook(trino_conn_id=self.trino_conn_id)
         self.log.info("Extracting data from Trino: %s", self.sql)
         results = trino.get_records(self.sql)

@@ -16,12 +16,20 @@
 # specific language governing permissions and limitations
 # under the License.
 import re
+from itertools import product
 
 import pytest
 
 from airflow import AirflowException
 from airflow.utils import helpers, timezone
-from airflow.utils.helpers import build_airflow_url_with_query, merge_dicts, validate_group_key, validate_key
+from airflow.utils.helpers import (
+    build_airflow_url_with_query,
+    exactly_one,
+    merge_dicts,
+    prune_dict,
+    validate_group_key,
+    validate_key,
+)
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -152,7 +160,7 @@ class TestHelpers:
         Test query generated with dag_id and params
         """
         query = {"dag_id": "test_dag", "param": "key/to.encode"}
-        expected_url = "/graph?dag_id=test_dag&param=key%2Fto.encode"
+        expected_url = "/dags/test_dag/graph?param=key%2Fto.encode"
 
         from airflow.www.app import cached_app
 
@@ -170,13 +178,13 @@ class TestHelpers:
             ("root.group.simple-key", None, None),
             (
                 "key with space",
-                "The key (key with space) has to be made of alphanumeric "
+                "The key 'key with space' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key_with_!",
-                "The key (key_with_!) has to be made of alphanumeric "
+                "The key 'key_with_!' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
@@ -199,25 +207,25 @@ class TestHelpers:
             ("simple-key", None, None),
             (
                 "group.simple_key",
-                "The key ('group.simple_key') has to be made of alphanumeric "
+                "The key 'group.simple_key' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "root.group-name.simple_key",
-                "The key ('root.group-name.simple_key') has to be made of alphanumeric "
+                "The key 'root.group-name.simple_key' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key with space",
-                "The key ('key with space') has to be made of alphanumeric "
+                "The key 'key with space' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key_with_!",
-                "The key ('key_with_!') has to be made of alphanumeric "
+                "The key 'key_with_!' has to be made of alphanumeric "
                 "characters, dashes and underscores exclusively",
                 AirflowException,
             ),
@@ -230,3 +238,56 @@ class TestHelpers:
                 validate_group_key(key_id)
         else:
             validate_group_key(key_id)
+
+    def test_exactly_one(self):
+        """
+        Checks that when we set ``true_count`` elements to "truthy", and others to "falsy",
+        we get the expected return.
+
+        We check for both True / False, and truthy / falsy values 'a' and '', and verify that
+        they can safely be used in any combination.
+        """
+
+        def assert_exactly_one(true=0, truthy=0, false=0, falsy=0):
+            sample = []
+            for truth_value, num in [(True, true), (False, false), ('a', truthy), ('', falsy)]:
+                if num:
+                    sample.extend([truth_value] * num)
+            if sample:
+                expected = True if true + truthy == 1 else False
+                assert exactly_one(*sample) is expected
+
+        for row in product(range(4), range(4), range(4), range(4)):
+            assert_exactly_one(*row)
+
+    def test_exactly_one_should_fail(self):
+        with pytest.raises(ValueError):
+            exactly_one([True, False])
+
+    @pytest.mark.parametrize(
+        'mode, expected',
+        [
+            (
+                'strict',
+                {
+                    'b': '',
+                    'c': {'b': '', 'c': 'hi', 'd': ['', 0, '1']},
+                    'd': ['', 0, '1'],
+                    'e': ['', 0, {'b': '', 'c': 'hi', 'd': ['', 0, '1']}, ['', 0, '1'], ['']],
+                },
+            ),
+            (
+                'truthy',
+                {
+                    'c': {'c': 'hi', 'd': ['1']},
+                    'd': ['1'],
+                    'e': [{'c': 'hi', 'd': ['1']}, ['1']],
+                },
+            ),
+        ],
+    )
+    def test_prune_dict(self, mode, expected):
+        l1 = ['', 0, '1', None]
+        d1 = {'a': None, 'b': '', 'c': 'hi', 'd': l1}
+        d2 = {'a': None, 'b': '', 'c': d1, 'd': l1, 'e': [None, '', 0, d1, l1, ['']]}
+        assert prune_dict(d2, mode=mode) == expected

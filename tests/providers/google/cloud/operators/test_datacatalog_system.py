@@ -22,7 +22,7 @@ from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTe
 
 
 @pytest.mark.credential_file(GCP_DATACATALOG_KEY)
-class CloudDataflowExampleDagsSystemTest(GoogleSystemTest):
+class CloudDataCatalogExampleDagsSystemTest(GoogleSystemTest):
     def setUp(self):
         super().setUp()
 

@@ -30,7 +30,7 @@ from tests.test_utils.www import check_content_in_response, check_content_not_in
 
 
 def test_index(admin_client):
-    with assert_queries_count(49):
+    with assert_queries_count(14):
         resp = admin_client.get('/', follow_redirects=True)
     check_content_in_response('DAGs', resp)
 
@@ -260,17 +260,18 @@ def test_views_post(admin_client, url, check_response):
 
 
 @pytest.mark.parametrize(
-    "url, client, content",
+    "url, client, content, username",
     [
-        ("resetmypassword/form", "viewer_client", "Password Changed"),
-        ("resetpassword/form?pk=1", "admin_client", "Password Changed"),
-        ("resetpassword/form?pk=1", "viewer_client", "Access is Denied"),
+        ("resetmypassword/form", "viewer_client", "Password Changed", "test_viewer"),
+        ("resetpassword/form?pk={}", "admin_client", "Password Changed", "test_admin"),
+        ("resetpassword/form?pk={}", "viewer_client", "Access is Denied", "test_viewer"),
     ],
     ids=["my-viewer", "pk-admin", "pk-viewer"],
 )
-def test_resetmypasswordview_edit(request, url, client, content):
+def test_resetmypasswordview_edit(app, request, url, client, content, username):
+    user = app.appbuilder.sm.find_user(username)
     resp = request.getfixturevalue(client).post(
-        url, data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
+        url.format(user.id), data={'password': 'blah', 'conf_password': 'blah'}, follow_redirects=True
     )
     check_content_in_response(content, resp)
 
@@ -325,6 +326,7 @@ def test_create_user(app, admin_client, non_exist_username):
             'last_name': 'fake_last_name',
             'username': non_exist_username,
             'email': 'fake_email@email.com',
+            'roles': [1],
             'password': 'test',
             'conf_password': 'test',
         },
@@ -388,3 +390,14 @@ def test_page_instance_name_xss_prevention(admin_client):
         escaped_xss_string = "&lt;script&gt;alert(&#39;Give me your credit card number&#39;)&lt;/script&gt;"
         check_content_in_response(escaped_xss_string, resp)
         check_content_not_in_response(xss_string, resp)
+
+
+@conf_vars(
+    {
+        ("webserver", "instance_name"): "<b>Bold Site Title Test</b>",
+        ("webserver", "instance_name_has_markup"): "True",
+    }
+)
+def test_page_instance_name_with_markup(admin_client):
+    resp = admin_client.get('home', follow_redirects=True)
+    check_content_in_response('<b>Bold Site Title Test</b>', resp)

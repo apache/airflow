@@ -39,9 +39,9 @@ class NotPreviouslySkippedDep(BaseTIDep):
 
         upstream = ti.task.get_direct_relatives(upstream=True)
 
-        finished_tasks = dep_context.ensure_finished_tasks(ti.get_dagrun(session), session)
+        finished_tis = dep_context.ensure_finished_tis(ti.get_dagrun(session), session)
 
-        finished_task_ids = {t.task_id for t in finished_tasks}
+        finished_task_ids = {t.task_id for t in finished_tis}
 
         for parent in upstream:
             if isinstance(parent, SkipMixin):

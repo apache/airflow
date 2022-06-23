@@ -59,7 +59,8 @@ class _PostgresServerSideCursorDecorator:
         """Fetch first row to initialize cursor description when using server side cursor."""
         if not self.initialized:
             element = self.cursor.fetchone()
-            self.rows.append(element)
+            if element is not None:
+                self.rows.append(element)
             self.initialized = True
         return self.cursor.description
 
@@ -69,21 +70,18 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
     Copy data from Postgres to Google Cloud Storage in JSON or CSV format.
 
     :param postgres_conn_id: Reference to a specific Postgres hook.
-    :type postgres_conn_id: str
     :param use_server_side_cursor: If server-side cursor should be used for querying postgres.
         For detailed info, check https://www.psycopg.org/docs/usage.html#server-side-cursors
-    :type use_server_side_cursor: bool
     :param cursor_itersize: How many records are fetched at a time in case of server-side cursor.
-    :type cursor_itersize: int
     """
 
     ui_color = '#a0e08c'
 
     type_map = {
-        1114: 'TIMESTAMP',
+        1114: 'DATETIME',
         1184: 'TIMESTAMP',
-        1082: 'TIMESTAMP',
-        1083: 'TIMESTAMP',
+        1082: 'DATE',
+        1083: 'TIME',
         1005: 'INTEGER',
         1007: 'INTEGER',
         1016: 'INTEGER',
@@ -130,22 +128,32 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             'mode': 'REPEATED' if field[1] in (1009, 1005, 1007, 1016) else 'NULLABLE',
         }
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, stringify_dict=True):
         """
         Takes a value from Postgres, and converts it to a value that's safe for
-        JSON/Google Cloud Storage/BigQuery. Dates are converted to UTC seconds.
-        Decimals are converted to floats. Times are converted to seconds.
+        JSON/Google Cloud Storage/BigQuery.
+        Timezone aware Datetime are converted to UTC seconds.
+        Unaware Datetime, Date and Time are converted to ISO formatted strings.
+        Decimals are converted to floats.
+
+        :param value: Postgres column value.
+        :param schema_type: BigQuery data type.
+        :param stringify_dict: Specify whether to convert dict to string.
         """
-        if isinstance(value, (datetime.datetime, datetime.date)):
-            return pendulum.parse(value.isoformat()).float_timestamp
+        if isinstance(value, datetime.datetime):
+            iso_format_value = value.isoformat()
+            if value.tzinfo is None:
+                return iso_format_value
+            return pendulum.parse(iso_format_value).float_timestamp
+        if isinstance(value, datetime.date):
+            return value.isoformat()
         if isinstance(value, datetime.time):
             formatted_time = time.strptime(str(value), "%H:%M:%S")
-            return int(
-                datetime.timedelta(
-                    hours=formatted_time.tm_hour, minutes=formatted_time.tm_min, seconds=formatted_time.tm_sec
-                ).total_seconds()
+            time_delta = datetime.timedelta(
+                hours=formatted_time.tm_hour, minutes=formatted_time.tm_min, seconds=formatted_time.tm_sec
             )
-        if isinstance(value, dict):
+            return str(time_delta)
+        if stringify_dict and isinstance(value, dict):
             return json.dumps(value)
         if isinstance(value, Decimal):
             return float(value)

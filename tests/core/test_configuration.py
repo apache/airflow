@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
+import datetime
 import io
 import os
 import re
@@ -40,6 +42,14 @@ from airflow.configuration import (
 )
 from tests.test_utils.config import conf_vars
 from tests.test_utils.reset_warning_registry import reset_warning_registry
+from tests.utils.test_config import (
+    remove_all_configurations,
+    set_deprecated_options,
+    set_sensitive_config_values,
+    use_config,
+)
+
+HOME_DIR = os.path.expanduser('~')
 
 
 @unittest.mock.patch.dict(
@@ -124,7 +134,7 @@ class TestConf:
         # test display_source
         cfg_dict = conf.as_dict(display_source=True)
         assert cfg_dict['core']['load_examples'][1] == 'airflow.cfg'
-        assert cfg_dict['core']['load_default_connections'][1] == 'airflow.cfg'
+        assert cfg_dict['database']['load_default_connections'][1] == 'airflow.cfg'
         assert cfg_dict['testsection']['testkey'] == ('< hidden >', 'env var')
 
     def test_conf_as_dict_sensitive(self):
@@ -367,6 +377,55 @@ key2 = 1.23
         assert isinstance(test_conf.getfloat('valid', 'key2'), float)
         assert 1.23 == test_conf.getfloat('valid', 'key2')
 
+    @pytest.mark.parametrize(
+        ("config_str", "expected"),
+        [
+            pytest.param('{"a": 123}', {'a': 123}, id='dict'),
+            pytest.param('[1,2,3]', [1, 2, 3], id='list'),
+            pytest.param('"abc"', 'abc', id='str'),
+            pytest.param('2.1', 2.1, id='num'),
+            pytest.param('', None, id='empty'),
+        ],
+    )
+    def test_getjson(self, config_str, expected):
+        config = textwrap.dedent(
+            f"""
+            [test]
+            json = {config_str}
+        """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getjson('test', 'json') == expected
+
+    def test_getjson_empty_with_fallback(self):
+        config = textwrap.dedent(
+            """
+            [test]
+            json =
+            """
+        )
+        test_conf = AirflowConfigParser()
+        test_conf.read_string(config)
+
+        assert test_conf.getjson('test', 'json', fallback={}) == {}
+        assert test_conf.getjson('test', 'json') is None
+
+    @pytest.mark.parametrize(
+        ("fallback"),
+        [
+            pytest.param({"a": "b"}, id='dict'),
+            # fallback is _NOT_ json parsed, but used verbatim
+            pytest.param('{"a": "b"}', id='str'),
+            pytest.param(None, id='None'),
+        ],
+    )
+    def test_getjson_fallback(self, fallback):
+        test_conf = AirflowConfigParser()
+
+        assert test_conf.getjson('test', 'json', fallback=fallback) == fallback
+
     def test_has_option(self):
         test_config = '''[test]
 key1 = value1
@@ -460,139 +519,27 @@ AIRFLOW_HOME = /root/airflow
         assert isinstance(section_dict['_test_only_float'], float)
         assert isinstance(section_dict['_test_only_string'], str)
 
-    @conf_vars(
-        {
-            ("celery", "worker_concurrency"): None,
-            ("celery", "celeryd_concurrency"): None,
-        }
-    )
-    def test_deprecated_options(self):
-        # Guarantee we have a deprecated setting, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        conf.deprecated_options = {
-            ('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency', '2.0.0'),
-        }
-
-        # Remove it so we are sure we use the right setting
-        conf.remove_option('celery', 'worker_concurrency')
-
-        with pytest.warns(DeprecationWarning):
-            with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
-                assert conf.getint('celery', 'worker_concurrency') == 99
-
-        with pytest.warns(DeprecationWarning), conf_vars({('celery', 'celeryd_concurrency'): '99'}):
-            assert conf.getint('celery', 'worker_concurrency') == 99
-
-    @conf_vars(
-        {
-            ('logging', 'logging_level'): None,
-            ('core', 'logging_level'): None,
-        }
-    )
-    def test_deprecated_options_with_new_section(self):
-        # Guarantee we have a deprecated setting, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        conf.deprecated_options = {
-            ('logging', 'logging_level'): ('core', 'logging_level', '2.0.0'),
-        }
-
-        # Remove it so we are sure we use the right setting
-        conf.remove_option('core', 'logging_level')
-        conf.remove_option('logging', 'logging_level')
-
-        with pytest.warns(DeprecationWarning):
-            with mock.patch.dict('os.environ', AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
-                assert conf.get('logging', 'logging_level') == "VALUE"
-
-        with pytest.warns(DeprecationWarning), conf_vars({('core', 'logging_level'): 'VALUE'}):
-            assert conf.get('logging', 'logging_level') == "VALUE"
-
-    @conf_vars(
-        {
-            ("celery", "result_backend"): None,
-            ("celery", "celery_result_backend"): None,
-            ("celery", "celery_result_backend_cmd"): None,
-        }
-    )
-    def test_deprecated_options_cmd(self):
-        # Guarantee we have a deprecated setting, so we test the deprecation
-        # lookup even if we remove this explicit fallback
-        conf.deprecated_options[('celery', "result_backend")] = 'celery', 'celery_result_backend', '2.0.0'
-        conf.sensitive_config_values.add(('celery', 'celery_result_backend'))
-
-        conf.remove_option('celery', 'result_backend')
-        with conf_vars({('celery', 'celery_result_backend_cmd'): '/bin/echo 99'}):
-            with pytest.warns(DeprecationWarning):
-                tmp = None
-                if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
-                    tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
-                assert conf.getint('celery', 'result_backend') == 99
-                if tmp:
-                    os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
-
-    def test_deprecated_values_from_conf(self):
+    def test_auth_backends_adds_session(self):
         test_conf = AirflowConfigParser(default_config='')
         # Guarantee we have deprecated settings, so we test the deprecation
         # lookup even if we remove this explicit fallback
         test_conf.deprecated_values = {
-            'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
+            'api': {
+                'auth_backends': (
+                    re.compile(r'^airflow\.api\.auth\.backend\.deny_all$|^$'),
+                    'airflow.api.auth.backend.session',
+                    '3.0',
+                ),
+            },
         }
-        test_conf.read_dict({'core': {'hostname_callable': 'socket:getfqdn'}})
+        test_conf.read_dict({'api': {'auth_backends': 'airflow.api.auth.backend.basic_auth'}})
 
         with pytest.warns(FutureWarning):
             test_conf.validate()
-            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
-
-    @pytest.mark.parametrize(
-        "conf_dict",
-        [
-            {},  # Even if the section is absent from config file, environ still needs replacing.
-            {'core': {'hostname_callable': 'socket:getfqdn'}},
-        ],
-    )
-    def test_deprecated_values_from_environ(self, conf_dict):
-        def make_config():
-            test_conf = AirflowConfigParser(default_config='')
-            # Guarantee we have a deprecated setting, so we test the deprecation
-            # lookup even if we remove this explicit fallback
-            test_conf.deprecated_values = {
-                'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
-            }
-            test_conf.read_dict(conf_dict)
-            test_conf.validate()
-            return test_conf
-
-        with pytest.warns(FutureWarning):
-            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
-                test_conf = make_config()
-                assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
-
-        with reset_warning_registry():
-            with warnings.catch_warnings(record=True) as warning:
-                with unittest.mock.patch.dict(
-                    'os.environ',
-                    AIRFLOW__CORE__HOSTNAME_CALLABLE='CarrierPigeon',
-                ):
-                    test_conf = make_config()
-                    assert test_conf.get('core', 'hostname_callable') == 'CarrierPigeon'
-                    assert [] == warning
-
-    def test_deprecated_funcs(self):
-        for func in [
-            'load_test_config',
-            'get',
-            'getboolean',
-            'getfloat',
-            'getint',
-            'has_option',
-            'remove_option',
-            'as_dict',
-            'set',
-        ]:
-            with mock.patch(f'airflow.configuration.conf.{func}') as mock_method:
-                with pytest.warns(DeprecationWarning):
-                    getattr(configuration, func)()
-                mock_method.assert_called_once()
+            assert (
+                test_conf.get('api', 'auth_backends')
+                == 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+            )
 
     def test_command_from_env(self):
         test_cmdenv_config = '''[testcmdenv]
@@ -720,3 +667,597 @@ notacommand = OK
             "CRITICAL, FATAL, ERROR, WARN, WARNING, INFO, DEBUG."
         )
         assert message == exception
+
+    def test_as_dict_works_without_sensitive_cmds(self):
+        conf_materialize_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_maintain_cmds = conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+
+        assert 'sql_alchemy_conn' in conf_materialize_cmds['core']
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['core']
+
+        assert 'sql_alchemy_conn' in conf_maintain_cmds['core']
+        assert 'sql_alchemy_conn_cmd' not in conf_maintain_cmds['core']
+
+        assert (
+            conf_materialize_cmds['core']['sql_alchemy_conn']
+            == conf_maintain_cmds['core']['sql_alchemy_conn']
+        )
+
+    def test_as_dict_respects_sensitive_cmds(self):
+        conf_conn = conf['database']['sql_alchemy_conn']
+        test_conf = copy.deepcopy(conf)
+        test_conf.read_string(
+            textwrap.dedent(
+                """
+                [database]
+                sql_alchemy_conn_cmd = echo -n my-super-secret-conn
+                """
+            )
+        )
+
+        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+        conf_maintain_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=False)
+
+        assert 'sql_alchemy_conn' in conf_materialize_cmds['database']
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['database']
+
+        if conf_conn == test_conf.airflow_defaults['database']['sql_alchemy_conn']:
+            assert conf_materialize_cmds['database']['sql_alchemy_conn'] == 'my-super-secret-conn'
+
+        assert 'sql_alchemy_conn_cmd' in conf_maintain_cmds['database']
+        assert conf_maintain_cmds['database']['sql_alchemy_conn_cmd'] == 'echo -n my-super-secret-conn'
+
+        if conf_conn == test_conf.airflow_defaults['database']['sql_alchemy_conn']:
+            assert 'sql_alchemy_conn' not in conf_maintain_cmds['database']
+        else:
+            assert 'sql_alchemy_conn' in conf_maintain_cmds['database']
+            assert conf_maintain_cmds['database']['sql_alchemy_conn'] == conf_conn
+
+    @mock.patch.dict(
+        'os.environ', {"AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+    )
+    def test_as_dict_respects_sensitive_cmds_from_env(self):
+        test_conf = copy.deepcopy(conf)
+        test_conf.read_string("")
+
+        conf_materialize_cmds = test_conf.as_dict(display_sensitive=True, raw=True, include_cmds=True)
+
+        assert 'sql_alchemy_conn' in conf_materialize_cmds['database']
+        assert 'sql_alchemy_conn_cmd' not in conf_materialize_cmds['database']
+
+        assert conf_materialize_cmds['database']['sql_alchemy_conn'] == 'postgresql://'
+
+    def test_gettimedelta(self):
+        test_config = '''
+[invalid]
+# non-integer value
+key1 = str
+
+# fractional value
+key2 = 300.99
+
+# too large value for C int
+key3 = 999999999999999
+
+[valid]
+# negative value
+key4 = -1
+
+# zero
+key5 = 0
+
+# positive value
+key6 = 300
+
+[default]
+# Equals to None
+key7 =
+'''
+        test_conf = AirflowConfigParser(default_config=test_config)
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key1" key in "invalid" section. '
+                'Current value: "str".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key1")
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to int. Please check "key2" key in "invalid" section. '
+                'Current value: "300.99".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key2")
+
+        with pytest.raises(
+            AirflowConfigException,
+            match=re.escape(
+                'Failed to convert value to timedelta in `seconds`. '
+                'Python int too large to convert to C int. '
+                'Please check "key3" key in "invalid" section. Current value: "999999999999999".'
+            ),
+        ):
+            test_conf.gettimedelta("invalid", "key3")
+
+        assert isinstance(test_conf.gettimedelta('valid', 'key4'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key4') == datetime.timedelta(seconds=-1)
+        assert isinstance(test_conf.gettimedelta('valid', 'key5'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key5') == datetime.timedelta(seconds=0)
+        assert isinstance(test_conf.gettimedelta('valid', 'key6'), datetime.timedelta)
+        assert test_conf.gettimedelta('valid', 'key6') == datetime.timedelta(seconds=300)
+        assert isinstance(test_conf.gettimedelta('default', 'key7'), type(None))
+        assert test_conf.gettimedelta('default', 'key7') is None
+
+
+class TestDeprecatedConf:
+    @conf_vars(
+        {
+            ("celery", "worker_concurrency"): None,
+            ("celery", "celeryd_concurrency"): None,
+        }
+    )
+    def test_deprecated_options(self):
+        # Guarantee we have a deprecated setting, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        with set_deprecated_options(
+            deprecated_options={('celery', 'worker_concurrency'): ('celery', 'celeryd_concurrency', '2.0.0')}
+        ):
+            # Remove it so we are sure we use the right setting
+            conf.remove_option('celery', 'worker_concurrency')
+
+            with pytest.warns(DeprecationWarning):
+                with mock.patch.dict('os.environ', AIRFLOW__CELERY__CELERYD_CONCURRENCY="99"):
+                    assert conf.getint('celery', 'worker_concurrency') == 99
+
+            with pytest.warns(DeprecationWarning), conf_vars({('celery', 'celeryd_concurrency'): '99'}):
+                assert conf.getint('celery', 'worker_concurrency') == 99
+
+    @conf_vars(
+        {
+            ('logging', 'logging_level'): None,
+            ('core', 'logging_level'): None,
+        }
+    )
+    def test_deprecated_options_with_new_section(self):
+        # Guarantee we have a deprecated setting, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        with set_deprecated_options(
+            deprecated_options={('logging', 'logging_level'): ('core', 'logging_level', '2.0.0')}
+        ):
+            # Remove it so we are sure we use the right setting
+            conf.remove_option('core', 'logging_level')
+            conf.remove_option('logging', 'logging_level')
+
+            with pytest.warns(DeprecationWarning):
+                with mock.patch.dict('os.environ', AIRFLOW__CORE__LOGGING_LEVEL="VALUE"):
+                    assert conf.get('logging', 'logging_level') == "VALUE"
+
+            with pytest.warns(DeprecationWarning), conf_vars({('core', 'logging_level'): 'VALUE'}):
+                assert conf.get('logging', 'logging_level') == "VALUE"
+
+    @conf_vars(
+        {
+            ("celery", "result_backend"): None,
+            ("celery", "celery_result_backend"): None,
+            ("celery", "celery_result_backend_cmd"): None,
+        }
+    )
+    def test_deprecated_options_cmd(self):
+        # Guarantee we have a deprecated setting, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        with set_deprecated_options(
+            deprecated_options={('celery', "result_backend"): ('celery', 'celery_result_backend', '2.0.0')}
+        ), set_sensitive_config_values(sensitive_config_values={('celery', 'celery_result_backend')}):
+            conf.remove_option('celery', 'result_backend')
+            with conf_vars({('celery', 'celery_result_backend_cmd'): '/bin/echo 99'}):
+                with pytest.warns(DeprecationWarning):
+                    tmp = None
+                    if 'AIRFLOW__CELERY__RESULT_BACKEND' in os.environ:
+                        tmp = os.environ.pop('AIRFLOW__CELERY__RESULT_BACKEND')
+                    assert conf.getint('celery', 'result_backend') == 99
+                    if tmp:
+                        os.environ['AIRFLOW__CELERY__RESULT_BACKEND'] = tmp
+
+    def test_deprecated_values_from_conf(self):
+        test_conf = AirflowConfigParser(
+            default_config="""
+[core]
+executor=SequentialExecutor
+[database]
+sql_alchemy_conn=sqlite://test
+"""
+        )
+        # Guarantee we have deprecated settings, so we test the deprecation
+        # lookup even if we remove this explicit fallback
+        test_conf.deprecated_values = {
+            'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
+        }
+        test_conf.read_dict({'core': {'hostname_callable': 'socket:getfqdn'}})
+
+        with pytest.warns(FutureWarning):
+            test_conf.validate()
+            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+
+    @pytest.mark.parametrize(
+        "old, new",
+        [
+            (
+                ("api", "auth_backend", "airflow.api.auth.backend.basic_auth"),
+                (
+                    "api",
+                    "auth_backends",
+                    "airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session",
+                ),
+            ),
+            (
+                ("core", "sql_alchemy_conn", "postgres+psycopg2://localhost/postgres"),
+                ("database", "sql_alchemy_conn", "postgresql://localhost/postgres"),
+            ),
+        ],
+    )
+    def test_deprecated_env_vars_upgraded_and_removed(self, old, new):
+        test_conf = AirflowConfigParser(
+            default_config="""
+[core]
+executor=SequentialExecutor
+[database]
+sql_alchemy_conn=sqlite://test
+"""
+        )
+        old_section, old_key, old_value = old
+        new_section, new_key, new_value = new
+        old_env_var = test_conf._env_var_name(old_section, old_key)
+        new_env_var = test_conf._env_var_name(new_section, new_key)
+
+        with pytest.warns(FutureWarning):
+            with unittest.mock.patch.dict('os.environ', **{old_env_var: old_value}):
+                # Can't start with the new env var existing...
+                os.environ.pop(new_env_var, None)
+
+                test_conf.validate()
+                assert test_conf.get(new_section, new_key) == new_value
+                # We also need to make sure the deprecated env var is removed
+                # so that any subprocesses don't use it in place of our updated
+                # value.
+                assert old_env_var not in os.environ
+                # and make sure we track the old value as well, under the new section/key
+                assert test_conf.upgraded_values[(new_section, new_key)] == old_value
+
+    @pytest.mark.parametrize(
+        "conf_dict",
+        [
+            {},  # Even if the section is absent from config file, environ still needs replacing.
+            {'core': {'hostname_callable': 'socket:getfqdn'}},
+        ],
+    )
+    def test_deprecated_values_from_environ(self, conf_dict):
+        def make_config():
+            test_conf = AirflowConfigParser(
+                default_config="""
+[core]
+executor=SequentialExecutor
+[database]
+sql_alchemy_conn=sqlite://test
+"""
+            )
+            # Guarantee we have a deprecated setting, so we test the deprecation
+            # lookup even if we remove this explicit fallback
+            test_conf.deprecated_values = {
+                'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
+            }
+            test_conf.read_dict(conf_dict)
+            test_conf.validate()
+            return test_conf
+
+        with pytest.warns(FutureWarning):
+            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
+                test_conf = make_config()
+                assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+
+        with reset_warning_registry():
+            with warnings.catch_warnings(record=True) as warning:
+                with unittest.mock.patch.dict(
+                    'os.environ',
+                    AIRFLOW__CORE__HOSTNAME_CALLABLE='CarrierPigeon',
+                ):
+                    test_conf = make_config()
+                    assert test_conf.get('core', 'hostname_callable') == 'CarrierPigeon'
+                    assert [] == warning
+
+    def test_deprecated_funcs(self):
+        for func in [
+            'load_test_config',
+            'get',
+            'getboolean',
+            'getfloat',
+            'getint',
+            'has_option',
+            'remove_option',
+            'as_dict',
+            'set',
+        ]:
+            with mock.patch(f'airflow.configuration.conf.{func}') as mock_method:
+                with pytest.warns(DeprecationWarning):
+                    getattr(configuration, func)()
+                mock_method.assert_called_once()
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {}, clear=True)
+    def test_conf_as_dict_when_deprecated_value_in_config(self, display_source: bool):
+        with use_config(config="deprecated.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=False,
+                include_cmds=False,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') == (
+                ('mysql://', "airflow.cfg") if display_source else 'mysql://'
+            )
+            # database should be None because the deprecated value is set in config
+            assert cfg_dict['database'].get('sql_alchemy_conn') is None
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == 'mysql://'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    def test_conf_as_dict_when_deprecated_value_in_both_env_and_config(self, display_source: bool):
+        with use_config(config="deprecated.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_cmds=False,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') == (
+                ('postgresql://', "env var") if display_source else 'postgresql://'
+            )
+            # database should be None because the deprecated value is set in env value
+            assert cfg_dict['database'].get('sql_alchemy_conn') is None
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == 'postgresql://'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    def test_conf_as_dict_when_deprecated_value_in_both_env_and_config_exclude_env(
+        self, display_source: bool
+    ):
+        with use_config(config="deprecated.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=False,
+                include_cmds=False,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') == (
+                ('mysql://', "airflow.cfg") if display_source else 'mysql://'
+            )
+            # database should be None because the deprecated value is set in env value
+            assert cfg_dict['database'].get('sql_alchemy_conn') is None
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == 'mysql://'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN": "postgresql://"}, clear=True)
+    def test_conf_as_dict_when_deprecated_value_in_env(self, display_source: bool):
+        with use_config(config="empty.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source, raw=True, display_sensitive=True, include_env=True
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') == (
+                ('postgresql://', "env var") if display_source else 'postgresql://'
+            )
+            # database should be None because the deprecated value is set in env value
+            assert cfg_dict['database'].get('sql_alchemy_conn') is None
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == 'postgresql://'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {}, clear=True)
+    def test_conf_as_dict_when_both_conf_and_env_are_empty(self, display_source: bool):
+        with use_config(config="empty.cfg"):
+            cfg_dict = conf.as_dict(display_source=display_source, raw=True, display_sensitive=True)
+            assert cfg_dict['core'].get('sql_alchemy_conn') is None
+            # database should be taken from default because the deprecated value is missing in config
+            assert cfg_dict['database'].get('sql_alchemy_conn') == (
+                (f'sqlite:///{HOME_DIR}/airflow/airflow.db', "default")
+                if display_source
+                else f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+            )
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {}, clear=True)
+    def test_conf_as_dict_when_deprecated_value_in_cmd_config(self, display_source: bool):
+        with use_config(config="deprecated_cmd.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_cmds=True,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') == (
+                ('postgresql://', "cmd") if display_source else 'postgresql://'
+            )
+            # database should be None because the deprecated value is set in env value
+            assert cfg_dict['database'].get('sql_alchemy_conn') is None
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == 'postgresql://'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict(
+        'os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+    )
+    def test_conf_as_dict_when_deprecated_value_in_cmd_env(self, display_source: bool):
+        with use_config(config="empty.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_cmds=True,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') == (
+                ('postgresql://', "cmd") if display_source else 'postgresql://'
+            )
+            # database should be None because the deprecated value is set in env value
+            assert cfg_dict['database'].get('sql_alchemy_conn') is None
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == 'postgresql://'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict(
+        'os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD": "echo -n 'postgresql://'"}, clear=True
+    )
+    def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_env(self, display_source: bool):
+        with use_config(config="empty.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_cmds=False,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') is None
+            assert cfg_dict['database'].get('sql_alchemy_conn') == (
+                (f'sqlite:///{HOME_DIR}/airflow/airflow.db', 'default')
+                if display_source
+                else f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+            )
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {}, clear=True)
+    def test_conf_as_dict_when_deprecated_value_in_cmd_disabled_config(self, display_source: bool):
+        with use_config(config="deprecated_cmd.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_cmds=False,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') is None
+            assert cfg_dict['database'].get('sql_alchemy_conn') == (
+                (f'sqlite:///{HOME_DIR}/airflow/airflow.db', 'default')
+                if display_source
+                else f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+            )
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
+    @mock.patch("airflow.configuration.get_custom_secret_backend")
+    def test_conf_as_dict_when_deprecated_value_in_secrets(
+        self, get_custom_secret_backend, display_source: bool
+    ):
+        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        with use_config(config="empty.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_secret=True,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') == (
+                ('postgresql://', "secret") if display_source else 'postgresql://'
+            )
+            # database should be None because the deprecated value is set in env value
+            assert cfg_dict['database'].get('sql_alchemy_conn') is None
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == 'postgresql://'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch.dict('os.environ', {"AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET": "secret_path'"}, clear=True)
+    @mock.patch("airflow.configuration.get_custom_secret_backend")
+    def test_conf_as_dict_when_deprecated_value_in_secrets_disabled_env(
+        self, get_custom_secret_backend, display_source: bool
+    ):
+        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        with use_config(config="empty.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_secret=False,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') is None
+            assert cfg_dict['database'].get('sql_alchemy_conn') == (
+                (f'sqlite:///{HOME_DIR}/airflow/airflow.db', 'default')
+                if display_source
+                else f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+            )
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+
+    @pytest.mark.parametrize("display_source", [True, False])
+    @mock.patch("airflow.configuration.get_custom_secret_backend")
+    @mock.patch.dict('os.environ', {}, clear=True)
+    def test_conf_as_dict_when_deprecated_value_in_secrets_disabled_config(
+        self, get_custom_secret_backend, display_source: bool
+    ):
+        get_custom_secret_backend.return_value.get_config.return_value = "postgresql://"
+        with use_config(config="deprecated_secret.cfg"):
+            cfg_dict = conf.as_dict(
+                display_source=display_source,
+                raw=True,
+                display_sensitive=True,
+                include_env=True,
+                include_secret=False,
+            )
+            assert cfg_dict['core'].get('sql_alchemy_conn') is None
+            assert cfg_dict['database'].get('sql_alchemy_conn') == (
+                (f'sqlite:///{HOME_DIR}/airflow/airflow.db', 'default')
+                if display_source
+                else f'sqlite:///{HOME_DIR}/airflow/airflow.db'
+            )
+            if not display_source:
+                remove_all_configurations()
+                conf.read_dict(dictionary=cfg_dict)
+                os.environ.clear()
+                assert conf.get('database', 'sql_alchemy_conn') == f'sqlite:///{HOME_DIR}/airflow/airflow.db'

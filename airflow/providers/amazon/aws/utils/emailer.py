@@ -16,14 +16,12 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow module for email backend using AWS SES"""
+from typing import Any, Dict, List, Optional, Union
 
-from typing import List, Optional, Union
-
-from airflow.providers.amazon.aws.hooks.ses import SESHook
+from airflow.providers.amazon.aws.hooks.ses import SesHook
 
 
 def send_email(
-    from_email: str,
     to: Union[List[str], str],
     subject: str,
     html_content: str,
@@ -33,10 +31,14 @@ def send_email(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: str = 'aws_default',
+    from_email: Optional[str] = None,
+    custom_headers: Optional[Dict[str, Any]] = None,
     **kwargs,
 ) -> None:
     """Email backend for SES."""
-    hook = SESHook(aws_conn_id=conn_id)
+    if from_email is None:
+        raise RuntimeError("The `from_email' configuration has to be set for the SES emailer.")
+    hook = SesHook(aws_conn_id=conn_id)
     hook.send_email(
         mail_from=from_email,
         to=to,
@@ -47,4 +49,5 @@ def send_email(
         bcc=bcc,
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
+        custom_headers=custom_headers,
     )

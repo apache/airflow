@@ -24,6 +24,8 @@ This module contains various unit tests for Google Cloud DLP Operators
 import unittest
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.operators.dlp import (
     CloudDLPCancelDLPJobOperator,
     CloudDLPCreateDeidentifyTemplateOperator,
@@ -79,9 +81,9 @@ class TestCloudDLPCancelDLPJobOperator(unittest.TestCase):
         mock_hook.return_value.cancel_dlp_job.assert_called_once_with(
             dlp_job_id=DLP_JOB_ID,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -100,9 +102,9 @@ class TestCloudDLPCreateDeidentifyTemplateOperator(unittest.TestCase):
             project_id=None,
             deidentify_template=None,
             template_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -121,9 +123,9 @@ class TestCloudDLPCreateDLPJobOperator(unittest.TestCase):
             inspect_job=None,
             risk_job=None,
             job_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
             wait_until_finished=True,
         )
 
@@ -143,9 +145,9 @@ class TestCloudDLPCreateInspectTemplateOperator(unittest.TestCase):
             project_id=None,
             inspect_template=None,
             template_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -163,9 +165,9 @@ class TestCloudDLPCreateJobTriggerOperator(unittest.TestCase):
             project_id=PROJECT_ID,
             job_trigger=None,
             trigger_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -184,9 +186,9 @@ class TestCloudDLPCreateStoredInfoTypeOperator(unittest.TestCase):
             project_id=None,
             config=None,
             stored_info_type_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -207,9 +209,9 @@ class TestCloudDLPDeidentifyContentOperator(unittest.TestCase):
             item=None,
             inspect_template_name=None,
             deidentify_template_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -229,9 +231,9 @@ class TestCloudDLPDeleteDeidentifyTemplateOperator(unittest.TestCase):
             template_id=TEMPLATE_ID,
             organization_id=ORGANIZATION_ID,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -248,9 +250,9 @@ class TestCloudDLPDeleteDlpJobOperator(unittest.TestCase):
         mock_hook.return_value.delete_dlp_job.assert_called_once_with(
             dlp_job_id=DLP_JOB_ID,
             project_id=PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -270,9 +272,9 @@ class TestCloudDLPDeleteInspectTemplateOperator(unittest.TestCase):
             template_id=TEMPLATE_ID,
             organization_id=ORGANIZATION_ID,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -291,9 +293,9 @@ class TestCloudDLPDeleteJobTriggerOperator(unittest.TestCase):
         mock_hook.return_value.delete_job_trigger.assert_called_once_with(
             job_trigger_id=TRIGGER_ID,
             project_id=PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -315,9 +317,9 @@ class TestCloudDLPDeleteStoredInfoTypeOperator(unittest.TestCase):
             stored_info_type_id=STORED_INFO_TYPE_ID,
             organization_id=ORGANIZATION_ID,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -337,9 +339,9 @@ class TestCloudDLPGetDeidentifyTemplateOperator(unittest.TestCase):
             template_id=TEMPLATE_ID,
             organization_id=ORGANIZATION_ID,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -356,9 +358,9 @@ class TestCloudDLPGetDlpJobOperator(unittest.TestCase):
         mock_hook.return_value.get_dlp_job.assert_called_once_with(
             dlp_job_id=DLP_JOB_ID,
             project_id=PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -378,9 +380,9 @@ class TestCloudDLPGetInspectTemplateOperator(unittest.TestCase):
             template_id=TEMPLATE_ID,
             organization_id=ORGANIZATION_ID,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -399,9 +401,9 @@ class TestCloudDLPGetJobTripperOperator(unittest.TestCase):
         mock_hook.return_value.get_job_trigger.assert_called_once_with(
             job_trigger_id=TRIGGER_ID,
             project_id=PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -423,9 +425,9 @@ class TestCloudDLPGetStoredInfoTypeOperator(unittest.TestCase):
             stored_info_type_id=STORED_INFO_TYPE_ID,
             organization_id=ORGANIZATION_ID,
             project_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -444,9 +446,9 @@ class TestCloudDLPInspectContentOperator(unittest.TestCase):
             inspect_config=None,
             item=None,
             inspect_template_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -465,9 +467,9 @@ class TestCloudDLPListDeidentifyTemplatesOperator(unittest.TestCase):
             project_id=None,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -487,9 +489,9 @@ class TestCloudDLPListDlpJobsOperator(unittest.TestCase):
             page_size=None,
             job_type=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -506,9 +508,9 @@ class TestCloudDLPListInfoTypesOperator(unittest.TestCase):
         mock_hook.return_value.list_info_types.assert_called_once_with(
             language_code=None,
             results_filter=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -527,9 +529,9 @@ class TestCloudDLPListInspectTemplatesOperator(unittest.TestCase):
             project_id=None,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -548,9 +550,9 @@ class TestCloudDLPListJobTriggersOperator(unittest.TestCase):
             page_size=None,
             order_by=None,
             results_filter=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -569,9 +571,9 @@ class TestCloudDLPListStoredInfoTypesOperator(unittest.TestCase):
             project_id=None,
             page_size=None,
             order_by=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -591,9 +593,9 @@ class TestCloudDLPRedactImageOperator(unittest.TestCase):
             image_redaction_configs=None,
             include_findings=None,
             byte_item=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -614,9 +616,9 @@ class TestCloudDLPReidentifyContentOperator(unittest.TestCase):
             item=None,
             inspect_template_name=None,
             reidentify_template_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -638,9 +640,9 @@ class TestCloudDLPUpdateDeidentifyTemplateOperator(unittest.TestCase):
             project_id=None,
             deidentify_template=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -662,9 +664,9 @@ class TestCloudDLPUpdateInspectTemplateOperator(unittest.TestCase):
             project_id=None,
             inspect_template=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -683,9 +685,9 @@ class TestCloudDLPUpdateJobTriggerOperator(unittest.TestCase):
             project_id=None,
             job_trigger=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -709,7 +711,7 @@ class TestCloudDLPUpdateStoredInfoTypeOperator(unittest.TestCase):
             project_id=None,
             config=None,
             update_mask=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )

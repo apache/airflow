@@ -36,20 +36,22 @@ class SqliteHook(DbApiHook):
         conn = sqlite3.connect(airflow_conn.host)
         return conn
 
+    def get_uri(self) -> str:
+        """Override DbApiHook get_uri method for get_sqlalchemy_engine()"""
+        conn_id = getattr(self, self.conn_name_attr)
+        airflow_conn = self.get_connection(conn_id)
+        return f"sqlite:///{airflow_conn.host}"
+
     @staticmethod
     def _generate_insert_sql(table, values, target_fields, replace, **kwargs):
         """
-        Static helper method that generate the INSERT SQL statement.
+        Static helper method that generates the INSERT SQL statement.
         The REPLACE variant is specific to MySQL syntax.
 
         :param table: Name of the target table
-        :type table: str
         :param values: The row to insert into the table
-        :type values: tuple of cell values
         :param target_fields: The names of the columns to fill in the table
-        :type target_fields: iterable of strings
         :param replace: Whether to replace instead of insert
-        :type replace: bool
         :return: The generated INSERT or REPLACE SQL statement
         :rtype: str
         """

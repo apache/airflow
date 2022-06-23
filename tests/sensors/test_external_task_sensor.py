@@ -26,8 +26,8 @@ from airflow.exceptions import AirflowException, AirflowSensorTimeout
 from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
-from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
+from airflow.operators.empty import EmptyOperator
+from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.session import provide_session
@@ -125,13 +125,55 @@ class TestExternalTaskSensor(unittest.TestCase):
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\']'
-                ' in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                f'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\'] '
+                f'in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... ' in cm.output
             )
             assert (
                 str(ctx.value) == "Some of the external tasks "
                 "['time_sensor_check'] in DAG "
                 "unit_test_dag failed."
+            )
+
+    def test_external_task_sensor_external_task_id_param(self):
+        """Test external_task_ids is set properly when external_task_id is passed as a template"""
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='{{ params.dag_id }}',
+            external_task_id='{{ params.task_id }}',
+            params={
+                'dag_id': TEST_DAG_ID,
+                'task_id': TEST_TASK_ID,
+            },
+            dag=self.dag,
+        )
+
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
+            )
+
+    def test_external_task_sensor_external_task_ids_param(self):
+        """Test external_task_ids rendering when a template is passed."""
+        self.test_time_sensor()
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id='{{ params.dag_id }}',
+            external_task_ids=['{{ params.task_id }}'],
+            params={
+                'dag_id': TEST_DAG_ID,
+                'task_id': TEST_TASK_ID,
+            },
+            dag=self.dag,
+        )
+
+        with self.assertLogs(op.log, level=logging.INFO) as cm:
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+            assert (
+                f"INFO:airflow.task.operators:Poking for tasks ['{TEST_TASK_ID}'] "
+                f"in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... " in cm.output
             )
 
     def test_external_task_sensor_failed_states_as_success_mulitple_task_ids(self):
@@ -149,9 +191,9 @@ class TestExternalTaskSensor(unittest.TestCase):
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                'INFO:airflow.task.operators:Poking for tasks '
-                '[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
-                'in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                f'INFO:airflow.task.operators:Poking for tasks '
+                f'[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
+                f'in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... ' in cm.output
             )
             assert (
                 str(ctx.value) == "Some of the external tasks "
@@ -174,7 +216,7 @@ class TestExternalTaskSensor(unittest.TestCase):
 
     def test_external_task_sensor_fn_multiple_execution_dates(self):
         bash_command_code = """
-{% set s=execution_date.time().second %}
+{% set s=logical_date.time().second %}
 echo "second is {{ s }}"
 if [[ $(( {{ s }} % 60 )) == 1 ]]
     then
@@ -187,7 +229,7 @@ exit 0
         task_external_with_failure = BashOperator(
             task_id="task_external_with_failure", bash_command=bash_command_code, retries=0, dag=dag_external
         )
-        task_external_without_failure = DummyOperator(
+        task_external_without_failure = EmptyOperator(
             task_id="task_external_without_failure", retries=0, dag=dag_external
         )
 
@@ -292,7 +334,7 @@ exit 0
         self.test_time_sensor()
 
         def my_func(dt, context):
-            assert context['execution_date'] == dt
+            assert context['logical_date'] == dt
             return dt + timedelta(0)
 
         op1 = ExternalTaskSensor(
@@ -407,7 +449,7 @@ exit 0
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
 
-def test_external_task_sensor_templated(dag_maker):
+def test_external_task_sensor_templated(dag_maker, app):
     with dag_maker():
         ExternalTaskSensor(
             task_id='templated_task',
@@ -421,6 +463,14 @@ def test_external_task_sensor_templated(dag_maker):
 
     assert instance.task.external_dag_id == f"dag_{DEFAULT_DATE.date()}"
     assert instance.task.external_task_id == f"task_{DEFAULT_DATE.date()}"
+    assert instance.task.external_task_ids == [f"task_{DEFAULT_DATE.date()}"]
+
+    # Verify that the operator link uses the rendered value of ``external_dag_id``.
+    app.config['SERVER_NAME'] = ""
+    with app.app_context():
+        url = instance.task.get_extra_links(instance, "External DAG")
+
+        assert f"/dags/dag_{DEFAULT_DATE.date()}/grid" in url
 
 
 class TestExternalTaskMarker(unittest.TestCase):
@@ -465,7 +515,7 @@ def dag_bag_ext():
     dag_bag = DagBag(dag_folder=DEV_NULL, include_examples=False)
 
     dag_0 = DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None)
-    task_a_0 = DummyOperator(task_id="task_a_0", dag=dag_0)
+    task_a_0 = EmptyOperator(task_id="task_a_0", dag=dag_0)
     task_b_0 = ExternalTaskMarker(
         task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3, dag=dag_0
     )
@@ -493,7 +543,7 @@ def dag_bag_ext():
     task_a_3 = ExternalTaskSensor(
         task_id="task_a_3", external_dag_id=dag_2.dag_id, external_task_id=task_b_2.task_id, dag=dag_3
     )
-    task_b_3 = DummyOperator(task_id="task_b_3", dag=dag_3)
+    task_b_3 = EmptyOperator(task_id="task_b_3", dag=dag_3)
     task_a_3 >> task_b_3
 
     for dag in [dag_0, dag_1, dag_2, dag_3]:
@@ -541,7 +591,7 @@ def dag_bag_parent_child():
             task_id="task_1",
             external_dag_id=dag_0.dag_id,
             external_task_id=task_0.task_id,
-            execution_date_fn=lambda execution_date: day_1 if execution_date == day_1 else [],
+            execution_date_fn=lambda logical_date: day_1 if logical_date == day_1 else [],
             mode='reschedule',
         )
 
@@ -728,7 +778,7 @@ def dag_bag_cyclic():
 
         with DAG("dag_0", start_date=DEFAULT_DATE, schedule_interval=None) as dag:
             dags.append(dag)
-            task_a_0 = DummyOperator(task_id="task_a_0")
+            task_a_0 = EmptyOperator(task_id="task_a_0")
             task_b_0 = ExternalTaskMarker(
                 task_id="task_b_0", external_dag_id="dag_1", external_task_id="task_a_1", recursion_depth=3
             )
@@ -820,10 +870,10 @@ def dag_bag_multiple():
     dag_bag.bag_dag(dag=daily_dag, root_dag=daily_dag)
     dag_bag.bag_dag(dag=agg_dag, root_dag=agg_dag)
 
-    daily_task = DummyOperator(task_id="daily_tas", dag=daily_dag)
+    daily_task = EmptyOperator(task_id="daily_tas", dag=daily_dag)
 
-    start = DummyOperator(task_id="start", dag=agg_dag)
-    for i in range(25):
+    begin = EmptyOperator(task_id="begin", dag=agg_dag)
+    for i in range(8):
         task = ExternalTaskMarker(
             task_id=f"{daily_task.task_id}_{i}",
             external_dag_id=daily_dag.dag_id,
@@ -831,30 +881,25 @@ def dag_bag_multiple():
             execution_date="{{ macros.ds_add(ds, -1 * %s) }}" % i,
             dag=agg_dag,
         )
-        start >> task
+        begin >> task
 
     yield dag_bag
 
 
-@pytest.mark.quarantined
-@pytest.mark.backend("postgres", "mysql")
 def test_clear_multiple_external_task_marker(dag_bag_multiple):
     """
     Test clearing a dag that has multiple ExternalTaskMarker.
-
-    sqlite3 parser stack size is 100 lexical items by default so this puts a hard limit on
-    the level of nesting in the sql. This test is intentionally skipped in sqlite.
     """
     agg_dag = dag_bag_multiple.get_dag("agg_dag")
-
-    for delta in range(len(agg_dag.tasks)):
-        execution_date = DEFAULT_DATE + timedelta(days=delta)
-        run_tasks(dag_bag_multiple, execution_date=execution_date)
-
-    # There used to be some slowness caused by calling count() inside DAG.clear().
-    # That has since been fixed. It should take no more than a few seconds to call
-    # dag.clear() here.
-    assert agg_dag.clear(start_date=execution_date, end_date=execution_date, dag_bag=dag_bag_multiple) == 51
+    tis = run_tasks(dag_bag_multiple, execution_date=DEFAULT_DATE)
+    session = settings.Session()
+    try:
+        qry = session.query(TaskInstance).filter(
+            TaskInstance.state == State.NONE, TaskInstance.dag_id.in_(dag_bag_multiple.dag_ids)
+        )
+        assert agg_dag.clear(dag_bag=dag_bag_multiple) == len(tis) == qry.count() == 10
+    finally:
+        session.close()
 
 
 @pytest.fixture
@@ -884,12 +929,12 @@ def dag_bag_head_tail():
             execution_delta=timedelta(days=1),
             mode="reschedule",
         )
-        body = DummyOperator(task_id="body")
+        body = EmptyOperator(task_id="body")
         tail = ExternalTaskMarker(
             task_id="tail",
             external_dag_id=dag.dag_id,
             external_task_id=head.task_id,
-            execution_date="{{ tomorrow_ds_nodash }}",
+            execution_date="{{ macros.ds_add(ds, 1) }}",
         )
         head >> body >> tail
 
@@ -932,3 +977,11 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
         )
         == 30
     )
+
+
+class TestExternalTaskSensorLink:
+    def test_deprecation_warning(self):
+        with pytest.warns(DeprecationWarning) as warnings:
+            ExternalTaskSensorLink()
+            assert len(warnings) == 1
+            assert warnings[0].filename == __file__

@@ -27,6 +27,7 @@ function kind::get_kind_cluster_name() {
     readonly KUBECONFIG
     mkdir -pv "${BUILD_CACHE_DIR}/${KIND_CLUSTER_NAME}/.kube/"
     touch "${KUBECONFIG}"
+    chmod og-rwx "${KUBECONFIG}"
 }
 
 function kind::dump_kind_logs() {
@@ -40,8 +41,14 @@ function kind::dump_kind_logs() {
 function kind::make_sure_kubernetes_tools_are_installed() {
     local system
     system=$(uname -s | tr '[:upper:]' '[:lower:]')
-
-    local kind_url="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${system}-amd64"
+    local machine
+    if [[ $(uname -m) == "arm64" || $(uname -m) == "aarch64" ]]; then
+        machine="arm64"
+    else
+        machine="amd64"
+    fi
+    local kind_url
+    kind_url="https://github.com/kubernetes-sigs/kind/releases/download/${KIND_VERSION}/kind-${system}-${machine}"
     mkdir -pv "${BUILD_CACHE_DIR}/kubernetes-bin/${KUBERNETES_VERSION}"
     if [[ -f "${KIND_BINARY_PATH}" ]]; then
         local downloaded_kind_version
@@ -58,11 +65,11 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo "Kind version ok"
         echo
     fi
-
-    local kubectl_url="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${system}/amd64/kubectl"
+    local kubectl_url
+    kubectl_url="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${system}/${machine}/kubectl"
     if [[ -f "${KUBECTL_BINARY_PATH}" ]]; then
         local downloaded_kubectl_version
-        downloaded_kubectl_version="$(${KUBECTL_BINARY_PATH} version --client=true --short | awk '{ print $3 }')"
+        downloaded_kubectl_version="$(${KUBECTL_BINARY_PATH} version --client=true | awk '{ print $3 }')"
         echo "Currently downloaded kubectl version = ${downloaded_kubectl_version}"
     fi
     if [[ ! -f "${KUBECTL_BINARY_PATH}" || ${downloaded_kubectl_version} != "${KUBECTL_VERSION}" ]]; then
@@ -75,8 +82,8 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo "Kubectl version ok"
         echo
     fi
-
-    local helm_url="https://get.helm.sh/helm-${HELM_VERSION}-${system}-amd64.tar.gz"
+    local helm_url
+    helm_url="https://get.helm.sh/helm-${HELM_VERSION}-${system}-${machine}.tar.gz"
     if [[ -f "${HELM_BINARY_PATH}" ]]; then
         local downloaded_helm_version
         downloaded_helm_version="$(${HELM_BINARY_PATH} version --template '{{.Version}}')"
@@ -86,7 +93,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
         echo
         echo "Downloading Helm version ${HELM_VERSION}"
         repeats::run_with_retry 4 \
-            "curl --connect-timeout 60  --max-time 180 --location '${helm_url}' | tar -xvz -O '${system}-amd64/helm' >'${HELM_BINARY_PATH}'"
+            "curl --connect-timeout 60  --max-time 180 --location '${helm_url}' | tar -xvz -O '${system}-${machine}/helm' >'${HELM_BINARY_PATH}'"
         chmod a+x "${HELM_BINARY_PATH}"
     else
         echo "Helm version ok"
@@ -270,6 +277,8 @@ COPY airflow/example_dags/ \${AIRFLOW_HOME}/dags/
 
 COPY airflow/kubernetes_executor_templates/ \${AIRFLOW_HOME}/pod_templates/
 
+ENV GUNICORN_CMD_ARGS='--preload' AIRFLOW__WEBSERVER__WORKER_REFRESH_INTERVAL=0
+
 EOF
     echo "The ${AIRFLOW_IMAGE_KUBERNETES}:${image_tag} is prepared for test kubernetes deployment."
 }
@@ -298,6 +307,7 @@ function kind::wait_for_webserver_healthy() {
             echo
             echo  "${COLOR_RED}ERROR: Timeout while waiting for the webserver health check  ${COLOR_RESET}"
             echo
+            return 1
         fi
     done
     echo
@@ -339,7 +349,6 @@ function kind::deploy_airflow_with_helm() {
 
     pushd "${chartdir}/chart" >/dev/null 2>&1 || exit 1
     helm repo add stable https://charts.helm.sh/stable/
-    helm dep update
     helm install airflow . \
         --timeout 10m0s \
         --namespace "${HELM_AIRFLOW_NAMESPACE}" \
@@ -347,7 +356,7 @@ function kind::deploy_airflow_with_helm() {
         --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
         --set "images.airflow.tag=latest" -v 1 \
         --set "defaultAirflowTag=latest" -v 1 \
-        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
+        --set "config.api.auth_backends=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
         --set "executor=${EXECUTOR}"
     echo
@@ -374,13 +383,12 @@ function kind::upgrade_airflow_with_helm() {
 
     pushd "${chartdir}/chart" >/dev/null 2>&1 || exit 1
     helm repo add stable https://charts.helm.sh/stable/
-    helm dep update
     helm upgrade airflow . --namespace "${HELM_AIRFLOW_NAMESPACE}" \
         --set "defaultAirflowRepository=${AIRFLOW_IMAGE_KUBERNETES}" \
         --set "images.airflow.repository=${AIRFLOW_IMAGE_KUBERNETES}" \
         --set "images.airflow.tag=latest" -v 1 \
         --set "defaultAirflowTag=latest" -v 1 \
-        --set "config.api.auth_backend=airflow.api.auth.backend.basic_auth" \
+        --set "config.api.auth_backends=airflow.api.auth.backend.basic_auth" \
         --set "config.logging.logging_level=DEBUG" \
         --set "executor=${mode}"
 

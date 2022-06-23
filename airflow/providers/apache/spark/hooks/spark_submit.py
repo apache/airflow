@@ -16,6 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+import contextlib
 import os
 import re
 import subprocess
@@ -28,10 +29,8 @@ from airflow.hooks.base import BaseHook
 from airflow.security.kerberos import renew_from_kt
 from airflow.utils.log.logging_mixin import LoggingMixin
 
-try:
+with contextlib.suppress(ImportError, NameError):
     from airflow.kubernetes import kube_client
-except (ImportError, NameError):
-    pass
 
 
 class SparkSubmitHook(BaseHook, LoggingMixin):
@@ -41,67 +40,43 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     supplied.
 
     :param conf: Arbitrary Spark configuration properties
-    :type conf: dict
     :param spark_conn_id: The :ref:`spark connection id <howto/connection:spark>` as configured
         in Airflow administration. When an invalid connection_id is supplied, it will default
         to yarn.
-    :type spark_conn_id: str
     :param files: Upload additional files to the executor running the job, separated by a
         comma. Files will be placed in the working directory of each executor.
         For example, serialized objects.
-    :type files: str
     :param py_files: Additional python files used by the job, can be .zip, .egg or .py.
-    :type py_files: str
-    :param: archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
+    :param archives: Archives that spark should unzip (and possibly tag with #ALIAS) into
         the application working directory.
     :param driver_class_path: Additional, driver-specific, classpath settings.
-    :type driver_class_path: str
     :param jars: Submit additional jars to upload and place them in executor classpath.
-    :type jars: str
     :param java_class: the main class of the Java application
-    :type java_class: str
     :param packages: Comma-separated list of maven coordinates of jars to include on the
         driver and executor classpaths
-    :type packages: str
     :param exclude_packages: Comma-separated list of maven coordinates of jars to exclude
         while resolving the dependencies provided in 'packages'
-    :type exclude_packages: str
     :param repositories: Comma-separated list of additional remote repositories to search
         for the maven coordinates given with 'packages'
-    :type repositories: str
     :param total_executor_cores: (Standalone & Mesos only) Total cores for all executors
         (Default: all the available cores on the worker)
-    :type total_executor_cores: int
     :param executor_cores: (Standalone, YARN and Kubernetes only) Number of cores per
         executor (Default: 2)
-    :type executor_cores: int
     :param executor_memory: Memory per executor (e.g. 1000M, 2G) (Default: 1G)
-    :type executor_memory: str
     :param driver_memory: Memory allocated to the driver (e.g. 1000M, 2G) (Default: 1G)
-    :type driver_memory: str
     :param keytab: Full path to the file that contains the keytab
-    :type keytab: str
     :param principal: The name of the kerberos principal used for keytab
-    :type principal: str
     :param proxy_user: User to impersonate when submitting the application
-    :type proxy_user: str
     :param name: Name of the job (default airflow-spark)
-    :type name: str
     :param num_executors: Number of executors to launch
-    :type num_executors: int
     :param status_poll_interval: Seconds to wait between polls of driver status in cluster
         mode (Default: 1)
-    :type status_poll_interval: int
     :param application_args: Arguments for the application being submitted
-    :type application_args: list
     :param env_vars: Environment variables for spark-submit. It
         supports yarn and k8s mode too.
-    :type env_vars: dict
     :param verbose: Whether to pass the verbose flag to spark-submit process for debugging
-    :type verbose: bool
     :param spark_binary: The command to use for spark submit.
                          Some distros may use spark2-submit.
-    :type spark_binary: str
     """
 
     conn_name_attr = 'conn_id'
@@ -110,7 +85,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
     hook_name = 'Spark'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'login', 'password'],
@@ -279,7 +254,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Construct the spark-submit command to execute.
 
         :param application: command to append to the spark-submit command
-        :type application: str
         :return: full command to be executed
         """
         connection_cmd = self._get_spark_binary_path()
@@ -380,9 +354,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
             self.log.info(connection_cmd)
 
             # The driver id so we can poll for its status
-            if self._driver_id:
-                pass
-            else:
+            if not self._driver_id:
                 raise AirflowException(
                     "Invalid status: attempted to poll driver status but no driver id is known. Giving up."
                 )
@@ -411,7 +383,6 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         Remote Popen to execute the spark-submit job
 
         :param application: Submitted application, jar or py file
-        :type application: str
         :param kwargs: extra arguments to Popen (see subprocess.Popen)
         """
         spark_submit_cmd = self._build_spark_submit_command(application)
@@ -520,9 +491,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         :param itr: An iterator which iterates over the input of the subprocess
         """
         driver_found = False
+        valid_response = False
         # Consume the iterator
         for line in itr:
             line = line.strip()
+
+            # A valid Spark status response should contain a submissionId
+            if "submissionId" in line:
+                valid_response = True
 
             # Check if the log line is about the driver status and extract the status.
             if "driverState" in line:
@@ -531,7 +507,7 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
 
             self.log.debug("spark driver status log: %s", line)
 
-        if not driver_found:
+        if valid_response and not driver_found:
             self._driver_status = "UNKNOWN"
 
     def _start_driver_status_tracking(self) -> None:
@@ -628,17 +604,14 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
         """Kill Spark submit command"""
         self.log.debug("Kill Command is being called")
 
-        if self._should_track_driver_status:
-            if self._driver_id:
-                self.log.info('Killing driver %s on cluster', self._driver_id)
+        if self._should_track_driver_status and self._driver_id:
+            self.log.info('Killing driver %s on cluster', self._driver_id)
 
-                kill_cmd = self._build_spark_driver_kill_command()
-                with subprocess.Popen(
-                    kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE
-                ) as driver_kill:
-                    self.log.info(
-                        "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
-                    )
+            kill_cmd = self._build_spark_driver_kill_command()
+            with subprocess.Popen(kill_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE) as driver_kill:
+                self.log.info(
+                    "Spark driver %s killed with return code: %s", self._driver_id, driver_kill.wait()
+                )
 
         if self._submit_sp and self._submit_sp.poll() is None:
             self.log.info('Sending kill signal to %s', self._connection['spark_binary'])
@@ -653,7 +626,10 @@ class SparkSubmitHook(BaseHook, LoggingMixin):
                     # we still attempt to kill the yarn application
                     renew_from_kt(self._principal, self._keytab, exit_on_fail=False)
                     env = os.environ.copy()
-                    env["KRB5CCNAME"] = airflow_conf.get('kerberos', 'ccache')
+                    ccacche = airflow_conf.get('kerberos', 'ccache')
+                    if ccacche is None:
+                        raise ValueError("The kerberos/ccache config should be set here!")
+                    env["KRB5CCNAME"] = ccacche
 
                 with subprocess.Popen(
                     kill_cmd, env=env, stdout=subprocess.PIPE, stderr=subprocess.PIPE

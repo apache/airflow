@@ -22,6 +22,7 @@ from unittest import mock
 from unittest.mock import MagicMock, call
 
 import kubernetes
+from dateutil.parser import parse
 
 from airflow.cli import cli_parser
 from airflow.cli.commands import kubernetes_command
@@ -56,7 +57,7 @@ class TestGenerateDagYamlCommand(unittest.TestCase):
 
 class TestCleanUpPodsCommand(unittest.TestCase):
 
-    label_selector = ','.join(['dag_id', 'task_id', 'execution_date', 'try_number', 'airflow_version'])
+    label_selector = ','.join(['dag_id', 'task_id', 'try_number', 'airflow_version'])
 
     @classmethod
     def setUpClass(cls):
@@ -73,6 +74,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     def test_running_pods_are_not_cleaned(self, load_incluster_config, list_namespaced_pod, delete_pod):
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
         pod1.status.phase = 'Running'
         pod1.status.reason = None
         pods = MagicMock()
@@ -94,6 +96,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     def test_cleanup_succeeded_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
         pod1.status.phase = 'Succeeded'
         pod1.status.reason = None
         pods = MagicMock()
@@ -117,6 +120,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     ):
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy2'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
         pod1.status.phase = 'Failed'
         pod1.status.reason = None
         pod1.spec.restart_policy = 'Always'
@@ -141,6 +145,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     ):
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy3'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
         pod1.status.phase = 'Failed'
         pod1.status.reason = None
         pod1.spec.restart_policy = 'Never'
@@ -163,6 +168,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     def test_cleanup_evicted_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy4'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
         pod1.status.phase = 'Failed'
         pod1.status.reason = 'Evicted'
         pod1.spec.restart_policy = 'Never'
@@ -182,10 +188,33 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')
     @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
     @mock.patch('kubernetes.config.load_incluster_config')
+    def test_cleanup_pending_pods(self, load_incluster_config, list_namespaced_pod, delete_pod):
+        pod1 = MagicMock()
+        pod1.metadata.name = 'dummy5'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
+        pod1.status.phase = 'Pending'
+        pod1.status.reason = 'Unschedulable'
+        pods = MagicMock()
+        pods.metadata._continue = None
+        pods.items = [pod1]
+        list_namespaced_pod.return_value = pods
+        kubernetes_command.cleanup_pods(
+            self.parser.parse_args(['kubernetes', 'cleanup-pods', '--namespace', 'awesome-namespace'])
+        )
+        list_namespaced_pod.assert_called_once_with(
+            namespace='awesome-namespace', limit=500, label_selector=self.label_selector
+        )
+        delete_pod.assert_called_with('dummy5', 'awesome-namespace')
+        load_incluster_config.assert_called_once()
+
+    @mock.patch('airflow.cli.commands.kubernetes_command._delete_pod')
+    @mock.patch('kubernetes.client.CoreV1Api.list_namespaced_pod')
+    @mock.patch('kubernetes.config.load_incluster_config')
     def test_cleanup_api_exception_continue(self, load_incluster_config, list_namespaced_pod, delete_pod):
         delete_pod.side_effect = kubernetes.client.rest.ApiException(status=0)
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
         pod1.status.phase = 'Succeeded'
         pod1.status.reason = None
         pods = MagicMock()
@@ -206,6 +235,7 @@ class TestCleanUpPodsCommand(unittest.TestCase):
     def test_list_pod_with_continue_token(self, load_incluster_config, list_namespaced_pod, delete_pod):
         pod1 = MagicMock()
         pod1.metadata.name = 'dummy'
+        pod1.metadata.creation_timestamp = parse("2021-12-20T08:01:07Z")
         pod1.status.phase = 'Succeeded'
         pod1.status.reason = None
         pods = MagicMock()

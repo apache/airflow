@@ -170,7 +170,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                     {copy_statement}
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], transaction)
+        assert_equal_ignore_multiple_spaces(self, "\n".join(mock_run.call_args[0][0]), transaction)
 
         assert mock_run.call_count == 1
 
@@ -222,7 +222,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                     {copy_statement}
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], transaction)
+        assert_equal_ignore_multiple_spaces(self, "\n".join(mock_run.call_args[0][0]), transaction)
 
         assert mock_run.call_count == 1
 
@@ -277,7 +277,7 @@ class TestS3ToRedshiftTransfer(unittest.TestCase):
                     INSERT INTO {schema}.{table} SELECT * FROM #{table};
                     COMMIT
                     """
-        assert_equal_ignore_multiple_spaces(self, mock_run.call_args[0][0], transaction)
+        assert_equal_ignore_multiple_spaces(self, "\n".join(mock_run.call_args[0][0]), transaction)
 
         assert mock_run.call_count == 1
 

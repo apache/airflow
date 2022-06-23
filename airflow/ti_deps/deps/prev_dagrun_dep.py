@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from sqlalchemy import func
 
+from airflow.models.taskinstance import TaskInstance as TI
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
@@ -32,7 +34,7 @@ class PrevDagrunDep(BaseTIDep):
     IS_TASK_DEP = True
 
     @provide_session
-    def _get_dep_statuses(self, ti, session, dep_context):
+    def _get_dep_statuses(self, ti: TI, session, dep_context):
         if dep_context.ignore_depends_on_past:
             reason = "The context specified that the state of past DAGs could be ignored."
             yield self._passing_status(reason=reason)
@@ -48,7 +50,7 @@ class PrevDagrunDep(BaseTIDep):
             return
 
         # Don't depend on the previous task instance if we are the first task.
-        catchup = ti.task.dag.catchup
+        catchup = ti.task.dag and ti.task.dag.catchup
         if catchup:
             last_dagrun = dr.get_previous_scheduled_dagrun(session)
         else:
@@ -66,6 +68,24 @@ class PrevDagrunDep(BaseTIDep):
 
         previous_ti = last_dagrun.get_task_instance(ti.task_id, session=session)
         if not previous_ti:
+            if ti.task.ignore_first_depends_on_past:
+                has_historical_ti = (
+                    session.query(func.count(TI.dag_id))
+                    .filter(
+                        TI.dag_id == ti.dag_id,
+                        TI.task_id == ti.task_id,
+                        TI.execution_date < ti.execution_date,
+                    )
+                    .scalar()
+                    > 0
+                )
+                if not has_historical_ti:
+                    yield self._passing_status(
+                        reason="ignore_first_depends_on_past is true for this task "
+                        "and it is the first task instance for its task."
+                    )
+                    return
+
             yield self._failing_status(
                 reason="depends_on_past is true for this task's DAG, but the previous "
                 "task instance has not run yet."

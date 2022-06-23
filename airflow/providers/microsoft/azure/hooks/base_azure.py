@@ -30,10 +30,8 @@ class AzureBaseHook(BaseHook):
     authenticate the client library used for upstream azure hooks.
 
     :param sdk_client: The SDKClient to use.
-    :type sdk_client: Optional[str]
     :param conn_id: The :ref:`Azure connection id<howto/connection:azure>`
         which refers to the information to connect to the service.
-    :type: str
     """
 
     conn_name_attr = 'azure_conn_id'
@@ -58,7 +56,7 @@ class AzureBaseHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         import json
 

@@ -62,6 +62,10 @@ class SensorInstance(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow(), nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow(), onupdate=timezone.utcnow(), nullable=False)
 
+    # SmartSensor doesn't support mapped operators, but this is needed for compatibly with the
+    # log_filename_template of TaskInstances
+    map_index = -1
+
     __table_args__ = (
         Index('ti_primary_key', dag_id, task_id, execution_date, unique=True),
         Index('si_hashcode', hashcode),
@@ -81,7 +85,6 @@ class SensorInstance(Base):
         Get the object dotted class path. Used for getting operator classpath.
 
         :param obj:
-        :type obj:
         :return: The class path of input object
         :rtype: str
         """
@@ -97,14 +100,10 @@ class SensorInstance(Base):
         context used for a sensor and set the sensor_instance table state to sensing.
 
         :param ti: The task instance for the sensor to be registered.
-        :type: ti:
         :param poke_context: Context used for sensor poke function.
-        :type poke_context: dict
         :param execution_context: Context used for execute sensor such as timeout
             setting and email configuration.
-        :type execution_context: dict
         :param session: SQLAlchemy ORM Session
-        :type session: Session
         :return: True if the ti was registered successfully.
         :rtype: Boolean
         """
@@ -166,3 +165,21 @@ class SensorInstance(Base):
             "<{self.__class__.__name__}: id: {self.id} poke_context: {self.poke_context} "
             "execution_context: {self.execution_context} state: {self.state}>".format(self=self)
         )
+
+    @provide_session
+    def get_dagrun(self, session):
+        """
+        Returns the DagRun for this SensorInstance
+
+        :param session: SQLAlchemy ORM Session
+        :return: DagRun
+        """
+        from airflow.models.dagrun import DagRun  # Avoid circular import
+
+        dr = (
+            session.query(DagRun)
+            .filter(DagRun.dag_id == self.dag_id, DagRun.execution_date == self.execution_date)
+            .one()
+        )
+
+        return dr

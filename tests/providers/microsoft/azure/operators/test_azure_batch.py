@@ -24,8 +24,8 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.azure_batch import AzureBatchHook
-from airflow.providers.microsoft.azure.operators.azure_batch import AzureBatchOperator
+from airflow.providers.microsoft.azure.hooks.batch import AzureBatchHook
+from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator
 from airflow.utils import db
 
 TASK_ID = "MyDag"
@@ -42,8 +42,8 @@ FORMULA = """$curTime = time();
 
 class TestAzureBatchOperator(unittest.TestCase):
     # set up the test environment
-    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.AzureBatchHook")
-    @mock.patch("airflow.providers.microsoft.azure.hooks.azure_batch.BatchServiceClient")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook")
+    @mock.patch("airflow.providers.microsoft.azure.hooks.batch.BatchServiceClient")
     def setUp(self, mock_batch, mock_hook):
         # set up the test variable
         self.test_vm_conn_id = "test_azure_batch_vm2"

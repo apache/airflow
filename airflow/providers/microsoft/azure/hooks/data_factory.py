@@ -14,13 +14,26 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+.. spelling::
+
+    CreateRunResponse
+    DatasetResource
+    LinkedServiceResource
+    LROPoller
+    PipelineResource
+    PipelineRun
+    TriggerResource
+    datafactory
+    mgmt
+"""
 import inspect
 import time
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Set, Union
+from typing import Any, Callable, Dict, Optional, Set, Tuple, Union
 
 from azure.core.polling import LROPoller
-from azure.identity import ClientSecretCredential
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
 from azure.mgmt.datafactory import DataFactoryManagementClient
 from azure.mgmt.datafactory.models import (
     CreateRunResponse,
@@ -34,6 +47,9 @@ from azure.mgmt.datafactory.models import (
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.typing_compat import TypedDict
+
+Credentials = Union[ClientSecretCredential, DefaultAzureCredential]
 
 
 def provide_targeted_factory(func: Callable) -> Callable:
@@ -68,6 +84,14 @@ def provide_targeted_factory(func: Callable) -> Callable:
     return wrapper
 
 
+class PipelineRunInfo(TypedDict):
+    """Type class for the pipeline run info dictionary."""
+
+    run_id: str
+    factory_name: Optional[str]
+    resource_group_name: Optional[str]
+
+
 class AzureDataFactoryPipelineRunStatus:
     """Azure Data Factory pipeline operation statuses."""
 
@@ -90,7 +114,6 @@ class AzureDataFactoryHook(BaseHook):
     A hook to interact with Azure Data Factory.
 
     :param azure_data_factory_conn_id: The :ref:`Azure Data Factory connection id<howto/connection:adf>`.
-    :type azure_data_factory_conn_id: str
     """
 
     conn_type: str = 'azure_data_factory'
@@ -121,7 +144,7 @@ class AzureDataFactoryHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -131,7 +154,7 @@ class AzureDataFactoryHook(BaseHook):
             },
         }
 
-    def __init__(self, azure_data_factory_conn_id: Optional[str] = default_conn_name):
+    def __init__(self, azure_data_factory_conn_id: str = default_conn_name):
         self._conn: DataFactoryManagementClient = None
         self.conn_id = azure_data_factory_conn_id
         super().__init__()
@@ -142,14 +165,23 @@ class AzureDataFactoryHook(BaseHook):
 
         conn = self.get_connection(self.conn_id)
         tenant = conn.extra_dejson.get('extra__azure_data_factory__tenantId')
-        subscription_id = conn.extra_dejson.get('extra__azure_data_factory__subscriptionId')
 
-        self._conn = DataFactoryManagementClient(
-            credential=ClientSecretCredential(
+        try:
+            subscription_id = conn.extra_dejson['extra__azure_data_factory__subscriptionId']
+        except KeyError:
+            raise ValueError("A Subscription ID is required to connect to Azure Data Factory.")
+
+        credential: Credentials
+        if conn.login is not None and conn.password is not None:
+            if not tenant:
+                raise ValueError("A Tenant ID is required when authenticating with Client ID and Secret.")
+
+            credential = ClientSecretCredential(
                 client_id=conn.login, client_secret=conn.password, tenant_id=tenant
-            ),
-            subscription_id=subscription_id,
-        )
+            )
+        else:
+            credential = DefaultAzureCredential()
+        self._conn = self._create_client(credential, subscription_id)
 
         return self._conn
 
@@ -174,6 +206,13 @@ class AzureDataFactoryHook(BaseHook):
         }
 
         return factory_name in factories
+
+    @staticmethod
+    def _create_client(credential: Credentials, subscription_id: str):
+        return DataFactoryManagementClient(
+            credential=credential,
+            subscription_id=subscription_id,
+        )
 
     @provide_targeted_factory
     def update_factory(
@@ -598,13 +637,13 @@ class AzureDataFactoryHook(BaseHook):
         :param factory_name: The factory name.
         :return: The status of the pipeline run.
         """
-        self.log.info(f"Getting the status of run ID {run_id}.")
+        self.log.info("Getting the status of run ID %s.", run_id)
         pipeline_run_status = self.get_pipeline_run(
             run_id=run_id,
             factory_name=factory_name,
             resource_group_name=resource_group_name,
         ).status
-        self.log.info(f"Current status of pipeline run {run_id}: {pipeline_run_status}")
+        self.log.info("Current status of pipeline run %s: %s", run_id, pipeline_run_status)
 
         return pipeline_run_status
 
@@ -614,8 +653,8 @@ class AzureDataFactoryHook(BaseHook):
         expected_statuses: Union[str, Set[str]],
         resource_group_name: Optional[str] = None,
         factory_name: Optional[str] = None,
-        check_interval: Optional[int] = 60,
-        timeout: Optional[int] = 60 * 60 * 24 * 7,
+        check_interval: int = 60,
+        timeout: int = 60 * 60 * 24 * 7,
     ) -> bool:
         """
         Waits for a pipeline run to match an expected status.
@@ -629,11 +668,11 @@ class AzureDataFactoryHook(BaseHook):
             status.
         :return: Boolean indicating if the pipeline run has reached the ``expected_status``.
         """
-        pipeline_run_info = {
-            "run_id": run_id,
-            "factory_name": factory_name,
-            "resource_group_name": resource_group_name,
-        }
+        pipeline_run_info = PipelineRunInfo(
+            run_id=run_id,
+            factory_name=factory_name,
+            resource_group_name=resource_group_name,
+        )
         pipeline_run_status = self.get_pipeline_run_status(**pipeline_run_info)
 
         start_time = time.monotonic()
@@ -852,3 +891,23 @@ class AzureDataFactoryHook(BaseHook):
         :param config: Extra parameters for the ADF client.
         """
         self.get_conn().trigger_runs.cancel(resource_group_name, factory_name, trigger_name, run_id, **config)
+
+    def test_connection(self) -> Tuple[bool, str]:
+        """Test a configured Azure Data Factory connection."""
+        success = (True, "Successfully connected to Azure Data Factory.")
+
+        try:
+            # Attempt to list existing factories under the configured subscription and retrieve the first in
+            # the returned iterator. The Azure Data Factory API does allow for creation of a
+            # DataFactoryManagementClient with incorrect values but then will fail properly once items are
+            # retrieved using the client. We need to _actually_ try to retrieve an object to properly test the
+            # connection.
+            next(self.get_conn().factories.list())
+            return success
+        except StopIteration:
+            # If the iterator returned is empty it should still be considered a successful connection since
+            # it's possible to create a Data Factory via the ``AzureDataFactoryHook`` and none could
+            # legitimately exist yet.
+            return success
+        except Exception as e:
+            return False, str(e)

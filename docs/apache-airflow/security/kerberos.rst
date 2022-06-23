@@ -18,7 +18,7 @@
 Kerberos
 --------
 
-Airflow has initial support for Kerberos. This means that Airflow can renew kerberos
+Airflow has initial support for Kerberos. This means that Airflow can renew Kerberos
 tickets for itself and store it in the ticket cache. The hooks and dags can make use of ticket
 to authenticate against kerberized services.
 
@@ -26,19 +26,19 @@ Limitations
 '''''''''''
 
 Please note that at this time, not all hooks have been adjusted to make use of this functionality.
-Also it does not integrate kerberos into the web interface and you will have to rely on network
+Also it does not integrate Kerberos into the web interface and you will have to rely on network
 level security for now to make sure your service remains secure.
 
 Celery integration has not been tried and tested yet. However, if you generate a key tab for every
 host and launch a ticket renewer next to every worker it will most likely work.
 
-Enabling kerberos
+Enabling Kerberos
 '''''''''''''''''
 
 Airflow
 ^^^^^^^
 
-To enable kerberos you will need to generate a (service) key tab.
+To enable Kerberos you will need to generate a (service) key tab.
 
 .. code-block:: bash
 
@@ -61,7 +61,7 @@ your ``airflow.cfg``
     reinit_frequency = 3600
     principal = airflow
 
-If you need more granular options for your kerberos ticket the following options are available with the following default values:
+If you need more granular options for your Kerberos ticket the following options are available with the following default values:
 
 .. code-block:: ini
 
@@ -114,10 +114,10 @@ If want to use impersonation this needs to be enabled in ``core-site.xml`` of yo
 
 Of course if you need to tighten your security replace the asterisk with something more appropriate.
 
-Using kerberos authentication
+Using Kerberos authentication
 '''''''''''''''''''''''''''''
 
-The hive hook has been updated to take advantage of kerberos authentication. To allow your DAGs to
+The Hive hook has been updated to take advantage of Kerberos authentication. To allow your DAGs to
 use it, simply update the connection details with, for example:
 
 .. code-block:: json
@@ -152,4 +152,4 @@ To use kerberos authentication, you must install Airflow with the ``kerberos`` e
 
    pip install 'apache-airflow[kerberos]'
 
-You can read about some production aspects of kerberos deployment at :ref:`production-deployment:kerberos`
+You can read about some production aspects of Kerberos deployment at :ref:`production-deployment:kerberos`

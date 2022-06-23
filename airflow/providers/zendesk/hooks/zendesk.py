@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import List, Optional, Tuple, Union
 
-import time
-from typing import Optional
-
-from zdesk import RateLimitError, Zendesk, ZendeskError
+from zenpy import Zenpy
+from zenpy.lib.api import BaseApi
+from zenpy.lib.api_objects import JobStatus, Ticket, TicketAudit
+from zenpy.lib.generator import SearchResultGenerator
 
 from airflow.hooks.base import BaseHook
 
@@ -29,93 +30,91 @@ class ZendeskHook(BaseHook):
     Interact with Zendesk. This hook uses the Zendesk conn_id.
 
     :param zendesk_conn_id: The Airflow connection used for Zendesk credentials.
-    :type zendesk_conn_id: str
     """
 
-    def __init__(self, zendesk_conn_id: str) -> None:
+    conn_name_attr = 'zendesk_conn_id'
+    default_conn_name = 'zendesk_default'
+    conn_type = 'zendesk'
+    hook_name = 'Zendesk'
+
+    def __init__(self, zendesk_conn_id: str = default_conn_name) -> None:
         super().__init__()
-        self.__zendesk_conn_id = zendesk_conn_id
-        self.__url = None
+        self.zendesk_conn_id = zendesk_conn_id
+        self.base_api: Optional[BaseApi] = None
+        zenpy_client, url = self._init_conn()
+        self.zenpy_client = zenpy_client
+        self.__url = url
+        self.get = self.zenpy_client.users._get
 
-    def get_conn(self) -> Zendesk:
-        conn = self.get_connection(self.__zendesk_conn_id)
-        self.__url = "https://" + conn.host
-        return Zendesk(
-            zdesk_url=self.__url, zdesk_email=conn.login, zdesk_password=conn.password, zdesk_token=True
-        )
-
-    def __handle_rate_limit_exception(self, rate_limit_exception: ZendeskError) -> None:
+    def _init_conn(self) -> Tuple[Zenpy, str]:
         """
-        Sleep for the time specified in the exception. If not specified, wait
-        for 60 seconds.
+        Create the Zenpy Client for our Zendesk connection.
+
+        :return: zenpy.Zenpy client and the url for the API.
         """
-        retry_after = int(rate_limit_exception.response.headers.get('Retry-After', 60))
-        self.log.info("Hit Zendesk API rate limit. Pausing for %s seconds", retry_after)
-        time.sleep(retry_after)
+        conn = self.get_connection(self.zendesk_conn_id)
+        url = "https://" + conn.host
+        domain = conn.host
+        subdomain: Optional[str] = None
+        if conn.host.count(".") >= 2:
+            dot_splitted_string = conn.host.rsplit(".", 2)
+            subdomain = dot_splitted_string[0]
+            domain = ".".join(dot_splitted_string[1:])
+        return Zenpy(domain=domain, subdomain=subdomain, email=conn.login, password=conn.password), url
 
-    def call(
-        self,
-        path: str,
-        query: Optional[dict] = None,
-        get_all_pages: bool = True,
-        side_loading: bool = False,
-    ) -> dict:
+    def get_conn(self) -> Zenpy:
         """
-        Call Zendesk API and return results
+        Get the underlying Zenpy client.
 
-        :param path: The Zendesk API to call
-        :param query: Query parameters
-        :param get_all_pages: Accumulate results over all pages before
-               returning. Due to strict rate limiting, this can often timeout.
-               Waits for recommended period between tries after a timeout.
-        :param side_loading: Retrieve related records as part of a single
-               request. In order to enable side-loading, add an 'include'
-               query parameter containing a comma-separated list of resources
-               to load. For more information on side-loading see
-               https://developer.zendesk.com/rest_api/docs/core/side_loading
+        :return: zenpy.Zenpy client.
         """
-        query_params = query or {}
-        zendesk = self.get_conn()
-        first_request_successful = False
+        return self.zenpy_client
 
-        while not first_request_successful:
-            try:
-                results = zendesk.call(path, query_params)
-                first_request_successful = True
-            except RateLimitError as rle:
-                self.__handle_rate_limit_exception(rle)
+    def get_ticket(self, ticket_id: int) -> Ticket:
+        """
+        Retrieve ticket.
 
-        # Find the key with the results
-        keys = [path.split("/")[-1].split(".json")[0]]
-        next_page = results['next_page']
-        if side_loading:
-            keys += query_params['include'].split(',')
-        results = {key: results[key] for key in keys}
+        :return: Ticket object retrieved.
+        """
+        return self.zenpy_client.tickets(id=ticket_id)
 
-        if get_all_pages:
-            while next_page is not None:
-                try:
-                    # Need to split because the next page URL has
-                    # `github.zendesk...`
-                    # in it, but the call function needs it removed.
-                    next_url = next_page.split(self.__url)[1]
-                    self.log.info("Calling %s", next_url)
-                    more_res = zendesk.call(next_url)
-                    for key in results:
-                        results[key].extend(more_res[key])
-                    if next_page == more_res['next_page']:
-                        # Unfortunately zdesk doesn't always throw ZendeskError
-                        # when we are done getting all the data. Sometimes the
-                        # next just refers to the current set of results.
-                        # Hence, need to deal with this special case
-                        break
-                    next_page = more_res['next_page']
-                except RateLimitError as rle:
-                    self.__handle_rate_limit_exception(rle)
-                except ZendeskError as zde:
-                    if b"Use a start_time older than 5 minutes" in zde.msg:
-                        # We have pretty up to date data
-                        break
-                    raise zde
+    def search_tickets(self, **kwargs) -> SearchResultGenerator:
+        """
+        Search tickets.
 
-        return results
+        :param kwargs: (optional) Search fields given to the zenpy search method.
+        :return: SearchResultGenerator of Ticket objects.
+        """
+        return self.zenpy_client.search(type='ticket', **kwargs)
+
+    def create_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> Union[TicketAudit, JobStatus]:
+        """
+        Create tickets.
+
+        :param tickets: Ticket or List of Ticket to create.
+        :param kwargs: (optional) Additional fields given to the zenpy create method.
+        :return: A TicketAudit object containing information about the Ticket created.
+            When sending bulk request, returns a JobStatus object.
+        """
+        return self.zenpy_client.tickets.create(tickets, **kwargs)
+
+    def update_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> Union[TicketAudit, JobStatus]:
+        """
+        Update tickets.
+
+        :param tickets: Updated Ticket or List of Ticket object to update.
+        :param kwargs: (optional) Additional fields given to the zenpy update method.
+        :return: A TicketAudit object containing information about the Ticket updated.
+            When sending bulk request, returns a JobStatus object.
+        """
+        return self.zenpy_client.tickets.update(tickets, **kwargs)
+
+    def delete_tickets(self, tickets: Union[Ticket, List[Ticket]], **kwargs) -> None:
+        """
+        Delete tickets, returns nothing on success and raises APIException on failure.
+
+        :param tickets: Ticket or List of Ticket to delete.
+        :param kwargs: (optional) Additional fields given to the zenpy delete method.
+        :return:
+        """
+        return self.zenpy_client.tickets.delete(tickets, **kwargs)

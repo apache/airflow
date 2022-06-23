@@ -15,14 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 import datetime
-from typing import Any, Dict, List, Optional
+from traceback import format_exception
+from typing import Any, Dict, Iterable, Optional
 
-from sqlalchemy import Column, Integer, String, func
+from sqlalchemy import Column, Integer, String, func, or_
 
 from airflow.models.base import Base
 from airflow.models.taskinstance import TaskInstance
 from airflow.triggers.base import BaseTrigger
 from airflow.utils import timezone
+from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 from airflow.utils.state import State
@@ -72,7 +74,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def bulk_fetch(cls, ids: List[int], session=None) -> Dict[int, "Trigger"]:
+    def bulk_fetch(cls, ids: Iterable[int], session=None) -> Dict[int, "Trigger"]:
         """
         Fetches all of the Triggers by ID and returns a dict mapping
         ID -> Trigger instance
@@ -87,9 +89,11 @@ class Trigger(Base):
         (triggers have a one-to-many relationship to both)
         """
         # Update all task instances with trigger IDs that are not DEFERRED to remove them
-        session.query(TaskInstance).filter(
-            TaskInstance.state != State.DEFERRED, TaskInstance.trigger_id.isnot(None)
-        ).update({TaskInstance.trigger_id: None})
+        for attempt in run_with_db_retries():
+            with attempt:
+                session.query(TaskInstance).filter(
+                    TaskInstance.state != State.DEFERRED, TaskInstance.trigger_id.isnot(None)
+                ).update({TaskInstance.trigger_id: None})
         # Get all triggers that have no task instances depending on them...
         ids = [
             trigger_id
@@ -124,7 +128,7 @@ class Trigger(Base):
 
     @classmethod
     @provide_session
-    def submit_failure(cls, trigger_id, session=None):
+    def submit_failure(cls, trigger_id, exc=None, session=None):
         """
         Called when a trigger has failed unexpectedly, and we need to mark
         everything that depended on it as failed. Notably, we have to actually
@@ -144,8 +148,9 @@ class Trigger(Base):
             TaskInstance.trigger_id == trigger_id, TaskInstance.state == State.DEFERRED
         ):
             # Add the error and set the next_method to the fail state
+            traceback = format_exception(type(exc), exc, exc.__traceback__) if exc else None
             task_instance.next_method = "__fail__"
-            task_instance.next_kwargs = {"error": "Trigger failure"}
+            task_instance.next_kwargs = {"error": "Trigger failure", "traceback": traceback}
             # Remove ourselves as its trigger
             task_instance.trigger_id = None
             # Finally, mark it as scheduled so it gets re-queued
@@ -166,7 +171,7 @@ class Trigger(Base):
         """
         from airflow.jobs.base_job import BaseJob  # To avoid circular import
 
-        count = session.query(cls.id).filter(cls.triggerer_id == triggerer_id).count()
+        count = session.query(func.count(cls.id)).filter(cls.triggerer_id == triggerer_id).scalar()
         capacity -= count
 
         if capacity <= 0:
@@ -175,7 +180,7 @@ class Trigger(Base):
         alive_triggerer_ids = [
             row[0]
             for row in session.query(BaseJob.id).filter(
-                BaseJob.end_date is None,
+                BaseJob.end_date.is_(None),
                 BaseJob.latest_heartbeat > timezone.utcnow() - datetime.timedelta(seconds=30),
                 BaseJob.job_type == "TriggererJob",
             )
@@ -184,7 +189,11 @@ class Trigger(Base):
         # Find triggers who do NOT have an alive triggerer_id, and then assign
         # up to `capacity` of those to us.
         trigger_ids_query = (
-            session.query(cls.id).filter(cls.triggerer_id.notin_(alive_triggerer_ids)).limit(capacity).all()
+            session.query(cls.id)
+            # notin_ doesn't find NULL rows
+            .filter(or_(cls.triggerer_id.is_(None), cls.triggerer_id.notin_(alive_triggerer_ids)))
+            .limit(capacity)
+            .all()
         )
         session.query(cls).filter(cls.id.in_([i.id for i in trigger_ids_query])).update(
             {cls.triggerer_id: triggerer_id},

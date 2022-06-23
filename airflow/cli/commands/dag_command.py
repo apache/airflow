@@ -37,20 +37,15 @@ from airflow.executors.debug_executor import DebugExecutor
 from airflow.jobs.base_job import BaseJob
 from airflow.models import DagBag, DagModel, DagRun, TaskInstance
 from airflow.models.dag import DAG
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.utils import cli as cli_utils
-from airflow.utils.cli import (
-    get_dag,
-    get_dag_by_file_location,
-    process_subdir,
-    sigint_handler,
-    suppress_logs_and_warning,
-)
-from airflow.utils.dot_renderer import render_dag
-from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.cli import get_dag, process_subdir, sigint_handler, suppress_logs_and_warning
+from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
+from airflow.utils.state import DagRunState
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_backfill(args, dag=None):
     """Creates backfill job or dry run for a DAG"""
     logging.basicConfig(level=settings.LOGGING_LEVEL, format=settings.SIMPLE_LOG_FORMAT)
@@ -105,7 +100,7 @@ def dag_backfill(args, dag=None):
                 end_date=args.end_date,
                 confirm_prompt=not args.yes,
                 include_subdags=True,
-                dag_run_state=State.NONE,
+                dag_run_state=DagRunState.QUEUED,
             )
 
         try:
@@ -123,13 +118,14 @@ def dag_backfill(args, dag=None):
                 conf=run_conf,
                 rerun_failed_tasks=args.rerun_failed_tasks,
                 run_backwards=args.run_backwards,
+                continue_on_failures=args.continue_on_failures,
             )
         except ValueError as vr:
             print(str(vr))
             sys.exit(1)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_trigger(args):
     """Creates a dag run for the specified dag"""
     api_client = get_current_api_client()
@@ -142,7 +138,7 @@ def dag_trigger(args):
         raise AirflowException(err)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_delete(args):
     """Deletes all DB records related to the specified dag"""
     api_client = get_current_api_client()
@@ -160,13 +156,13 @@ def dag_delete(args):
         print("Cancelled")
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_pause(args):
     """Pauses a DAG"""
     set_is_paused(True, args)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_unpause(args):
     """Unpauses a DAG"""
     set_is_paused(False, args)
@@ -182,6 +178,25 @@ def set_is_paused(is_paused, args):
     dag.set_is_paused(is_paused=is_paused)
 
     print(f"Dag: {args.dag_id}, paused: {is_paused}")
+
+
+def dag_dependencies_show(args):
+    """Displays DAG dependencies, save to file or show as imgcat image"""
+    dot = render_dag_dependencies(SerializedDagModel.get_dag_dependencies())
+    filename = args.save
+    imgcat = args.imgcat
+
+    if filename and imgcat:
+        raise SystemExit(
+            "Option --save and --imgcat are mutually exclusive. "
+            "Please remove one option to execute the command.",
+        )
+    elif filename:
+        _save_dot_to_file(dot, filename)
+    elif imgcat:
+        _display_dot_via_imgcat(dot)
+    else:
+        print(dot.source)
 
 
 def dag_show(args):
@@ -228,8 +243,9 @@ def _save_dot_to_file(dot: Dot, filename: str):
     print(f"File {filename} saved")
 
 
-@cli_utils.action_logging
-def dag_state(args):
+@cli_utils.action_cli
+@provide_session
+def dag_state(args, session=NEW_SESSION):
     """
     Returns the state (and conf if exists) of a DagRun at the command line.
     >>> airflow dags state tutorial 2015-01-01T00:00:00.000000
@@ -237,19 +253,19 @@ def dag_state(args):
     >>> airflow dags state a_dag_with_conf_passed 2015-01-01T00:00:00.000000
     failed, {"name": "bob", "age": "42"}
     """
-    if args.subdir:
-        dag = get_dag(args.subdir, args.dag_id)
-    else:
-        dag = get_dag_by_file_location(args.dag_id)
-    dr = DagRun.find(dag.dag_id, execution_date=args.execution_date)
-    out = dr[0].state if dr else None
+    dag = DagModel.get_dagmodel(args.dag_id, session=session)
+
+    if not dag:
+        raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
+    dr = session.query(DagRun).filter_by(dag_id=args.dag_id, execution_date=args.execution_date).one_or_none()
+    out = dr.state if dr else None
     conf_out = ''
-    if out and dr[0].conf:
-        conf_out = ', ' + json.dumps(dr[0].conf)
+    if out and dr.conf:
+        conf_out = ', ' + json.dumps(dr.conf)
     print(str(out) + conf_out)
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_next_execution(args):
     """
     Returns the next execution datetime of a DAG at the command line.
@@ -294,11 +310,19 @@ def dag_next_execution(args):
         print(next_info.logical_date.isoformat())
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_list_dags(args):
     """Displays dags with or without stats at the command line"""
     dagbag = DagBag(process_subdir(args.subdir))
+    if dagbag.import_errors:
+        from rich import print as rich_print
+
+        rich_print(
+            "[red][bold]Error:[/bold] Failed to load all files. "
+            "For details, run `airflow dags list-import-errors`",
+            file=sys.stderr,
+        )
     AirflowConsole().print_as(
         data=sorted(dagbag.dags.values(), key=lambda d: d.dag_id),
         output=args.output,
@@ -311,7 +335,21 @@ def dag_list_dags(args):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
+@suppress_logs_and_warning
+def dag_list_import_errors(args):
+    """Displays dags with import errors on the command line"""
+    dagbag = DagBag(process_subdir(args.subdir))
+    data = []
+    for filename, errors in dagbag.import_errors.items():
+        data.append({"filepath": filename, "error": errors})
+    AirflowConsole().print_as(
+        data=data,
+        output=args.output,
+    )
+
+
+@cli_utils.action_cli
 @suppress_logs_and_warning
 def dag_report(args):
     """Displays dagbag stats at the command line"""
@@ -329,34 +367,29 @@ def dag_report(args):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
-def dag_list_jobs(args, dag=None):
+@provide_session
+def dag_list_jobs(args, dag=None, session=NEW_SESSION):
     """Lists latest n jobs"""
     queries = []
     if dag:
         args.dag_id = dag.dag_id
     if args.dag_id:
-        dagbag = DagBag()
+        dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
-        if args.dag_id not in dagbag.dags:
-            error_message = f"Dag id {args.dag_id} not found"
-            raise AirflowException(error_message)
+        if not dag:
+            raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
         queries.append(BaseJob.dag_id == args.dag_id)
 
     if args.state:
         queries.append(BaseJob.state == args.state)
 
     fields = ['dag_id', 'state', 'job_type', 'start_date', 'end_date']
-    with create_session() as session:
-        all_jobs = (
-            session.query(BaseJob)
-            .filter(*queries)
-            .order_by(BaseJob.start_date.desc())
-            .limit(args.limit)
-            .all()
-        )
-        all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs]
+    all_jobs = (
+        session.query(BaseJob).filter(*queries).order_by(BaseJob.start_date.desc()).limit(args.limit).all()
+    )
+    all_jobs = [{f: str(job.__getattribute__(f)) for f in fields} for job in all_jobs]
 
     AirflowConsole().print_as(
         data=all_jobs,
@@ -364,18 +397,18 @@ def dag_list_jobs(args, dag=None):
     )
 
 
-@cli_utils.action_logging
+@cli_utils.action_cli
 @suppress_logs_and_warning
-def dag_list_dag_runs(args, dag=None):
+@provide_session
+def dag_list_dag_runs(args, dag=None, session=NEW_SESSION):
     """Lists dag runs for a given DAG"""
     if dag:
         args.dag_id = dag.dag_id
+    else:
+        dag = DagModel.get_dagmodel(args.dag_id, session=session)
 
-    dagbag = DagBag()
-
-    if args.dag_id is not None and args.dag_id not in dagbag.dags:
-        error_message = f"Dag id {args.dag_id} not found"
-        raise AirflowException(error_message)
+        if not dag:
+            raise SystemExit(f"DAG: {args.dag_id} does not exist in 'dag' table")
 
     state = args.state.lower() if args.state else None
     dag_runs = DagRun.find(
@@ -384,6 +417,7 @@ def dag_list_dag_runs(args, dag=None):
         no_backfills=args.no_backfill,
         execution_start_date=args.start_date,
         execution_end_date=args.end_date,
+        session=session,
     )
 
     dag_runs.sort(key=lambda x: x.execution_date, reverse=True)
@@ -402,11 +436,11 @@ def dag_list_dag_runs(args, dag=None):
 
 
 @provide_session
-@cli_utils.action_logging
+@cli_utils.action_cli
 def dag_test(args, session=None):
     """Execute one single DagRun for a given DAG and execution date, using the DebugExecutor."""
     dag = get_dag(subdir=args.subdir, dag_id=args.dag_id)
-    dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=State.NONE)
+    dag.clear(start_date=args.execution_date, end_date=args.execution_date, dag_run_state=False)
     try:
         dag.run(
             executor=DebugExecutor(),
@@ -441,3 +475,14 @@ def dag_test(args, session=None):
             _display_dot_via_imgcat(dot_graph)
         if show_dagrun:
             print(dot_graph.source)
+
+
+@provide_session
+@cli_utils.action_cli
+def dag_reserialize(args, session=None):
+    session.query(SerializedDagModel).delete(synchronize_session=False)
+
+    if not args.clear_only:
+        dagbag = DagBag()
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db()

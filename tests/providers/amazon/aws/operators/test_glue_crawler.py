@@ -18,7 +18,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.operators.glue_crawler import AwsGlueCrawlerOperator
+from airflow.providers.amazon.aws.operators.glue_crawler import GlueCrawlerOperator
 
 mock_crawler_name = 'test-crawler'
 mock_role_name = 'test-role'
@@ -80,14 +80,14 @@ mock_config = {
 }
 
 
-class TestAwsGlueCrawlerOperator(unittest.TestCase):
+class TestGlueCrawlerOperator(unittest.TestCase):
     def setUp(self):
-        self.glue = AwsGlueCrawlerOperator(task_id='test_glue_crawler_operator', config=mock_config)
+        self.glue = GlueCrawlerOperator(task_id='test_glue_crawler_operator', config=mock_config)
 
-    @mock.patch('airflow.providers.amazon.aws.operators.glue_crawler.AwsGlueCrawlerHook')
+    @mock.patch('airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerHook')
     def test_execute_without_failure(self, mock_hook):
         mock_hook.return_value.has_crawler.return_value = True
-        self.glue.execute(None)
+        self.glue.execute({})
 
         mock_hook.assert_has_calls(
             [

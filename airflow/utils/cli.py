@@ -41,7 +41,7 @@ from airflow.utils.session import provide_session
 T = TypeVar("T", bound=Callable)
 
 if TYPE_CHECKING:
-    from airflow.models import DAG
+    from airflow.models.dag import DAG
 
 
 def _check_cli_args(args):
@@ -49,55 +49,66 @@ def _check_cli_args(args):
         raise ValueError("Args should be set")
     if not isinstance(args[0], Namespace):
         raise ValueError(
-            "1st positional argument should be argparse.Namespace instance," f"but is {type(args[0])}"
+            f"1st positional argument should be argparse.Namespace instance, but is {type(args[0])}"
         )
 
 
-def action_logging(f: T) -> T:
-    """
-    Decorates function to execute function at the same time submitting action_logging
-    but in CLI context. It will call action logger callbacks twice,
-    one for pre-execution and the other one for post-execution.
-
-    Action logger will be called with below keyword parameters:
-        sub_command : name of sub-command
-        start_datetime : start datetime instance by utc
-        end_datetime : end datetime instance by utc
-        full_command : full command line arguments
-        user : current user
-        log : airflow.models.log.Log ORM instance
-        dag_id : dag id (optional)
-        task_id : task_id (optional)
-        execution_date : execution date (optional)
-        error : exception instance if there's an exception
-
-    :param f: function instance
-    :return: wrapped function
-    """
-
-    @functools.wraps(f)
-    def wrapper(*args, **kwargs):
+def action_cli(func=None, check_db=True):
+    def action_logging(f: T) -> T:
         """
-        An wrapper for cli functions. It assumes to have Namespace instance
-        at 1st positional argument
+        Decorates function to execute function at the same time submitting action_logging
+        but in CLI context. It will call action logger callbacks twice,
+        one for pre-execution and the other one for post-execution.
 
-        :param args: Positional argument. It assumes to have Namespace instance
+        Action logger will be called with below keyword parameters:
+            sub_command : name of sub-command
+            start_datetime : start datetime instance by utc
+            end_datetime : end datetime instance by utc
+            full_command : full command line arguments
+            user : current user
+            log : airflow.models.log.Log ORM instance
+            dag_id : dag id (optional)
+            task_id : task_id (optional)
+            execution_date : execution date (optional)
+            error : exception instance if there's an exception
+
+        :param f: function instance
+        :return: wrapped function
+        """
+
+        @functools.wraps(f)
+        def wrapper(*args, **kwargs):
+            """
+            An wrapper for cli functions. It assumes to have Namespace instance
             at 1st positional argument
-        :param kwargs: A passthrough keyword argument
-        """
-        _check_cli_args(args)
-        metrics = _build_metrics(f.__name__, args[0])
-        cli_action_loggers.on_pre_execution(**metrics)
-        try:
-            return f(*args, **kwargs)
-        except Exception as e:
-            metrics['error'] = e
-            raise
-        finally:
-            metrics['end_datetime'] = datetime.utcnow()
-            cli_action_loggers.on_post_execution(**metrics)
 
-    return cast(T, wrapper)
+            :param args: Positional argument. It assumes to have Namespace instance
+                at 1st positional argument
+            :param kwargs: A passthrough keyword argument
+            """
+            _check_cli_args(args)
+            metrics = _build_metrics(f.__name__, args[0])
+            cli_action_loggers.on_pre_execution(**metrics)
+            try:
+                # Check and run migrations if necessary
+                if check_db:
+                    from airflow.utils.db import check_and_run_migrations, synchronize_log_template
+
+                    check_and_run_migrations()
+                    synchronize_log_template()
+                return f(*args, **kwargs)
+            except Exception as e:
+                metrics['error'] = e
+                raise
+            finally:
+                metrics['end_datetime'] = datetime.utcnow()
+                cli_action_loggers.on_post_execution(**metrics)
+
+        return cast(T, wrapper)
+
+    if func:
+        return action_logging(func)
+    return action_logging
 
 
 def _build_metrics(func_name, namespace):
@@ -137,7 +148,7 @@ def _build_metrics(func_name, namespace):
 
     if not isinstance(namespace, Namespace):
         raise ValueError(
-            "namespace argument should be argparse.Namespace instance," f"but is {type(namespace)}"
+            f"namespace argument should be argparse.Namespace instance, but is {type(namespace)}"
         )
     tmp_dic = vars(namespace)
     metrics['dag_id'] = tmp_dic.get('dag_id')
@@ -195,6 +206,16 @@ def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
     return dagbag.dags[dag_id]
 
 
+def get_dag_by_deserialization(dag_id: str) -> "DAG":
+    from airflow.models.serialized_dag import SerializedDagModel
+
+    dag_model = SerializedDagModel.get(dag_id)
+    if dag_model is None:
+        raise AirflowException(f"Serialized DAG: {dag_id} could not be found")
+
+    return dag_model.dag
+
+
 def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
     from airflow.models import DagBag
@@ -218,7 +239,7 @@ def get_dag_by_pickle(pickle_id, session=None):
 
     dag_pickle = session.query(DagPickle).filter(DagPickle.id == pickle_id).first()
     if not dag_pickle:
-        raise AirflowException("Who hid the pickle!? [missing pickle]")
+        raise AirflowException(f"pickle_id could not be found in DagPickle.id list: {pickle_id}")
     pickle_dag = dag_pickle.pickle
     return pickle_dag
 

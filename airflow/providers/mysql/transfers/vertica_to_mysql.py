@@ -18,7 +18,7 @@
 
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -26,6 +26,13 @@ import unicodecsv as csv
 from airflow.models import BaseOperator
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.vertica.hooks.vertica import VerticaHook
+from airflow.www import utils as wwwutils
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
+# TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+MYSQL_RENDERER = 'mysql' if 'mysql' in wwwutils.get_attr_renderer() else 'sql'
 
 
 class VerticaToMySqlOperator(BaseOperator):
@@ -33,36 +40,29 @@ class VerticaToMySqlOperator(BaseOperator):
     Moves data from Vertica to MySQL.
 
     :param sql: SQL query to execute against the Vertica database. (templated)
-    :type sql: str
     :param vertica_conn_id: source Vertica connection
-    :type vertica_conn_id: str
     :param mysql_table: target MySQL table, use dot notation to target a
         specific database. (templated)
-    :type mysql_table: str
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param mysql_preoperator: sql statement to run against MySQL prior to
         import, typically use to truncate of delete in place of the data
         coming in, allowing the task to be idempotent (running the task
         twice won't double load data). (templated)
-    :type mysql_preoperator: str
     :param mysql_postoperator: sql statement to run against MySQL after the
         import, typically used to move data from staging to production
         and issue cleanup commands. (templated)
-    :type mysql_postoperator: str
     :param bulk_load: flag to use bulk_load option.  This loads MySQL directly
         from a tab-delimited text file using the LOAD DATA LOCAL INFILE command.
         This option requires an extra connection parameter for the
         destination MySQL connection: {'local_infile': true}.
-    :type bulk_load: bool
     """
 
-    template_fields = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql', 'mysql_table', 'mysql_preoperator', 'mysql_postoperator')
+    template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {
         "sql": "sql",
-        "mysql_preoperator": "sql",
-        "mysql_postoperator": "sql",
+        "mysql_preoperator": MYSQL_RENDERER,
+        "mysql_postoperator": MYSQL_RENDERER,
     }
     ui_color = '#a0e08c'
 
@@ -87,67 +87,76 @@ class VerticaToMySqlOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.bulk_load = bulk_load
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 
-        tmpfile = None
-        result = None
-
-        selected_columns = []
-
-        count = 0
-        with closing(vertica.get_conn()) as conn:
-            with closing(conn.cursor()) as cursor:
-                cursor.execute(self.sql)
-                selected_columns = [d.name for d in cursor.description]
-
-                if self.bulk_load:
-                    with NamedTemporaryFile("w") as tmpfile:
-                        self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
-                        self.log.info(self.sql)
-
-                        csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
-                        for row in cursor.iterate():
-                            csv_writer.writerow(row)
-                            count += 1
-
-                        tmpfile.flush()
-                else:
-                    self.log.info("Selecting rows from Vertica...")
-                    self.log.info(self.sql)
-
-                    result = cursor.fetchall()
-                    count = len(result)
-
-                self.log.info("Selected rows from Vertica %s", count)
-
-        if self.mysql_preoperator:
-            self.log.info("Running MySQL preoperator...")
-            mysql.run(self.mysql_preoperator)
-
-        try:
-            if self.bulk_load:
-                self.log.info("Bulk inserting rows into MySQL...")
-                with closing(mysql.get_conn()) as conn:
-                    with closing(conn.cursor()) as cursor:
-                        cursor.execute(
-                            f"LOAD DATA LOCAL INFILE '{tmpfile.name}' "
-                            f"INTO TABLE {self.mysql_table} "
-                            f"LINES TERMINATED BY '\r\n' ({', '.join(selected_columns)})"
-                        )
-                        conn.commit()
-                tmpfile.close()
-            else:
-                self.log.info("Inserting rows into MySQL...")
-                mysql.insert_rows(table=self.mysql_table, rows=result, target_fields=selected_columns)
-            self.log.info("Inserted rows into MySQL %s", count)
-        except (MySQLdb.Error, MySQLdb.Warning):
-            self.log.info("Inserted rows into MySQL 0")
-            raise
+        if self.bulk_load:
+            self._bulk_load_transfer(mysql, vertica)
+        else:
+            self._non_bulk_load_transfer(mysql, vertica)
 
         if self.mysql_postoperator:
             self.log.info("Running MySQL postoperator...")
             mysql.run(self.mysql_postoperator)
 
         self.log.info("Done")
+
+    def _non_bulk_load_transfer(self, mysql, vertica):
+        with closing(vertica.get_conn()) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute(self.sql)
+                selected_columns = [d.name for d in cursor.description]
+                self.log.info("Selecting rows from Vertica...")
+                self.log.info(self.sql)
+
+                result = cursor.fetchall()
+                count = len(result)
+
+                self.log.info("Selected rows from Vertica %s", count)
+        self._run_preoperator(mysql)
+        try:
+            self.log.info("Inserting rows into MySQL...")
+            mysql.insert_rows(table=self.mysql_table, rows=result, target_fields=selected_columns)
+            self.log.info("Inserted rows into MySQL %s", count)
+        except (MySQLdb.Error, MySQLdb.Warning):
+            self.log.info("Inserted rows into MySQL 0")
+            raise
+
+    def _bulk_load_transfer(self, mysql, vertica):
+        count = 0
+        with closing(vertica.get_conn()) as conn:
+            with closing(conn.cursor()) as cursor:
+                cursor.execute(self.sql)
+                selected_columns = [d.name for d in cursor.description]
+                with NamedTemporaryFile("w") as tmpfile:
+                    self.log.info("Selecting rows from Vertica to local file %s...", tmpfile.name)
+                    self.log.info(self.sql)
+
+                    csv_writer = csv.writer(tmpfile, delimiter='\t', encoding='utf-8')
+                    for row in cursor.iterate():
+                        csv_writer.writerow(row)
+                        count += 1
+
+                    tmpfile.flush()
+        self._run_preoperator(mysql)
+        try:
+            self.log.info("Bulk inserting rows into MySQL...")
+            with closing(mysql.get_conn()) as conn:
+                with closing(conn.cursor()) as cursor:
+                    cursor.execute(
+                        f"LOAD DATA LOCAL INFILE '{tmpfile.name}' "
+                        f"INTO TABLE {self.mysql_table} "
+                        f"LINES TERMINATED BY '\r\n' ({', '.join(selected_columns)})"
+                    )
+                    conn.commit()
+            tmpfile.close()
+            self.log.info("Inserted rows into MySQL %s", count)
+        except (MySQLdb.Error, MySQLdb.Warning):
+            self.log.info("Inserted rows into MySQL 0")
+            raise
+
+    def _run_preoperator(self, mysql):
+        if self.mysql_preoperator:
+            self.log.info("Running MySQL preoperator...")
+            mysql.run(self.mysql_preoperator)

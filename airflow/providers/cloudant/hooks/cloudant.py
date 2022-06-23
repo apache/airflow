@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Cloudant"""
-from typing import Dict
+from typing import Any, Dict
 
-from cloudant import cloudant
+from cloudant import cloudant  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -31,7 +31,6 @@ class CloudantHook(BaseHook):
     .. seealso:: the latest documentation `here <https://python-cloudant.readthedocs.io/en/latest/>`_.
 
     :param cloudant_conn_id: The connection id to authenticate and get a session object from cloudant.
-    :type cloudant_conn_id: str
     """
 
     conn_name_attr = 'cloudant_conn_id'
@@ -40,7 +39,7 @@ class CloudantHook(BaseHook):
     hook_name = 'Cloudant'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> Dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['port', 'extra'],

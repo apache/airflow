@@ -72,7 +72,7 @@ class StandaloneCommand:
         self.subcommands["webserver"] = SubCommand(
             self,
             name="webserver",
-            command=["webserver", "--port", "8080"],
+            command=["webserver"],
             env=env,
         )
         self.subcommands["triggerer"] = SubCommand(
@@ -81,6 +81,8 @@ class StandaloneCommand:
             command=["triggerer"],
             env=env,
         )
+
+        self.web_server_port = conf.getint('webserver', 'WEB_SERVER_PORT', fallback=8080)
         # Run subcommand threads
         for command in self.subcommands.values():
             command.start()
@@ -155,7 +157,7 @@ class StandaloneCommand:
             executor_constants.LOCAL_EXECUTOR,
             executor_constants.SEQUENTIAL_EXECUTOR,
         ]:
-            if "sqlite" in conf.get("core", "sql_alchemy_conn"):
+            if "sqlite" in conf.get("database", "sql_alchemy_conn"):
                 self.print_output("standalone", "Forcing executor to SequentialExecutor")
                 env["AIRFLOW__CORE__EXECUTOR"] = executor_constants.SEQUENTIAL_EXECUTOR
             else:
@@ -206,7 +208,11 @@ class StandaloneCommand:
         Detects when all Airflow components are ready to serve.
         For now, it's simply time-based.
         """
-        return self.port_open(8080) and self.job_running(SchedulerJob) and self.job_running(TriggererJob)
+        return (
+            self.port_open(self.web_server_port)
+            and self.job_running(SchedulerJob)
+            and self.job_running(TriggererJob)
+        )
 
     def port_open(self, port):
         """
@@ -228,7 +234,10 @@ class StandaloneCommand:
         Checks if the given job name is running and heartbeating correctly
         (used to tell if scheduler is alive)
         """
-        return job.most_recent_job().is_alive()
+        recent = job.most_recent_job()
+        if not recent:
+            return False
+        return recent.is_alive()
 
     def print_ready(self):
         """

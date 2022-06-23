@@ -19,6 +19,7 @@ import unittest
 from unittest import mock
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.vision import enums
 from google.cloud.vision_v1 import ProductSearchClient
 from google.cloud.vision_v1.proto.image_annotator_pb2 import (
@@ -32,6 +33,7 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.vision import ERR_DIFF_NAMES, ERR_UNABLE_TO_CREATE, CloudVisionHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 PROJECT_ID_TEST = 'project-id'
@@ -79,17 +81,11 @@ class TestGcpVisionHook(unittest.TestCase):
         ):
             self.hook = CloudVisionHook(gcp_conn_id='test')
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.vision.CloudVisionHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.vision.ProductSearchClient")
-    def test_product_search_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_product_search_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.hook._client == result
 
@@ -106,9 +102,9 @@ class TestGcpVisionHook(unittest.TestCase):
             product_set_id=PRODUCTSET_ID_TEST,
             product_set=product_set,
             project_id=PROJECT_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
         # Then
@@ -118,9 +114,9 @@ class TestGcpVisionHook(unittest.TestCase):
             parent=parent,
             product_set=product_set,
             product_set_id=PRODUCTSET_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -146,9 +142,9 @@ class TestGcpVisionHook(unittest.TestCase):
             parent=parent,
             product_set=product_set,
             product_set_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -166,9 +162,9 @@ class TestGcpVisionHook(unittest.TestCase):
                 product_set_id=None,
                 product_set=product_set,
                 project_id=PROJECT_ID_TEST,
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
         # Then
         # API response was wrong (None) and thus ProductSet ID extraction should fail.
@@ -178,9 +174,9 @@ class TestGcpVisionHook(unittest.TestCase):
             parent=parent,
             product_set=product_set,
             product_set_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -197,7 +193,7 @@ class TestGcpVisionHook(unittest.TestCase):
         # Then
         assert response
         assert response == MessageToDict(response_product_set)
-        get_product_set_method.assert_called_once_with(name=name, retry=None, timeout=None, metadata=None)
+        get_product_set_method.assert_called_once_with(name=name, retry=DEFAULT, timeout=None, metadata=())
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
     def test_update_productset_no_explicit_name(self, get_conn):
@@ -215,16 +211,16 @@ class TestGcpVisionHook(unittest.TestCase):
             product_set=product_set,
             update_mask=None,
             project_id=PROJECT_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         # Then
         assert result == MessageToDict(product_set)
         update_product_set_method.assert_called_once_with(
             product_set=ProductSet(name=productset_name),
-            metadata=None,
-            retry=None,
+            metadata=(),
+            retry=DEFAULT,
             timeout=None,
             update_mask=None,
         )
@@ -246,9 +242,9 @@ class TestGcpVisionHook(unittest.TestCase):
                 product_set=product_set,
                 update_mask=None,
                 project_id=PROJECT_ID_TEST,
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
         err = ctx.value
         assert err
@@ -274,16 +270,16 @@ class TestGcpVisionHook(unittest.TestCase):
             product_set=product_set,
             update_mask=None,
             project_id=PROJECT_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         # Then
         assert result == MessageToDict(product_set)
         update_product_set_method.assert_called_once_with(
             product_set=ProductSet(name=explicit_ps_name),
-            metadata=None,
-            retry=None,
+            metadata=(),
+            retry=DEFAULT,
             timeout=None,
             update_mask=None,
         )
@@ -311,22 +307,19 @@ class TestGcpVisionHook(unittest.TestCase):
                 product_set=product_set,
                 update_mask=None,
                 project_id=PROJECT_ID_TEST,
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
         err = ctx.value
         # self.assertIn("The required parameter 'project_id' is missing", str(err))
         assert err
-        assert (
-            ERR_DIFF_NAMES.format(
-                explicit_name=explicit_ps_name,
-                constructed_name=template_ps_name,
-                label="ProductSet",
-                id_label="productset_id",
-            )
-            in str(err)
-        )
+        assert ERR_DIFF_NAMES.format(
+            explicit_name=explicit_ps_name,
+            constructed_name=template_ps_name,
+            label="ProductSet",
+            id_label="productset_id",
+        ) in str(err)
         update_product_set_method.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -341,7 +334,7 @@ class TestGcpVisionHook(unittest.TestCase):
         )
         # Then
         assert response is None
-        delete_product_set_method.assert_called_once_with(name=name, retry=None, timeout=None, metadata=None)
+        delete_product_set_method.assert_called_once_with(name=name, retry=DEFAULT, timeout=None, metadata=())
 
     @mock.patch(
         'airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn',
@@ -366,9 +359,9 @@ class TestGcpVisionHook(unittest.TestCase):
             parent=PRODUCT_NAME,
             reference_image=REFERENCE_IMAGE_WITHOUT_ID_NAME,
             reference_image_id=REFERENCE_IMAGE_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch(
@@ -394,9 +387,9 @@ class TestGcpVisionHook(unittest.TestCase):
             parent=PRODUCT_NAME,
             reference_image=REFERENCE_IMAGE_TEST,
             reference_image_id=REFERENCE_IMAGE_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -414,7 +407,7 @@ class TestGcpVisionHook(unittest.TestCase):
         # Then
         # Product ID was provided explicitly in the method call above, should be returned from the method
         add_product_to_product_set_method.assert_called_once_with(
-            name=PRODUCTSET_NAME_TEST, product=PRODUCT_NAME_TEST, retry=None, timeout=None, metadata=None
+            name=PRODUCTSET_NAME_TEST, product=PRODUCT_NAME_TEST, retry=DEFAULT, timeout=None, metadata=()
         )
 
     # remove_product_from_product_set
@@ -433,7 +426,7 @@ class TestGcpVisionHook(unittest.TestCase):
         # Then
         # Product ID was provided explicitly in the method call above, should be returned from the method
         remove_product_from_product_set_method.assert_called_once_with(
-            name=PRODUCTSET_NAME_TEST, product=PRODUCT_NAME_TEST, retry=None, timeout=None, metadata=None
+            name=PRODUCTSET_NAME_TEST, product=PRODUCT_NAME_TEST, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client')
@@ -446,7 +439,7 @@ class TestGcpVisionHook(unittest.TestCase):
         # Then
         # Product ID was provided explicitly in the method call above, should be returned from the method
         annotate_image_method.assert_called_once_with(
-            request=ANNOTATE_IMAGE_REQUEST, retry=None, timeout=None
+            request=ANNOTATE_IMAGE_REQUEST, retry=DEFAULT, timeout=None
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client')
@@ -459,7 +452,7 @@ class TestGcpVisionHook(unittest.TestCase):
         # Then
         # Product ID was provided explicitly in the method call above, should be returned from the method
         batch_annotate_images_method.assert_called_once_with(
-            requests=BATCH_ANNOTATE_IMAGE_REQUEST, retry=None, timeout=None
+            requests=BATCH_ANNOTATE_IMAGE_REQUEST, retry=DEFAULT, timeout=None
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -480,9 +473,9 @@ class TestGcpVisionHook(unittest.TestCase):
             parent=parent,
             product=product,
             product_id=PRODUCT_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -505,7 +498,7 @@ class TestGcpVisionHook(unittest.TestCase):
         # and returned.
         assert result == autogenerated_id
         create_product_method.assert_called_once_with(
-            parent=parent, product=product, product_id=None, retry=None, timeout=None, metadata=None
+            parent=parent, product=product, product_id=None, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -527,7 +520,7 @@ class TestGcpVisionHook(unittest.TestCase):
         err = ctx.value
         assert 'Unable to get id from name' in str(err)
         create_product_method.assert_called_once_with(
-            parent=parent, product=product, product_id=None, retry=None, timeout=None, metadata=None
+            parent=parent, product=product, product_id=None, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -548,7 +541,7 @@ class TestGcpVisionHook(unittest.TestCase):
         err = ctx.value
         assert 'Unable to get name from response...' in str(err)
         create_product_method.assert_called_once_with(
-            parent=parent, product=product, product_id=None, retry=None, timeout=None, metadata=None
+            parent=parent, product=product, product_id=None, retry=DEFAULT, timeout=None, metadata=()
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -565,14 +558,14 @@ class TestGcpVisionHook(unittest.TestCase):
             product=product,
             update_mask=None,
             project_id=PROJECT_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         # Then
         assert result == MessageToDict(product)
         update_product_method.assert_called_once_with(
-            product=Product(name=product_name), metadata=None, retry=None, timeout=None, update_mask=None
+            product=Product(name=product_name), metadata=(), retry=DEFAULT, timeout=None, update_mask=None
         )
 
     @parameterized.expand([(None, None), (None, PRODUCT_ID_TEST), (LOC_ID_TEST, None)])
@@ -592,9 +585,9 @@ class TestGcpVisionHook(unittest.TestCase):
                 product=product,
                 update_mask=None,
                 project_id=PROJECT_ID_TEST,
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
         err = ctx.value
         assert err
@@ -620,14 +613,14 @@ class TestGcpVisionHook(unittest.TestCase):
             product=product,
             update_mask=None,
             project_id=PROJECT_ID_TEST,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         # Then
         assert result == MessageToDict(product)
         update_product_method.assert_called_once_with(
-            product=Product(name=explicit_p_name), metadata=None, retry=None, timeout=None, update_mask=None
+            product=Product(name=explicit_p_name), metadata=(), retry=DEFAULT, timeout=None, update_mask=None
         )
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -651,21 +644,18 @@ class TestGcpVisionHook(unittest.TestCase):
                 product=product,
                 update_mask=None,
                 project_id=PROJECT_ID_TEST,
-                retry=None,
+                retry=DEFAULT,
                 timeout=None,
-                metadata=None,
+                metadata=(),
             )
         err = ctx.value
         assert err
-        assert (
-            ERR_DIFF_NAMES.format(
-                explicit_name=explicit_p_name,
-                constructed_name=template_p_name,
-                label="Product",
-                id_label="product_id",
-            )
-            in str(err)
-        )
+        assert ERR_DIFF_NAMES.format(
+            explicit_name=explicit_p_name,
+            constructed_name=template_p_name,
+            label="Product",
+            id_label="product_id",
+        ) in str(err)
         update_product_method.assert_not_called()
 
     @mock.patch('airflow.providers.google.cloud.hooks.vision.CloudVisionHook.get_conn')
@@ -680,7 +670,7 @@ class TestGcpVisionHook(unittest.TestCase):
         )
         # Then
         assert response is None
-        delete_product_method.assert_called_once_with(name=name, retry=None, timeout=None, metadata=None)
+        delete_product_method.assert_called_once_with(name=name, retry=DEFAULT, timeout=None, metadata=())
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
     def test_detect_text(self, annotator_client_mock):
@@ -695,7 +685,7 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         detect_text_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
@@ -713,7 +703,12 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         detect_text_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+            image=DETECT_TEST_IMAGE,
+            max_results=None,
+            retry=DEFAULT,
+            timeout=None,
+            prop1="test1",
+            prop2="test2",
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
@@ -744,7 +739,7 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         document_text_detection_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
@@ -762,7 +757,12 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         document_text_detection_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+            image=DETECT_TEST_IMAGE,
+            max_results=None,
+            retry=DEFAULT,
+            timeout=None,
+            prop1="test1",
+            prop2="test2",
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
@@ -793,7 +793,7 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         label_detection_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
@@ -811,7 +811,12 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         label_detection_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+            image=DETECT_TEST_IMAGE,
+            max_results=None,
+            retry=DEFAULT,
+            timeout=None,
+            prop1="test1",
+            prop2="test2",
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
@@ -848,7 +853,7 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         safe_search_detection_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None
+            image=DETECT_TEST_IMAGE, max_results=None, retry=DEFAULT, timeout=None
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")
@@ -872,7 +877,12 @@ class TestGcpVisionHook(unittest.TestCase):
 
         # Then
         safe_search_detection_method.assert_called_once_with(
-            image=DETECT_TEST_IMAGE, max_results=None, retry=None, timeout=None, prop1="test1", prop2="test2"
+            image=DETECT_TEST_IMAGE,
+            max_results=None,
+            retry=DEFAULT,
+            timeout=None,
+            prop1="test1",
+            prop2="test2",
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.vision.CloudVisionHook.annotator_client")

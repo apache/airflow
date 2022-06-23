@@ -144,7 +144,6 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
     """Copy data from TrinoDB to Google Cloud Storage in JSON or CSV format.
 
     :param trino_conn_id: Reference to a specific Trino hook.
-    :type trino_conn_id: str
     """
 
     ui_color = "#a0e08c"
@@ -196,13 +195,11 @@ class TrinoToGCSOperator(BaseSQLToGCSOperator):
 
         return {"name": field[0], "type": new_field_type}
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, **kwargs):
         """
         Do nothing. Trino uses JSON on the transport layer, so types are simple.
 
         :param value: Trino column value
-        :type value: Any
         :param schema_type: BigQuery data type
-        :type schema_type: str
         """
         return value

@@ -29,20 +29,27 @@ First you must install sentry requirement:
 
    pip install 'apache-airflow[sentry]'
 
-After that, you need to enable the integration by set ``sentry_on`` option in ``[sentry]`` section to ``"True"``.
+After that, you need to enable the integration by setting the ``sentry_on`` option in the ``[sentry]`` section to ``True``.
 
-Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` in ``[sentry]`` section. Its template resembles the following: ``'{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}'``
+Add your ``SENTRY_DSN`` to your configuration file e.g. ``airflow.cfg`` in ``[sentry]`` section. Its template resembles the following: ``{PROTOCOL}://{PUBLIC_KEY}@{HOST}/{PROJECT_ID}``
 
 .. code-block:: ini
 
     [sentry]
+    sentry_on = True
     sentry_dsn = http://foo@sentry.io/123
 
 .. note::
     If this value is not provided, the SDK will try to read it from the ``SENTRY_DSN`` environment variable.
 
-You can supply `additional configuration options <https://docs.sentry.io/platforms/python/configuration/options>`__ based on the Python platform via ``[sentry]`` section.
-Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``, ``before_send``, ``transport``.
+The ``before_send`` option can be used to modify or drop events before they are sent to Sentry. To set this option, provide a dotted path to a before_send function that the sentry SDK should be configured to use.
+
+.. code-block:: ini
+
+    [sentry]
+    before_send = path.to.my.sentry.before_send
+
+You can supply `additional configuration options <https://docs.sentry.io/platforms/python/configuration/options>`__ based on the Python platform via ``[sentry]`` section. Unsupported options: ``integrations``, ``in_app_include``, ``in_app_exclude``, ``ignore_errors``, ``before_breadcrumb``, ``transport``.
 
 Tags
 -----
@@ -80,7 +87,7 @@ Name                                    Description
 Impact of Sentry on Environment variables passed to Subprocess Hook
 -------------------------------------------------------------------
 
-When Sentry is enabled, by default it changes standard library to pass all environment variables to
+When Sentry is enabled, by default it changes the standard library to pass all environment variables to
 subprocesses opened by Airflow. This changes the default behaviour of
 :class:`airflow.hooks.subprocess.SubprocessHook` - always all environment variables are passed to the
 subprocess executed with specific set of environment variables. In this case not only the specified

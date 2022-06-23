@@ -34,12 +34,10 @@ class GetTaskRunner(unittest.TestCase):
     @mock.patch('airflow.task.task_runner.base_task_runner.subprocess')
     @mock.patch('airflow.task.task_runner._TASK_RUNNER_NAME', "StandardTaskRunner")
     def test_should_support_core_task_runner(self, mock_subprocess):
-        local_task_job = mock.MagicMock(
-            **{
-                'task_instance.get_template_context.return_value': {"ti": mock.MagicMock()},
-                'task_instance.run_as_user': None,
-            }
-        )
+        ti = mock.MagicMock(map_index=-1, run_as_user=None)
+        ti.get_template_context.return_value = {"ti": ti}
+        ti.get_dagrun.return_value.get_log_template.return_value.filename = "blah"
+        local_task_job = mock.MagicMock(task_instance=ti)
         task_runner = get_task_runner(local_task_job)
 
         assert "StandardTaskRunner" == task_runner.__class__.__name__

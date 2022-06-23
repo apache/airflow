@@ -25,9 +25,7 @@ metadata:
   name: dummy-name
 spec:
   containers:
-    - args: []
-      command: []
-      env:
+    - env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: LocalExecutor
         # Hard Coded Airflow Envs
@@ -36,7 +34,7 @@ spec:
             secretKeyRef:
               name: RELEASE-NAME-fernet-key
               key: fernet-key
-        - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
               name: RELEASE-NAME-airflow-metadata
@@ -46,32 +44,26 @@ spec:
             secretKeyRef:
               name: RELEASE-NAME-airflow-metadata
               key: connection
-      envFrom: []
       image: dummy_image
       imagePullPolicy: IfNotPresent
       name: base
-      ports: []
       volumeMounts:
         - mountPath: "/opt/airflow/logs"
           name: airflow-logs
         - mountPath: /opt/airflow/dags
           name: airflow-dags
           readOnly: true
-          subPath: repo/tests/dags
-  hostNetwork: false
+        - mountPath: /opt/airflow/airflow.cfg
+          name: airflow-config
+          readOnly: true
+          subPath: airflow.cfg
   restartPolicy: Never
   securityContext:
     runAsUser: 50000
     fsGroup: 50000
-  nodeSelector:
-    {}
-  affinity:
-    {}
-  tolerations:
-    []
-  serviceAccountName: 'RELEASE-NAME-worker-serviceaccount'
+  serviceAccountName: "RELEASE-NAME-worker-serviceaccount"
   volumes:
-    - name: dags
+    - name: airflow-dags
       persistentVolumeClaim:
         claimName: RELEASE-NAME-dags
     - emptyDir: {}
@@ -79,7 +71,4 @@ spec:
     - configMap:
         name: RELEASE-NAME-airflow-config
       name: airflow-config
-    - configMap:
-        name: RELEASE-NAME-airflow-config
-      name: airflow-local-settings
 # [END template_with_dags_in_volume]

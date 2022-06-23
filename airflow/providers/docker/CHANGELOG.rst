@@ -16,8 +16,140 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Misc
+~~~~
+
+* ``Remove 'xcom_push' from 'DockerOperator' (#23981)``
+* ``docker new system test (#23167)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+2.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'device_requests' parameter to 'DockerOperator' (#23554)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix new MyPy errors in main (#22884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add timeout parameter to 'DockerOperator' (#22502)``
+
+2.5.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+Misc
+~~~~
+
+* ``Correct 'multiple_outputs' param descriptions mentioning lists/tuples (#22371)``
+
+2.5.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Avoid trying to kill container when it did not succeed for Docker (#22145)``
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``added docker network_mode options (#21986)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change default python executable to python3 for docker decorator (#21973)``
+   * ``Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378) (#21875)``
+   * ``Revert "Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378)" (#21874)``
+   * ``Switch to Debian 11 (bullseye) as base for our dockerfiles (#21378)``
+
+2.4.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fixes Docker xcom functionality (#21175)``
+* ``Fix docker behaviour with byte lines returned (#21429)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add optional features in providers. (#21074)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Rewrite the task decorator as a composition (#20868)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow DockerOperator's image to be templated (#19997)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix mypy docker provider (#20235)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Remove remaining 'pylint: disable' comments (#19541)``
+   * ``Fix MyPy errors for Airflow decorators (#20034)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.3.0
 .....

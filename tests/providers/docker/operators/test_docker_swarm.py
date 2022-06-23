@@ -21,6 +21,7 @@ from unittest import mock
 
 import pytest
 from docker import APIClient, types
+from docker.constants import DEFAULT_TIMEOUT_SECONDS
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -96,7 +97,7 @@ class TestDockerSwarmOperator(unittest.TestCase):
         types_mock.Resources.assert_called_once_with(mem_limit='128m')
 
         client_class_mock.assert_called_once_with(
-            base_url='unix://var/run/docker.sock', tls=None, version='1.19'
+            base_url='unix://var/run/docker.sock', tls=None, version='1.19', timeout=DEFAULT_TIMEOUT_SECONDS
         )
 
         client_mock.service_logs.assert_called_once_with(

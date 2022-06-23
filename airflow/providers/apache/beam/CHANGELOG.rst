@@ -16,8 +16,102 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Added missing project_id to the wait_for_job (#24020)``
+* ``Support impersonation service account parameter for Dataflow runner (#23961)``
+
+Misc
+~~~~
+
+* ``chore: Refactoring and Cleaning Apache Providers (#24219)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``AIP-47 - Migrate beam DAGs to new design #22439 (#24211)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support serviceAccount attr for dataflow in the Apache beam``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+3.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add recipe for BeamRunGoPipelineOperator (#22296)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+3.2.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+3.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for BeamGoPipelineOperator (#20386)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix mypy apache beam operators (#20610)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix MyPy Errors for Apache Beam (and Dataflow) provider. (#20301)``
+   * ``Fix broken anchors markdown files (#19847)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Dataflow Assets (#21639)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Update documentation for November 2021 provider's release (#19882)``
+   * ``Cleanup of start_date and default arg use for Apache example DAGs (#18657)``
 
 3.1.0
 .....

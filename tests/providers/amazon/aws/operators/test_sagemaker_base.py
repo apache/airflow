@@ -17,7 +17,7 @@
 
 import unittest
 
-from airflow.providers.amazon.aws.operators.sagemaker_base import SageMakerBaseOperator
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerBaseOperator
 
 config = {'key1': '1', 'key2': {'key3': '3', 'key4': '4'}, 'key5': [{'key6': '6'}, {'key6': '7'}]}
 
@@ -26,9 +26,7 @@ parsed_config = {'key1': 1, 'key2': {'key3': 3, 'key4': 4}, 'key5': [{'key6': 6}
 
 class TestSageMakerBaseOperator(unittest.TestCase):
     def setUp(self):
-        self.sagemaker = SageMakerBaseOperator(
-            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', config=config
-        )
+        self.sagemaker = SageMakerBaseOperator(task_id='test_sagemaker_operator', config=config)
 
     def test_parse_integer(self):
         self.sagemaker.integer_fields = [['key1'], ['key2', 'key3'], ['key2', 'key4'], ['key5', 'key6']]

@@ -21,6 +21,7 @@ from pathlib import Path
 from subprocess import PIPE, STDOUT
 from tempfile import TemporaryDirectory
 from unittest import mock
+from unittest.mock import MagicMock
 
 from parameterized import parameterized
 
@@ -77,14 +78,11 @@ class TestSubprocessHook(unittest.TestCase):
     @mock.patch.dict('os.environ', clear=True)
     @mock.patch(
         "airflow.hooks.subprocess.TemporaryDirectory",
-        **{'return_value.__enter__.return_value': '/tmp/airflowtmpcatcat'},  # type: ignore
+        return_value=MagicMock(__enter__=MagicMock(return_value='/tmp/airflowtmpcatcat')),
     )
     @mock.patch(
         "airflow.hooks.subprocess.Popen",
-        **{  # type: ignore
-            'return_value.stdout.readline.side_effect': [b'BAR', b'BAZ'],
-            'return_value.returncode': 0,
-        },
+        return_value=MagicMock(stdout=MagicMock(readline=MagicMock(side_effect=StopIteration), returncode=0)),
     )
     def test_should_exec_subprocess(self, mock_popen, mock_temporary_directory):
         hook = SubprocessHook()
@@ -98,3 +96,9 @@ class TestSubprocessHook(unittest.TestCase):
             stderr=STDOUT,
             stdout=PIPE,
         )
+
+    def test_task_decode(self):
+        hook = SubprocessHook()
+        command = ['bash', '-c', 'printf "This will cause a coding error \\xb1\\xa6\\x01\n"']
+        result = hook.run_command(command=command)
+        assert result.exit_code == 0

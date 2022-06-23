@@ -127,7 +127,7 @@ class TestCreateEvaluateOps(unittest.TestCase):
 
         with patch('airflow.providers.google.cloud.utils.mlengine_operator_utils.GCSHook') as mock_gcs_hook:
             hook_instance = mock_gcs_hook.return_value
-            hook_instance.download.return_value = '{"err": 0.9, "count": 9}'
+            hook_instance.download.return_value = b'{"err": 0.9, "count": 9}'
             result = validate.execute({})
             hook_instance.download.assert_called_once_with(
                 'legal-bucket', 'fake-output-path/prediction.summary.json'

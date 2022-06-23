@@ -16,8 +16,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import datetime
 import unittest
 from unittest import mock
+
+from parameterized import parameterized
 
 from airflow import PY38
 
@@ -50,6 +53,28 @@ SCHEMA_JSON = [
 
 @unittest.skipIf(PY38, "Mssql package not available when Python >= 3.8.")
 class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
+    @parameterized.expand(
+        [
+            ("string", "string"),
+            (32.9, 32.9),
+            (-2, -2),
+            (datetime.date(1970, 1, 2), "1970-01-02"),
+            (datetime.date(1000, 1, 2), "1000-01-02"),
+            (datetime.datetime(1970, 1, 1, 1, 0), "1970-01-01T01:00:00"),
+            (datetime.time(hour=0, minute=0, second=0), "00:00:00"),
+            (datetime.time(hour=23, minute=59, second=59), "23:59:59"),
+        ]
+    )
+    def test_convert_type(self, value, expected):
+        op = MSSQLToGCSOperator(
+            task_id=TASK_ID,
+            mssql_conn_id=MSSQL_CONN_ID,
+            sql=SQL,
+            bucket=BUCKET,
+            filename=JSON_FILENAME,
+        )
+        assert op.convert_type(value, None) == expected
+
     def test_init(self):
         """Test MySqlToGoogleCloudStorageOperator instance is properly initialized."""
         op = MSSQLToGCSOperator(task_id=TASK_ID, sql=SQL, bucket=BUCKET, filename=JSON_FILENAME)
@@ -72,7 +97,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert JSON_FILENAME.format(0) == obj
             assert 'application/json' == mime_type
@@ -101,7 +126,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert 'application/json' == mime_type
             assert GZIP == gzip
@@ -129,7 +154,7 @@ class TestMsSqlToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
                     assert b''.join(SCHEMA_JSON) == file.read()

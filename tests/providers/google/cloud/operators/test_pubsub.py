@@ -20,6 +20,7 @@ import unittest
 from typing import Any, Dict, List
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.pubsub_v1.types import ReceivedMessage
 
 from airflow.providers.google.cloud.operators.pubsub import (
@@ -57,9 +58,9 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             labels=None,
             message_storage_policy=None,
             kms_key_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch('airflow.providers.google.cloud.operators.pubsub.PubSubHook')
@@ -76,9 +77,9 @@ class TestPubSubTopicCreateOperator(unittest.TestCase):
             labels=None,
             message_storage_policy=None,
             kms_key_name=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -92,9 +93,9 @@ class TestPubSubTopicDeleteOperator(unittest.TestCase):
             project_id=TEST_PROJECT,
             topic=TEST_TOPIC,
             fail_if_not_exists=False,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 
@@ -122,9 +123,9 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             filter_=None,
             dead_letter_policy=None,
             retry_policy=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert response == TEST_SUBSCRIPTION
 
@@ -156,9 +157,9 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             filter_=None,
             dead_letter_policy=None,
             retry_policy=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert response == TEST_SUBSCRIPTION
 
@@ -185,9 +186,9 @@ class TestPubSubSubscriptionCreateOperator(unittest.TestCase):
             filter_=None,
             dead_letter_policy=None,
             retry_policy=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         assert response == TEST_SUBSCRIPTION
 
@@ -204,9 +205,9 @@ class TestPubSubSubscriptionDeleteOperator(unittest.TestCase):
             project_id=TEST_PROJECT,
             subscription=TEST_SUBSCRIPTION,
             fail_if_not_exists=False,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
 

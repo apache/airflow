@@ -22,9 +22,10 @@ This module contains various Google Cloud DLP operators
 which allow you to perform basic operations using
 Cloud DLP.
 """
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Tuple, Union
 
 from google.api_core.exceptions import AlreadyExists, InvalidArgument, NotFound
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.dlp_v2.types import (
     ByteContentItem,
@@ -45,6 +46,9 @@ from google.protobuf.json_format import MessageToDict
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dlp import CloudDLPHook
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class CloudDLPCancelDLPJobOperator(BaseOperator):
     """
@@ -55,22 +59,16 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPCancelDLPJobOperator`
 
     :param dlp_job_id: ID of the DLP job resource to be cancelled.
-    :type dlp_job_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default project_id
         from the Google Cloud connection is used.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -79,10 +77,9 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -94,9 +91,9 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         *,
         dlp_job_id: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -110,7 +107,7 @@ class CloudDLPCancelDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -135,26 +132,18 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param deidentify_template: (Optional) The DeidentifyTemplate to create.
-    :type deidentify_template: dict or google.cloud.dlp_v2.types.DeidentifyTemplate
     :param template_id: (Optional) The template ID.
-    :type template_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -163,12 +152,11 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "deidentify_template",
@@ -184,9 +172,9 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         deidentify_template: Optional[Union[Dict, DeidentifyTemplate]] = None,
         template_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -202,7 +190,7 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -218,6 +206,8 @@ class CloudDLPCreateDeidentifyTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.template_id is None:
+                raise RuntimeError("The template_id should be set here!")
             template = hook.get_deidentify_template(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -241,27 +231,18 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param inspect_job: (Optional) The configuration for the inspect job.
-    :type inspect_job: dict or google.cloud.dlp_v2.types.InspectJobConfig
     :param risk_job: (Optional) The configuration for the risk job.
-    :type risk_job: dict or google.cloud.dlp_v2.types.RiskAnalysisJobConfig
     :param job_id: (Optional) The job ID.
-    :type job_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param wait_until_finished: (Optional) If true, it will keep polling the job state
         until it is set to DONE.
-    :type wait_until_finished: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -270,12 +251,11 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_job",
         "risk_job",
@@ -291,9 +271,9 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         inspect_job: Optional[Union[Dict, InspectJobConfig]] = None,
         risk_job: Optional[Union[Dict, RiskAnalysisJobConfig]] = None,
         job_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         wait_until_finished: bool = True,
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -311,7 +291,7 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -328,6 +308,8 @@ class CloudDLPCreateDLPJobOperator(BaseOperator):
                 wait_until_finished=self.wait_until_finished,
             )
         except AlreadyExists:
+            if self.job_id is None:
+                raise RuntimeError("The job_id must be set here!")
             job = hook.get_dlp_job(
                 project_id=self.project_id,
                 dlp_job_id=self.job_id,
@@ -349,26 +331,18 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param inspect_template: (Optional) The InspectTemplate to create.
-    :type inspect_template: dict or google.cloud.dlp_v2.types.InspectTemplate
     :param template_id: (Optional) The template ID.
-    :type template_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -377,12 +351,11 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "inspect_template",
@@ -397,10 +370,10 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
         inspect_template: Optional[InspectTemplate] = None,
-        template_id: Optional[Union[Dict, InspectTemplate]] = None,
-        retry: Optional[Retry] = None,
+        template_id: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -416,7 +389,7 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -432,6 +405,8 @@ class CloudDLPCreateInspectTemplateOperator(BaseOperator):
                 metadata=self.metadata,
             )
         except AlreadyExists:
+            if self.template_id is None:
+                raise RuntimeError("The template_id should be set here!")
             template = hook.get_inspect_template(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -455,22 +430,15 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param job_trigger: (Optional) The JobTrigger to create.
-    :type job_trigger: dict or google.cloud.dlp_v2.types.JobTrigger
     :param trigger_id: (Optional) The JobTrigger ID.
-    :type trigger_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -479,12 +447,11 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "job_trigger",
         "trigger_id",
@@ -498,9 +465,9 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         project_id: Optional[str] = None,
         job_trigger: Optional[Union[Dict, JobTrigger]] = None,
         trigger_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -515,7 +482,7 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -532,6 +499,8 @@ class CloudDLPCreateJobTriggerOperator(BaseOperator):
         except InvalidArgument as e:
             if "already in use" not in e.message:
                 raise
+            if self.trigger_id is None:
+                raise RuntimeError("The trigger_id should be set here!")
             trigger = hook.get_job_trigger(
                 project_id=self.project_id,
                 job_trigger_id=self.trigger_id,
@@ -552,26 +521,18 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param config: (Optional) The config for the StoredInfoType.
-    :type config: dict or google.cloud.dlp_v2.types.StoredInfoTypeConfig
     :param stored_info_type_id: (Optional) The StoredInfoType ID.
-    :type stored_info_type_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -580,12 +541,11 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "config",
@@ -601,9 +561,9 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         project_id: Optional[str] = None,
         config: Optional[StoredInfoTypeConfig] = None,
         stored_info_type_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -619,7 +579,7 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -637,6 +597,8 @@ class CloudDLPCreateStoredInfoTypeOperator(BaseOperator):
         except InvalidArgument as e:
             if "already exists" not in e.message:
                 raise
+            if self.stored_info_type_id is None:
+                raise RuntimeError("The stored_info_type_id should be set here!")
             info = hook.get_stored_info_type(
                 organization_id=self.organization_id,
                 project_id=self.project_id,
@@ -660,34 +622,24 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param deidentify_config: (Optional) Configuration for the de-identification of the
         content item. Items specified here will override the template referenced by the
         deidentify_template_name argument.
-    :type deidentify_config: dict or google.cloud.dlp_v2.types.DeidentifyConfig
     :param inspect_config: (Optional) Configuration for the inspector. Items specified
         here will override the template referenced by the inspect_template_name argument.
-    :type inspect_config: dict or google.cloud.dlp_v2.types.InspectConfig
     :param item: (Optional) The item to de-identify. Will be treated as text.
-    :type item: dict or google.cloud.dlp_v2.types.ContentItem
     :param inspect_template_name: (Optional) Optional template to use. Any configuration
         directly specified in inspect_config will override those set in the template.
-    :type inspect_template_name: str
     :param deidentify_template_name: (Optional) Optional template to use. Any
         configuration directly specified in deidentify_config will override those set
         in the template.
-    :type deidentify_template_name: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -696,12 +648,11 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.DeidentifyContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "deidentify_config",
         "inspect_config",
@@ -721,9 +672,9 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         item: Optional[Union[Dict, ContentItem]] = None,
         inspect_template_name: Optional[str] = None,
         deidentify_template_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -741,7 +692,7 @@ class CloudDLPDeidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> dict:
+    def execute(self, context: 'Context') -> dict:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -769,25 +720,18 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPDeleteDeidentifyTemplateOperator`
 
     :param template_id: The ID of deidentify template to be deleted.
-    :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -796,10 +740,9 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -813,9 +756,9 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -830,7 +773,7 @@ class CloudDLPDeleteDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -858,22 +801,16 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPDeleteDLPJobOperator`
 
     :param dlp_job_id: The ID of the DLP job resource to be cancelled.
-    :type dlp_job_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -882,10 +819,9 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -897,9 +833,9 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         *,
         dlp_job_id: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -913,7 +849,7 @@ class CloudDLPDeleteDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -939,25 +875,18 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPDeleteInspectTemplateOperator`
 
     :param template_id: The ID of the inspect template to be deleted.
-    :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -966,10 +895,9 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -983,9 +911,9 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1000,7 +928,7 @@ class CloudDLPDeleteInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1027,22 +955,16 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPDeleteJobTriggerOperator`
 
     :param job_trigger_id: The ID of the DLP job trigger to be deleted.
-    :type job_trigger_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1051,10 +973,9 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "gcp_conn_id",
@@ -1066,9 +987,9 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         *,
         job_trigger_id: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1082,7 +1003,7 @@ class CloudDLPDeleteJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1108,25 +1029,18 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPDeleteStoredInfoTypeOperator`
 
     :param stored_info_type_id: The ID of the stored info type to be deleted.
-    :type stored_info_type_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1135,10 +1049,9 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -1152,9 +1065,9 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         stored_info_type_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1169,7 +1082,7 @@ class CloudDLPDeleteStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1196,25 +1109,18 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPGetDeidentifyTemplateOperator`
 
     :param template_id: The ID of deidentify template to be read.
-    :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1223,12 +1129,11 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1242,9 +1147,9 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1259,7 +1164,7 @@ class CloudDLPGetDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1284,22 +1189,16 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPGetDLPJobOperator`
 
     :param dlp_job_id: The ID of the DLP job resource to be read.
-    :type dlp_job_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1308,12 +1207,11 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.DlpJob
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "dlp_job_id",
         "project_id",
         "gcp_conn_id",
@@ -1325,9 +1223,9 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         *,
         dlp_job_id: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1341,7 +1239,7 @@ class CloudDLPGetDLPJobOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1365,25 +1263,18 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPGetInspectTemplateOperator`
 
     :param template_id: The ID of inspect template to be read.
-    :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1392,12 +1283,11 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -1411,9 +1301,9 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         template_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1428,7 +1318,7 @@ class CloudDLPGetInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1453,22 +1343,16 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPGetDLPJobTriggerOperator`
 
     :param job_trigger_id: The ID of the DLP job trigger to be read.
-    :type job_trigger_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1477,12 +1361,11 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.JobTrigger
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "gcp_conn_id",
@@ -1494,9 +1377,9 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         *,
         job_trigger_id: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1510,7 +1393,7 @@ class CloudDLPGetDLPJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1534,25 +1417,18 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPGetStoredInfoTypeOperator`
 
     :param stored_info_type_id: The ID of the stored info type to be read.
-    :type stored_info_type_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1561,12 +1437,11 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -1580,9 +1455,9 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         stored_info_type_id: str,
         organization_id: Optional[str] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1597,7 +1472,7 @@ class CloudDLPGetStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1625,26 +1500,18 @@ class CloudDLPInspectContentOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param inspect_config: (Optional) Configuration for the inspector. Items specified
         here will override the template referenced by the inspect_template_name argument.
-    :type inspect_config: dict or google.cloud.dlp_v2.types.InspectConfig
     :param item: (Optional) The item to de-identify. Will be treated as text.
-    :type item: dict or google.cloud.dlp_v2.types.ContentItem
     :param inspect_template_name: (Optional) Optional template to use. Any configuration
         directly specified in inspect_config will override those set in the template.
-    :type inspect_template_name: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1653,12 +1520,11 @@ class CloudDLPInspectContentOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.tasks_v2.types.InspectContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_config",
         "item",
@@ -1674,9 +1540,9 @@ class CloudDLPInspectContentOperator(BaseOperator):
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
         item: Optional[Union[Dict, ContentItem]] = None,
         inspect_template_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1692,7 +1558,7 @@ class CloudDLPInspectContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1719,28 +1585,20 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
-    :type page_size: int
     :param order_by: (Optional) Optional comma separated list of fields to order by,
         followed by asc or desc postfix.
-    :type order_by: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1749,12 +1607,11 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: list[google.cloud.dlp_v2.types.DeidentifyTemplate]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -1768,9 +1625,9 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1786,7 +1643,7 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1800,7 +1657,8 @@ class CloudDLPListDeidentifyTemplatesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(template)
+        # the MessageToDict does not have the right type defined as possible to pass in constructor
+        return MessageToDict(template)  # type: ignore[arg-type]
 
 
 class CloudDLPListDLPJobsOperator(BaseOperator):
@@ -1814,28 +1672,19 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param results_filter: (Optional) Filter used to specify a subset of results.
-    :type results_filter: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
-    :type page_size: int
     :param job_type: (Optional) The type of job.
-    :type job_type: str
     :param order_by: (Optional) Optional comma separated list of fields to order by,
         followed by asc or desc postfix.
-    :type order_by: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1844,12 +1693,11 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: list[google.cloud.dlp_v2.types.DlpJob]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "gcp_conn_id",
         "impersonation_chain",
@@ -1863,9 +1711,9 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         page_size: Optional[int] = None,
         job_type: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1882,7 +1730,7 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1897,7 +1745,8 @@ class CloudDLPListDLPJobsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        return MessageToDict(job)
+        # the MessageToDict does not have the right type defined as possible to pass in constructor
+        return MessageToDict(job)  # type: ignore[arg-type]
 
 
 class CloudDLPListInfoTypesOperator(BaseOperator):
@@ -1911,20 +1760,14 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
     :param language_code: (Optional) Optional BCP-47 language code for localized infoType
         friendly names. If omitted, or if localized strings are not available, en-US
         strings will be returned.
-    :type language_code: str
     :param results_filter: (Optional) Filter used to specify a subset of results.
-    :type results_filter: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -1933,12 +1776,11 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: ListInfoTypesResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "language_code",
         "gcp_conn_id",
         "impersonation_chain",
@@ -1949,9 +1791,9 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         *,
         language_code: Optional[str] = None,
         results_filter: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -1965,7 +1807,7 @@ class CloudDLPListInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -1990,28 +1832,20 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
-    :type page_size: int
     :param order_by: (Optional) Optional comma separated list of fields to order by,
         followed by asc or desc postfix.
-    :type order_by: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2020,12 +1854,11 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: list[google.cloud.dlp_v2.types.InspectTemplate]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -2039,9 +1872,9 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2057,7 +1890,7 @@ class CloudDLPListInspectTemplatesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2085,26 +1918,18 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
-    :type page_size: int
     :param order_by: (Optional) Optional comma separated list of fields to order by,
         followed by asc or desc postfix.
-    :type order_by: str
     :param results_filter: (Optional) Filter used to specify a subset of results.
-    :type results_filter: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2113,12 +1938,11 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: list[google.cloud.dlp_v2.types.JobTrigger]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "gcp_conn_id",
         "impersonation_chain",
@@ -2131,9 +1955,9 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
         results_filter: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2149,7 +1973,7 @@ class CloudDLPListJobTriggersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2176,28 +2000,20 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
 
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param page_size: (Optional) The maximum number of resources contained in the
         underlying API response.
-    :type page_size: int
     :param order_by: (Optional) Optional comma separated list of fields to order by,
         followed by asc or desc postfix.
-    :type order_by: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2206,12 +2022,11 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: list[google.cloud.dlp_v2.types.StoredInfoType]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "organization_id",
         "project_id",
         "gcp_conn_id",
@@ -2225,9 +2040,9 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         project_id: Optional[str] = None,
         page_size: Optional[int] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2243,7 +2058,7 @@ class CloudDLPListStoredInfoTypesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2272,30 +2087,20 @@ class CloudDLPRedactImageOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param inspect_config: (Optional) Configuration for the inspector. Items specified
         here will override the template referenced by the inspect_template_name argument.
-    :type inspect_config: dict or google.cloud.dlp_v2.types.InspectConfig
     :param image_redaction_configs: (Optional) The configuration for specifying what
         content to redact from images.
-    :type image_redaction_configs: list[dict] or
-        list[google.cloud.dlp_v2.types.RedactImageRequest.ImageRedactionConfig]
     :param include_findings: (Optional) Whether the response should include findings
         along with the redacted image.
-    :type include_findings: bool
     :param byte_item: (Optional) The content must be PNG, JPEG, SVG or BMP.
-    :type byte_item: dict or google.cloud.dlp_v2.types.ByteContentItem
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2304,12 +2109,11 @@ class CloudDLPRedactImageOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.RedactImageResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "inspect_config",
         "image_redaction_configs",
@@ -2324,12 +2128,14 @@ class CloudDLPRedactImageOperator(BaseOperator):
         *,
         project_id: Optional[str] = None,
         inspect_config: Optional[Union[Dict, InspectConfig]] = None,
-        image_redaction_configs: Optional[Union[Dict, RedactImageRequest.ImageRedactionConfig]] = None,
+        image_redaction_configs: Optional[
+            Union[List[dict], List[RedactImageRequest.ImageRedactionConfig]]
+        ] = None,
         include_findings: Optional[bool] = None,
         byte_item: Optional[Union[Dict, ByteContentItem]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2346,7 +2152,7 @@ class CloudDLPRedactImageOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2375,32 +2181,22 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param reidentify_config: (Optional) Configuration for the re-identification of
         the content item.
-    :type reidentify_config: dict or google.cloud.dlp_v2.types.DeidentifyConfig
     :param inspect_config: (Optional) Configuration for the inspector.
-    :type inspect_config: dict or google.cloud.dlp_v2.types.InspectConfig
     :param item: (Optional) The item to re-identify. Will be treated as text.
-    :type item: dict or google.cloud.dlp_v2.types.ContentItem
     :param inspect_template_name: (Optional) Optional template to use. Any configuration
         directly specified in inspect_config will override those set in the template.
-    :type inspect_template_name: str
     :param reidentify_template_name: (Optional) Optional template to use. References an
         instance of DeidentifyTemplate. Any configuration directly specified in
         reidentify_config or inspect_config will override those set in the template.
-    :type reidentify_template_name: str
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2409,12 +2205,11 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.ReidentifyContentResponse
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "project_id",
         "reidentify_config",
         "inspect_config",
@@ -2434,9 +2229,9 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         item: Optional[Union[Dict, ContentItem]] = None,
         inspect_template_name: Optional[str] = None,
         reidentify_template_name: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2454,7 +2249,7 @@ class CloudDLPReidentifyContentOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2482,29 +2277,20 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPUpdateDeidentifyTemplateOperator`
 
     :param template_id: The ID of deidentify template to be updated.
-    :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param deidentify_template: New DeidentifyTemplate value.
-    :type deidentify_template: dict or google.cloud.dlp_v2.types.DeidentifyTemplate
     :param update_mask: Mask to control which fields get updated.
-    :type update_mask: dict or google.cloud.dlp_v2.types.FieldMask
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2513,12 +2299,11 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.DeidentifyTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -2536,9 +2321,9 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         deidentify_template: Optional[Union[Dict, DeidentifyTemplate]] = None,
         update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2555,7 +2340,7 @@ class CloudDLPUpdateDeidentifyTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2582,29 +2367,20 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPUpdateInspectTemplateOperator`
 
     :param template_id: The ID of the inspect template to be updated.
-    :type template_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param inspect_template: New InspectTemplate value.
-    :type inspect_template: dict or google.cloud.dlp_v2.types.InspectTemplate
     :param update_mask: Mask to control which fields get updated.
-    :type update_mask: dict or google.cloud.dlp_v2.types.FieldMask
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2613,12 +2389,11 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "template_id",
         "organization_id",
         "project_id",
@@ -2636,9 +2411,9 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         project_id: Optional[str] = None,
         inspect_template: Optional[Union[Dict, InspectTemplate]] = None,
         update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2655,7 +2430,7 @@ class CloudDLPUpdateInspectTemplateOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2682,26 +2457,18 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPUpdateJobTriggerOperator`
 
     :param job_trigger_id: The ID of the DLP job trigger to be updated.
-    :type job_trigger_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. If set to None or missing, the default
         project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param job_trigger: New JobTrigger value.
-    :type job_trigger: dict or google.cloud.dlp_v2.types.JobTrigger
     :param update_mask: Mask to control which fields get updated.
-    :type update_mask: dict or google.cloud.dlp_v2.types.FieldMask
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2710,12 +2477,11 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.InspectTemplate
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "job_trigger_id",
         "project_id",
         "job_trigger",
@@ -2731,9 +2497,9 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         project_id: Optional[str] = None,
         job_trigger: Optional[JobTrigger] = None,
         update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2749,7 +2515,7 @@ class CloudDLPUpdateJobTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -2775,30 +2541,21 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         :ref:`howto/operator:CloudDLPUpdateStoredInfoTypeOperator`
 
     :param stored_info_type_id: The ID of the stored info type to be updated.
-    :type stored_info_type_id: str
     :param organization_id: (Optional) The organization ID. Required to set this
         field if parent resource is an organization.
-    :type organization_id: str
     :param project_id: (Optional) Google Cloud project ID where the
         DLP Instance exists. Only set this field if the parent resource is
         a project instead of an organization.
-    :type project_id: str
     :param config: Updated configuration for the storedInfoType. If not provided, a new
         version of the storedInfoType will be created with the existing configuration.
-    :type config: dict or google.cloud.dlp_v2.types.StoredInfoTypeConfig
     :param update_mask: Mask to control which fields get updated.
-    :type update_mask: dict or google.cloud.dlp_v2.types.FieldMask
     :param retry: (Optional) A retry object used to retry requests.
         If None is specified, requests will not be retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: (Optional) The amount of time, in seconds, to wait for the request
         to complete. Note that if retry is specified, the timeout applies to each
         individual attempt.
-    :type timeout: float
     :param metadata: (Optional) Additional metadata that is provided to the method.
-    :type metadata: sequence[tuple[str, str]]]
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -2807,12 +2564,11 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     :rtype: google.cloud.dlp_v2.types.StoredInfoType
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         "stored_info_type_id",
         "organization_id",
         "project_id",
@@ -2830,9 +2586,9 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         project_id: Optional[str] = None,
         config: Optional[Union[Dict, StoredInfoTypeConfig]] = None,
         update_mask: Optional[Union[Dict, FieldMask]] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -2849,7 +2605,7 @@ class CloudDLPUpdateStoredInfoTypeOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudDLPHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

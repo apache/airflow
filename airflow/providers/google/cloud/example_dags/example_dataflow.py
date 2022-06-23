@@ -20,6 +20,7 @@
 Example Airflow DAG for Google Cloud Dataflow service
 """
 import os
+from datetime import datetime
 from typing import Callable, Dict, List
 from urllib.parse import urlparse
 
@@ -41,7 +42,8 @@ from airflow.providers.google.cloud.sensors.dataflow import (
     DataflowJobStatusSensor,
 )
 from airflow.providers.google.cloud.transfers.gcs_to_local import GCSToLocalFilesystemOperator
-from airflow.utils.dates import days_ago
+
+START_DATE = datetime(2021, 1, 1)
 
 GCS_TMP = os.environ.get('GCP_DATAFLOW_GCS_TMP', 'gs://INVALID BUCKET NAME/temp/')
 GCS_STAGING = os.environ.get('GCP_DATAFLOW_GCS_STAGING', 'gs://INVALID BUCKET NAME/staging/')
@@ -63,7 +65,8 @@ default_args = {
 with models.DAG(
     "example_gcp_dataflow_native_java",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     tags=['example'],
 ) as dag_native_java:
 
@@ -110,7 +113,8 @@ with models.DAG(
 with models.DAG(
     "example_gcp_dataflow_native_python",
     default_args=default_args,
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_native_python:
@@ -145,7 +149,8 @@ with models.DAG(
 with models.DAG(
     "example_gcp_dataflow_native_python_async",
     default_args=default_args,
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_native_python_async:
@@ -246,7 +251,8 @@ with models.DAG(
 with models.DAG(
     "example_gcp_dataflow_template",
     default_args=default_args,
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
     schedule_interval='@once',  # Override to match your needs
     tags=['example'],
 ) as dag_template:

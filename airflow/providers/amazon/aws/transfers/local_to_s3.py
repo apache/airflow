@@ -15,31 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class LocalFilesystemToS3Operator(BaseOperator):
     """
     Uploads a file from a local filesystem to Amazon S3.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:LocalFilesystemToS3Operator`
+
     :param filename: Path to the local file. Path can be either absolute
             (e.g. /path/to/file.ext) or relative (e.g. ../../foo/*/*.csv). (templated)
-    :type filename: str
     :param dest_key: The key of the object to copy to. (templated)
 
         It can be either full s3:// style url or relative path from root level.
 
-        When it's specified as a full s3:// url, including dest_bucket results in a TypeError.
-    :type dest_key: str
+        When it's specified as a full s3:// url, please omit `dest_bucket`.
     :param dest_bucket: Name of the S3 bucket to where the object is copied. (templated)
-
-        Inclusion when `dest_key` is provided as a full s3:// url results in a TypeError.
-    :type dest_bucket: str
     :param aws_conn_id: Connection id of the S3 connection to use
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
 
@@ -51,22 +52,17 @@ class LocalFilesystemToS3Operator(BaseOperator):
         - path/to/cert/bundle.pem: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param replace: A flag to decide whether or not to overwrite the key
             if it already exists. If replace is False and the key exists, an
             error will be raised.
-    :type replace: bool
     :param encrypt: If True, the file will be encrypted on the server-side
         by S3 and will be stored in an encrypted form while at rest in S3.
-    :type encrypt: bool
     :param gzip: If True, the file will be compressed locally
-    :type gzip: bool
     :param acl_policy: String specifying the canned ACL policy for the file being
         uploaded to the S3 bucket.
-    :type acl_policy: str
     """
 
-    template_fields = ('filename', 'dest_key', 'dest_bucket')
+    template_fields: Sequence[str] = ('filename', 'dest_key', 'dest_bucket')
 
     def __init__(
         self,
@@ -94,17 +90,15 @@ class LocalFilesystemToS3Operator(BaseOperator):
         self.gzip = gzip
         self.acl_policy = acl_policy
 
-    def _check_inputs(self):
-        if 's3://' in self.dest_key and self.dest_bucket is not None:
-            raise TypeError('dest_bucket should be None when dest_key is provided as a full s3:// file path.')
-
-    def execute(self, context):
-        self._check_inputs()
+    def execute(self, context: 'Context'):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
+        s3_bucket, s3_key = s3_hook.get_s3_bucket_key(
+            self.dest_bucket, self.dest_key, 'dest_bucket', 'dest_key'
+        )
         s3_hook.load_file(
             self.filename,
-            self.dest_key,
-            self.dest_bucket,
+            s3_key,
+            s3_bucket,
             self.replace,
             self.encrypt,
             self.gzip,

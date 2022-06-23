@@ -38,5 +38,5 @@ roleRef:
 subjects:
   - kind: ServiceAccount
     name: {{ include "cleanup.serviceAccountName" . }}
-    namespace: {{ .Release.Namespace }}
+    namespace: "{{ .Release.Namespace }}"
 {{- end }}

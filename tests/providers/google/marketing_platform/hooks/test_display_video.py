@@ -367,5 +367,5 @@ class TestGoogleDisplayVideo360Hook(TestCase):
 
         self.hook.download_media(resource_name=resource_name)
         get_conn_to_display_video.return_value.media.return_value.download_media.assert_called_once_with(
-            resource_name=resource_name
+            resourceName=resource_name
         )

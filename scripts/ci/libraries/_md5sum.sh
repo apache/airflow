@@ -35,7 +35,7 @@ function md5sum::calculate_file_md5sum {
     echo "${md5sum}" > "${md5sum_file_new}"
     local ret_code=0
     if [[ ! -f "${md5sum_file}" ]]; then
-        verbosity::print_info "Missing md5sum for ${file#${AIRFLOW_SOURCES}} (${md5sum_file#${AIRFLOW_SOURCES}})"
+        verbosity::print_info "Missing md5sum for ${file#"${AIRFLOW_SOURCES}"} (${md5sum_file#"${AIRFLOW_SOURCES}"})"
         ret_code=1
     else
         diff "${md5sum_file_new}" "${md5sum_file}" >/dev/null
@@ -149,25 +149,6 @@ function md5sum::check_if_docker_build_is_needed() {
             verbosity::print_info
             verbosity::print_info "${COLOR_GREEN}Docker image build is not needed for ${THE_IMAGE_TYPE} image!${COLOR_RESET}"
             verbosity::print_info
-        fi
-    fi
-}
-
-
-function md5sum::check_if_pull_is_needed() {
-   if [[ ${SKIP_CHECK_REMOTE_IMAGE:=} != "true" && ${DOCKER_CACHE} == "pulled" ]]; then
-        # Check if remote image is different enough to force pull
-        # This is an optimisation pull vs. build time. When there
-        # are enough changes (specifically after setup.py changes) it is faster to pull
-        # and build the image rather than just build it
-        verbosity::print_info
-        verbosity::print_info "Checking if the remote image needs to be pulled"
-        verbosity::print_info
-        build_images::get_remote_image_build_cache_hash
-        if [[ ${REMOTE_DOCKER_REGISTRY_UNREACHABLE:=} != "true" && ${LOCAL_MANIFEST_IMAGE_UNAVAILABLE:=} != "true" ]]; then
-            build_images::compare_local_and_remote_build_cache_hash
-        else
-            export FORCE_PULL_IMAGES="true"
         fi
     fi
 }

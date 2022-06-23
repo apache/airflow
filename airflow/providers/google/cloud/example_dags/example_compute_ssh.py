@@ -16,11 +16,11 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.hooks.compute_ssh import ComputeEngineSSHHook
 from airflow.providers.ssh.operators.ssh import SSHOperator
-from airflow.utils import dates
 
 # [START howto_operator_gce_args_common]
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
@@ -30,8 +30,9 @@ GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'target-instance')
 
 with models.DAG(
     'example_compute_ssh',
-    default_args=dict(start_date=dates.days_ago(1)),
     schedule_interval='@once',  # Override to match your needs
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # # [START howto_execute_command_on_remote1]

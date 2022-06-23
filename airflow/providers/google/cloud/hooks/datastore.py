@@ -20,7 +20,6 @@
 
 
 import time
-import warnings
 from typing import Any, Dict, Optional, Sequence, Union
 
 from googleapiclient.discovery import Resource, build
@@ -36,7 +35,6 @@ class DatastoreHook(GoogleBaseHook):
     simultaneously, you will need to create a hook per thread.
 
     :param api_version: The version of the API it is going to connect to.
-    :type api_version: str
     """
 
     def __init__(
@@ -44,17 +42,8 @@ class DatastoreHook(GoogleBaseHook):
         gcp_conn_id: str = "google_cloud_default",
         delegate_to: Optional[str] = None,
         api_version: str = 'v1',
-        datastore_conn_id: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
     ) -> None:
-        if datastore_conn_id:
-            warnings.warn(
-                "The datastore_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = datastore_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -87,9 +76,7 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/allocateIds
 
         :param partial_keys: a list of partial keys.
-        :type partial_keys: list
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         :return: a list of full keys.
         :rtype: list
         """
@@ -112,9 +99,7 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/beginTransaction
 
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         :param transaction_options: Options for a new transaction.
-        :type transaction_options: Dict[str, Any]
         :return: a transaction handle.
         :rtype: str
         """
@@ -137,9 +122,7 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/commit
 
         :param body: the body of the commit request.
-        :type body: dict
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         :return: the response body of the commit request.
         :rtype: dict
         """
@@ -164,14 +147,10 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/lookup
 
         :param keys: the keys to lookup.
-        :type keys: list
         :param read_consistency: the read consistency to use. default, strong or eventual.
                                  Cannot be used with a transaction.
-        :type read_consistency: str
         :param transaction: the transaction to use, if any.
-        :type transaction: str
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         :return: the response body of the lookup request.
         :rtype: dict
         """
@@ -195,9 +174,7 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/rollback
 
         :param transaction: the transaction to roll back.
-        :type transaction: str
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         """
         conn: Any = self.get_conn()
 
@@ -214,9 +191,7 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/rest/v1/projects/runQuery
 
         :param body: the body of the query request.
-        :type body: dict
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         :return: the batch of query results.
         :rtype: dict
         """
@@ -234,7 +209,6 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/get
 
         :param name: the name of the operation resource.
-        :type name: str
         :return: a resource operation instance.
         :rtype: dict
         """
@@ -252,7 +226,6 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/data/rest/v1/projects.operations/delete
 
         :param name: the name of the operation resource.
-        :type name: str
         :return: none if successful.
         :rtype: dict
         """
@@ -262,21 +235,19 @@ class DatastoreHook(GoogleBaseHook):
 
         return resp
 
-    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: int) -> Dict:
+    def poll_operation_until_done(self, name: str, polling_interval_in_seconds: float) -> Dict:
         """
         Poll backup operation state until it's completed.
 
         :param name: the name of the operation resource
-        :type name: str
         :param polling_interval_in_seconds: The number of seconds to wait before calling another request.
-        :type polling_interval_in_seconds: int
         :return: a resource operation instance.
         :rtype: dict
         """
         while True:
-            result = self.get_operation(name)  # type: Dict
+            result: Dict = self.get_operation(name)
 
-            state = result['metadata']['common']['state']  # type: str
+            state: str = result['metadata']['common']['state']
             if state == 'PROCESSING':
                 self.log.info(
                     'Operation is processing. Re-polling state in %s seconds', polling_interval_in_seconds
@@ -304,15 +275,10 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/admin/rest/v1/projects/export
 
         :param bucket: The name of the Cloud Storage bucket.
-        :type bucket: str
         :param namespace: The Cloud Storage namespace path.
-        :type namespace: str
         :param entity_filter: Description of what data from the project is included in the export.
-        :type entity_filter: dict
         :param labels: Client-assigned labels.
-        :type labels: dict of str
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         :return: a resource operation instance.
         :rtype: dict
         """
@@ -356,17 +322,11 @@ class DatastoreHook(GoogleBaseHook):
             https://cloud.google.com/datastore/docs/reference/admin/rest/v1/projects/import
 
         :param bucket: The name of the Cloud Storage bucket.
-        :type bucket: str
         :param file: the metadata file written by the projects.export operation.
-        :type file: str
         :param namespace: The Cloud Storage namespace path.
-        :type namespace: str
         :param entity_filter: specify which kinds/namespaces are to be imported.
-        :type entity_filter: dict
         :param labels: Client-assigned labels.
-        :type labels: dict of str
         :param project_id: Google Cloud project ID against which to make the request.
-        :type project_id: str
         :return: a resource operation instance.
         :rtype: dict
         """

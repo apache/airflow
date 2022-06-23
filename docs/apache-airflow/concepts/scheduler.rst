@@ -60,6 +60,15 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
     You should refer to :doc:`/dag-run` for details on scheduling a DAG.
 
+DAG File Processing
+-------------------
+
+You can have the Airflow Scheduler be responsible for starting the process that turns the Python files contained in the DAGs folder into DAG objects
+that contain tasks to be scheduled.
+
+Refer to :doc:`dagfile-processing` for details on how this can be achieved
+
+
 Triggering DAG with Future Date
 -------------------------------
 
@@ -102,7 +111,7 @@ This does however place some requirements on the Database.
 Database Requirements
 """""""""""""""""""""
 
-The short version is that users of PostgreSQL 9.6+ or MySQL 8+ are all ready to go -- you can start running as
+The short version is that users of PostgreSQL 10+ or MySQL 8+ are all ready to go -- you can start running as
 many copies of the scheduler as you like -- there is no further set up or config options needed. If you are
 using a different database please read on.
 
@@ -118,7 +127,7 @@ UPDATE NOWAIT`` but the exact query is slightly different).
 
 The following databases are fully supported and provide an "optimal" experience:
 
-- PostgreSQL 9.6+
+- PostgreSQL 10+
 - MySQL 8+
 
 .. warning::
@@ -241,7 +250,7 @@ There are several areas of resource usage that you should pay attention to:
   for MsSQL is still experimental.
 * CPU usage is most important for FileProcessors - those are the processes that parse and execute
   Python DAG files. Since Schedulers triggers such parsing continuously, when you have a lot of DAGs,
-  the processing might take a lot of CPU. You can mitigate it by decreasing the
+  the processing might take a lot of CPU. You can mitigate it by increasing the
   :ref:`config:scheduler__min_file_process_interval`, but this is one of the mentioned trade-offs,
   result of this is that changes to such files will be picked up slower and you will see delays between
   submitting the files and getting them available in Airflow UI and executed by Scheduler. Optimizing
@@ -325,9 +334,9 @@ However you can also look at other non-performance-related scheduler configurati
 
 - :ref:`config:scheduler__pool_metrics_interval`
 
-  How often (in seconds) should pool usage stats be sent to statsd (if
+  How often (in seconds) should pool usage stats be sent to StatsD (if
   statsd_on is enabled). This is a *relatively* expensive query to compute
-  this, so this should be set to match the same period as your statsd roll-up
+  this, so this should be set to match the same period as your StatsD roll-up
   period.
 
 - :ref:`config:scheduler__orphaned_tasks_check_interval`

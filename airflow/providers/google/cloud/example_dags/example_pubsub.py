@@ -20,6 +20,7 @@
 Example Airflow DAG that uses Google PubSub services.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -32,7 +33,8 @@ from airflow.providers.google.cloud.operators.pubsub import (
     PubSubPullOperator,
 )
 from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
-from airflow.utils.dates import days_ago
+
+START_DATE = datetime(2021, 1, 1)
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 TOPIC_FOR_SENSOR_DAG = os.environ.get("GCP_PUBSUB_SENSOR_TOPIC", "PubSubSensorTestTopic")
@@ -50,10 +52,11 @@ echo_cmd = """
 with models.DAG(
     "example_gcp_pubsub_sensor",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
 ) as example_sensor_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
-    create_topic = PubSubCreateTopicOperator(
+    create_topic1 = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC_FOR_SENSOR_DAG, project_id=GCP_PROJECT_ID, fail_if_exists=False
     )
     # [END howto_operator_gcp_pubsub_create_topic]
@@ -102,7 +105,7 @@ with models.DAG(
     )
     # [END howto_operator_gcp_pubsub_delete_topic]
 
-    create_topic >> subscribe_task >> publish_task
+    create_topic1 >> subscribe_task >> publish_task
     pull_messages >> pull_messages_result >> unsubscribe_task >> delete_topic
 
     # Task dependencies created via `XComArgs`:
@@ -113,10 +116,11 @@ with models.DAG(
 with models.DAG(
     "example_gcp_pubsub_operator",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=START_DATE,
+    catchup=False,
 ) as example_operator_dag:
     # [START howto_operator_gcp_pubsub_create_topic]
-    create_topic = PubSubCreateTopicOperator(
+    create_topic2 = PubSubCreateTopicOperator(
         task_id="create_topic", topic=TOPIC_FOR_OPERATOR_DAG, project_id=GCP_PROJECT_ID
     )
     # [END howto_operator_gcp_pubsub_create_topic]
@@ -166,7 +170,7 @@ with models.DAG(
     # [END howto_operator_gcp_pubsub_delete_topic]
 
     (
-        create_topic
+        create_topic2
         >> subscribe_task
         >> publish_task
         >> pull_messages_operator

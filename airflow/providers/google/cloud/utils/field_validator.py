@@ -183,9 +183,7 @@ class GcpBodyFieldValidator(LoggingMixin):
     for some examples and explanations of how to create specification.
 
     :param validation_specs: dictionary describing validation specification
-    :type validation_specs: list[dict]
     :param api_version: Version of the api used (for example v1)
-    :type api_version: str
 
     """
 
@@ -313,14 +311,10 @@ class GcpBodyFieldValidator(LoggingMixin):
         Validates if field is OK.
 
         :param validation_spec: specification of the field
-        :type validation_spec: dict
         :param dictionary_to_validate: dictionary where the field should be present
-        :type dictionary_to_validate: dict
         :param parent: full path of parent field
-        :type parent: str
         :param force_optional: forces the field to be optional
             (all union fields have force_optional set to True)
-        :type force_optional: bool
         :return: True if the field is present
         """
         field_name = validation_spec['name']
@@ -424,7 +418,6 @@ class GcpBodyFieldValidator(LoggingMixin):
         body not conforming to the specification respectively.
 
         :param body_to_validate: body that must follow the specification
-        :type body_to_validate: dict
         :return: None
         """
         try:

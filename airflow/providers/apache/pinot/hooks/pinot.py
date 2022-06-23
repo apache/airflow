@@ -45,13 +45,10 @@ class PinotAdminHook(BaseHook):
     following PR: https://github.com/apache/incubator-pinot/pull/4110
 
     :param conn_id: The name of the connection to use.
-    :type conn_id: str
     :param cmd_path: The filepath to the pinot-admin.sh executable
-    :type cmd_path: str
     :param pinot_admin_system_exit: If true, the result is evaluated based on the status code.
                                     Otherwise, the result is evaluated as a failure if "Error" or
                                     "Exception" is in the output message.
-    :type pinot_admin_system_exit: bool
     """
 
     def __init__(
@@ -78,9 +75,7 @@ class PinotAdminHook(BaseHook):
         Add Pinot schema by run AddSchema command
 
         :param schema_file: Pinot schema file
-        :type schema_file: str
         :param with_exec: bool
-        :type with_exec: bool
         """
         cmd = ["AddSchema"]
         cmd += ["-controllerHost", self.host]
@@ -95,9 +90,7 @@ class PinotAdminHook(BaseHook):
         Add Pinot table with run AddTable command
 
         :param file_path: Pinot table configure file
-        :type file_path: str
         :param with_exec: bool
-        :type with_exec: bool
         """
         cmd = ["AddTable"]
         cmd += ["-controllerHost", self.host]
@@ -208,13 +201,9 @@ class PinotAdminHook(BaseHook):
         Run command with pinot-admin.sh
 
         :param cmd: List of command going to be run by pinot-admin.sh script
-        :type cmd: list
         :param verbose:
-        :type verbose: bool
         """
-        command = [self.cmd_path]
-        command.extend(cmd)
-
+        command = [self.cmd_path, *cmd]
         env = None
         if self.pinot_admin_system_exit:
             env = os.environ.copy()
@@ -282,7 +271,7 @@ class PinotDbApiHook(DbApiHook):
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'
-        conn_type = 'http' if not conn.conn_type else conn.conn_type
+        conn_type = conn.conn_type or 'http'
         endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
         return f'{conn_type}://{host}/{endpoint}'
 
@@ -292,9 +281,7 @@ class PinotDbApiHook(DbApiHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
-        :type sql: str
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: dict or iterable
         """
         with self.get_conn() as cur:
             cur.execute(sql)
@@ -306,9 +293,7 @@ class PinotDbApiHook(DbApiHook):
 
         :param sql: the sql statement to be executed (str) or a list of
             sql statements to execute
-        :type sql: str or list
         :param parameters: The parameters to render the SQL query with.
-        :type parameters: dict or iterable
         """
         with self.get_conn() as cur:
             cur.execute(sql)

@@ -36,12 +36,8 @@ class LineageBackend:
         Sends lineage metadata to a backend
 
         :param operator: the operator executing a transformation on the inlets and outlets
-        :type operator: airflow.models.baseoperator.BaseOperator
         :param inlets: the inlets to this operator
-        :type inlets: list
         :param outlets: the outlets from this operator
-        :type outlets: list
         :param context: the current context of the task instance
-        :type context: dict
         """
         raise NotImplementedError()

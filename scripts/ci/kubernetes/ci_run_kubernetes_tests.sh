@@ -52,10 +52,7 @@ function parse_tests_to_run() {
         else
             tests_to_run=("${@}")
         fi
-        pytest_args=(
-            "--pythonwarnings=ignore::DeprecationWarning"
-            "--pythonwarnings=ignore::PendingDeprecationWarning"
-        )
+        pytest_args=()
     else
         tests_to_run=("kubernetes_tests")
         pytest_args=(
@@ -64,8 +61,6 @@ function parse_tests_to_run() {
             "--durations=100"
             "--color=yes"
             "--maxfail=50"
-            "--pythonwarnings=ignore::DeprecationWarning"
-            "--pythonwarnings=ignore::PendingDeprecationWarning"
             )
 
     fi
@@ -87,13 +82,13 @@ function create_virtualenv() {
 
     . "${virtualenv_path}/bin/activate"
 
-    pip install --upgrade "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
+    pip install "pip==${AIRFLOW_PIP_VERSION}" "wheel==${WHEEL_VERSION}"
 
     local constraints=(
         --constraint
         "https://raw.githubusercontent.com/${CONSTRAINTS_GITHUB_REPOSITORY}/${DEFAULT_CONSTRAINTS_BRANCH}/constraints-${HOST_PYTHON_VERSION}.txt"
     )
-    if [[ -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
+    if [[ ${CI:=} == "true" && -n ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} ]]; then
         # Disable constraints when building in CI with specific version of sources
         # In case there will be conflicting constraints
         constraints=()

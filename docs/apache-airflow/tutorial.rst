@@ -77,6 +77,7 @@ of default parameters that we can use when creating tasks.
 
 .. exampleinclude:: /../../airflow/example_dags/tutorial.py
     :language: python
+    :dedent: 4
     :start-after: [START default_args]
     :end-before: [END default_args]
 
@@ -150,13 +151,8 @@ stamp").
     :end-before: [END jinja_template]
 
 Notice that the ``templated_command`` contains code logic in ``{% %}`` blocks,
-references parameters like ``{{ ds }}``, calls a function as in
-``{{ macros.ds_add(ds, 7)}}``, and references a user-defined parameter
-in ``{{ params.my_param }}``.
-
-The ``params`` hook in ``BaseOperator`` allows you to pass a dictionary of
-parameters and/or objects to your templates. Please take the time
-to understand how the parameter ``my_param`` makes it through to the template.
+references parameters like ``{{ ds }}``, and calls a function as in
+``{{ macros.ds_add(ds, 7)}}``.
 
 Files can also be passed to the ``bash_command`` argument, like
 ``bash_command='templated_command.sh'``, where the file location is relative to
@@ -175,7 +171,7 @@ to use ``{{ foo }}`` in your templates. Moreover, specifying
 passing ``dict(hello=lambda name: 'Hello %s' % name)`` to this argument allows
 you to use ``{{ 'world' | hello }}`` in your templates. For more information
 regarding custom filters have a look at the
-`Jinja Documentation <http://jinja.pocoo.org/docs/dev/api/#writing-filters>`_.
+`Jinja Documentation <https://jinja.palletsprojects.com/en/latest/api/#custom-filters>`_.
 
 For more information on the variables and macros that can be referenced
 in templates, make sure to read through the :ref:`templates-ref`.
@@ -233,6 +229,14 @@ you can define dependencies between them:
 Note that when executing your script, Airflow will raise exceptions when
 it finds cycles in your DAG or when a dependency is referenced more
 than once.
+
+Using time zones
+----------------
+
+Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware dates
+using ``pendulum``. Don't try to use standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
+have limitations and we deliberately disallow using them in DAGs.
 
 Recap
 -----
@@ -373,57 +377,110 @@ Lets look at another example; we need to get some data from a file which is host
 
 Initial setup
 ''''''''''''''''''''
-We need to have docker and postgres installed.
-We will be using this `docker file <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html#docker-compose-yaml>`_
-Follow the instructions properly to set up Airflow.
+We need to have Docker installed as we will be using the `quick-start docker-compose installation <https://airflow.apache.org/docs/apache-airflow/stable/start/docker.html>`_ for this example.
+The steps below should be sufficient, but see the quick-start documentation for full instructions.
 
-Create a Employee table in postgres using this:
+.. code-block:: bash
 
-.. code-block:: sql
+  # Download the docker-compose.yaml file
+  curl -Lf0 'https://airflow.apache.org/docs/apache-airflow/stable/docker-compose.yaml'
 
-  CREATE TABLE "Employees"
-  (
-      "Serial Number" NUMERIC PRIMARY KEY,
-      "Company Name" TEXT,
-      "Employee Markme" TEXT,
-      "Description" TEXT,
-      "Leave" INTEGER
-  );
+  # Make expected directories and set an expected environment variable
+  mkdir -p ./dags ./logs ./plugins
+  echo -e "AIRFLOW_UID=$(id -u)" > .env
 
-  CREATE TABLE "Employees_temp"
-  (
-      "Serial Number" NUMERIC PRIMARY KEY,
-      "Company Name" TEXT,
-      "Employee Markme" TEXT,
-      "Description" TEXT,
-      "Leave" INTEGER
-  );
+  # Initialize the database
+  docker-compose up airflow-init
 
-We also need to add a connection to postgres. Go to the UI and click "Admin" >> "Connections". Specify the following for each field:
+  # Start up all services
+  docker-compose up
 
-- Conn id: LOCAL
-- Conn Type: postgres
+After all services have started up, the web UI will be available at: ``http://localhost:8080``. The default account has the username ``airflow`` and the password ``airflow``.
+
+We will also need to create a `connection <https://airflow.apache.org/docs/apache-airflow/stable/concepts/connections.html>`_ to the postgres db. To create one via the web UI, from the "Admin" menu, select "Connections", then click the Plus sign to "Add a new record" to the list of connections.
+
+Fill in the fields as shown below. Note the Connection Id value, which we'll pass as a parameter for the ``postgres_conn_id`` kwarg.
+
+- Connection Id: tutorial_pg_conn
+- Connection Type: postgres
 - Host: postgres
-- Schema: <DATABASE_NAME>
+- Schema: airflow
 - Login: airflow
 - Password: airflow
 - Port: 5432
 
-After that, you can test your connection and if you followed all the steps correctly, it should show a success notification. Proceed with saving the connection and we are now ready write the DAG.
+Test your connection and if the test is successful, save your connection.
 
-Let's break this down into 2 steps: get data & merge data:
+Table Creation Tasks
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We can use the `PostgresOperator <https://airflow.apache.org/docs/apache-airflow-providers-postgres/stable/operators/postgres_operator_howto_guide.html#creating-a-postgres-database-table>`_ to define tasks that create tables in our postgres db.
+
+We'll create one table to facilitate data cleaning steps (``employees_temp``) and another table to store our cleaned data (``employees``).
 
 .. code-block:: python
 
+  from airflow.providers.postgres.operators.postgres import PostgresOperator
+
+  create_employees_table = PostgresOperator(
+      task_id="create_employees_table",
+      postgres_conn_id="tutorial_pg_conn",
+      sql="""
+          CREATE TABLE IF NOT EXISTS employees (
+              "Serial Number" NUMERIC PRIMARY KEY,
+              "Company Name" TEXT,
+              "Employee Markme" TEXT,
+              "Description" TEXT,
+              "Leave" INTEGER
+          );""",
+  )
+
+  create_employees_temp_table = PostgresOperator(
+      task_id="create_employees_temp_table",
+      postgres_conn_id="tutorial_pg_conn",
+      sql="""
+          DROP TABLE IF EXISTS employees_temp;
+          CREATE TABLE employees_temp (
+              "Serial Number" NUMERIC PRIMARY KEY,
+              "Company Name" TEXT,
+              "Employee Markme" TEXT,
+              "Description" TEXT,
+              "Leave" INTEGER
+          );""",
+  )
+
+Optional Note:
+""""""""""""""
+If you want to abstract these sql statements out of your DAG, you can move the statements sql files somewhere within the ``dags/`` directory and pass the sql file_path (relative to ``dags/``) to the ``sql`` kwarg. For ``employees`` for example, create a ``sql`` directory in ``dags/``, put ``employees`` DDL in ``dags/sql/employees_schema.sql``, and modify the PostgresOperator() to:
+
+.. code-block:: python
+
+  create_employees_table = PostgresOperator(
+      task_id="create_employees_table",
+      postgres_conn_id="tutorial_pg_conn",
+      sql="sql/employees_schema.sql",
+  )
+
+and repeat for the ``employees_temp`` table.
+
+Data Retrieval Task
+~~~~~~~~~~~~~~~~~~~
+
+Here we retrieve data, save it to a file on our Airflow instance, and load the data from that file into an intermediate table where we can execute data cleaning steps.
+
+.. code-block:: python
+
+  import os
   import requests
   from airflow.decorators import task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
   @task
   def get_data():
       # NOTE: configure this as appropriate for your airflow environment
       data_path = "/opt/airflow/dags/files/employees.csv"
+      os.makedirs(os.path.dirname(data_path), exist_ok=True)
 
       url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
@@ -432,37 +489,41 @@ Let's break this down into 2 steps: get data & merge data:
       with open(data_path, "w") as file:
           file.write(response.text)
 
-      postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+      postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
       conn = postgres_hook.get_conn()
       cur = conn.cursor()
       with open(data_path, "r") as file:
           cur.copy_expert(
-              "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+              "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
               file,
           )
       conn.commit()
 
-Here we are passing a ``GET`` request to get the data from the URL and save it in ``employees.csv`` file on our Airflow instance and we are dumping the file into a temporary table before merging the data to the final employees table.
+Data Merge Task
+~~~~~~~~~~~~~~~
+
+Here we select completely unique records from the retrieved data, then we check to see if any employee ``Serial Numbers`` are already in the database (if they are, we update those records with the new data).
 
 .. code-block:: python
 
   from airflow.decorators import task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
 
 
   @task
   def merge_data():
       query = """
-          DELETE FROM "Employees" e
-          USING "Employees_temp" et
-          WHERE e."Serial Number" = et."Serial Number";
-
-          INSERT INTO "Employees"
+          INSERT INTO employees
           SELECT *
-          FROM "Employees_temp";
+          FROM (
+              SELECT DISTINCT *
+              FROM employees_temp
+          )
+          ON CONFLICT ("Serial Number") DO UPDATE
+          SET "Serial Number" = excluded."Serial Number";
       """
       try:
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           cur.execute(query)
@@ -471,30 +532,79 @@ Here we are passing a ``GET`` request to get the data from the URL and save it i
       except Exception as e:
           return 1
 
-Here we are first looking for duplicate values and removing them before we insert new values in our final table.
 
 
-Lets look at our DAG:
+Completing our DAG:
+~~~~~~~~~~~~~~~~~~~
+We've developed our tasks, now we need to wrap them in a DAG, which enables us to define when and how tasks should run, and state any dependencies that tasks have on other tasks. The DAG below is configured to:
+
+* run every day a midnight starting on Jan 1, 2021,
+* only run once in the event that days are missed, and
+* timeout after 60 minutes
+
+And from the last line in the definition of the ``Etl`` DAG, we see:
 
 .. code-block:: python
 
-  from datetime import datetime, timedelta
+      [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
+
+* the ``merge_data()`` task depends on the ``get_data()`` task,
+* the ``get_data()`` depends on both the ``create_employees_table`` and ``create_employees_temp_table`` tasks, and
+* the ``create_employees_table`` and ``create_employees_temp_table`` tasks can run independently.
+
+Putting all of the pieces together, we have our completed DAG.
+
+.. code-block:: python
+
+  import datetime
+  import pendulum
+  import os
 
   import requests
   from airflow.decorators import dag, task
-  from airflow.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.hooks.postgres import PostgresHook
+  from airflow.providers.postgres.operators.postgres import PostgresOperator
 
 
   @dag(
       schedule_interval="0 0 * * *",
-      start_date=datetime.today() - timedelta(days=2),
-      dagrun_timeout=timedelta(minutes=60),
+      start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+      catchup=False,
+      dagrun_timeout=datetime.timedelta(minutes=60),
   )
   def Etl():
+      create_employees_table = PostgresOperator(
+          task_id="create_employees_table",
+          postgres_conn_id="tutorial_pg_conn",
+          sql="""
+              CREATE TABLE IF NOT EXISTS employees (
+                  "Serial Number" NUMERIC PRIMARY KEY,
+                  "Company Name" TEXT,
+                  "Employee Markme" TEXT,
+                  "Description" TEXT,
+                  "Leave" INTEGER
+              );""",
+      )
+
+      create_employees_temp_table = PostgresOperator(
+          task_id="create_employees_temp_table",
+          postgres_conn_id="tutorial_pg_conn",
+          sql="""
+              DROP TABLE IF EXISTS employees_temp;
+              CREATE TABLE employees_temp (
+                  "Serial Number" NUMERIC PRIMARY KEY,
+                  "Company Name" TEXT,
+                  "Employee Markme" TEXT,
+                  "Description" TEXT,
+                  "Leave" INTEGER
+              );""",
+      )
+
       @task
       def get_data():
           # NOTE: configure this as appropriate for your airflow environment
           data_path = "/opt/airflow/dags/files/employees.csv"
+          os.makedirs(os.path.dirname(data_path), exist_ok=True)
 
           url = "https://raw.githubusercontent.com/apache/airflow/main/docs/apache-airflow/pipeline_example.csv"
 
@@ -503,12 +613,12 @@ Lets look at our DAG:
           with open(data_path, "w") as file:
               file.write(response.text)
 
-          postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+          postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
           conn = postgres_hook.get_conn()
           cur = conn.cursor()
           with open(data_path, "r") as file:
               cur.copy_expert(
-                  "COPY \"Employees_temp\" FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
+                  "COPY employees_temp FROM STDIN WITH CSV HEADER DELIMITER AS ',' QUOTE '\"'",
                   file,
               )
           conn.commit()
@@ -516,16 +626,17 @@ Lets look at our DAG:
       @task
       def merge_data():
           query = """
-                  DELETE FROM "Employees" e
-                  USING "Employees_temp" et
-                  WHERE e."Serial Number" = et."Serial Number";
-
-                  INSERT INTO "Employees"
-                  SELECT *
-                  FROM "Employees_temp";
-                  """
+              INSERT INTO employees
+              SELECT *
+              FROM (
+                  SELECT DISTINCT *
+                  FROM employees_temp
+              )
+              ON CONFLICT ("Serial Number") DO UPDATE
+              SET "Serial Number" = excluded."Serial Number";
+          """
           try:
-              postgres_hook = PostgresHook(postgres_conn_id="LOCAL")
+              postgres_hook = PostgresHook(postgres_conn_id="tutorial_pg_conn")
               conn = postgres_hook.get_conn()
               cur = conn.cursor()
               cur.execute(query)
@@ -534,28 +645,20 @@ Lets look at our DAG:
           except Exception as e:
               return 1
 
-      get_data() >> merge_data()
+      [create_employees_table, create_employees_temp_table] >> get_data() >> merge_data()
 
 
   dag = Etl()
 
-This dag runs daily at 00:00.
-Add this python file to airflow/dags folder (e.g. ``dags/etl.py``) and go back to the main folder and run:
-
-.. code-block:: bash
-
-  docker-compose up airflow-init
-  docker-compose up
-
-Go to your browser and go to the site http://localhost:8080/home and trigger your DAG Airflow Example:
+Save this code to a python file in the ``/dags`` folder (e.g. ``dags/etl.py``) and (after a `brief delay <https://airflow.apache.org/docs/apache-airflow/stable/configurations-ref.html#dag-dir-list-interval>`_), the ``Etl`` DAG will be included in the list of available DAGs on the web UI.
 
 .. image:: img/new_tutorial-1.png
 
+You can trigger the ``Etl`` DAG by unpausing it (via the slider on the left end) and running it (via the Run button under **Actions**).
 
-.. image:: img/new_tutorial-2.png
+.. image:: img/new_tutorial-3.png
 
-The DAG ran successfully as we can see the green boxes. If there had been an error the boxes would be red.
-Before the DAG run my local table had 10 rows after the DAG run it had approx 100 rows.
+In the ``Etl`` DAG's **Tree** view, we see all that all tasks ran successfully in all executed runs. Success!
 
 
 What's Next?

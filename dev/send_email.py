@@ -30,7 +30,7 @@ try:
 except ModuleNotFoundError:
     sys.exit("Jinja2 is a required dependency for this script")
 try:
-    import click
+    import rich_click as click
 except ModuleNotFoundError:
     sys.exit("Click is a required dependency for this script")
 

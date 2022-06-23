@@ -17,9 +17,9 @@
 
 import argparse
 import json
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
-from airflow.providers.amazon.aws.hooks.eks import EKSHook
+from airflow.providers.amazon.aws.hooks.eks import EksHook
 
 # Presigned STS urls are valid for 15 minutes, set token expiration to 1 minute before it expires for
 # some cushion
@@ -27,7 +27,8 @@ TOKEN_EXPIRATION_MINUTES = 14
 
 
 def get_expiration_time():
-    token_expiration = datetime.utcnow() + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
+    token_expiration = datetime.now(timezone.utc) + timedelta(minutes=TOKEN_EXPIRATION_MINUTES)
+
     return token_expiration.strftime('%Y-%m-%dT%H:%M:%SZ')
 
 
@@ -53,7 +54,7 @@ def get_parser():
 def main():
     parser = get_parser()
     args = parser.parse_args()
-    eks_hook = EKSHook(aws_conn_id=args.aws_conn_id, region_name=args.region_name)
+    eks_hook = EksHook(aws_conn_id=args.aws_conn_id, region_name=args.region_name)
     access_token = eks_hook.fetch_access_token_for_cluster(args.cluster_name)
     access_token_expiration = get_expiration_time()
     exec_credential_object = {

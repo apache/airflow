@@ -41,7 +41,7 @@ use. So, you can be sure your modifications will also work for CI if they pass
 pre-commit hooks.
 
 We have integrated the fantastic `pre-commit <https://pre-commit.com>`__ framework
-in our development workflow. To install and use it, you need at least Python 3.6 locally.
+in our development workflow. To install and use it, you need at least Python 3.7 locally.
 
 Installing pre-commit hooks
 ...........................
@@ -111,173 +111,221 @@ For details on advanced usage of the install method, use:
 Available pre-commit checks
 ...........................
 
-This table lists pre-commit hooks used by Airflow. The ``Breeze`` column indicates which hooks
-require Breeze Docker images to be installed locally.
+This table lists pre-commit hooks used by Airflow. The ``Image`` column indicates which hooks
+require Breeze Docker image to be build locally.
 
 .. note:: Disabling particular checks
 
-    In case you have a problem with running particular ``pre-commit`` check you can still continue using the
-    benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
-    checks you need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example
-    when you want to skip all checks that require Breeze Docker image to be installed, you should be able to
-    do it by setting ``export SKIP=bat-in-container-tests,build,flake8,mypy``. You can also add this to your
-    ``.bashrc`` or ``.zshrc`` if you do not want to set it manually every time you enter the terminal.
+  In case you have a problem with running particular ``pre-commit`` check you can still continue using the
+  benefits of having ``pre-commit`` installed, with some of the checks disabled. In order to disable
+  checks you might need to set ``SKIP`` environment variable to coma-separated list of checks to skip. For example
+  when you want to skip some checks (flake/mypy for example), you should be able to do it by setting
+  ``export SKIP=run-flake8,run-mypy``. You can also add this to your ``.bashrc`` or ``.zshrc`` if you
+  do not want to set it manually every time you enter the terminal.
 
-==================================== ================================================================ ============
-**Checks**                            **Description**                                                  **Breeze**
-==================================== ================================================================ ============
-``airflow-config-yaml``                Checks that airflow config YAML is 1-1 with the code
------------------------------------- ---------------------------------------------------------------- ------------
-``airflow-providers-available``        Checks that providers are properly declared by extras
------------------------------------- ---------------------------------------------------------------- ------------
-``airflow-provider-yaml-files-ok``     Checks that providers YAML files are valid
------------------------------------- ---------------------------------------------------------------- ------------
-``base-operator``                      Checks that BaseOperator is imported properly
------------------------------------- ---------------------------------------------------------------- ------------
-``bats-tests``                         Runs BATS bash unit tests
------------------------------------- ---------------------------------------------------------------- ------------
-``bats-in-container-tests``            Run in Breeze container bats tests                                   *
------------------------------------- ---------------------------------------------------------------- ------------
-``black``                              Runs Black (the uncompromising Python code formatter)
------------------------------------- ---------------------------------------------------------------- ------------
-``blacken-docs``                       Run black on python code blocks in documentation files
------------------------------------- ---------------------------------------------------------------- ------------
-``boring-cyborg``                      Checks for Boring Cyborg configuration consistency
------------------------------------- ---------------------------------------------------------------- ------------
-``build``                              Builds image for mypy, flake8                                        *
------------------------------------- ---------------------------------------------------------------- ------------
-``build-providers-dependencies``       Regenerates the JSON file with cross-provider dependencies
------------------------------------- ---------------------------------------------------------------- ------------
-``check-apache-license``               Checks compatibility with Apache License requirements
------------------------------------- ---------------------------------------------------------------- ------------
-``check-builtin-literals``             Require literal syntax when initializing Python builtin types
------------------------------------- ---------------------------------------------------------------- ------------
-``check-executables-have-shebangs``    Checks that executables have shebang
------------------------------------- ---------------------------------------------------------------- ------------
-``check-extras-order``                 Checks that extras in Dockerfile are sorted
------------------------------------- ---------------------------------------------------------------- ------------
-``check-hooks-apply``                  Checks which hooks are applicable to the repository
------------------------------------- ---------------------------------------------------------------- ------------
-``check-integrations``                 Checks if integration list is synchronized in code
------------------------------------- ---------------------------------------------------------------- ------------
-``check-merge-conflicts``              Checks that merge conflicts are not being committed
------------------------------------- ---------------------------------------------------------------- ------------
-``check-xml``                          Checks XML files with xmllint
------------------------------------- ---------------------------------------------------------------- ------------
-``daysago-import-check``               Checks if daysago is properly imported
------------------------------------- ---------------------------------------------------------------- ------------
-``debug-statements``                   Detects accidentally committed debug statements
------------------------------------- ---------------------------------------------------------------- ------------
-``detect-private-key``                 Detects if private key is added to the repository
------------------------------------- ---------------------------------------------------------------- ------------
-``doctoc``                             Refreshes the table of contents for MD files
------------------------------------- ---------------------------------------------------------------- ------------
-``dont-use-safe-filter``               Don't use safe in templates
------------------------------------- ---------------------------------------------------------------- ------------
-``no-providers-in-core-examples``      Don't use providers imports in core example DAGs
------------------------------------- ---------------------------------------------------------------- ------------
-``no-relative-imports``                Use absolute imports, not relative
------------------------------------- ---------------------------------------------------------------- ------------
-``end-of-file-fixer``                  Makes sure that there is an empty line at the end.
------------------------------------- ---------------------------------------------------------------- ------------
-``fix-encoding-pragma``                Removes encoding header from python files
------------------------------------- ---------------------------------------------------------------- ------------
-``pyupgrade``                          Runs pyupgrade
------------------------------------- ---------------------------------------------------------------- ------------
-``flake8``                             Runs flake8                                                          *
------------------------------------- ---------------------------------------------------------------- ------------
-``flynt``                              Runs flynt
------------------------------------- ---------------------------------------------------------------- ------------
-``codespell``                          Checks for common misspellings in files.
------------------------------------- ---------------------------------------------------------------- ------------
-``forbid-tabs``                        Fails if tabs are used in the project
------------------------------------- ---------------------------------------------------------------- ------------
-``helm-lint``                          Verifies if helm lint passes for the chart
------------------------------------- ---------------------------------------------------------------- ------------
-``identity``                           Prints inputs to the static check hooks for troubleshooting
------------------------------------- ---------------------------------------------------------------- ------------
-``incorrect-use-of-LoggingMixin``      Checks if LoggingMixin is properly imported
------------------------------------- ---------------------------------------------------------------- ------------
-``insert-license``                     Adds licenses for most file types
------------------------------------- ---------------------------------------------------------------- ------------
-``isort``                              Sorts imports in python files
------------------------------------- ---------------------------------------------------------------- ------------
-``json-schema``                        Checks that the files complies with the JSON Schema spec
------------------------------------- ---------------------------------------------------------------- ------------
-``language-matters``                   Check for language that we do not accept as community
------------------------------------- ---------------------------------------------------------------- ------------
-``lint-dockerfile``                    Lints a dockerfile
------------------------------------- ---------------------------------------------------------------- ------------
-``lint-openapi``                       Lints openapi specification
------------------------------------- ---------------------------------------------------------------- ------------
-``markdownlint``                       Lints Markdown files
------------------------------------- ---------------------------------------------------------------- ------------
-``mermaid``                            Generates diagrams from mermaid files
------------------------------------- ---------------------------------------------------------------- ------------
-``mixed-line-ending``                  Detects if mixed line ending is used (\r vs. \r\n)
------------------------------------- ---------------------------------------------------------------- ------------
-``mypy``                               Runs mypy                                                            *
------------------------------------- ---------------------------------------------------------------- ------------
-``pre-commit-descriptions``            Check if all pre-commits are described in docs
------------------------------------- ---------------------------------------------------------------- ------------
-``pre-commit-hook-names``              Check that hook names are not overly long
------------------------------------- ---------------------------------------------------------------- ------------
-``pretty-format-json``                 Formats json files
------------------------------------- ---------------------------------------------------------------- ------------
-``provide-create-sessions``            Make sure provide-session and create-session imports are OK
------------------------------------- ---------------------------------------------------------------- ------------
-``providers-changelogs``               Updates documentation for providers changelogs
------------------------------------- ---------------------------------------------------------------- ------------
-``providers-subpackages-init-file``    Check that providers' subpackages __init__.py files are there
------------------------------------- ---------------------------------------------------------------- ------------
-``providers-init-file``                Check that provider's __init__.py file is removed
------------------------------------- ---------------------------------------------------------------- ------------
-``provider-yamls``                     Checks that provider.yaml files have the correct content
------------------------------------- ---------------------------------------------------------------- ------------
-``pydevd``                             Check for accidentally committed pydevd statements
------------------------------------- ---------------------------------------------------------------- ------------
-``pydocstyle``                         Runs pydocstyle
------------------------------------- ---------------------------------------------------------------- ------------
-``python-no-log-warn``                 Checks if there are no deprecate log warn
------------------------------------- ---------------------------------------------------------------- ------------
-``restrict-start_date``                'start_date' should not be in default_args in example_dags
------------------------------------- ---------------------------------------------------------------- ------------
-``rst-backticks``                      Checks if RST files use double backticks for code
------------------------------------- ---------------------------------------------------------------- ------------
-``setup-order``                        Checks for an order of dependencies in setup.py
------------------------------------- ---------------------------------------------------------------- ------------
-``setup-extra-packages``               Checks if all the libraries in setup.py are listed in docs
------------------------------------- ---------------------------------------------------------------- ------------
-``shellcheck``                         Checks shell files with shellcheck
------------------------------------- ---------------------------------------------------------------- ------------
-``sort-in-the-wild``                   Sort INTHEWILD.md alphabetically
------------------------------------- ---------------------------------------------------------------- ------------
-``sort-spelling-wordlist``             Sort alphabetically and uniquify spelling_wordlist.txt
------------------------------------- ---------------------------------------------------------------- ------------
-``stylelint``                          Checks CSS files with stylelint
------------------------------------- ---------------------------------------------------------------- ------------
-``trailing-whitespace``                Removes trailing whitespace at end of line
------------------------------------- ---------------------------------------------------------------- ------------
-``ui-lint``                            Static checks of airflow/ui/ folder
------------------------------------- ---------------------------------------------------------------- ------------
-``update-breeze-file``                 Update output of breeze command in BREEZE.rst
------------------------------------- ---------------------------------------------------------------- ------------
-``update-extras``                      Updates extras in the documentation
------------------------------------- ---------------------------------------------------------------- ------------
-``update-local-yml-file``              Updates mounts in local.yml file
------------------------------------- ---------------------------------------------------------------- ------------
-``update-setup-cfg-file``              Update setup.cfg file with all licenses
------------------------------------- ---------------------------------------------------------------- ------------
-``update-versions``                    Updates latest versions in the documentation
------------------------------------- ---------------------------------------------------------------- ------------
-``verify-db-migrations-documented``    Verify DB Migrations have been documented
------------------------------------- ---------------------------------------------------------------- ------------
-``www-lint``                           Static checks of js in airflow/www/static/js/ folder
------------------------------------- ---------------------------------------------------------------- ------------
-``yesqa``                              Removes unnecessary noqa statements
------------------------------------- ---------------------------------------------------------------- ------------
-``yamllint``                           Checks YAML files with yamllint
-==================================== ================================================================ ============
+  In case you do not have breeze image configured locally, you can also disable all checks that require
+  the image by setting ``SKIP_IMAGE_PRE_COMMITS`` to "true". This will mark the tests as "green" automatically
+  when run locally (note that those checks will anyway run in CI).
+
+  .. BEGIN AUTO-GENERATED STATIC CHECK LIST
+
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| ID                                                     | Description                                                      | Image   |
++========================================================+==================================================================+=========+
+| black                                                  | Run Black (the uncompromising Python code formatter)             |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| blacken-docs                                           | Run black on python code blocks in documentation files           |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-airflow-2-1-compatibility                        | Check that providers are 2.1 compatible.                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-airflow-providers-have-extras                    | Checks providers available when declared by extras in setup.py   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-base-operator-partial-arguments                  | Check BaseOperator and partial() arguments                       |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-base-operator-usage                              | * Check BaseOperator[Link] core imports                          |         |
+|                                                        | * Check BaseOperator[Link] other imports                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-boring-cyborg-configuration                      | Checks for Boring Cyborg configuration consistency               |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-breeze-top-dependencies-limited                  | Breeze should have small number of top-level dependencies        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-builtin-literals                                 | Require literal syntax when initializing Python builtin types    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-changelog-has-no-duplicates                      | Check changelogs for duplicate entries                           |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-daysago-import-from-utils                        | Make sure days_ago is imported from airflow.utils.dates          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-docstring-param-types                            | Check that docstrings do not specify param types                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-example-dags-urls                                | Check that example dags url include provider versions            |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-executables-have-shebangs                        | Check that executables have shebang                              |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-extra-packages-references                        | Checks setup extra packages                                      |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-extras-order                                     | Check order of extras in Dockerfile                              |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-for-inclusive-language                           | Check for language that we do not accept as community            |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-hooks-apply                                      | Check if all hooks apply to the repository                       |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-incorrect-use-of-LoggingMixin                    | Make sure LoggingMixin is not used alone                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-integrations-are-consistent                      | Check if integration list is consistent in various places        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-merge-conflict                                   | Check that merge conflicts are not being committed               |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-newsfragments-are-valid                          | Check newsfragments are valid                                    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-providers-in-core-examples                    | No providers imports in core example DAGs                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-no-relative-imports                              | No relative imports                                              |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-persist-credentials-disabled-in-github-workflows | Check that workflow files have persist-credentials disabled      |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-pre-commit-information-consistent                | Update information re pre-commit hooks and verify ids and names  |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-provide-create-sessions-imports                  | Check provide_session and create_session imports                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-provider-yaml-valid                              | Validate providers.yaml files                                    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-providers-init-file-missing                      | Provider init file is missing                                    |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-providers-subpackages-init-file-exist            | Provider subpackage init files are there                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-pydevd-left-in-code                              | Check for pydevd debug statements accidentally left              |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-revision-heads-map                               | Check that the REVISION_HEADS_MAP is up-to-date                  |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-safe-filter-usage-in-html                        | Don't use safe in templates                                      |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-setup-order                                      | Check order of dependencies in setup.cfg and setup.py            |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-start-date-not-used-in-defaults                  | 'start_date' not to be defined in default_args in example_dags   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-system-tests-present                             | Check if system tests have required segments of code             |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-system-tests-tocs                                | Check that system tests is properly added                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-xml                                              | Check XML files with xmllint                                     |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| codespell                                              | Run codespell to check for common misspellings in files          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| create-missing-init-py-files-tests                     | Create missing init.py files in tests                            |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| debug-statements                                       | Detect accidentally committed debug statements                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| detect-private-key                                     | Detect if private key is added to the repository                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| doctoc                                                 | Add TOC for md and rst files                                     |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| end-of-file-fixer                                      | Make sure that there is an empty line at the end                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| fix-encoding-pragma                                    | Remove encoding header from python files                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| flynt                                                  | Run flynt string format converter for Python                     |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| forbid-tabs                                            | Fail if tabs are used in the project                             |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| identity                                               | Print input to the static check hooks for troubleshooting        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| insert-license                                         | * Add license for all SQL files                                  |         |
+|                                                        | * Add license for all rst files                                  |         |
+|                                                        | * Add license for all CSS/JS/PUML/TS/TSX files                   |         |
+|                                                        | * Add license for all JINJA template files                       |         |
+|                                                        | * Add license for all shell files                                |         |
+|                                                        | * Add license for all Python files                               |         |
+|                                                        | * Add license for all XML files                                  |         |
+|                                                        | * Add license for all YAML files                                 |         |
+|                                                        | * Add license for all md files                                   |         |
+|                                                        | * Add license for all other files                                |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| isort                                                  | Run isort to sort imports in Python files                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-chart-schema                                      | Lint chart/values.schema.json file                               |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-css                                               | stylelint                                                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-dockerfile                                        | Lint dockerfile                                                  |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-helm-chart                                        | Lint Helm Chart                                                  |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-javascript                                        | * ESLint against airflow/ui                                      | *       |
+|                                                        | * ESLint against current UI JavaScript files                     |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-json-schema                                       | * Lint JSON Schema files with JSON Schema                        |         |
+|                                                        | * Lint NodePort Service with JSON Schema                         |         |
+|                                                        | * Lint Docker compose files with JSON Schema                     |         |
+|                                                        | * Lint chart/values.schema.json file with JSON Schema            |         |
+|                                                        | * Lint chart/values.yaml file with JSON Schema                   |         |
+|                                                        | * Lint airflow/config_templates/config.yml file with JSON Schema |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-markdown                                          | Run markdownlint                                                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| lint-openapi                                           | * Lint OpenAPI using spectral                                    |         |
+|                                                        | * Lint OpenAPI using openapi-spec-validator                      |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| mixed-line-ending                                      | Detect if mixed line ending is used (\r vs. \r\n)                |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| pretty-format-json                                     | Format json files                                                |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| pydocstyle                                             | Run pydocstyle                                                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| python-no-log-warn                                     | Check if there are no deprecate log warn                         |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| pyupgrade                                              | Upgrade Python code automatically                                |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| rst-backticks                                          | Check if RST files use double backticks for code                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| run-flake8                                             | Run flake8                                                       | *       |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| run-mypy                                               | * Run mypy for dev                                               | *       |
+|                                                        | * Run mypy for core                                              |         |
+|                                                        | * Run mypy for providers                                         |         |
+|                                                        | * Run mypy for /docs/ folder                                     |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| run-shellcheck                                         | Check Shell scripts syntax correctness                           |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| static-check-autoflake                                 | Remove all unused code                                           |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-breeze-file                                     | Update output of breeze commands in BREEZE.rst                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-extras                                          | Update extras in documentation                                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-in-the-wild-to-be-sorted                        | Sort INTHEWILD.md alphabetically                                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-inlined-dockerfile-scripts                      | Inline Dockerfile and Dockerfile.ci scripts                      |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-local-yml-file                                  | Update mounts in the local yml file                              |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-migration-references                            | Update migration ref doc                                         | *       |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-providers-dependencies                          | Update cross-dependencies for providers packages                 |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-setup-cfg-file                                  | Update setup.cfg file with all licenses                          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-spelling-wordlist-to-be-sorted                  | Sort alphabetically and uniquify spelling_wordlist.txt           |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-supported-versions                              | Updates supported versions in documentation                      |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-vendored-in-k8s-json-schema                     | Vendor k8s definitions into values.schema.json                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| update-version                                         | Update version to the latest version in the documentation        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| yamllint                                               | Check YAML files with yamllint                                   |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| yesqa                                                  | Remove unnecessary noqa statements                               |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+
+  .. END AUTO-GENERATED STATIC CHECK LIST
 
 Using pre-commit
 ................
@@ -295,13 +343,13 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    pre-commit run mypy
+    pre-commit run run-mypy
 
 -   Run only mypy checks on all files by using:
 
 .. code-block:: bash
 
-    pre-commit run mypy --all-files
+    pre-commit run run-mypy --all-files
 
 
 -   Run all checks on all files by using:
@@ -329,7 +377,7 @@ code. But you can run pre-commit hooks manually as needed.
 
 .. code-block:: bash
 
-    SKIP=mypy,flake8,build pre-commit run --all-files
+    SKIP=run-mypy,run-flake8 pre-commit run --all-files
 
 
 You can always skip running the tests by providing ``--no-verify`` flag to the
@@ -342,7 +390,7 @@ Running static code checks via Breeze
 
 The static code checks can be launched using the Breeze environment.
 
-You run the static code checks via ``./breeze static-check`` or commands.
+You run the static code checks via ``breeze static-check`` or commands.
 
 You can see the list of available static checks either via ``--help`` flag or by using the autocomplete
 option. Note that the ``all`` static check runs all configured static checks.
@@ -351,108 +399,63 @@ Run the ``mypy`` check for the currently staged changes:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy
+     breeze static-checks --type run-mypy
 
 Run the ``mypy`` check for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy -- --all-files
+     breeze static-checks --type run-mypy --all-files
 
 Run the ``flake8`` check for the ``tests.core.py`` file with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check flake8 -- --files tests/core.py --verbose
+     breeze static-checks --type run-flake8 --file tests/core.py --verbose
 
 Run the ``flake8`` check for the ``tests.core`` package with verbose output:
 
 .. code-block:: bash
 
-     ./breeze static-check mypy -- --files tests/hooks/test_druid_hook.py
+     breeze static-checks --type run-flake8 --file tests/core/* --verbose
 
-Run all tests for the currently staged files:
-
-.. code-block:: bash
-
-     ./breeze static-check all
-
-Run all tests for all files:
+Run all checks for the currently staged files:
 
 .. code-block:: bash
 
-     ./breeze static-check all -- --all-files
+     breeze static-checks --type all
 
-Run all tests for last commit :
-
-.. code-block:: bash
-
-     ./breeze static-check all -- --from-ref HEAD^ --to-ref HEAD
-
-
-The ``license`` check is run via a separate script and a separate Docker image containing the
-Apache RAT verification tool that checks for Apache-compatibility of licenses within the codebase.
-It does not take pre-commit parameters as extra arguments.
+Run all checks for all files:
 
 .. code-block:: bash
 
-     ./breeze static-check licenses
+    breeze static-checks --type all --all-files
 
-Running Static Code Checks via scripts from the Host
-....................................................
+Run all checks for last commit :
 
-You can trigger the static checks from the host environment, without entering the Docker container. To do
-this, run the following scripts:
+.. code-block:: bash
 
-* `<scripts/ci/docs/ci_docs.sh>`_ - checks that documentation can be built without warnings.
-* `<scripts/ci/static_checks/check_license.sh>`_ - checks the licenses.
-* `<scripts/ci/static_checks/flake8.sh>`_ - runs Flake8 source code style enforcement tool.
-* `<scripts/ci/static_checks/lint_dockerfile.sh>`_ - runs lint checker for the dockerfiles.
-* `<scripts/ci/static_checks/mypy.sh>`_ - runs a check for Mypy type annotation consistency.
+     breeze static-checks --type all --last-commit
 
-The scripts may ask you to rebuild the images, if needed.
+Debugging pre-commit check scripts requiring image
+--------------------------------------------------
 
-You can force rebuilding the images by deleting the ``.build`` directory. This directory keeps cached
-information about the images already built and you can safely delete it if you want to start from scratch.
+Those commits that use Breeze docker image might sometimes fail, depending on your operating system and
+docker setup, so sometimes it might be required to run debugging with the commands. This is done via
+two environment variables ``VERBOSE`` and ``DRY_RUN``. Setting them to "true" will respectively show the
+commands to run before running them or skip running the commands.
 
-After documentation is built, the HTML results are available in the ``docs/_build/html``
-folder. This folder is mounted from the host so you can access those files on your host as well.
+Note that you need to run pre-commit with --verbose command to get the output regardless of the status
+of the static check (normally it will only show output on failure).
 
-Running static code checks in the Docker container
-..................................................
+Printing the commands while executing:
 
-If you are already in the Breeze Docker environment (by running the ``./breeze`` command),
-you can also run the same static checks via run_scripts:
+.. code-block:: bash
 
-* Mypy: ``./scripts/in_container/run_mypy.sh airflow tests``
-* Flake8: ``./scripts/in_container/run_flake8.sh``
-* License check: ``./scripts/in_container/run_check_licence.sh``
-* Documentation: ``./scripts/in_container/run_docs_build.sh``
+     VERBOSE="true" pre-commit run --verbose run-flake8
 
-Running static code checks for selected files
-.............................................
+Just performing dry run:
 
-In all static check scripts, both in the container and host versions, you can also pass a module/file path as
-parameters of the scripts to only check selected modules or files. For example:
+.. code-block:: bash
 
-In the Docker container:
-
-.. code-block::
-
-  ./scripts/in_container/run_mypy.sh ./airflow/example_dags/
-
-or
-
-.. code-block::
-
-  ./scripts/in_container/run_mypy.sh ./airflow/example_dags/test_utils.py
-
-On the host:
-
-.. code-block::
-
-  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/
-
-.. code-block::
-
-  ./scripts/ci/static_checks/mypy.sh ./airflow/example_dags/test_utils.py
+     DRY_RUN="true" pre-commit run --verbose run-flake8

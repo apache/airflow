@@ -19,15 +19,26 @@
 # This is an example docker build script. It is not intended for PRODUCTION use
 set -euo pipefail
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+
+TEMP_DOCKER_DIR=$(mktemp -d)
+pushd "${TEMP_DOCKER_DIR}"
+
+cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
 
 # [START build]
+export AIRFLOW_VERSION=2.2.4
+export DEBIAN_VERSION="bullseye"
+export DOCKER_BUILDKIT=1
+
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.6-slim-buster" \
-    --build-arg AIRFLOW_VERSION="2.0.2" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.7-slim-${DEBIAN_VERSION}" \
+    --build-arg AIRFLOW_VERSION="${AIRFLOW_VERSION}" \
     --build-arg ADDITIONAL_PYTHON_DEPS="mpi4py" \
     --build-arg ADDITIONAL_DEV_APT_DEPS="libopenmpi-dev" \
     --build-arg ADDITIONAL_RUNTIME_APT_DEPS="openmpi-common" \
     --tag "my-build-essential-image:0.0.1"
 # [END build]
 docker rmi --force "my-build-essential-image:0.0.1"
+popd
+rm -rf "${TEMP_DOCKER_DIR}"

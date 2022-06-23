@@ -41,10 +41,8 @@ class SegmentHook(BaseHook):
     :param segment_conn_id: the name of the connection that has the parameters
         we need to connect to Segment. The connection should be type `json` and include a
         write_key security token in the `Extras` field.
-    :type segment_conn_id: str
     :param segment_debug_mode: Determines whether Segment should run in debug mode.
         Defaults to False
-    :type segment_debug_mode: bool
 
     .. note::
         You must include a JSON structure in the `Extras` field.

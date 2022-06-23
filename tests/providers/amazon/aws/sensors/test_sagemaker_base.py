@@ -21,7 +21,7 @@ import unittest
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.amazon.aws.sensors.sagemaker_base import SageMakerBaseSensor
+from airflow.providers.amazon.aws.sensors.sagemaker import SageMakerBaseSensor
 
 
 class TestSagemakerBaseSensor(unittest.TestCase):

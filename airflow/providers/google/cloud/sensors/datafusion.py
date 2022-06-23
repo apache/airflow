@@ -16,11 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Cloud Data Fusion sensors."""
-from typing import Optional, Sequence, Set, Union
+from typing import TYPE_CHECKING, Iterable, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.cloud.hooks.datafusion import DataFusionHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
@@ -28,29 +31,19 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
     Check the status of the pipeline in the Google Cloud Data Fusion
 
     :param pipeline_name: Your pipeline name.
-    :type pipeline_name: str
     :param pipeline_id: Your pipeline ID.
-    :type pipeline_name: str
     :param expected_statuses: State that is expected
-    :type expected_statuses: set[str]
     :param failure_statuses: State that will terminate the sensor with an exception
-    :type failure_statuses: set[str]
     :param instance_name: The name of the instance.
-    :type instance_name: str
     :param location: The Cloud Data Fusion location in which to handle the request.
-    :type location: str
     :param project_id: The ID of the Google Cloud project that the instance belongs to.
-    :type project_id: str
     :param namespace: If your pipeline belongs to a Basic edition instance, the namespace ID
         is always default. If your pipeline belongs to an Enterprise edition instance, you
         can create a namespace.
-    :type namespace: str
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -59,20 +52,19 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
 
     """
 
-    template_fields = ['pipeline_id']
+    template_fields: Sequence[str] = ('pipeline_id',)
 
     def __init__(
         self,
         pipeline_name: str,
         pipeline_id: str,
-        expected_statuses: Set[str],
+        expected_statuses: Iterable[str],
         instance_name: str,
         location: str,
-        failure_statuses: Set[str] = None,
+        failure_statuses: Optional[Iterable[str]] = None,
         project_id: Optional[str] = None,
         namespace: str = "default",
         gcp_conn_id: str = 'google_cloud_default',
@@ -93,7 +85,7 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info(
             "Waiting for pipeline %s to be in one of the states: %s.",
             self.pipeline_id,
@@ -122,12 +114,12 @@ class CloudDataFusionPipelineStateSensor(BaseSensorOperator):
             pipeline_status = pipeline_workflow["status"]
         except AirflowException:
             pass  # Because the pipeline may not be visible in system yet
-
-        if self.failure_statuses and pipeline_status in self.failure_statuses:
-            raise AirflowException(
-                f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
-                f"Terminating sensor..."
-            )
+        if pipeline_status is not None:
+            if self.failure_statuses and pipeline_status in self.failure_statuses:
+                raise AirflowException(
+                    f"Pipeline with id '{self.pipeline_id}' state is: {pipeline_status}. "
+                    f"Terminating sensor..."
+                )
 
         self.log.debug(
             "Current status of the pipeline workflow for %s: %s.", self.pipeline_id, pipeline_status

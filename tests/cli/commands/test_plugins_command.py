@@ -24,6 +24,7 @@ from contextlib import redirect_stdout
 from airflow.cli import cli_parser
 from airflow.cli.commands import plugins_command
 from airflow.hooks.base import BaseHook
+from airflow.listeners.listener import get_listener_manager
 from airflow.plugins_manager import AirflowPlugin
 from tests.plugins.test_plugin import AirflowTestPlugin as ComplexAirflowPlugin
 from tests.test_utils.mock_plugins import mock_plugin_manager
@@ -84,6 +85,7 @@ class TestPluginsCommand(unittest.TestCase):
                     '<tests.test_utils.mock_operators.CustomBaseIndexOpLink object>',
                 ],
                 'hooks': ['tests.plugins.test_plugin.PluginHook'],
+                'listeners': ['tests.listeners.empty_listener'],
                 'source': None,
                 'appbuilder_menu_items': [
                     {'name': 'Google', 'href': 'https://www.google.com', 'category': 'Search'},
@@ -93,8 +95,10 @@ class TestPluginsCommand(unittest.TestCase):
                         'label': 'The Apache Software Foundation',
                     },
                 ],
+                'ti_deps': ['<TIDep(CustomTestTriggerRule)>'],
             }
         ]
+        get_listener_manager().clear()
 
     @mock_plugin_manager(plugins=[TestPlugin])
     def test_should_display_one_plugins_as_table(self):

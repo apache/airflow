@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Any, Callable, Dict, List, Optional
+from typing import TYPE_CHECKING, Any, Callable, List, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.grpc.hooks.grpc import GrpcHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GrpcOperator(BaseOperator):
@@ -27,29 +30,20 @@ class GrpcOperator(BaseOperator):
     Calls a gRPC endpoint to execute an action
 
     :param stub_class: The stub client to use for this gRPC call
-    :type stub_class: gRPC stub class generated from proto file
     :param call_func: The client function name to call the gRPC endpoint
-    :type call_func: gRPC client function name for the endpoint generated from proto file, str
     :param grpc_conn_id: The connection to run the operator against
-    :type grpc_conn_id: str
     :param data: The data to pass to the rpc call
-    :type data: A dict with key value pairs as kwargs of the call_func
     :param interceptors: A list of gRPC interceptor objects to be used on the channel
-    :type interceptors: A list of gRPC interceptor objects, has to be initialized
-    :param custom_connection_func: The customized connection function to return channel object
-    :type custom_connection_func: A python function that returns channel object, take in
-        a connection object, can be a partial function
+    :param custom_connection_func: The customized connection function to return channel object.
+        A callable that accepts the connection as its only arg.
     :param streaming: A flag to indicate if the call is a streaming call
-    :type streaming: boolean
-    :param response_callback: The callback function to process the response from gRPC call
-    :type response_callback: A python function that process the response from gRPC call,
+    :param response_callback: The callback function to process the response from gRPC call,
         takes in response object and context object, context object can be used to perform
         push xcom or other after task actions
     :param log_response: A flag to indicate if we need to log the response
-    :type log_response: boolean
     """
 
-    template_fields = ('stub_class', 'call_func', 'data')
+    template_fields: Sequence[str] = ('stub_class', 'call_func', 'data')
     template_fields_renderers = {"data": "py"}
 
     def __init__(
@@ -84,7 +78,7 @@ class GrpcOperator(BaseOperator):
             custom_connection_func=self.custom_connection_func,
         )
 
-    def execute(self, context: Dict) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = self._get_grpc_hook()
         self.log.info("Calling gRPC service")
 
@@ -94,7 +88,7 @@ class GrpcOperator(BaseOperator):
         for response in responses:
             self._handle_response(response, context)
 
-    def _handle_response(self, response: Any, context: Dict) -> None:
+    def _handle_response(self, response: Any, context: 'Context') -> None:
         if self.log_response:
             self.log.info(repr(response))
         if self.response_callback:

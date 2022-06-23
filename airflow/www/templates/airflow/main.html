@@ -18,7 +18,7 @@
 #}
 
 {% extends 'appbuilder/baselayout.html' %}
-{% from 'airflow/_messages.html' import message %}
+{% from 'airflow/_messages.html' import show_message %}
 
 {% block page_title -%}
   {% if title is defined -%}
@@ -26,6 +26,13 @@
   {% else -%}
     {{ appbuilder.app_name }}
   {% endif%}
+{% endblock %}
+
+{% block head_meta %}
+  {{ super() }}
+  {% if scheduler_job is defined and (scheduler_job and scheduler_job.is_alive()) %}
+    <meta name="is_scheduler_running" content="True">
+  {% endif %}
 {% endblock %}
 
 {% block head_css %}
@@ -52,7 +59,7 @@
 {% block messages %}
   {% include 'appbuilder/flash.html' %}
   {% if scheduler_job is defined and (not scheduler_job or not scheduler_job.is_alive()) %}
-    {% call message(category='warning', dismissable=false) %}
+    {% call show_message(category='warning', dismissible=false) %}
       <p>The scheduler does not appear to be running.
       {% if scheduler_job %}
       Last heartbeat was received
@@ -67,7 +74,7 @@
     {% endcall %}
   {% endif %}
   {% if triggerer_job is defined and (not triggerer_job or not triggerer_job.is_alive()) %}
-    {% call message(category='warning', dismissable=false) %}
+    {% call show_message(category='warning', dismissible=false) %}
       <p>The triggerer does not appear to be running.
       {% if triggerer_job %}
       Last heartbeat was received
@@ -112,9 +119,6 @@
     var csrfToken = '{{ csrf_token() }}';
     $('time[title]').tooltip();
   </script>
-  <!--[if IE ]>
-  <script src="{{ url_for_asset('ie.js') }}"></script>
-  <![endif]-->
   <script src="{{ url_for_asset('moment.js') }}"></script>
   <script src="{{ url_for_asset('main.js') }}"></script>
   <script src="{{ url_for_asset('bootstrap-datetimepicker.min.js') }}"></script>

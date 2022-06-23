@@ -17,10 +17,11 @@
 # under the License.
 """Branching operators"""
 
-from typing import Dict, Iterable, Union
+from typing import Iterable, Union
 
 from airflow.models import BaseOperator
 from airflow.models.skipmixin import SkipMixin
+from airflow.utils.context import Context
 
 
 class BaseBranchOperator(BaseOperator, SkipMixin):
@@ -37,18 +38,17 @@ class BaseBranchOperator(BaseOperator, SkipMixin):
     tasks directly downstream of this operator will be skipped.
     """
 
-    def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
         """
         Subclasses should implement this, running whatever logic is
         necessary to choose a branch and returning a task_id or list of
         task_ids.
 
         :param context: Context dictionary as passed to execute()
-        :type context: dict
         """
         raise NotImplementedError
 
-    def execute(self, context: Dict):
+    def execute(self, context: Context):
         branches_to_execute = self.choose_branch(context)
         self.skip_all_except(context['ti'], branches_to_execute)
         return branches_to_execute

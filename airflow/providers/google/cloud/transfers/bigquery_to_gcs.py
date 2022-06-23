@@ -16,13 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google BigQuery to Google Cloud Storage operator."""
-import warnings
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Set, Union
 
-from google.cloud.bigquery.table import TableReference
+from google.api_core.exceptions import Conflict
+from google.api_core.retry import Retry
+from google.cloud.bigquery import DEFAULT_RETRY, ExtractJob
 
+from airflow import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
+from airflow.providers.google.cloud.links.bigquery import BigQueryTableLink
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class BigQueryToGCSOperator(BaseOperator):
@@ -37,34 +43,22 @@ class BigQueryToGCSOperator(BaseOperator):
         ``(<project>.|<project>:)<dataset>.<table>`` BigQuery table to use as the
         source data. If ``<project>`` is not included, project will be the project
         defined in the connection json. (templated)
-    :type source_project_dataset_table: str
     :param destination_cloud_storage_uris: The destination Google Cloud
         Storage URI (e.g. gs://some-bucket/some-file.txt). (templated) Follows
         convention defined here:
         https://cloud.google.com/bigquery/exporting-data-from-bigquery#exportingmultiple
-    :type destination_cloud_storage_uris: List[str]
+    :param project_id: Google Cloud Project where the job is running
     :param compression: Type of compression to use.
-    :type compression: str
     :param export_format: File format to export.
-    :type export_format: str
     :param field_delimiter: The delimiter to use when extracting to a CSV.
-    :type field_delimiter: str
     :param print_header: Whether to print a header for a CSV file extract.
-    :type print_header: bool
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
-    :param bigquery_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type bigquery_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param labels: a dictionary containing labels for the job/query,
         passed to BigQuery
-    :type labels: dict
     :param location: The location used for the operation.
-    :type location: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -73,46 +67,52 @@ class BigQueryToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
+    :param result_retry: How to retry the `result` call that retrieves rows
+    :param result_timeout: The number of seconds to wait for `result` method before using `result_retry`
+    :param job_id: The ID of the job. It will be suffixed with hash of job configuration
+        unless ``force_rerun`` is True.
+        The ID must contain only letters (a-z, A-Z), numbers (0-9), underscores (_), or
+        dashes (-). The maximum length is 1,024 characters. If not provided then uuid will
+        be generated.
+    :param force_rerun: If True then operator will use hash of uuid as job id suffix
+    :param reattach_states: Set of BigQuery job's states in case of which we should reattach
+        to the job. Should be other than final states.
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'source_project_dataset_table',
         'destination_cloud_storage_uris',
         'labels',
         'impersonation_chain',
     )
-    template_ext = ()
+    template_ext: Sequence[str] = ()
     ui_color = '#e4e6f0'
+    operator_extra_links = (BigQueryTableLink(),)
 
     def __init__(
         self,
         *,
         source_project_dataset_table: str,
         destination_cloud_storage_uris: List[str],
+        project_id: Optional[str] = None,
         compression: str = 'NONE',
         export_format: str = 'CSV',
         field_delimiter: str = ',',
         print_header: bool = True,
         gcp_conn_id: str = 'google_cloud_default',
-        bigquery_conn_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
         location: Optional[str] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        result_retry: Retry = DEFAULT_RETRY,
+        result_timeout: Optional[float] = None,
+        job_id: Optional[str] = None,
+        force_rerun: bool = False,
+        reattach_states: Optional[Set[str]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = bigquery_conn_id
-
+        self.project_id = project_id
         self.source_project_dataset_table = source_project_dataset_table
         self.destination_cloud_storage_uris = destination_cloud_storage_uris
         self.compression = compression
@@ -124,25 +124,32 @@ class BigQueryToGCSOperator(BaseOperator):
         self.labels = labels
         self.location = location
         self.impersonation_chain = impersonation_chain
+        self.result_retry = result_retry
+        self.result_timeout = result_timeout
+        self.job_id = job_id
+        self.force_rerun = force_rerun
+        self.reattach_states: Set[str] = reattach_states or set()
+        self.hook: Optional[BigQueryHook] = None
 
-    def execute(self, context):
-        self.log.info(
-            'Executing extract of %s into: %s',
-            self.source_project_dataset_table,
-            self.destination_cloud_storage_uris,
-        )
-        hook = BigQueryHook(
-            bigquery_conn_id=self.gcp_conn_id,
-            delegate_to=self.delegate_to,
-            location=self.location,
-            impersonation_chain=self.impersonation_chain,
-        )
+    @staticmethod
+    def _handle_job_error(job: ExtractJob) -> None:
+        if job.error_result:
+            raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
-        table_ref = TableReference.from_string(self.source_project_dataset_table, hook.project_id)
+    def _prepare_configuration(self):
+        source_project, source_dataset, source_table = self.hook.split_tablename(
+            table_input=self.source_project_dataset_table,
+            default_project_id=self.project_id or self.hook.project_id,
+            var_name='source_project_dataset_table',
+        )
 
         configuration: Dict[str, Any] = {
             'extract': {
-                'sourceTable': table_ref.to_api_repr(),
+                'sourceTable': {
+                    'projectId': source_project,
+                    'datasetId': source_dataset,
+                    'tableId': source_table,
+                },
                 'compression': self.compression,
                 'destinationUris': self.destination_cloud_storage_uris,
                 'destinationFormat': self.export_format,
@@ -158,5 +165,68 @@ class BigQueryToGCSOperator(BaseOperator):
             # formats.
             configuration['extract']['fieldDelimiter'] = self.field_delimiter
             configuration['extract']['printHeader'] = self.print_header
+        return configuration
 
-        hook.insert_job(configuration=configuration)
+    def execute(self, context: 'Context'):
+        self.log.info(
+            'Executing extract of %s into: %s',
+            self.source_project_dataset_table,
+            self.destination_cloud_storage_uris,
+        )
+        hook = BigQueryHook(
+            gcp_conn_id=self.gcp_conn_id,
+            delegate_to=self.delegate_to,
+            location=self.location,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self.hook = hook
+
+        configuration = self._prepare_configuration()
+        job_id = hook.generate_job_id(
+            job_id=self.job_id,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=context["logical_date"],
+            configuration=configuration,
+            force_rerun=self.force_rerun,
+        )
+
+        try:
+            self.log.info("Executing: %s", configuration)
+            job: ExtractJob = hook.insert_job(
+                job_id=job_id,
+                configuration=configuration,
+                project_id=self.project_id,
+                location=self.location,
+                timeout=self.result_timeout,
+                retry=self.result_retry,
+            )
+            self._handle_job_error(job)
+        except Conflict:
+            # If the job already exists retrieve it
+            job = hook.get_job(
+                project_id=self.project_id,
+                location=self.location,
+                job_id=job_id,
+            )
+            if job.state in self.reattach_states:
+                # We are reattaching to a job
+                job.result(timeout=self.result_timeout, retry=self.result_retry)
+                self._handle_job_error(job)
+            else:
+                # Same job configuration so we need force_rerun
+                raise AirflowException(
+                    f"Job with id: {job_id} already exists and is in {job.state} state. If you "
+                    f"want to force rerun it consider setting `force_rerun=True`."
+                    f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
+                )
+
+        conf = job.to_api_repr()["configuration"]["extract"]["sourceTable"]
+        dataset_id, project_id, table_id = conf["datasetId"], conf["projectId"], conf["tableId"]
+        BigQueryTableLink.persist(
+            context=context,
+            task_instance=self,
+            dataset_id=dataset_id,
+            project_id=project_id,
+            table_id=table_id,
+        )

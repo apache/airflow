@@ -25,7 +25,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
-from airflow.providers.microsoft.azure.hooks.azure_fileshare import AzureFileShareHook
+from airflow.providers.microsoft.azure.hooks.fileshare import AzureFileShareHook
 from airflow.utils.process_utils import patch_environ
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
 from tests.test_utils.system_tests_class import SystemTest
@@ -45,7 +45,6 @@ def provide_wasb_default_connection(key_file_path: str):
     Context manager to provide a temporary value for wasb_default connection
 
     :param key_file_path: Path to file with wasb_default credentials .json file.
-    :type key_file_path: str
     """
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")
@@ -68,7 +67,6 @@ def provide_azure_data_lake_default_connection(key_file_path: str):
     """
     Context manager to provide a temporary value for azure_data_lake_default connection
     :param key_file_path: Path to file with azure_data_lake_default credentials .json file.
-    :type key_file_path: str
     """
     required_fields = {'login', 'password', 'extra'}
 

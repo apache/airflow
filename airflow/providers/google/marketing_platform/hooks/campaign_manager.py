@@ -61,9 +61,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Deletes a report by its ID.
 
         :param profile_id: The DFA user profile ID.
-        :type profile_id: str
         :param report_id: The ID of the report.
-        :type report_id: str
         """
         response = (
             self.get_conn()
@@ -78,9 +76,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Creates a report.
 
         :param profile_id: The DFA user profile ID.
-        :type profile_id: str
         :param report: The report resource to be inserted.
-        :type report: Dict[str, Any]
         """
         response = (
             self.get_conn()
@@ -102,15 +98,10 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Retrieves list of reports.
 
         :param profile_id: The DFA user profile ID.
-        :type profile_id: str
         :param max_results: Maximum number of results to return.
-        :type max_results: Optional[int]
         :param scope: The scope that defines which results are returned.
-        :type scope: Optional[str]
         :param sort_field: The field by which to sort the list.
-        :type sort_field: Optional[str]
         :param sort_order: Order of sorted results.
-        :type sort_order: Optional[str]
         """
         reports: List[dict] = []
         conn = self.get_conn()
@@ -133,12 +124,9 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Updates a report. This method supports patch semantics.
 
         :param profile_id: The DFA user profile ID.
-        :type profile_id: str
         :param report_id: The ID of the report.
-        :type report_id: str
         :param update_mask: The relevant portions of a report resource,
             according to the rules of patch semantics.
-        :type update_mask: Dict
         """
         response = (
             self.get_conn()
@@ -153,11 +141,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Runs a report.
 
         :param profile_id: The DFA profile ID.
-        :type profile_id: str
         :param report_id: The ID of the report.
-        :type report_id: str
         :param synchronous: If set and true, tries to run the report synchronously.
-        :type synchronous: Optional[bool]
         """
         response = (
             self.get_conn()
@@ -172,9 +157,7 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Updates a report.
 
         :param profile_id: The DFA user profile ID.
-        :type profile_id: str
         :param report_id: The ID of the report.
-        :type report_id: str
         """
         response = (
             self.get_conn()
@@ -189,11 +172,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Retrieves a report file.
 
         :param profile_id: The DFA user profile ID.
-        :type profile_id: str
         :param report_id: The ID of the report.
-        :type report_id: str
         :param file_id: The ID of the report file.
-        :type file_id: str
         """
         response = (
             self.get_conn()
@@ -209,11 +189,8 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Retrieves a media part of report file.
 
         :param profile_id: The DFA user profile ID.
-        :type profile_id: str
         :param report_id: The ID of the report.
-        :type report_id: str
         :param file_id: The ID of the report file.
-        :type file_id: str
         :return: googleapiclient.http.HttpRequest
         """
         request = (
@@ -256,21 +233,15 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Inserts conversions.
 
         :param profile_id: User profile ID associated with this request.
-        :type profile_id: str
         :param conversions: Conversations to insert, should by type of Conversation:
             https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
-        :type conversions: List[Dict[str, Any]]
         :param encryption_entity_type: The encryption entity type. This should match the encryption
             configuration for ad serving or Data Transfer.
-        :type encryption_entity_type: str
         :param encryption_entity_id: The encryption entity ID. This should match the encryption
             configuration for ad serving or Data Transfer.
-        :type encryption_entity_id: int
         :param encryption_source: Describes whether the encrypted cookie was received from ad serving
             (the %m macro) or from Data Transfer.
-        :type encryption_source: str
         :param max_failed_inserts: The maximum number of conversions that failed to be inserted
-        :type max_failed_inserts: int
         """
         response = (
             self.get_conn()
@@ -306,21 +277,15 @@ class GoogleCampaignManagerHook(GoogleBaseHook):
         Updates existing conversions.
 
         :param profile_id: User profile ID associated with this request.
-        :type profile_id: str
         :param conversions: Conversations to update, should by type of Conversation:
             https://developers.google.com/doubleclick-advertisers/v3.3/conversions#resource
-        :type conversions: List[Dict[str, Any]]
         :param encryption_entity_type: The encryption entity type. This should match the encryption
             configuration for ad serving or Data Transfer.
-        :type encryption_entity_type: str
         :param encryption_entity_id: The encryption entity ID. This should match the encryption
             configuration for ad serving or Data Transfer.
-        :type encryption_entity_id: int
         :param encryption_source: Describes whether the encrypted cookie was received from ad serving
             (the %m macro) or from Data Transfer.
-        :type encryption_source: str
         :param max_failed_updates: The maximum number of conversions that failed to be updated
-        :type max_failed_updates: int
         """
         response = (
             self.get_conn()

@@ -50,7 +50,7 @@ class TestCloudFormationCreateStackOperator(unittest.TestCase):
         operator = CloudFormationCreateStackOperator(
             task_id='test_task',
             stack_name=stack_name,
-            params={'TimeoutInMinutes': timeout, 'TemplateBody': template_body},
+            cloudformation_parameters={'TimeoutInMinutes': timeout, 'TemplateBody': template_body},
             dag=DAG('test_dag_id', default_args=self.args),
         )
 

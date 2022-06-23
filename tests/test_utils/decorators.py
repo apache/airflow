@@ -42,7 +42,7 @@ def dont_initialize_flask_app_submodules(_func=None, *, skip_all_except=None):
             "sync_appbuilder_roles",
             "init_jinja_globals",
             "init_xframe_protection",
-            "init_permanent_session",
+            "init_airflow_session_interface",
             "init_appbuilder",
         ]
 

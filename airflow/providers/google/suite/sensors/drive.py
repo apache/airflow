@@ -17,10 +17,13 @@
 # under the License.
 """This module contains Google Drive sensors."""
 
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleDriveFileExistenceSensor(BaseSensorOperator):
@@ -28,18 +31,13 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
     Checks for the existence of a file in Google Cloud Storage.
 
     :param folder_id: The Google drive folder where the file is.
-    :type folder_id: str
     :param file_name: The name of the file to check in Google Drive
-    :type file_name: str
     :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
-    :type drive_id: str
     :param gcp_conn_id: The connection ID to use when
         connecting to Google Cloud Storage.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -48,10 +46,9 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'folder_id',
         'file_name',
         'drive_id',
@@ -79,7 +76,7 @@ class GoogleDriveFileExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: dict) -> bool:
+    def poke(self, context: 'Context') -> bool:
         self.log.info('Sensor is checking for the file %s in the folder %s', self.file_name, self.folder_id)
         hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,

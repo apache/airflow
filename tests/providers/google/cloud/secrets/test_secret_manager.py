@@ -108,13 +108,12 @@ class TestCloudSecretManagerBackend(TestCase):
         mock_client.secret_version_path.assert_called_once_with(PROJECT_ID, secret_id, "latest")
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
-    @mock.patch(MODULE_NAME + ".CloudSecretManagerBackend.get_conn_uri")
-    def test_get_connections(self, mock_get_uri, mock_get_creds):
+    @mock.patch(MODULE_NAME + ".CloudSecretManagerBackend.get_conn_value")
+    def test_get_connection(self, mock_get_value, mock_get_creds):
         mock_get_creds.return_value = CREDENTIALS, PROJECT_ID
-        mock_get_uri.return_value = CONN_URI
-        conns = CloudSecretManagerBackend().get_connections(conn_id=CONN_ID)
-        assert isinstance(conns, list)
-        assert isinstance(conns[0], Connection)
+        mock_get_value.return_value = CONN_URI
+        conn = CloudSecretManagerBackend().get_connection(conn_id=CONN_ID)
+        assert isinstance(conn, Connection)
 
     @mock.patch(MODULE_NAME + ".get_credentials_and_project_id")
     @mock.patch(CLIENT_MODULE_NAME + ".SecretManagerServiceClient")
@@ -129,7 +128,7 @@ class TestCloudSecretManagerBackend(TestCase):
         secret_id = secrets_manager_backend.build_path(CONNECTIONS_PREFIX, CONN_ID, SEP)
         with self.assertLogs(secrets_manager_backend.client.log, level="ERROR") as log_output:
             assert secrets_manager_backend.get_conn_uri(conn_id=CONN_ID) is None
-            assert [] == secrets_manager_backend.get_connections(conn_id=CONN_ID)
+            assert secrets_manager_backend.get_connection(conn_id=CONN_ID) is None
             assert re.search(
                 f"Google Cloud API Call Error \\(NotFound\\): Secret ID {secret_id} not found",
                 log_output.output[0],

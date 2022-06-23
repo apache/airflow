@@ -16,23 +16,24 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""Example DAG demonstrating the DummyOperator and a custom DummySkipOperator which skips by default."""
+"""Example DAG demonstrating the EmptyOperator and a custom EmptySkipOperator which skips by default."""
 
-from datetime import datetime
+import pendulum
 
 from airflow import DAG
 from airflow.exceptions import AirflowSkipException
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
+from airflow.utils.context import Context
 from airflow.utils.trigger_rule import TriggerRule
 
 
 # Create some placeholder operators
-class DummySkipOperator(DummyOperator):
-    """Dummy operator which always skips the task."""
+class EmptySkipOperator(EmptyOperator):
+    """Empty operator which always skips the task."""
 
     ui_color = '#e8b7e4'
 
-    def execute(self, context):
+    def execute(self, context: Context):
         raise AirflowSkipException
 
 
@@ -44,16 +45,21 @@ def create_test_pipeline(suffix, trigger_rule):
     :param str trigger_rule: TriggerRule for the join task
     :param DAG dag_: The DAG to run the operators on
     """
-    skip_operator = DummySkipOperator(task_id=f'skip_operator_{suffix}')
-    always_true = DummyOperator(task_id=f'always_true_{suffix}')
-    join = DummyOperator(task_id=trigger_rule, trigger_rule=trigger_rule)
-    final = DummyOperator(task_id=f'final_{suffix}')
+    skip_operator = EmptySkipOperator(task_id=f'skip_operator_{suffix}')
+    always_true = EmptyOperator(task_id=f'always_true_{suffix}')
+    join = EmptyOperator(task_id=trigger_rule, trigger_rule=trigger_rule)
+    final = EmptyOperator(task_id=f'final_{suffix}')
 
     skip_operator >> join
     always_true >> join
     join >> final
 
 
-with DAG(dag_id='example_skip_dag', start_date=datetime(2021, 1, 1), catchup=False, tags=['example']) as dag:
+with DAG(
+    dag_id='example_skip_dag',
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    catchup=False,
+    tags=['example'],
+) as dag:
     create_test_pipeline('1', TriggerRule.ALL_SUCCESS)
     create_test_pipeline('2', TriggerRule.ONE_SUCCESS)

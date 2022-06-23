@@ -16,6 +16,7 @@
 # under the License.
 
 LOCAL_EXECUTOR = "LocalExecutor"
+LOCAL_KUBERNETES_EXECUTOR = "LocalKubernetesExecutor"
 SEQUENTIAL_EXECUTOR = "SequentialExecutor"
 CELERY_EXECUTOR = "CeleryExecutor"
 CELERY_KUBERNETES_EXECUTOR = "CeleryKubernetesExecutor"

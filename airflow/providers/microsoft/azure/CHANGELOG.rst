@@ -16,8 +16,178 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Pass connection extra parameters to wasb BlobServiceClient (#24154)``
+
+
+Misc
+~~~~
+
+* ``Apply per-run log templates to log handlers (#24153)``
+* ``Migrate Microsoft example DAGs to new design #22452 - azure (#24141)``
+* ``Add typing to Azure Cosmos Client Hook (#23941)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Clean up f-strings in logging calls (#23597)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+3.9.0
+.....
+
+Features
+~~~~~~~~
+
+* ``wasb hook: user defaultAzureCredentials instead of managedIdentity (#23394)``
+
+Misc
+~~~~
+
+* ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Bump pre-commit hook versions (#22887)``
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
+3.8.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
+
+Misc
+~~~~
+
+* ``Docs: Fix example usage for 'AzureCosmosDocumentSensor' (#22735)``
+
+
+3.7.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+3.7.1
+.....
+
+Misc
+~~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * `` Add map_index to XCom model and interface (#22112)``
+   * ``Protect against accidental misuse of XCom.get_value() (#22244)``
+
+3.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to 'AzureDataFactoryHook' (#21924)``
+* ``Add pre-commit check for docstring param types (#21398)``
+* ``Make container creation configurable when uploading files via WasbHook (#20510)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+* ``(AzureCosmosDBHook) Update to latest Cosmos API (#21514)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Change BaseOperatorLink interface to take a ti_key, not a datetime (#21798)``
+
+3.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add optional features in providers. (#21074)``
+
+Misc
+~~~~
+
+* ``Refactor operator links to not create ad hoc TaskInstances (#21285)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Remove all "fake" stub files (#20936)``
+   * ``Explain stub files are introduced for Mypy errors in examples (#20827)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+3.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Azure: New sftp to wasb operator (#18877)``
+* ``Removes InputRequired validation with azure extra (#20084)``
+* ``Add operator link to monitor Azure Data Factory pipeline runs (#20207)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixing MyPy issues inside providers/microsoft (#20409)``
+   * ``Fix cached_property MyPy declaration and related MyPy errors (#20226)``
+   * ``Fix mypy errors in Microsoft Azure provider (#19923)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Use isort on pyi files (#20556)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Fix mypy errors in Google Cloud provider (#20611)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Remove unnecessary connection form customizations in Azure (#19595)``
+* ``Update Azure modules to comply with AIP-21 (#19431)``
+* ``Remove 'host' from hidden fields in 'WasbHook' (#19475)``
+* ``use DefaultAzureCredential if login not provided for Data Factory (#19079)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix argument error in AzureContainerInstancesOperator (#19668)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Ensure ''catchup=False'' is used in example dags (#19396)``
 
 3.3.0
 .....
@@ -43,7 +213,7 @@ Other
 .. Below changes are excluded from the changelog. Move them to
    appropriate section above if needed. Do not delete the lines(!):
    * ``More f-strings (#18855)``
-   * ``Revert &#34;update azure cosmos version (#18663)&#34; (#18694)``
+   * ``Revert 'update azure cosmos version (#18663)' (#18694)``
    * ``update azure cosmos version (#18663)``
 
 3.2.0

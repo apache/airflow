@@ -17,10 +17,10 @@
  * under the License.
  */
 
-/* global document, window, $ */
+/* global document, window, CustomEvent, $ */
 
-import getMetaValue from './meta_value';
-import { formatDateTime } from './datetime_utils';
+import { getMetaValue } from './utils';
+import { approxTimeFromNow, formatDateTime } from './datetime_utils';
 
 function updateQueryStringParameter(uri, key, value) {
   const re = new RegExp(`([?&])${key}=.*?(&|$)`, 'i');
@@ -52,6 +52,9 @@ const nextRun = {
 let taskId = '';
 let executionDate = '';
 let subdagId = '';
+let dagRunId = '';
+let mapIndex;
+let mapStates = [];
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 
 const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-url]')).reduce((obj, elm) => {
@@ -60,7 +63,15 @@ const buttons = Array.from(document.querySelectorAll('a[id^="btn_"][data-base-ur
 }, {});
 
 function updateButtonUrl(elm, params) {
-  elm.setAttribute('href', `${elm.dataset.baseUrl}?${$.param(params)}`);
+  let url = elm.dataset.baseUrl;
+  if (params.dag_id && elm.dataset.baseUrl.indexOf(dagId) !== -1) {
+    url = url.replace(dagId, params.dag_id);
+    delete params.dag_id;
+  }
+  if (Object.prototype.hasOwnProperty.call(params, 'map_index') && params.map_index === undefined) {
+    delete params.map_index;
+  }
+  elm.setAttribute('href', `${url}?${$.param(params)}`);
 }
 
 function updateModalUrls() {
@@ -73,12 +84,21 @@ function updateModalUrls() {
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
+    map_index: mapIndex,
   });
 
   updateButtonUrl(buttons.rendered, {
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
+    map_index: mapIndex,
+  });
+
+  updateButtonUrl(buttons.mapped, {
+    _flt_3_dag_id: dagId,
+    _flt_3_task_id: taskId,
+    _flt_3_run_id: dagRunId,
+    _oc_TaskInstanceModelView: 'map_index',
   });
 
   if (buttons.rendered_k8s) {
@@ -86,19 +106,31 @@ function updateModalUrls() {
       dag_id: dagId,
       task_id: taskId,
       execution_date: executionDate,
+      map_index: mapIndex,
     });
   }
 
-  updateButtonUrl(buttons.ti, {
+  const tiButtonParams = {
     _flt_3_dag_id: dagId,
     _flt_3_task_id: taskId,
-    _oc_TaskInstanceModelView: executionDate,
-  });
+    _oc_TaskInstanceModelView: 'dag_run.execution_date',
+  };
+  // eslint-disable-next-line no-underscore-dangle
+  if (mapIndex >= 0) tiButtonParams._flt_0_map_index = mapIndex;
+  updateButtonUrl(buttons.ti, tiButtonParams);
 
   updateButtonUrl(buttons.log, {
     dag_id: dagId,
     task_id: taskId,
     execution_date: executionDate,
+    map_index: mapIndex,
+  });
+
+  updateButtonUrl(buttons.xcom, {
+    dag_id: dagId,
+    task_id: taskId,
+    execution_date: executionDate,
+    map_index: mapIndex,
   });
 }
 
@@ -109,29 +141,93 @@ document.addEventListener('click', (event) => {
   }
 });
 
-export function callModal(t, d, extraLinks, tryNumbers, sd) {
+export function callModal({
+  taskId: t,
+  executionDate: d,
+  extraLinks,
+  tryNumber,
+  isSubDag,
+  dagRunId: drID,
+  mapIndex: mi,
+  isMapped = false,
+  mappedStates = [],
+}) {
   taskId = t;
   const location = String(window.location);
   $('#btn_filter').on('click', () => {
     window.location = updateQueryStringParameter(location, 'root', taskId);
   });
-  subdagId = sd;
   executionDate = d;
+  dagRunId = drID;
+  mapIndex = mi;
+  if (isMapped) {
+    mapStates = mappedStates;
+  }
+  $('#dag_run_id').text(drID);
   $('#task_id').text(t);
   $('#execution_date').text(formatDateTime(d));
   $('#taskInstanceModal').modal({});
   $('#taskInstanceModal').css('margin-top', '0');
   $('#extra_links').prev('hr').hide();
   $('#extra_links').empty().hide();
-  if (subdagId === undefined) $('#div_btn_subdag').hide();
-  else {
+  if (mi >= 0) {
+    $('#modal_map_index').show();
+    $('#modal_map_index .value').text(mi);
+  } else {
+    $('#modal_map_index').hide();
+    $('#modal_map_index .value').text('');
+  }
+  if (isSubDag) {
     $('#div_btn_subdag').show();
     subdagId = `${dagId}.${t}`;
+  } else {
+    $('#div_btn_subdag').hide();
+    subdagId = undefined;
+  }
+
+  // Show a span or dropdown for mapIndex
+  if (mi >= 0 && !mapStates.length) {
+    $('#modal_map_index').show();
+    $('#modal_map_index .value').text(mi);
+    $('#mapped_dropdown').hide();
+  } else if (mi >= 0 || isMapped) {
+    $('#modal_map_index').show();
+    $('#modal_map_index .value').text('');
+    $('#mapped_dropdown').show();
+
+    const dropdownText = mapIndex > -1 ? mapIndex : `All  ${mapStates.length} Mapped Instances`;
+    $('#mapped_dropdown #dropdown-label').text(dropdownText);
+    $('#mapped_dropdown .dropdown-menu').empty();
+    $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="all">All ${mapStates.length} Mapped Instances</a></li>`);
+    mapStates.forEach((state, i) => {
+      $('#mapped_dropdown .dropdown-menu').append(`<li><a href="#" class="map_index_item" data-mapIndex="${i}">${i} - ${state}</a></li>`);
+    });
+  } else {
+    $('#modal_map_index').hide();
+    $('#modal_map_index .value').text('');
+    $('#mapped_dropdown').hide();
+  }
+
+  if (isMapped) {
+    $('#task_actions').text(`Task Actions for all ${mappedStates.length} instances`);
+    $('#btn_mapped').show();
+    $('#mapped_dropdown').css('display', 'inline-block');
+    $('#btn_rendered').hide();
+    $('#btn_xcom').hide();
+    $('#btn_log').hide();
+    $('#btn_task').hide();
+  } else {
+    $('#task_actions').text('Task Actions');
+    $('#btn_rendered').show();
+    $('#btn_xcom').show();
+    $('#btn_log').show();
+    $('#btn_mapped').hide();
+    $('#btn_task').show();
   }
 
   $('#dag_dl_logs').hide();
   $('#dag_redir_logs').hide();
-  if (tryNumbers > 0) {
+  if (tryNumber > 0 && !isMapped) {
     $('#dag_dl_logs').show();
     if (showExternalLogRedirect) {
       $('#dag_redir_logs').show();
@@ -142,47 +238,42 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
 
   $('#try_index > li').remove();
   $('#redir_log_try_index > li').remove();
-  const startIndex = (tryNumbers > 2 ? 0 : 1);
-  for (let index = startIndex; index < tryNumbers; index += 1) {
-    let url = `${logsWithMetadataUrl
-    }?dag_id=${encodeURIComponent(dagId)
-    }&task_id=${encodeURIComponent(taskId)
-    }&execution_date=${encodeURIComponent(executionDate)
-    }&metadata=null`
-      + '&format=file';
+  const startIndex = (tryNumber > 2 ? 0 : 1);
 
+  const query = new URLSearchParams({
+    dag_id: dagId,
+    task_id: taskId,
+    execution_date: executionDate,
+    metadata: 'null',
+  });
+  if (mi !== undefined) {
+    query.set('map_index', mi);
+  }
+  for (let index = startIndex; index < tryNumber; index += 1) {
     let showLabel = index;
     if (index !== 0) {
-      url += `&try_number=${index}`;
+      query.set('try_number', index);
     } else {
       showLabel = 'All';
     }
 
     $('#try_index').append(`<li role="presentation" style="display:inline">
-      <a href="${url}"> ${showLabel} </a>
+      <a href="${logsWithMetadataUrl}?${query}&format=file"> ${showLabel} </a>
       </li>`);
 
     if (index !== 0 || showExternalLogRedirect) {
-      const redirLogUrl = `${externalLogUrl
-      }?dag_id=${encodeURIComponent(dagId)
-      }&task_id=${encodeURIComponent(taskId)
-      }&execution_date=${encodeURIComponent(executionDate)
-      }&try_number=${index}`;
       $('#redir_log_try_index').append(`<li role="presentation" style="display:inline">
-      <a href="${redirLogUrl}"> ${showLabel} </a>
+      <a href="${externalLogUrl}?${query}"> ${showLabel} </a>
       </li>`);
     }
   }
+  query.delete('try_number');
 
   if (extraLinks && extraLinks.length > 0) {
     const markupArr = [];
     extraLinks.sort();
     $.each(extraLinks, (i, link) => {
-      const url = `${extraLinksUrl
-      }?task_id=${encodeURIComponent(taskId)
-      }&dag_id=${encodeURIComponent(dagId)
-      }&execution_date=${encodeURIComponent(executionDate)
-      }&link_name=${encodeURIComponent(link)}`;
+      query.set('link_name', link);
       const externalLink = $('<a href="#" class="btn btn-primary disabled"></a>');
       const linkTooltip = $('<span class="tool-tip" data-toggle="tooltip" style="padding-right: 2px; padding-left: 3px" data-placement="top" '
         + 'title="link not yet available"></span>');
@@ -191,7 +282,7 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
 
       $.ajax(
         {
-          url,
+          url: `${extraLinksUrl}?${query}`,
           cache: false,
           success(data) {
             externalLink.attr('href', data.url);
@@ -219,41 +310,47 @@ export function callModal(t, d, extraLinks, tryNumbers, sd) {
   }
 }
 
-export function callModalDag(dag) {
-  $('#dagModal').modal({});
-  $('#dagModal').css('margin-top', '0');
-  executionDate = dag.execution_date;
-  updateButtonUrl(buttons.dag_graph_view, {
-    dag_id: dag && dag.dag_id,
-    execution_date: dag && dag.execution_date,
-  });
-}
+// Switch the modal from a mapped task summary to a specific mapped task instance
+$(document).on('click', '.map_index_item', function mapItem() {
+  const mi = $(this).attr('data-mapIndex');
+  if (mi === 'all') {
+    callModal({
+      taskId,
+      executionDate,
+      dagRunId,
+      mapIndex: -1,
+      isMapped: true,
+      mappedStates: mapStates,
+    });
+  } else {
+    callModal({
+      taskId,
+      executionDate,
+      dagRunId,
+      mapIndex: mi,
+    });
+  }
+});
 
 // Task Instance Modal actions
 $('form[data-action]').on('submit', function submit(e) {
   e.preventDefault();
   const form = $(this).get(0);
-  // Somehow submit is fired twice. Only once is the executionDate valid
-  if (executionDate) {
-    form.execution_date.value = executionDate;
+  if (dagRunId || executionDate) {
+    if (form.dag_run_id) {
+      form.dag_run_id.value = dagRunId;
+    }
+    if (form.execution_date) {
+      form.execution_date.value = executionDate;
+    }
     form.origin.value = window.location;
     if (form.task_id) {
       form.task_id.value = taskId;
     }
-    form.action = $(this).data('action');
-    form.submit();
-  }
-});
-
-// DAG Modal actions
-$('form button[data-action]').on('click', function onClick() {
-  const form = $(this).closest('form').get(0);
-  // Somehow submit is fired twice. Only once is the executionDate valid
-  if (executionDate) {
-    form.execution_date.value = executionDate;
-    form.origin.value = window.location;
-    if (form.task_id) {
-      form.task_id.value = taskId;
+    if (form.map_index && mapIndex >= 0) {
+      form.map_index.value = mapIndex;
+    } else if (form.map_index) {
+      form.map_index.remove();
     }
     form.action = $(this).data('action');
     form.submit();
@@ -268,10 +365,17 @@ $('#pause_resume').on('change', function onChange() {
   // Remove focus on element so the tooltip will go away
   $input.trigger('blur');
   $input.removeClass('switch-input--error');
+
+  // dispatch an event that React can listen for
+  const event = new CustomEvent('paused', { detail: isPaused });
+  document.dispatchEvent(event);
+
   $.post(url).fail(() => {
     setTimeout(() => {
       $input.prop('checked', !isPaused);
       $input.addClass('switch-input--error');
+      event.value = !isPaused;
+      document.dispatchEvent(event);
     }, 500);
   });
 });
@@ -279,7 +383,10 @@ $('#pause_resume').on('change', function onChange() {
 $('#next-run').on('mouseover', () => {
   $('#next-run').attr('data-original-title', () => {
     let newTitle = '';
-    if (nextRun.createAfter) newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br><br>`;
+    if (nextRun.createAfter) {
+      newTitle += `<strong>Run After:</strong> ${formatDateTime(nextRun.createAfter)}<br>`;
+      newTitle += `Next Run: ${approxTimeFromNow(nextRun.createAfter)}<br><br>`;
+    }
     if (nextRun.intervalStart && nextRun.intervalEnd) {
       newTitle += '<strong>Data Interval</strong><br>';
       newTitle += `Start: ${formatDateTime(nextRun.intervalStart)}<br>`;

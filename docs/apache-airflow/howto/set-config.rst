@@ -29,21 +29,21 @@ For example, the metadata database connection string can either be set in ``airf
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn = my_conn_string
 
 or by creating a corresponding environment variable:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_string
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_string
 
 You can also derive the connection string at run time by appending ``_cmd`` to
 the key like this:
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn_cmd = bash_command_to_run
 
 You can also derive the connection string at run time by appending ``_secret`` to
@@ -51,18 +51,18 @@ the key like this:
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn_secret = sql_alchemy_conn
     # You can also add a nested path
     # example:
-    # sql_alchemy_conn_secret = core/sql_alchemy_conn
+    # sql_alchemy_conn_secret = database/sql_alchemy_conn
 
 This will retrieve config option from Secret Backends e.g Hashicorp Vault. See
 :ref:`Secrets Backends<secrets_backend_configuration>` for more details.
 
 The following config options support this ``_cmd`` and ``_secret`` version:
 
-* ``sql_alchemy_conn`` in ``[core]`` section
+* ``sql_alchemy_conn`` in ``[database]`` section
 * ``fernet_key`` in ``[core]`` section
 * ``broker_url`` in ``[celery]`` section
 * ``flower_basic_auth`` in ``[celery]`` section
@@ -76,14 +76,14 @@ the same way the usual config options can. For example:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD=bash_command_to_run
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD=bash_command_to_run
 
 Similarly, ``_secret`` config options can also be set using a corresponding environment variable.
 For example:
 
 .. code-block:: bash
 
-    export AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET=sql_alchemy_conn
+    export AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET=sql_alchemy_conn
 
 .. note::
     The config options must follow the config prefix naming convention defined within the secrets backend. This means that ``sql_alchemy_conn`` is not defined with a connection prefix, but with config prefix. For example it should be named as ``airflow/config/sql_alchemy_conn``
@@ -92,13 +92,17 @@ The idea behind this is to not store passwords on boxes in plain text files.
 
 The universal order of precedence for all configuration options is as follows:
 
-#. set as an environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN``)
-#. set as a command environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_CMD``)
-#. set as a secret environment variable (``AIRFLOW__CORE__SQL_ALCHEMY_CONN_SECRET``)
+#. set as an environment variable (``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``)
+#. set as a command environment variable (``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_CMD``)
+#. set as a secret environment variable (``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN_SECRET``)
 #. set in ``airflow.cfg``
 #. command in ``airflow.cfg``
 #. secret key in ``airflow.cfg``
 #. Airflow's built in defaults
+
+.. note::
+    For Airflow versions >= 2.2.1, < 2.3.0 Airflow's built in defaults took precedence
+    over command and secret key in ``airflow.cfg`` in some circumstances.
 
 You can check the current configuration with the ``airflow config list`` command.
 
@@ -121,3 +125,8 @@ the example below.
     does not require all, some configurations need to be same otherwise they would not
     work as expected. A good example for that is :ref:`secret_key<config:webserver__secret_key>` which
     should be same on the Webserver and Worker to allow Webserver to fetch logs from Worker.
+
+    The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+    generated using the secret key has a short expiry time though - make sure that time on ALL the machines
+    that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
+    "forbidden" errors when the logs are accessed.

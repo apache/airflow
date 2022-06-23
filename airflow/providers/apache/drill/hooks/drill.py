@@ -69,12 +69,12 @@ class DrillHook(DbApiHook):
         host = conn_md.host
         if conn_md.port is not None:
             host += f':{conn_md.port}'
-        conn_type = 'drill' if not conn_md.conn_type else conn_md.conn_type
+        conn_type = conn_md.conn_type or 'drill'
         dialect_driver = conn_md.extra_dejson.get('dialect_driver', 'drill+sadrill')
         storage_plugin = conn_md.extra_dejson.get('storage_plugin', 'dfs')
-        return f'{conn_type}://{host}/{storage_plugin}' f'?dialect_driver={dialect_driver}'
+        return f'{conn_type}://{host}/{storage_plugin}?dialect_driver={dialect_driver}'
 
-    def set_autocommit(self, conn: Connection, autocommit: bool) -> NotImplemented:
+    def set_autocommit(self, conn: Connection, autocommit: bool) -> NotImplementedError:
         raise NotImplementedError("There are no transactions in Drill.")
 
     def insert_rows(
@@ -85,5 +85,5 @@ class DrillHook(DbApiHook):
         commit_every: int = 1000,
         replace: bool = False,
         **kwargs: Any,
-    ) -> NotImplemented:
+    ) -> NotImplementedError:
         raise NotImplementedError("There is no INSERT statement in Drill.")

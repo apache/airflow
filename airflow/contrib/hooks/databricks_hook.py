@@ -28,7 +28,6 @@ from airflow.providers.databricks.hooks.databricks import (  # noqa
     START_CLUSTER_ENDPOINT,
     SUBMIT_RUN_ENDPOINT,
     TERMINATE_CLUSTER_ENDPOINT,
-    USER_AGENT_HEADER,
     DatabricksHook,
     RunState,
 )

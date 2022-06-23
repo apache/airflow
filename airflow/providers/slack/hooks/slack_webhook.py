@@ -34,31 +34,20 @@ class SlackWebhookHook(HttpHook):
     Each Slack webhook token can be pre-configured to use a specific channel, username and
     icon. You can override these defaults in this hook.
 
-    :param http_conn_id: connection that has Slack webhook token in the extra field
-    :type http_conn_id: str
+    :param http_conn_id: connection that has Slack webhook token in the password field
     :param webhook_token: Slack webhook token
-    :type webhook_token: str
     :param message: The message you want to send on Slack
-    :type message: str
     :param attachments: The attachments to send on Slack. Should be a list of
         dictionaries representing Slack attachments.
-    :type attachments: list
     :param blocks: The blocks to send on Slack. Should be a list of
         dictionaries representing Slack blocks.
-    :type blocks: list
     :param channel: The channel the message should be posted to
-    :type channel: str
     :param username: The username to post to slack with
-    :type username: str
     :param icon_emoji: The emoji to use as icon for the user posting to Slack
-    :type icon_emoji: str
     :param icon_url: The icon image URL string to use in place of the default icon.
-    :type icon_url: str
     :param link_names: Whether or not to find and link channel and usernames in your
         message
-    :type link_names: bool
     :param proxy: Proxy to use to make the Slack webhook call
-    :type proxy: str
     """
 
     conn_name_attr = 'http_conn_id'
@@ -99,9 +88,7 @@ class SlackWebhookHook(HttpHook):
         Given either a manually set token or a conn_id, return the webhook_token to use.
 
         :param token: The manually provided token
-        :type token: str
         :param http_conn_id: The conn_id provided
-        :type http_conn_id: str
         :return: webhook_token to use
         :rtype: str
         """

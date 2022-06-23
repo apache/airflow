@@ -16,9 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Dataprep operator."""
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.dataprep import GoogleDataprepHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DataprepGetJobsForJobGroupOperator(BaseOperator):
@@ -31,17 +35,16 @@ class DataprepGetJobsForJobGroupOperator(BaseOperator):
         :ref:`howto/operator:DataprepGetJobsForJobGroupOperator`
 
     :param job_id The ID of the job that will be requests
-    :type job_id: int
     """
 
-    template_fields = ("job_id",)
+    template_fields: Sequence[str] = ("job_id",)
 
     def __init__(self, *, dataprep_conn_id: str = "dataprep_default", job_id: int, **kwargs) -> None:
         super().__init__(**kwargs)
         self.dataprep_conn_id = (dataprep_conn_id,)
         self.job_id = job_id
 
-    def execute(self, context: dict) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.log.info("Fetching data for job with id: %d ...", self.job_id)
         hook = GoogleDataprepHook(
             dataprep_conn_id="dataprep_default",
@@ -61,14 +64,11 @@ class DataprepGetJobGroupOperator(BaseOperator):
         :ref:`howto/operator:DataprepGetJobGroupOperator`
 
     :param job_group_id: The ID of the job that will be requests
-    :type job_group_id: int
     :param embed: Comma-separated list of objects to pull in as part of the response
-    :type embed: string
     :param include_deleted: if set to "true", will include deleted objects
-    :type include_deleted: bool
     """
 
-    template_fields = ("job_group_id", "embed")
+    template_fields: Sequence[str] = ("job_group_id", "embed")
 
     def __init__(
         self,
@@ -85,7 +85,7 @@ class DataprepGetJobGroupOperator(BaseOperator):
         self.embed = embed
         self.include_deleted = include_deleted
 
-    def execute(self, context: dict) -> dict:
+    def execute(self, context: 'Context') -> dict:
         self.log.info("Fetching data for job with id: %d ...", self.job_group_id)
         hook = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         response = hook.get_job_group(
@@ -108,20 +108,18 @@ class DataprepRunJobGroupOperator(BaseOperator):
         :ref:`howto/operator:DataprepRunJobGroupOperator`
 
     :param dataprep_conn_id: The Dataprep connection ID
-    :type dataprep_conn_id: str
     :param body_request:  Passed as the body_request to GoogleDataprepHook's run_job_group,
         where it's the identifier for the recipe to run
-    :type body_request: dict
     """
 
-    template_fields = ("body_request",)
+    template_fields: Sequence[str] = ("body_request",)
 
     def __init__(self, *, dataprep_conn_id: str = "dataprep_default", body_request: dict, **kwargs) -> None:
         super().__init__(**kwargs)
         self.body_request = body_request
         self.dataprep_conn_id = dataprep_conn_id
 
-    def execute(self, context: None) -> dict:
+    def execute(self, context: "Context") -> dict:
         self.log.info("Creating a job...")
         hook = GoogleDataprepHook(dataprep_conn_id=self.dataprep_conn_id)
         response = hook.run_job_group(body_request=self.body_request)

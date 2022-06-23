@@ -19,6 +19,7 @@
 Example Airflow DAG that shows how to use SalesforceToGcsOperator.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery import (
@@ -30,7 +31,6 @@ from airflow.providers.google.cloud.operators.bigquery import (
 from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
 from airflow.providers.google.cloud.transfers.salesforce_to_gcs import SalesforceToGcsOperator
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 GCS_BUCKET = os.environ.get("GCS_BUCKET", "airflow-salesforce-bucket")
@@ -45,7 +45,8 @@ SALESFORCE_CONN_ID = os.environ.get("SALESFORCE_CONN_ID", "salesforce_default")
 with models.DAG(
     "example_salesforce_to_gcs",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
     create_bucket = GCSCreateBucketOperator(
         task_id="create_bucket",

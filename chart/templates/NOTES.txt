@@ -23,13 +23,21 @@ Thank you for installing Apache {{ title .Chart.Name }} {{ .Values.airflowVersio
 
 Your release is named {{ .Release.Name }}.
 
-{{- if .Values.ingress.enabled }}
+{{- if or .Values.ingress.web.enabled .Values.ingress.flower.enabled .Values.ingress.enabled }}
 You can now access your service(s) by following defined Ingress urls:
 
 {{- if .Values.ingress.web.host }}
 
 DEPRECATION WARNING:
    `ingress.web.host` has been renamed to `ingress.web.hosts` and is now an array.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.ingress.web.tls }}
+
+DEPRECATION WARNING:
+   `ingress.web.tls` has been renamed to `ingress.web.hosts[*].tls` and can be set per host.
    Please change your values as support for the old name will be dropped in a future release.
 
 {{- end }}
@@ -42,14 +50,50 @@ DEPRECATION WARNING:
 
 {{- end }}
 
+
+{{- if .Values.ingress.flower.tls }}
+
+DEPRECATION WARNING:
+   `ingress.flower.tls` has been renamed to `ingress.flower.hosts[*].tls` and can be set per host.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if .Values.ingress.enabled }}
+
+DEPRECATION WARNING:
+   `ingress.enabled` has been deprecated. There are now separate flags to control the webserver and
+   flower individually, ``ingress.web.enabled`` and ``ingress.flower.enabled``.
+   Please change your values as support for the old name will be dropped in a future release.
+
+{{- end }}
+
+{{- if or .Values.ingress.web.enabled .Values.ingress.enabled }}
 Airflow Webserver:
 {{- range .Values.ingress.web.hosts | default (list .Values.ingress.web.host) }}
-      http{{ if $.Values.ingress.web.tls.enabled }}s{{ end }}://{{ . }}{{ $.Values.ingress.web.path }}/
+      {{- $tlsEnabled := $.Values.ingress.web.tls.enabled -}}
+      {{- $hostname := $.Values.ingress.web.host -}}
+      {{- if . | kindIs "string" | not }}
+      {{- if .tls }}
+      {{- $tlsEnabled := .tls.enabled -}}
+      {{- $hostname := $.name -}}
+      {{- end }}
+      {{- end }}
+      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.web.path }}/
 {{- end }}
-{{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+{{- end }}
+{{- if and (or .Values.ingress.flower.enabled .Values.ingress.enabled) (or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor")) }}
 Flower dashboard:
-{{- range .Values.ingress.flower.hosts }}
-      http{{ if $.Values.ingress.flower.tls.enabled }}s{{ end }}://{{ . }}{{ $.Values.ingress.flower.path }}/
+{{- range .Values.ingress.flower.hosts | default (list .Values.ingress.flower.host) }}
+      {{- $tlsEnabled := $.Values.ingress.flower.tls.enabled -}}
+      {{- $hostname := $.Values.ingress.flower.host -}}
+      {{- if . | kindIs "string" | not }}
+      {{- if .tls }}
+      {{- $tlsEnabled := .tls.enabled -}}
+      {{- $hostname := $.name -}}
+      {{- end }}
+      {{- end }}
+      http{{ if $tlsEnabled }}s{{ end }}://{{ $hostname }}{{ $.Values.ingress.flower.path }}/
 {{- end }}
 {{- end }}
 {{- else }}

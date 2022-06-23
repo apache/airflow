@@ -17,7 +17,7 @@
 # under the License.
 
 #
-# Bash sanity settings (error on exit, complain for undefined vars, error when pipe fails)
+# Bash coherence settings (error on exit, complain for undefined vars, error when pipe fails)
 set -euo pipefail
 
 IN_CONTAINER_DIR=$(cd "$(dirname "$0")" || exit 1; pwd)
@@ -44,11 +44,11 @@ pytest "${PYTEST_ARGS[@]}"
 RES=$?
 
 set +x
-if [[ "${RES}" == "0" && ${GITHUB_ACTIONS} == "true" ]]; then
+if [[ "${RES}" == "0" && ( ${GITHUB_ACTIONS=} == "true" || ${GITHUB_ACTIONS} == "True" ) ]]; then
     echo "All tests successful"
 fi
 
-if [[ ${GITHUB_ACTIONS} == "true" ]]; then
+if [[ ${GITHUB_ACTIONS=} == "true" || ${GITHUB_ACTIONS} == "True" ]]; then
     dump_airflow_logs
 fi
 

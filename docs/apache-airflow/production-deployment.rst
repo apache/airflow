@@ -34,7 +34,7 @@ You can change the backend using the following config
 
 .. code-block:: ini
 
-    [core]
+    [database]
     sql_alchemy_conn = my_conn_string
 
 Once you have changed the backend, airflow needs to create all the tables required for operation.
@@ -93,7 +93,7 @@ e.g. metadata DB, password, etc. You can accomplish this using the format :envva
 
 .. code-block:: bash
 
- AIRFLOW__CORE__SQL_ALCHEMY_CONN=my_conn_id
+ AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=my_conn_id
  AIRFLOW__WEBSERVER__BASE_URL=http://host:port
 
 Some configurations such as the Airflow Backend connection URI can be derived from bash commands as well:
@@ -141,7 +141,7 @@ is capable of retrieving the authentication token.
 
 The best practice to implement proper security mechanism in this case is to make sure that worker
 workloads have no access to the Keytab but only have access to the periodically refreshed, temporary
-authentication tokens. This can be achieved in docker environment by running the ``airflow kerberos``
+authentication tokens. This can be achieved in Docker environment by running the ``airflow kerberos``
 command and the worker command in separate containers - where only the ``airflow kerberos`` token has
 access to the Keytab file (preferably configured as secret resource). Those two containers should share
 a volume where the temporary token should be written by the ``airflow kerberos`` and read by the workers.

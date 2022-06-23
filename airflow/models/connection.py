@@ -71,26 +71,16 @@ class Connection(Base, LoggingMixin):
         For more information on how to use this class, see: :doc:`/howto/connection`
 
     :param conn_id: The connection ID.
-    :type conn_id: str
     :param conn_type: The connection type.
-    :type conn_type: str
     :param description: The connection description.
-    :type description: str
     :param host: The host.
-    :type host: str
     :param login: The login.
-    :type login: str
     :param password: The password.
-    :type password: str
     :param schema: The schema.
-    :type schema: str
     :param port: The port number.
-    :type port: int
     :param extra: Extra metadata. Non-standard data such as private/SSH keys can be saved here. JSON
         encoded object.
-    :type extra: str
     :param uri: URI address describing connection parameters.
-    :type uri: str
     """
 
     EXTRA_KEY = '__extra__'
@@ -144,9 +134,38 @@ class Connection(Base, LoggingMixin):
             self.schema = schema
             self.port = port
             self.extra = extra
+        if self.extra:
+            self._validate_extra(self.extra, self.conn_id)
 
         if self.password:
             mask_secret(self.password)
+
+    @staticmethod
+    def _validate_extra(extra, conn_id) -> None:
+        """
+        Here we verify that ``extra`` is a JSON-encoded Python dict.  From Airflow 3.0, we should no
+        longer suppress these errors but raise instead.
+        """
+        if extra is None:
+            return None
+        try:
+            extra_parsed = json.loads(extra)
+            if not isinstance(extra_parsed, dict):
+                warnings.warn(
+                    "Encountered JSON value in `extra` which does not parse as a dictionary in "
+                    f"connection {conn_id!r}. From Airflow 3.0, the `extra` field must contain a JSON "
+                    "representation of a Python dict.",
+                    DeprecationWarning,
+                    stacklevel=3,
+                )
+        except json.JSONDecodeError:
+            warnings.warn(
+                f"Encountered non-JSON in `extra` field for connection {conn_id!r}. Support for "
+                "non-JSON `extra` will be removed in Airflow 3.0",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return None
 
     @reconstructor
     def on_db_load(self):
@@ -160,14 +179,18 @@ class Connection(Base, LoggingMixin):
         )
         self._parse_from_uri(**uri)
 
-    def _parse_from_uri(self, uri: str):
-        uri_parts = urlparse(uri)
-        conn_type = uri_parts.scheme
+    @staticmethod
+    def _normalize_conn_type(conn_type):
         if conn_type == 'postgresql':
             conn_type = 'postgres'
         elif '-' in conn_type:
             conn_type = conn_type.replace('-', '_')
-        self.conn_type = conn_type
+        return conn_type
+
+    def _parse_from_uri(self, uri: str):
+        uri_parts = urlparse(uri)
+        conn_type = uri_parts.scheme
+        self.conn_type = self._normalize_conn_type(conn_type)
         self.host = _parse_netloc_to_hostname(uri_parts)
         quoted_schema = uri_parts.path[1:]
         self.schema = unquote(quoted_schema) if quoted_schema else quoted_schema
@@ -183,6 +206,12 @@ class Connection(Base, LoggingMixin):
 
     def get_uri(self) -> str:
         """Return connection in URI format"""
+        if '_' in self.conn_type:
+            self.log.warning(
+                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
+                self.conn_type,
+            )
+
         uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
 
         authority_block = ''
@@ -214,7 +243,7 @@ class Connection(Base, LoggingMixin):
 
         if self.extra:
             try:
-                query = urlencode(self.extra_dejson)
+                query: Optional[str] = urlencode(self.extra_dejson)
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
@@ -258,13 +287,17 @@ class Connection(Base, LoggingMixin):
                     f"Can't decrypt `extra` params for login={self.login}, "
                     f"FERNET_KEY configuration is missing"
                 )
-            return fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
+            extra_val = fernet.decrypt(bytes(self._extra, 'utf-8')).decode()
         else:
-            return self._extra
+            extra_val = self._extra
+        if extra_val:
+            self._validate_extra(extra_val, self.conn_id)
+        return extra_val
 
     def set_extra(self, value: str):
         """Encrypt extra-data and save in object attribute to object."""
         if value:
+            self._validate_extra(value, self.conn_id)
             fernet = get_fernet()
             self._extra = fernet.encrypt(bytes(value, 'utf-8')).decode()
             self.is_extra_encrypted = fernet.is_encrypted
@@ -285,29 +318,28 @@ class Connection(Base, LoggingMixin):
         if self._extra and self.is_extra_encrypted:
             self._extra = fernet.rotate(self._extra.encode('utf-8')).decode()
 
-    def get_hook(self):
-        """Return hook based on conn_type."""
-        (
-            hook_class_name,
-            conn_id_param,
-            package_name,
-            hook_name,
-            connection_type,
-        ) = ProvidersManager().hooks.get(self.conn_type, (None, None, None, None, None))
+    def get_hook(self, *, hook_params=None):
+        """Return hook based on conn_type"""
+        hook = ProvidersManager().hooks.get(self.conn_type, None)
 
-        if not hook_class_name:
+        if hook is None:
             raise AirflowException(f'Unknown hook type "{self.conn_type}"')
         try:
-            hook_class = import_string(hook_class_name)
+            hook_class = import_string(hook.hook_class_name)
         except ImportError:
             warnings.warn(
-                "Could not import %s when discovering %s %s", hook_class_name, hook_name, package_name
+                "Could not import %s when discovering %s %s",
+                hook.hook_class_name,
+                hook.hook_name,
+                hook.package_name,
             )
             raise
-        return hook_class(**{conn_id_param: self.conn_id})
+        if hook_params is None:
+            hook_params = {}
+        return hook_class(**{hook.connection_id_attribute_name: self.conn_id}, **hook_params)
 
     def __repr__(self):
-        return self.conn_id
+        return self.conn_id or ''
 
     def log_info(self):
         """
@@ -388,7 +420,7 @@ class Connection(Base, LoggingMixin):
                 conn = secrets_backend.get_connection(conn_id=conn_id)
                 if conn:
                     return conn
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 log.exception(
                     'Unable to retrieve connection from secrets backend (%s). '
                     'Checking subsequent secrets backend.',
@@ -396,3 +428,20 @@ class Connection(Base, LoggingMixin):
                 )
 
         raise AirflowNotFoundException(f"The conn_id `{conn_id}` isn't defined")
+
+    @classmethod
+    def from_json(cls, value, conn_id=None) -> 'Connection':
+        kwargs = json.loads(value)
+        extra = kwargs.pop('extra', None)
+        if extra:
+            kwargs['extra'] = extra if isinstance(extra, str) else json.dumps(extra)
+        conn_type = kwargs.pop('conn_type', None)
+        if conn_type:
+            kwargs['conn_type'] = cls._normalize_conn_type(conn_type)
+        port = kwargs.pop('port', None)
+        if port:
+            try:
+                kwargs['port'] = int(port)
+            except ValueError:
+                raise ValueError(f"Expected integer value for `port`, but got {port!r} instead.")
+        return Connection(conn_id=conn_id, **kwargs)

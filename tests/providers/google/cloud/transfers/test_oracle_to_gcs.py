@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-import cx_Oracle
+import oracledb
 
 from airflow.providers.google.cloud.transfers.oracle_to_gcs import OracleToGCSOperator
 
@@ -32,8 +32,8 @@ GZIP = False
 
 ROWS = [('mock_row_content_1', 42), ('mock_row_content_2', 43), ('mock_row_content_3', 44)]
 CURSOR_DESCRIPTION = (
-    ('some_str', cx_Oracle.DB_TYPE_VARCHAR, None, None, None, None, None),
-    ('some_num', cx_Oracle.DB_TYPE_NUMBER, None, None, None, None, None),
+    ('some_str', oracledb.DB_TYPE_VARCHAR, None, None, None, None, None),  # type: ignore
+    ('some_num', oracledb.DB_TYPE_NUMBER, None, None, None, None, None),  # type: ignore
 )
 NDJSON_LINES = [
     b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
@@ -70,7 +70,7 @@ class TestOracleToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert JSON_FILENAME.format(0) == obj
             assert 'application/json' == mime_type
@@ -99,7 +99,7 @@ class TestOracleToGoogleCloudStorageOperator(unittest.TestCase):
             JSON_FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type=None, gzip=False, metadata=None):
             assert BUCKET == bucket
             assert 'application/json' == mime_type
             assert GZIP == gzip
@@ -127,7 +127,7 @@ class TestOracleToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
                     assert b''.join(SCHEMA_JSON) == file.read()

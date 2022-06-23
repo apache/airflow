@@ -15,35 +15,39 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
+
+from psycopg2.sql import SQL, Identifier
 
 from airflow.models import BaseOperator
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+from airflow.www import utils as wwwutils
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class PostgresOperator(BaseOperator):
     """
     Executes sql code in a specific Postgres database
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        Template references are recognized by str ending in '.sql'
     :param postgres_conn_id: The :ref:`postgres conn id <howto/connection:postgres>`
         reference to a specific postgres database.
-    :type postgres_conn_id: str
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param database: name of database which overwrite defined one in connection
-    :type database: str
     """
 
-    template_fields = ('sql',)
-    template_fields_renderers = {'sql': 'sql'}
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql',)
+    # TODO: Remove renderer check when the provider has an Airflow 2.3+ requirement.
+    template_fields_renderers = {
+        'sql': 'postgresql' if 'postgresql' in wwwutils.get_attr_renderer() else 'sql'
+    }
+    template_ext: Sequence[str] = ('.sql',)
     ui_color = '#ededed'
 
     def __init__(
@@ -54,6 +58,7 @@ class PostgresOperator(BaseOperator):
         autocommit: bool = False,
         parameters: Optional[Union[Mapping, Iterable]] = None,
         database: Optional[str] = None,
+        runtime_parameters: Optional[Mapping] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -62,10 +67,28 @@ class PostgresOperator(BaseOperator):
         self.autocommit = autocommit
         self.parameters = parameters
         self.database = database
-        self.hook = None
+        self.runtime_parameters = runtime_parameters
+        self.hook: Optional[PostgresHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.hook = PostgresHook(postgres_conn_id=self.postgres_conn_id, schema=self.database)
-        self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
+        if self.runtime_parameters:
+            final_sql = []
+            sql_param = {}
+            for param in self.runtime_parameters:
+                set_param_sql = f"SET {{}} TO %({param})s;"
+                dynamic_sql = SQL(set_param_sql).format(Identifier(f"{param}"))
+                final_sql.append(dynamic_sql)
+            for param, val in self.runtime_parameters.items():
+                sql_param.update({f"{param}": f"{val}"})
+            if self.parameters:
+                sql_param.update(self.parameters)
+            if isinstance(self.sql, str):
+                final_sql.append(SQL(self.sql))
+            else:
+                final_sql.extend(list(map(SQL, self.sql)))
+            self.hook.run(final_sql, self.autocommit, parameters=sql_param)
+        else:
+            self.hook.run(self.sql, self.autocommit, parameters=self.parameters)
         for output in self.hook.conn.notices:
             self.log.info(output)

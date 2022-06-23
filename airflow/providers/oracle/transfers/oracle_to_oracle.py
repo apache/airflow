@@ -15,10 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class OracleToOracleOperator(BaseOperator):
@@ -27,21 +30,15 @@ class OracleToOracleOperator(BaseOperator):
 
 
     :param oracle_destination_conn_id: destination Oracle connection.
-    :type oracle_destination_conn_id: str
     :param destination_table: destination table to insert rows.
-    :type destination_table: str
     :param oracle_source_conn_id: :ref:`Source Oracle connection <howto/connection:oracle>`.
-    :type oracle_source_conn_id: str
     :param source_sql: SQL query to execute against the source Oracle
         database. (templated)
-    :type source_sql: str
     :param source_sql_params: Parameters to use in sql query. (templated)
-    :type source_sql_params: dict
     :param rows_chunk: number of rows per chunk to commit.
-    :type rows_chunk: int
     """
 
-    template_fields = ('source_sql', 'source_sql_params')
+    template_fields: Sequence[str] = ('source_sql', 'source_sql_params')
     template_fields_renderers = {"source_sql": "sql", "source_sql_params": "py"}
     ui_color = '#e08c8c'
 
@@ -86,7 +83,7 @@ class OracleToOracleOperator(BaseOperator):
             self.log.info("Finished data transfer.")
             cursor.close()
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         src_hook = OracleHook(oracle_conn_id=self.oracle_source_conn_id)
         dest_hook = OracleHook(oracle_conn_id=self.oracle_destination_conn_id)
         self._execute(src_hook, dest_hook, context)

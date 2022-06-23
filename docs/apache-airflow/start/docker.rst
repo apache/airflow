@@ -20,7 +20,27 @@
 Running Airflow in Docker
 #########################
 
-This quick-start guide will allow you to quickly start Airflow with :doc:`CeleryExecutor </executor/celery>` in Docker. This is the fastest way to start Airflow.
+This quick-start guide will allow you to quickly get Airflow up and running with :doc:`CeleryExecutor </executor/celery>` in Docker.  For running airflow in production, we recommend running on kubernetes with the official helm chart.
+
+Customizing the quick-start Docker Compose
+==========================================
+
+DO NOT attempt to customize images and the Docker Compose if you do not know exactly what you are doing,
+do not know Docker Compose, or are not prepared to debug and resolve problems on your own. If you do not
+know Docker Compose and expect Airflow to **just work** beyond following precisely the quick-start,
+then please use other ways of running Airflow - for example :doc:`/start/local` for testing and trying
+and :doc:`Official Airflow Community Helm Chart<helm-chart:index>` for production purposes.
+
+Even if many users think of Docker Compose as "ready to use", it is really a developer tool, that requires
+the user to know very well how docker images, containers, docker compose networking, volumes, naming, image
+building works. It is extremely easy to make mistakes that lead to difficult to diagnose problems and if
+you are not ready to spend your own time on learning and diagnosing and resolving those problems on your own
+do not follow this path. You have been warned.
+
+If you customize, or modify images, the compose file and see problem do not expect you will get a lot of
+help with solving those problems in the Airflow support channels. Most of the problems you will experience
+are Docker Compose related problems and if you need help in solving them, there are dedicated channels in
+`Docker Compose <https://github.com/docker/compose>`_ that you can use.
 
 Production readiness
 ====================
@@ -57,7 +77,7 @@ Older versions of ``docker-compose`` do not support all the features required by
 
     .. code-block:: bash
 
-        docker run --rm "debian:buster-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
+        docker run --rm "debian:bullseye-slim" bash -c 'numfmt --to iec $(echo $(($(getconf _PHYS_PAGES) * $(getconf PAGE_SIZE))))'
 
 
 ``docker-compose.yaml``
@@ -78,9 +98,13 @@ This file contains several service definitions:
 - ``airflow-webserver`` - The webserver is available at ``http://localhost:8080``.
 - ``airflow-worker`` - The worker that executes the tasks given by the scheduler.
 - ``airflow-init`` - The initialization service.
-- ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment. It is available at ``http://localhost:5555``.
 - ``postgres`` - The database.
 - ``redis`` - `The redis <https://redis.io/>`__ - broker that forwards messages from scheduler to worker.
+
+Optionally you can enable flower by adding ``--profile flower`` option e.g. ``docker-compose --profile flower up`` or by explicitly targeted on the command line e.g. ``docker-compose up flower``.
+
+- ``flower`` - `The flower app <https://flower.readthedocs.io/en/latest/>`__ for monitoring the environment.
+   It is available at ``http://localhost:5555``.
 
 In general, if you want to use airflow locally, your DAGs may try to connect to servers which are running on the host. In order to achieve that, an extra configuration must be added in ``docker-compose.yaml``. For example, on Linux the configuration must be in the section ``services: airflow-worker`` adding ``extra_hosts: - "host.docker.internal:host-gateway"``; and use ``host.docker.internal`` instead of ``localhost``. This configuration vary in different platforms. Please, see documentation for `Windows <https://docs.docker.com/desktop/windows/networking/#use-cases-and-workarounds>`_ and `Mac <https://docs.docker.com/desktop/mac/networking/#use-cases-and-workarounds>`_ for further information.
 
@@ -191,7 +215,6 @@ In the second terminal you can check the condition of the containers and make su
     CONTAINER ID   IMAGE            |version-spacepad| COMMAND                  CREATED          STATUS                    PORTS                              NAMES
     247ebe6cf87a   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-worker_1
     ed9b09fc84b1   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    8080/tcp                           compose_airflow-scheduler_1
-    65ac1da2c219   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:5555->5555/tcp, 8080/tcp   compose_flower_1
     7cb1fb603a98   apache/airflow:|version|   "/usr/bin/dumb-init …"   3 minutes ago    Up 3 minutes (healthy)    0.0.0.0:8080->8080/tcp             compose_airflow-webserver_1
     74f3bbe506eb   postgres:13      |version-spacepad| "docker-entrypoint.s…"   18 minutes ago   Up 17 minutes (healthy)   5432/tcp                           compose_postgres_1
     0bd6576d23cb   redis:latest     |version-spacepad| "docker-entrypoint.s…"   10 hours ago     Up 17 minutes (healthy)   0.0.0.0:6379->6379/tcp             compose_redis_1
@@ -324,7 +347,7 @@ runtime user id which is unknown at the time of building the image.
     functionality - only added confusion - so it has been removed.
 
 
-Those additional variables are useful in case you are trying out/testing Airflow installation via docker compose.
+Those additional variables are useful in case you are trying out/testing Airflow installation via Docker Compose.
 They are not intended to be used in production, but they make the environment faster to bootstrap for first time
 users with the most common customizations.
 

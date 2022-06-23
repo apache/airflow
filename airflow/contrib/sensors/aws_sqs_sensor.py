@@ -20,10 +20,26 @@
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.sqs import SQSSensor  # noqa
+from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
 
 warnings.warn(
     "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.sqs`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+
+class SQSSensor(SqsSensor):
+    """
+    This sensor is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This class is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.sensors.sqs.SqsSensor`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

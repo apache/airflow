@@ -26,6 +26,7 @@ from google.cloud.spanner_v1.transaction import Transaction
 from google.longrunning.operations_grpc_pb2 import Operation
 
 from airflow.exceptions import AirflowException
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -55,13 +56,12 @@ class SpannerHook(GoogleBaseHook):
         Provides a client for interacting with the Cloud Spanner API.
 
         :param project_id: The ID of the Google Cloud project.
-        :type project_id: str
         :return: Client
         :rtype: google.cloud.spanner_v1.client.Client
         """
         if not self._client:
             self._client = Client(
-                project=project_id, credentials=self._get_credentials(), client_info=self.client_info
+                project=project_id, credentials=self._get_credentials(), client_info=CLIENT_INFO
             )
         return self._client
 
@@ -77,9 +77,7 @@ class SpannerHook(GoogleBaseHook):
         :param project_id: Optional, The ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :return: Spanner instance
         :rtype: google.cloud.spanner_v1.instance.Instance
         """
@@ -101,20 +99,14 @@ class SpannerHook(GoogleBaseHook):
         Invokes a method on a given instance by applying a specified Callable.
 
         :param project_id: The ID of the Google Cloud project that owns the Cloud Spanner database.
-        :type project_id: str
         :param instance_id: The ID of the instance.
-        :type instance_id: str
         :param configuration_name: Name of the instance configuration defining how the
             instance will be created. Required for instances which do not yet exist.
-        :type configuration_name: str
         :param node_count: (Optional) Number of nodes allocated to the instance.
-        :type node_count: int
         :param display_name: (Optional) The display name for the instance in the Cloud
             Console UI. (Must be between 4 and 30 characters.) If this value is not set
             in the constructor, will fall back to the instance ID.
-        :type display_name: str
         :param func: Method of the instance to be called.
-        :type func: Callable[google.cloud.spanner_v1.instance.Instance]
         """
         instance = self._get_client(project_id=project_id).instance(
             instance_id=instance_id,
@@ -145,22 +137,17 @@ class SpannerHook(GoogleBaseHook):
         Creates a new Cloud Spanner instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param configuration_name: The name of the instance configuration defining how the
             instance will be created. Possible configuration values can be retrieved via
             https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instanceConfigs/list
-        :type configuration_name: str
         :param node_count: (Optional) The number of nodes allocated to the Cloud Spanner
             instance.
-        :type node_count: int
         :param display_name: (Optional) The display name for the instance in the Google Cloud Console.
             Must be between 4 and 30 characters. If this value is not passed, the name falls back
             to the instance ID.
-        :type display_name: str
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :return: None
         """
         self._apply_to_instance(
@@ -180,22 +167,17 @@ class SpannerHook(GoogleBaseHook):
         Updates an existing Cloud Spanner instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param configuration_name: The name of the instance configuration defining how the
             instance will be created. Possible configuration values can be retrieved via
             https://cloud.google.com/spanner/docs/reference/rest/v1/projects.instanceConfigs/list
-        :type configuration_name: str
         :param node_count: (Optional) The number of nodes allocated to the Cloud Spanner
             instance.
-        :type node_count: int
         :param display_name: (Optional) The display name for the instance in the Google Cloud
             Console. Must be between 4 and 30 characters. If this value is not set in
             the constructor, the name falls back to the instance ID.
-        :type display_name: str
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :return: None
         """
         self._apply_to_instance(
@@ -208,11 +190,9 @@ class SpannerHook(GoogleBaseHook):
         Deletes an existing Cloud Spanner instance.
 
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :return: None
         """
         instance = self._get_client(project_id=project_id).instance(instance_id)
@@ -235,13 +215,10 @@ class SpannerHook(GoogleBaseHook):
         in the specified instance, it returns None.
 
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param database_id: The ID of the database in Cloud Spanner.
-        :type database_id: str
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         :return: Database object or None if database does not exist
         :rtype: google.cloud.spanner_v1.database.Database or None
         """
@@ -265,13 +242,9 @@ class SpannerHook(GoogleBaseHook):
         """
         Creates a new database in Cloud Spanner.
 
-        :type project_id: str
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param database_id: The ID of the database to create in Cloud Spanner.
-        :type database_id: str
         :param ddl_statements: The string list containing DDL for the new database.
-        :type ddl_statements: list[str]
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
@@ -303,19 +276,14 @@ class SpannerHook(GoogleBaseHook):
         """
         Updates DDL of a database in Cloud Spanner.
 
-        :type project_id: str
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param database_id: The ID of the database in Cloud Spanner.
-        :type database_id: str
         :param ddl_statements: The string list containing DDL for the new database.
-        :type ddl_statements: list[str]
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
         :param operation_id: (Optional) The unique per database operation ID that can be
             specified to implement idempotency check.
-        :type operation_id: str
         :return: None
         """
         instance = self._get_client(project_id=project_id).instance(instance_id=instance_id)
@@ -344,11 +312,8 @@ class SpannerHook(GoogleBaseHook):
         """
         Drops a database in Cloud Spanner.
 
-        :type project_id: str
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param database_id: The ID of the database in Cloud Spanner.
-        :type database_id: str
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
@@ -384,15 +349,11 @@ class SpannerHook(GoogleBaseHook):
         Executes an arbitrary DML query (INSERT, UPDATE, DELETE).
 
         :param instance_id: The ID of the Cloud Spanner instance.
-        :type instance_id: str
         :param database_id: The ID of the database in Cloud Spanner.
-        :type database_id: str
         :param queries: The queries to execute.
-        :type queries: List[str]
         :param project_id: Optional, the ID of the Google Cloud project that owns the Cloud Spanner
             database. If set to None or missing, the default project_id from the Google Cloud connection
             is used.
-        :type project_id: str
         """
         self._get_client(project_id=project_id).instance(instance_id=instance_id).database(
             database_id=database_id

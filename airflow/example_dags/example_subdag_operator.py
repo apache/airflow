@@ -19,41 +19,42 @@
 """Example DAG demonstrating the usage of the SubDagOperator."""
 
 # [START example_subdag_operator]
+import datetime
+
 from airflow import DAG
 from airflow.example_dags.subdags.subdag import subdag
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.subdag import SubDagOperator
-from airflow.utils.dates import days_ago
 
 DAG_NAME = 'example_subdag_operator'
 
-args = {
-    'owner': 'airflow',
-}
-
 with DAG(
-    dag_id=DAG_NAME, default_args=args, start_date=days_ago(2), schedule_interval="@once", tags=['example']
+    dag_id=DAG_NAME,
+    default_args={"retries": 2},
+    start_date=datetime.datetime(2022, 1, 1),
+    schedule_interval="@once",
+    tags=['example'],
 ) as dag:
 
-    start = DummyOperator(
+    start = EmptyOperator(
         task_id='start',
     )
 
     section_1 = SubDagOperator(
         task_id='section-1',
-        subdag=subdag(DAG_NAME, 'section-1', args),
+        subdag=subdag(DAG_NAME, 'section-1', dag.default_args),
     )
 
-    some_other_task = DummyOperator(
+    some_other_task = EmptyOperator(
         task_id='some-other-task',
     )
 
     section_2 = SubDagOperator(
         task_id='section-2',
-        subdag=subdag(DAG_NAME, 'section-2', args),
+        subdag=subdag(DAG_NAME, 'section-2', dag.default_args),
     )
 
-    end = DummyOperator(
+    end = EmptyOperator(
         task_id='end',
     )
 

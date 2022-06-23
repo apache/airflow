@@ -15,13 +15,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import socket
 from functools import wraps
 from typing import Callable, Optional, Sequence, Tuple, TypeVar, cast
 
 from flask import current_app, flash, g, redirect, render_template, request, url_for
 
 from airflow.configuration import conf
+from airflow.utils.net import get_hostname
 
 T = TypeVar("T", bound=Callable)
 
@@ -35,20 +35,23 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
             __tracebackhide__ = True  # Hide from pytest traceback.
 
             appbuilder = current_app.appbuilder
-            if not g.user.is_anonymous and not appbuilder.sm.current_user_has_permissions():
+
+            dag_id = (
+                request.args.get("dag_id") or request.form.get("dag_id") or (request.json or {}).get("dag_id")
+            )
+            if appbuilder.sm.check_authorization(permissions, dag_id):
+                return func(*args, **kwargs)
+            elif not g.user.is_anonymous and not g.user.perms:
                 return (
                     render_template(
                         'airflow/no_roles_permissions.html',
-                        hostname=socket.getfqdn()
+                        hostname=get_hostname()
                         if conf.getboolean('webserver', 'EXPOSE_HOSTNAME', fallback=True)
                         else 'redact',
                         logout_url=appbuilder.get_url_for_logout,
                     ),
                     403,
                 )
-
-            if appbuilder.sm.check_authorization(permissions, request.args.get('dag_id', None)):
-                return func(*args, **kwargs)
             else:
                 access_denied = "Access is Denied"
                 flash(access_denied, "danger")

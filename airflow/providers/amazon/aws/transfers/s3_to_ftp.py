@@ -17,33 +17,36 @@
 # under the License.
 
 from tempfile import NamedTemporaryFile
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.ftp.hooks.ftp import FTPHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToFTPOperator(BaseOperator):
     """
     This operator enables the transferring of files from S3 to a FTP server.
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:S3ToFTPOperator`
+
     :param s3_bucket: The targeted s3 bucket. This is the S3 bucket from
         where the file is downloaded.
-    :type s3_bucket: str
     :param s3_key: The targeted s3 key. This is the specified file path for
         downloading the file from S3.
-    :type s3_key: str
     :param ftp_path: The ftp remote path. This is the specified file path for
         uploading file to the FTP server.
-    :type ftp_path: str
     :param aws_conn_id: reference to a specific AWS connection
-    :type aws_conn_id: str
     :param ftp_conn_id: The ftp connection id. The name or identifier for
         establishing a connection to the FTP server.
-    :type ftp_conn_id: str
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'ftp_path')
+    template_fields: Sequence[str] = ('s3_bucket', 's3_key', 'ftp_path')
 
     def __init__(
         self,
@@ -62,7 +65,7 @@ class S3ToFTPOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.ftp_conn_id = ftp_conn_id
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         s3_hook = S3Hook(self.aws_conn_id)
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
 

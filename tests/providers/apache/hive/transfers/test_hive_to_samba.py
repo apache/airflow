@@ -19,21 +19,28 @@ import os
 import unittest
 from unittest.mock import MagicMock, Mock, PropertyMock, patch
 
-import pytest
-
-from airflow import PY39
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator
+from airflow.providers.samba.hooks.samba import SambaHook
 from airflow.utils.operator_helpers import context_to_airflow_vars
-from tests.providers.apache.hive import DEFAULT_DATE, TestHiveEnvironment
-from tests.test_utils.mock_hooks import MockHiveServer2Hook, MockSambaHook
-
-
-@pytest.mark.skipif(
-    PY39,
-    reason="Hive does not run on Python 3.9 because it brings SASL via thrift-sasl."
-    " This could be removed when https://github.com/dropbox/PyHive/issues/380"
-    " is solved",
+from tests.providers.apache.hive import (
+    DEFAULT_DATE,
+    MockConnectionCursor,
+    MockHiveServer2Hook,
+    TestHiveEnvironment,
 )
+
+
+class MockSambaHook(SambaHook):
+    def __init__(self, *args, **kwargs):
+        self.conn = MockConnectionCursor()
+        self.conn.execute = MagicMock()
+        self.get_conn = MagicMock(return_value=self.conn)
+        super().__init__(*args, **kwargs)
+
+    def get_connection(self, *args):
+        return self.conn
+
+
 class TestHive2SambaOperator(TestHiveEnvironment):
     def setUp(self):
         self.kwargs = dict(

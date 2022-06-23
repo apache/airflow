@@ -16,17 +16,27 @@
 # specific language governing permissions and limitations
 # under the License.
 """Objects relating to sourcing connections from AWS SSM Parameter Store"""
+import re
+import sys
+import warnings
 from typing import Optional
 
 import boto3
 
-try:
+from airflow.version import version as airflow_version
+
+if sys.version_info >= (3, 8):
     from functools import cached_property
-except ImportError:
+else:
     from cached_property import cached_property
 
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+
+def _parse_version(val):
+    val = re.sub(r'(\d+\.\d+\.\d+).*', lambda x: x.group(1), val)
+    return tuple(int(x) for x in val.split('.'))
 
 
 class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
@@ -48,15 +58,11 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
 
     :param connections_prefix: Specifies the prefix of the secret to read to get Connections.
         If set to None (null), requests for connections will not be sent to AWS SSM Parameter Store.
-    :type connections_prefix: str
     :param variables_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null), requests for variables will not be sent to AWS SSM Parameter Store.
-    :type variables_prefix: str
     :param config_prefix: Specifies the prefix of the secret to read to get Variables.
         If set to None (null), requests for configurations will not be sent to AWS SSM Parameter Store.
-    :type config_prefix: str
     :param profile_name: The name of a profile to use. If not given, then the default profile is used.
-    :type profile_name: str
     """
 
     def __init__(
@@ -89,17 +95,34 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         session = boto3.Session(profile_name=self.profile_name)
         return session.client("ssm", **self.kwargs)
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_value(self, conn_id: str) -> Optional[str]:
         """
         Get param value
 
         :param conn_id: connection id
-        :type conn_id: str
         """
         if self.connections_prefix is None:
             return None
 
         return self._get_secret(self.connections_prefix, conn_id)
+
+    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+        """
+        Return URI representation of Connection conn_id.
+
+        As of Airflow version 2.3.0 this method is deprecated.
+
+        :param conn_id: the connection id
+        :return: deserialized Connection
+        """
+        if _parse_version(airflow_version) >= (2, 3):
+            warnings.warn(
+                f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
+                "in a future release.  Please use method `get_conn_value` instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        return self.get_conn_value(conn_id)
 
     def get_variable(self, key: str) -> Optional[str]:
         """
@@ -130,15 +153,12 @@ class SystemsManagerParameterStoreBackend(BaseSecretsBackend, LoggingMixin):
         Get secret value from Parameter Store.
 
         :param path_prefix: Prefix for the Path to get Secret
-        :type path_prefix: str
         :param secret_id: Secret Key
-        :type secret_id: str
         """
         ssm_path = self.build_path(path_prefix, secret_id)
         try:
             response = self.client.get_parameter(Name=ssm_path, WithDecryption=True)
-            value = response["Parameter"]["Value"]
-            return value
+            return response["Parameter"]["Value"]
         except self.client.exceptions.ParameterNotFound:
             self.log.debug("Parameter %s not found.", ssm_path)
             return None

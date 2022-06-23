@@ -19,6 +19,7 @@ import io
 import json
 import logging
 import os
+import re
 import shutil
 from unittest import mock
 from urllib.parse import quote
@@ -38,33 +39,42 @@ from tests.test_utils.db import clear_db_dags, clear_db_runs
 from .elasticmock import elasticmock
 
 
+def get_ti(dag_id, task_id, execution_date, create_task_instance):
+    ti = create_task_instance(
+        dag_id=dag_id,
+        task_id=task_id,
+        execution_date=execution_date,
+        dagrun_state=DagRunState.RUNNING,
+        state=TaskInstanceState.RUNNING,
+    )
+    ti.try_number = 1
+    ti.raw = False
+    return ti
+
+
 class TestElasticsearchTaskHandler:
     DAG_ID = 'dag_for_testing_es_task_handler'
     TASK_ID = 'task_for_testing_es_log_handler'
     EXECUTION_DATE = datetime(2016, 1, 1)
     LOG_ID = f'{DAG_ID}-{TASK_ID}-2016-01-01T00:00:00+00:00-1'
     JSON_LOG_ID = f'{DAG_ID}-{TASK_ID}-{ElasticsearchTaskHandler._clean_date(EXECUTION_DATE)}-1'
+    FILENAME_TEMPLATE = '{try_number}.log'
 
     @pytest.fixture()
-    def ti(self, create_task_instance):
-        ti = create_task_instance(
+    def ti(self, create_task_instance, create_log_template):
+        create_log_template(self.FILENAME_TEMPLATE, '{dag_id}-{task_id}-{execution_date}-{try_number}')
+        yield get_ti(
             dag_id=self.DAG_ID,
             task_id=self.TASK_ID,
             execution_date=self.EXECUTION_DATE,
-            dagrun_state=DagRunState.RUNNING,
-            state=TaskInstanceState.RUNNING,
+            create_task_instance=create_task_instance,
         )
-        ti.try_number = 1
-        ti.raw = False
-        yield ti
         clear_db_runs()
         clear_db_dags()
 
     @elasticmock
     def setup(self):
         self.local_log_location = 'local/log/location'
-        self.filename_template = '{try_number}.log'
-        self.log_id_template = '{dag_id}-{task_id}-{execution_date}-{try_number}'
         self.end_of_log_mark = 'end_of_log\n'
         self.write_stdout = False
         self.json_format = False
@@ -72,15 +82,13 @@ class TestElasticsearchTaskHandler:
         self.host_field = 'host'
         self.offset_field = 'offset'
         self.es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
         )
 
         self.es = elasticsearch.Elasticsearch(hosts=[{'host': 'localhost', 'port': 9200}])
@@ -105,15 +113,13 @@ class TestElasticsearchTaskHandler:
         assert es_conf == expected_dict
         # ensure creating with configs does not fail
         ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            self.json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=self.json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
             es_kwargs=es_conf,
         )
 
@@ -130,6 +136,38 @@ class TestElasticsearchTaskHandler:
         assert not metadatas[0]['end_of_log']
         assert '1' == metadatas[0]['offset']
         assert timezone.parse(metadatas[0]['last_log_timestamp']) > ts
+
+    @pytest.mark.parametrize('seconds', [3, 6])
+    def test_read_missing_logs(self, seconds, create_task_instance):
+        """
+        When the log actually isn't there to be found, we only want to wait for 5 seconds.
+        In this case we expect to receive a message of the form 'Log {log_id} not found in elasticsearch ...'
+        """
+        ti = get_ti(
+            self.DAG_ID,
+            self.TASK_ID,
+            pendulum.instance(self.EXECUTION_DATE).add(days=1),  # so logs are not found
+            create_task_instance=create_task_instance,
+        )
+        ts = pendulum.now().add(seconds=-seconds)
+        logs, metadatas = self.es_task_handler.read(ti, 1, {'offset': 0, 'last_log_timestamp': str(ts)})
+
+        assert 1 == len(logs)
+        if seconds > 5:
+            # we expect a log not found message when checking began more than 5 seconds ago
+            assert len(logs[0]) == 1
+            actual_message = logs[0][0][1]
+            expected_pattern = r'^\*\*\* Log .* not found in Elasticsearch.*'
+            assert re.match(expected_pattern, actual_message) is not None
+            assert metadatas[0]['end_of_log'] is True
+        else:
+            # we've "waited" less than 5 seconds so it should not be "end of log" and should be no log message
+            assert len(logs[0]) == 0
+            assert logs == [[]]
+            assert metadatas[0]['end_of_log'] is False
+        assert len(logs) == len(metadatas)
+        assert '0' == metadatas[0]['offset']
+        assert timezone.parse(metadatas[0]['last_log_timestamp']) == ts
 
     def test_read_with_match_phrase_query(self, ti):
         similar_log_id = (
@@ -210,15 +248,24 @@ class TestElasticsearchTaskHandler:
         ts = pendulum.now().subtract(minutes=5)
 
         self.es.delete(index=self.index_name, doc_type=self.doc_type, id=1)
+        # in the below call, offset=1 implies that we have already retrieved something
+        # if we had never retrieved any logs at all (offset=0), then we would have gotten
+        # a "logs not found" message after 5 seconds of trying
+        offset = 1
         logs, metadatas = self.es_task_handler.read(
-            ti, 1, {'offset': 0, 'last_log_timestamp': str(ts), 'end_of_log': False}
+            task_instance=ti,
+            try_number=1,
+            metadata={
+                'offset': offset,
+                'last_log_timestamp': str(ts),
+                'end_of_log': False,
+            },
         )
         assert 1 == len(logs)
         assert len(logs) == len(metadatas)
         assert [[]] == logs
         assert metadatas[0]['end_of_log']
-        # offset should be initialized to 0 if not provided.
-        assert '0' == metadatas[0]['offset']
+        assert str(offset) == metadatas[0]['offset']
         assert timezone.parse(metadatas[0]['last_log_timestamp']) == ts
 
     def test_read_as_download_logs(self, ti):
@@ -344,7 +391,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             # end_of_log_mark may contain characters like '\n' which is needed to
             # have the log uploaded but will not be stored in elasticsearch.
@@ -358,7 +405,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert self.end_of_log_mark not in log_file.read()
         assert self.es_task_handler.closed
@@ -368,7 +415,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.set_context(ti)
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert 0 == len(log_file.read())
 
@@ -377,7 +424,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.handler = None
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert 0 == len(log_file.read())
         assert self.es_task_handler.closed
@@ -387,7 +434,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.handler.stream = None
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert self.end_of_log_mark in log_file.read()
         assert self.es_task_handler.closed
@@ -396,7 +443,7 @@ class TestElasticsearchTaskHandler:
         self.es_task_handler.handler.stream.close()
         self.es_task_handler.close()
         with open(
-            os.path.join(self.local_log_location, self.filename_template.format(try_number=1))
+            os.path.join(self.local_log_location, self.FILENAME_TEMPLATE.format(try_number=1))
         ) as log_file:
             assert self.end_of_log_mark in log_file.read()
         assert self.es_task_handler.closed
@@ -427,15 +474,13 @@ class TestElasticsearchTaskHandler:
     )
     def test_get_external_log_url(self, ti, json_format, es_frontend, expected_url):
         es_task_handler = ElasticsearchTaskHandler(
-            self.local_log_location,
-            self.filename_template,
-            self.log_id_template,
-            self.end_of_log_mark,
-            self.write_stdout,
-            json_format,
-            self.json_fields,
-            self.host_field,
-            self.offset_field,
+            base_log_folder=self.local_log_location,
+            end_of_log_mark=self.end_of_log_mark,
+            write_stdout=self.write_stdout,
+            json_format=json_format,
+            json_fields=self.json_fields,
+            host_field=self.host_field,
+            offset_field=self.offset_field,
             frontend=es_frontend,
         )
         url = es_task_handler.get_external_log_url(ti, ti.try_number)
@@ -457,8 +502,6 @@ class TestElasticsearchTaskHandler:
         # arrange
         handler = ElasticsearchTaskHandler(
             base_log_folder=self.local_log_location,
-            filename_template=self.filename_template,
-            log_id_template=self.log_id_template,
             end_of_log_mark=self.end_of_log_mark,
             write_stdout=True,
             json_format=True,

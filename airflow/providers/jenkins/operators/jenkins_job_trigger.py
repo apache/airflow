@@ -20,7 +20,7 @@ import ast
 import json
 import socket
 import time
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Union
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Union
 from urllib.error import HTTPError, URLError
 
 import jenkins
@@ -79,24 +79,18 @@ class JenkinsJobTriggerOperator(BaseOperator):
     You'll also need to configure a Jenkins connection in the connections screen.
 
     :param jenkins_connection_id: The jenkins connection to use for this job
-    :type jenkins_connection_id: str
     :param job_name: The name of the job to trigger
-    :type job_name: str
     :param parameters: The parameters block provided to jenkins for use in
         the API call when triggering a build. (templated)
-    :type parameters: str, Dict, or List
     :param sleep_time: How long will the operator sleep between each status
         request for the job (min 1, default 10)
-    :type sleep_time: int
     :param max_try_before_job_appears: The maximum number of requests to make
         while waiting for the job to appears on jenkins server (default 10)
-    :type max_try_before_job_appears: int
     :param allowed_jenkins_states: Iterable of allowed result jenkins states, default is ``['SUCCESS']``
-    :type allowed_jenkins_states: Optional[Iterable[str]]
     """
 
-    template_fields = ('parameters',)
-    template_ext = ('.json',)
+    template_fields: Sequence[str] = ('parameters',)
+    template_ext: Sequence[str] = ('.json',)
     ui_color = '#f9ec86'
 
     def __init__(
@@ -104,7 +98,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         *,
         jenkins_connection_id: str,
         job_name: str,
-        parameters: ParamType = "",
+        parameters: ParamType = None,
         sleep_time: int = 10,
         max_try_before_job_appears: int = 10,
         allowed_jenkins_states: Optional[Iterable[str]] = None,
@@ -118,7 +112,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.max_try_before_job_appears = max_try_before_job_appears
         self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ['SUCCESS']
 
-    def build_job(self, jenkins_server: Jenkins, params: ParamType = "") -> Optional[JenkinsRequest]:
+    def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> Optional[JenkinsRequest]:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
@@ -134,10 +128,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # check type and pass to build_job_url
         if params and isinstance(params, str):
             params = ast.literal_eval(params)
-
-        # We need a None to call the non-parametrized jenkins api end point
-        if not params:
-            params = None
 
         request = Request(method='POST', url=jenkins_server.build_job_url(self.job_name, params, None))
         return jenkins_request_with_headers(jenkins_server, request)
@@ -163,19 +153,33 @@ class JenkinsJobTriggerOperator(BaseOperator):
         # once it will be available in python-jenkins (v > 0.4.15)
         self.log.info('Polling jenkins queue at the url %s', location)
         while try_count < self.max_try_before_job_appears:
-            location_answer = jenkins_request_with_headers(
-                jenkins_server, Request(method='POST', url=location)
-            )
+            try:
+                location_answer = jenkins_request_with_headers(
+                    jenkins_server, Request(method='POST', url=location)
+                )
+            # we don't want to fail the operator, this will continue to poll
+            # until max_try_before_job_appears reached
+            except (HTTPError, JenkinsException):
+                self.log.warning('polling failed, retrying', exc_info=True)
+                try_count += 1
+                time.sleep(self.sleep_time)
+                continue
+
             if location_answer is not None:
                 json_response = json.loads(location_answer['body'])
-                if 'executable' in json_response and 'number' in json_response['executable']:
+                if (
+                    'executable' in json_response
+                    and json_response['executable'] is not None
+                    and 'number' in json_response['executable']
+                ):
                     build_number = json_response['executable']['number']
                     self.log.info('Job executed on Jenkins side with the build number %s', build_number)
                     return build_number
             try_count += 1
             time.sleep(self.sleep_time)
+
         raise AirflowException(
-            "The job hasn't been executed after polling " f"the queue {self.max_try_before_job_appears} times"
+            f"The job hasn't been executed after polling the queue {self.max_try_before_job_appears} times"
         )
 
     def get_hook(self) -> JenkinsHook:
@@ -183,20 +187,6 @@ class JenkinsJobTriggerOperator(BaseOperator):
         return JenkinsHook(self.jenkins_connection_id)
 
     def execute(self, context: Mapping[Any, Any]) -> Optional[str]:
-        if not self.jenkins_connection_id:
-            self.log.error(
-                'Please specify the jenkins connection id to use.'
-                'You must create a Jenkins connection before'
-                ' being able to use this operator'
-            )
-            raise AirflowException(
-                'The jenkins_connection_id parameter is missing, impossible to trigger the job'
-            )
-
-        if not self.job_name:
-            self.log.error("Please specify the job name to use in the job_name parameter")
-            raise AirflowException('The job_name parameter is missing,impossible to trigger the job')
-
         self.log.info(
             'Triggering the job %s on the jenkins : %s with the parameters : %s',
             self.job_name,

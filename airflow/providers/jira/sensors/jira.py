@@ -15,12 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
 
 from jira.resources import Issue, Resource
 
-from airflow.providers.jira.operators.jira import JIRAError, JiraOperator
+from airflow.providers.jira.hooks.jira import JiraHook
+from airflow.providers.jira.operators.jira import JIRAError
 from airflow.sensors.base import BaseSensorOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class JiraSensor(BaseSensorOperator):
@@ -28,13 +32,9 @@ class JiraSensor(BaseSensorOperator):
     Monitors a jira ticket for any change.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: str
     :param method_name: method name from jira-python-sdk to be execute
-    :type method_name: str
     :param method_params: parameters for the method method_name
-    :type method_params: dict
     :param result_processor: function that return boolean and act as a sensor response
-    :type result_processor: function
     """
 
     def __init__(
@@ -53,16 +53,14 @@ class JiraSensor(BaseSensorOperator):
             self.result_processor = result_processor
         self.method_name = method_name
         self.method_params = method_params
-        self.jira_operator = JiraOperator(
-            task_id=self.task_id,
-            jira_conn_id=self.jira_conn_id,
-            jira_method=self.method_name,
-            jira_method_args=self.method_params,
-            result_processor=self.result_processor,
-        )
 
-    def poke(self, context: Dict) -> Any:
-        return self.jira_operator.execute(context=context)
+    def poke(self, context: 'Context') -> Any:
+        hook = JiraHook(jira_conn_id=self.jira_conn_id)
+        resource = hook.get_conn()
+        jira_result = getattr(resource, self.method_name)(**self.method_params)
+        if self.result_processor is None:
+            return jira_result
+        return self.result_processor(context, jira_result)
 
 
 class JiraTicketSensor(JiraSensor):
@@ -70,18 +68,13 @@ class JiraTicketSensor(JiraSensor):
     Monitors a jira ticket for given change in terms of function.
 
     :param jira_conn_id: reference to a pre-defined Jira Connection
-    :type jira_conn_id: str
     :param ticket_id: id of the ticket to be monitored
-    :type ticket_id: str
     :param field: field of the ticket to be monitored
-    :type field: str
     :param expected_value: expected value of the field
-    :type expected_value: str
     :param result_processor: function that return boolean and act as a sensor response
-    :type result_processor: function
     """
 
-    template_fields = ("ticket_id",)
+    template_fields: Sequence[str] = ("ticket_id",)
 
     def __init__(
         self,
@@ -103,11 +96,11 @@ class JiraTicketSensor(JiraSensor):
 
         super().__init__(jira_conn_id=jira_conn_id, result_processor=field_checker_func, **kwargs)
 
-    def poke(self, context: Dict) -> Any:
+    def poke(self, context: 'Context') -> Any:
         self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
 
-        self.jira_operator.method_name = "issue"
-        self.jira_operator.jira_method_args = {'id': self.ticket_id, 'fields': self.field}
+        self.method_name = "issue"
+        self.method_params = {'id': self.ticket_id, 'fields': self.field}
         return JiraSensor.poke(self, context=context)
 
     def issue_field_checker(self, issue: Issue) -> Optional[bool]:

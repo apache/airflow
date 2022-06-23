@@ -102,11 +102,11 @@ is executed. Then it loops until the the command will be successful.
 It tries :envvar:`CONNECTION_CHECK_MAX_COUNT` times and sleeps :envvar:`CONNECTION_CHECK_SLEEP_TIME` between checks
 To disable check, set ``CONNECTION_CHECK_MAX_COUNT=0``.
 
-Waits for celery broker connection
+Waits for Celery broker connection
 ----------------------------------
 
 In case CeleryExecutor is used, and one of the ``scheduler``, ``celery``
-commands are used the entrypoint will wait until the celery broker DB connection is available.
+commands are used the entrypoint will wait until the Celery broker DB connection is available.
 
 The script detects backend type depending on the URL schema and assigns default port numbers if not specified
 in the URL. Then it loops until connection to the host/port specified can be established
@@ -132,7 +132,7 @@ if you specify extra arguments. For example:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "ls -la"
+  docker run -it apache/airflow:2.4.0.dev0-python3.6 bash -c "ls -la"
   total 16
   drwxr-xr-x 4 airflow root 4096 Jun  5 18:12 .
   drwxr-xr-x 1 root    root 4096 Jun  5 18:12 ..
@@ -144,7 +144,7 @@ you pass extra parameters. For example:
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.3.0.dev0-python3.6 python -c "print('test')"
+  > docker run -it apache/airflow:2.4.0.dev0-python3.6 python -c "print('test')"
   test
 
 If first argument equals to "airflow" - the rest of the arguments is treated as an airflow command
@@ -152,13 +152,13 @@ to execute. Example:
 
 .. code-block:: bash
 
-   docker run -it apache/airflow:2.3.0.dev0-python3.6 airflow webserver
+   docker run -it apache/airflow:2.4.0.dev0-python3.6 airflow webserver
 
 If there are any other arguments - they are simply passed to the "airflow" command
 
 .. code-block:: bash
 
-  > docker run -it apache/airflow:2.3.0.dev0-python3.6 help
+  > docker run -it apache/airflow:2.4.0.dev0-python3.6 help
     usage: airflow [-h] GROUP_OR_COMMAND ...
 
     positional arguments:
@@ -182,7 +182,7 @@ If there are any other arguments - they are simply passed to the "airflow" comma
         Commands:
           cheat-sheet    Display cheat sheet
           info           Show information about current Airflow and environment
-          kerberos       Start a kerberos ticket renewer
+          kerberos       Start a Kerberos ticket renewer
           plugins        Dump information about loaded plugins
           rotate-fernet-key
                          Rotate encrypted connection credentials and variables
@@ -206,7 +206,7 @@ propagation (See the next chapter).
 
 .. code-block:: Dockerfile
 
-    FROM airflow::2.3.0.dev0
+    FROM airflow:2.4.0.dev0
     COPY my_entrypoint.sh /
     ENTRYPOINT ["/usr/bin/dumb-init", "--", "/my_entrypoint.sh"]
 
@@ -250,15 +250,15 @@ Similarly to custom entrypoint, it can be added to the image by extending it.
 
 .. code-block:: Dockerfile
 
-    FROM airflow::2.3.0.dev0
+    FROM airflow:2.4.0.dev0
     COPY my_after_entrypoint_script.sh /
 
-
-And then you can run this script by running the command:
+Build your image and then you can run this script by running the command:
 
 .. code-block:: bash
 
-  docker run -it apache/airflow:2.3.0.dev0-python3.6 bash -c "/my_after_entrypoint_script.sh"
+  docker build . --pull --tag my-image:0.0.1
+  docker run -it my-image:0.0.1 bash -c "/my_after_entrypoint_script.sh"
 
 
 Signal propagation
@@ -363,7 +363,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD=admin" \
-      apache/airflow:2.3.0.dev0-python3.8 webserver
+      apache/airflow:2.4.0.dev0-python3.8 webserver
 
 
 .. code-block:: bash
@@ -372,7 +372,7 @@ database and creating an ``admin/admin`` Admin user with the following command:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.3.0.dev0-python3.8 webserver
+      apache/airflow:2.4.0.dev0-python3.8 webserver
 
 The commands above perform initialization of the SQLite database, create admin user with admin password
 and Admin role. They also forward local port ``8080`` to the webserver port and finally start the webserver.
@@ -412,6 +412,6 @@ Example:
     --env "_AIRFLOW_DB_UPGRADE=true" \
     --env "_AIRFLOW_WWW_USER_CREATE=true" \
     --env "_AIRFLOW_WWW_USER_PASSWORD_CMD=echo admin" \
-      apache/airflow:2.3.0.dev0-python3.8 webserver
+      apache/airflow:2.4.0.dev0-python3.8 webserver
 
 This method is only available starting from Docker image of Airflow 2.1.1 and above.

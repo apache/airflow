@@ -16,8 +16,126 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix error when SnowflakeHook take empty list in 'sql' param (#23767)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Snowflake system tests to new design #22434 (#24151)``
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+2.7.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Allow multiline text in private key field for Snowflake (#23066)``
+
+2.6.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add support for private key in connection for Snowflake (#22266)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.5.2
+.....
+
+Misc
+~~~~
+
+* ``Remove Snowflake limits (#22181)``
+
+2.5.1
+.....
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+
+2.5.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add more SQL template fields renderers (#21237)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix #21096: Support boolean in extra__snowflake__insecure_mode (#21155)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add optional features in providers. (#21074)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Snowflake Provider: Improve tests for Snowflake Hook (#20745)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+
+2.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Support insecure mode in SnowflakeHook (#20106)``
+* ``Remove unused code in SnowflakeHook (#20107)``
+* ``Improvements for 'SnowflakeHook.get_sqlalchemy_engine'  (#20509)``
+* ``Exclude snowflake-sqlalchemy v1.2.5 (#20245)``
+* ``Limit Snowflake connector to <2.7.2 (#20395)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix MyPy Errors for Snowflake provider. (#20212)``
+   * ``Use typed Context EVERYWHERE (#20565)``
+   * ``Fix template_fields type to have MyPy friendly Sequence type (#20571)``
+   * ``Even more typing in operators (template_fields/ext) (#20608)``
+   * ``Update documentation for provider December 2021 release (#20523)``
+
+2.3.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Remove duplicate get_connection in SnowflakeHook (#19543)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
 
 2.3.0
 .....

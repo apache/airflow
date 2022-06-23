@@ -47,6 +47,6 @@ class FailureTrigger(BaseTrigger):
     async def run(self):
         # Python needs at least one "yield" keyword in the body to make
         # this an async generator.
-        if False:  # pylint: disable=using-constant-test
+        if False:
             yield None
         raise ValueError("Deliberate trigger failure")

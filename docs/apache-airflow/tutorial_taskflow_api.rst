@@ -160,6 +160,64 @@ the dependencies as shown below.
     :start-after: [START main_flow]
     :end-before: [END main_flow]
 
+
+Reusing a decorated task
+-------------------------
+
+Decorated tasks are flexible. You can reuse a decorated task in multiple DAGs, overriding the task
+parameters such as the ``task_id``, ``queue``, ``pool``, etc.
+
+Below is an example of how you can reuse a decorated task in multiple DAGs:
+
+.. code-block:: python
+
+    from airflow.decorators import task, dag
+    from datetime import datetime
+
+
+    @task
+    def add_task(x, y):
+        print(f"Task args: x={x}, y={y}")
+        return x + y
+
+
+    @dag(start_date=datetime(2022, 1, 1))
+    def mydag():
+        start = add_task.override(task_id="start")(1, 2)
+        for i in range(3):
+            start >> add_task.override(task_id=f"add_start_{i}")(start, i)
+
+
+    @dag(start_date=datetime(2022, 1, 1))
+    def mydag2():
+        start = add_task(1, 2)
+        for i in range(3):
+            start >> add_task.override(task_id=f"new_add_task_{i}")(start, i)
+
+
+    first_dag = mydag()
+    second_dag = mydag2()
+
+You can also import the above ``add_task`` and use it in another DAG file.
+Suppose the ``add_task`` code lives in a file called ``common.py``. You can do this:
+
+.. code-block:: python
+
+    from common import add_task
+    from airflow.decorators import dag
+    from datetime import datetime
+
+
+    @dag(start_date=datetime(2022, 1, 1))
+    def use_add_task():
+        start = add_task.override(priority_weight=3)(1, 2)
+        for i in range(3):
+            start >> add_task.override(task_id=f"new_add_task_{i}", retries=4)(start, i)
+
+
+    created_dag = use_add_task()
+
+
 Using the TaskFlow API with Docker or Virtual Environments
 ----------------------------------------------------------
 
@@ -175,7 +233,7 @@ image must have a working Python installed and take in a bash command as the ``c
 
 Below is an example of using the ``@task.docker`` decorator to run a Python task.
 
-.. exampleinclude:: /../../airflow/providers/docker/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_etl_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START transform_docker]
@@ -199,7 +257,7 @@ environment on the same machine, you can use the ``@task.virtualenv`` decorator 
 decorator will allow you to create a new virtualenv with custom libraries and even a different
 Python version to run your function.
 
-.. exampleinclude:: /../../airflow/providers/docker/example_dags/tutorial_taskflow_api_etl_docker_virtualenv.py
+.. exampleinclude:: /../../tests/system/providers/docker/example_taskflow_api_etl_docker_virtualenv.py
     :language: python
     :dedent: 4
     :start-after: [START extract_virtualenv]
@@ -301,21 +359,21 @@ to a TaskFlow function which parses the response as JSON.
     )
 
 
-    @task(max_retries=2)
+    @task
     def parse_results(api_results):
         return json.loads(api_results)
 
 
-    parsed_results = parsed_results(api_results=get_api_results_task.output)
+    parsed_results = parse_results(api_results=get_api_results_task.output)
 
 The reverse can also be done: passing the output of a TaskFlow function as an input to a traditional task.
 
 .. code-block:: python
 
-    @task
+    @task(retries=3)
     def create_queue():
         """This is a Python function that creates an SQS queue"""
-        hook = SQSHook()
+        hook = SqsHook()
         result = hook.create_queue(queue_name="sample-queue")
 
         return result["QueueUrl"]
@@ -323,7 +381,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
 
     sqs_queue = create_queue()
 
-    publish_to_queue = SQSPublishOperator(
+    publish_to_queue = SqsPublishOperator(
         task_id="publish_to_queue",
         sqs_queue=sqs_queue,
         message_content="{{ task_instance }}-{{ execution_date }}",
@@ -332,7 +390,7 @@ The reverse can also be done: passing the output of a TaskFlow function as an in
     )
 
 Take note in the code example above, the output from the ``create_queue`` TaskFlow function, the URL of a
-newly-created Amazon SQS Queue, is then passed to a :class:`~airflow.providers.amazon.aws.operators.sqs.SQSPublishOperator`
+newly-created Amazon SQS Queue, is then passed to a :class:`~airflow.providers.amazon.aws.operators.sqs.SqsPublishOperator`
 task as the ``sqs_queue`` arg.
 
 Finally, not only can you use traditional operator outputs as inputs for TaskFlow functions, but also as inputs to
@@ -393,9 +451,9 @@ With kwargs:
        ti = kwargs["ti"]
        next_ds = kwargs["next_ds"]
 
-Also sometimes you might want to access the context somewhere deep the stack - and you do not want to pass
-the context variables from the task callable. You can do it via ``get_current_context``
-method of the Python operator.
+Also, sometimes you might want to access the context somewhere deep in the stack, but you do not want to pass
+the context variables from the task callable. You can still access execution context via the ``get_current_context``
+method.
 
 .. code-block:: python
 

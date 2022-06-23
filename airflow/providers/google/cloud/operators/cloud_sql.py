@@ -16,17 +16,23 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Cloud SQL operators."""
-from typing import Dict, Iterable, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
 from googleapiclient.errors import HttpError
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.models import BaseOperator
+from airflow.models import BaseOperator, Connection
 from airflow.providers.google.cloud.hooks.cloud_sql import CloudSQLDatabaseHook, CloudSQLHook
+from airflow.providers.google.cloud.links.cloud_sql import CloudSQLInstanceDatabaseLink, CloudSQLInstanceLink
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
+from airflow.providers.google.common.links.storage import FileDetailsLink
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.providers.postgres.hooks.postgres import PostgresHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 SETTINGS = 'settings'
 SETTINGS_VERSION = 'settingsVersion'
@@ -147,9 +153,27 @@ CLOUD_SQL_EXPORT_VALIDATION = [
                 fields=[
                     dict(name="tables", optional=True, type="list"),
                     dict(name="schemaOnly", optional=True),
+                    dict(
+                        name="mysqlExportOptions",
+                        type="dict",
+                        optional=True,
+                        fields=[dict(name="masterData")],
+                    ),
                 ],
             ),
-            dict(name="csvExportOptions", type="dict", optional=True, fields=[dict(name="selectQuery")]),
+            dict(
+                name="csvExportOptions",
+                type="dict",
+                optional=True,
+                fields=[
+                    dict(name="selectQuery"),
+                    dict(name="escapeCharacter", optional=True),
+                    dict(name="quoteCharacter", optional=True),
+                    dict(name="fieldsTerminatedBy", optional=True),
+                    dict(name="linesTerminatedBy", optional=True),
+                ],
+            ),
+            dict(name="offload", optional=True),
         ],
     )
 ]
@@ -191,14 +215,10 @@ class CloudSQLBaseOperator(BaseOperator):
     Abstract base operator for Google Cloud SQL operators to inherit from.
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
-    :type instance: str
     :param project_id: Optional, Google Cloud Project ID.  f set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -207,7 +227,6 @@ class CloudSQLBaseOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -252,7 +271,7 @@ class CloudSQLBaseOperator(BaseOperator):
                 return False
             raise e
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         pass
 
     @staticmethod
@@ -273,18 +292,12 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
     :param body: Body required by the Cloud SQL insert API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/insert
         #request-body
-    :type body: dict
     :param instance: Cloud SQL instance ID. This does not include the project ID.
-    :type instance: str
     :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param validate_body: True if body should be validated, False otherwise.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -293,11 +306,10 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -306,6 +318,8 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_create_template_fields]
+    ui_color = '#FADBDA'
+    operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
         self,
@@ -341,7 +355,7 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
                 self.body
             )
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -352,6 +366,13 @@ class CloudSQLCreateInstanceOperator(CloudSQLBaseOperator):
             hook.create_instance(project_id=self.project_id, body=self.body)
         else:
             self.log.info("Cloud SQL instance with ID %s already exists. Aborting create.", self.instance)
+
+        CloudSQLInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
+        )
 
         instance_resource = hook.get_instance(project_id=self.project_id, instance=self.instance)
         service_account_email = instance_resource["serviceAccountEmailAddress"]
@@ -376,16 +397,11 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
 
     :param body: Body required by the Cloud SQL patch API, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/patch#request-body
-    :type body: dict
     :param instance: Cloud SQL instance ID. This does not include the project ID.
-    :type instance: str
     :param project_id: Optional, Google Cloud Project ID.  If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -394,11 +410,10 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_patch_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -407,6 +422,8 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_patch_template_fields]
+    ui_color = '#FBDAC8'
+    operator_extra_links = (CloudSQLInstanceLink(),)
 
     def __init__(
         self,
@@ -434,7 +451,7 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
         if not self.body:
             raise AirflowException("The required parameter 'body' is empty")
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -446,6 +463,13 @@ class CloudSQLInstancePatchOperator(CloudSQLBaseOperator):
                 'Please specify another instance to patch.'
             )
         else:
+            CloudSQLInstanceLink.persist(
+                context=context,
+                task_instance=self,
+                cloud_sql_instance=self.instance,
+                project_id=self.project_id or hook.project_id,
+            )
+
             return hook.patch_instance(project_id=self.project_id, body=self.body, instance=self.instance)
 
 
@@ -458,14 +482,10 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
         :ref:`howto/operator:CloudSQLDeleteInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
-    :type instance: str
     :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -474,11 +494,10 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'gcp_conn_id',
@@ -486,8 +505,9 @@ class CloudSQLDeleteInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_delete_template_fields]
+    ui_color = '#FEECD2'
 
-    def execute(self, context) -> Optional[bool]:
+    def execute(self, context: 'Context') -> Optional[bool]:
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -509,19 +529,13 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         :ref:`howto/operator:CloudSQLCreateInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
-    :type instance: str
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/insert#request-body
-    :type body: dict
     :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -530,11 +544,10 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_db_create_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -543,6 +556,8 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_create_template_fields]
+    ui_color = '#FFFCDB'
+    operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
         self,
@@ -578,7 +593,7 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
                 CLOUD_SQL_DATABASE_CREATE_VALIDATION, api_version=self.api_version
             ).validate(self.body)
 
-    def execute(self, context) -> Optional[bool]:
+    def execute(self, context: 'Context') -> Optional[bool]:
         self._validate_body_fields()
         database = self.body.get("name")
         if not database:
@@ -592,6 +607,12 @@ class CloudSQLCreateInstanceDatabaseOperator(CloudSQLBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        CloudSQLInstanceDatabaseLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
         )
         if self._check_if_db_exists(database, hook):
             self.log.info(
@@ -615,20 +636,13 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         :ref:`howto/operator:CloudSQLPatchInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
-    :type instance: str
     :param database: Name of the database to be updated in the instance.
-    :type database: str
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/databases/patch#request-body
-    :type body: dict
     :param project_id: Optional, Google Cloud Project ID.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -637,11 +651,10 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_db_patch_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -651,6 +664,8 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_patch_template_fields]
+    ui_color = '#ECF4D9'
+    operator_extra_links = (CloudSQLInstanceDatabaseLink(),)
 
     def __init__(
         self,
@@ -690,7 +705,7 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                 self.body
             )
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -703,6 +718,12 @@ class CloudSQLPatchInstanceDatabaseOperator(CloudSQLBaseOperator):
                 "Please specify another database to patch."
             )
         else:
+            CloudSQLInstanceDatabaseLink.persist(
+                context=context,
+                task_instance=self,
+                cloud_sql_instance=self.instance,
+                project_id=self.project_id or hook.project_id,
+            )
             return hook.patch_database(
                 project_id=self.project_id, instance=self.instance, database=self.database, body=self.body
             )
@@ -717,16 +738,11 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         :ref:`howto/operator:CloudSQLDeleteInstanceDatabaseOperator`
 
     :param instance: Database instance ID. This does not include the project ID.
-    :type instance: str
     :param database: Name of the database to be deleted in the instance.
-    :type database: str
     :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -735,11 +751,10 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_db_delete_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'database',
@@ -748,6 +763,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_db_delete_template_fields]
+    ui_color = '#D5EAD8'
 
     def __init__(
         self,
@@ -775,7 +791,7 @@ class CloudSQLDeleteInstanceDatabaseOperator(CloudSQLBaseOperator):
         if not self.database:
             raise AirflowException("The required parameter 'database' is empty")
 
-    def execute(self, context) -> Optional[bool]:
+    def execute(self, context: 'Context') -> Optional[bool]:
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
@@ -806,19 +822,13 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         :ref:`howto/operator:CloudSQLExportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
-    :type instance: str
     :param body: The request body, as described in
         https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
-    :type body: dict
     :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -827,11 +837,10 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_export_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -840,6 +849,8 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_export_template_fields]
+    ui_color = '#D4ECEA'
+    operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
         self,
@@ -875,12 +886,24 @@ class CloudSQLExportInstanceOperator(CloudSQLBaseOperator):
                 self.body
             )
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        CloudSQLInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
+        )
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.body["exportContext"]["uri"][5:],
+            project_id=self.project_id or hook.project_id,
         )
         return hook.export_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
@@ -910,19 +933,13 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         :ref:`howto/operator:CloudSQLImportInstanceOperator`
 
     :param instance: Cloud SQL instance ID. This does not include the project ID.
-    :type instance: str
     :param body: The request body, as described in
-        https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/export#request-body
-    :type body: dict
+        https://cloud.google.com/sql/docs/mysql/admin-api/v1beta4/instances/import#request-body
     :param project_id: Optional, Google Cloud Project ID. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
-    :type project_id: str
     :param gcp_conn_id: The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
     :param api_version: API version used (e.g. v1beta4).
-    :type api_version: str
     :param validate_body: Whether the body should be validated. Defaults to True.
-    :type validate_body: bool
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -931,11 +948,10 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     # [START gcp_sql_import_template_fields]
-    template_fields = (
+    template_fields: Sequence[str] = (
         'project_id',
         'instance',
         'body',
@@ -944,6 +960,8 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
         'impersonation_chain',
     )
     # [END gcp_sql_import_template_fields]
+    ui_color = '#D3EDFB'
+    operator_extra_links = (CloudSQLInstanceLink(), FileDetailsLink())
 
     def __init__(
         self,
@@ -979,12 +997,24 @@ class CloudSQLImportInstanceOperator(CloudSQLBaseOperator):
                 self.body
             )
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self._validate_body_fields()
         hook = CloudSQLHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        CloudSQLInstanceLink.persist(
+            context=context,
+            task_instance=self,
+            cloud_sql_instance=self.instance,
+            project_id=self.project_id or hook.project_id,
+        )
+        FileDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            uri=self.body["importContext"]["uri"][5:],
+            project_id=self.project_id or hook.project_id,
         )
         return hook.import_instance(project_id=self.project_id, instance=self.instance, body=self.body)
 
@@ -1003,26 +1033,23 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         so it is useless to pass it DQL queries. Note that it is responsibility of the
         author of the queries to make sure that the queries are idempotent. For example
         you can use CREATE TABLE IF NOT EXISTS to create a table.
-    :type sql: str or list[str]
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     :param gcp_conn_id: The connection ID used to connect to Google Cloud for
         cloud-sql-proxy authentication.
-    :type gcp_conn_id: str
     :param gcp_cloudsql_conn_id: The connection ID used to connect to Google Cloud SQL
        its schema should be gcpcloudsql://.
        See :class:`~airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook` for
        details on how to define ``gcpcloudsql://`` connection.
-    :type gcp_cloudsql_conn_id: str
     """
 
     # [START gcp_sql_query_template_fields]
-    template_fields = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql', 'gcp_cloudsql_conn_id', 'gcp_conn_id')
+    template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     # [END gcp_sql_query_template_fields]
+    ui_color = '#D3DEF1'
 
     def __init__(
         self,
@@ -1040,7 +1067,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
         self.gcp_cloudsql_conn_id = gcp_cloudsql_conn_id
         self.autocommit = autocommit
         self.parameters = parameters
-        self.gcp_connection = None
+        self.gcp_connection: Optional[Connection] = None
 
     def _execute_query(
         self, hook: CloudSQLDatabaseHook, database_hook: Union[PostgresHook, MySqlHook]
@@ -1060,7 +1087,7 @@ class CloudSQLExecuteQueryOperator(BaseOperator):
             if cloud_sql_proxy_runner:
                 cloud_sql_proxy_runner.stop_proxy()
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.gcp_connection = BaseHook.get_connection(self.gcp_conn_id)
         hook = CloudSQLDatabaseHook(
             gcp_cloudsql_conn_id=self.gcp_cloudsql_conn_id,

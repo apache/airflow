@@ -16,9 +16,9 @@
  specific language governing permissions and limitations
  under the License.
 #}
-{%- macro message(content, category='info', dismissable=true) -%}
+{%- macro show_message(content, category='info', dismissible=true) -%}
   <div class="alert alert-{{ category }}">
-    {%- if dismissable -%}
+    {%- if dismissible -%}
     <button type="button" class="close" data-dismiss="alert">&times;</button>
     {%- endif -%}
     {%- if caller is defined -%}

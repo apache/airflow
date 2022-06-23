@@ -19,7 +19,7 @@
 import unittest
 from unittest import mock
 
-from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
+from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
 
 TASK_ID = 'test-s3-list-operator'
 BUCKET = 'test-bucket'
@@ -29,7 +29,7 @@ MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
 
 
 class TestS3ListOperator(unittest.TestCase):
-    @mock.patch('airflow.providers.amazon.aws.operators.s3_list.S3Hook')
+    @mock.patch('airflow.providers.amazon.aws.operators.s3.S3Hook')
     def test_execute(self, mock_hook):
 
         mock_hook.return_value.list_keys.return_value = MOCK_FILES

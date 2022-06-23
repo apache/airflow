@@ -19,11 +19,12 @@
 This module contains an operator to run downstream tasks only for the
 latest scheduled DagRun
 """
-from typing import TYPE_CHECKING, Dict, Iterable, Union
+from typing import TYPE_CHECKING, Iterable, Union
 
 import pendulum
 
 from airflow.operators.branch import BaseBranchOperator
+from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models import DAG, DagRun
@@ -43,7 +44,7 @@ class LatestOnlyOperator(BaseBranchOperator):
 
     ui_color = '#e9ffdb'  # nyanza
 
-    def choose_branch(self, context: Dict) -> Union[str, Iterable[str]]:
+    def choose_branch(self, context: Context) -> Union[str, Iterable[str]]:
         # If the DAG Run is externally triggered, then return without
         # skipping downstream tasks
         dag_run: "DagRun" = context["dag_run"]

@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
@@ -17,6 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
+
 import argparse
 import os
 
@@ -25,6 +26,7 @@ from docs.exts.docs_build.package_filter import process_package_filters
 from docs.exts.provider_yaml_utils import load_package_data
 
 AIRFLOW_SITE_DIR = os.environ.get('AIRFLOW_SITE_DIRECTORY')
+
 
 if __name__ != "__main__":
     raise SystemExit(

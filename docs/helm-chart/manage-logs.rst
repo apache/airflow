@@ -75,7 +75,7 @@ In this approach, Airflow will log to an existing ``ReadWriteMany`` PVC. You pas
       --set logs.persistence.enabled=true \
       --set logs.persistence.existingClaim=my-volume-claim
 
-Note that the volume will need to writable by the Airflow user. The easiest way is to ensure GID ``0`` has write permission.
+Note that the volume will need to be writable by the Airflow user. The easiest way is to ensure GID ``0`` has write permission.
 More information can be found in the :ref:`Docker image entrypoint documentation <docker-stack:arbitrary-docker-user>`.
 
 Elasticsearch

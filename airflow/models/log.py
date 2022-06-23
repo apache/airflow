@@ -16,9 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, Index, Integer, String, Text
+from sqlalchemy import Column, Index, Integer, String, Text, text
 
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
@@ -30,14 +30,18 @@ class Log(Base):
 
     id = Column(Integer, primary_key=True)
     dttm = Column(UtcDateTime)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS))
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    dag_id = Column(StringID())
+    task_id = Column(StringID())
+    map_index = Column(Integer, server_default=text('NULL'))
     event = Column(String(30))
     execution_date = Column(UtcDateTime)
     owner = Column(String(500))
     extra = Column(Text)
 
-    __table_args__ = (Index('idx_log_dag', dag_id),)
+    __table_args__ = (
+        Index('idx_log_dag', dag_id),
+        Index('idx_log_event', event),
+    )
 
     def __init__(self, event, task_instance=None, owner=None, extra=None, **kwargs):
         self.dttm = timezone.utcnow()
@@ -50,14 +54,16 @@ class Log(Base):
             self.dag_id = task_instance.dag_id
             self.task_id = task_instance.task_id
             self.execution_date = task_instance.execution_date
+            self.map_index = task_instance.map_index
             task_owner = task_instance.task.owner
 
         if 'task_id' in kwargs:
             self.task_id = kwargs['task_id']
         if 'dag_id' in kwargs:
             self.dag_id = kwargs['dag_id']
-        if 'execution_date' in kwargs:
-            if kwargs['execution_date']:
-                self.execution_date = kwargs['execution_date']
+        if kwargs.get('execution_date'):
+            self.execution_date = kwargs['execution_date']
+        if 'map_index' in kwargs:
+            self.map_index = kwargs['map_index']
 
         self.owner = owner or task_owner

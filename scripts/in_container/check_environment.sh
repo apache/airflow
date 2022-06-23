@@ -40,67 +40,69 @@ function run_nc() {
 }
 
 function check_service {
-    LABEL=$1
-    CALL=$2
-    MAX_CHECK=${3:=1}
+    local label=$1
+    local call=$2
+    local max_check=${3:=1}
 
-    echo -n "${LABEL}: "
+    echo -n "${label}: "
     while true
     do
         set +e
-        LAST_CHECK_RESULT=$(eval "${CALL}" 2>&1)
-        RES=$?
+        local last_check_result
+        last_check_result=$(eval "${call}" 2>&1)
+        local res=$?
         set -e
-        if [[ ${RES} == 0 ]]; then
+        if [[ ${res} == 0 ]]; then
             echo  "${COLOR_GREEN}OK.  ${COLOR_RESET}"
             break
         else
             echo -n "."
-            MAX_CHECK=$((MAX_CHECK-1))
+            max_check=$((max_check-1))
         fi
-        if [[ ${MAX_CHECK} == 0 ]]; then
+        if [[ ${max_check} == 0 ]]; then
             echo "${COLOR_RED}ERROR: Maximum number of retries while checking service. Exiting ${COLOR_RESET}"
             break
         else
             sleep 1
         fi
     done
-    if [[ ${RES} != 0 ]]; then
+    if [[ ${res} != 0 ]]; then
         echo "Service could not be started!"
         echo
-        echo "$ ${CALL}"
-        echo "${LAST_CHECK_RESULT}"
+        echo "$ ${call}"
+        echo "${last_check_result}"
         echo
-        EXIT_CODE=${RES}
+        EXIT_CODE=${res}
     fi
 }
 
 function check_integration {
-    INTEGRATION_LABEL=$1
-    INTEGRATION_NAME=$2
-    CALL=$3
-    MAX_CHECK=${4:=1}
+    local integration_label=$1
+    local integration_name=$2
+    local call=$3
+    local max_check=${4:=1}
 
-    ENV_VAR_NAME=INTEGRATION_${INTEGRATION_NAME^^}
-    if [[ ${!ENV_VAR_NAME:=} != "true" ]]; then
-        if [[ ! ${DISABLED_INTEGRATIONS} == *" ${INTEGRATION_NAME}"* ]]; then
-            DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${INTEGRATION_NAME}"
+    local env_var_name
+    env_var_name=INTEGRATION_${integration_name^^}
+    if [[ ${!env_var_name:=} != "true" || ${!env_var_name} != "True" ]]; then
+        if [[ ! ${DISABLED_INTEGRATIONS} == *" ${integration_name}"* ]]; then
+            DISABLED_INTEGRATIONS="${DISABLED_INTEGRATIONS} ${integration_name}"
         fi
         return
     fi
-    check_service "${INTEGRATION_LABEL}" "${CALL}" "${MAX_CHECK}"
+    check_service "${integration_label}" "${call}" "${max_check}"
 }
 
 function check_db_backend {
-    MAX_CHECK=${1:=1}
+    local max_check=${1:=1}
 
     if [[ ${BACKEND} == "postgres" ]]; then
-        check_service "PostgreSQL" "run_nc postgres 5432" "${MAX_CHECK}"
+        check_service "PostgreSQL" "run_nc postgres 5432" "${max_check}"
     elif [[ ${BACKEND} == "mysql" ]]; then
-        check_service "MySQL" "run_nc mysql 3306" "${MAX_CHECK}"
+        check_service "MySQL" "run_nc mysql 3306" "${max_check}"
     elif [[ ${BACKEND} == "mssql" ]]; then
-        check_service "MSSQL" "run_nc mssql 1433" "${MAX_CHECK}"
-        check_service "MSSQL Login Check" "airflow db check" "${MAX_CHECK}"
+        check_service "MSSQL" "run_nc mssql 1433" "${max_check}"
+        check_service "MSSQL Login Check" "airflow db check" "${max_check}"
     elif [[ ${BACKEND} == "sqlite" ]]; then
         return
     else
@@ -110,15 +112,11 @@ function check_db_backend {
 }
 
 function resetdb_if_requested() {
-    if [[ ${DB_RESET:="false"} == "true" ]]; then
+    if [[ ${DB_RESET:="false"} == "true" || ${DB_RESET} == "True" ]]; then
         echo
         echo "Resetting the DB"
         echo
-        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
-            airflow resetdb -y
-        else
-            airflow db reset -y
-        fi
+        airflow db reset -y
         echo
         echo "Database has been reset"
         echo
@@ -127,7 +125,7 @@ function resetdb_if_requested() {
 }
 
 function startairflow_if_requested() {
-    if [[ ${START_AIRFLOW:="false"} == "true" ]]; then
+    if [[ ${START_AIRFLOW:="false"} == "true" || ${START_AIRFLOW} == "True" ]]; then
         echo
         echo "Starting Airflow"
         echo
@@ -136,14 +134,8 @@ function startairflow_if_requested() {
 
         . "$( dirname "${BASH_SOURCE[0]}" )/configure_environment.sh"
 
-        # initialize db and create the admin user if it's a new run
-        if [[ ${RUN_AIRFLOW_1_10} == "true" ]]; then
-            airflow initdb
-            airflow create_user -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email || true
-        else
-            airflow db init
-            airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
-        fi
+        airflow db init
+        airflow users create -u admin -p admin -f Thor -l Adminstra -r Admin -e dummy@dummy.email
 
         . "$( dirname "${BASH_SOURCE[0]}" )/run_init_script.sh"
 
@@ -151,13 +143,14 @@ function startairflow_if_requested() {
     return $?
 }
 
-echo "==============================================================================================="
-echo "             Checking integrations and backends"
-echo "==============================================================================================="
+echo
+echo "${COLOR_BLUE}Checking integrations and backends.${COLOR_RESET}"
+echo
+
 if [[ -n ${BACKEND=} ]]; then
     check_db_backend 50
-    echo "-----------------------------------------------------------------------------------------------"
 fi
+echo
 check_integration "Kerberos" "kerberos" "run_nc kdc-server-example-com 88" 50
 check_integration "MongoDB" "mongo" "run_nc mongo 27017" 50
 check_integration "Redis" "redis" "run_nc redis 6379" 50
@@ -176,8 +169,6 @@ CMD="curl --max-time 1 -X GET 'http://pinot:8000/health' -H 'accept: text/plain'
 check_integration "Pinot (Broker API)" "pinot" "${CMD}" 50
 check_integration "RabbitMQ" "rabbitmq" "run_nc rabbitmq 5672" 50
 
-echo "-----------------------------------------------------------------------------------------------"
-
 if [[ ${EXIT_CODE} != 0 ]]; then
     echo
     echo "Error: some of the CI environment failed to initialize!"
@@ -190,10 +181,8 @@ fi
 resetdb_if_requested
 startairflow_if_requested
 
-if [[ -n ${DISABLED_INTEGRATIONS=} ]]; then
+if [[ -n ${DISABLED_INTEGRATIONS=} && (${VERBOSE=} == "true" || ${VERBOSE} == "True") ]]; then
     echo
-    echo "Disabled integrations:${DISABLED_INTEGRATIONS}"
-    echo
-    echo "Enable them via --integration <INTEGRATION_NAME> flags (you can use 'all' for all)"
+    echo "${COLOR_BLUE}Those integrations are disabled: ${DISABLED_INTEGRATIONS}"
     echo
 fi

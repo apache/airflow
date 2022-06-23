@@ -36,9 +36,10 @@ happen. (The pendulum and pytz documentation discuss these issues in greater det
 for a simple DAG, but it’s a problem if you are in, for example, financial services where you have end of day
 deadlines to meet.
 
-The time zone is set in ``airflow.cfg``. By default it is set to utc, but you change it to use the system’s settings or
+The time zone is set in ``airflow.cfg``. By default it is set to UTC, but you change it to use the system’s settings or
 an arbitrary IANA time zone, e.g. ``Europe/Amsterdam``. It is dependent on ``pendulum``, which is more accurate than ``pytz``.
 Pendulum is installed when you install Airflow.
+
 
 Web UI
 ------
@@ -86,15 +87,17 @@ and ``end_dates`` in your DAG definitions. This is mostly in order to preserve b
 case a naive ``start_date`` or ``end_date`` is encountered the default time zone is applied. It is applied
 in such a way that it is assumed that the naive date time is already in the default time zone. In other
 words if you have a default time zone setting of ``Europe/Amsterdam`` and create a naive datetime ``start_date`` of
-``datetime(2017,1,1)`` it is assumed to be a ``start_date`` of Jan 1, 2017 Amsterdam time.
+``datetime(2017, 1, 1)`` it is assumed to be a ``start_date`` of Jan 1, 2017 Amsterdam time.
 
 .. code-block:: python
 
-    default_args = dict(start_date=datetime(2016, 1, 1), owner="airflow")
-
-    dag = DAG("my_dag", default_args=default_args)
-    op = DummyOperator(task_id="dummy", dag=dag)
-    print(op.owner)  # Airflow
+    dag = DAG(
+        "my_dag",
+        start_date=pendulum.datetime(2017, 1, 1, tz="UTC"),
+        default_args={"retries": 3},
+    )
+    op = BashOperator(task_id="dummy", bash_command="Hello World!", dag=dag)
+    print(op.retries)  # 3
 
 Unfortunately, during DST transitions, some datetimes don’t exist or are ambiguous.
 In such situations, pendulum raises an exception. That’s why you should always create aware
@@ -122,22 +125,22 @@ it is therefore important to make sure this setting is equal on all Airflow node
 .. note::
     For more information on setting the configuration, see :doc:`howto/set-config`
 
+.. _timezone_aware_dags:
+
 Time zone aware DAGs
 --------------------
 
 Creating a time zone aware DAG is quite simple. Just make sure to supply a time zone aware ``start_date``
-using ``pendulum``.
+using ``pendulum``. Don't try to use standard library
+`timezone <https://docs.python.org/3/library/datetime.html#timezone-objects>`_ as they are known to
+have limitations and we deliberately disallow using them in DAGs.
 
 .. code-block:: python
 
     import pendulum
 
-    local_tz = pendulum.timezone("Europe/Amsterdam")
-
-    default_args = dict(start_date=datetime(2016, 1, 1, tzinfo=local_tz), owner="airflow")
-
-    dag = DAG("my_tz_dag", default_args=default_args)
-    op = DummyOperator(task_id="dummy", dag=dag)
+    dag = DAG("my_tz_dag", start_date=pendulum.datetime(2016, 1, 1, tz="Europe/Amsterdam"))
+    op = EmptyOperator(task_id="empty", dag=dag)
     print(dag.timezone)  # <Timezone [Europe/Amsterdam]>
 
 Please note that while it is possible to set a ``start_date`` and ``end_date``
@@ -174,6 +177,6 @@ Time deltas
 Time zone aware DAGs that use ``timedelta`` or ``relativedelta`` schedules
 respect daylight savings time for the start date but do not adjust for
 daylight savings time when scheduling subsequent runs. For example, a
-DAG with a start date of ``pendulum.datetime(2020, 1, 1, tz="US/Eastern")``
+DAG with a start date of ``pendulum.datetime(2020, 1, 1, tz="UTC")``
 and a schedule interval of ``timedelta(days=1)`` will run daily at 05:00
 UTC regardless of daylight savings time.

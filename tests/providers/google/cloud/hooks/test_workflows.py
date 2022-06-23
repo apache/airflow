@@ -18,6 +18,7 @@
 from unittest import mock
 
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 
 BASE_PATH = "airflow.providers.google.cloud.hooks.workflows.{}"
 LOCATION = "europe-west1"
@@ -51,23 +52,21 @@ class TestWorkflowsHook:
             self.hook = WorkflowsHook(gcp_conn_id="test")
 
     @mock.patch(BASE_PATH.format("WorkflowsHook._get_credentials"))
-    @mock.patch(BASE_PATH.format("WorkflowsHook.client_info"), new_callable=mock.PropertyMock)
     @mock.patch(BASE_PATH.format("WorkflowsClient"))
-    def test_get_workflows_client(self, mock_client, mock_client_info, mock_get_credentials):
+    def test_get_workflows_client(self, mock_client, mock_get_credentials):
         self.hook.get_workflows_client()
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
-            client_info=mock_client_info.return_value,
+            client_info=CLIENT_INFO,
         )
 
     @mock.patch(BASE_PATH.format("WorkflowsHook._get_credentials"))
-    @mock.patch(BASE_PATH.format("WorkflowsHook.client_info"), new_callable=mock.PropertyMock)
     @mock.patch(BASE_PATH.format("ExecutionsClient"))
-    def test_get_executions_client(self, mock_client, mock_client_info, mock_get_credentials):
+    def test_get_executions_client(self, mock_client, mock_get_credentials):
         self.hook.get_executions_client()
         mock_client.assert_called_once_with(
             credentials=mock_get_credentials.return_value,
-            client_info=mock_client_info.return_value,
+            client_info=CLIENT_INFO,
         )
 
     @mock.patch(BASE_PATH.format("WorkflowsHook.get_workflows_client"))

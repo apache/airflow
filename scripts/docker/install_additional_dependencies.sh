@@ -1,4 +1,3 @@
-#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,47 +14,54 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# shellcheck disable=SC2086
+# shellcheck shell=bash disable=SC2086
 set -euo pipefail
 
-test -v UPGRADE_TO_NEWER_DEPENDENCIES
-test -v ADDITIONAL_PYTHON_DEPS
-test -v EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS
-test -v AIRFLOW_INSTALL_USER_FLAG
-test -v AIRFLOW_PIP_VERSION
+: "${UPGRADE_TO_NEWER_DEPENDENCIES:?Should be true or false}"
+: "${ADDITIONAL_PYTHON_DEPS:?Should be set}"
+: "${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS:?Should be set}"
+: "${AIRFLOW_PIP_VERSION:?Should be set}"
 
 # shellcheck source=scripts/docker/common.sh
 . "$( dirname "${BASH_SOURCE[0]}" )/common.sh"
-
-
-set -x
 
 # Installs additional dependencies passed as Argument to the Docker build command
 function install_additional_dependencies() {
     if [[ "${UPGRADE_TO_NEWER_DEPENDENCIES}" != "false" ]]; then
         echo
-        echo Installing additional dependencies while upgrading to newer dependencies
+        echo "${COLOR_BLUE}Installing additional dependencies while upgrading to newer dependencies${COLOR_RESET}"
         echo
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade --upgrade-strategy eager \
+        set -x
+        pip install --root-user-action ignore --upgrade --upgrade-strategy eager \
             ${ADDITIONAL_PYTHON_DEPS} ${EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS}
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+        set +x
+        echo
+        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+        echo
         pip check
     else
         echo
-        echo Installing additional dependencies upgrading only if needed
+        echo "${COLOR_BLUE}Installing additional dependencies upgrading only if needed${COLOR_RESET}"
         echo
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} \
-            --upgrade --upgrade-strategy only-if-needed \
+        set -x
+        pip install --root-user-action ignore --upgrade --upgrade-strategy only-if-needed \
             ${ADDITIONAL_PYTHON_DEPS}
         # make sure correct PIP version is used
-        pip install ${AIRFLOW_INSTALL_USER_FLAG} --upgrade "pip==${AIRFLOW_PIP_VERSION}"
+        pip install --disable-pip-version-check "pip==${AIRFLOW_PIP_VERSION}" 2>/dev/null
+        set +x
+        echo
+        echo "${COLOR_BLUE}Running 'pip check'${COLOR_RESET}"
+        echo
         pip check
     fi
 }
 
+common::get_colors
 common::get_airflow_version_specification
 common::override_pip_version_if_needed
 common::get_constraints_location
+common::show_pip_version_and_location
 
 install_additional_dependencies

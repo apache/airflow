@@ -34,7 +34,6 @@ def provide_salesforce_connection(key_file_path: str):
     Context manager that provides a temporary value of SALESFORCE_DEFAULT connection.
 
     :param key_file_path: Path to file with SALESFORCE credentials .json file.
-    :type key_file_path: str
     """
     if not key_file_path.endswith(".json"):
         raise AirflowException("Use a JSON key file.")

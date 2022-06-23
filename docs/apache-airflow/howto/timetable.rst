@@ -69,7 +69,7 @@ file:
 
 .. code-block:: python
 
-    import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
@@ -77,7 +77,7 @@ file:
 
     with DAG(
         dag_id="example_after_workday_timetable_dag",
-        start_date=datetime.datetime(2021, 3, 10),
+        start_date=pendulum.datetime(2021, 3, 10, tz="UTC"),
         timetable=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
     ) as dag:
@@ -93,17 +93,17 @@ know when to schedule the DAG's next run.
 * ``next_dagrun_info``: The scheduler uses this to learn the timetable's regular
   schedule, i.e. the "one for every workday, run at the end of it" part in our
   example.
-* ``infer_data_interval``: When a DAG run is manually triggered (from the web
+* ``infer_manual_data_interval``: When a DAG run is manually triggered (from the web
   UI, for example), the scheduler uses this method to learn about how to
   reverse-infer the out-of-schedule run's data interval.
 
-We'll start with ``infer_data_interval`` since it's the easier of the two:
+We'll start with ``infer_manual_data_interval`` since it's the easier of the two:
 
 .. exampleinclude:: /../../airflow/example_dags/plugins/workday.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_timetable_infer_data_interval]
-    :end-before: [END howto_timetable_infer_data_interval]
+    :start-after: [START howto_timetable_infer_manual_data_interval]
+    :end-before: [END howto_timetable_infer_manual_data_interval]
 
 The method accepts one argument ``run_after``, a ``pendulum.DateTime`` object
 that indicates when the DAG is externally triggered. Since our timetable creates
@@ -190,20 +190,20 @@ For reference, here's our plugin and DAG files in their entirety:
 
 .. code-block:: python
 
-    import datetime
+    import pendulum
 
     from airflow import DAG
     from airflow.example_dags.plugins.workday import AfterWorkdayTimetable
-    from airflow.operators.dummy import DummyOperator
+    from airflow.operators.empty import EmptyOperator
 
 
     with DAG(
         dag_id="example_workday_timetable",
-        start_date=datetime.datetime(2021, 1, 1),
+        start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
         timetable=AfterWorkdayTimetable(),
         tags=["example", "timetable"],
     ) as dag:
-        DummyOperator(task_id="run_this")
+        EmptyOperator(task_id="run_this")
 
 
 Parameterized Timetables
@@ -254,7 +254,7 @@ Timetable Display in UI
 -----------------------
 
 By default, a custom timetable is displayed by their class name in the UI (e.g.
-the *Schedule* column in the "DAGs" table. It is possible to customize this
+the *Schedule* column in the "DAGs" table). It is possible to customize this
 by overriding the ``summary`` property. This is especially useful for
 parameterized timetables to include arguments provided in ``__init__``. For
 our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:
@@ -283,3 +283,43 @@ The *Schedule* column would say ``after each workday, at 08:00:00``.
     Module :mod:`airflow.timetables.base`
         The public interface is heavily documented to explain what should be
         implemented by subclasses.
+
+
+Timetable Description Display in UI
+-----------------------------------
+
+You can also provide a description for your Timetable Implementation
+by overriding the ``description`` property.
+This is especially useful for providing comprehensive description for your implementation in UI.
+For our ``SometimeAfterWorkdayTimetable`` class, for example, we could have:
+
+.. code-block:: python
+
+    description = "Schedule: after each workday, at {_schedule_at}"
+
+You can also wrap this inside ``__init__``, if you want to derive description.
+
+.. code-block:: python
+
+    def __init__(self) -> None:
+        self.description = "Schedule: after each workday, at {self._schedule_at}"
+
+
+This is specially useful when you want to provide comprehensive description which is different from ``summary`` property.
+
+So for a DAG declared like this:
+
+.. code-block:: python
+
+    with DAG(
+        timetable=SometimeAfterWorkdayTimetable(Time(8)),  # 8am.
+        ...,
+    ) as dag:
+        ...
+
+The *i* icon  would show,  ``Schedule: after each workday, at 08:00:00``.
+
+
+.. seealso::
+    Module :mod:`airflow.timetables.interval`
+        check ``CronDataIntervalTimetable`` description implementation which provides comprehensive cron description in UI.

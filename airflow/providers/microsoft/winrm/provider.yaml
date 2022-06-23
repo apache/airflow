@@ -19,9 +19,14 @@
 package-name: apache-airflow-providers-microsoft-winrm
 name: Windows Remote Management (WinRM)
 description: |
-    `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-us/windows/win32/winrm/portal>`__
+  `Windows Remote Management (WinRM) <https://docs.microsoft.com/en-us/windows/win32/winrm/portal>`__
 
 versions:
+  - 3.0.0
+  - 2.0.5
+  - 2.0.4
+  - 2.0.3
+  - 2.0.2
   - 2.0.1
   - 2.0.0
   - 1.2.0
@@ -30,12 +35,14 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Windows Remote Management (WinRM)
     external-doc-url: https://docs.microsoft.com/en-us/windows/win32/winrm/portal
     logo: /integration-logos/winrm/WinRM.png
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-winrm/operators.rst
     tags: [protocol]
 
 operators:

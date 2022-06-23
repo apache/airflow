@@ -18,6 +18,7 @@
 #
 
 import unittest
+from typing import Sequence
 
 from airflow.models.dag import DAG
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
@@ -64,7 +65,7 @@ class TestSlackWebhookOperator(unittest.TestCase):
     def test_assert_templated_fields(self):
         operator = SlackWebhookOperator(task_id='slack_webhook_job', dag=self.dag, **self._config)
 
-        template_fields = [
+        template_fields: Sequence[str] = (
             'webhook_token',
             'message',
             'attachments',
@@ -72,6 +73,6 @@ class TestSlackWebhookOperator(unittest.TestCase):
             'channel',
             'username',
             'proxy',
-        ]
+        )
 
         assert operator.template_fields == template_fields

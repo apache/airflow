@@ -15,14 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
 from tempfile import NamedTemporaryFile
-from typing import Iterable, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
-from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook, _parse_gcs_url, gcs_object_is_directory
+
+try:
+    from airflow.providers.amazon.aws.operators.s3 import S3ListOperator
+except ImportError:
+    from airflow.providers.amazon.aws.operators.s3_list import S3ListOperator
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class S3ToGCSOperator(S3ListOperator):
@@ -35,14 +41,10 @@ class S3ToGCSOperator(S3ListOperator):
         :ref:`howto/operator:S3ToGCSOperator`
 
     :param bucket: The S3 bucket where to find the objects. (templated)
-    :type bucket: str
     :param prefix: Prefix string which filters objects whose name begin with
         such prefix. (templated)
-    :type prefix: str
     :param delimiter: the delimiter marks key hierarchy. (templated)
-    :type delimiter: str
     :param aws_conn_id: The source S3 connection
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -53,24 +55,15 @@ class S3ToGCSOperator(S3ListOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :type gcp_conn_id: str
-    :param dest_gcs_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
-    :type dest_gcs_conn_id: str
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
-    :type dest_gcs: str
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param replace: Whether you want to replace existing destination files
         or not.
-    :type replace: bool
     :param gzip: Option to compress file for upload
-    :type gzip: bool
     :param google_impersonation_chain: Optional Google service account to impersonate using
         short-term credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -79,7 +72,6 @@ class S3ToGCSOperator(S3ListOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type google_impersonation_chain: Union[str, Sequence[str]]
 
 
     **Example**:
@@ -90,18 +82,18 @@ class S3ToGCSOperator(S3ListOperator):
            task_id="s3_to_gcs_example",
            bucket="my-s3-bucket",
            prefix="data/customers-201804",
-           dest_gcs_conn_id="google_cloud_default",
+           gcp_conn_id="google_cloud_default",
            dest_gcs="gs://my.gcs.bucket/some/customers/",
            replace=False,
            gzip=True,
-           dag=my - dag,
+           dag=my_dag,
        )
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
     templated, so you can use variables in them if you wish.
     """
 
-    template_fields: Iterable[str] = (
+    template_fields: Sequence[str] = (
         'bucket',
         'prefix',
         'delimiter',
@@ -119,7 +111,6 @@ class S3ToGCSOperator(S3ListOperator):
         aws_conn_id='aws_default',
         verify=None,
         gcp_conn_id='google_cloud_default',
-        dest_gcs_conn_id=None,
         dest_gcs=None,
         delegate_to=None,
         replace=False,
@@ -129,16 +120,6 @@ class S3ToGCSOperator(S3ListOperator):
     ):
 
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
-
-        if dest_gcs_conn_id:
-            warnings.warn(
-                "The dest_gcs_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = dest_gcs_conn_id
-
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to
@@ -158,7 +139,7 @@ class S3ToGCSOperator(S3ListOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)

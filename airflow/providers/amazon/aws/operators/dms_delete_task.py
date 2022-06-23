@@ -16,51 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.dms`."""
 
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.dms import DmsHook
+import warnings
 
+from airflow.providers.amazon.aws.operators.dms import DmsDeleteTaskOperator  # noqa
 
-class DmsDeleteTaskOperator(BaseOperator):
-    """
-    Deletes AWS DMS replication task.
-
-    .. seealso::
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:DmsDeleteTaskOperator`
-
-    :param replication_task_arn: Replication task ARN
-    :type replication_task_arn: str
-    :param aws_conn_id: The Airflow connection used for AWS credentials.
-        If this is None or empty then the default boto3 behaviour is used. If
-        running Airflow in a distributed manner and aws_conn_id is None or
-        empty, then default boto3 configuration would be used (and must be
-        maintained on each worker node).
-    :type aws_conn_id: Optional[str]
-    """
-
-    template_fields = ('replication_task_arn',)
-    template_ext = ()
-    template_fields_renderers = {}
-
-    def __init__(
-        self,
-        *,
-        replication_task_arn: Optional[str] = None,
-        aws_conn_id: str = 'aws_default',
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.replication_task_arn = replication_task_arn
-        self.aws_conn_id = aws_conn_id
-
-    def execute(self, context):
-        """
-        Deletes AWS DMS replication task from Airflow
-
-        :return: replication task arn
-        """
-        dms_hook = DmsHook(aws_conn_id=self.aws_conn_id)
-        dms_hook.delete_replication_task(replication_task_arn=self.replication_task_arn)
-        self.log.info("DMS replication task(%s) has been deleted.", self.replication_task_arn)
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.dms`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

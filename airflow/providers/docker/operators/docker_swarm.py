@@ -15,13 +15,16 @@
 # specific language governing permissions and limitations
 # under the License.
 """Run ephemeral Docker Swarm services"""
-from typing import List, Optional, Union
+from typing import TYPE_CHECKING, List, Optional, Union
 
 from docker import types
 
 from airflow.exceptions import AirflowException
 from airflow.providers.docker.operators.docker import DockerOperator
 from airflow.utils.strings import get_random_string
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class DockerSwarmOperator(DockerOperator):
@@ -42,72 +45,49 @@ class DockerSwarmOperator(DockerOperator):
 
     :param image: Docker image from which to create the container.
         If image tag is omitted, "latest" will be used.
-    :type image: str
     :param api_version: Remote API version. Set to ``auto`` to automatically
         detect the server's version.
-    :type api_version: str
     :param auto_remove: Auto-removal of the container on daemon side when the
         container's process exits.
         The default is False.
-    :type auto_remove: bool
     :param command: Command to be run in the container. (templated)
-    :type command: str or list
     :param docker_url: URL of the host running the docker daemon.
         Default is unix://var/run/docker.sock
-    :type docker_url: str
     :param environment: Environment variables to set in the container. (templated)
-    :type environment: dict
     :param force_pull: Pull the docker image on every run. Default is False.
-    :type force_pull: bool
     :param mem_limit: Maximum amount of memory the container can use.
         Either a float value, which represents the limit in bytes,
         or a string like ``128m`` or ``1g``.
-    :type mem_limit: float or str
     :param tls_ca_cert: Path to a PEM-encoded certificate authority
         to secure the docker connection.
-    :type tls_ca_cert: str
     :param tls_client_cert: Path to the PEM-encoded certificate
         used to authenticate docker client.
-    :type tls_client_cert: str
     :param tls_client_key: Path to the PEM-encoded key used to authenticate docker client.
-    :type tls_client_key: str
     :param tls_hostname: Hostname to match against
         the docker server certificate or False to disable the check.
-    :type tls_hostname: str or bool
     :param tls_ssl_version: Version of SSL to use when communicating with docker daemon.
-    :type tls_ssl_version: str
     :param tmp_dir: Mount point inside the container to
         a temporary directory created on the host by the operator.
         The path is also made available via the environment variable
         ``AIRFLOW_TMP_DIR`` inside the container.
-    :type tmp_dir: str
     :param user: Default user inside the docker container.
-    :type user: int or str
     :param docker_conn_id: The :ref:`Docker connection id <howto/connection:docker>`
-    :type docker_conn_id: str
     :param tty: Allocate pseudo-TTY to the container of this service
         This needs to be set see logs of the Docker container / service.
-    :type tty: bool
     :param enable_logging: Show the application's logs in operator's logs.
         Supported only if the Docker engine is using json-file or journald logging drivers.
         The `tty` parameter should be set to use this with Python applications.
-    :type enable_logging: bool
     :param configs: List of docker configs to be exposed to the containers of the swarm service.
         The configs are ConfigReference objects as per the docker api
         [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
-    :type configs: List[docker.types.ConfigReference]
     :param secrets: List of docker secrets to be exposed to the containers of the swarm service.
         The secrets are SecretReference objects as per the docker create_service api.
         [https://docker-py.readthedocs.io/en/stable/services.html#docker.models.services.ServiceCollection.create]_
-    :type secrets: List[docker.types.SecretReference]
     :param mode: Indicate whether a service should be deployed as a replicated or global service,
         and associated parameters
-    :type mode: docker.types.ServiceMode
     :param networks: List of network names or IDs or NetworkAttachmentConfig to attach the service to.
-    :type networks: List[Union[str, NetworkAttachmentConfig]]
     :param placement: Placement instructions for the scheduler. If a list is passed instead,
         it is assumed to be a list of constraints as part of a Placement object.
-    :type placement: Union[types.Placement, List[types.Placement]]
     """
 
     def __init__(
@@ -132,7 +112,7 @@ class DockerSwarmOperator(DockerOperator):
         self.networks = networks
         self.placement = placement
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.cli = self._get_cli()
 
         self.environment['AIRFLOW_TMP_DIR'] = self.tmp_dir
@@ -164,7 +144,8 @@ class DockerSwarmOperator(DockerOperator):
             labels={'name': f'airflow__{self.dag_id}__{self.task_id}'},
             mode=self.mode,
         )
-
+        if self.service is None:
+            raise Exception("Service should be set here")
         self.log.info('Service started: %s', str(self.service))
 
         # wait for the service to start the task
@@ -191,6 +172,8 @@ class DockerSwarmOperator(DockerOperator):
     def _service_status(self) -> Optional[str]:
         if not self.cli:
             raise Exception("The 'cli' should be initialized before!")
+        if not self.service:
+            raise Exception("The 'service' should be initialized before!")
         return self.cli.tasks(filters={'service': self.service['ID']})[0]['Status']['State']
 
     def _has_service_terminated(self) -> bool:
@@ -227,6 +210,6 @@ class DockerSwarmOperator(DockerOperator):
             self.log.info(line)
 
     def on_kill(self) -> None:
-        if self.cli is not None:
+        if self.cli is not None and self.service is not None:
             self.log.info('Removing docker service: %s', self.service['ID'])
             self.cli.remove_service(self.service['ID'])

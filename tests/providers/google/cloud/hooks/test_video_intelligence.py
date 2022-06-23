@@ -19,9 +19,11 @@
 import unittest
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.videointelligence_v1 import enums
 
 from airflow.providers.google.cloud.hooks.video_intelligence import CloudVideoIntelligenceHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
 
 INPUT_URI = "gs://bucket-name/input-file"
@@ -41,18 +43,12 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             self.hook = CloudVideoIntelligenceHook(gcp_conn_id="test")
 
     @mock.patch(
-        "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
-    @mock.patch(
         "airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook._get_credentials"
     )
     @mock.patch("airflow.providers.google.cloud.hooks.video_intelligence.VideoIntelligenceServiceClient")
-    def test_video_intelligence_service_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_video_intelligence_service_client_creation(self, mock_client, mock_get_creds):
         result = self.hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value, client_info=mock_client_info.return_value
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.hook._conn == result
 
@@ -74,9 +70,9 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             video_context=None,
             output_uri=None,
             location_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.video_intelligence.CloudVideoIntelligenceHook.get_conn")
@@ -97,7 +93,7 @@ class TestCloudVideoIntelligenceHook(unittest.TestCase):
             features=FEATURES,
             video_context=None,
             location_id=None,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )

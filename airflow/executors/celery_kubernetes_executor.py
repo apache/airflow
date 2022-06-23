@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Dict, List, Optional, Set, Union
+from typing import Dict, List, Optional, Sequence, Set, Union
 
+from airflow.callbacks.base_callback_sink import BaseCallbackSink
+from airflow.callbacks.callback_requests import CallbackRequest
 from airflow.configuration import conf
 from airflow.executors.base_executor import CommandType, EventBufferValueType, QueuedTaskInstanceType
 from airflow.executors.celery_executor import CeleryExecutor
@@ -34,13 +36,17 @@ class CeleryKubernetesExecutor(LoggingMixin):
     otherwise, CeleryExecutor is used.
     """
 
+    supports_ad_hoc_ti_run: bool = True
+    callback_sink: Optional[BaseCallbackSink] = None
+
     KUBERNETES_QUEUE = conf.get('celery_kubernetes_executor', 'kubernetes_queue')
 
     def __init__(self, celery_executor: CeleryExecutor, kubernetes_executor: KubernetesExecutor):
         super().__init__()
-        self._job_id: Optional[str] = None
+        self._job_id: Optional[int] = None
         self.celery_executor = celery_executor
         self.kubernetes_executor = kubernetes_executor
+        self.kubernetes_executor.kubernetes_queue = self.KUBERNETES_QUEUE
 
     @property
     def queued_tasks(self) -> Dict[TaskInstanceKey, QueuedTaskInstanceType]:
@@ -56,7 +62,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self.celery_executor.running.union(self.kubernetes_executor.running)
 
     @property
-    def job_id(self) -> Optional[str]:
+    def job_id(self) -> Optional[int]:
         """
         This is a class attribute in BaseExecutor but since this is not really an executor, but a wrapper
         of executors we implement as property so we can have custom setter.
@@ -64,7 +70,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         return self._job_id
 
     @job_id.setter
-    def job_id(self, value: Optional[str]) -> None:
+    def job_id(self, value: Optional[int]) -> None:
         """job_id is manipulated by SchedulerJob.  We must propagate the job_id to wrapped executors."""
         self._job_id = value
         self.kubernetes_executor.job_id = value
@@ -105,7 +111,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
         cfg_path: Optional[str] = None,
     ) -> None:
         """Queues task instance via celery or kubernetes executor"""
-        executor = self._router(SimpleTaskInstance(task_instance))
+        executor = self._router(SimpleTaskInstance.from_ti(task_instance))
         self.log.debug(
             "Using executor: %s to queue_task_instance for %s", executor.__class__.__name__, task_instance.key
         )
@@ -151,7 +157,7 @@ class CeleryKubernetesExecutor(LoggingMixin):
 
         return {**cleared_events_from_celery, **cleared_events_from_kubernetes}
 
-    def try_adopt_task_instances(self, tis: List[TaskInstance]) -> List[TaskInstance]:
+    def try_adopt_task_instances(self, tis: Sequence[TaskInstance]) -> Sequence[TaskInstance]:
         """
         Try to adopt running task instances that have been abandoned by a SchedulerJob dying.
 
@@ -159,19 +165,14 @@ class CeleryKubernetesExecutor(LoggingMixin):
         re-scheduling)
 
         :return: any TaskInstances that were unable to be adopted
-        :rtype: list[airflow.models.TaskInstance]
+        :rtype: Sequence[airflow.models.TaskInstance]
         """
-        celery_tis = []
-        kubernetes_tis = []
-        abandoned_tis = []
-        for ti in tis:
-            if ti.queue == self.KUBERNETES_QUEUE:
-                kubernetes_tis.append(ti)
-            else:
-                celery_tis.append(ti)
-        abandoned_tis.extend(self.celery_executor.try_adopt_task_instances(celery_tis))
-        abandoned_tis.extend(self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis))
-        return abandoned_tis
+        celery_tis = [ti for ti in tis if ti.queue != self.KUBERNETES_QUEUE]
+        kubernetes_tis = [ti for ti in tis if ti.queue == self.KUBERNETES_QUEUE]
+        return [
+            *self.celery_executor.try_adopt_task_instances(celery_tis),
+            *self.kubernetes_executor.try_adopt_task_instances(kubernetes_tis),
+        ]
 
     def end(self) -> None:
         """End celery and kubernetes executor"""
@@ -201,3 +202,12 @@ class CeleryKubernetesExecutor(LoggingMixin):
         self.celery_executor.debug_dump()
         self.log.info("Dumping KubernetesExecutor state")
         self.kubernetes_executor.debug_dump()
+
+    def send_callback(self, request: CallbackRequest) -> None:
+        """Sends callback for execution.
+
+        :param request: Callback request to be executed.
+        """
+        if not self.callback_sink:
+            raise ValueError("Callback sink is not ready.")
+        self.callback_sink.send(request)

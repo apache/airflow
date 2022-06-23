@@ -17,36 +17,27 @@
 # under the License.
 
 import time
+import warnings
 from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
 
-class AwsGlueJobHook(AwsBaseHook):
+class GlueJobHook(AwsBaseHook):
     """
     Interact with AWS Glue - create job, trigger, crawler
 
     :param s3_bucket: S3 bucket where logs and local etl script will be uploaded
-    :type s3_bucket: Optional[str]
     :param job_name: unique job name per AWS account
-    :type job_name: Optional[str]
     :param desc: job description
-    :type desc: Optional[str]
     :param concurrent_run_limit: The maximum number of concurrent runs allowed for a job
-    :type concurrent_run_limit: int
     :param script_location: path to etl script on s3
-    :type script_location: Optional[str]
     :param retry_limit: Maximum number of times to retry this job if it fails
-    :type retry_limit: int
     :param num_of_dpus: Number of AWS Glue DPUs to allocate to this Job
-    :type num_of_dpus: int
     :param region_name: aws region name (example: us-east-1)
-    :type region_name: Optional[str]
     :param iam_role_name: AWS IAM Role for Glue Job Execution
-    :type iam_role_name: Optional[str]
     :param create_job_kwargs: Extra arguments for Glue Job Creation
-    :type create_job_kwargs: Optional[dict]
     """
 
     JOB_POLL_INTERVAL = 6  # polls job status after every JOB_POLL_INTERVAL seconds
@@ -59,7 +50,7 @@ class AwsGlueJobHook(AwsBaseHook):
         concurrent_run_limit: int = 1,
         script_location: Optional[str] = None,
         retry_limit: int = 0,
-        num_of_dpus: int = 10,
+        num_of_dpus: Optional[int] = None,
         iam_role_name: Optional[str] = None,
         create_job_kwargs: Optional[dict] = None,
         *args,
@@ -70,11 +61,26 @@ class AwsGlueJobHook(AwsBaseHook):
         self.concurrent_run_limit = concurrent_run_limit
         self.script_location = script_location
         self.retry_limit = retry_limit
-        self.num_of_dpus = num_of_dpus
         self.s3_bucket = s3_bucket
         self.role_name = iam_role_name
         self.s3_glue_logs = 'logs/glue-logs/'
         self.create_job_kwargs = create_job_kwargs or {}
+
+        worker_type_exists = "WorkerType" in self.create_job_kwargs
+        num_workers_exists = "NumberOfWorkers" in self.create_job_kwargs
+
+        if worker_type_exists and num_workers_exists:
+            if num_of_dpus is not None:
+                raise ValueError("Cannot specify num_of_dpus with custom WorkerType")
+        elif not worker_type_exists and num_workers_exists:
+            raise ValueError("Need to specify custom WorkerType when specifying NumberOfWorkers")
+        elif worker_type_exists and not num_workers_exists:
+            raise ValueError("Need to specify NumberOfWorkers when specifying custom WorkerType")
+        elif num_of_dpus is None:
+            self.num_of_dpus = 10
+        else:
+            self.num_of_dpus = num_of_dpus
+
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
 
@@ -85,7 +91,8 @@ class AwsGlueJobHook(AwsBaseHook):
 
     def get_iam_execution_role(self) -> Dict:
         """:return: iam role for job execution"""
-        iam_client = self.get_client_type('iam', self.region_name)
+        session, endpoint_url = self._get_credentials(region_name=self.region_name)
+        iam_client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
 
         try:
             glue_execution_role = iam_client.get_role(RoleName=self.role_name)
@@ -111,8 +118,8 @@ class AwsGlueJobHook(AwsBaseHook):
 
         try:
             job_name = self.get_or_create_glue_job()
-            job_run = glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
-            return job_run
+            return glue_client.start_job_run(JobName=job_name, Arguments=script_arguments, **run_kwargs)
+
         except Exception as general_error:
             self.log.error("Failed to run aws glue job, error: %s", general_error)
             raise
@@ -122,15 +129,12 @@ class AwsGlueJobHook(AwsBaseHook):
         Get state of the Glue job. The job state can be
         running, finished, failed, stopped or timeout.
         :param job_name: unique job name per AWS account
-        :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
-        :type run_id: str
         :return: State of the Glue job
         """
         glue_client = self.get_conn()
         job_run = glue_client.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
-        job_run_state = job_run['JobRun']['JobRunState']
-        return job_run_state
+        return job_run['JobRun']['JobRunState']
 
     def job_completion(self, job_name: str, run_id: str) -> Dict[str, str]:
         """
@@ -138,9 +142,7 @@ class AwsGlueJobHook(AwsBaseHook):
         fails and return final state if finished.
         Raises AirflowException when the job failed
         :param job_name: unique job name per AWS account
-        :type job_name: str
         :param run_id: The job-run ID of the predecessor job run
-        :type run_id: str
         :return: Dict of JobRunState and JobRunId
         """
         failed_states = ['FAILED', 'TIMEOUT']
@@ -152,7 +154,7 @@ class AwsGlueJobHook(AwsBaseHook):
                 self.log.info("Exiting Job %s Run State: %s", run_id, job_run_state)
                 return {'JobRunState': job_run_state, 'JobRunId': run_id}
             if job_run_state in failed_states:
-                job_error_message = "Exiting Job " + run_id + " Run State: " + job_run_state
+                job_error_message = f"Exiting Job {run_id} Run State: {job_run_state}"
                 self.log.info(job_error_message)
                 raise AirflowException(job_error_message)
             else:
@@ -179,18 +181,52 @@ class AwsGlueJobHook(AwsBaseHook):
             s3_log_path = f's3://{self.s3_bucket}/{self.s3_glue_logs}{self.job_name}'
             execution_role = self.get_iam_execution_role()
             try:
-                create_job_response = glue_client.create_job(
-                    Name=self.job_name,
-                    Description=self.desc,
-                    LogUri=s3_log_path,
-                    Role=execution_role['Role']['Arn'],
-                    ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
-                    Command={"Name": "glueetl", "ScriptLocation": self.script_location},
-                    MaxRetries=self.retry_limit,
-                    AllocatedCapacity=self.num_of_dpus,
-                    **self.create_job_kwargs,
-                )
+                default_command = {
+                    "Name": "glueetl",
+                    "ScriptLocation": self.script_location,
+                }
+                command = self.create_job_kwargs.pop("Command", default_command)
+
+                if "WorkerType" in self.create_job_kwargs and "NumberOfWorkers" in self.create_job_kwargs:
+                    create_job_response = glue_client.create_job(
+                        Name=self.job_name,
+                        Description=self.desc,
+                        LogUri=s3_log_path,
+                        Role=execution_role['Role']['Arn'],
+                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
+                        Command=command,
+                        MaxRetries=self.retry_limit,
+                        **self.create_job_kwargs,
+                    )
+                else:
+                    create_job_response = glue_client.create_job(
+                        Name=self.job_name,
+                        Description=self.desc,
+                        LogUri=s3_log_path,
+                        Role=execution_role['Role']['Arn'],
+                        ExecutionProperty={"MaxConcurrentRuns": self.concurrent_run_limit},
+                        Command=command,
+                        MaxRetries=self.retry_limit,
+                        MaxCapacity=self.num_of_dpus,
+                        **self.create_job_kwargs,
+                    )
                 return create_job_response['Name']
             except Exception as general_error:
                 self.log.error("Failed to create aws glue job, error: %s", general_error)
                 raise
+
+
+class AwsGlueJobHook(GlueJobHook):
+    """
+    This hook is deprecated.
+    Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            "This hook is deprecated. "
+            "Please use :class:`airflow.providers.amazon.aws.hooks.glue.GlueJobHook`.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        super().__init__(*args, **kwargs)

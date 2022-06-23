@@ -31,11 +31,11 @@ There are two ways to connect to Hive using Airflow.
 
 1. Use the `Hive Beeline
    <https://docs.cloudera.com/HDPDocuments/HDP2/HDP-2.1.5/bk_dataintegration/content/ch_using-hive-clients-examples.html>`_.
-   i.e. make a jdbc connection string with host, port, and schema. Optionally you can connect with a proxy user, and specify a login and password.
+   i.e. make a JDBC connection string with host, port, and schema. Optionally you can connect with a proxy user, and specify a login and password.
 
 2. Use the `Hive CLI
    <https://docs.cloudera.com/HDPDocuments/HDP3/HDP-3.1.4/starting-hive/content/hive_start_a_command_line_query_locally.html>`_.
-   i.e. specify hive cli params in the extras field.
+   i.e. specify Hive CLI params in the extras field.
 
 Only one authorization method can be used at a time. If you need to manage multiple credentials or keys then you should
 configure multiple connections.
@@ -55,13 +55,13 @@ Password (optional)
     Specify your Beeline CLI password.
 
 Host (optional)
-    Specify your jdbc hive host that is used for Hive Beeline.
+    Specify your JDBC Hive host that is used for Hive Beeline.
 
 Port (optional)
-    Specify your jdbc hive port that is used for Hive Beeline.
+    Specify your JDBC Hive port that is used for Hive Beeline.
 
 Schema (optional)
-    Specify your jdbc hive database that you want to connect to with Beeline
+    Specify your JDBC Hive database that you want to connect to with Beeline
     or specify a schema for an HQL statement to run with the Hive CLI.
 
 Extra (optional)
@@ -78,7 +78,7 @@ Extra (optional)
       Specify a proxy user as an ``owner`` or ``login`` or keep blank if using a
       custom proxy user.
     * ``principal``
-      Specify the jdbc hive principal to be used with Hive Beeline.
+      Specify the JDBC Hive principal to be used with Hive Beeline.
 
 
 When specifying the connection in environment variable you should specify

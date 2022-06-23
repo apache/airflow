@@ -19,14 +19,14 @@ import boto3
 import pytest
 from moto import mock_ses
 
-from airflow.providers.amazon.aws.hooks.ses import SESHook
+from airflow.providers.amazon.aws.hooks.ses import SesHook
 
 boto3.setup_default_session()
 
 
 @mock_ses
 def test_get_conn():
-    hook = SESHook(aws_conn_id='aws_default')
+    hook = SesHook(aws_conn_id='aws_default')
     assert hook.get_conn() is not None
 
 
@@ -42,7 +42,7 @@ def test_get_conn():
 )
 def test_send_email(to, cc, bcc):
     # Given
-    hook = SESHook()
+    hook = SesHook()
     ses_client = hook.get_conn()
     mail_from = 'test_from@domain.com'
 

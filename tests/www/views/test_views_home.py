@@ -19,6 +19,7 @@ import os
 from unittest import mock
 
 import flask
+import markupsafe
 import pytest
 
 from airflow.dag_processing.processor import DagFileProcessor
@@ -55,7 +56,7 @@ def test_home(capture_templates, admin_client):
             '"null": "lightblue", "queued": "gray", '
             '"removed": "lightgrey", "restarting": "violet", "running": "lime", '
             '"scheduled": "tan", "sensing": "mediumpurple", '
-            '"shutdown": "blue", "skipped": "pink", '
+            '"shutdown": "blue", "skipped": "hotpink", '
             '"success": "green", "up_for_reschedule": "turquoise", '
             '"up_for_retry": "gold", "upstream_failed": "orange"};'
         )
@@ -116,7 +117,7 @@ def client_single_dag(app, user_single_dag):
     )
 
 
-TEST_FILTER_DAG_IDS = ['filter_test_1', 'filter_test_2']
+TEST_FILTER_DAG_IDS = ['filter_test_1', 'filter_test_2', 'a_first_dag_id_asc']
 
 
 def _process_file(file_path, session):
@@ -225,7 +226,7 @@ def test_dashboard_flash_messages_many(user_client):
 
 def test_dashboard_flash_messages_markup(user_client):
     link = '<a href="http://example.com">hello world</a>'
-    user_input = flask.Markup("Hello <em>%s</em>") % ("foo&bar",)
+    user_input = markupsafe.Markup("Hello <em>%s</em>") % ("foo&bar",)
     messages = [
         UIAlert(link, html=True),
         UIAlert(user_input),
@@ -244,3 +245,26 @@ def test_dashboard_flash_messages_type(user_client):
         resp = user_client.get("home", follow_redirects=True)
     check_content_in_response("hello world", resp)
     check_content_in_response("alert-foo", resp)
+
+
+def test_audit_log_view(user_client, working_dags):
+    url = 'audit_log?dag_id=filter_test_1'
+    resp = user_client.get(url, follow_redirects=True)
+    check_content_in_response('Dag Audit Log', resp)
+
+
+@pytest.mark.parametrize(
+    "url, lower_key, greater_key",
+    [
+        ("home?status=all", "a_first_dag_id_asc", "filter_test_1"),
+        ("home?status=all&sorting_key=dag_id&sorting_direction=asc", "filter_test_1", "filter_test_2"),
+        ("home?status=all&sorting_key=dag_id&sorting_direction=desc", "filter_test_2", "filter_test_1"),
+    ],
+    ids=["no_order_provided", "ascending_order_on_dag_id", "descending_order_on_dag_id"],
+)
+def test_sorting_home_view(url, lower_key, greater_key, user_client, working_dags):
+    resp = user_client.get(url, follow_redirects=True)
+    resp_html = resp.data.decode('utf-8')
+    lower_index = resp_html.find(lower_key)
+    greater_index = resp_html.find(greater_key)
+    assert lower_index < greater_index

@@ -23,27 +23,43 @@ The following are things to consider when using this Helm chart in a production 
 Database
 --------
 
-You will want to use an external database instead of the one deployed with the chart by default.
-Both **PostgreSQL** and **MySQL** are supported. Supported versions can be
-found on the :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>` page.
+It is advised to set up an external database for the Airflow metastore. The default Helm chart deploys a
+Postgres database running in a container. For production usage, a database running on a dedicated machine or
+leveraging a cloud provider's database service such as AWS RDS is advised. Supported databases and versions
+can be found at :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
+
+
+.. note::
+
+    When using the helm chart, you do not need to initialize the db with ``airflow db init``
+    as outlined in :doc:`Set up a Database Backend <apache-airflow:howto/set-up-database>`.
+
+First disable the Postgres in Docker container:
 
 .. code-block:: yaml
 
-  # Don't deploy postgres
   postgresql:
     enabled: false
 
-  # Use an external database
+To provide the database credentials to Airflow, store the credentials in a Kubernetes secret. Note that
+special characters in the username/password must be URL encoded.
+
+.. code-block:: bash
+
+  kubectl create secret generic mydatabase --from-literal=connection=postgresql://user:pass@host:5432/db
+
+Helm defaults to fetching the value from a secret named ``[RELEASE NAME]-airflow-metadata``, but you can
+configure the secret name:
+
+.. code-block:: yaml
+
   data:
-    metadataConnection:
-      user: ...
-      pass: ...
-      protocol: postgresql  # or 'mysql'
-      host: ...
-      port: ...
-      db: ...
+    metadataSecretName: mydatabase
 
 .. _production-guide:pgbouncer:
+
+.. warning::
+  If you use ``CeleryExecutor``, keep in mind that ``resultBackendSecretName`` expects a url that starts with ``db+postgresql://``, while ``metadataSecretName`` expects ``postgresql://`` and won't work with ``db+postgresql://``. You'll need to create separate secrets with the correct scheme.
 
 PgBouncer
 ---------
@@ -57,7 +73,7 @@ reduce the number of open connections on the database.
   pgbouncer:
     enabled: true
 
-Depending on the size of you Airflow instance, you may want to adjust the following as well (defaults are shown):
+Depending on the size of your Airflow instance, you may want to adjust the following as well (defaults are shown):
 
 .. code-block:: yaml
 
@@ -91,18 +107,23 @@ Now add the secret to your values file:
 
     webserverSecretKey: <secret_key>
 
-Alternatively, create a kubernetes Secret and use ``webserverSecretKeySecretName``:
+Alternatively, create a Kubernetes Secret and use ``webserverSecretKeySecretName``:
 
 .. code-block:: yaml
 
     webserverSecretKeySecretName: my-webserver-secret
     # where the random key is under `webserver-secret-key` in the k8s Secret
 
-Example to create a kubernetes Secret from ``kubectl``:
+Example to create a Kubernetes Secret from ``kubectl``:
 
 .. code-block:: bash
 
     kubectl create secret generic my-webserver-secret --from-literal="webserver-secret-key=$(python3 -c 'import secrets; print(secrets.token_hex(16))')"
+
+The webserver key is also used to authorize requests to Celery workers when logs are retrieved. The token
+generated using the secret key has a short expiry time though - make sure that time on ALL the machines
+that you run airflow components on is synchronized (for example using ntpd) otherwise you might get
+"forbidden" errors when the logs are accessed.
 
 Extending and customizing Airflow Image
 ---------------------------------------
@@ -221,6 +242,24 @@ To use an external StatsD instance:
       statsd_host: ...
       statsd_port: ...
 
+Datadog
+^^^^^^^
+If you are using a Datadog agent in your environment, this will enable Airflow to export metrics to the Datadog agent.
+
+.. code-block:: yaml
+
+  statsd:
+    enabled: false
+  config:
+    metrics: # or 'scheduler' for Airflow 1
+      statsd_on: true
+      statsd_port: 8125
+  extraEnv: |-
+    - name: AIRFLOW__METRICS__STATSD_HOST
+      valueFrom:
+        fieldRef:
+          fieldPath: status.hostIP
+
 Celery Backend
 --------------
 
@@ -258,3 +297,211 @@ In order to enable the usage of SCCs, one must set the parameter :ref:`rbac.crea
 In this chart, SCCs are bound to the Pods via RoleBindings meaning that the option ``rbac.create`` must also be set to ``true`` in order to fully enable the SCC usage.
 
 For more information about SCCs and what can be achieved with this construct, please refer to `Managing security context constraints <https://docs.openshift.com/container-platform/latest/authentication/managing-security-context-constraints.html#scc-prioritization_configuring-internal-oauth/>`_.
+
+Security Context
+----------------
+
+In Kubernetes a ``securityContext`` can be used to define user ids, group ids and capabilities such as running a container in privileged mode.
+
+When deploying an application to Kubernetes, it is recommended to give the least privilege to containers so as
+to reduce access and protect the host where the container is running.
+
+In the Airflow Helm chart, the ``securityContext`` can be configured in several ways:
+
+  * :ref:`uid <parameters:Airflow>` (configures the global uid or RunAsUser)
+  * :ref:`gid <parameters:Airflow>` (configures the global gid or fsGroup)
+  * :ref:`securityContext <parameters:Kubernetes>` (same as ``uid`` but allows for setting all `Pod securityContext options <https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.18/#podsecuritycontext-v1-core>`_)
+
+The same way one can configure the global :ref:`securityContext <parameters:Kubernetes>`, it is also possible to configure different values for specific workloads by setting their local ``securityContext`` as follows:
+
+.. code-block:: yaml
+
+  workers:
+    securityContext:
+      runAsUser: 5000
+      fsGroup: 0
+
+In the example above, the workers Pod ``securityContext`` will be set to ``runAsUser: 5000`` and ``runAsGroup: 0``.
+
+As one can see, the local setting will take precedence over the global setting when defined. The following explains the precedence rule for ``securityContext`` options in this chart:
+
+.. code-block:: yaml
+
+  uid: 40000
+  gid: 0
+
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 0
+
+  workers:
+    securityContext:
+      runAsUser: 1001
+      fsGroup: 0
+
+This will generate the following worker deployment:
+
+.. code-block:: yaml
+
+  kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    name: airflow-worker
+  spec:
+    serviceName: airflow-worker
+    template:
+      spec:
+        securityContext:    # As the securityContext was defined in ``workers``, its value will take priority
+          runAsUser: 1001
+          fsGroup: 0
+
+If we remove both the ``securityContext`` and ``workers.securityContext`` from the example above, the output will be the following:
+
+.. code-block:: yaml
+
+  uid: 40000
+  gid: 0
+
+  securityContext: {}
+
+  workers:
+    securityContext: {}
+
+This will generate the following worker deployment:
+
+.. code-block:: yaml
+
+  kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    name: airflow-worker
+  spec:
+    serviceName: airflow-worker
+    template:
+      spec:
+        securityContext:
+          runAsUser: 40000   # As the securityContext was not defined in ``workers`` or ``podSecurity``, the value from uid will be used
+          fsGroup: 0         # As the securityContext was not defined in ``workers`` or ``podSecurity``, the value from gid will be used
+        initContainers:
+          - name: wait-for-airflow-migrations
+        ...
+        containers:
+          - name: worker
+        ...
+
+And finally if we set ``securityContext`` but not ``workers.securityContext``:
+
+.. code-block:: yaml
+
+  uid: 40000
+  gid: 0
+
+  securityContext:
+    runAsUser: 50000
+    fsGroup: 0
+
+  workers:
+    securityContext: {}
+
+This will generate the following worker deployment:
+
+.. code-block:: yaml
+
+  kind: StatefulSet
+  apiVersion: apps/v1
+  metadata:
+    name: airflow-worker
+  spec:
+    serviceName: airflow-worker
+    template:
+      spec:
+        securityContext:     # As the securityContext was not defined in ``workers``, the values from securityContext will take priority
+          runAsUser: 50000
+          fsGroup: 0
+        initContainers:
+          - name: wait-for-airflow-migrations
+        ...
+        containers:
+          - name: worker
+        ...
+
+Built-in secrets and environment variables
+------------------------------------------
+
+The Helm Chart by default uses Kubernetes Secrets to store secrets that are needed by Airflow.
+The contents of those secrets are by default turned into environment variables that are read by
+Airflow (some of the environment variables have several variants to support older versions of Airflow).
+
+By default, the secret names are determined from the Release Name used when the Helm Chart is deployed,
+but you can also use a different secret to set the variables or disable using secrets
+entirely and rely on environment variables (specifically if you want to use ``_CMD`` or ``__SECRET`` variant
+of the environment variable.
+
+However, Airflow supports other variants of setting secret configuration - you can specify a system
+command to retrieve and automatically rotate the secret (by defining variable with ``_CMD`` suffix) or
+to retrieve a variable from secret backed (by defining the variable with ``_SECRET`` suffix).
+
+If the ``<VARIABLE_NAME>>`` is set, it takes precedence over the ``_CMD`` and ``_SECRET`` variant, so
+if you want to set one of the ``_CMD`` or ``_SECRET`` variants, you MUST disable the built in
+variables retrieved from Kubernetes secrets, by setting ``.Values.enableBuiltInSecretEnvVars.<VARIABLE_NAME>``
+to false.
+
+For example in order to use a command to retrieve the DB connection you should (in your ``values.yaml``
+file) specify:
+
+.. code-block:: yaml
+
+  extraEnv:
+    AIRFLOW_CONN_AIRFLOW_DB_CMD: "/usr/local/bin/retrieve_connection_url"
+  enableBuiltInSecretEnvVars:
+    AIRFLOW_CONN_AIRFLOW_DB: false
+
+Here is the full list of secrets that can be disabled and replaced by ``_CMD`` and ``_SECRET`` variants:
+
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| Default secret name if secret name not specified      | Use a different Kubernetes Secret        | Airflow Environment Variable                     |
++=======================================================+==========================================+==================================================+
+| ``<RELEASE_NAME>-airflow-metadata``                   | ``.Values.data.metadataSecretName``      | | ``AIRFLOW_CONN_AIRFLOW_DB``                    |
+|                                                       |                                          | | ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN``        |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-fernet-key``                         | ``.Values.fernetKeySecretName``          | ``AIRFLOW__CORE__FERNET_KEY``                    |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-webserver-secret-key``               | ``.Values.webserverSecretKeySecretName`` | ``AIRFLOW__WEBSERVER__SECRET_KEY``               |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-airflow-result-backend``             | ``.Values.data.resultBackendSecretName`` | | ``AIRFLOW__CELERY__CELERY_RESULT_BACKEND``     |
+|                                                       |                                          | | ``AIRFLOW__CELERY__RESULT_BACKEND``            |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-airflow-brokerUrl``                  | ``.Values.data.brokerUrlSecretName``     | ``AIRFLOW__CELERY__BROKER_URL``                  |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+| ``<RELEASE_NAME>-elasticsearch``                      | ``.Values.elasticsearch.secretName``     | | ``AIRFLOW__ELASTICSEARCH__HOST``               |
+|                                                       |                                          | | ``AIRFLOW__ELASTICSEARCH__ELASTICSEARCH_HOST`` |
++-------------------------------------------------------+------------------------------------------+--------------------------------------------------+
+
+There are also a number of secrets, which names are also determined from the release name, that do not need to
+be disabled. This is because either they do not follow the ``_CMD`` or ``_SECRET`` pattern, are variables
+which do not start with ``AIRFLOW__``, or they do not have a corresponding variable.
+
+There is also one ``_AIRFLOW__*`` variable, ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``, that does not need to be disabled,
+even if you want set the ``_CMD`` and ``_SECRET`` variant. This variable is not set by default. It is only set
+when ``.Values.flower.secretName`` is set or when ``.Values.flower.user`` and ``.Values.flower.password``
+are set. So if you do not set any of the ``.Values.flower.*`` variables, you can freely configure
+flower Basic Auth using the ``_CMD`` or ``_SECRET`` variant without disabling the basic variant.
+
++-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+| Default secret name if secret name not specified      | Use a different Kubernetes Secret        | Airflow Environment Variable                   |
++=======================================================+==========================================+================================================+
+| ``<RELEASE_NAME>-redis-password``                     | ``.Values.redis.passwordSecretName``     | ``REDIS_PASSWORD``                             |
++-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+| ``<RELEASE_NAME>-pgbouncer-config``                   | ``.Values.pgbouncer.configSecretName``   |                                                |
++-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+| ``<RELEASE_NAME>-pgbouncer-certificates``             |                                          |                                                |
++-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+| ``<RELEASE_NAME>-registry``                           | ``.Values.registry.secretName``          |                                                |
++-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+| ``<RELEASE_NAME>-kerberos-keytab``                    |                                          |                                                |
++-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+| ``<RELEASE_NAME>-flower``                             | ``.Values.flower.secretName``            | ``AIRFLOW__CELERY__FLOWER_BASIC_AUTH``         |
++-------------------------------------------------------+------------------------------------------+------------------------------------------------+
+
+You can read more about advanced ways of setting configuration variables in the
+:doc:`apache-airflow:howto/set-config`.

@@ -204,7 +204,13 @@ d3.gantt = () => {
       .on('mouseover', tip.show)
       .on('mouseout', tip.hide)
       .on('click', (d) => {
-        callModal(d.task_id, d.execution_date, d.extraLinks);
+        callModal({
+          taskId: d.task_id,
+          executionDate: d.execution_date,
+          extraLinks: d.extraLinks,
+          dagRunId: d.run_id,
+          mapIndex: d.map_index,
+        });
       })
       .attr('class', (d) => d.state || 'null')
       .attr('y', 0)

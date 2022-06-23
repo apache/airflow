@@ -27,17 +27,26 @@ The Google Cloud connection type enables the Google Cloud Integrations.
 Authenticating to Google Cloud
 ------------------------------
 
-There are three ways to connect to Google Cloud using Airflow.
+There are two ways to connect to Google Cloud using Airflow.
 
-1. Use `Application Default Credentials
+1. Using a `Application Default Credentials
    <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_,
-2. Use a `service account
-   <https://cloud.google.com/docs/authentication/#service_accounts>`_ key
-   file (JSON format) on disk - ``Keyfile Path``.
-3. Use a service account key file (JSON format) from connection configuration - ``Keyfile JSON``.
+2. Using a `service account
+   <https://cloud.google.com/docs/authentication/#service_accounts>`_ by specifying a key file in JSON format.
+   Key can be specified as a path to the key file (``Keyfile Path``), as a key payload (``Keyfile JSON``)
+   or as secret in Secret Manager (``Keyfile secret name``). Only one way of defining the key can be used at a time.
+   If you need to manage multiple keys then you should configure multiple connections.
 
-Only one authorization method can be used at a time. If you need to manage multiple keys then you should
-configure multiple connections.
+   .. warning:: Additional permissions might be needed
+
+   Connection which uses key from the Secret Manager requires that `Application Default Credentials
+   <https://google-auth.readthedocs.io/en/latest/reference/google.auth.html#google.auth.default>`_ (ADC)
+   have permission to access payloads of secrets.
+
+   .. note:: Alternative way of storing connections
+
+   Besides storing only key in Secret Manager there is an option for storing entire connection.
+   For more details take a look at :ref:`Google Secret Manager Backend <google_cloud_secret_manager_backend>`.
 
 Default Connection IDs
 ----------------------
@@ -89,6 +98,12 @@ Keyfile JSON
 
     Not required if using application default credentials.
 
+Secret name which holds Keyfile JSON
+    Name of the secret in Secret Manager which contains a `service account
+    <https://cloud.google.com/docs/authentication/#service_accounts>`_ key.
+
+    Not required if using application default credentials.
+
 Scopes (comma separated)
     A list of comma-separated `Google Cloud scopes
     <https://developers.google.com/identity/protocols/googlescopes>`_ to
@@ -112,6 +127,8 @@ Number of Retries
         * ``extra__google_cloud_platform__project`` - Project Id
         * ``extra__google_cloud_platform__key_path`` - Keyfile Path
         * ``extra__google_cloud_platform__keyfile_dict`` - Keyfile JSON
+        * ``extra__google_cloud_platform__key_secret_name`` - Secret name which holds Keyfile JSON
+        * ``extra__google_cloud_platform__key_secret_project_id`` - Project Id which holds Keyfile JSON
         * ``extra__google_cloud_platform__scope`` - Scopes
         * ``extra__google_cloud_platform__num_retries`` - Number of Retries
 
@@ -160,7 +177,6 @@ access token, which will allow to act on its behalf using its permissions. ``imp
 does not even need to have a generated key.
 
 .. warning::
-  :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`,
   :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreateJavaJobOperator` and
   :class:`~airflow.providers.google.cloud.operators.dataflow.DataflowCreatePythonJobOperator`
   do not support direct impersonation as of now.

@@ -100,10 +100,8 @@ class Variable(Base, LoggingMixin):
         for a key, and if it isn't there, stores the default value and returns it.
 
         :param key: Dict key for this Variable
-        :type key: str
         :param default: Default value to set and return if the variable
             isn't already in the DB
-        :type default: Mixed
         :param deserialize_json: Store this as a JSON encoded value in the DB
             and un-encode it when retrieving a value
         :return: Mixed
@@ -129,7 +127,7 @@ class Variable(Base, LoggingMixin):
         Gets a value for an Airflow Variable Key
 
         :param key: Variable Key
-        :param default_var: Default value of the Variable if the Variable doesn't exists
+        :param default_var: Default value of the Variable if the Variable doesn't exist
         :param deserialize_json: Deserialize the value to a Python dict
         """
         var_val = Variable.get_variable_from_secrets(key=key)
@@ -153,7 +151,7 @@ class Variable(Base, LoggingMixin):
         cls,
         key: str,
         value: Any,
-        description: str = None,
+        description: Optional[str] = None,
         serialize_json: bool = False,
         session: Session = None,
     ):
@@ -163,7 +161,7 @@ class Variable(Base, LoggingMixin):
 
         :param key: Variable Key
         :param value: Value to set for the Variable
-        :param description: Value to set for the Variable
+        :param description: Description of the Variable
         :param serialize_json: Serialize the value to a JSON string
         :param session: SQL Alchemy Sessions
         """
@@ -197,7 +195,7 @@ class Variable(Base, LoggingMixin):
         """
         cls.check_for_write_conflict(key)
 
-        if cls.get_variable_from_secrets(key) is None:
+        if cls.get_variable_from_secrets(key=key) is None:
             raise KeyError(f'Variable {key} does not exist')
 
         obj = session.query(cls).filter(cls.key == key).first()
@@ -223,6 +221,7 @@ class Variable(Base, LoggingMixin):
         if self._val and self.is_encrypted:
             self._val = fernet.rotate(self._val.encode('utf-8')).decode()
 
+    @staticmethod
     def check_for_write_conflict(key: str) -> None:
         """
         Logs a warning if a variable exists outside of the metastore.
@@ -245,7 +244,7 @@ class Variable(Base, LoggingMixin):
                             "from {cls}".format(key=key, cls=secrets_backend.__class__.__name__)
                         )
                         return
-                except Exception:  # pylint: disable=broad-except
+                except Exception:
                     log.exception(
                         'Unable to retrieve variable from secrets backend (%s). '
                         'Checking subsequent secrets backend.',
@@ -266,7 +265,7 @@ class Variable(Base, LoggingMixin):
                 var_val = secrets_backend.get_variable(key=key)
                 if var_val is not None:
                     return var_val
-            except Exception:  # pylint: disable=broad-except
+            except Exception:
                 log.exception(
                     'Unable to retrieve variable from secrets backend (%s). '
                     'Checking subsequent secrets backend.',

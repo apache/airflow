@@ -16,38 +16,38 @@
 # specific language governing permissions and limitations
 # under the License.
 """Transfers data from AWS Redshift into a S3 Bucket."""
-from typing import Iterable, List, Mapping, Optional, Union
+from typing import TYPE_CHECKING, Iterable, List, Mapping, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.redshift import RedshiftSQLHook
+from airflow.providers.amazon.aws.hooks.redshift_sql import RedshiftSQLHook
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class RedshiftToS3Operator(BaseOperator):
     """
     Executes an UNLOAD command to s3 as a CSV with headers
 
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:RedshiftToS3Operator`
+
     :param s3_bucket: reference to a specific S3 bucket
-    :type s3_bucket: str
     :param s3_key: reference to a specific S3 key. If ``table_as_file_name`` is set
         to False, this param must include the desired file name
-    :type s3_key: str
     :param schema: reference to a specific schema in redshift database
         Applicable when ``table`` param provided.
-    :type schema: str
     :param table: reference to a specific table in redshift database
         Used when ``select_query`` param not provided.
-    :type table: str
     :param select_query: custom select query to fetch data from redshift database
-    :type select_query: str
     :param redshift_conn_id: reference to a specific redshift database
-    :type redshift_conn_id: str
     :param aws_conn_id: reference to a specific S3 connection
         If the AWS connection contains 'aws_iam_role' in ``extras``
         the operator will use AWS STS credentials with a token
         https://docs.aws.amazon.com/redshift/latest/dg/copy-parameters-authorization.html#copy-credentials
-    :type aws_conn_id: str
     :param verify: Whether or not to verify SSL certificates for S3 connection.
         By default SSL certificates are verified.
         You can provide the following values:
@@ -58,23 +58,24 @@ class RedshiftToS3Operator(BaseOperator):
         - ``path/to/cert/bundle.pem``: A filename of the CA cert bundle to uses.
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
-    :type verify: bool or str
     :param unload_options: reference to a list of UNLOAD options
-    :type unload_options: list
     :param autocommit: If set to True it will automatically commit the UNLOAD statement.
         Otherwise it will be committed right before the redshift connection gets closed.
-    :type autocommit: bool
     :param include_header: If set to True the s3 file contains the header columns.
-    :type include_header: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict or iterable
     :param table_as_file_name: If set to True, the s3 file will be named as the table.
         Applicable when ``table`` param provided.
-    :type table_as_file_name: bool
     """
 
-    template_fields = ('s3_bucket', 's3_key', 'schema', 'table', 'unload_options', 'select_query')
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = (
+        's3_bucket',
+        's3_key',
+        'schema',
+        'table',
+        'unload_options',
+        'select_query',
+    )
+    template_ext: Sequence[str] = ('.sql',)
     template_fields_renderers = {'select_query': 'sql'}
     ui_color = '#ededed'
 
@@ -83,9 +84,9 @@ class RedshiftToS3Operator(BaseOperator):
         *,
         s3_bucket: str,
         s3_key: str,
-        schema: str = None,
-        table: str = None,
-        select_query: str = None,
+        schema: Optional[str] = None,
+        table: Optional[str] = None,
+        select_query: Optional[str] = None,
         redshift_conn_id: str = 'redshift_default',
         aws_conn_id: str = 'aws_default',
         verify: Optional[Union[bool, str]] = None,
@@ -135,11 +136,9 @@ class RedshiftToS3Operator(BaseOperator):
                     {unload_options};
         """
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
-
-        credentials_block = None
         if conn.extra_dejson.get('role_arn', False):
             credentials_block = f"aws_iam_role={conn.extra_dejson['role_arn']}"
         else:

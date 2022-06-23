@@ -43,6 +43,8 @@ TMP_PATH = '/tmp'
 TMP_DIR_FOR_TESTS = 'tests_sftp_hook_dir'
 SUB_DIR = "sub_dir"
 TMP_FILE_FOR_TESTS = 'test_file.txt'
+ANOTHER_FILE_FOR_TESTS = 'test_file_1.txt'
+LOG_FILE_FOR_TESTS = 'test_log.log'
 
 SFTP_CONNECTION_USER = "root"
 
@@ -60,13 +62,18 @@ class TestSFTPHook(unittest.TestCase):
         session.commit()
         return old_login
 
+    def _create_additional_test_file(self, file_name):
+        with open(os.path.join(TMP_PATH, file_name), 'a') as file:
+            file.write('Test file')
+
     def setUp(self):
         self.old_login = self.update_connection(SFTP_CONNECTION_USER)
         self.hook = SFTPHook()
         os.makedirs(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR))
 
-        with open(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS), 'a') as file:
-            file.write('Test file')
+        for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
+            with open(os.path.join(TMP_PATH, file_name), 'a') as file:
+                file.write('Test file')
         with open(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR, TMP_FILE_FOR_TESTS), 'a') as file:
             file.write('Test file')
 
@@ -304,7 +311,81 @@ class TestSFTPHook(unittest.TestCase):
         assert dirs == [os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS, SUB_DIR)]
         assert unknowns == []
 
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_connection_failure(self, mock_get_connection):
+        connection = Connection(
+            login='login',
+            host='host',
+        )
+        mock_get_connection.return_value = connection
+        with mock.patch.object(SFTPHook, 'get_conn') as get_conn:
+            type(get_conn.return_value).pwd = mock.PropertyMock(side_effect=Exception('Connection Error'))
+
+            hook = SFTPHook()
+            status, msg = hook.test_connection()
+        assert status is False
+        assert msg == 'Connection Error'
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_connection_success(self, mock_get_connection):
+        connection = Connection(
+            login='login',
+            host='host',
+        )
+        mock_get_connection.return_value = connection
+
+        with mock.patch.object(SFTPHook, 'get_conn') as get_conn:
+            get_conn.return_value.pwd = '/home/someuser'
+            hook = SFTPHook()
+            status, msg = hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
+    @mock.patch('airflow.providers.sftp.hooks.sftp.SFTPHook.get_connection')
+    def test_deprecation_ftp_conn_id(self, mock_get_connection):
+        connection = Connection(conn_id='ftp_default', login='login', host='host')
+        mock_get_connection.return_value = connection
+        # If `ftp_conn_id` is provided, it will be used but would show a deprecation warning.
+        with self.assertWarnsRegex(DeprecationWarning, "Parameter `ftp_conn_id` is deprecated"):
+            assert SFTPHook(ftp_conn_id='ftp_default').ssh_conn_id == 'ftp_default'
+
+        # If both are provided, ftp_conn_id  will be used but would show a deprecation warning.
+        with self.assertWarnsRegex(DeprecationWarning, "Parameter `ftp_conn_id` is deprecated"):
+            assert (
+                SFTPHook(ftp_conn_id='ftp_default', ssh_conn_id='sftp_default').ssh_conn_id == 'ftp_default'
+            )
+
+        # If `ssh_conn_id` is provided, it should use it for ssh_conn_id
+        assert SFTPHook(ssh_conn_id='sftp_default').ssh_conn_id == 'sftp_default'
+        # Default is 'sftp_default
+        assert SFTPHook().ssh_conn_id == 'sftp_default'
+
+    def test_get_suffix_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*.txt")
+        self.assertTrue(output, TMP_FILE_FOR_TESTS)
+
+    def test_get_prefix_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "test*")
+        self.assertTrue(output, TMP_FILE_FOR_TESTS)
+
+    def test_get_pattern_not_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*.text")
+        self.assertFalse(output)
+
+    def test_get_several_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*.log")
+        self.assertEqual(LOG_FILE_FOR_TESTS, output)
+
+    def test_get_first_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "test_*.txt")
+        self.assertEqual(TMP_FILE_FOR_TESTS, output)
+
+    def test_get_middle_pattern_match(self):
+        output = self.hook.get_file_by_pattern(TMP_PATH, "*_file_*.txt")
+        self.assertEqual(ANOTHER_FILE_FOR_TESTS, output)
+
     def tearDown(self):
         shutil.rmtree(os.path.join(TMP_PATH, TMP_DIR_FOR_TESTS))
-        os.remove(os.path.join(TMP_PATH, TMP_FILE_FOR_TESTS))
+        for file_name in [TMP_FILE_FOR_TESTS, ANOTHER_FILE_FOR_TESTS, LOG_FILE_FOR_TESTS]:
+            os.remove(os.path.join(TMP_PATH, file_name))
         self.update_connection(self.old_login)

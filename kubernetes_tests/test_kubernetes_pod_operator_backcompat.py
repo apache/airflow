@@ -18,8 +18,9 @@
 import json
 import sys
 import unittest
+from copy import copy
 from unittest import mock
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import kubernetes.client.models as k8s
 import pendulum
@@ -28,35 +29,41 @@ from kubernetes.client.api_client import ApiClient
 from kubernetes.client.rest import ApiException
 
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client
 from airflow.kubernetes.pod import Port
 from airflow.kubernetes.pod_runtime_info_env import PodRuntimeInfoEnv
 from airflow.kubernetes.secret import Secret
 from airflow.kubernetes.volume import Volume
 from airflow.kubernetes.volume_mount import VolumeMount
 from airflow.models import DAG, DagRun, TaskInstance
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import KubernetesPodOperator
-from airflow.providers.cncf.kubernetes.utils.pod_launcher import PodLauncher
+from airflow.providers.cncf.kubernetes.utils.pod_manager import PodManager
 from airflow.providers.cncf.kubernetes.utils.xcom_sidecar import PodDefaults
 from airflow.utils import timezone
-from airflow.utils.state import State
+from airflow.utils.types import DagRunType
 from airflow.version import version as airflow_version
-from kubernetes_tests.test_base import EXECUTOR
 
 # noinspection DuplicatedCode
+
+HOOK_CLASS = "airflow.providers.cncf.kubernetes.operators.kubernetes_pod.KubernetesHook"
 
 
 def create_context(task):
     dag = DAG(dag_id="dag")
     tzinfo = pendulum.timezone("Europe/Amsterdam")
     execution_date = timezone.datetime(2016, 1, 1, 1, 0, 0, tzinfo=tzinfo)
-    dag_run = DagRun(dag_id=dag.dag_id, execution_date=execution_date)
+    dag_run = DagRun(
+        dag_id=dag.dag_id,
+        execution_date=execution_date,
+        run_id=DagRun.generate_run_id(DagRunType.MANUAL, execution_date),
+    )
     task_instance = TaskInstance(task=task)
     task_instance.dag_run = dag_run
+    task_instance.dag_id = dag.dag_id
     task_instance.xcom_push = mock.Mock()
     return {
         "dag": dag,
-        "ts": execution_date.isoformat(),
+        "run_id": dag_run.run_id,
         "task": task,
         "ti": task_instance,
         "task_instance": task_instance,
@@ -64,7 +71,6 @@ def create_context(task):
 
 
 # noinspection DuplicatedCode,PyUnusedLocal
-@pytest.mark.skipif(EXECUTOR != 'KubernetesExecutor', reason="Only runs on KubernetesExecutor")
 class TestKubernetesPodOperatorSystem(unittest.TestCase):
     def get_current_task_name(self):
         # reverse test name to make pod name unique (it has limited length)
@@ -84,7 +90,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                     'foo': 'bar',
                     'kubernetes_pod_operator': 'True',
                     'airflow_version': airflow_version.replace('+', '-'),
-                    'execution_date': '2016-01-01T0100000100-a2f50a31f',
+                    'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
                     'dag_id': 'dag',
                     'task_id': 'task',
                     'try_number': '1',
@@ -117,13 +123,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         }
 
     def tearDown(self):
-        client = kube_client.get_kube_client(in_cluster=False)
+        hook = KubernetesHook(conn_id=None, in_cluster=False)
+        client = hook.core_v1_client
         client.delete_collection_namespaced_pod(namespace="default")
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_image_pull_secrets_correctly_set(self, mock_client, monitor_mock, start_mock):
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_image_pull_secrets_correctly_set(self, await_pod_completion_mock, create_mock):
         fake_pull_secrets = "fakeSecret"
         k = KubernetesPodOperator(
             namespace='default',
@@ -138,10 +145,12 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             image_pull_secrets=fake_pull_secrets,
             cluster_context='default',
         )
-        monitor_mock.return_value = (State.SUCCESS, None, None)
+        mock_pod = MagicMock()
+        mock_pod.status.phase = 'Succeeded'
+        await_pod_completion_mock.return_value = mock_pod
         context = create_context(k)
         k.execute(context=context)
-        assert start_mock.call_args[0][0].spec.image_pull_secrets == [
+        assert create_mock.call_args[1]['pod'].spec.image_pull_secrets == [
             k8s.V1LocalObjectReference(name=fake_pull_secrets)
         ]
 
@@ -267,7 +276,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_volume_mount(self):
-        with patch.object(PodLauncher, 'log') as mock_logger:
+        with patch.object(PodManager, 'log') as mock_logger:
             volume_mount = VolumeMount(
                 'test-volume', mount_path='/tmp/test_volume', sub_path=None, read_only=False
             )
@@ -296,14 +305,15 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             k.execute(context=context)
             mock_logger.info.assert_any_call('retrieved from mount')
             actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod['spec']['containers'][0]['args'] = args
-            self.expected_pod['spec']['containers'][0]['volumeMounts'] = [
+            expected_pod = copy(self.expected_pod)
+            expected_pod['spec']['containers'][0]['args'] = args
+            expected_pod['spec']['containers'][0]['volumeMounts'] = [
                 {'name': 'test-volume', 'mountPath': '/tmp/test_volume', 'readOnly': False}
             ]
-            self.expected_pod['spec']['volumes'] = [
+            expected_pod['spec']['volumes'] = [
                 {'name': 'test-volume', 'persistentVolumeClaim': {'claimName': 'test-volume'}}
             ]
-            assert self.expected_pod == actual_pod
+            assert expected_pod == actual_pod
 
     def test_run_as_user_root(self):
         security_context = {
@@ -380,9 +390,11 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         assert self.expected_pod == actual_pod
 
     def test_faulty_service_account(self):
-        bad_service_account_name = "foobar"
+        """pod creation should fail when service account does not exist"""
+        service_account = "foobar"
+        namespace = "default"
         k = KubernetesPodOperator(
-            namespace='default',
+            namespace=namespace,
             image="ubuntu:16.04",
             cmds=["bash", "-cx"],
             arguments=["echo 10"],
@@ -392,14 +404,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             in_cluster=False,
             do_xcom_push=False,
             startup_timeout_seconds=5,
-            service_account_name=bad_service_account_name,
+            service_account_name=service_account,
         )
-        with pytest.raises(ApiException):
-            context = create_context(k)
-            k.execute(context)
-            actual_pod = self.api_client.sanitize_for_serialization(k.pod)
-            self.expected_pod['spec']['serviceAccountName'] = bad_service_account_name
-            assert self.expected_pod == actual_pod
+        context = create_context(k)
+        pod = k.build_pod_request_obj(context)
+        with pytest.raises(
+            ApiException, match=f"error looking up service account {namespace}/{service_account}"
+        ):
+            k.get_or_create_pod(pod, context)
 
     def test_pod_failure(self):
         """
@@ -450,10 +462,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
         self.expected_pod['spec']['containers'].append(container)
         assert self.expected_pod == actual_pod
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_configmaps(self, mock_client, mock_monitor, mock_start):
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_envs_from_configmaps(self, mock_monitor, mock_start):
         # GIVEN
         configmap = 'test-configmap'
         # WHEN
@@ -470,17 +482,19 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             configmaps=[configmap],
         )
         # THEN
-        mock_monitor.return_value = (State.SUCCESS, None, None)
+        mock_pod = MagicMock()
+        mock_pod.status.phase = 'Succeeded'
+        mock_monitor.return_value = mock_pod
         context = create_context(k)
         k.execute(context)
-        assert mock_start.call_args[0][0].spec.containers[0].env_from == [
+        assert mock_start.call_args[1]['pod'].spec.containers[0].env_from == [
             k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap))
         ]
 
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.start_pod")
-    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_launcher.PodLauncher.monitor_pod")
-    @mock.patch("airflow.kubernetes.kube_client.get_kube_client")
-    def test_envs_from_secrets(self, mock_client, monitor_mock, start_mock):
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.create_pod")
+    @mock.patch("airflow.providers.cncf.kubernetes.utils.pod_manager.PodManager.await_pod_completion")
+    @mock.patch(HOOK_CLASS, new=MagicMock)
+    def test_envs_from_secrets(self, await_pod_completion_mock, create_mock):
         # GIVEN
         secret_ref = 'secret_name'
         secrets = [Secret('env', None, secret_ref)]
@@ -498,10 +512,13 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             do_xcom_push=False,
         )
         # THEN
-        monitor_mock.return_value = (State.SUCCESS, None, None)
+
+        mock_pod = MagicMock()
+        mock_pod.status.phase = 'Succeeded'
+        await_pod_completion_mock.return_value = mock_pod
         context = create_context(k)
         k.execute(context)
-        assert start_mock.call_args[0][0].spec.containers[0].env_from == [
+        assert create_mock.call_args[1]['pod'].spec.containers[0].env_from == [
             k8s.V1EnvFromSource(secret_ref=k8s.V1SecretEnvSource(name=secret_ref))
         ]
 
@@ -555,7 +572,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'foo': 'bar',
             'airflow_version': mock.ANY,
             'dag_id': 'dag',
-            'execution_date': mock.ANY,
+            'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
             'kubernetes_pod_operator': 'True',
             'task_id': mock.ANY,
             'try_number': '1',

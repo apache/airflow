@@ -15,33 +15,32 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.exasol.hooks.exasol import ExasolHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class ExasolOperator(BaseOperator):
     """
     Executes sql code in a specific Exasol database
 
-    :param sql: the sql code to be executed. (templated)
-    :type sql: Can receive a str representing a sql statement,
-        a list of str (sql statements), or reference to a template file.
-        Template reference are recognized by str ending in '.sql'
+    :param sql: the SQL code to be executed as a single string, or
+        a list of str (sql statements), or a reference to a template file.
+        template references are recognized by str ending in '.sql'
     :param exasol_conn_id: reference to a specific Exasol database
-    :type exasol_conn_id: string
     :param autocommit: if True, each command is automatically committed.
         (default value: False)
-    :type autocommit: bool
     :param parameters: (optional) the parameters to render the SQL query with.
-    :type parameters: dict
     :param schema: (optional) name of the schema which overwrite defined one in connection
-    :type schema: string
     """
 
-    template_fields = ('sql',)
-    template_ext = ('.sql',)
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = ('.sql',)
+    template_fields_renderers = {'sql': 'sql'}
     ui_color = '#ededed'
 
     def __init__(
@@ -61,7 +60,7 @@ class ExasolOperator(BaseOperator):
         self.parameters = parameters
         self.schema = schema
 
-    def execute(self, context) -> None:
+    def execute(self, context: 'Context') -> None:
         self.log.info('Executing: %s', self.sql)
         hook = ExasolHook(exasol_conn_id=self.exasol_conn_id, schema=self.schema)
         hook.run(self.sql, autocommit=self.autocommit, parameters=self.parameters)

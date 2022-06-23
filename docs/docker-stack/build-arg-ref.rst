@@ -30,7 +30,7 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | Build argument                           | Default value                            | Description                                 |
 +==========================================+==========================================+=============================================+
-| ``PYTHON_BASE_IMAGE``                    | ``python:3.6-slim-buster``               | Base python image.                          |
+| ``PYTHON_BASE_IMAGE``                    | ``python:3.7-slim-bullseye``             | Base python image.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_VERSION``                      | :subst-code:`|airflow-version|`          | version of Airflow.                         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
@@ -45,11 +45,16 @@ Those are the most common arguments that you use when you want to build a custom
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``21.2.4``                                | PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_UID``                          | ``50000``                                | Airflow user UID.                           |
++------------------------------------------+------------------------------------------+---------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS``                  | ``constraints``                          | Type of constraints to build the image.     |
+|                                          |                                          | This can be ``constraints`` for regular     |
+|                                          |                                          | images or ``constraints-no-providers`` for  |
+|                                          |                                          | slim images.                                |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_CONSTRAINTS_REFERENCE``        |                                          | Reference (branch or tag) from GitHub       |
 |                                          |                                          | where constraints file is taken from        |
@@ -112,9 +117,11 @@ for examples of using those arguments.
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |
 +==========================================+==========================================+==========================================+
-| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to true, the dependencies are     |
-|                                          |                                          | upgraded to newer versions matching      |
-|                                          |                                          | setup.py before installation.            |
+| ``UPGRADE_TO_NEWER_DEPENDENCIES``        | ``false``                                | If set to a value different than "false" |
+|                                          |                                          | the dependencies are upgraded to newer   |
+|                                          |                                          | versions. In CI it is set to build id    |
+|                                          |                                          | to make sure subsequent builds are not   |
+|                                          |                                          | reusing cached images with same value.   |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``ADDITIONAL_PYTHON_DEPS``               |                                          | Optional python packages to extend       |
 |                                          |                                          | the image with some extra dependencies.  |
@@ -159,6 +166,9 @@ for examples of using those arguments.
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``INSTALL_MSSQL_CLIENT``                 | ``true``                                 | Whether MsSQL client should be installed |
 +------------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_POSTGRES_CLIENT``              | ``true``                                 | Whether Postgres client should be        |
+|                                          |                                          | installed                                |
++------------------------------------------+------------------------------------------+------------------------------------------+
 
 Installing Airflow using different methods
 ..........................................
@@ -177,67 +187,76 @@ You can see some examples of those in:
   * :ref:`Using custom installation sources<image-build-custom>`,
   * :ref:`Build images in security restricted environments<image-build-secure-environments>`
 
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| Build argument                           | Default value                            | Description                              |
-+==========================================+==========================================+==========================================+
-| ``AIRFLOW_INSTALLATION_METHOD``          | ``apache-airflow``                       | Installation method of Apache Airflow.   |
-|                                          |                                          | ``apache-airflow`` for installation from |
-|                                          |                                          | PyPI. It can be GitHub repository URL    |
-|                                          |                                          | including branch or tag to install from  |
-|                                          |                                          | that repository or "." to install from   |
-|                                          |                                          | local sources. Installing from sources   |
-|                                          |                                          | requires appropriate values of the       |
-|                                          |                                          | ``AIRFLOW_SOURCES_FROM`` and             |
-|                                          |                                          | ``AIRFLOW_SOURCES_TO`` variables (see    |
-|                                          |                                          | below)                                   |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_FROM``                 | ``empty``                                | Sources of Airflow. Set it to "." when   |
-|                                          |                                          | you install Airflow from local sources   |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_SOURCES_TO``                   | ``/empty``                               | Target for Airflow sources. Set to       |
-|                                          |                                          | "/opt/airflow" when you install Airflow  |
-|                                          |                                          | from local sources.                      |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_VERSION_SPECIFICATION``        |                                          | Optional - might be used for using limit |
-|                                          |                                          | for Airflow version installation - for   |
-|                                          |                                          | example ``<2.0.2`` for automated builds. |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_PROVIDERS_FROM_SOURCES``       | ``false``                                | If set to ``true`` and image is built    |
-|                                          |                                          | from sources, all provider packages are  |
-|                                          |                                          | installed from sources rather than from  |
-|                                          |                                          | packages. It has no effect when          |
-|                                          |                                          | installing from PyPI or GitHub repo.     |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_CONSTRAINTS_LOCATION``         |                                          | If not empty, it will override the       |
-|                                          |                                          | source of the constraints with the       |
-|                                          |                                          | specified URL or file. Note that the     |
-|                                          |                                          | file has to be in docker context so      |
-|                                          |                                          | it's best to place such file in          |
-|                                          |                                          | one of the folders included in           |
-|                                          |                                          | ``.dockerignore`` file.                  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
-| ``INSTALL_FROM_DOCKER_CONTEXT_FILES``    | ``false``                                | If set to true, Airflow, providers and   |
-|                                          |                                          | all dependencies are installed from      |
-|                                          |                                          | from locally built/downloaded            |
-|                                          |                                          | .whl and .tar.gz files placed in the     |
-|                                          |                                          | ``docker-context-files``. In certain     |
-|                                          |                                          | corporate environments, this is required |
-|                                          |                                          | to install airflow from such pre-vetted  |
-|                                          |                                          | packages rather than from PyPI. For this |
-|                                          |                                          | to work, also set ``INSTALL_FROM_PYPI``. |
-|                                          |                                          | Note that packages starting with         |
-|                                          |                                          | ``apache?airflow`` glob are treated      |
-|                                          |                                          | differently than other packages. All     |
-|                                          |                                          | ``apache?airflow`` packages are          |
-|                                          |                                          | installed with dependencies limited by   |
-|                                          |                                          | airflow constraints. All other packages  |
-|                                          |                                          | are installed without dependencies       |
-|                                          |                                          | 'as-is'. If you wish to install airflow  |
-|                                          |                                          | via 'pip download' with all dependencies |
-|                                          |                                          | downloaded, you have to rename the       |
-|                                          |                                          | apache airflow and provider packages to  |
-|                                          |                                          | not start with ``apache?airflow`` glob.  |
-+------------------------------------------+------------------------------------------+------------------------------------------+
++------------------------------------+------------------------------------------+------------------------------------------+
+| Build argument                     | Default value                            | Description                              |
++====================================+==========================================+==========================================+
+| ``AIRFLOW_INSTALLATION_METHOD``    | ``apache-airflow``                       | Installation method of Apache Airflow.   |
+|                                    |                                          | ``apache-airflow`` for installation from |
+|                                    |                                          | PyPI. It can be GitHub repository URL    |
+|                                    |                                          | including branch or tag to install from  |
+|                                    |                                          | that repository or "." to install from   |
+|                                    |                                          | local sources. Installing from sources   |
+|                                    |                                          | requires appropriate values of the       |
+|                                    |                                          | ``AIRFLOW_SOURCES_FROM`` and             |
+|                                    |                                          | ``AIRFLOW_SOURCES_TO`` variables (see    |
+|                                    |                                          | below)                                   |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_FROM``           | ``Dockerfile``                           | Sources of Airflow. Set it to "." when   |
+|                                    |                                          | you install Airflow from local sources   |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_TO``             | ``/Dockerfile``                          | Target for Airflow sources. Set to       |
+|                                    |                                          | "/opt/airflow" when you install Airflow  |
+|                                    |                                          | from local sources.                      |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_FROM``       | ``Dockerfile``                           | Sources of Airflow WWW files used for    |
+|                                    |                                          | asset compilation. Set it to             |
+|                                    |                                          | "./airflow/www" when                     |
+|                                    |                                          | you install Airflow from local sources   |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_SOURCES_WWW_TO``         | ``/Dockerfile``                          | Target for Airflow files used for        |
+|                                    |                                          | asset compilation. Set it to             |
+|                                    |                                          | "/opt/airflow/airflow/www" when          |
+|                                    |                                          | you install Airflow from local sources.  |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_VERSION_SPECIFICATION``  |                                          | Optional - might be used for using limit |
+|                                    |                                          | for Airflow version installation - for   |
+|                                    |                                          | example ``<2.0.2`` for automated builds. |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_PROVIDERS_FROM_SOURCES`` | ``false``                                | If set to ``true`` and image is built    |
+|                                    |                                          | from sources, all provider packages are  |
+|                                    |                                          | installed from sources rather than from  |
+|                                    |                                          | packages. It has no effect when          |
+|                                    |                                          | installing from PyPI or GitHub repo.     |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_CONSTRAINTS_LOCATION``   |                                          | If not empty, it will override the       |
+|                                    |                                          | source of the constraints with the       |
+|                                    |                                          | specified URL or file. Note that the     |
+|                                    |                                          | file has to be in Docker context so      |
+|                                    |                                          | it's best to place such file in          |
+|                                    |                                          | one of the folders included in           |
+|                                    |                                          | ``.dockerignore`` file.                  |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``DOCKER_CONTEXT_FILES``           | ``Dockerfile``                           | If set to a folder (for example to       |
+|                                    |                                          | ``docker-context-files`` folder), then   |
+|                                    |                                          | this folder will be copied to the        |
+|                                    |                                          | ``docker-context-files`` inside the      |
+|                                    |                                          | context of docker and you will be able   |
+|                                    |                                          | to install from binary files present     |
+|                                    |                                          | there. By default we set it to           |
+|                                    |                                          | Dockerfile as we know the file is there, |
+|                                    |                                          | otherwise the COPY instruction fails.    |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``INSTALL_PACKAGES_FROM_CONTEXT``  | ``false``                                | If set to true, Airflow, providers and   |
+|                                    |                                          | all dependencies are installed from      |
+|                                    |                                          | from locally built/downloaded            |
+|                                    |                                          | .whl and .tar.gz files placed in the     |
+|                                    |                                          | ``docker-context-files``.                |
++------------------------------------+------------------------------------------+------------------------------------------+
+| ``AIRFLOW_IS_IN_CONTEXT``          | ``false``                                | If set to true, it means that Airflow    |
+|                                    |                                          | and providers are available in context   |
+|                                    |                                          | and the image will not attempt to        |
+|                                    |                                          | install Airflow from PyPI or sources.    |
++------------------------------------+------------------------------------------+------------------------------------------+
 
 Pre-caching PIP dependencies
 ............................
@@ -246,7 +265,7 @@ When image is build from PIP, by default pre-caching of PIP dependencies is used
 builds during development. When pre-cached PIP dependencies are used and ``setup.py`` or ``setup.cfg`` changes, the
 PIP dependencies are already pre-installed, thus resulting in much faster image rebuild. This is purely an optimization
 of time needed to build the images and should be disabled if you want to install Airflow from
-docker context files.
+Docker context files.
 
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | Build argument                           | Default value                            | Description                              |

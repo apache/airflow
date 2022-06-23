@@ -75,6 +75,7 @@ def get_provider_from_file_name(file_name: str) -> Optional[str]:
         errors.append(f"Wrong file not in the providers package = {file_name}")
         return None
     suffix = get_file_suffix(file_name)
+    assert suffix
     split_path = suffix.split(sep)[2:]
     provider = find_provider(split_path)
     if not provider and file_name.endswith("__init__.py"):

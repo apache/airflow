@@ -16,11 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Iterable
+from typing import Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.hooks.dbapi import DbApiHook
 from airflow.sensors.base import BaseSensorOperator
+from airflow.utils.context import Context
 
 
 class SqlSensor(BaseSensorOperator):
@@ -34,31 +36,36 @@ class SqlSensor(BaseSensorOperator):
     be passed to the sensor in which case it will fail if no rows have been returned
 
     :param conn_id: The connection to run the sensor against
-    :type conn_id: str
     :param sql: The sql to run. To pass, it needs to return at least one cell
         that contains a non-zero / empty string value.
-    :type sql: str
     :param parameters: The parameters to render the SQL query with (optional).
-    :type parameters: dict or iterable
     :param success: Success criteria for the sensor is a Callable that takes first_cell
         as the only argument, and returns a boolean (optional).
-    :type success: Optional<Callable[[Any], bool]>
     :param failure: Failure criteria for the sensor is a Callable that takes first_cell
         as the only argument and return a boolean (optional).
-    :type failure: Optional<Callable[[Any], bool]>
     :param fail_on_empty: Explicitly fail on no rows returned.
-    :type fail_on_empty: bool
+    :param hook_params: Extra config params to be passed to the underlying hook.
+            Should match the desired hook constructor params.
     """
 
-    template_fields: Iterable[str] = ('sql',)
-    template_ext: Iterable[str] = (
+    template_fields: Sequence[str] = ('sql',)
+    template_ext: Sequence[str] = (
         '.hql',
         '.sql',
     )
     ui_color = '#7c7287'
 
     def __init__(
-        self, *, conn_id, sql, parameters=None, success=None, failure=None, fail_on_empty=False, **kwargs
+        self,
+        *,
+        conn_id,
+        sql,
+        parameters=None,
+        success=None,
+        failure=None,
+        fail_on_empty=False,
+        hook_params=None,
+        **kwargs,
     ):
         self.conn_id = conn_id
         self.sql = sql
@@ -66,33 +73,20 @@ class SqlSensor(BaseSensorOperator):
         self.success = success
         self.failure = failure
         self.fail_on_empty = fail_on_empty
+        self.hook_params = hook_params
         super().__init__(**kwargs)
 
     def _get_hook(self):
         conn = BaseHook.get_connection(self.conn_id)
-
-        allowed_conn_type = {
-            'google_cloud_platform',
-            'jdbc',
-            'mssql',
-            'mysql',
-            'odbc',
-            'oracle',
-            'postgres',
-            'presto',
-            'snowflake',
-            'sqlite',
-            'trino',
-            'vertica',
-        }
-        if conn.conn_type not in allowed_conn_type:
+        hook = conn.get_hook(hook_params=self.hook_params)
+        if not isinstance(hook, DbApiHook):
             raise AirflowException(
-                f"Connection type ({conn.conn_type}) is not supported by SqlSensor. "
-                + f"Supported connection types: {list(allowed_conn_type)}"
+                f'The connection type is not supported by {self.__class__.__name__}. '
+                f'The associated hook should be a subclass of `DbApiHook`. Got {hook.__class__.__name__}'
             )
-        return conn.get_hook()
+        return hook
 
-    def poke(self, context):
+    def poke(self, context: Context):
         hook = self._get_hook()
 
         self.log.info('Poking: %s (with parameters %s)', self.sql, self.parameters)

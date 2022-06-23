@@ -39,13 +39,14 @@ Variables for update template in Group Manager:
 """
 
 import os
+from datetime import datetime
 
 from airflow import models
+from airflow.models.baseoperator import chain
 from airflow.providers.google.cloud.operators.compute import (
     ComputeEngineCopyInstanceTemplateOperator,
     ComputeEngineInstanceGroupUpdateManagerTemplateOperator,
 )
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get('GCP_PROJECT_ID', 'example-project')
 GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
@@ -92,7 +93,8 @@ UPDATE_POLICY = {
 with models.DAG(
     'example_gcp_compute_igm',
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_operator_gce_igm_copy_template]
@@ -133,5 +135,9 @@ with models.DAG(
     )
     # [END howto_operator_gce_igm_update_template_no_project_id]
 
-    gce_instance_template_copy >> gce_instance_template_copy2 >> gce_instance_group_manager_update_template
-    gce_instance_group_manager_update_template >> gce_instance_group_manager_update_template2
+    chain(
+        gce_instance_template_copy,
+        gce_instance_template_copy2,
+        gce_instance_group_manager_update_template,
+        gce_instance_group_manager_update_template2,
+    )

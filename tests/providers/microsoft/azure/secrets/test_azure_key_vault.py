@@ -20,19 +20,18 @@ from unittest import TestCase, mock
 
 from azure.core.exceptions import ResourceNotFoundError
 
-from airflow.providers.microsoft.azure.secrets.azure_key_vault import AzureKeyVaultBackend
+from airflow.providers.microsoft.azure.secrets.key_vault import AzureKeyVaultBackend
 
 
 class TestAzureKeyVaultBackend(TestCase):
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.get_conn_uri')
-    def test_get_connections(self, mock_get_uri):
-        mock_get_uri.return_value = 'scheme://user:pass@host:100'
-        conn_list = AzureKeyVaultBackend().get_connections('fake_conn')
-        conn = conn_list[0]
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.get_conn_value')
+    def test_get_connection(self, mock_get_value):
+        mock_get_value.return_value = 'scheme://user:pass@host:100'
+        conn = AzureKeyVaultBackend().get_connection('fake_conn')
         assert conn.host == 'host'
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.DefaultAzureCredential')
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.SecretClient')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.DefaultAzureCredential')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.SecretClient')
     def test_get_conn_uri(self, mock_secret_client, mock_azure_cred):
         mock_cred = mock.Mock()
         mock_sec_client = mock.Mock()
@@ -50,20 +49,20 @@ class TestAzureKeyVaultBackend(TestCase):
         )
         assert returned_uri == 'postgresql://airflow:airflow@host:5432/airflow'
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.client')
     def test_get_conn_uri_non_existent_key(self, mock_client):
         """
         Test that if the key with connection ID is not present,
-        AzureKeyVaultBackend.get_connections should return None
+        AzureKeyVaultBackend.get_connection should return None
         """
         conn_id = 'test_mysql'
         mock_client.get_secret.side_effect = ResourceNotFoundError
         backend = AzureKeyVaultBackend(vault_url="https://example-akv-resource-name.vault.azure.net/")
 
         assert backend.get_conn_uri(conn_id=conn_id) is None
-        assert [] == backend.get_connections(conn_id=conn_id)
+        assert backend.get_connection(conn_id=conn_id) is None
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.client')
     def test_get_variable(self, mock_client):
         mock_client.get_secret.return_value = mock.Mock(value='world')
         backend = AzureKeyVaultBackend()
@@ -71,7 +70,7 @@ class TestAzureKeyVaultBackend(TestCase):
         mock_client.get_secret.assert_called_with(name='airflow-variables-hello')
         assert 'world' == returned_uri
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.client')
     def test_get_variable_non_existent_key(self, mock_client):
         """
         Test that if Variable key is not present,
@@ -81,7 +80,7 @@ class TestAzureKeyVaultBackend(TestCase):
         backend = AzureKeyVaultBackend()
         assert backend.get_variable('test_mysql') is None
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.client')
     def test_get_secret_value_not_found(self, mock_client):
         """
         Test that if a non-existent secret returns None
@@ -92,7 +91,7 @@ class TestAzureKeyVaultBackend(TestCase):
             backend._get_secret(path_prefix=backend.connections_prefix, secret_id='test_non_existent') is None
         )
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend.client')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend.client')
     def test_get_secret_value(self, mock_client):
         """
         Test that get_secret returns the secret value
@@ -103,11 +102,11 @@ class TestAzureKeyVaultBackend(TestCase):
         mock_client.get_secret.assert_called_with(name='af-secrets-test-mysql-password')
         assert secret_val == 'super-secret'
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend._get_secret')
     def test_connection_prefix_none_value(self, mock_get_secret):
         """
         Test that if Connections prefix is None,
-        AzureKeyVaultBackend.get_connections should return None
+        AzureKeyVaultBackend.get_connection should return None
         AzureKeyVaultBackend._get_secret should not be called
         """
         kwargs = {'connections_prefix': None}
@@ -116,7 +115,7 @@ class TestAzureKeyVaultBackend(TestCase):
         assert backend.get_conn_uri('test_mysql') is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend._get_secret')
     def test_variable_prefix_none_value(self, mock_get_secret):
         """
         Test that if Variables prefix is None,
@@ -129,7 +128,7 @@ class TestAzureKeyVaultBackend(TestCase):
         assert backend.get_variable('hello') is None
         mock_get_secret.assert_not_called()
 
-    @mock.patch('airflow.providers.microsoft.azure.secrets.azure_key_vault.AzureKeyVaultBackend._get_secret')
+    @mock.patch('airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend._get_secret')
     def test_config_prefix_none_value(self, mock_get_secret):
         """
         Test that if Config prefix is None,

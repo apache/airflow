@@ -85,7 +85,7 @@ def revoke_permissions():
 
 def check_original_docker_image():
     if not os.path.isfile('/.dockerenv') or os.environ.get('PYTHON_BASE_IMAGE') is None:
-        raise unittest.SkipTest(
+        raise pytest.skip(
             """Adding/removing a user as part of a test is very bad for host os
 (especially if the user already existed to begin with on the OS), therefore we check if we run inside a
 the official docker container and only allow to run the test there. This is done by checking /.dockerenv
@@ -99,13 +99,13 @@ def create_user():
         subprocess.check_output(['sudo', 'useradd', '-m', TEST_USER, '-g', str(os.getegid())])
     except OSError as e:
         if e.errno == errno.ENOENT:
-            raise unittest.SkipTest(
+            raise pytest.skip(
                 "The 'useradd' command did not exist so unable to test "
                 "impersonation; Skipping Test. These tests can only be run on a "
                 "linux host that supports 'useradd'."
             )
         else:
-            raise unittest.SkipTest(
+            raise pytest.skip(
                 "The 'useradd' command exited non-zero; Skipping tests. Does the "
                 "current user have permission to run 'useradd' without a password "
                 "prompt (check sudoers file)?"

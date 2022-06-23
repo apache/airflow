@@ -26,7 +26,7 @@ metadata:
 spec:
   initContainers:
     - name: git-sync
-      image: "k8s.gcr.io/git-sync/git-sync:v3.3.0"
+      image: "k8s.gcr.io/git-sync/git-sync:v3.4.0"
       env:
         - name: GIT_SYNC_BRANCH
           value: "v2-2-stable"
@@ -46,9 +46,7 @@ spec:
         - name: airflow-dags
           mountPath: /git
   containers:
-    - args: []
-      command: []
-      env:
+    - env:
         - name: AIRFLOW__CORE__EXECUTOR
           value: LocalExecutor
         # Hard Coded Airflow Envs
@@ -57,7 +55,7 @@ spec:
             secretKeyRef:
               name: RELEASE-NAME-fernet-key
               key: fernet-key
-        - name: AIRFLOW__CORE__SQL_ALCHEMY_CONN
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
           valueFrom:
             secretKeyRef:
               name: RELEASE-NAME-airflow-metadata
@@ -67,11 +65,9 @@ spec:
             secretKeyRef:
               name: RELEASE-NAME-airflow-metadata
               key: connection
-      envFrom: []
       image: dummy_image
       imagePullPolicy: IfNotPresent
       name: base
-      ports: []
       volumeMounts:
         - mountPath: "/opt/airflow/logs"
           name: airflow-logs
@@ -79,14 +75,14 @@ spec:
           name: airflow-dags
           subPath: repo/airflow/example_dags
           readOnly: false
-  hostNetwork: false
+        - mountPath: /opt/airflow/airflow.cfg
+          name: airflow-config
+          readOnly: true
+          subPath: airflow.cfg
   restartPolicy: Never
   securityContext:
     runAsUser: 50000
     fsGroup: 50000
-  nodeSelector: {}
-  affinity: {}
-  tolerations: []
   serviceAccountName: "RELEASE-NAME-worker-serviceaccount"
   volumes:
     - name: airflow-dags
@@ -96,7 +92,4 @@ spec:
     - configMap:
         name: RELEASE-NAME-airflow-config
       name: airflow-config
-    - configMap:
-        name: RELEASE-NAME-airflow-config
-      name: airflow-local-settings
 # [END git_sync_template]

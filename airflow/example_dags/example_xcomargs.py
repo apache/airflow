@@ -18,7 +18,8 @@
 
 """Example DAG demonstrating the usage of the XComArgs."""
 import logging
-from datetime import datetime
+
+import pendulum
 
 from airflow import DAG
 from airflow.decorators import task
@@ -29,19 +30,19 @@ log = logging.getLogger(__name__)
 
 @task
 def generate_value():
-    """Dummy function"""
+    """Empty function"""
     return "Bring me a shrubbery!"
 
 
 @task
 def print_value(value, ts=None):
-    """Dummy function"""
+    """Empty function"""
     log.info("The knights of Ni say: %s (at %s)", value, ts)
 
 
 with DAG(
     dag_id='example_xcom_args',
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule_interval=None,
     tags=['example'],
@@ -50,7 +51,7 @@ with DAG(
 
 with DAG(
     "example_xcom_args_with_operators",
-    start_date=datetime(2021, 1, 1),
+    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
     catchup=False,
     schedule_interval=None,
     tags=['example'],

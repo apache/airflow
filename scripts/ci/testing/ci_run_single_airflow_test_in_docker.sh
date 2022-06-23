@@ -25,6 +25,7 @@ export PRINT_INFO_FROM_SCRIPTS
 
 DOCKER_COMPOSE_LOCAL=()
 INTEGRATIONS=()
+INTEGRATION_BREEZE_FLAGS=()
 
 function prepare_tests() {
     DOCKER_COMPOSE_LOCAL+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/files.yml")
@@ -59,8 +60,8 @@ function prepare_tests() {
 
     for _INT in ${ENABLED_INTEGRATIONS}
     do
-        INTEGRATIONS+=("-f")
-        INTEGRATIONS+=("${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
+        INTEGRATIONS+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/integration-${_INT}.yml")
+        INTEGRATION_BREEZE_FLAGS+=("--integration" "${_INT}")
     done
 
     readonly INTEGRATIONS
@@ -72,6 +73,7 @@ function prepare_tests() {
     echo "**********************************************************************************************"
 }
 
+
 # Runs airflow testing in docker container
 # You need to set variable TEST_TYPE - test type to run
 # "${@}" - extra arguments to pass to docker command
@@ -82,49 +84,34 @@ function run_airflow_testing_in_docker() {
     echo
     echo "Semaphore grabbed. Running tests for ${TEST_TYPE}"
     echo
-    local backend_docker_compose=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-${BACKEND}.yml")
-    if [[ ${BACKEND} == "mssql" ]]; then
-        local docker_filesystem
-        docker_filesystem=$(stat "-f" "-c" "%T" /var/lib/docker 2>/dev/null || echo "unknown")
-        if [[ ${docker_filesystem} == "tmpfs" ]]; then
-            # In case of tmpfs backend for docker, mssql fails because TMPFS does not support
-            # O_DIRECT parameter for direct writing to the filesystem
-            # https://github.com/microsoft/mssql-docker/issues/13
-            # so we need to mount an external volume for its db location
-            # the external db must allow for parallel testing so TEST_TYPE
-            # is added to the volume name
-            export MSSQL_DATA_VOLUME="${HOME}/tmp-mssql-volume-${TEST_TYPE}-${MSSQL_VERSION}"
-            mkdir -p "${MSSQL_DATA_VOLUME}"
-            # MSSQL 2019 runs with non-root user by default so we have to make the volumes world-writeable
-            # This is a bit scary and we could get by making it group-writeable but the group would have
-            # to be set to "root" (GID=0) for the volume to work and this cannot be accomplished without sudo
-            chmod a+rwx "${MSSQL_DATA_VOLUME}"
-            backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-bind-volume.yml")
 
-            # Runner user doesn't have blanket sudo access, but we can run docker as root. Go figure
-            traps::add_trap "docker run -u 0 --rm -v ${MSSQL_DATA_VOLUME}:/mssql alpine sh -c 'rm -rvf -- /mssql/.* /mssql/*' || true" EXIT
-
-            # Clean up at start too, in case a previous runner left it messy
-            docker run --rm -u 0 -v "${MSSQL_DATA_VOLUME}":/mssql alpine sh -c 'rm -rfv -- /mssql/.* /mssql/*'  || true
-        else
-            backend_docker_compose+=("-f" "${SCRIPTS_CI_DIR}/docker-compose/backend-mssql-docker-volume.yml")
-        fi
-    fi
     echo "Making sure docker-compose is down and remnants removed"
     echo
     docker-compose -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
     docker-compose --log-level INFO \
       -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
-      "${backend_docker_compose[@]}" \
+      "${BACKEND_DOCKER_COMPOSE[@]}" \
       "${INTEGRATIONS[@]}" \
       "${DOCKER_COMPOSE_LOCAL[@]}" \
       --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
          run airflow "${@}"
     exit_code=$?
+    docker ps
+    if [[ ${exit_code} != "0" && ${CI} == "true" ]]; then
+        docker ps --all
+        local container
+        for container in $(docker ps --all --format '{{.Names}}')
+        do
+            testing::dump_container_logs "${container}"
+        done
+    fi
+
     docker-compose --log-level INFO -f "${SCRIPTS_CI_DIR}/docker-compose/base.yml" \
+        "${INTEGRATIONS[@]}" \
         --project-name "airflow-${TEST_TYPE}-${BACKEND}" \
         down --remove-orphans \
         --volumes --timeout 10
@@ -146,10 +133,12 @@ function run_airflow_testing_in_docker() {
         echo "${COLOR_RED}***********************************************************************************************${COLOR_RESET}"
         echo
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
-        echo "${COLOR_BLUE}Reproduce the failed tests on your local machine:${COLOR_RESET}"
-        echo "${COLOR_YELLOW}./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} shell${COLOR_RESET}"
+        echo "${COLOR_BLUE}Enter the same environment that was used for the tests:${COLOR_RESET}"
+        echo "${COLOR_YELLOW}breeze --image-tag ${IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} ${INTEGRATION_BREEZE_FLAGS[*]} shell${COLOR_RESET}"
         echo "${COLOR_BLUE}Then you can run failed tests with:${COLOR_RESET}"
         echo "${COLOR_YELLOW}pytest [TEST_NAME]${COLOR_RESET}"
+        echo "${COLOR_BLUE}Or you can run the tests: ${COLOR_RESET}"
+        echo "${COLOR_YELLOW}breeze --image-tag ${IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} ${INTEGRATION_BREEZE_FLAGS[*]} test${COLOR_RESET}"
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
 
 
@@ -190,4 +179,5 @@ function run_airflow_testing_in_docker() {
 
 prepare_tests
 
+testing::setup_docker_compose_backend "${TEST_TYPE}"
 run_airflow_testing_in_docker "${@}"

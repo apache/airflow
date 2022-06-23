@@ -36,11 +36,9 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
         :ref:`howto/operator:MySQLToGCSOperator`
 
     :param mysql_conn_id: Reference to :ref:`mysql connection id <howto/connection:mysql>`.
-    :type mysql_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
         `False`, TIMESTAMP columns will be exported using the MySQL server's
         default timezone.
-    :type ensure_utc: bool
     """
 
     ui_color = '#a0e08c'
@@ -94,7 +92,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
             'mode': field_mode,
         }
 
-    def convert_type(self, value, schema_type: str):
+    def convert_type(self, value, schema_type: str, **kwargs):
         """
         Takes a value from MySQLdb, and converts it to a value that's safe for
         JSON/Google Cloud Storage/BigQuery.
@@ -111,9 +109,7 @@ class MySQLToGCSOperator(BaseSQLToGCSOperator):
           https://cloud.google.com/bigquery/data-types
 
         :param value: MySQLdb column value
-        :type value: Any
         :param schema_type: BigQuery data type
-        :type schema_type: str
         """
         if value is None:
             return value

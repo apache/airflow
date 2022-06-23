@@ -36,11 +36,17 @@ def _generate_virtualenv_cmd(tmp_dir: str, python_bin: str, system_site_packages
     return cmd
 
 
-def _generate_pip_install_cmd(tmp_dir: str, requirements: List[str]) -> Optional[List[str]]:
-    if not requirements:
-        return None
-    # direct path alleviates need to activate
-    cmd = [f'{tmp_dir}/bin/pip', 'install']
+def _generate_pip_install_cmd_from_file(
+    tmp_dir: str, requirements_file_path: str, pip_install_options: List[str]
+) -> List[str]:
+    cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options + ['-r']
+    return cmd + [requirements_file_path]
+
+
+def _generate_pip_install_cmd_from_list(
+    tmp_dir: str, requirements: List[str], pip_install_options: List[str]
+) -> List[str]:
+    cmd = [f'{tmp_dir}/bin/pip', 'install'] + pip_install_options
     return cmd + requirements
 
 
@@ -75,26 +81,41 @@ def remove_task_decorator(python_source: str, task_decorator_name: str) -> str:
 
 
 def prepare_virtualenv(
-    venv_directory: str, python_bin: str, system_site_packages: bool, requirements: List[str]
+    venv_directory: str,
+    python_bin: str,
+    system_site_packages: bool,
+    requirements: Optional[List[str]] = None,
+    requirements_file_path: Optional[str] = None,
+    pip_install_options: Optional[List[str]] = None,
 ) -> str:
-    """
-    Creates a virtual environment and installs the additional python packages
+    """Creates a virtual environment and installs the additional python packages.
 
-    :param venv_directory: The path for directory where the environment will be created
-    :type venv_directory: str
-    :param python_bin: Path for python binary
-    :type python_bin: str
+    :param venv_directory: The path for directory where the environment will be created.
+    :param python_bin: Path to the Python executable.
     :param system_site_packages: Whether to include system_site_packages in your virtualenv.
         See virtualenv documentation for more information.
-    :type system_site_packages: bool
-    :param requirements: List of additional python packages
-    :type requirements: List[str]
+    :param requirements: List of additional python packages.
+    :param requirements_file_path: Path to the ``requirements.txt`` file.
     :return: Path to a binary file with Python in a virtual environment.
     :rtype: str
     """
+    if pip_install_options is None:
+        pip_install_options = []
+
     virtualenv_cmd = _generate_virtualenv_cmd(venv_directory, python_bin, system_site_packages)
     execute_in_subprocess(virtualenv_cmd)
-    pip_cmd = _generate_pip_install_cmd(venv_directory, requirements)
+
+    if requirements is not None and requirements_file_path is not None:
+        raise Exception("Either requirements OR requirements_file_path has to be passed, but not both")
+
+    pip_cmd = None
+    if requirements is not None and len(requirements) != 0:
+        pip_cmd = _generate_pip_install_cmd_from_list(venv_directory, requirements, pip_install_options)
+    if requirements_file_path is not None and requirements_file_path:
+        pip_cmd = _generate_pip_install_cmd_from_file(
+            venv_directory, requirements_file_path, pip_install_options
+        )
+
     if pip_cmd:
         execute_in_subprocess(pip_cmd)
 
@@ -111,13 +132,12 @@ def write_python_script(
 
     :param jinja_context: The jinja context variables to unpack and replace with its placeholders in the
         template file.
-    :type jinja_context: dict
     :param filename: The name of the file to dump the rendered script to.
-    :type filename: str
     :param render_template_as_native_obj: If ``True``, rendered Jinja template would be converted
         to a native Python object
     """
     template_loader = jinja2.FileSystemLoader(searchpath=os.path.dirname(__file__))
+    template_env: jinja2.Environment
     if render_template_as_native_obj:
         template_env = jinja2.nativetypes.NativeEnvironment(
             loader=template_loader, undefined=jinja2.StrictUndefined

@@ -18,6 +18,7 @@
 """This module contains a Google Cloud Natural Language Hook."""
 from typing import Optional, Sequence, Tuple, Union
 
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.language_v1 import LanguageServiceClient, enums
 from google.cloud.language_v1.types import (
@@ -31,6 +32,7 @@ from google.cloud.language_v1.types import (
     Document,
 )
 
+from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 
 
@@ -39,11 +41,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     Hook for Google Cloud Natural Language Service.
 
     :param gcp_conn_id: The connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -52,7 +52,6 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account.
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     def __init__(
@@ -76,9 +75,7 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         :rtype: google.cloud.language_v1.LanguageServiceClient
         """
         if not self._conn:
-            self._conn = LanguageServiceClient(
-                credentials=self._get_credentials(), client_info=self.client_info
-            )
+            self._conn = LanguageServiceClient(credentials=self._get_credentials(), client_info=CLIENT_INFO)
         return self._conn
 
     @GoogleBaseHook.quota_retry()
@@ -86,9 +83,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeEntitiesResponse:
         """
         Finds named entities in the text along with entity types,
@@ -96,17 +93,12 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
-        :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
         """
         client = self.get_conn()
@@ -120,9 +112,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeEntitySentimentResponse:
         """
         Finds entities, similar to AnalyzeEntities in the text and analyzes sentiment associated with each
@@ -130,17 +122,12 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
-        :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.language_v1.types.AnalyzeEntitiesResponse
         """
         client = self.get_conn()
@@ -154,26 +141,21 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeSentimentResponse:
         """
         Analyzes the sentiment of the provided text.
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
-        :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.language_v1.types.AnalyzeSentimentResponse
         """
         client = self.get_conn()
@@ -187,9 +169,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         self,
         document: Union[dict, Document],
         encoding_type: Optional[enums.EncodingType] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnalyzeSyntaxResponse:
         """
         Analyzes the syntax of the text and provides sentence boundaries and tokenization along with part
@@ -197,17 +179,12 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or google.cloud.language_v1.types.Document
         :param encoding_type: The encoding type used by the API to calculate offsets.
-        :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.language_v1.types.AnalyzeSyntaxResponse
         """
         client = self.get_conn()
@@ -222,9 +199,9 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
         document: Union[dict, Document],
         features: Union[dict, AnnotateTextRequest.Features],
         encoding_type: enums.EncodingType = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> AnnotateTextResponse:
         """
         A convenience method that provides all the features that analyzeSentiment,
@@ -232,20 +209,14 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or google.cloud.language_v1.types.Document
         :param features: The enabled features.
             If a dict is provided, it must be of the same form as the protobuf message Features
-        :type features: dict or google.cloud.language_v1.types.AnnotateTextRequest.Features
         :param encoding_type: The encoding type used by the API to calculate offsets.
-        :type encoding_type: google.cloud.language_v1.enums.EncodingType
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.language_v1.types.AnnotateTextResponse
         """
         client = self.get_conn()
@@ -263,24 +234,20 @@ class CloudNaturalLanguageHook(GoogleBaseHook):
     def classify_text(
         self,
         document: Union[dict, Document],
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
     ) -> ClassifyTextResponse:
         """
         Classifies a document into categories.
 
         :param document: Input document.
             If a dict is provided, it must be of the same form as the protobuf message Document
-        :type document: dict or google.cloud.language_v1.types.Document
         :param retry: A retry object used to retry requests. If None is specified, requests will not be
             retried.
-        :type retry: google.api_core.retry.Retry
         :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
             retry is specified, the timeout applies to each individual attempt.
-        :type timeout: float
         :param metadata: Additional metadata that is provided to the method.
-        :type metadata: sequence[tuple[str, str]]]
         :rtype: google.cloud.language_v1.types.ClassifyTextResponse
         """
         client = self.get_conn()

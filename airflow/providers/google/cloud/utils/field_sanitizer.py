@@ -113,7 +113,6 @@ class GcpBodyFieldSanitizer(LoggingMixin):
     """Sanitizes the body according to specification.
 
     :param sanitize_specs: array of strings that specifies which fields to remove
-    :type sanitize_specs: list[str]
 
     """
 

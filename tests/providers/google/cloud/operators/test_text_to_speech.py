@@ -17,9 +17,10 @@
 # under the License.
 
 import unittest
-from unittest.mock import ANY, Mock, PropertyMock, patch
+from unittest.mock import ANY, MagicMock, Mock, PropertyMock, patch
 
 import pytest
+from google.api_core.gapic_v1.method import DEFAULT
 from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
@@ -41,6 +42,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
     def test_synthesize_text_green_path(self, mock_text_to_speech_hook, mock_gcp_hook):
         mocked_response = Mock()
         type(mocked_response).audio_content = PropertyMock(return_value=b"audio")
+        mocked_context = MagicMock()
 
         mock_text_to_speech_hook.return_value.synthesize_speech.return_value = mocked_response
         mock_gcp_hook.return_value.upload.return_value = True
@@ -55,7 +57,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
             target_filename=TARGET_FILENAME,
             task_id="id",
             impersonation_chain=IMPERSONATION_CHAIN,
-        ).execute(context={"task_instance": Mock()})
+        ).execute(context=mocked_context)
 
         mock_text_to_speech_hook.assert_called_once_with(
             gcp_conn_id="gcp-conn-id",
@@ -66,7 +68,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
             impersonation_chain=IMPERSONATION_CHAIN,
         )
         mock_text_to_speech_hook.return_value.synthesize_speech.assert_called_once_with(
-            input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=None, timeout=None
+            input_data=INPUT, voice=VOICE, audio_config=AUDIO_CONFIG, retry=DEFAULT, timeout=None
         )
         mock_gcp_hook.return_value.upload.assert_called_once_with(
             bucket_name=TARGET_BUCKET_NAME, object_name=TARGET_FILENAME, filename=ANY
@@ -94,6 +96,8 @@ class TestGcpTextToSpeech(unittest.TestCase):
         mock_text_to_speech_hook,
         mock_gcp_hook,
     ):
+        mocked_context = Mock()
+
         with pytest.raises(AirflowException) as ctx:
             CloudTextToSpeechSynthesizeOperator(
                 project_id="project-id",
@@ -103,7 +107,7 @@ class TestGcpTextToSpeech(unittest.TestCase):
                 target_bucket_name=target_bucket_name,
                 target_filename=target_filename,
                 task_id="id",
-            ).execute(context={"task_instance": Mock()})
+            ).execute(context=mocked_context)
 
         err = ctx.value
         assert missing_arg in str(err)

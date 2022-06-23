@@ -27,7 +27,6 @@ class ValidStateDep(BaseTIDep):
 
     :param valid_states: A list of valid states that a task instance can have to meet
         this dependency.
-    :type valid_states: set(str)
     :return: whether or not the task instance's state is valid
     """
 
@@ -57,9 +56,4 @@ class ValidStateDep(BaseTIDep):
             yield self._passing_status(reason=f"Task state {ti.state} was valid.")
             return
 
-        yield self._failing_status(
-            reason=(
-                f"Task is in the '{ti.state}' state which is not a valid state for execution. "
-                f"The task must be cleared in order to be run."
-            )
-        )
+        yield self._failing_status(reason=f"Task is in the '{ti.state}' state.")

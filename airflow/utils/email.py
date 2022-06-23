@@ -44,6 +44,7 @@ def send_email(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: Optional[str] = None,
+    custom_headers: Optional[Dict[str, Any]] = None,
     **kwargs,
 ):
     """Send email using backend specified in EMAIL_BACKEND."""
@@ -66,6 +67,7 @@ def send_email(
         mime_charset=mime_charset,
         conn_id=backend_conn_id,
         from_email=from_email,
+        custom_headers=custom_headers,
         **kwargs,
     )
 
@@ -81,7 +83,8 @@ def send_email_smtp(
     mime_subtype: str = 'mixed',
     mime_charset: str = 'utf-8',
     conn_id: str = "smtp_default",
-    from_email: str = None,
+    from_email: Optional[str] = None,
+    custom_headers: Optional[Dict[str, Any]] = None,
     **kwargs,
 ):
     """
@@ -91,7 +94,14 @@ def send_email_smtp(
     """
     smtp_mail_from = conf.get('smtp', 'SMTP_MAIL_FROM')
 
-    mail_from = smtp_mail_from or from_email
+    if smtp_mail_from is not None:
+        mail_from = smtp_mail_from
+    else:
+        if from_email is None:
+            raise Exception(
+                "You should set from email - either by smtp/smtp_mail_from config or `from_email` parameter"
+            )
+        mail_from = from_email
 
     msg, recipients = build_mime_message(
         mail_from=mail_from,
@@ -103,13 +113,14 @@ def send_email_smtp(
         bcc=bcc,
         mime_subtype=mime_subtype,
         mime_charset=mime_charset,
+        custom_headers=custom_headers,
     )
 
     send_mime_email(e_from=mail_from, e_to=recipients, mime_msg=msg, conn_id=conn_id, dryrun=dryrun)
 
 
 def build_mime_message(
-    mail_from: str,
+    mail_from: Optional[str],
     to: Union[str, Iterable[str]],
     subject: str,
     html_content: str,
@@ -174,10 +185,14 @@ def build_mime_message(
 
 
 def send_mime_email(
-    e_from: str, e_to: List[str], mime_msg: MIMEMultipart, conn_id: str = "smtp_default", dryrun: bool = False
+    e_from: str,
+    e_to: Union[str, List[str]],
+    mime_msg: MIMEMultipart,
+    conn_id: str = "smtp_default",
+    dryrun: bool = False,
 ) -> None:
     """Send MIME email."""
-    smtp_host = conf.get('smtp', 'SMTP_HOST')
+    smtp_host = conf.get_mandatory_value('smtp', 'SMTP_HOST')
     smtp_port = conf.getint('smtp', 'SMTP_PORT')
     smtp_starttls = conf.getboolean('smtp', 'SMTP_STARTTLS')
     smtp_ssl = conf.getboolean('smtp', 'SMTP_SSL')
@@ -186,14 +201,13 @@ def send_mime_email(
     smtp_user = None
     smtp_password = None
 
-    smtp_user, smtp_password = None, None
     if conn_id is not None:
         try:
             from airflow.hooks.base import BaseHook
 
-            conn = BaseHook.get_connection(conn_id)
-            smtp_user = conn.login
-            smtp_password = conn.password
+            airflow_conn = BaseHook.get_connection(conn_id)
+            smtp_user = airflow_conn.login
+            smtp_password = airflow_conn.password
         except AirflowException:
             pass
     if smtp_user is None or smtp_password is None:
@@ -213,19 +227,19 @@ def send_mime_email(
         for attempt in range(1, smtp_retry_limit + 1):
             log.info("Email alerting: attempt %s", str(attempt))
             try:
-                conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
+                smtp_conn = _get_smtp_connection(smtp_host, smtp_port, smtp_timeout, smtp_ssl)
             except smtplib.SMTPServerDisconnected:
                 if attempt < smtp_retry_limit:
                     continue
                 raise
 
             if smtp_starttls:
-                conn.starttls()
+                smtp_conn.starttls()
             if smtp_user and smtp_password:
-                conn.login(smtp_user, smtp_password)
+                smtp_conn.login(smtp_user, smtp_password)
             log.info("Sent an alert email to %s", e_to)
-            conn.sendmail(e_from, e_to, mime_msg.as_string())
-            conn.quit()
+            smtp_conn.sendmail(e_from, e_to, mime_msg.as_string())
+            smtp_conn.quit()
             break
 
 

@@ -16,29 +16,52 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import asyncio
 import datetime
-import sys
 import time
+from threading import Thread
 
 import pytest
 
-from airflow.jobs.triggerer_job import TriggererJob
-from airflow.models import Trigger
-from airflow.operators.dummy import DummyOperator
+from airflow.jobs.triggerer_job import TriggererJob, TriggerRunner
+from airflow.models import DagModel, DagRun, TaskInstance, Trigger
+from airflow.operators.empty import EmptyOperator
+from airflow.operators.python import PythonOperator
 from airflow.triggers.base import TriggerEvent
 from airflow.triggers.temporal import TimeDeltaTrigger
 from airflow.triggers.testing import FailureTrigger, SuccessTrigger
 from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State, TaskInstanceState
-from tests.test_utils.db import clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_runs
+
+
+class TimeDeltaTrigger_(TimeDeltaTrigger):
+    def __init__(self, delta, filename):
+        super().__init__(delta=delta)
+        self.filename = filename
+        self.delta = delta
+
+    async def run(self):
+        with open(self.filename, 'at') as f:
+            f.write('hi\n')
+        async for event in super().run():
+            yield event
+
+    def serialize(self):
+        return (
+            "tests.jobs.test_triggerer_job.TimeDeltaTrigger_",
+            {"delta": self.delta, "filename": self.filename},
+        )
 
 
 @pytest.fixture(autouse=True)
 def clean_database():
     """Fixture that cleans the database before and after every test."""
     clear_db_runs()
+    clear_db_dags()
     yield  # Test runs here
+    clear_db_dags()
     clear_db_runs()
 
 
@@ -49,7 +72,6 @@ def session():
         yield session
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_is_alive():
     """Checks the heartbeat logic"""
     # Current time
@@ -70,7 +92,6 @@ def test_is_alive():
     assert not triggerer_job.is_alive(), "Completed jobs even with recent heartbeat should not be alive"
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_is_needed(session):
     """Checks the triggerer-is-needed logic"""
     # No triggers, no need
@@ -85,7 +106,6 @@ def test_is_needed(session):
     assert triggerer_job.is_needed() is True
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_capacity_decode():
     """
     Tests that TriggererJob correctly sets capacity to a valid value passed in as a CLI arg,
@@ -112,7 +132,6 @@ def test_capacity_decode():
             TriggererJob(capacity=input_str)
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_trigger_lifecycle(session):
     """
     Checks that the triggerer will correctly see a new Trigger in the database
@@ -159,7 +178,111 @@ def test_trigger_lifecycle(session):
         job.runner.stop = True
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
+def test_trigger_create_race_condition_18392(session, tmp_path):
+    """
+    This verifies the resolution of race condition documented in github issue #18392.
+    Triggers are queued for creation by TriggerJob.load_triggers.
+    There was a race condition where multiple triggers would be created unnecessarily.
+    What happens is the runner completes the trigger and purges from the "running" list.
+    Then job.load_triggers is called and it looks like the trigger is not running but should,
+    so it queues it again.
+
+    The scenario is as follows:
+        1. job.load_triggers (trigger now queued)
+        2. runner.create_triggers (trigger now running)
+        3. job.handle_events (trigger still appears running so state not updated in DB)
+        4. runner.cleanup_finished_triggers (trigger completed at this point; trigger from "running" set)
+        5. job.load_triggers (trigger not running, but also not purged from DB, so it is queued again)
+        6. runner.create_triggers (trigger created again)
+
+    This test verifies that under this scenario only one trigger is created.
+    """
+    path = tmp_path / 'test_trigger_bad_respawn.txt'
+
+    class TriggerRunner_(TriggerRunner):
+        """We do some waiting for main thread looping"""
+
+        async def wait_for_job_method_count(self, method, count):
+            for _ in range(30):
+                await asyncio.sleep(0.1)
+                if getattr(self, f'{method}_count', 0) >= count:
+                    break
+            else:
+                pytest.fail(f"did not observe count {count} in job method {method}")
+
+        async def create_triggers(self):
+            """
+            On first run, wait for job.load_triggers to make sure they are queued
+            """
+            if getattr(self, 'loop_count', 0) == 0:
+                await self.wait_for_job_method_count('load_triggers', 1)
+            await super().create_triggers()
+            self.loop_count = getattr(self, 'loop_count', 0) + 1
+
+        async def cleanup_finished_triggers(self):
+            """On loop 1, make sure that job.handle_events was already called"""
+            if self.loop_count == 1:
+                await self.wait_for_job_method_count('handle_events', 1)
+            await super().cleanup_finished_triggers()
+
+    class TriggererJob_(TriggererJob):
+        """We do some waiting for runner thread looping (and track calls in job thread)"""
+
+        def wait_for_runner_loop(self, runner_loop_count):
+            for _ in range(30):
+                time.sleep(0.1)
+                if getattr(self.runner, 'call_count', 0) >= runner_loop_count:
+                    break
+            else:
+                pytest.fail("did not observe 2 loops in the runner thread")
+
+        def load_triggers(self):
+            """On second run, make sure that runner has called create_triggers in its second loop"""
+            super().load_triggers()
+            self.runner.load_triggers_count = getattr(self.runner, 'load_triggers_count', 0) + 1
+            if self.runner.load_triggers_count == 2:
+                self.wait_for_runner_loop(runner_loop_count=2)
+
+        def handle_events(self):
+            super().handle_events()
+            self.runner.handle_events_count = getattr(self.runner, 'handle_events_count', 0) + 1
+
+    trigger = TimeDeltaTrigger_(delta=datetime.timedelta(microseconds=1), filename=path.as_posix())
+    trigger_orm = Trigger.from_object(trigger)
+    trigger_orm.id = 1
+    session.add(trigger_orm)
+
+    dag = DagModel(dag_id='test-dag')
+    dag_run = DagRun(dag.dag_id, run_id='abc', run_type='none')
+    ti = TaskInstance(PythonOperator(task_id='dummy-task', python_callable=print), run_id=dag_run.run_id)
+    ti.dag_id = dag.dag_id
+    ti.trigger_id = 1
+    session.add(dag)
+    session.add(dag_run)
+    session.add(ti)
+
+    session.commit()
+
+    job = TriggererJob_()
+    job.runner = TriggerRunner_()
+    thread = Thread(target=job._execute)
+    thread.start()
+    try:
+        for _ in range(40):
+            time.sleep(0.1)
+            # ready to evaluate after 2 loops
+            if getattr(job.runner, 'loop_count', 0) >= 2:
+                break
+        else:
+            pytest.fail("did not observe 2 loops in the runner thread")
+    finally:
+        job.runner.stop = True
+        job.runner.join()
+        thread.join()
+    instances = path.read_text().splitlines()
+    assert len(instances) == 1
+
+
 def test_trigger_from_dead_triggerer(session):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
@@ -179,7 +302,6 @@ def test_trigger_from_dead_triggerer(session):
     assert [x for x, y in job.runner.to_create] == [1]
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_trigger_from_expired_triggerer(session):
     """
     Checks that the triggerer will correctly claim a Trigger that is assigned to a
@@ -206,7 +328,6 @@ def test_trigger_from_expired_triggerer(session):
     assert [x for x, y in job.runner.to_create] == [1]
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_trigger_firing(session):
     """
     Checks that when a trigger fires, it correctly makes it into the
@@ -238,7 +359,6 @@ def test_trigger_firing(session):
         job.runner.stop = True
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_trigger_failing(session):
     """
     Checks that when a trigger fails, it correctly makes it into the
@@ -260,7 +380,11 @@ def test_trigger_failing(session):
         # Wait for up to 3 seconds for it to fire and appear in the event queue
         for _ in range(30):
             if job.runner.failed_triggers:
-                assert list(job.runner.failed_triggers) == [1]
+                assert len(job.runner.failed_triggers) == 1
+                trigger_id, exc = list(job.runner.failed_triggers)[0]
+                assert trigger_id == 1
+                assert isinstance(exc, ValueError)
+                assert exc.args[0] == "Deliberate trigger failure"
                 break
             time.sleep(0.1)
         else:
@@ -270,7 +394,6 @@ def test_trigger_failing(session):
         job.runner.stop = True
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_trigger_cleanup(session):
     """
     Checks that the triggerer will correctly clean up triggers that do not
@@ -290,7 +413,6 @@ def test_trigger_cleanup(session):
     assert session.query(Trigger).count() == 0
 
 
-@pytest.mark.skipif(sys.version_info.minor <= 6 and sys.version_info.major <= 3, reason="No triggerer on 3.6")
 def test_invalid_trigger(session, dag_maker):
     """
     Checks that the triggerer will correctly fail task instances that depend on
@@ -304,7 +426,7 @@ def test_invalid_trigger(session, dag_maker):
 
     # Create the test DAG and task
     with dag_maker(dag_id='test_invalid_trigger', session=session):
-        DummyOperator(task_id='dummy1')
+        EmptyOperator(task_id='dummy1')
 
     dr = dag_maker.create_dagrun()
     task_instance = dr.task_instances[0]
@@ -318,7 +440,7 @@ def test_invalid_trigger(session, dag_maker):
     job.load_triggers()
 
     # Make sure it turned up in the failed queue
-    assert list(job.runner.failed_triggers) == [1]
+    assert len(job.runner.failed_triggers) == 1
 
     # Run the failed trigger handler
     job.handle_failed_triggers()
@@ -328,4 +450,5 @@ def test_invalid_trigger(session, dag_maker):
     task_instance.refresh_from_db()
     assert task_instance.state == TaskInstanceState.SCHEDULED
     assert task_instance.next_method == "__fail__"
-    assert task_instance.next_kwargs == {'error': 'Trigger failure'}
+    assert task_instance.next_kwargs['error'] == 'Trigger failure'
+    assert task_instance.next_kwargs['traceback'][-1] == "ModuleNotFoundError: No module named 'fake'\n"

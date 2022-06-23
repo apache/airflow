@@ -17,9 +17,12 @@
 
 
 import json
-from unittest.mock import MagicMock, Mock, patch
+from typing import Type
+from unittest.mock import MagicMock, PropertyMock, patch
 
 import pytest
+from azure.identity import ClientSecretCredential, DefaultAzureCredential
+from azure.mgmt.datafactory.models import FactoryListResponse
 from pytest import fixture
 
 from airflow.exceptions import AirflowException
@@ -38,14 +41,17 @@ RESOURCE_GROUP = "testResourceGroup"
 DEFAULT_FACTORY = "defaultFactory"
 FACTORY = "testFactory"
 
+DEFAULT_CONNECTION_CLIENT_SECRET = "azure_data_factory_test_client_secret"
+DEFAULT_CONNECTION_DEFAULT_CREDENTIAL = "azure_data_factory_test_default_credential"
+
 MODEL = object()
 NAME = "testName"
 ID = "testId"
 
 
 def setup_module():
-    connection = Connection(
-        conn_id="azure_data_factory_test",
+    connection_client_secret = Connection(
+        conn_id=DEFAULT_CONNECTION_CLIENT_SECRET,
         conn_type="azure_data_factory",
         login="clientId",
         password="clientSecret",
@@ -58,13 +64,53 @@ def setup_module():
             }
         ),
     )
+    connection_default_credential = Connection(
+        conn_id=DEFAULT_CONNECTION_DEFAULT_CREDENTIAL,
+        conn_type="azure_data_factory",
+        extra=json.dumps(
+            {
+                "extra__azure_data_factory__subscriptionId": "subscriptionId",
+                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+            }
+        ),
+    )
+    connection_missing_subscription_id = Connection(
+        conn_id="azure_data_factory_missing_subscription_id",
+        conn_type="azure_data_factory",
+        login="clientId",
+        password="clientSecret",
+        extra=json.dumps(
+            {
+                "extra__azure_data_factory__tenantId": "tenantId",
+                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+            }
+        ),
+    )
+    connection_missing_tenant_id = Connection(
+        conn_id="azure_data_factory_missing_tenant_id",
+        conn_type="azure_data_factory",
+        login="clientId",
+        password="clientSecret",
+        extra=json.dumps(
+            {
+                "extra__azure_data_factory__subscriptionId": "subscriptionId",
+                "extra__azure_data_factory__resource_group_name": DEFAULT_RESOURCE_GROUP,
+                "extra__azure_data_factory__factory_name": DEFAULT_FACTORY,
+            }
+        ),
+    )
 
-    db.merge_conn(connection)
+    db.merge_conn(connection_client_secret)
+    db.merge_conn(connection_default_credential)
+    db.merge_conn(connection_missing_subscription_id)
+    db.merge_conn(connection_missing_tenant_id)
 
 
 @fixture
 def hook():
-    client = AzureDataFactoryHook(azure_data_factory_conn_id="azure_data_factory_test")
+    client = AzureDataFactoryHook(azure_data_factory_conn_id=DEFAULT_CONNECTION_CLIENT_SECRET)
     client._conn = MagicMock(
         spec=[
             "factories",
@@ -116,6 +162,25 @@ def test_provide_targeted_factory():
         provide_targeted_factory(echo)(hook)
 
 
+@pytest.mark.parametrize(
+    ("connection_id", "credential_type"),
+    [
+        (DEFAULT_CONNECTION_CLIENT_SECRET, ClientSecretCredential),
+        (DEFAULT_CONNECTION_DEFAULT_CREDENTIAL, DefaultAzureCredential),
+    ],
+)
+def test_get_connection_by_credential_client_secret(connection_id: str, credential_type: Type):
+    hook = AzureDataFactoryHook(connection_id)
+
+    with patch.object(hook, "_create_client") as mock_create_client:
+        mock_create_client.return_value = MagicMock()
+        connection = hook.get_conn()
+        assert connection is not None
+        mock_create_client.assert_called_once()
+        assert isinstance(mock_create_client.call_args[0][0], credential_type)
+        assert mock_create_client.call_args[0][1] == "subscriptionId"
+
+
 @parametrize(
     explicit_factory=((RESOURCE_GROUP, FACTORY), (RESOURCE_GROUP, FACTORY)),
     implicit_factory=((), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY)),
@@ -141,8 +206,9 @@ def test_create_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((MODEL,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, MODEL)),
 )
 def test_update_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._factory_exists = Mock(return_value=True)
-    hook.update_factory(*user_args)
+    with patch.object(hook, "_factory_exists") as mock_factory_exists:
+        mock_factory_exists.return_value = True
+        hook.update_factory(*user_args)
 
     hook._conn.factories.create_or_update.assert_called_with(*sdk_args)
 
@@ -152,7 +218,8 @@ def test_update_factory(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((MODEL,), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, MODEL)),
 )
 def test_update_factory_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._factory_exists = Mock(return_value=False)
+    with patch.object(hook, "_factory_exists") as mock_factory_exists:
+        mock_factory_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Factory .+ does not exist"):
         hook.update_factory(*user_args)
@@ -193,8 +260,9 @@ def test_create_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._linked_service_exists = Mock(return_value=True)
-    hook.update_linked_service(*user_args)
+    with patch.object(hook, "_linked_service_exists") as mock_linked_service_exists:
+        mock_linked_service_exists.return_value = True
+        hook.update_linked_service(*user_args)
 
     hook._conn.linked_services.create_or_update(*sdk_args)
 
@@ -204,7 +272,8 @@ def test_update_linked_service(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_linked_service_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._linked_service_exists = Mock(return_value=False)
+    with patch.object(hook, "_linked_service_exists") as mock_linked_service_exists:
+        mock_linked_service_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Linked service .+ does not exist"):
         hook.update_linked_service(*user_args)
@@ -245,8 +314,9 @@ def test_create_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._dataset_exists = Mock(return_value=True)
-    hook.update_dataset(*user_args)
+    with patch.object(hook, "_dataset_exists") as mock_dataset_exists:
+        mock_dataset_exists.return_value = True
+        hook.update_dataset(*user_args)
 
     hook._conn.datasets.create_or_update.assert_called_with(*sdk_args)
 
@@ -256,7 +326,8 @@ def test_update_dataset(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_dataset_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._dataset_exists = Mock(return_value=False)
+    with patch.object(hook, "_dataset_exists") as mock_dataset_exists:
+        mock_dataset_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Dataset .+ does not exist"):
         hook.update_dataset(*user_args)
@@ -297,8 +368,9 @@ def test_create_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._pipeline_exists = Mock(return_value=True)
-    hook.update_pipeline(*user_args)
+    with patch.object(hook, "_pipeline_exists") as mock_pipeline_exists:
+        mock_pipeline_exists.return_value = True
+        hook.update_pipeline(*user_args)
 
     hook._conn.pipelines.create_or_update.assert_called_with(*sdk_args)
 
@@ -308,7 +380,8 @@ def test_update_pipeline(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_pipeline_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._pipeline_exists = Mock(return_value=False)
+    with patch.object(hook, "_pipeline_exists") as mock_pipeline_exists:
+        mock_pipeline_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Pipeline .+ does not exist"):
         hook.update_pipeline(*user_args)
@@ -415,8 +488,9 @@ def test_create_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._trigger_exists = Mock(return_value=True)
-    hook.update_trigger(*user_args)
+    with patch.object(hook, "_trigger_exists") as mock_trigger_exists:
+        mock_trigger_exists.return_value = True
+        hook.update_trigger(*user_args)
 
     hook._conn.triggers.create_or_update.assert_called_with(*sdk_args)
 
@@ -426,7 +500,8 @@ def test_update_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     implicit_factory=((NAME, MODEL), (DEFAULT_RESOURCE_GROUP, DEFAULT_FACTORY, NAME, MODEL)),
 )
 def test_update_trigger_non_existent(hook: AzureDataFactoryHook, user_args, sdk_args):
-    hook._trigger_exists = Mock(return_value=False)
+    with patch.object(hook, "_trigger_exists") as mock_trigger_exists:
+        mock_trigger_exists.return_value = False
 
     with pytest.raises(AirflowException, match=r"Trigger .+ does not exist"):
         hook.update_trigger(*user_args)
@@ -480,3 +555,40 @@ def test_cancel_trigger(hook: AzureDataFactoryHook, user_args, sdk_args):
     hook.cancel_trigger(*user_args)
 
     hook._conn.trigger_runs.cancel.assert_called_with(*sdk_args)
+
+
+@pytest.mark.parametrize(
+    argnames="factory_list_result",
+    argvalues=[iter([FactoryListResponse]), iter([])],
+    ids=["factory_exists", "factory_does_not_exist"],
+)
+def test_connection_success(hook, factory_list_result):
+    hook.get_conn().factories.list.return_value = factory_list_result
+    status, msg = hook.test_connection()
+
+    assert status is True
+    assert msg == "Successfully connected to Azure Data Factory."
+
+
+def test_connection_failure(hook):
+    hook.get_conn().factories.list = PropertyMock(side_effect=Exception("Authentication failed."))
+    status, msg = hook.test_connection()
+
+    assert status is False
+    assert msg == "Authentication failed."
+
+
+def test_connection_failure_missing_subscription_id():
+    hook = AzureDataFactoryHook("azure_data_factory_missing_subscription_id")
+    status, msg = hook.test_connection()
+
+    assert status is False
+    assert msg == "A Subscription ID is required to connect to Azure Data Factory."
+
+
+def test_connection_failure_missing_tenant_id():
+    hook = AzureDataFactoryHook("azure_data_factory_missing_tenant_id")
+    status, msg = hook.test_connection()
+
+    assert status is False
+    assert msg == "A Tenant ID is required when authenticating with Client ID and Secret."

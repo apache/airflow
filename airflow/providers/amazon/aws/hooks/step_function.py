@@ -32,7 +32,7 @@ class StepFunctionHook(AwsBaseHook):
         :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook`
     """
 
-    def __init__(self, region_name: Optional[str] = None, *args, **kwargs) -> None:
+    def __init__(self, *args, **kwargs) -> None:
         kwargs["client_type"] = "stepfunctions"
         super().__init__(*args, **kwargs)
 
@@ -47,11 +47,8 @@ class StepFunctionHook(AwsBaseHook):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.start_execution
 
         :param state_machine_arn: AWS Step Function State Machine ARN
-        :type state_machine_arn: str
         :param name: The name of the execution.
-        :type name: Optional[str]
         :param state_machine_input: JSON data input to pass to the State Machine
-        :type state_machine_input: Union[Dict[str, any], str, None]
         :return: Execution ARN
         :rtype: str
         """
@@ -75,7 +72,6 @@ class StepFunctionHook(AwsBaseHook):
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/stepfunctions.html#SFN.Client.describe_execution
 
         :param execution_arn: ARN of the State Machine Execution
-        :type execution_arn: str
         :return: Dict with Execution details
         :rtype: dict
         """

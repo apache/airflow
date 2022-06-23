@@ -19,10 +19,11 @@ import json
 import re
 import uuid
 from datetime import datetime, timedelta
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
 
 import pytz
 from google.api_core.exceptions import AlreadyExists
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
 from google.cloud.workflows.executions_v1beta import Execution
 from google.cloud.workflows_v1beta import Workflow
@@ -30,6 +31,14 @@ from google.protobuf.field_mask_pb2 import FieldMask
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.workflows import WorkflowsHook
+from airflow.providers.google.cloud.links.workflows import (
+    WorkflowsExecutionLink,
+    WorkflowsListOfWorkflowsLink,
+    WorkflowsWorkflowDetailsLink,
+)
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class WorkflowsCreateWorkflowOperator(BaseOperator):
@@ -44,25 +53,19 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsCreateWorkflowOperator`
 
     :param workflow: Required. Workflow to be created.
-    :type workflow: Dict
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow", "workflow_id")
     template_fields_renderers = {"workflow": "json"}
+    operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
     def __init__(
         self,
@@ -71,9 +74,9 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         force_rerun: bool = False,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
@@ -110,7 +113,7 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
         workflow_id = hashlib.md5(base.encode()).hexdigest()
         return re.sub(r"[:\-+.]", "_", workflow_id)
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         workflow_id = self._workflow_id(context)
 
@@ -135,6 +138,15 @@ class WorkflowsCreateWorkflowOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+        WorkflowsWorkflowDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            workflow_id=self.workflow_id,
+            project_id=self.project_id or hook.project_id,
+        )
+
         return Workflow.to_dict(workflow)
 
 
@@ -152,26 +164,20 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsUpdateWorkflowOperator`
 
     :param workflow_id: Required. The ID of the workflow to be updated.
-    :type workflow_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param update_mask: List of fields to be updated. If not present,
         the entire workflow will be updated.
-    :type update_mask: FieldMask
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("workflow_id", "update_mask")
+    template_fields: Sequence[str] = ("workflow_id", "update_mask")
     template_fields_renderers = {"update_mask": "json"}
+    operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
     def __init__(
         self,
@@ -180,9 +186,9 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         location: str,
         project_id: Optional[str] = None,
         update_mask: Optional[FieldMask] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -199,7 +205,7 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         workflow = hook.get_workflow(
@@ -219,6 +225,15 @@ class WorkflowsUpdateWorkflowOperator(BaseOperator):
             metadata=self.metadata,
         )
         workflow = operation.result()
+
+        WorkflowsWorkflowDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            workflow_id=self.workflow_id,
+            project_id=self.project_id or hook.project_id,
+        )
+
         return Workflow.to_dict(workflow)
 
 
@@ -233,22 +248,16 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsDeleteWorkflowOperator`
 
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id")
 
     def __init__(
         self,
@@ -256,9 +265,9 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -274,7 +283,7 @@ class WorkflowsDeleteWorkflowOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Deleting workflow %s", self.workflow_id)
         operation = hook.delete_workflow(
@@ -298,27 +307,21 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsListWorkflowsOperator`
 
     :param filter_: Filter to restrict results to specific workflows.
-    :type filter_: str
-    :param order_by: Comma-separated list of fields that that
-        specify the order of the results. Default sorting order for a field is ascending.
+    :param order_by: Comma-separated list of fields that
+        specifies the order of the results. Default sorting order for a field is ascending.
         To specify descending order for a field, append a "desc" suffix.
         If not specified, the results will be returned in an unspecified order.
-    :type order_by: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "order_by", "filter_")
+    template_fields: Sequence[str] = ("location", "order_by", "filter_")
+    operator_extra_links = (WorkflowsListOfWorkflowsLink(),)
 
     def __init__(
         self,
@@ -327,9 +330,9 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         project_id: Optional[str] = None,
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -346,7 +349,7 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Retrieving workflows")
         workflows_iter = hook.list_workflows(
@@ -358,6 +361,13 @@ class WorkflowsListWorkflowsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        WorkflowsListOfWorkflowsLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
+        )
+
         return [Workflow.to_dict(w) for w in workflows_iter]
 
 
@@ -370,22 +380,17 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsGetWorkflowOperator`
 
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id")
+    operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
     def __init__(
         self,
@@ -393,9 +398,9 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         workflow_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -411,7 +416,7 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Retrieving workflow")
         workflow = hook.get_workflow(
@@ -422,6 +427,15 @@ class WorkflowsGetWorkflowOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        WorkflowsWorkflowDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            workflow_id=self.workflow_id,
+            project_id=self.project_id or hook.project_id,
+        )
+
         return Workflow.to_dict(workflow)
 
 
@@ -435,25 +449,19 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsCreateExecutionOperator`
 
     :param execution: Required. Execution to be created.
-    :type execution: Dict
     :param workflow_id: Required. The ID of the workflow.
-    :type workflow_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id", "execution")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution")
     template_fields_renderers = {"execution": "json"}
+    operator_extra_links = (WorkflowsExecutionLink(),)
 
     def __init__(
         self,
@@ -462,9 +470,9 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         execution: Dict,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -481,7 +489,7 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Creating execution")
         execution = hook.create_execution(
@@ -495,6 +503,16 @@ class WorkflowsCreateExecutionOperator(BaseOperator):
         )
         execution_id = execution.name.split("/")[-1]
         self.xcom_push(context, key="execution_id", value=execution_id)
+
+        WorkflowsExecutionLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            workflow_id=self.workflow_id,
+            execution_id=execution_id,
+            project_id=self.project_id or hook.project_id,
+        )
+
         return Execution.to_dict(execution)
 
 
@@ -507,24 +525,18 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsCancelExecutionOperator`
 
     :param workflow_id: Required. The ID of the workflow.
-    :type workflow_id: str
     :param execution_id: Required. The ID of the execution.
-    :type execution_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
+    operator_extra_links = (WorkflowsExecutionLink(),)
 
     def __init__(
         self,
@@ -533,9 +545,9 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
         execution_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -552,7 +564,7 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Canceling execution %s", self.execution_id)
         execution = hook.cancel_execution(
@@ -564,6 +576,16 @@ class WorkflowsCancelExecutionOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        WorkflowsExecutionLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            workflow_id=self.workflow_id,
+            execution_id=self.execution_id,
+            project_id=self.project_id or hook.project_id,
+        )
+
         return Execution.to_dict(execution)
 
 
@@ -580,25 +602,19 @@ class WorkflowsListExecutionsOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsListExecutionsOperator`
 
     :param workflow_id: Required. The ID of the workflow to be created.
-    :type workflow_id: str
     :param start_date_filter: If passed only executions older that this date will be returned.
         By default operators return executions from last 60 minutes
-    :type start_date_filter: datetime
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id")
+    template_fields: Sequence[str] = ("location", "workflow_id")
+    operator_extra_links = (WorkflowsWorkflowDetailsLink(),)
 
     def __init__(
         self,
@@ -607,9 +623,9 @@ class WorkflowsListExecutionsOperator(BaseOperator):
         location: str,
         start_date_filter: Optional[datetime] = None,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -626,7 +642,7 @@ class WorkflowsListExecutionsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Retrieving executions for workflow %s", self.workflow_id)
         execution_iter = hook.list_executions(
@@ -636,6 +652,14 @@ class WorkflowsListExecutionsOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+
+        WorkflowsWorkflowDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            workflow_id=self.workflow_id,
+            project_id=self.project_id or hook.project_id,
         )
 
         return [Execution.to_dict(e) for e in execution_iter if e.start_time > self.start_date_filter]
@@ -650,24 +674,18 @@ class WorkflowsGetExecutionOperator(BaseOperator):
         :ref:`howto/operator:WorkflowsGetExecutionOperator`
 
     :param workflow_id: Required. The ID of the workflow.
-    :type workflow_id: str
     :param execution_id: Required. The ID of the execution.
-    :type execution_id: str
     :param project_id: Required. The ID of the Google Cloud project the cluster belongs to.
-    :type project_id: str
     :param location: Required. The GCP region in which to handle the request.
-    :type location: str
     :param retry: A retry object used to retry requests. If ``None`` is specified, requests will not be
         retried.
-    :type retry: google.api_core.retry.Retry
     :param timeout: The amount of time, in seconds, to wait for the request to complete. Note that if
         ``retry`` is specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: Sequence[Tuple[str, str]]
     """
 
-    template_fields = ("location", "workflow_id", "execution_id")
+    template_fields: Sequence[str] = ("location", "workflow_id", "execution_id")
+    operator_extra_links = (WorkflowsExecutionLink(),)
 
     def __init__(
         self,
@@ -676,9 +694,9 @@ class WorkflowsGetExecutionOperator(BaseOperator):
         execution_id: str,
         location: str,
         project_id: Optional[str] = None,
-        retry: Optional[Retry] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
         timeout: Optional[float] = None,
-        metadata: Optional[Sequence[Tuple[str, str]]] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
@@ -695,7 +713,7 @@ class WorkflowsGetExecutionOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         hook = WorkflowsHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         self.log.info("Retrieving execution %s for workflow %s", self.execution_id, self.workflow_id)
         execution = hook.get_execution(
@@ -707,4 +725,14 @@ class WorkflowsGetExecutionOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+
+        WorkflowsExecutionLink.persist(
+            context=context,
+            task_instance=self,
+            location_id=self.location,
+            workflow_id=self.workflow_id,
+            execution_id=self.execution_id,
+            project_id=self.project_id or hook.project_id,
+        )
+
         return Execution.to_dict(execution)

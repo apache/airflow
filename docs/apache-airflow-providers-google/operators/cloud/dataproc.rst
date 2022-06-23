@@ -32,6 +32,7 @@ Prerequisite Tasks
 
 
 .. _howto/operator:DataprocCreateClusterOperator:
+.. _howto/operator:DataprocInstantiateInlineWorkflowTemplateOperator:
 
 Create a Cluster
 ----------------
@@ -42,7 +43,7 @@ For more information about the available fields to pass when creating a cluster,
 
 A cluster configuration can look as followed:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_create_cluster]
@@ -51,11 +52,41 @@ A cluster configuration can look as followed:
 With this configuration we can create the cluster:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_cluster_operator]
     :end-before: [END how_to_cloud_dataproc_create_cluster_operator]
+
+For create Dataproc cluster in Google Kubernetes Engine you should use this cluster configuration:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster_in_gke_config]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_in_gke_config]
+
+With this configuration we can create the cluster:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateClusterOperator`
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_gke.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_operator_in_gke]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_operator_in_gke]
+
+Generating Cluster Config
+^^^^^^^^^^^^^^^^^^^^^^^^^
+You can also generate **CLUSTER_CONFIG** using functional API,
+this could be easily done using **make()** of
+:class:`~airflow.providers.google.cloud.operators.dataproc.ClusterGenerator`
+You can generate and use config as followed:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_cluster_generator.py
+    :language: python
+    :dedent: 0
+    :start-after: [START how_to_cloud_dataproc_create_cluster_generate_cluster_config]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_generate_cluster_config]
 
 Update a cluster
 ----------------
@@ -65,7 +96,7 @@ For more information on updateMask and other parameters take a look at `Dataproc
 
 An example of a new cluster config and the updateMask:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_update.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_updatemask_cluster_operator]
@@ -74,7 +105,7 @@ An example of a new cluster config and the updateMask:
 To update a cluster you can use:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocUpdateClusterOperator`
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_update.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_update_cluster_operator]
@@ -87,7 +118,7 @@ To delete a cluster you can use:
 
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteClusterOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_delete_cluster_operator]
@@ -106,7 +137,7 @@ file system. You can specify a file:/// path to refer to a local file on a clust
 The job configuration can be submitted by using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocSubmitJobOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_pyspark.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_submit_job_to_cluster_operator]
@@ -121,7 +152,7 @@ There are more arguments to provide in the jobs than the examples show. For the 
 
 Example of the configuration for a PySpark Job:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_pyspark.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_pyspark_config]
@@ -129,7 +160,7 @@ Example of the configuration for a PySpark Job:
 
 Example of the configuration for a SparkSQl Job:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_spark_sql.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparksql_config]
@@ -137,7 +168,7 @@ Example of the configuration for a SparkSQl Job:
 
 Example of the configuration for a Spark Job:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_spark.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_spark_config]
@@ -145,7 +176,7 @@ Example of the configuration for a Spark Job:
 
 Example of the configuration for a Hive Job:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hive.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_hive_config]
@@ -153,7 +184,7 @@ Example of the configuration for a Hive Job:
 
 Example of the configuration for a Hadoop Job:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_hadoop.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_hadoop_config]
@@ -161,7 +192,7 @@ Example of the configuration for a Hadoop Job:
 
 Example of the configuration for a Pig Job:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_pig.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_pig_config]
@@ -170,7 +201,7 @@ Example of the configuration for a Pig Job:
 
 Example of the configuration for a SparkR:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_sparkr.py
     :language: python
     :dedent: 0
     :start-after: [START how_to_cloud_dataproc_sparkr_config]
@@ -184,7 +215,7 @@ Dataproc supports creating workflow templates that can be triggered later on.
 A workflow template can be created using:
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocCreateWorkflowTemplateOperator`.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_create_workflow_template]
@@ -193,12 +224,88 @@ A workflow template can be created using:
 Once a workflow is created users can trigger it using
 :class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateWorkflowTemplateOperator`:
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_dataproc.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow.py
     :language: python
     :dedent: 4
     :start-after: [START how_to_cloud_dataproc_trigger_workflow_template]
     :end-before: [END how_to_cloud_dataproc_trigger_workflow_template]
 
+The inline operator is an alternative. It creates a workflow, run it, and delete it afterwards:
+:class:`~airflow.providers.google.cloud.operators.dataproc.DataprocInstantiateInlineWorkflowTemplateOperator`:
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_workflow.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_instantiate_inline_workflow_template]
+    :end-before: [END how_to_cloud_dataproc_instantiate_inline_workflow_template]
+
+Create a Batch
+--------------
+
+Dataproc supports creating a batch workload.
+
+A batch can be created using:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocCreateBatchOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_batch_operator]
+    :end-before: [END how_to_cloud_dataproc_create_batch_operator]
+
+For creating a batch with Persistent History Server first you should create a Dataproc Cluster
+with specific parameters. Documentation how create cluster you can find here:
+https://cloud.google.com/dataproc/docs/concepts/jobs/history-server#setting_up_a_persistent_history_server
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch_persistent.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+    :end-before: [END how_to_cloud_dataproc_create_cluster_for_persistent_history_server]
+
+After Cluster was created you should add it to the Batch configuration.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch_persistent.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+    :end-before: [END how_to_cloud_dataproc_create_batch_operator_with_persistent_history_server]
+
+Get a Batch
+-----------
+
+To get a batch you can use:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocGetBatchOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_get_batch_operator]
+    :end-before: [END how_to_cloud_dataproc_get_batch_operator]
+
+List a Batch
+------------
+
+To get a list of exists batches you can use:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocListBatchesOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_list_batches_operator]
+    :end-before: [END how_to_cloud_dataproc_list_batches_operator]
+
+Delete a Batch
+--------------
+
+To delete a batch you can use:
+:class: ``~airflow.providers.google.cloud.operators.dataproc.DataprocDeleteBatchOperator``.
+
+.. exampleinclude:: /../../tests/system/providers/google/cloud/dataproc/example_dataproc_batch.py
+    :language: python
+    :dedent: 4
+    :start-after: [START how_to_cloud_dataproc_delete_batch_operator]
+    :end-before: [END how_to_cloud_dataproc_delete_batch_operator]
 
 References
 ^^^^^^^^^^

@@ -24,6 +24,8 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
 
 .. note::
 
+   Successful installation requires a Python 3 environment.
+
    Only ``pip`` installation is currently officially supported.
 
    While there have been successes with using other tools like `poetry <https://python-poetry.org/>`_ or
@@ -31,7 +33,7 @@ This quick start guide will help you bootstrap an Airflow standalone instance on
    ``pip`` - especially when it comes to constraint vs. requirements management.
    Installing via ``Poetry`` or ``pip-tools`` is not currently supported.
 
-   If you wish to install airflow using those tools you should use the constraint files and convert
+   If you wish to install Airflow using those tools you should use the constraint files and convert
    them to appropriate format and workflow that your tool requires.
 
 The installation of Airflow is painless if you are following the instructions below. Airflow uses
@@ -47,9 +49,9 @@ constraint files to enable reproducible installation, so using ``pip`` and const
     # Install Airflow using the constraints file
     AIRFLOW_VERSION=|version|
     PYTHON_VERSION="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
-    # For example: 3.6
+    # For example: 3.7
     CONSTRAINT_URL="https://raw.githubusercontent.com/apache/airflow/constraints-${AIRFLOW_VERSION}/constraints-${PYTHON_VERSION}.txt"
-    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.6.txt
+    # For example: https://raw.githubusercontent.com/apache/airflow/constraints-|version|/constraints-3.7.txt
     pip install "apache-airflow==${AIRFLOW_VERSION}" --constraint "${CONSTRAINT_URL}"
 
     # The Standalone command will initialise the database, make a user,
@@ -62,6 +64,7 @@ constraint files to enable reproducible installation, so using ``pip`` and const
 
 Upon running these commands, Airflow will create the ``$AIRFLOW_HOME`` folder
 and create the "airflow.cfg" file with defaults that will get you going fast.
+You can override defaults using environment variables, see :doc:`/configurations-ref`.
 You can inspect the file either in ``$AIRFLOW_HOME/airflow.cfg``, or through the UI in
 the ``Admin->Configuration`` menu. The PID file for the webserver will be stored
 in ``$AIRFLOW_HOME/airflow-webserver.pid`` or in ``/run/airflow/webserver.pid``

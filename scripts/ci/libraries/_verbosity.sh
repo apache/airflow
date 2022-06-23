@@ -57,7 +57,7 @@ function docker_v {
     if [[ ${PRINT_INFO_FROM_SCRIPTS} == "false" ]]; then
         ${DOCKER_BINARY_PATH} "${@}" >>"${OUTPUT_LOG}" 2>&1
     else
-        ${DOCKER_BINARY_PATH} "${@}" 1> >(tee -a "${OUTPUT_LOG}") 2> >(tee -a "${OUTPUT_LOG}" >&2)
+        "${DOCKER_BINARY_PATH}" "${@}"
     fi
     res="$?"
     if [[ ${res} == "0" || ${exit_on_error} == "false" ]]; then

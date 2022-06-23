@@ -295,7 +295,7 @@ th {
   box-sizing: border-box;
 }
 html {
-  font-size: 10px;
+  font-size: 12px;
   -webkit-tap-highlight-color: rgba(0, 0, 0, 0);
 }
 body {
@@ -312,7 +312,8 @@ textarea {
   font-size: inherit;
   line-height: inherit;
 }
-a {
+a,
+a code {
   color: #365f84;
   text-decoration: none;
 }

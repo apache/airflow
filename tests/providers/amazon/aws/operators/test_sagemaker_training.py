@@ -22,7 +22,7 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.sagemaker import SageMakerHook
-from airflow.providers.amazon.aws.operators.sagemaker_training import SageMakerTrainingOperator
+from airflow.providers.amazon.aws.operators.sagemaker import SageMakerTrainingOperator
 
 role = 'arn:aws:iam:role/test-role'
 

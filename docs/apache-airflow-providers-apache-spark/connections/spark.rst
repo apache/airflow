@@ -56,4 +56,4 @@ For example:
 
 .. code-block:: bash
 
-   export AIRFLOW_CONN_SPARK_DEFAULT='spark://mysparkcluster.com:80?deploy_mode=cluster&spark_binary=command&namespace=kube+namespace'
+   export AIRFLOW_CONN_SPARK_DEFAULT='spark://mysparkcluster.com:80?deploy-mode=cluster&spark_binary=command&namespace=kube+namespace'

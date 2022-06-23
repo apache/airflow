@@ -16,14 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.sensors.redshift`."""
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.sensors.redshift_cluster`."""
 
 import warnings
 
-from airflow.providers.amazon.aws.sensors.redshift import AwsRedshiftClusterSensor  # noqa
+from airflow.providers.amazon.aws.sensors.redshift_cluster import (
+    RedshiftClusterSensor as AwsRedshiftClusterSensor,
+)
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift`.",
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.sensors.redshift_cluster`.",
     DeprecationWarning,
     stacklevel=2,
 )
+
+__all__ = ["AwsRedshiftClusterSensor"]

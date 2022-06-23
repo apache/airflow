@@ -17,6 +17,7 @@
 
 .. image:: /img/helm-logo.svg
     :width: 100
+    :class: no-scaled-link
 
 Helm Chart for Apache Airflow
 =============================
@@ -33,6 +34,7 @@ Helm Chart for Apache Airflow
     setting-resources-for-containers
     keda
     using-additional-containers
+    customizing-workers
     Installing from sources<installing-helm-chart-from-sources>
 
 .. toctree::
@@ -46,8 +48,7 @@ Helm Chart for Apache Airflow
     :caption: References
 
     Parameters <parameters-ref>
-    changelog
-    Updating <updating>
+    release_notes
 
 
 This chart will bootstrap an `Airflow <https://airflow.apache.org>`__
@@ -57,14 +58,14 @@ deployment on a `Kubernetes <http://kubernetes.io>`__ cluster using the
 Requirements
 ------------
 
--  Kubernetes 1.14+ cluster
+-  Kubernetes 1.20+ cluster
 -  Helm 3.0+
 -  PV provisioner support in the underlying infrastructure (optionally)
 
 Features
 --------
 
-* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``CeleryKubernetesExecutor``, ``KubernetesExecutor``.
+* Supported executors: ``LocalExecutor``, ``CeleryExecutor``, ``KubernetesExecutor``, ``LocalKubernetesExecutor``, ``CeleryKubernetesExecutor``
 * Supported Airflow version: ``1.10+``, ``2.0+``
 * Supported database backend: ``PostgresSQL``, ``MySQL``
 * Autoscaling for ``CeleryExecutor`` provided by KEDA
@@ -82,13 +83,12 @@ Features
 Installing the Chart
 --------------------
 
-To install this chart using helm 3, run the following commands:
+To install this chart using Helm 3, run the following commands:
 
 .. code-block:: bash
 
-    kubectl create namespace airflow
     helm repo add apache-airflow https://airflow.apache.org
-    helm install airflow apache-airflow/airflow --namespace airflow
+    helm upgrade --install airflow apache-airflow/airflow --namespace airflow --create-namespace
 
 The command deploys Airflow on the Kubernetes cluster in the default configuration. The :doc:`parameters-ref`
 section lists the parameters that can be configured during installation.
@@ -118,3 +118,14 @@ To uninstall/delete the ``airflow`` deployment:
     helm delete airflow --namespace airflow
 
 The command removes all the Kubernetes components associated with the chart and deletes the release.
+
+Installing the Chart with Argo CD or Flux
+-----------------------------------------
+
+When installing the chart using Argo CD or Flux, you MUST set the two following values, or your application
+will not start as the migrations will not be run:
+
+.. code-block:: yaml
+
+   createUserJob.useHelmHooks: false
+   migrateDatabaseJob.useHelmHooks: false

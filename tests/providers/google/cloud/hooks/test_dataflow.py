@@ -19,7 +19,6 @@
 
 import copy
 import shlex
-import subprocess
 import unittest
 from typing import Any, Dict
 from unittest import mock
@@ -174,20 +173,10 @@ class TestFallbackToVariables(unittest.TestCase):
             FixtureFallback().test_fn({'project': "TEST"}, "TEST2")
 
 
-def mock_init(
-    self,
-    gcp_conn_id,
-    delegate_to=None,
-    impersonation_chain=None,
-):
-    pass
-
-
 class TestDataflowHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
-            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
-            self.dataflow_hook.beam_hook = MagicMock()
+        self.dataflow_hook = DataflowHook(gcp_conn_id='google_cloud_default')
+        self.dataflow_hook.beam_hook = MagicMock()
 
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.DataflowHook._authorize")
     @mock.patch("airflow.providers.google.cloud.hooks.dataflow.build")
@@ -793,8 +782,7 @@ class TestDataflowHook(unittest.TestCase):
 
 class TestDataflowTemplateHook(unittest.TestCase):
     def setUp(self):
-        with mock.patch(BASE_STRING.format('GoogleBaseHook.__init__'), new=mock_init):
-            self.dataflow_hook = DataflowHook(gcp_conn_id='test')
+        self.dataflow_hook = DataflowHook(gcp_conn_id='google_cloud_default')
 
     @mock.patch(DATAFLOW_STRING.format('uuid.uuid4'), return_value=MOCK_UUID)
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -1046,9 +1034,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
             cancel_timeout=DEFAULT_CANCEL_TIMEOUT,
             wait_until_finished=self.dataflow_hook.wait_until_finished,
         )
-        mock_controller.return_value.get_jobs.wait_for_done.assrt_called_once_with()
-        mock_controller.return_value.get_jobs.assrt_called_once_with()
-
+        mock_controller.return_value.get_jobs.assert_called_once_with(refresh=True)
         assert result == {"id": TEST_JOB_ID}
 
     @mock.patch(DATAFLOW_STRING.format('_DataflowJobsController'))
@@ -1108,8 +1094,7 @@ class TestDataflowTemplateHook(unittest.TestCase):
                 '--bigquery-table=beam_output',
                 '--bigquery-write-disposition=write-truncate',
             ],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
         )
         mock_controller.assert_called_once_with(
             dataflow=mock_get_conn.return_value,

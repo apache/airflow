@@ -17,6 +17,7 @@ airflow/www/static/dist
 
 /logs/
 airflow-webserver.pid
+standalone_admin_password.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
@@ -193,7 +194,8 @@ log.txt*
 /airflow/providers/__init__.py
 
 # Docker context files
-/docker-context-files
+/docker-context-files/*
+!/docker-context-files/.README.md
 # Local .terraform directories
 **/.terraform/*
 
@@ -203,9 +205,6 @@ log.txt*
 
 # Terraform variables
 *.tfvars
-
-# Chart dependencies
-**/charts/*.tgz
 
 # Might be generated when you build wheels
 pip-wheel-metadata
@@ -217,3 +216,13 @@ pip-wheel-metadata
 # Dev files
 /dev/packages.txt
 /dev/Dockerfile.pmc
+
+# Generated UI licenses
+licenses/LICENSES-ui.txt
+
+# Packaged breeze on Windows
+/breeze.exe
+
+# Generated out dir
+
+/out

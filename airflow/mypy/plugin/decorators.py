@@ -25,8 +25,9 @@ from mypy.plugin import FunctionContext, Plugin
 from mypy.types import CallableType, NoneType, UnionType
 
 TYPED_DECORATORS = {
-    "fallback_to_default_project_id of GoogleBaseHook": ["project_id"],
+    "airflow.utils.session.provide_session": [],
     "airflow.providers.google.cloud.hooks.dataflow._fallback_to_project_id_from_variables": ["project_id"],
+    "fallback_to_default_project_id of GoogleBaseHook": ["project_id"],
     "provide_gcp_credential_file of GoogleBaseHook": [],
 }
 

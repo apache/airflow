@@ -127,6 +127,7 @@ class TestSparkSqlHook(unittest.TestCase):
             ],
             stderr=-2,
             stdout=-1,
+            universal_newlines=True,
         )
 
     @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')
@@ -156,6 +157,7 @@ class TestSparkSqlHook(unittest.TestCase):
             ],
             stderr=-2,
             stdout=-1,
+            universal_newlines=True,
         )
 
     @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')
@@ -185,6 +187,7 @@ class TestSparkSqlHook(unittest.TestCase):
             ],
             stderr=-2,
             stdout=-1,
+            universal_newlines=True,
         )
 
     @patch('airflow.providers.apache.spark.hooks.spark_sql.subprocess.Popen')

@@ -39,15 +39,16 @@ if 'visibility_timeout' not in broker_transport_options:
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json'],
     'event_serializer': 'json',
-    'worker_prefetch_multiplier': conf.getint('celery', 'worker_prefetch_multiplier', fallback=1),
+    'worker_prefetch_multiplier': conf.getint('celery', 'worker_prefetch_multiplier'),
     'task_acks_late': True,
     'task_default_queue': conf.get('operators', 'DEFAULT_QUEUE'),
     'task_default_exchange': conf.get('operators', 'DEFAULT_QUEUE'),
-    'task_track_started': conf.get('celery', 'task_track_started', fallback=True),
+    'task_track_started': conf.getboolean('celery', 'task_track_started'),
     'broker_url': broker_url,
     'broker_transport_options': broker_transport_options,
     'result_backend': conf.get('celery', 'RESULT_BACKEND'),
     'worker_concurrency': conf.getint('celery', 'WORKER_CONCURRENCY'),
+    'worker_enable_remote_control': conf.getboolean('celery', 'worker_enable_remote_control'),
 }
 
 celery_ssl_active = False
@@ -58,14 +59,14 @@ except AirflowConfigException:
 
 try:
     if celery_ssl_active:
-        if 'amqp://' in broker_url:
+        if broker_url and 'amqp://' in broker_url:
             broker_use_ssl = {
                 'keyfile': conf.get('celery', 'SSL_KEY'),
                 'certfile': conf.get('celery', 'SSL_CERT'),
                 'ca_certs': conf.get('celery', 'SSL_CACERT'),
                 'cert_reqs': ssl.CERT_REQUIRED,
             }
-        elif 'redis://' in broker_url:
+        elif broker_url and 'redis://' in broker_url:
             broker_use_ssl = {
                 'ssl_keyfile': conf.get('celery', 'SSL_KEY'),
                 'ssl_certfile': conf.get('celery', 'SSL_CERT'),
@@ -91,7 +92,7 @@ except Exception as e:
         f'all necessary certs and key ({e}).'
     )
 
-result_backend = DEFAULT_CELERY_CONFIG['result_backend']
+result_backend = str(DEFAULT_CELERY_CONFIG['result_backend'])
 if 'amqp://' in result_backend or 'redis://' in result_backend or 'rpc://' in result_backend:
     log.warning(
         "You have configured a result_backend of %s, it is highly recommended "

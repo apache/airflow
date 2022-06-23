@@ -19,6 +19,7 @@
 Example Airflow DAG that shows how to use DataFusion.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -35,8 +36,6 @@ from airflow.providers.google.cloud.operators.datafusion import (
     CloudDataFusionUpdateInstanceOperator,
 )
 from airflow.providers.google.cloud.sensors.datafusion import CloudDataFusionPipelineStateSensor
-from airflow.utils import dates
-from airflow.utils.state import State
 
 # [START howto_data_fusion_env_variables]
 SERVICE_ACCOUNT = os.environ.get("GCP_DATAFUSION_SERVICE_ACCOUNT")
@@ -56,9 +55,14 @@ BUCKET_2_URI = f"gs://{BUCKET_2}"
 
 PIPELINE_NAME = os.environ.get("GCP_DATAFUSION_PIPELINE_NAME", "airflow_test")
 PIPELINE = {
-    "name": "test-pipe",
+    "artifact": {
+        "name": "cdap-data-pipeline",
+        "version": "6.5.1",
+        "scope": "SYSTEM",
+        "label": "Data Pipeline - System Test",
+    },
     "description": "Data Pipeline Application",
-    "artifact": {"name": "cdap-data-pipeline", "version": "6.4.1", "scope": "SYSTEM"},
+    "name": "test-pipe",
     "config": {
         "resources": {"memoryMB": 2048, "virtualCores": 1},
         "driverResources": {"memoryMB": 2048, "virtualCores": 1},
@@ -66,8 +70,8 @@ PIPELINE = {
         "comments": [],
         "postActions": [],
         "properties": {},
-        "processTimingEnabled": True,
-        "stageLoggingEnabled": False,
+        "processTimingEnabled": "true",
+        "stageLoggingEnabled": "false",
         "stages": [
             {
                 "name": "GCS",
@@ -75,11 +79,7 @@ PIPELINE = {
                     "name": "GCSFile",
                     "type": "batchsource",
                     "label": "GCS",
-                    "artifact": {
-                        "name": "google-cloud",
-                        "version": "0.17.3",
-                        "scope": "SYSTEM",
-                    },
+                    "artifact": {"name": "google-cloud", "version": "0.18.1", "scope": "SYSTEM"},
                     "properties": {
                         "project": "auto-detect",
                         "format": "text",
@@ -88,19 +88,19 @@ PIPELINE = {
                         "filenameOnly": "false",
                         "recursive": "false",
                         "encrypted": "false",
-                        "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
+                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
                         "path": BUCKET_1_URI,
                         "referenceName": "foo_bucket",
+                        "useConnection": "false",
+                        "serviceAccountType": "filePath",
+                        "sampleSize": "1000",
+                        "fileEncoding": "UTF-8",
                     },
                 },
-                "outputSchema": [
-                    {
-                        "name": "etlSchemaBody",
-                        "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
-                    }
-                ],
+                "outputSchema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\"\
+                    :[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
+                "id": "GCS",
             },
             {
                 "name": "GCS2",
@@ -108,42 +108,37 @@ PIPELINE = {
                     "name": "GCS",
                     "type": "batchsink",
                     "label": "GCS2",
-                    "artifact": {
-                        "name": "google-cloud",
-                        "version": "0.17.3",
-                        "scope": "SYSTEM",
-                    },
+                    "artifact": {"name": "google-cloud", "version": "0.18.1", "scope": "SYSTEM"},
                     "properties": {
                         "project": "auto-detect",
                         "suffix": "yyyy-MM-dd-HH-mm",
                         "format": "json",
                         "serviceFilePath": "auto-detect",
                         "location": "us",
-                        "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
+                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
                         "referenceName": "bar",
                         "path": BUCKET_2_URI,
+                        "serviceAccountType": "filePath",
+                        "contentType": "application/octet-stream",
                     },
                 },
-                "outputSchema": [
-                    {
-                        "name": "etlSchemaBody",
-                        "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
-                    }
-                ],
+                "outputSchema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\"\
+                    :[{\"name\":\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
                 "inputSchema": [
                     {
                         "name": "GCS",
-                        "schema": '{"type":"record","name":"etlSchemaBody","fields":'
-                        '[{"name":"offset","type":"long"},{"name":"body","type":"string"}]}',
+                        "schema": "{\"type\":\"record\",\"name\":\"textfile\",\"fields\":[{\"name\"\
+                            :\"offset\",\"type\":\"long\"},{\"name\":\"body\",\"type\":\"string\"}]}",
                     }
                 ],
+                "id": "GCS2",
             },
         ],
         "schedule": "0 * * * *",
         "engine": "spark",
         "numOfRecordsPreview": 100,
+        "description": "Data Pipeline Application",
         "maxConcurrentRuns": 1,
     },
 }
@@ -153,7 +148,8 @@ PIPELINE = {
 with models.DAG(
     "example_data_fusion",
     schedule_interval='@once',  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
 ) as dag:
     # [START howto_cloud_data_fusion_create_instance_operator]
     create_instance = CloudDataFusionCreateInstanceOperator(
@@ -275,5 +271,5 @@ with models.DAG(
     delete_pipeline >> delete_instance
 
 if __name__ == "__main__":
-    dag.clear(dag_run_state=State.NONE)
+    dag.clear()
     dag.run()

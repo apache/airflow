@@ -15,12 +15,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import warnings
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
 from airflow.providers.google.suite.hooks.drive import GoogleDriveHook
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class GoogleDriveToGCSOperator(BaseOperator):
@@ -33,26 +35,15 @@ class GoogleDriveToGCSOperator(BaseOperator):
 
     :param bucket_name: The destination Google cloud storage bucket where the
         file should be written to
-    :type bucket_name: str
     :param object_name: The Google Cloud Storage object name for the object created by the operator.
         For example: ``path/to/my/file/file.txt``.
-    :type object_name: str
-    :param destination_bucket: Same as bucket_name, but for backward compatibly
-    :type destination_bucket: str
-    :param destination_object: Same as object_name, but for backward compatibly
-    :type destination_object: str
     :param folder_id: The folder id of the folder in which the Google Drive file resides
-    :type folder_id: str
     :param file_name: The name of the file residing in Google Drive
-    :type file_name: str
     :param drive_id: Optional. The id of the shared Google Drive in which the file resides.
-    :type drive_id: str
     :param gcp_conn_id: The GCP connection ID to use when fetching connection info.
-    :type gcp_conn_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -61,27 +52,22 @@ class GoogleDriveToGCSOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = [
+    template_fields: Sequence[str] = (
         "bucket_name",
         "object_name",
-        "destination_bucket",
-        "destination_object",
         "folder_id",
         "file_name",
         "drive_id",
         "impersonation_chain",
-    ]
+    )
 
     def __init__(
         self,
         *,
-        bucket_name: Optional[str] = None,
+        bucket_name: str,
         object_name: Optional[str] = None,
-        destination_bucket: Optional[str] = None,  # deprecated
-        destination_object: Optional[str] = None,  # deprecated
         file_name: str,
         folder_id: str,
         drive_id: Optional[str] = None,
@@ -91,20 +77,8 @@ class GoogleDriveToGCSOperator(BaseOperator):
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
-        self.bucket_name = destination_bucket or bucket_name
-        if destination_bucket:
-            warnings.warn(
-                "`destination_bucket` is deprecated please use `bucket_name`",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-        self.object_name = destination_object or object_name
-        if destination_object:
-            warnings.warn(
-                "`destination_object` is deprecated please use `object_name`",
-                DeprecationWarning,
-                stacklevel=2,
-            )
+        self.bucket_name = bucket_name
+        self.object_name = object_name
         self.folder_id = folder_id
         self.drive_id = drive_id
         self.file_name = file_name
@@ -112,7 +86,7 @@ class GoogleDriveToGCSOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         gdrive_hook = GoogleDriveHook(
             gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,

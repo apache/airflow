@@ -27,7 +27,7 @@ change your ``airflow.cfg`` to point the executor parameter to
 ``CeleryExecutor`` and provide the related Celery settings.
 
 For more information about setting up a Celery broker, refer to the
-exhaustive `Celery documentation on the topic <http://docs.celeryproject.org/en/latest/getting-started/>`_.
+exhaustive `Celery documentation on the topic <https://docs.celeryq.dev/en/latest/getting-started/>`_.
 
 Here are a few imperative requirements for your workers:
 
@@ -35,7 +35,7 @@ Here are a few imperative requirements for your workers:
 - Airflow configuration settings should be homogeneous across the cluster
 - Operators that are executed on the worker need to have their dependencies
   met in that context. For example, if you use the ``HiveOperator``,
-  the hive CLI needs to be installed on that box, or if you use the
+  the Hive CLI needs to be installed on that box, or if you use the
   ``MySqlOperator``, the required Python library needs to be available in
   the :envvar:`PYTHONPATH` somehow
 - The worker needs to have access to its ``DAGS_FOLDER``, and you need to
@@ -62,7 +62,7 @@ its direction. To stop a worker running on a machine you can use:
 
 It will try to stop the worker gracefully by sending ``SIGTERM`` signal to main Celery
 process as recommended by
-`Celery documentation <https://docs.celeryproject.org/en/latest/userguide/workers.html>`__.
+`Celery documentation <https://docs.celeryq.dev/en/latest/userguide/workers.html>`__.
 
 Note that you can also run `Celery Flower <https://flower.readthedocs.io/en/latest/>`__,
 a web UI built on top of Celery, to monitor your workers. You can use the shortcut command
@@ -185,7 +185,7 @@ During this process, two 2 process are created:
 - RawTaskProcess - It is process with the user code e.g. :meth:`~airflow.models.BaseOperator.execute`.
 
 | [1] **SchedulerProcess** processes the tasks and when it finds a task that needs to be done, sends it to the **QueueBroker**.
-| [2] **QueueBroker** also begins to periodically query **ResultBackend** for the status of the task.
+| [2] **SchedulerProcess** also begins to periodically query **ResultBackend** for the status of the task.
 | [3] **QueueBroker**, when it becomes aware of the task, sends information about it to one WorkerProcess.
 | [4] **WorkerProcess** assigns a single task to a one **WorkerChildProcess**.
 | [5] **WorkerChildProcess** performs the proper task handling functions - :meth:`~airflow.executor.celery_executor.execute_command`. It creates a new process - **LocalTaskJobProcess**.

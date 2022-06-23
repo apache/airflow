@@ -37,6 +37,7 @@ class PoolSchema(SQLAlchemySchema):
     running_slots = fields.Method("get_running_slots", dump_only=True)
     queued_slots = fields.Method("get_queued_slots", dump_only=True)
     open_slots = fields.Method("get_open_slots", dump_only=True)
+    description = auto_field()
 
     @staticmethod
     def get_occupied_slots(obj: Pool) -> int:

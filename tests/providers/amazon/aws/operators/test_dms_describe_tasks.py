@@ -20,7 +20,7 @@ from unittest import mock
 
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.hooks.dms import DmsHook
-from airflow.providers.amazon.aws.operators.dms_describe_tasks import DmsDescribeTasksOperator
+from airflow.providers.amazon.aws.operators.dms import DmsDescribeTasksOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
 
@@ -57,11 +57,7 @@ class TestDmsDescribeTasksOperator(unittest.TestCase):
             "start_date": DEFAULT_DATE,
         }
 
-        self.dag = DAG(
-            TEST_DAG_ID + "test_schedule_dag_once",
-            default_args=args,
-            schedule_interval="@once",
-        )
+        self.dag = DAG(f"{TEST_DAG_ID}test_schedule_dag_once", default_args=args, schedule_interval="@once")
 
     def test_init(self):
         dms_operator = DmsDescribeTasksOperator(

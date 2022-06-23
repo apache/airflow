@@ -16,54 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 #
+"""This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.ec2`."""
 
-from typing import Optional
+import warnings
 
-from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.ec2 import EC2Hook
+from airflow.providers.amazon.aws.operators.ec2 import EC2StartInstanceOperator  # noqa
 
-
-class EC2StartInstanceOperator(BaseOperator):
-    """
-    Start AWS EC2 instance using boto3.
-
-    :param instance_id: id of the AWS EC2 instance
-    :type instance_id: str
-    :param aws_conn_id: aws connection to use
-    :type aws_conn_id: str
-    :param region_name: (optional) aws region name associated with the client
-    :type region_name: Optional[str]
-    :param check_interval: time in seconds that the job should wait in
-        between each instance state checks until operation is completed
-    :type check_interval: float
-    """
-
-    template_fields = ("instance_id", "region_name")
-    ui_color = "#eeaa11"
-    ui_fgcolor = "#ffffff"
-
-    def __init__(
-        self,
-        *,
-        instance_id: str,
-        aws_conn_id: str = "aws_default",
-        region_name: Optional[str] = None,
-        check_interval: float = 15,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.instance_id = instance_id
-        self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
-        self.check_interval = check_interval
-
-    def execute(self, context):
-        ec2_hook = EC2Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
-        self.log.info("Starting EC2 instance %s", self.instance_id)
-        instance = ec2_hook.get_instance(instance_id=self.instance_id)
-        instance.start()
-        ec2_hook.wait_for_state(
-            instance_id=self.instance_id,
-            target_state="running",
-            check_interval=self.check_interval,
-        )
+warnings.warn(
+    "This module is deprecated. Please use `airflow.providers.amazon.aws.operators.ec2`.",
+    DeprecationWarning,
+    stacklevel=2,
+)

@@ -49,13 +49,14 @@ That's it; everything else will be automatically handled for you. If you're upgr
 
 Note that you cannot yet use the deferral ability from inside custom PythonOperator/TaskFlow Python functions; it is only available to traditional, class-based Operators at the moment.
 
+.. _deferring/writing:
 
 Writing Deferrable Operators
 ----------------------------
 
 Writing a deferrable operator takes a bit more work. There are some main points to consider:
 
-* Your Operator must defer itself based on a Trigger. If there is a Trigger in core Airflow you can use, great; otherwise, you will have to write one.
+* Your Operator must defer itself with a Trigger. If there is a Trigger in core Airflow you can use, great; otherwise, you will have to write one.
 * Your Operator will be stopped and removed from its worker while deferred, and no state will persist automatically. You can persist state by asking Airflow to resume you at a certain method or pass certain kwargs, but that's it.
 * You can defer multiple times, and you can defer before/after your Operator does significant work, or only defer if certain conditions are met (e.g. a system does not have an immediate answer). Deferral is entirely under your control.
 * Any Operator can defer; no special marking on its class is needed, and it's not limited to Sensors.
@@ -67,13 +68,13 @@ Triggering Deferral
 If you want to trigger deferral, at any place in your Operator you can call ``self.defer(trigger, method_name, kwargs, timeout)``, which will raise a special exception that Airflow will catch. The arguments are:
 
 * ``trigger``: An instance of a Trigger that you wish to defer on. It will be serialized into the database.
-* ``method_name``: The method name on your Operator you want Airflow to call when it resumes, other than ``execute``.
+* ``method_name``: The method name on your Operator you want Airflow to call when it resumes.
 * ``kwargs``: Additional keyword arguments to pass to the method when it is called. Optional, defaults to ``{}``.
 * ``timeout``: A timedelta that specifies a timeout after which this deferral will fail, and fail the task instance. Optional, defaults to ``None``, meaning no timeout.
 
 When you opt to defer, your Operator will *stop executing at that point and be removed from its current worker*. No state - such as local variables, or attributes set on ``self`` - will persist, and when your Operator is resumed it will be a *brand new instance* of it. The only way you can pass state from the old instance of the Operator to the new one is via ``method_name`` and ``kwargs``.
 
-When your Operator is resumed, you will find an ``event`` item added to the kwargs passed to it, which contains the payload from the trigger event that resumed your Operator. Depending on the trigger, this may be useful to your operator (e.g. it's a status code or URL to fetch results), or it may not be important (it's just a datetime). Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument.
+When your Operator is resumed, an ``event`` item will be added to the kwargs passed to the ``method_name`` method. The ``event`` object contains the payload from the trigger event that resumed your Operator. Depending on the trigger, this may be useful to your operator (e.g. it's a status code or URL to fetch results), or it may not be important (it's just a datetime). Your ``method_name`` method, however, *must* accept ``event`` as a keyword argument.
 
 If your Operator returns from either its first ``execute()`` method when it's new, or a subsequent method specified by ``method_name``, it will be considered complete and will finish executing.
 
@@ -83,7 +84,7 @@ Here's a basic example of how a sensor might trigger deferral::
 
     class WaitOneHourSensor(BaseSensorOperator):
         def execute(self, context):
-            self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1), method_name="execute_complete")
+            self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1)), method_name="execute_complete")
 
         def execute_complete(self, context, event=None):
             # We have no more work to do here. Mark as complete.
@@ -109,9 +110,14 @@ There's also some design constraints to be aware of:
 
 * The ``run`` method *must be asynchronous* (using Python's asyncio), and correctly ``await`` whenever it does a blocking operation.
 * ``run`` must ``yield`` its TriggerEvents, not return them. If it returns before yielding at least one event, Airflow will consider this an error and fail any Task Instances waiting on it. If it throws an exception, Airflow will also fail any dependent task instances.
-* A Trigger *must be able to run in parallel* with other copies of itself. This can happen both when two tasks defer based on the same trigger, and also if a network partition happens and Airflow re-launches a trigger on a separated machine.
-* When events are emitted, and if your trigger is designed to emit more than one event, they *must* contain a payload that can be used to deduplicate events if the trigger is being run in multiple places. If you only fire one event, and don't want to pass information in the payload back to the Operator that deferred, you can just set the payload to ``None``.
-* A trigger may be suddenly removed from one process and started on a new one (if partitions are being changed, or a deployment is happening). You may provide an optional ``cleanup`` method that gets called when this happens.
+* You should assume that a trigger instance may run *more than once* (this can happen if a network partition occurs and Airflow re-launches a trigger on a separated machine). So you must be mindful about side effects. For example you might not want to use a trigger to insert database rows.
+* If your trigger is designed to emit more than one event (not currently supported), then each emitted event *must* contain a payload that can be used to deduplicate events if the trigger is being run in multiple places. If you only fire one event and don't need to pass information back to the Operator, you can just set the payload to ``None``.
+* A trigger may be suddenly removed from one triggerer service and started on a new one, for example if subnets are changed and a network partition results, or if there is a deployment. If desired you may implement the ``cleanup`` method, which is always called after ``run`` whether the trigger exits cleanly or otherwise.
+
+.. note::
+
+    Currently Triggers are only used up to their first event, as they are only used for resuming deferred tasks (which happens on the first event fired). However, we plan to allow DAGs to be launched from triggers in future, which is where multi-event triggers will be more useful.
+
 
 Here's the structure of a basic Trigger::
 
@@ -140,8 +146,6 @@ Triggers can be as complex or as simple as you like provided you keep inside thi
 
 If you are new to writing asynchronous Python, you should be very careful writing your ``run()`` method; Python's async model means that any code that does not correctly ``await`` when it does a blocking operation will block the *entire process*. Airflow will attempt to detect this and warn you in the triggerer logs when it happens, but we strongly suggest you set the variable ``PYTHONASYNCIODEBUG=1`` when you are writing your Trigger to enable extra checks from Python to make sure you're writing non-blocking code. Be especially careful when doing filesystem calls, as if the underlying filesystem is network-backed it may be blocking.
 
-Right now, Triggers are only used up to their first event, as they are only used for resuming deferred tasks (which happens on the first event fired). However, we plan to allow DAGs to be launched from triggers in future, which is where multi-event triggers will be more useful.
-
 
 High Availability
 -----------------
@@ -160,4 +164,4 @@ Note that every extra ``triggerer`` you run will result in an extra persistent c
 Smart Sensors
 -------------
 
-Deferrable Operators essentially supersede :doc:`Smart Sensors <smart-sensors>`, and should be preferred for almost all situations. They do solve fundamentally the same problem; Smart Sensors, however, only work for certain Sensor workload styles, have no redundancy, and require a custom DAG to run at all times.
+Deferrable Operators supersede :doc:`Smart Sensors <smart-sensors>`. They do solve fundamentally the same problem; Smart Sensors, however, only work for certain Sensor workload styles, have no redundancy, and require a custom DAG to run at all times.

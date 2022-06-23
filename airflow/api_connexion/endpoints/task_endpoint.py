@@ -22,6 +22,7 @@ from airflow import DAG
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import BadRequest, NotFound
 from airflow.api_connexion.schemas.task_schema import TaskCollection, task_collection_schema, task_schema
+from airflow.api_connexion.types import APIResponse
 from airflow.exceptions import TaskNotFound
 from airflow.security import permissions
 
@@ -30,9 +31,9 @@ from airflow.security import permissions
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
-def get_task(dag_id, task_id):
+def get_task(*, dag_id: str, task_id: str) -> APIResponse:
     """Get simplified representation of a task."""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:
@@ -49,9 +50,9 @@ def get_task(dag_id, task_id):
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_TASK_INSTANCE),
-    ]
+    ],
 )
-def get_tasks(dag_id, order_by='task_id'):
+def get_tasks(*, dag_id: str, order_by: str = "task_id") -> APIResponse:
     """Get tasks for DAG"""
     dag: DAG = current_app.dag_bag.get_dag(dag_id)
     if not dag:

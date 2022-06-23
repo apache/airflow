@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Dict, Optional
+from typing import TYPE_CHECKING, Optional, Sequence
 
 from airflow.providers.microsoft.azure.hooks.data_factory import (
     AzureDataFactoryHook,
@@ -24,22 +24,26 @@ from airflow.providers.microsoft.azure.hooks.data_factory import (
 )
 from airflow.sensors.base import BaseSensorOperator
 
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
+
 
 class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
     """
     Checks the status of a pipeline run.
 
     :param azure_data_factory_conn_id: The connection identifier for connecting to Azure Data Factory.
-    :type azure_data_factory_conn_id: str
     :param run_id: The pipeline run identifier.
-    :type run_id: str
     :param resource_group_name: The resource group name.
-    :type resource_group_name: str
     :param factory_name: The data factory name.
-    :type factory_name: str
     """
 
-    template_fields = ("azure_data_factory_conn_id", "resource_group_name", "factory_name", "run_id")
+    template_fields: Sequence[str] = (
+        "azure_data_factory_conn_id",
+        "resource_group_name",
+        "factory_name",
+        "run_id",
+    )
 
     ui_color = "#50e6ff"
 
@@ -58,7 +62,7 @@ class AzureDataFactoryPipelineRunStatusSensor(BaseSensorOperator):
         self.resource_group_name = resource_group_name
         self.factory_name = factory_name
 
-    def poke(self, context: Dict) -> bool:
+    def poke(self, context: "Context") -> bool:
         self.hook = AzureDataFactoryHook(azure_data_factory_conn_id=self.azure_data_factory_conn_id)
         pipeline_run_status = self.hook.get_pipeline_run_status(
             run_id=self.run_id,

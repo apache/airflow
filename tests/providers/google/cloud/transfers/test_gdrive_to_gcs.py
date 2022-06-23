@@ -39,8 +39,8 @@ class TestGoogleDriveToGCSOperator:
             folder_id=FOLDER_ID,
             file_name=FILE_NAME,
             drive_id=DRIVE_ID,
-            destination_bucket=BUCKET,
-            destination_object=OBJECT,
+            bucket_name=BUCKET,
+            object_name=OBJECT,
             gcp_conn_id=GCP_CONN_ID,
             impersonation_chain=IMPERSONATION_CHAIN,
         )
@@ -59,3 +59,5 @@ class TestGoogleDriveToGCSOperator:
         mock_gcs_hook.return_value.provide_file_and_upload.assert_called_once_with(
             bucket_name=BUCKET, object_name=OBJECT
         )
+
+        assert op.dry_run() is None

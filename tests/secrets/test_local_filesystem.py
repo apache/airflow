@@ -25,9 +25,12 @@ from unittest import mock
 import pytest
 from parameterized import parameterized
 
+from airflow.configuration import ensure_secrets_loaded
 from airflow.exceptions import AirflowException, AirflowFileParseException, ConnectionNotUnique
+from airflow.models import Variable
 from airflow.secrets import local_filesystem
 from airflow.secrets.local_filesystem import LocalFilesystemBackend
+from tests.test_utils.config import conf_vars
 
 
 @contextmanager
@@ -119,8 +122,9 @@ class TestLoadVariables(unittest.TestCase):
     )
     def test_yaml_file_should_load_variables(self, file_content, expected_variables):
         with mock_local_file(file_content):
-            variables = local_filesystem.load_variables('a.yaml')
-            assert expected_variables == variables
+            vars_yaml = local_filesystem.load_variables('a.yaml')
+            vars_yml = local_filesystem.load_variables('a.yml')
+            assert expected_variables == vars_yaml == vars_yml
 
 
 class TestLoadConnection(unittest.TestCase):
@@ -146,6 +150,23 @@ class TestLoadConnection(unittest.TestCase):
             connection_by_conn_id = local_filesystem.load_connections_dict("a.env")
             connection_uris_by_conn_id = {
                 conn_id: connection.get_uri() for conn_id, connection in connection_by_conn_id.items()
+            }
+
+            assert expected_connection_uris == connection_uris_by_conn_id
+
+    @parameterized.expand(
+        (
+            (
+                "CONN_ID=mysql://host_1?param1=val1&param2=val2",
+                {"CONN_ID": "mysql://host_1?param1=val1&param2=val2"},
+            ),
+        )
+    )
+    def test_parsing_with_params(self, content, expected_connection_uris):
+        with mock_local_file(content):
+            connections_by_conn_id = local_filesystem.load_connections_dict("a.env")
+            connection_uris_by_conn_id = {
+                conn_id: connection.get_uri() for conn_id, connection in connections_by_conn_id.items()
             }
 
             assert expected_connection_uris == connection_uris_by_conn_id
@@ -370,6 +391,21 @@ class TestLoadConnection(unittest.TestCase):
             with pytest.raises(ConnectionNotUnique):
                 local_filesystem.load_connections_dict("a.yaml")
 
+    @parameterized.expand(
+        (("conn_a: mysql://hosta"),),
+    )
+    def test_yaml_extension_parsers_return_same_result(self, file_content):
+        with mock_local_file(file_content):
+            conn_uri_by_conn_id_yaml = {
+                conn_id: conn.get_uri()
+                for conn_id, conn in local_filesystem.load_connections_dict("a.yaml").items()
+            }
+            conn_uri_by_conn_id_yml = {
+                conn_id: conn.get_uri()
+                for conn_id, conn in local_filesystem.load_connections_dict("a.yml").items()
+            }
+            assert conn_uri_by_conn_id_yaml == conn_uri_by_conn_id_yml
+
 
 class TestLocalFileBackend(unittest.TestCase):
     def test_should_read_variable(self):
@@ -380,15 +416,32 @@ class TestLocalFileBackend(unittest.TestCase):
             assert "VAL_A" == backend.get_variable("KEY_A")
             assert backend.get_variable("KEY_B") is None
 
+    @conf_vars(
+        {
+            (
+                "secrets",
+                "backend",
+            ): "airflow.secrets.local_filesystem.LocalFilesystemBackend",
+            ("secrets", "backend_kwargs"): '{"variables_file_path": "var.env"}',
+        }
+    )
+    def test_load_secret_backend_LocalFilesystemBackend(self):
+        with mock_local_file("KEY_A=VAL_A"):
+            backends = ensure_secrets_loaded()
+
+            backend_classes = [backend.__class__.__name__ for backend in backends]
+            assert 'LocalFilesystemBackend' in backend_classes
+            assert Variable.get("KEY_A") == "VAL_A"
+
     def test_should_read_connection(self):
         with NamedTemporaryFile(suffix=".env") as tmp_file:
             tmp_file.write(b"CONN_A=mysql://host_a")
             tmp_file.flush()
             backend = LocalFilesystemBackend(connections_file_path=tmp_file.name)
-            assert ["mysql://host_a"] == [conn.get_uri() for conn in backend.get_connections("CONN_A")]
+            assert "mysql://host_a" == backend.get_connection("CONN_A").get_uri()
             assert backend.get_variable("CONN_B") is None
 
     def test_files_are_optional(self):
         backend = LocalFilesystemBackend()
-        assert [] == backend.get_connections("CONN_A")
+        assert None is backend.get_connection("CONN_A")
         assert backend.get_variable("VAR_A") is None

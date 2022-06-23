@@ -22,6 +22,11 @@ description: |
     `Qubole <https://www.qubole.com/>`__
 
 versions:
+  - 3.0.0
+  - 2.1.3
+  - 2.1.2
+  - 2.1.1
+  - 2.1.0
   - 2.0.1
   - 2.0.0
   - 1.0.2
@@ -29,11 +34,14 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Qubole
-    external-doc-url: https://www.qubole.com/
+    external-doc-url: https://docs.qubole.com/en/latest/
+    how-to-guide:
+      - /docs/apache-airflow-providers-qubole/operators/qubole.rst
+      - /docs/apache-airflow-providers-qubole/operators/qubole_check.rst
     logo: /integration-logos/qubole/Qubole.png
     tags: [service]
 

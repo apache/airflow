@@ -20,6 +20,7 @@
 Example Airflow DAG that uses Google AutoML services.
 """
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
@@ -30,7 +31,6 @@ from airflow.providers.google.cloud.operators.automl import (
     AutoMLImportDataOperator,
     AutoMLTrainModelOperator,
 )
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "your-project-id")
 GCP_AUTOML_LOCATION = os.environ.get("GCP_AUTOML_LOCATION", "us-central1")
@@ -61,7 +61,8 @@ extract_object_id = CloudAutoMLHook.extract_object_id
 with models.DAG(
     "example_automl_vision",
     schedule_interval=None,  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     user_defined_macros={"extract_object_id": extract_object_id},
     tags=['example'],
 ) as example_dag:

@@ -22,14 +22,17 @@ from unittest import mock
 
 import pytest
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, TaskDeferred
 from airflow.models import DAG
 from airflow.providers.databricks.hooks.databricks import RunState
-from airflow.providers.databricks.operators import databricks as databricks_operator
 from airflow.providers.databricks.operators.databricks import (
+    DatabricksRunNowDeferrableOperator,
     DatabricksRunNowOperator,
+    DatabricksSubmitRunDeferrableOperator,
     DatabricksSubmitRunOperator,
 )
+from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
+from airflow.providers.databricks.utils import databricks as utils
 
 DATE = '2017-04-20'
 TASK_ID = 'databricks-operator'
@@ -46,33 +49,15 @@ NEW_CLUSTER = {'spark_version': '2.0.x-scala2.10', 'node_type_id': 'development-
 EXISTING_CLUSTER_ID = 'existing-cluster-id'
 RUN_NAME = 'run-name'
 RUN_ID = 1
-JOB_ID = 42
+RUN_PAGE_URL = 'run-page-url'
+JOB_ID = "42"
+JOB_NAME = "job-name"
 NOTEBOOK_PARAMS = {"dry-run": "true", "oldest-time-to-consider": "1457570074236"}
 JAR_PARAMS = ["param1", "param2"]
 RENDERED_TEMPLATED_JAR_PARAMS = [f'/test-{DATE}']
 TEMPLATED_JAR_PARAMS = ['/test-{{ ds }}']
 PYTHON_PARAMS = ["john doe", "35"]
 SPARK_SUBMIT_PARAMS = ["--class", "org.apache.spark.examples.SparkPi"]
-
-
-class TestDatabricksOperatorSharedFunctions(unittest.TestCase):
-    def test_deep_string_coerce(self):
-        test_json = {
-            'test_int': 1,
-            'test_float': 1.0,
-            'test_dict': {'key': 'value'},
-            'test_list': [1, 1.0, 'a', 'b'],
-            'test_tuple': (1, 1.0, 'a', 'b'),
-        }
-
-        expected = {
-            'test_int': '1',
-            'test_float': '1.0',
-            'test_dict': {'key': 'value'},
-            'test_list': ['1', '1.0', 'a', 'b'],
-            'test_tuple': ['1', '1.0', 'a', 'b'],
-        }
-        assert databricks_operator._deep_string_coerce(test_json) == expected
 
 
 class TestDatabricksSubmitRunOperator(unittest.TestCase):
@@ -83,7 +68,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, notebook_task=NOTEBOOK_TASK
         )
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
 
@@ -96,7 +81,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_python_task=SPARK_PYTHON_TASK
         )
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {'new_cluster': NEW_CLUSTER, 'spark_python_task': SPARK_PYTHON_TASK, 'run_name': TASK_ID}
         )
 
@@ -109,7 +94,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         op = DatabricksSubmitRunOperator(
             task_id=TASK_ID, new_cluster=NEW_CLUSTER, spark_submit_task=SPARK_SUBMIT_TASK
         )
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {'new_cluster': NEW_CLUSTER, 'spark_submit_task': SPARK_SUBMIT_TASK, 'run_name': TASK_ID}
         )
 
@@ -121,9 +106,15 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         """
         json = {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
+        assert expected == op.json
+
+    def test_init_with_tasks(self):
+        tasks = [{"task_key": 1, "new_cluster": NEW_CLUSTER, "notebook_task": NOTEBOOK_TASK}]
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, tasks=tasks)
+        expected = utils.deep_string_coerce({'run_name': TASK_ID, "tasks": tasks})
         assert expected == op.json
 
     def test_init_with_specified_run_name(self):
@@ -132,8 +123,20 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         """
         json = {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': RUN_NAME}
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': RUN_NAME}
+        )
+        assert expected == op.json
+
+    def test_pipeline_task(self):
+        """
+        Test the initializer with a specified run_name.
+        """
+        pipeline_task = {"pipeline_id": "test-dlt"}
+        json = {'new_cluster': NEW_CLUSTER, 'run_name': RUN_NAME, "pipeline_task": pipeline_task}
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
+        expected = utils.deep_string_coerce(
+            {'new_cluster': NEW_CLUSTER, "pipeline_task": pipeline_task, 'run_name': RUN_NAME}
         )
         assert expected == op.json
 
@@ -149,7 +152,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             'notebook_task': NOTEBOOK_TASK,
         }
         op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=json, new_cluster=override_new_cluster)
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'new_cluster': override_new_cluster,
                 'notebook_task': NOTEBOOK_TASK,
@@ -166,11 +169,29 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksSubmitRunOperator(dag=dag, task_id=TASK_ID, json=json)
         op.render_template_fields(context={'ds': DATE})
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'new_cluster': NEW_CLUSTER,
                 'notebook_task': RENDERED_TEMPLATED_NOTEBOOK_TASK,
                 'run_name': TASK_ID,
+            }
+        )
+        assert expected == op.json
+
+    def test_init_with_git_source(self):
+        json = {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': RUN_NAME}
+        git_source = {
+            'git_url': 'https://github.com/apache/airflow',
+            'git_provider': 'github',
+            'git_branch': 'main',
+        }
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, git_source=git_source, json=json)
+        expected = utils.deep_string_coerce(
+            {
+                'new_cluster': NEW_CLUSTER,
+                'notebook_task': NOTEBOOK_TASK,
+                'run_name': RUN_NAME,
+                'git_source': git_source,
             }
         )
         assert expected == op.json
@@ -180,7 +201,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
             r'Type \<(type|class) \'datetime.datetime\'\> used '
-            + r'for parameter json\[test\] is not a number or a string'
+            r'for parameter json\[test\] is not a number or a string'
         )
         with pytest.raises(AirflowException, match=exception_message):
             DatabricksSubmitRunOperator(task_id=TASK_ID, json=json)
@@ -201,11 +222,14 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
 
         db_mock.submit_run.assert_called_once_with(expected)
@@ -230,7 +254,7 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             op.execute(None)
 
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'new_cluster': NEW_CLUSTER,
                 'notebook_task': NOTEBOOK_TASK,
@@ -238,7 +262,10 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
             }
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
         db_mock.submit_run.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
@@ -259,6 +286,148 @@ class TestDatabricksSubmitRunOperator(unittest.TestCase):
 
         db_mock.cancel_run.assert_called_once_with(RUN_ID)
 
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_wait_for_termination(self, db_mock_class):
+        run = {
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
+        }
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = 1
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
+
+        assert op.wait_for_termination
+
+        op.execute(None)
+
+        expected = utils.deep_string_coerce(
+            {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+        )
+
+        db_mock.submit_run.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run_state.assert_called_once_with(RUN_ID)
+
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_no_wait_for_termination(self, db_mock_class):
+        run = {
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
+        }
+        op = DatabricksSubmitRunOperator(task_id=TASK_ID, wait_for_termination=False, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = 1
+
+        assert not op.wait_for_termination
+
+        op.execute(None)
+
+        expected = utils.deep_string_coerce(
+            {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+        )
+
+        db_mock.submit_run.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run_state.assert_not_called()
+
+
+class TestDatabricksSubmitRunDeferrableOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_execute_task_deferred(self, db_mock_class):
+        """
+        Test the execute function in case where the run is successful.
+        """
+        run = {
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
+        }
+        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = 1
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(None)
+        self.assertTrue(isinstance(exc.value.trigger, DatabricksExecutionTrigger))
+        self.assertEqual(exc.value.method_name, 'execute_complete')
+
+        expected = utils.deep_string_coerce(
+            {'new_cluster': NEW_CLUSTER, 'notebook_task': NOTEBOOK_TASK, 'run_name': TASK_ID}
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+        )
+
+        db_mock.submit_run.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        self.assertEqual(RUN_ID, op.run_id)
+
+    def test_execute_complete_success(self):
+        """
+        Test `execute_complete` function in case the Trigger has returned a successful completion event.
+        """
+        run = {
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
+        }
+        event = {
+            'run_id': RUN_ID,
+            'run_page_url': RUN_PAGE_URL,
+            'run_state': RunState('TERMINATED', 'SUCCESS', '').to_json(),
+        }
+
+        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        self.assertIsNone(op.execute_complete(context=None, event=event))
+
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_execute_complete_failure(self, db_mock_class):
+        """
+        Test `execute_complete` function in case the Trigger has returned a failure completion event.
+        """
+        run_state_failed = RunState('TERMINATED', 'FAILED', '')
+        run = {
+            'new_cluster': NEW_CLUSTER,
+            'notebook_task': NOTEBOOK_TASK,
+        }
+        event = {
+            'run_id': RUN_ID,
+            'run_page_url': RUN_PAGE_URL,
+            'run_state': run_state_failed.to_json(),
+        }
+
+        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID, json=run)
+        with pytest.raises(AirflowException):
+            op.execute_complete(context=None, event=event)
+
+        db_mock = db_mock_class.return_value
+        db_mock.submit_run.return_value = 1
+        db_mock.get_run_state.return_value = run_state_failed
+
+        with pytest.raises(AirflowException, match=f'Job run failed with terminal state: {run_state_failed}'):
+            op.execute_complete(context=None, event=event)
+
+    def test_execute_complete_incorrect_event_validation_failure(self):
+        event = {}
+        op = DatabricksSubmitRunDeferrableOperator(task_id=TASK_ID)
+        with pytest.raises(AirflowException):
+            op.execute_complete(context=None, event=event)
+
 
 class TestDatabricksRunNowOperator(unittest.TestCase):
     def test_init_with_named_parameters(self):
@@ -266,7 +435,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         Test the initializer with the named parameters.
         """
         op = DatabricksRunNowOperator(job_id=JOB_ID, task_id=TASK_ID)
-        expected = databricks_operator._deep_string_coerce({'job_id': 42})
+        expected = utils.deep_string_coerce({'job_id': 42})
 
         assert expected == op.json
 
@@ -283,7 +452,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         }
         op = DatabricksRunNowOperator(task_id=TASK_ID, json=json)
 
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'jar_params': JAR_PARAMS,
@@ -301,7 +470,8 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         provided. The named parameters should override top level keys in the
         json dict.
         """
-        override_notebook_params = {'workers': 999}
+        override_notebook_params = {'workers': "999"}
+        override_jar_params = ['workers', "998"]
         json = {'notebook_params': NOTEBOOK_PARAMS, 'jar_params': JAR_PARAMS}
 
         op = DatabricksRunNowOperator(
@@ -310,13 +480,14 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             job_id=JOB_ID,
             notebook_params=override_notebook_params,
             python_params=PYTHON_PARAMS,
+            jar_params=override_jar_params,
             spark_submit_params=SPARK_SUBMIT_PARAMS,
         )
 
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'notebook_params': override_notebook_params,
-                'jar_params': JAR_PARAMS,
+                'jar_params': override_jar_params,
                 'python_params': PYTHON_PARAMS,
                 'spark_submit_params': SPARK_SUBMIT_PARAMS,
                 'job_id': JOB_ID,
@@ -331,7 +502,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         dag = DAG('test', start_date=datetime.now())
         op = DatabricksRunNowOperator(dag=dag, task_id=TASK_ID, job_id=JOB_ID, json=json)
         op.render_template_fields(context={'ds': DATE})
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'jar_params': RENDERED_TEMPLATED_JAR_PARAMS,
@@ -345,7 +516,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         # Looks a bit weird since we have to escape regex reserved symbols.
         exception_message = (
             r'Type \<(type|class) \'datetime.datetime\'\> used '
-            + r'for parameter json\[test\] is not a number or a string'
+            r'for parameter json\[test\] is not a number or a string'
         )
         with pytest.raises(AirflowException, match=exception_message):
             DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=json)
@@ -363,7 +534,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         op.execute(None)
 
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -373,7 +544,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         )
 
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
@@ -394,7 +568,7 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
         with pytest.raises(AirflowException):
             op.execute(None)
 
-        expected = databricks_operator._deep_string_coerce(
+        expected = utils.deep_string_coerce(
             {
                 'notebook_params': NOTEBOOK_PARAMS,
                 'notebook_task': NOTEBOOK_TASK,
@@ -403,7 +577,10 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
             }
         )
         db_mock_class.assert_called_once_with(
-            DEFAULT_CONN_ID, retry_limit=op.databricks_retry_limit, retry_delay=op.databricks_retry_delay
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
         )
         db_mock.run_now.assert_called_once_with(expected)
         db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
@@ -419,3 +596,205 @@ class TestDatabricksRunNowOperator(unittest.TestCase):
 
         op.on_kill()
         db_mock.cancel_run.assert_called_once_with(RUN_ID)
+
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_wait_for_termination(self, db_mock_class):
+        run = {'notebook_params': NOTEBOOK_PARAMS, 'notebook_task': NOTEBOOK_TASK, 'jar_params': JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = 1
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
+
+        assert op.wait_for_termination
+
+        op.execute(None)
+
+        expected = utils.deep_string_coerce(
+            {
+                'notebook_params': NOTEBOOK_PARAMS,
+                'notebook_task': NOTEBOOK_TASK,
+                'jar_params': JAR_PARAMS,
+                'job_id': JOB_ID,
+            }
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+        )
+
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run_state.assert_called_once_with(RUN_ID)
+
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_no_wait_for_termination(self, db_mock_class):
+        run = {'notebook_params': NOTEBOOK_PARAMS, 'notebook_task': NOTEBOOK_TASK, 'jar_params': JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, wait_for_termination=False, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = 1
+
+        assert not op.wait_for_termination
+
+        op.execute(None)
+
+        expected = utils.deep_string_coerce(
+            {
+                'notebook_params': NOTEBOOK_PARAMS,
+                'notebook_task': NOTEBOOK_TASK,
+                'jar_params': JAR_PARAMS,
+                'job_id': JOB_ID,
+            }
+        )
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+        )
+
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run_state.assert_not_called()
+
+    def test_init_exception_with_job_name_and_job_id(self):
+        exception_message = "Argument 'job_name' is not allowed with argument 'job_id'"
+
+        with pytest.raises(AirflowException, match=exception_message):
+            DatabricksRunNowOperator(task_id=TASK_ID, job_id=JOB_ID, job_name=JOB_NAME)
+
+        with pytest.raises(AirflowException, match=exception_message):
+            run = {'job_id': JOB_ID, 'job_name': JOB_NAME}
+            DatabricksRunNowOperator(task_id=TASK_ID, json=run)
+
+        with pytest.raises(AirflowException, match=exception_message):
+            run = {'job_id': JOB_ID}
+            DatabricksRunNowOperator(task_id=TASK_ID, json=run, job_name=JOB_NAME)
+
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_exec_with_job_name(self, db_mock_class):
+        run = {'notebook_params': NOTEBOOK_PARAMS, 'notebook_task': NOTEBOOK_TASK, 'jar_params': JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = JOB_ID
+        db_mock.run_now.return_value = 1
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
+
+        op.execute(None)
+
+        expected = utils.deep_string_coerce(
+            {
+                'notebook_params': NOTEBOOK_PARAMS,
+                'notebook_task': NOTEBOOK_TASK,
+                'jar_params': JAR_PARAMS,
+                'job_id': JOB_ID,
+            }
+        )
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+        )
+        db_mock.find_job_id_by_name.assert_called_once_with(JOB_NAME)
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        db_mock.get_run_state.assert_called_once_with(RUN_ID)
+        assert RUN_ID == op.run_id
+
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_exec_failure_if_job_id_not_found(self, db_mock_class):
+        run = {'notebook_params': NOTEBOOK_PARAMS, 'notebook_task': NOTEBOOK_TASK, 'jar_params': JAR_PARAMS}
+        op = DatabricksRunNowOperator(task_id=TASK_ID, job_name=JOB_NAME, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.find_job_id_by_name.return_value = None
+
+        exception_message = f"Job ID for job name {JOB_NAME} can not be found"
+        with pytest.raises(AirflowException, match=exception_message):
+            op.execute(None)
+
+        db_mock.find_job_id_by_name.assert_called_once_with(JOB_NAME)
+
+
+class TestDatabricksRunNowDeferrableOperator(unittest.TestCase):
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_execute_task_deferred(self, db_mock_class):
+        """
+        Test the execute function in case where the run is successful.
+        """
+        run = {'notebook_params': NOTEBOOK_PARAMS, 'notebook_task': NOTEBOOK_TASK, 'jar_params': JAR_PARAMS}
+        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = 1
+        db_mock.get_run_state.return_value = RunState('TERMINATED', 'SUCCESS', '')
+
+        with pytest.raises(TaskDeferred) as exc:
+            op.execute(None)
+        self.assertTrue(isinstance(exc.value.trigger, DatabricksExecutionTrigger))
+        self.assertEqual(exc.value.method_name, 'execute_complete')
+
+        expected = utils.deep_string_coerce(
+            {
+                'notebook_params': NOTEBOOK_PARAMS,
+                'notebook_task': NOTEBOOK_TASK,
+                'jar_params': JAR_PARAMS,
+                'job_id': JOB_ID,
+            }
+        )
+
+        db_mock_class.assert_called_once_with(
+            DEFAULT_CONN_ID,
+            retry_limit=op.databricks_retry_limit,
+            retry_delay=op.databricks_retry_delay,
+            retry_args=None,
+        )
+
+        db_mock.run_now.assert_called_once_with(expected)
+        db_mock.get_run_page_url.assert_called_once_with(RUN_ID)
+        self.assertEqual(RUN_ID, op.run_id)
+
+    def test_execute_complete_success(self):
+        """
+        Test `execute_complete` function in case the Trigger has returned a successful completion event.
+        """
+        run = {'notebook_params': NOTEBOOK_PARAMS, 'notebook_task': NOTEBOOK_TASK, 'jar_params': JAR_PARAMS}
+        event = {
+            'run_id': RUN_ID,
+            'run_page_url': RUN_PAGE_URL,
+            'run_state': RunState('TERMINATED', 'SUCCESS', '').to_json(),
+        }
+
+        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        self.assertIsNone(op.execute_complete(context=None, event=event))
+
+    @mock.patch('airflow.providers.databricks.operators.databricks.DatabricksHook')
+    def test_execute_complete_failure(self, db_mock_class):
+        """
+        Test `execute_complete` function in case the Trigger has returned a failure completion event.
+        """
+        run_state_failed = RunState('TERMINATED', 'FAILED', '')
+        run = {'notebook_params': NOTEBOOK_PARAMS, 'notebook_task': NOTEBOOK_TASK, 'jar_params': JAR_PARAMS}
+        event = {
+            'run_id': RUN_ID,
+            'run_page_url': RUN_PAGE_URL,
+            'run_state': run_state_failed.to_json(),
+        }
+
+        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID, json=run)
+        with pytest.raises(AirflowException):
+            op.execute_complete(context=None, event=event)
+
+        db_mock = db_mock_class.return_value
+        db_mock.run_now.return_value = 1
+        db_mock.get_run_state.return_value = run_state_failed
+
+        with pytest.raises(AirflowException, match=f'Job run failed with terminal state: {run_state_failed}'):
+            op.execute_complete(context=None, event=event)
+
+    def test_execute_complete_incorrect_event_validation_failure(self):
+        event = {}
+        op = DatabricksRunNowDeferrableOperator(task_id=TASK_ID, job_id=JOB_ID)
+        with pytest.raises(AirflowException):
+            op.execute_complete(context=None, event=event)

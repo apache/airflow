@@ -728,6 +728,21 @@ class TestSparkSubmitHook(unittest.TestCase):
 
         assert hook._driver_status == 'RUNNING'
 
+    def test_process_spark_driver_status_log_bad_response(self):
+        # Given
+        hook = SparkSubmitHook(conn_id='spark_standalone_cluster')
+        log_lines = [
+            'curl: Failed to connect to http://spark-standalone-master:6066'
+            'This is an invalid Spark response',
+            'Timed out',
+        ]
+        # When
+        hook._process_spark_status_log(log_lines)
+
+        # Then
+
+        assert hook._driver_status is None
+
     @patch('airflow.providers.apache.spark.hooks.spark_submit.renew_from_kt')
     @patch('airflow.providers.apache.spark.hooks.spark_submit.subprocess.Popen')
     def test_yarn_process_on_kill(self, mock_popen, mock_renew_from_kt):

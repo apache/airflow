@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from enum import Enum
 from typing import Set
 
 
-class TriggerRule:
+class TriggerRule(str, Enum):
     """Class with task's trigger rules."""
 
     ALL_SUCCESS = 'all_success'
@@ -33,21 +33,17 @@ class TriggerRule:
     DUMMY = 'dummy'
     ALWAYS = 'always'
     NONE_FAILED_MIN_ONE_SUCCESS = "none_failed_min_one_success"
-
-    _ALL_TRIGGER_RULES: Set[str] = set()
+    ALL_SKIPPED = 'all_skipped'
 
     @classmethod
-    def is_valid(cls, trigger_rule):
+    def is_valid(cls, trigger_rule: str) -> bool:
         """Validates a trigger rule."""
         return trigger_rule in cls.all_triggers()
 
     @classmethod
-    def all_triggers(cls):
+    def all_triggers(cls) -> Set[str]:
         """Returns all trigger rules."""
-        if not cls._ALL_TRIGGER_RULES:
-            cls._ALL_TRIGGER_RULES = {
-                getattr(cls, attr)
-                for attr in dir(cls)
-                if not attr.startswith("_") and not callable(getattr(cls, attr))
-            }
-        return cls._ALL_TRIGGER_RULES
+        return set(cls.__members__.values())
+
+    def __str__(self) -> str:
+        return self.value

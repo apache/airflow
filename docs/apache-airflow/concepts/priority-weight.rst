@@ -35,8 +35,8 @@ There are three weighting methods.
   downstream descendants. As a result, upstream tasks will have
   higher weight and will be scheduled more aggressively when
   using positive weight values. This is useful when you have
-  multiple dag run instances and desire to have all upstream
-  tasks to complete for all runs before each dag can continue
+  multiple DAG run instances and desire to have all upstream
+  tasks to complete for all runs before each DAG can continue
   processing downstream tasks.
 
 - upstream
@@ -44,9 +44,9 @@ There are three weighting methods.
   The effective weight is the aggregate sum of all upstream ancestors.
   This is the opposite where downstream tasks have higher weight
   and will be scheduled more aggressively when using positive weight
-  values. This is useful when you have multiple dag run instances
-  and prefer to have each dag complete before starting upstream
-  tasks of other dags runs.
+  values. This is useful when you have multiple DAG run instances
+  and prefer to have each DAG complete before starting upstream
+  tasks of other DAG runs.
 
 - absolute
 

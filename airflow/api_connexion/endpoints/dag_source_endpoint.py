@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from http import HTTPStatus
+
 from flask import Response, current_app, request
 from itsdangerous import BadSignature, URLSafeSerializer
 
@@ -26,7 +28,7 @@ from airflow.security import permissions
 
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_CODE)])
-def get_dag_source(file_token: str):
+def get_dag_source(*, file_token: str) -> Response:
     """Get source code using file token"""
     secret_key = current_app.config["SECRET_KEY"]
     auth_s = URLSafeSerializer(secret_key)
@@ -42,4 +44,4 @@ def get_dag_source(file_token: str):
     if return_type == 'application/json':
         content = dag_source_schema.dumps(dict(content=dag_source))
         return Response(content, headers={'Content-Type': return_type})
-    return Response("Not Allowed Accept Header", status=406)
+    return Response("Not Allowed Accept Header", status=HTTPStatus.NOT_ACCEPTABLE)

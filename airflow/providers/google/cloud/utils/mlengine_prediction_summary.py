@@ -101,6 +101,10 @@ To test outside of the dag:
             "--temp_location=gs://...",
         ]
     )
+
+.. spelling::
+
+    pcoll
 """
 
 import argparse

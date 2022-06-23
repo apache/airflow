@@ -44,7 +44,6 @@ class SecretsManagerHook(AwsBaseHook):
         reflecting format it stored in the AWS Secrets Manager
 
         :param secret_name: name of the secrets.
-        :type secret_name: str
         :return: Union[str, bytes] with the information about the secrets
         :rtype: Union[str, bytes]
         """
@@ -62,7 +61,6 @@ class SecretsManagerHook(AwsBaseHook):
         Retrieve secret value from AWS Secrets Manager in a dict representation
 
         :param secret_name: name of the secrets.
-        :type secret_name: str
         :return: dict with the information about the secrets
         :rtype: dict
         """

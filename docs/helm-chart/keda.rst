@@ -24,7 +24,7 @@ KEDA stands for Kubernetes Event Driven Autoscaling.
 `KEDA <https://github.com/kedacore/keda>`__ is a custom controller that
 allows users to create custom bindings to the Kubernetes `Horizontal Pod
 Autoscaler <https://kubernetes.io/docs/tasks/run-application/horizontal-pod-autoscale/>`__.
-The autoscaler will adjust the number of active celery workers based on the number
+The autoscaler will adjust the number of active Celery workers based on the number
 of tasks in ``queued`` or ``running`` state.
 
 .. code-block:: bash
@@ -49,11 +49,11 @@ helm command or in the ``values.yaml``.
    helm install airflow apache-airflow/airflow \
        --namespace airflow \
        --set executor=CeleryExecutor \
-       --set workers.keda.enabled=true \
+       --set workers.keda.enabled=true
 
 A ``ScaledObject`` and an ``hpa`` will be created in the airflow namespace.
 
-KEDA will derive the desired number of celery workers by querying
+KEDA will derive the desired number of Celery workers by querying
 Airflow metadata database:
 
 .. code-block:: none
@@ -65,7 +65,7 @@ Airflow metadata database:
 
 .. note::
 
-   Set celery worker concurrency through the helm value
+   Set Celery worker concurrency through the Helm value
    ``config.celery.worker_concurrency`` (i.e. instead of airflow.cfg or
    environment variables) so that the KEDA trigger will be consistent with
    the worker concurrency setting.

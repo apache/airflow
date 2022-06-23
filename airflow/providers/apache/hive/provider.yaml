@@ -19,9 +19,16 @@
 package-name: apache-airflow-providers-apache-hive
 name: Apache Hive
 description: |
-    `Apache Hive <https://hive.apache.org/>`__
+  `Apache Hive <https://hive.apache.org/>`__
 
 versions:
+  - 3.0.0
+  - 2.3.3
+  - 2.3.2
+  - 2.3.1
+  - 2.3.0
+  - 2.2.0
+  - 2.1.0
   - 2.0.3
   - 2.0.2
   - 2.0.1
@@ -32,14 +39,13 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
-
-excluded-python-versions:
-  - "3.9"
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Apache Hive
     external-doc-url: https://hive.apache.org/
+    how-to-guide:
+      - /docs/apache-airflow-providers-apache-hive/operators.rst
     logo: /integration-logos/apache/hive.png
     tags: [apache]
 
@@ -81,7 +87,8 @@ transfers:
     target-integration-name: Apache Hive
     python-module: airflow.providers.apache.hive.transfers.mssql_to_hive
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
+hook-class-names:
+  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
   - airflow.providers.apache.hive.hooks.hive.HiveCliHook
   - airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
   - airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook

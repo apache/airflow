@@ -20,6 +20,7 @@ import copy
 import unittest
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
 from google.cloud.automl_v1beta1 import BatchPredictResult, Dataset, Model, PredictResponse
 
 from airflow.providers.google.cloud.hooks.automl import CloudAutoMLHook
@@ -82,9 +83,9 @@ class TestAutoMLTrainModelOperator(unittest.TestCase):
             model=MODEL,
             location=GCP_LOCATION,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
-            metadata=None,
+            metadata=(),
         )
         mock_xcom.assert_called_once_with(None, key="model_id", value=MODEL_ID)
 
@@ -108,12 +109,12 @@ class TestAutoMLBatchPredictOperator(unittest.TestCase):
         mock_hook.return_value.batch_predict.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             model_id=MODEL_ID,
             output_config=OUTPUT_CONFIG,
             params={},
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -134,12 +135,12 @@ class TestAutoMLPredictOperator(unittest.TestCase):
         op.execute(context=None)
         mock_hook.return_value.predict.assert_called_once_with(
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             model_id=MODEL_ID,
             params={"TEST_KEY": "TEST_VALUE"},
             payload=PAYLOAD,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -161,9 +162,9 @@ class TestAutoMLCreateImportOperator(unittest.TestCase):
         mock_hook.return_value.create_dataset.assert_called_once_with(
             dataset=DATASET,
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_xcom.assert_called_once_with(None, key="dataset_id", value=DATASET_ID)
@@ -192,10 +193,10 @@ class TestAutoMLListColumnsSpecsOperator(unittest.TestCase):
             field_mask=MASK,
             filter_=filter_,
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             page_size=page_size,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             table_spec_id=table_spec,
             timeout=None,
         )
@@ -218,8 +219,8 @@ class TestAutoMLUpdateDatasetOperator(unittest.TestCase):
         op.execute(context=None)
         mock_hook.return_value.update_dataset.assert_called_once_with(
             dataset=dataset,
-            metadata=None,
-            retry=None,
+            metadata=(),
+            retry=DEFAULT,
             timeout=None,
             update_mask=MASK,
         )
@@ -240,10 +241,10 @@ class TestAutoMLGetModelOperator(unittest.TestCase):
         op.execute(context=None)
         mock_hook.return_value.get_model.assert_called_once_with(
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -260,10 +261,10 @@ class TestAutoMLDeleteModelOperator(unittest.TestCase):
         op.execute(context=None)
         mock_hook.return_value.delete_model.assert_called_once_with(
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -283,10 +284,10 @@ class TestAutoMLDeployModelOperator(unittest.TestCase):
         mock_hook.return_value.deploy_model.assert_called_once_with(
             image_detection_metadata={},
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             model_id=MODEL_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -305,10 +306,10 @@ class TestAutoMLDatasetImportOperator(unittest.TestCase):
         mock_hook.return_value.import_data.assert_called_once_with(
             input_config=INPUT_CONFIG,
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             dataset_id=DATASET_ID,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -332,10 +333,10 @@ class TestAutoMLTablesListTableSpecsOperator(unittest.TestCase):
             dataset_id=DATASET_ID,
             filter_=filter_,
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             page_size=page_size,
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
 
@@ -348,9 +349,9 @@ class TestAutoMLDatasetListOperator(unittest.TestCase):
         op.execute(context=None)
         mock_hook.return_value.list_datasets.assert_called_once_with(
             location=GCP_LOCATION,
-            metadata=None,
+            metadata=(),
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )
         mock_xcom.assert_called_once_with(None, key="dataset_id_list", value=[])
@@ -369,8 +370,8 @@ class TestAutoMLDatasetDeleteOperator(unittest.TestCase):
         mock_hook.return_value.delete_dataset.assert_called_once_with(
             location=GCP_LOCATION,
             dataset_id=DATASET_ID,
-            metadata=None,
+            metadata=(),
             project_id=GCP_PROJECT_ID,
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
         )

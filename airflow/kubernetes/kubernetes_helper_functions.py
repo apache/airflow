@@ -62,8 +62,10 @@ def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]
     dag_id = annotations['dag_id']
     task_id = annotations['task_id']
     try_number = int(annotations['try_number'])
-    run_id = annotations.get('run_id')
-    if not run_id and 'execution_date' in annotations:
+    annotation_run_id = annotations.get('run_id')
+    map_index = int(annotations.get('map_index', -1))
+
+    if not annotation_run_id and 'execution_date' in annotations:
         # Compat: Look up the run_id from the TI table!
         from airflow.models.dagrun import DagRun
         from airflow.models.taskinstance import TaskInstance
@@ -73,7 +75,7 @@ def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]
         # Do _not_ use create-session, we don't want to expunge
         session = Session()
 
-        run_id: str = (
+        task_instance_run_id = (
             session.query(TaskInstance.run_id)
             .join(TaskInstance.dag_run)
             .filter(
@@ -83,5 +85,13 @@ def annotations_to_key(annotations: Dict[str, str]) -> Optional[TaskInstanceKey]
             )
             .scalar()
         )
+    else:
+        task_instance_run_id = annotation_run_id
 
-    return TaskInstanceKey(dag_id, task_id, run_id, try_number)
+    return TaskInstanceKey(
+        dag_id=dag_id,
+        task_id=task_id,
+        run_id=task_instance_run_id,
+        try_number=try_number,
+        map_index=map_index,
+    )

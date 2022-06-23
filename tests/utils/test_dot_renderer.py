@@ -20,8 +20,9 @@ from unittest import mock
 
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import PythonOperator
+from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils import dot_renderer, timezone
 from airflow.utils.state import State
 from airflow.utils.task_group import TaskGroup
@@ -36,6 +37,27 @@ class TestDotRenderer:
 
     def teardown_method(self):
         clear_db_dags()
+
+    def test_should_render_dag_dependencies(self):
+        dag_dep_1 = DagDependency(
+            source='dag_one', target='dag_two', dependency_type='Sensor', dependency_id='task_1'
+        )
+        dag_dep_2 = DagDependency(
+            source='dag_two', target='dag_three', dependency_type='Sensor', dependency_id='task_2'
+        )
+
+        dag_dependency_list = []
+        dag_dependency_list.append(dag_dep_1)
+        dag_dependency_list.append(dag_dep_2)
+
+        dag_dependency_dict = {}
+        dag_dependency_dict['dag_one'] = dag_dependency_list
+        dot = dot_renderer.render_dag_dependencies(dag_dependency_dict)
+
+        assert "dag_one -> task_1" in dot.source
+        assert "task_1 -> dag_two" in dot.source
+        assert "dag_two -> task_2" in dot.source
+        assert "task_2 -> dag_three" in dot.source
 
     def test_should_render_dag(self):
         with DAG(dag_id="DAG_ID") as dag:
@@ -85,6 +107,19 @@ class TestDotRenderer:
             'third [color=black fillcolor=lime label=third shape=rectangle style="filled,rounded"]' in source
         )
 
+    def test_should_render_dag_with_mapped_operator(self, session, dag_maker):
+        with dag_maker(dag_id="DAG_ID", session=session) as dag:
+            BashOperator.partial(task_id="first").expand(bash_command=["echo hello", "echo world"])
+
+        dot = dot_renderer.render_dag(dag)
+        source = dot.source
+        # Should render DAG title
+        assert "label=DAG_ID" in source
+        assert (
+            'first [color="#000000" fillcolor="#f0ede4" label=first shape=rectangle style="filled,rounded"]'
+            in source
+        )
+
     def test_should_render_dag_orientation(self, session, dag_maker):
         orientation = "TB"
         with dag_maker(dag_id="DAG_ID", orientation=orientation, session=session) as dag:
@@ -116,32 +151,32 @@ class TestDotRenderer:
 
     def test_render_task_group(self):
         with DAG(dag_id="example_task_group", start_date=START_DATE) as dag:
-            start = DummyOperator(task_id="start")
+            start = EmptyOperator(task_id="start")
 
             with TaskGroup("section_1", tooltip="Tasks for section_1") as section_1:
-                task_1 = DummyOperator(task_id="task_1")
+                task_1 = EmptyOperator(task_id="task_1")
                 task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
-                task_3 = DummyOperator(task_id="task_3")
+                task_3 = EmptyOperator(task_id="task_3")
 
                 task_1 >> [task_2, task_3]
 
             with TaskGroup("section_2", tooltip="Tasks for section_2") as section_2:
-                task_1 = DummyOperator(task_id="task_1")
+                task_1 = EmptyOperator(task_id="task_1")
 
                 with TaskGroup("inner_section_2", tooltip="Tasks for inner_section2"):
                     task_2 = BashOperator(task_id="task_2", bash_command='echo 1')
-                    task_3 = DummyOperator(task_id="task_3")
-                    task_4 = DummyOperator(task_id="task_4")
+                    task_3 = EmptyOperator(task_id="task_3")
+                    task_4 = EmptyOperator(task_id="task_4")
 
                     [task_2, task_3] >> task_4
 
-            end = DummyOperator(task_id='end')
+            end = EmptyOperator(task_id='end')
 
             start >> section_1 >> section_2 >> end
 
         dot = dot_renderer.render_dag(dag)
 
-        assert dot.source == '\n'.join(
+        assert dot.source.strip() == '\n'.join(
             [
                 'digraph example_task_group {',
                 '\tgraph [label=example_task_group labelloc=t rankdir=LR]',

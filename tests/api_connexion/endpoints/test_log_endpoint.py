@@ -26,7 +26,7 @@ from itsdangerous.url_safe import URLSafeSerializer
 from airflow import DAG
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP
 from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.types import DagRunType
@@ -71,7 +71,7 @@ class TestGetLog:
         self.old_modules = dict(sys.modules)
 
         with dag_maker(self.DAG_ID, start_date=timezone.parse(self.default_time), session=session) as dag:
-            DummyOperator(task_id=self.TASK_ID)
+            EmptyOperator(task_id=self.TASK_ID)
         dr = dag_maker.create_dagrun(
             run_id='TEST_DAG_RUN_ID',
             run_type=DagRunType.SCHEDULED,
@@ -81,11 +81,25 @@ class TestGetLog:
 
         configured_app.dag_bag.bag_dag(dag, root_dag=dag)
 
+        # Add dummy dag for checking picking correct log with same task_id and different dag_id case.
+        with dag_maker(
+            f'{self.DAG_ID}_copy', start_date=timezone.parse(self.default_time), session=session
+        ) as dummy_dag:
+            EmptyOperator(task_id=self.TASK_ID)
+        dag_maker.create_dagrun(
+            run_id='TEST_DAG_RUN_ID',
+            run_type=DagRunType.SCHEDULED,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+        )
+        configured_app.dag_bag.bag_dag(dummy_dag, root_dag=dummy_dag)
+
         self.ti = dr.task_instances[0]
         self.ti.try_number = 1
+        self.ti.hostname = 'localhost'
 
     @pytest.fixture
-    def configure_loggers(self, tmp_path):
+    def configure_loggers(self, tmp_path, create_log_template):
         self.log_dir = tmp_path
 
         dir_path = tmp_path / self.DAG_ID / self.TASK_ID / self.default_time.replace(':', '.')
@@ -98,9 +112,9 @@ class TestGetLog:
         logging_config = copy.deepcopy(DEFAULT_LOGGING_CONFIG)
         logging_config['handlers']['task']['base_log_folder'] = self.log_dir
 
-        logging_config['handlers']['task'][
-            'filename_template'
-        ] = '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
+        create_log_template(
+            '{{ ti.dag_id }}/{{ ti.task_id }}/{{ ts | replace(":", ".") }}/{{ try_number }}.log'
+        )
 
         logging.config.dictConfig(logging_config)
 
@@ -126,7 +140,7 @@ class TestGetLog:
         )
         assert (
             response.json['content']
-            == f"[('', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
+            == f"[('localhost', '*** Reading local file: {expected_filename}\\nLog for testing.')]"
         )
         info = serializer.loads(response.json['continuation_token'])
         assert info == {'end_of_log': True}
@@ -149,7 +163,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_of_removed_task(self):
@@ -175,7 +189,7 @@ class TestGetLog:
         assert 200 == response.status_code
         assert (
             response.data.decode('utf-8')
-            == f"\n*** Reading local file: {expected_filename}\nLog for testing.\n"
+            == f"localhost\n*** Reading local file: {expected_filename}\nLog for testing.\n"
         )
 
     def test_get_logs_response_with_ti_equal_to_none(self):
@@ -252,7 +266,7 @@ class TestGetLog:
 
     def test_raises_404_for_invalid_dag_run_id(self):
         response = self.client.get(
-            f"api/v1/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid dagrun_id
+            f"api/v1/dags/{self.DAG_ID}/dagRuns/NO_DAG_RUN/"  # invalid run_id
             f"taskInstances/{self.TASK_ID}/logs/1?",
             headers={'Accept': 'application/json'},
             environ_overrides={'REMOTE_USER': "test"},

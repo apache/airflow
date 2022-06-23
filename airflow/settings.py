@@ -22,7 +22,7 @@ import logging
 import os
 import sys
 import warnings
-from typing import Optional
+from typing import TYPE_CHECKING, Callable, List, Optional, Union
 
 import pendulum
 import sqlalchemy
@@ -37,12 +37,15 @@ from airflow.executors import executor_constants
 from airflow.logging_config import configure_logging
 from airflow.utils.orm_event_handlers import setup_event_handlers
 
+if TYPE_CHECKING:
+    from airflow.www.utils import UIAlert
+
 log = logging.getLogger(__name__)
 
 
 TIMEZONE = pendulum.tz.timezone('UTC')
 try:
-    tz = conf.get("core", "default_timezone")
+    tz = conf.get_mandatory_value("core", "default_timezone")
     if tz == "system":
         TIMEZONE = pendulum.tz.local_timezone()
     else:
@@ -73,10 +76,11 @@ SIMPLE_LOG_FORMAT = conf.get('logging', 'simple_log_format')
 SQL_ALCHEMY_CONN: Optional[str] = None
 PLUGINS_FOLDER: Optional[str] = None
 LOGGING_CLASS_PATH: Optional[str] = None
-DAGS_FOLDER: str = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
+DONOT_MODIFY_HANDLERS: Optional[bool] = None
+DAGS_FOLDER: str = os.path.expanduser(conf.get_mandatory_value('core', 'DAGS_FOLDER'))
 
-engine: Optional[Engine] = None
-Session: Optional[SASession] = None
+engine: Engine
+Session: Callable[..., SASession]
 
 # The JSON library to use for DAG Serialization and De-Serialization
 json = json
@@ -84,16 +88,16 @@ json = json
 # Dictionary containing State and colors associated to each state to
 # display on the Webserver
 STATE_COLORS = {
+    "deferred": "mediumpurple",
+    "failed": "red",
     "queued": "gray",
     "running": "lime",
-    "success": "green",
-    "failed": "red",
-    "up_for_retry": "gold",
-    "up_for_reschedule": "turquoise",
-    "upstream_failed": "orange",
-    "skipped": "pink",
     "scheduled": "tan",
-    "deferred": "mediumpurple",
+    "skipped": "hotpink",
+    "success": "green",
+    "up_for_reschedule": "turquoise",
+    "up_for_retry": "gold",
+    "upstream_failed": "orange",
 }
 
 
@@ -116,7 +120,20 @@ def custom_show_warning(message, category, filename, lineno, file=None, line=Non
     write_console.print(msg, soft_wrap=True)
 
 
-warnings.showwarning = custom_show_warning
+def replace_showwarning(replacement):
+    """Replace ``warnings.showwarning``, returning the original.
+
+    This is useful since we want to "reset" the ``showwarning`` hook on exit to
+    avoid lazy-loading issues. If a warning is emitted after Python cleaned up
+    the import system, we would no longer be able to import ``rich``.
+    """
+    original = warnings.showwarning
+    warnings.showwarning = replacement
+    return original
+
+
+original_show_warning = replace_showwarning(custom_show_warning)
+atexit.register(functools.partial(replace_showwarning, original_show_warning))
 
 
 def task_policy(task) -> None:
@@ -138,7 +155,6 @@ def task_policy(task) -> None:
         for more than 48 hours
 
     :param task: task to be mutated
-    :type task: airflow.models.baseoperator.BaseOperator
     """
 
 
@@ -158,7 +174,6 @@ def dag_policy(dag) -> None:
     * Check if every DAG has configured tags
 
     :param dag: dag to be mutated
-    :type dag: airflow.models.dag.DAG
     """
 
 
@@ -173,15 +188,16 @@ def task_instance_mutation_hook(task_instance):
     This could be used, for instance, to modify the task instance during retries.
 
     :param task_instance: task instance to be mutated
-    :type task_instance: airflow.models.taskinstance.TaskInstance
     """
+
+
+task_instance_mutation_hook.is_noop = True  # type: ignore
 
 
 def pod_mutation_hook(pod):
     """
     This setting allows altering ``kubernetes.client.models.V1Pod`` object
-    before they are passed to the Kubernetes client by the ``PodLauncher``
-    for scheduling.
+    before they are passed to the Kubernetes client for scheduling.
 
     To define a pod mutation hook, add a ``airflow_local_settings`` module
     to your PYTHONPATH that defines this ``pod_mutation_hook`` function.
@@ -192,15 +208,49 @@ def pod_mutation_hook(pod):
     """
 
 
+def get_airflow_context_vars(context):
+    """
+    This setting allows getting the airflow context vars, which are key value pairs.
+    They are then injected to default airflow context vars, which in the end are
+    available as environment variables when running tasks
+    dag_id, task_id, execution_date, dag_run_id, try_number are reserved keys.
+    To define it, add a ``airflow_local_settings`` module
+    to your PYTHONPATH that defines this ``get_airflow_context_vars`` function.
+
+    :param context: The context for the task_instance of interest.
+    """
+    return {}
+
+
+def get_dagbag_import_timeout(dag_file_path: str) -> Union[int, float]:
+    """
+    This setting allows for dynamic control of the DAG file parsing timeout based on the DAG file path.
+
+    It is useful when there are a few DAG files requiring longer parsing times, while others do not.
+    You can control them separately instead of having one value for all DAG files.
+
+    If the return value is less than or equal to 0, it means no timeout during the DAG parsing.
+    """
+    return conf.getfloat('core', 'DAGBAG_IMPORT_TIMEOUT')
+
+
 def configure_vars():
     """Configure Global Variables from airflow.cfg"""
     global SQL_ALCHEMY_CONN
     global DAGS_FOLDER
     global PLUGINS_FOLDER
-    SQL_ALCHEMY_CONN = conf.get('core', 'SQL_ALCHEMY_CONN')
+    global DONOT_MODIFY_HANDLERS
+    SQL_ALCHEMY_CONN = conf.get('database', 'SQL_ALCHEMY_CONN')
     DAGS_FOLDER = os.path.expanduser(conf.get('core', 'DAGS_FOLDER'))
 
     PLUGINS_FOLDER = conf.get('core', 'plugins_folder', fallback=os.path.join(AIRFLOW_HOME, 'plugins'))
+
+    # If donot_modify_handlers=True, we do not modify logging handlers in task_run command
+    # If the flag is set to False, we remove all handlers from the root logger
+    # and add all handlers from 'airflow.task' logger to the root Logger. This is done
+    # to get all the logs from the print & log statements in the DAG files before a task is run
+    # The handlers are restored after the task completes execution.
+    DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 
 def configure_orm(disable_connection_pool=False):
@@ -212,12 +262,8 @@ def configure_orm(disable_connection_pool=False):
     global Session
     engine_args = prepare_engine_args(disable_connection_pool)
 
-    # Allow the user to specify an encoding for their DB otherwise default
-    # to utf-8 so jobs & users with non-latin1 characters can still use us.
-    engine_args['encoding'] = conf.get('core', 'SQL_ENGINE_ENCODING', fallback='utf-8')
-
-    if conf.has_option('core', 'sql_alchemy_connect_args'):
-        connect_args = conf.getimport('core', 'sql_alchemy_connect_args')
+    if conf.has_option('database', 'sql_alchemy_connect_args'):
+        connect_args = conf.getimport('database', 'sql_alchemy_connect_args')
     else:
         connect_args = {}
 
@@ -247,7 +293,7 @@ def configure_orm(disable_connection_pool=False):
             data = result.fetchone()[0]
             if data != 1:
                 log.critical("MSSQL database MUST have READ_COMMITTED_SNAPSHOT enabled.")
-                log.critical(f"The database {engine.url.database} has it disabled.")
+                log.critical("The database %s has it disabled.", engine.url.database)
                 log.critical("This will cause random deadlocks, Refusing to start.")
                 log.critical(
                     "See https://airflow.apache.org/docs/apache-airflow/stable/howto/"
@@ -258,18 +304,35 @@ def configure_orm(disable_connection_pool=False):
             session.close()
 
 
+DEFAULT_ENGINE_ARGS = {
+    'postgresql': {
+        'executemany_mode': 'values',
+        'executemany_values_page_size': 10000,
+        'executemany_batch_page_size': 2000,
+    },
+}
+
+
 def prepare_engine_args(disable_connection_pool=False):
     """Prepare SQLAlchemy engine args"""
-    engine_args = {}
-    pool_connections = conf.getboolean('core', 'SQL_ALCHEMY_POOL_ENABLED')
-    if disable_connection_pool or not pool_connections:
+    default_args = {}
+    for dialect, default in DEFAULT_ENGINE_ARGS.items():
+        if SQL_ALCHEMY_CONN.startswith(dialect):
+            default_args = default.copy()
+            break
+
+    engine_args: dict = conf.getjson(
+        'database', 'sql_alchemy_engine_args', fallback=default_args
+    )  # type: ignore
+
+    if disable_connection_pool or not conf.getboolean('database', 'SQL_ALCHEMY_POOL_ENABLED'):
         engine_args['poolclass'] = NullPool
         log.debug("settings.prepare_engine_args(): Using NullPool")
     elif not SQL_ALCHEMY_CONN.startswith('sqlite'):
         # Pool size engine args not supported by sqlite.
         # If no config value is defined for the pool size, select a reasonable value.
         # 0 means no limit, which could lead to exceeding the Database connection limit.
-        pool_size = conf.getint('core', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
+        pool_size = conf.getint('database', 'SQL_ALCHEMY_POOL_SIZE', fallback=5)
 
         # The maximum overflow size of the pool.
         # When the number of checked-out connections reaches the size set in pool_size,
@@ -281,20 +344,20 @@ def prepare_engine_args(disable_connection_pool=False):
         # max_overflow can be set to -1 to indicate no overflow limit;
         # no limit will be placed on the total number
         # of concurrent connections. Defaults to 10.
-        max_overflow = conf.getint('core', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
+        max_overflow = conf.getint('database', 'SQL_ALCHEMY_MAX_OVERFLOW', fallback=10)
 
         # The DB server already has a value for wait_timeout (number of seconds after
         # which an idle sleeping connection should be killed). Since other DBs may
         # co-exist on the same server, SQLAlchemy should set its
         # pool_recycle to an equal or smaller value.
-        pool_recycle = conf.getint('core', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
+        pool_recycle = conf.getint('database', 'SQL_ALCHEMY_POOL_RECYCLE', fallback=1800)
 
         # Check connection at the start of each connection pool checkout.
         # Typically, this is a simple statement like “SELECT 1”, but may also make use
         # of some DBAPI-specific method to test the connection for liveness.
         # More information here:
         # https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
-        pool_pre_ping = conf.getboolean('core', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
+        pool_pre_ping = conf.getboolean('database', 'SQL_ALCHEMY_POOL_PRE_PING', fallback=True)
 
         log.debug(
             "settings.prepare_engine_args(): Using pool settings. pool_size=%d, max_overflow=%d, "
@@ -323,6 +386,10 @@ def prepare_engine_args(disable_connection_pool=False):
     if SQL_ALCHEMY_CONN.startswith(('mysql', 'mssql')):
         engine_args['isolation_level'] = 'READ COMMITTED'
 
+    # Allow the user to specify an encoding for their DB otherwise default
+    # to utf-8 so jobs & users with non-latin1 characters can still use us.
+    engine_args['encoding'] = conf.get('database', 'SQL_ENGINE_ENCODING', fallback='utf-8')
+
     return engine_args
 
 
@@ -338,6 +405,12 @@ def dispose_orm():
     if engine:
         engine.dispose()
         engine = None
+
+
+def reconfigure_orm(disable_connection_pool=False):
+    """Properly close database connections and re-configure ORM"""
+    dispose_orm()
+    configure_orm(disable_connection_pool=disable_connection_pool)
 
 
 def configure_adapters():
@@ -366,6 +439,8 @@ def configure_adapters():
 
 def validate_session():
     """Validate ORM Session"""
+    global engine
+
     worker_precheck = conf.getboolean('celery', 'worker_precheck', fallback=False)
     if not worker_precheck:
         return True
@@ -459,6 +534,9 @@ def import_local_settings():
             globals()["task_policy"] = globals()["policy"]
             del globals()["policy"]
 
+        if not hasattr(task_instance_mutation_hook, 'is_noop'):
+            task_instance_mutation_hook.is_noop = False
+
         log.info("Loaded airflow_local_settings from %s .", airflow_local_settings.__file__)
     except ModuleNotFoundError as e:
         if e.name == "airflow_local_settings":
@@ -501,16 +579,12 @@ WEB_COLORS = {'LIGHTBLUE': '#4d9de0', 'LIGHTORANGE': '#FF9933'}
 # write rate.
 MIN_SERIALIZED_DAG_UPDATE_INTERVAL = conf.getint('core', 'min_serialized_dag_update_interval', fallback=30)
 
+# If set to True, serialized DAGs is compressed before writing to DB,
+COMPRESS_SERIALIZED_DAGS = conf.getboolean('core', 'compress_serialized_dags', fallback=False)
+
 # Fetching serialized DAG can not be faster than a minimum interval to reduce database
 # read rate. This config controls when your DAGs are updated in the Webserver
 MIN_SERIALIZED_DAG_FETCH_INTERVAL = conf.getint('core', 'min_serialized_dag_fetch_interval', fallback=10)
-
-# If donot_modify_handlers=True, we do not modify logging handlers in task_run command
-# If the flag is set to False, we remove all handlers from the root logger
-# and add all handlers from 'airflow.task' logger to the root Logger. This is done
-# to get all the logs from the print & log statements in the DAG files before a task is run
-# The handlers are restored after the task completes execution.
-DONOT_MODIFY_HANDLERS = conf.getboolean('logging', 'donot_modify_handlers', fallback=False)
 
 CAN_FORK = hasattr(os, "fork")
 
@@ -540,6 +614,7 @@ LAZY_LOAD_PROVIDERS = conf.getboolean('core', 'lazy_discover_providers', fallbac
 IS_K8S_OR_K8SCELERY_EXECUTOR = conf.get('core', 'EXECUTOR') in {
     executor_constants.KUBERNETES_EXECUTOR,
     executor_constants.CELERY_KUBERNETES_EXECUTOR,
+    executor_constants.LOCAL_KUBERNETES_EXECUTOR,
 }
 
 HIDE_SENSITIVE_VAR_CONN_FIELDS = conf.getboolean('core', 'hide_sensitive_var_conn_fields')
@@ -561,8 +636,7 @@ MASK_SECRETS_IN_LOGS = False
 #       UIAlert('Visit <a href="http://airflow.apache.org">airflow.apache.org</a>', html=True),
 #   ]
 #
-# DASHBOARD_UIALERTS: List["UIAlert"]
-DASHBOARD_UIALERTS = []
+DASHBOARD_UIALERTS: List["UIAlert"] = []
 
 # Prefix used to identify tables holding data moved during migration.
 AIRFLOW_MOVED_TABLE_PREFIX = "_airflow_moved"

@@ -18,20 +18,36 @@
 """Manages all providers."""
 import fnmatch
 import functools
-import importlib
 import json
 import logging
 import os
 import sys
 import warnings
 from collections import OrderedDict
+from dataclasses import dataclass
 from functools import wraps
 from time import perf_counter
-from typing import Any, Callable, Dict, List, MutableMapping, NamedTuple, Optional, Set, TypeVar, Union, cast
+from typing import (
+    Any,
+    Callable,
+    Dict,
+    List,
+    MutableMapping,
+    NamedTuple,
+    Optional,
+    Set,
+    Type,
+    TypeVar,
+    Union,
+    cast,
+)
 
 import jsonschema
 from packaging import version as packaging_version
 
+from airflow.exceptions import AirflowOptionalProviderFeatureException
+from airflow.hooks.base import BaseHook
+from airflow.typing_compat import Literal
 from airflow.utils import yaml
 from airflow.utils.entry_points import entry_points_with_dist
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -124,38 +140,28 @@ def _check_builtin_provider_prefix(provider_package: str, class_name: str) -> bo
     return True
 
 
-def _sanity_check(provider_package: str, class_name: str) -> bool:
+@dataclass
+class ProviderInfo:
     """
-    Performs coherence check on provider classes.
-    For apache-airflow providers - it checks if it starts with appropriate package. For all providers
-    it tries to import the provider - checking that there are no exceptions during importing.
-    It logs appropriate warning in case it detects any problems.
+    Provider information
 
-    :param provider_package: name of the provider package
-    :param class_name: name of the class to import
-
-    :return True if the class is OK, False otherwise.
+    :param version: version string
+    :param data: dictionary with information about the provider
+    :param source_or_package: whether the provider is source files or PyPI package. When installed from
+        sources we suppress provider import errors.
     """
-    if not _check_builtin_provider_prefix(provider_package, class_name):
-        return False
-    try:
-        import_string(class_name)
-    except Exception as e:
-        log.warning(
-            "Exception when importing '%s' from '%s' package: %s",
-            class_name,
-            provider_package,
-            e,
-        )
-        return False
-    return True
-
-
-class ProviderInfo(NamedTuple):
-    """Provider information"""
 
     version: str
-    provider_info: Dict
+    data: Dict
+    package_or_source: Union[Literal['source'], Literal['package']]
+
+    def __post_init__(self):
+        if self.package_or_source not in ('source', 'package'):
+            raise ValueError(
+                f"Received {self.package_or_source!r} for `package_or_source`. "
+                "Must be either 'package' or 'source'."
+            )
+        self.is_source = self.package_or_source == 'source'
 
 
 class HookClassProvider(NamedTuple):
@@ -173,6 +179,7 @@ class HookInfo(NamedTuple):
     package_name: str
     hook_name: str
     connection_type: str
+    connection_testable: bool
 
 
 class ConnectionFormWidgetInfo(NamedTuple):
@@ -181,11 +188,104 @@ class ConnectionFormWidgetInfo(NamedTuple):
     hook_class_name: str
     package_name: str
     field: Any
+    field_name: str
 
 
 T = TypeVar("T", bound=Callable)
 
 logger = logging.getLogger(__name__)
+
+
+def log_debug_import_from_sources(class_name, e, provider_package):
+    log.debug(
+        "Optional feature disabled on exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+
+
+def log_optional_feature_disabled(class_name, e, provider_package):
+    log.debug(
+        "Optional feature disabled on exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+    log.info(
+        "Optional provider feature disabled when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+    )
+
+
+def log_import_warning(class_name, e, provider_package):
+    log.warning(
+        "Exception when importing '%s' from '%s' package",
+        class_name,
+        provider_package,
+        exc_info=e,
+    )
+
+
+# This is a temporary measure until all community providers will add AirflowOptionalProviderFeatureException
+# where they have optional features. We are going to add tests in our CI to catch all such cases and will
+# fix them, but until now all "known unhandled optional feature errors" from community providers
+# should be added here
+KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS = [("apache-airflow-providers-google", "No module named 'paramiko'")]
+
+
+def _sanity_check(
+    provider_package: str, class_name: str, provider_info: ProviderInfo
+) -> Optional[Type[BaseHook]]:
+    """
+    Performs coherence check on provider classes.
+    For apache-airflow providers - it checks if it starts with appropriate package. For all providers
+    it tries to import the provider - checking that there are no exceptions during importing.
+    It logs appropriate warning in case it detects any problems.
+
+    :param provider_package: name of the provider package
+    :param class_name: name of the class to import
+
+    :return the class if the class is OK, None otherwise.
+    """
+    if not _check_builtin_provider_prefix(provider_package, class_name):
+        return None
+    try:
+        imported_class = import_string(class_name)
+    except AirflowOptionalProviderFeatureException as e:
+        # When the provider class raises AirflowOptionalProviderFeatureException
+        # this is an expected case when only some classes in provider are
+        # available. We just log debug level here and print info message in logs so that
+        # the user is aware of it
+        log_optional_feature_disabled(class_name, e, provider_package)
+        return None
+    except ImportError as e:
+        if provider_info.is_source:
+            # When we have providers from sources, then we just turn all import logs to debug logs
+            # As this is pretty expected that you have a number of dependencies not installed
+            # (we always have all providers from sources until we split providers to separate repo)
+            log_debug_import_from_sources(class_name, e, provider_package)
+            return None
+        if "No module named 'airflow.providers." in e.msg:
+            # handle cases where another provider is missing. This can only happen if
+            # there is an optional feature, so we log debug and print information about it
+            log_optional_feature_disabled(class_name, e, provider_package)
+            return None
+        for known_error in KNOWN_UNHANDLED_OPTIONAL_FEATURE_ERRORS:
+            # Until we convert all providers to use AirflowOptionalProviderFeatureException
+            # we assume any problem with importing another "provider" is because this is an
+            # optional feature, so we log debug and print information about it
+            if known_error[0] == provider_package and known_error[1] in e.msg:
+                log_optional_feature_disabled(class_name, e, provider_package)
+                return None
+        # But when we have no idea - we print warning to logs
+        log_import_warning(class_name, e, provider_package)
+        return None
+    except Exception as e:
+        log_import_warning(class_name, e, provider_package)
+        return None
+    return imported_class
 
 
 # We want to have better control over initialization of parameters and be able to debug and test it
@@ -277,9 +377,12 @@ class ProvidersManager(LoggingMixin):
             if min_version:
                 if packaging_version.parse(min_version) > packaging_version.parse(info.version):
                     log.warning(
-                        f"The package {provider_id} is not compatible with this version of Airflow. "
-                        f"The package has version {info.version} but the minimum supported version "
-                        f"of the package is {min_version}"
+                        "The package %s is not compatible with this version of Airflow. "
+                        "The package has version %s but the minimum supported version "
+                        "of the package is %s",
+                        provider_id,
+                        info.version,
+                        min_version,
                     )
 
     @provider_info_cache("hooks")
@@ -343,7 +446,7 @@ class ProvidersManager(LoggingMixin):
                     f"{provider_info_package_name} do not match. Please make sure they are aligned"
                 )
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info, 'package')
             else:
                 log.warning(
                     "The provider for package '%s' could not be registered from because providers for that "
@@ -366,7 +469,7 @@ class ProvidersManager(LoggingMixin):
             log.info("You have no providers installed.")
             return
         try:
-            for path in airflow.providers.__path__:
+            for path in airflow.providers.__path__:  # type: ignore[attr-defined]
                 self._add_provider_info_from_local_source_files_on_path(path)
         except Exception as e:
             log.warning("Error when loading 'provider.yaml' files from airflow sources: %s", e)
@@ -399,7 +502,7 @@ class ProvidersManager(LoggingMixin):
 
             version = provider_info['versions'][0]
             if package_name not in self._provider_dict:
-                self._provider_dict[package_name] = ProviderInfo(version, provider_info)
+                self._provider_dict[package_name] = ProviderInfo(version, provider_info, 'source')
             else:
                 log.warning(
                     "The providers for package '%s' could not be registered because providers for that "
@@ -429,7 +532,7 @@ class ProvidersManager(LoggingMixin):
         :return:
         """
         provider_uses_connection_types = False
-        connection_types = provider.provider_info.get("connection-types")
+        connection_types = provider.data.get("connection-types")
         if connection_types:
             for connection_type_dict in connection_types:
                 connection_type = connection_type_dict['connection-type']
@@ -445,7 +548,9 @@ class ProvidersManager(LoggingMixin):
                     )
                     # Defer importing hook to access time by setting import hook method as dict value
                     self._hooks_lazy_dict[connection_type] = functools.partial(
-                        self._import_hook, connection_type
+                        self._import_hook,
+                        connection_type=connection_type,
+                        provider_info=provider,
                     )
             provider_uses_connection_types = True
         return provider_uses_connection_types
@@ -471,7 +576,7 @@ class ProvidersManager(LoggingMixin):
            form of passing connection types
         :return:
         """
-        hook_class_names = provider.provider_info.get("hook-class-names")
+        hook_class_names = provider.data.get("hook-class-names")
         if hook_class_names:
             for hook_class_name in hook_class_names:
                 if hook_class_name in hook_class_names_registered:
@@ -479,7 +584,10 @@ class ProvidersManager(LoggingMixin):
                     # connection-types discovery
                     continue
                 hook_info = self._import_hook(
-                    connection_type=None, hook_class_name=hook_class_name, package_name=package_name
+                    connection_type=None,
+                    provider_info=provider,
+                    hook_class_name=hook_class_name,
+                    package_name=package_name,
                 )
                 if not hook_info:
                     # Problem why importing class - we ignore it. Log is written at import time
@@ -548,7 +656,7 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
-            for taskflow_decorator in info.provider_info.get("task-decorators", []):
+            for taskflow_decorator in info.data.get("task-decorators", []):
                 self._add_taskflow_decorator(
                     taskflow_decorator["name"], taskflow_decorator["class-name"], name
                 )
@@ -560,10 +668,10 @@ class ProvidersManager(LoggingMixin):
         if name in self._taskflow_decorators:
             try:
                 existing = self._taskflow_decorators[name]
-                other_name = f'{existing.__module__}.{existing.__name}'
+                other_name = f'{existing.__module__}.{existing.__name__}'
             except Exception:
                 # If problem importing, then get the value from the functools.partial
-                other_name = self._taskflow_decorators._raw_dict[name].args[0]
+                other_name = self._taskflow_decorators._raw_dict[name].args[0]  # type: ignore[attr-defined]
 
             log.warning(
                 "The taskflow decorator '%s' has been already registered (by %s).",
@@ -583,7 +691,11 @@ class ProvidersManager(LoggingMixin):
         return getattr(obj, attr_name)
 
     def _import_hook(
-        self, connection_type: Optional[str], hook_class_name: str = None, package_name: str = None
+        self,
+        connection_type: Optional[str],
+        provider_info: ProviderInfo,
+        hook_class_name: Optional[str] = None,
+        package_name: Optional[str] = None,
     ) -> Optional[HookInfo]:
         """
         Imports hook and retrieves hook information. Either connection_type (for lazy loading)
@@ -600,26 +712,28 @@ class ProvidersManager(LoggingMixin):
 
         if connection_type is None and hook_class_name is None:
             raise ValueError("Either connection_type or hook_class_name must be set")
-        if connection_type and hook_class_name:
+        if connection_type is not None and hook_class_name is not None:
             raise ValueError(
                 f"Both connection_type ({connection_type} and "
                 f"hook_class_name {hook_class_name} are set. Only one should be set!"
             )
-        if connection_type:
+        if connection_type is not None:
             class_provider = self._hook_provider_dict[connection_type]
             package_name = class_provider.package_name
             hook_class_name = class_provider.hook_class_name
         else:
+            if not hook_class_name:
+                raise ValueError("Either connection_type or hook_class_name must be set")
             if not package_name:
                 raise ValueError(
-                    f"Provider package name is not set when hook_class_name ({hook_class_name}) " f"is used"
+                    f"Provider package name is not set when hook_class_name ({hook_class_name}) is used"
                 )
         allowed_field_classes = [IntegerField, PasswordField, StringField, BooleanField]
-        if not _sanity_check(package_name, hook_class_name):
+        hook_class = _sanity_check(package_name, hook_class_name, provider_info)
+        if hook_class is None:
             return None
         try:
             module, class_name = hook_class_name.rsplit('.', maxsplit=1)
-            hook_class = getattr(importlib.import_module(module), class_name)
             # Do not use attr here. We want to check only direct class fields not those
             # inherited from parent hook. This way we add form fields only once for the whole
             # hierarchy and we add it only from the parent hook that provides those!
@@ -641,16 +755,6 @@ class ProvidersManager(LoggingMixin):
                 field_behaviours = hook_class.get_ui_field_behaviour()
                 if field_behaviours:
                     self._add_customized_fields(package_name, hook_class, field_behaviours)
-        except ImportError as e:
-            # When there is an ImportError we turn it into debug warnings as this is
-            # an expected case when only some providers are installed
-            log.debug(
-                "Exception when importing '%s' from '%s' package: %s",
-                hook_class_name,
-                package_name,
-                e,
-            )
-            return None
         except Exception as e:
             log.warning(
                 "Exception when importing '%s' from '%s' package: %s",
@@ -691,27 +795,26 @@ class ProvidersManager(LoggingMixin):
             package_name=package_name,
             hook_name=hook_name,
             connection_type=connection_type,
+            connection_testable=hasattr(hook_class, 'test_connection'),
         )
 
     def _add_widgets(self, package_name: str, hook_class: type, widgets: Dict[str, Any]):
-        for field_name, field in widgets.items():
-            if not field_name.startswith("extra__"):
-                log.warning(
-                    "The field %s from class %s does not start with 'extra__'. Ignoring it.",
-                    field_name,
-                    hook_class.__name__,
-                )
-                continue
-            if field_name in self._connection_form_widgets:
+        conn_type = hook_class.conn_type  # type: ignore
+        for field_identifier, field in widgets.items():
+            if field_identifier.startswith('extra__'):
+                prefixed_field_name = field_identifier
+            else:
+                prefixed_field_name = f"extra__{conn_type}__{field_identifier}"
+            if prefixed_field_name in self._connection_form_widgets:
                 log.warning(
                     "The field %s from class %s has already been added by another provider. Ignoring it.",
-                    field_name,
+                    field_identifier,
                     hook_class.__name__,
                 )
                 # In case of inherited hooks this might be happening several times
                 continue
-            self._connection_form_widgets[field_name] = ConnectionFormWidgetInfo(
-                hook_class.__name__, package_name, field
+            self._connection_form_widgets[prefixed_field_name] = ConnectionFormWidgetInfo(
+                hook_class.__name__, package_name, field, field_identifier
             )
 
     def _add_customized_fields(self, package_name: str, hook_class: type, customized_fields: Dict):
@@ -738,34 +841,34 @@ class ProvidersManager(LoggingMixin):
 
     def _discover_extra_links(self) -> None:
         """Retrieves all extra links defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("extra-links"):
-                for extra_link_class_name in provider["extra-links"]:
-                    if _sanity_check(provider_package, extra_link_class_name):
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("extra-links"):
+                for extra_link_class_name in provider.data["extra-links"]:
+                    if _sanity_check(provider_package, extra_link_class_name, provider):
                         self._extra_link_class_name_set.add(extra_link_class_name)
 
     def _discover_logging(self) -> None:
         """Retrieves all logging defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("logging"):
-                for logging_class_name in provider["logging"]:
-                    if _sanity_check(provider_package, logging_class_name):
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("logging"):
+                for logging_class_name in provider.data["logging"]:
+                    if _sanity_check(provider_package, logging_class_name, provider):
                         self._logging_class_name_set.add(logging_class_name)
 
     def _discover_secrets_backends(self) -> None:
         """Retrieves all secrets backends defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("secrets-backends"):
-                for secrets_backends_class_name in provider["secrets-backends"]:
-                    if _sanity_check(provider_package, secrets_backends_class_name):
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("secrets-backends"):
+                for secrets_backends_class_name in provider.data["secrets-backends"]:
+                    if _sanity_check(provider_package, secrets_backends_class_name, provider):
                         self._secrets_backend_class_name_set.add(secrets_backends_class_name)
 
     def _discover_auth_backends(self) -> None:
         """Retrieves all API auth backends defined in the providers"""
-        for provider_package, (_, provider) in self._provider_dict.items():
-            if provider.get("auth-backends"):
-                for auth_backend_module_name in provider["auth-backends"]:
-                    if _sanity_check(provider_package, auth_backend_module_name + ".init_app"):
+        for provider_package, provider in self._provider_dict.items():
+            if provider.data.get("auth-backends"):
+                for auth_backend_module_name in provider.data["auth-backends"]:
+                    if _sanity_check(provider_package, auth_backend_module_name + ".init_app", provider):
                         self._api_auth_backend_module_names.add(auth_backend_module_name)
 
     @property
@@ -775,14 +878,14 @@ class ProvidersManager(LoggingMixin):
         return self._provider_dict
 
     @property
-    def hooks(self) -> Dict[str, Optional[HookInfo]]:
+    def hooks(self) -> MutableMapping[str, Optional[HookInfo]]:
         """
         Returns dictionary of connection_type-to-hook mapping. Note that the dict can contain
         None values if a hook discovered cannot be imported!
         """
         self.initialize_providers_hooks()
         # When we return hooks here it will only be used to retrieve hook information
-        return self._hooks_lazy_dict  # type: ignore
+        return self._hooks_lazy_dict
 
     @property
     def taskflow_decorators(self) -> Dict[str, Callable]:

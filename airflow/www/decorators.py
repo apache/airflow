@@ -20,6 +20,7 @@ import functools
 import gzip
 import logging
 from io import BytesIO as IO
+from itertools import chain
 from typing import Callable, TypeVar, cast
 
 import pendulum
@@ -48,13 +49,21 @@ def action_logging(f: T) -> T:
                 user = g.user.username
 
             fields_skip_logging = {'csrf_token', '_csrf_token'}
+            extra_fields = [
+                (k, v)
+                for k, v in chain(request.values.items(multi=True), request.view_args.items())
+                if k not in fields_skip_logging
+            ]
+
+            params = {k: v for k, v in chain(request.values.items(), request.view_args.items())}
+
             log = Log(
                 event=f.__name__,
                 task_instance=None,
                 owner=user,
-                extra=str([(k, v) for k, v in request.values.items() if k not in fields_skip_logging]),
-                task_id=request.values.get('task_id'),
-                dag_id=request.values.get('dag_id'),
+                extra=str(extra_fields),
+                task_id=params.get('task_id'),
+                dag_id=params.get('dag_id'),
             )
 
             if 'execution_date' in request.values:
@@ -65,7 +74,6 @@ def action_logging(f: T) -> T:
                     logger.exception(
                         "Failed to parse execution_date from the request: %s", execution_date_value
                     )
-                    pass
 
             session.add(log)
 

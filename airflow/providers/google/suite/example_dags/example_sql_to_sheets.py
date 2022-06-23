@@ -16,17 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
+
 from airflow import models
 from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
-from airflow.utils.dates import days_ago
 
 SQL = "select 1 as my_col"
 NEW_SPREADSHEET_ID = "123"
 
 with models.DAG(
     "example_sql_to_sheets",
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
     schedule_interval=None,  # Override to match your needs
+    catchup=False,
     tags=["example"],
 ) as dag:
 

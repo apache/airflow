@@ -17,20 +17,19 @@
 # under the License.
 
 import datetime
-import unittest
 
 from freezegun import freeze_time
 
 from airflow import settings
 from airflow.models import DagRun, TaskInstance
 from airflow.models.dag import DAG
-from airflow.operators.dummy import DummyOperator
+from airflow.operators.empty import EmptyOperator
 from airflow.operators.latest_only import LatestOnlyOperator
 from airflow.utils import timezone
-from airflow.utils.session import create_session
 from airflow.utils.state import State
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
+from tests.test_utils.db import clear_db_runs, clear_db_xcom
 
 DEFAULT_DATE = timezone.datetime(2016, 1, 1)
 END_DATE = timezone.datetime(2016, 1, 2)
@@ -49,20 +48,27 @@ def get_task_instances(task_id):
     )
 
 
-class TestLatestOnlyOperator(unittest.TestCase):
-    def setUp(self):
-        super().setUp()
+class TestLatestOnlyOperator:
+    @staticmethod
+    def clean_db():
+        clear_db_runs()
+        clear_db_xcom()
+
+    def setup_class(self):
+        self.clean_db()
+
+    def setup_method(self):
         self.dag = DAG(
             'test_dag',
             default_args={'owner': 'airflow', 'start_date': DEFAULT_DATE},
             schedule_interval=INTERVAL,
         )
-        with create_session() as session:
-            session.query(DagRun).delete()
-            session.query(TaskInstance).delete()
-        freezer = freeze_time(FROZEN_NOW)
-        freezer.start()
-        self.addCleanup(freezer.stop)
+        self.freezer = freeze_time(FROZEN_NOW)
+        self.freezer.start()
+
+    def teardown_method(self):
+        self.freezer.stop()
+        self.clean_db()
 
     def test_run(self):
         task = LatestOnlyOperator(task_id='latest', dag=self.dag)
@@ -70,9 +76,9 @@ class TestLatestOnlyOperator(unittest.TestCase):
 
     def test_skipping_non_latest(self):
         latest_task = LatestOnlyOperator(task_id='latest', dag=self.dag)
-        downstream_task = DummyOperator(task_id='downstream', dag=self.dag)
-        downstream_task2 = DummyOperator(task_id='downstream_2', dag=self.dag)
-        downstream_task3 = DummyOperator(
+        downstream_task = EmptyOperator(task_id='downstream', dag=self.dag)
+        downstream_task2 = EmptyOperator(task_id='downstream_2', dag=self.dag)
+        downstream_task3 = EmptyOperator(
             task_id='downstream_3', trigger_rule=TriggerRule.NONE_FAILED, dag=self.dag
         )
 
@@ -140,8 +146,8 @@ class TestLatestOnlyOperator(unittest.TestCase):
 
     def test_not_skipping_external(self):
         latest_task = LatestOnlyOperator(task_id='latest', dag=self.dag)
-        downstream_task = DummyOperator(task_id='downstream', dag=self.dag)
-        downstream_task2 = DummyOperator(task_id='downstream_2', dag=self.dag)
+        downstream_task = EmptyOperator(task_id='downstream', dag=self.dag)
+        downstream_task2 = EmptyOperator(task_id='downstream_2', dag=self.dag)
 
         downstream_task.set_upstream(latest_task)
         downstream_task2.set_upstream(downstream_task)

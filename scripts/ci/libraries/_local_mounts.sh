@@ -31,7 +31,7 @@ function local_mounts::generate_local_mounts_list {
         "$prefix".github:/opt/airflow/.github:cached
         "$prefix".inputrc:/root/.inputrc:cached
         "$prefix".rat-excludes:/opt/airflow/.rat-excludes:cached
-        "$prefix"CHANGELOG.txt:/opt/airflow/CHANGELOG.txt:cached
+        "$prefix"RELEASE_NOTES.rst:/opt/airflow/RELEASE_NOTES.rst:cached
         "$prefix"LICENSE:/opt/airflow/LICENSE:cached
         "$prefix"MANIFEST.in:/opt/airflow/MANIFEST.in:cached
         "$prefix"NOTICE:/opt/airflow/NOTICE:cached
@@ -45,11 +45,12 @@ function local_mounts::generate_local_mounts_list {
         "$prefix"pyproject.toml:/opt/airflow/pyproject.toml:cached
         "$prefix"pytest.ini:/opt/airflow/pytest.ini:cached
         "$prefix"scripts:/opt/airflow/scripts:cached
-        "$prefix"scripts/in_container/entrypoint_ci.sh:/entrypoint:cached
+        "$prefix"scripts/docker/entrypoint_ci.sh:/entrypoint:cached
         "$prefix"setup.cfg:/opt/airflow/setup.cfg:cached
         "$prefix"setup.py:/opt/airflow/setup.py:cached
         "$prefix"tests:/opt/airflow/tests:cached
         "$prefix"kubernetes_tests:/opt/airflow/kubernetes_tests:cached
+        "$prefix"docker_tests:/opt/airflow/docker_tests:cached
         "$prefix"chart:/opt/airflow/chart:cached
         "$prefix"metastore_browser:/opt/airflow/metastore_browser:cached
     )

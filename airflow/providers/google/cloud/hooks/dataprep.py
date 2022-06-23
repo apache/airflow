@@ -64,7 +64,6 @@ class GoogleDataprepHook(BaseHook):
         Get information about the batch jobs within a Cloud Dataprep job.
 
         :param job_id: The ID of the job that will be fetched
-        :type job_id: int
         """
         endpoint_path = f"v4/jobGroups/{job_id}/jobs"
         url: str = os.path.join(self._base_url, endpoint_path)
@@ -79,11 +78,8 @@ class GoogleDataprepHook(BaseHook):
         A job group is a job that is executed from a specific node in a flow.
 
         :param job_group_id: The ID of the job that will be fetched
-        :type job_group_id: int
         :param embed: Comma-separated list of objects to pull in as part of the response
-        :type embed: str
         :param include_deleted: if set to "true", will include deleted objects
-        :type include_deleted: bool
         """
         params: Dict[str, Any] = {"embed": embed, "includeDeleted": include_deleted}
         endpoint_path = f"v4/jobGroups/{job_group_id}"
@@ -101,7 +97,6 @@ class GoogleDataprepHook(BaseHook):
         https://clouddataprep.com/documentation/api#operation/runJobGroup
 
         :param body_request: The identifier for the recipe you would like to run.
-        :type body_request: dict
         """
         endpoint_path = "v4/jobGroups"
         url: str = os.path.join(self._base_url, endpoint_path)

@@ -21,6 +21,7 @@ Example Airflow DAG that creates and deletes Bigquery data transfer configuratio
 """
 import os
 import time
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.bigquery_dts import (
@@ -29,7 +30,6 @@ from airflow.providers.google.cloud.operators.bigquery_dts import (
     BigQueryDeleteDataTransferConfigOperator,
 )
 from airflow.providers.google.cloud.sensors.bigquery_dts import BigQueryDataTransferServiceTransferRunSensor
-from airflow.utils.dates import days_ago
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_URI = os.environ.get("GCP_DTS_BUCKET_URI", "gs://INVALID BUCKET NAME/bank-marketing.csv")
@@ -65,7 +65,8 @@ TRANSFER_CONFIG = {
 with models.DAG(
     "example_gcp_bigquery_dts",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     # [START howto_bigquery_create_data_transfer]

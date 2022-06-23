@@ -16,13 +16,21 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Optional, Sequence, Union
+from typing import TYPE_CHECKING, Optional, Sequence, Tuple, Union
 
-from google.api_core.gapic_v1.method import DEFAULT
+from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
+from google.api_core.retry import Retry
 from google.cloud.monitoring_v3 import AlertPolicy, NotificationChannel
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.stackdriver import StackdriverHook
+from airflow.providers.google.cloud.links.stackdriver import (
+    StackdriverNotificationsLink,
+    StackdriverPoliciesLink,
+)
+
+if TYPE_CHECKING:
+    from airflow.utils.context import Context
 
 
 class StackdriverListAlertPoliciesOperator(BaseOperator):
@@ -40,40 +48,30 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
         python dictionary, stringified JSON and protobuf respectively.
-    :type format_: str
     :param filter_:  If provided, this field specifies the criteria that must be met by alert
         policies to be included in the response.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type filter_: str
     :param order_by: A comma-separated list of fields by which to sort the result.
         Supports the same set of field references as the ``filter`` field. Entries
         can be prefixed with a minus sign to sort by the field in descending order.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type order_by: str
     :param page_size: The maximum number of resources contained in the
         underlying API response. If page streaming is performed per-
         resource, this parameter does not affect the return value. If page
         streaming is performed per-page, this determines the maximum number
         of resources in a page.
-    :type page_size: int
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project to fetch alerts from.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -82,13 +80,13 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverPoliciesLink(),)
     ui_color = "#e5ffcc"
 
     def __init__(
@@ -98,9 +96,9 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -119,9 +117,9 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'List Alert Policies: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
@@ -147,6 +145,11 @@ class StackdriverListAlertPoliciesOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
         return [AlertPolicy.to_dict(policy) for policy in result]
 
 
@@ -162,25 +165,18 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be enabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project in which alert needs to be enabled.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -189,22 +185,22 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     ui_color = "#e5ffcc"
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverPoliciesLink(),)
 
     def __init__(
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -220,9 +216,9 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Enable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -236,6 +232,11 @@ class StackdriverEnableAlertPoliciesOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -252,25 +253,18 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project in which alert needs to be disabled.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -279,22 +273,22 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
     ui_color = "#e5ffcc"
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverPoliciesLink(),)
 
     def __init__(
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -310,9 +304,9 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
         self.timeout = timeout
         self.metadata = metadata
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Disable Alert Policies: Project id: %s Filter: %s', self.project_id, self.filter_)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -326,6 +320,11 @@ class StackdriverDisableAlertPoliciesOperator(BaseOperator):
             retry=self.retry,
             timeout=self.timeout,
             metadata=self.metadata,
+        )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
         )
 
 
@@ -342,25 +341,18 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         to be either created or updated. For more details, see
         https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.alertPolicies#AlertPolicy.
         (templated)
-    :type alerts: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project in which alert needs to be created/updated.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -369,14 +361,14 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'alerts',
         'impersonation_chain',
     )
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
+    operator_extra_links = (StackdriverPoliciesLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -384,9 +376,9 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self,
         *,
         alerts: str,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -402,9 +394,9 @@ class StackdriverUpsertAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Upsert Alert Policies: Alerts: %s Project id: %s', self.alerts, self.project_id)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -419,6 +411,11 @@ class StackdriverUpsertAlertOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        StackdriverPoliciesLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
 
 
 class StackdriverDeleteAlertOperator(BaseOperator):
@@ -431,25 +428,18 @@ class StackdriverDeleteAlertOperator(BaseOperator):
 
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/alertPolicies/[ALERT_POLICY_ID]``.
-    :type name: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project from which alert needs to be deleted.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -458,10 +448,9 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'name',
         'impersonation_chain',
     )
@@ -472,9 +461,9 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -490,9 +479,9 @@ class StackdriverDeleteAlertOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Delete Alert Policy: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(
@@ -523,40 +512,30 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
     :param format_: (Optional) Desired output format of the result. The
         supported formats are "dict", "json" and None which returns
         python dictionary, stringified JSON and protobuf respectively.
-    :type format_: str
     :param filter_:  If provided, this field specifies the criteria that
         must be met by notification channels to be included in the response.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type filter_: str
     :param order_by: A comma-separated list of fields by which to sort the result.
         Supports the same set of field references as the ``filter`` field. Entries
         can be prefixed with a minus sign to sort by the field in descending order.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type order_by: str
     :param page_size: The maximum number of resources contained in the
         underlying API response. If page streaming is performed per-
         resource, this parameter does not affect the return value. If page
         streaming is performed per-page, this determines the maximum number
         of resources in a page.
-    :type page_size: int
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project to fetch notification channels from.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -565,13 +544,13 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -582,9 +561,9 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         filter_: Optional[str] = None,
         order_by: Optional[str] = None,
         page_size: Optional[int] = None,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -603,9 +582,9 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'List Notification Channels: Project id: %s Format: %s Filter: %s Order By: %s Page Size: %s',
             self.project_id,
@@ -630,8 +609,12 @@ class StackdriverListNotificationChannelsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
-        result = [NotificationChannel.to_dict(channel) for channel in channels]
-        return result
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
+        return [NotificationChannel.to_dict(channel) for channel in channels]
 
 
 class StackdriverEnableNotificationChannelsOperator(BaseOperator):
@@ -646,25 +629,18 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
     :param filter_:  If provided, this field specifies the criteria that
         must be met by notification channels to be enabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The location used for the operation.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -673,13 +649,13 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -687,9 +663,9 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -705,9 +681,9 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'Enable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
         )
@@ -724,6 +700,11 @@ class StackdriverEnableNotificationChannelsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
 
 
 class StackdriverDisableNotificationChannelsOperator(BaseOperator):
@@ -738,25 +719,18 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
     :param filter_:  If provided, this field specifies the criteria that
         must be met by alert policies to be disabled.
         For more details, see https://cloud.google.com/monitoring/api/v3/sorting-and-filtering.
-    :type filter_: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project in which notification channels needs to be enabled.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -765,13 +739,13 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'filter_',
         'impersonation_chain',
     )
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -779,9 +753,9 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self,
         *,
         filter_: Optional[str] = None,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -797,9 +771,9 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'Disable Notification Channels: Project id: %s Filter: %s', self.project_id, self.filter_
         )
@@ -816,6 +790,11 @@ class StackdriverDisableNotificationChannelsOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
 
 
 class StackdriverUpsertNotificationChannelOperator(BaseOperator):
@@ -831,25 +810,18 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         to be either created or updated. For more details, see
         https://cloud.google.com/monitoring/api/ref_v3/rest/v3/projects.notificationChannels.
         (templated)
-    :type channels: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project in which notification channels needs to be created/updated.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -858,14 +830,14 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'channels',
         'impersonation_chain',
     )
-    template_ext = ('.json',)
+    template_ext: Sequence[str] = ('.json',)
+    operator_extra_links = (StackdriverNotificationsLink(),)
 
     ui_color = "#e5ffcc"
 
@@ -873,9 +845,9 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self,
         *,
         channels: str,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[str] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -891,9 +863,9 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info(
             'Upsert Notification Channels: Channels: %s Project id: %s', self.channels, self.project_id
         )
@@ -910,6 +882,11 @@ class StackdriverUpsertNotificationChannelOperator(BaseOperator):
             timeout=self.timeout,
             metadata=self.metadata,
         )
+        StackdriverNotificationsLink.persist(
+            context=context,
+            operator_instance=self,
+            project_id=self.project_id or self.hook.project_id,
+        )
 
 
 class StackdriverDeleteNotificationChannelOperator(BaseOperator):
@@ -922,25 +899,18 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
 
     :param name: The alerting policy to delete. The format is:
                      ``projects/[PROJECT_ID]/notificationChannels/[CHANNEL_ID]``.
-    :type name: str
     :param retry: A retry object used to retry requests. If ``None`` is
         specified, requests will be retried using a default configuration.
-    :type retry: str
     :param timeout: The amount of time, in seconds, to wait
         for the request to complete. Note that if ``retry`` is
         specified, the timeout applies to each individual attempt.
-    :type timeout: float
     :param metadata: Additional metadata that is provided to the method.
-    :type metadata: str
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google
         Cloud Platform.
-    :type gcp_conn_id: str
     :param project_id: The project from which notification channel needs to be deleted.
-    :type project_id: str
     :param delegate_to: The account to impersonate using domain-wide delegation of authority,
         if any. For this to work, the service account making the request must have
         domain-wide delegation enabled.
-    :type delegate_to: str
     :param impersonation_chain: Optional service account to impersonate using short-term
         credentials, or chained list of accounts required to get the access_token
         of the last account in the list, which will be impersonated in the request.
@@ -949,10 +919,9 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
-    :type impersonation_chain: Union[str, Sequence[str]]
     """
 
-    template_fields = (
+    template_fields: Sequence[str] = (
         'name',
         'impersonation_chain',
     )
@@ -963,9 +932,9 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self,
         *,
         name: str,
-        retry: Optional[str] = DEFAULT,
-        timeout: Optional[float] = DEFAULT,
-        metadata: Optional[str] = None,
+        retry: Union[Retry, _MethodDefault] = DEFAULT,
+        timeout: Optional[float] = None,
+        metadata: Sequence[Tuple[str, str]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         project_id: Optional[str] = None,
         delegate_to: Optional[str] = None,
@@ -981,9 +950,9 @@ class StackdriverDeleteNotificationChannelOperator(BaseOperator):
         self.project_id = project_id
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
-        self.hook = None
+        self.hook: Optional[StackdriverHook] = None
 
-    def execute(self, context):
+    def execute(self, context: 'Context'):
         self.log.info('Delete Notification Channel: Project id: %s Name: %s', self.project_id, self.name)
         if self.hook is None:
             self.hook = StackdriverHook(

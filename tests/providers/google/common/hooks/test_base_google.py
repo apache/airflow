@@ -332,6 +332,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -348,6 +350,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path='KEY_PATH.json',
             keyfile_dict=None,
+            key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -375,6 +379,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=service_account,
+            key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -392,6 +398,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to="USER",
             target_principal=None,
@@ -425,6 +433,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=None,
@@ -442,7 +452,9 @@ class TestGoogleBaseHook(unittest.TestCase):
         }
         with pytest.raises(
             AirflowException,
-            match=re.escape('The `keyfile_dict` and `key_path` fields are mutually exclusive.'),
+            match=re.escape(
+                "The `keyfile_dict`, `key_path`, and `key_secret_name` fields are all mutually exclusive. "
+            ),
         ):
             self.instance._get_credentials_and_project_id()
 
@@ -626,6 +638,8 @@ class TestGoogleBaseHook(unittest.TestCase):
         mock_get_creds_and_proj_id.assert_called_once_with(
             key_path=None,
             keyfile_dict=None,
+            key_secret_name=None,
+            key_secret_project_id=None,
             scopes=self.instance.scopes,
             delegate_to=None,
             target_principal=target_principal,
@@ -676,10 +690,11 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             assert os.environ[CREDENTIALS] == key_path
 
-        mock_check_output.has_calls(
-            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+        calls = [
             mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/key-path']),
-        )
+            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+        ]
+        mock_check_output.assert_has_calls(calls)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -700,12 +715,11 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
         with self.instance.provide_authorized_gcloud():
             assert os.environ[CREDENTIALS] == file_name
 
-        mock_check_output.has_calls(
-            [
-                mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
-                mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']),
-            ]
-        )
+        calls = [
+            mock.call(['gcloud', 'auth', 'activate-service-account', '--key-file=/test/mock-file']),
+            mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
+        ]
+        mock_check_output.assert_has_calls(calls)
 
     @mock.patch(
         'airflow.providers.google.common.hooks.base_google.GoogleBaseHook.project_id',
@@ -734,12 +748,12 @@ class TestProvideAuthorizedGcloud(unittest.TestCase):
                 # Do nothing
                 pass
 
-        mock_check_output.has_calls(
+        mock_check_output.assert_has_calls(
             [
                 mock.call(['gcloud', 'config', 'set', 'auth/client_id', 'CLIENT_ID']),
                 mock.call(['gcloud', 'config', 'set', 'auth/client_secret', 'CLIENT_SECRET']),
-                mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
                 mock.call(['gcloud', 'auth', 'activate-refresh-token', 'CLIENT_ID', 'REFRESH_TOKEN']),
+                mock.call(['gcloud', 'config', 'set', 'core/project', 'PROJECT_ID']),
             ],
             any_order=False,
         )

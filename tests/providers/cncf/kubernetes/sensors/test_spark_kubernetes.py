@@ -749,7 +749,7 @@ class TestSparkKubernetesSensor(unittest.TestCase):
         )
         sensor.poke(None)
         mock_log_call.assert_called_once_with("spark-pi-2020-02-24-1-driver", namespace="default")
-        log_info_call = info_log_call.mock_calls[1]
+        log_info_call = info_log_call.mock_calls[2]
         log_value = log_info_call[1][0]
         assert log_value == TEST_POD_LOG_RESULT
 

@@ -31,15 +31,30 @@ FIELDS = [
     "impressions",
 ]
 PARAMETERS = {"level": "ad", "date_preset": "yesterday"}
-FACEBOOK_RETURN_VALUE = [
-    {
-        "campaign_name": "abcd",
-        "campaign_id": "abcd",
-        "ad_id": "abcd",
-        "clicks": "2",
-        "impressions": "2",
-    }
-]
+ACCOUNT_ID_1 = "act_12345"
+ACCOUNT_ID_2 = "act_12346"
+GCS_OBJ_PATH_1 = "Temp/act_12345_this_is_my_report_json.json"
+GCS_OBJ_PATH_2 = "Temp/act_12346_this_is_my_report_json.json"
+FACEBOOK_RETURN_VALUE = {
+    ACCOUNT_ID_1: [
+        {
+            "campaign_name": "abcd",
+            "campaign_id": "abcd",
+            "ad_id": "abcd",
+            "clicks": "2",
+            "impressions": "2",
+        }
+    ],
+    ACCOUNT_ID_2: [
+        {
+            "campaign_name": "abcd",
+            "campaign_id": "abcd",
+            "ad_id": "abcd",
+            "clicks": "2",
+            "impressions": "2",
+        }
+    ],
+}
 
 
 class TestFacebookAdsReportToGcsOperator:
@@ -67,4 +82,32 @@ class TestFacebookAdsReportToGcsOperator:
         )
         mock_gcs_hook.return_value.upload.assert_called_once_with(
             bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH, filename=mock.ANY, gzip=False
+        )
+
+    @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.FacebookAdsReportingHook")
+    @mock.patch("airflow.providers.google.cloud.transfers.facebook_ads_to_gcs.GCSHook")
+    def test_execute_with_upload(self, mock_gcs_hook, mock_ads_hook):
+        mock_ads_hook.return_value.bulk_facebook_report.return_value = FACEBOOK_RETURN_VALUE
+        op = FacebookAdsReportToGcsOperator(
+            facebook_conn_id=FACEBOOK_ADS_CONN_ID,
+            fields=FIELDS,
+            parameters=PARAMETERS,
+            object_name=GCS_OBJ_PATH,
+            bucket_name=GCS_BUCKET,
+            upload_as_account=True,
+            task_id="run_operator",
+            impersonation_chain=IMPERSONATION_CHAIN,
+        )
+        op.execute({})
+        mock_ads_hook.assert_called_once_with(facebook_conn_id=FACEBOOK_ADS_CONN_ID, api_version=None)
+        mock_ads_hook.return_value.bulk_facebook_report.assert_called_once_with(
+            params=PARAMETERS, fields=FIELDS
+        )
+        mock_gcs_hook.assert_has_calls(
+            [mock.call(gcp_conn_id=GCS_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)],
+            [mock.call(gcp_conn_id=GCS_CONN_ID, impersonation_chain=IMPERSONATION_CHAIN)],
+        )
+        mock_gcs_hook.return_value.upload.assert_has_calls(
+            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_1, filename=mock.ANY, gzip=False)],
+            [mock.call(bucket_name=GCS_BUCKET, object_name=GCS_OBJ_PATH_2, fidlename=mock.ANY, gzip=False)],
         )

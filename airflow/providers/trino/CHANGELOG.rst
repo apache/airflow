@@ -16,8 +16,95 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``AIP-47 | Migrate Trino example DAGs to new design (#24118)``
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+2.3.0
+.....
+
+Features
+~~~~~~~~
+
+* ``TrinoHook add authentication via JWT token and Impersonation  (#23116)``
+* ``Make presto and trino compatible with airflow 2.1 (#23061)``
+
+Bug Fixes
+~~~~~~~~~
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+   * ``Fix new MyPy errors in main (#22884)``
+
+2.2.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Pass X-Trino-Client-Info in trino hook (#22535)``
+
+2.1.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix mistakenly added install_requires for all providers (#22382)``
+
+2.1.1
+.....
+
+Misc
+~~~~
+
+* ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
+
+2.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add GCSToTrinoOperator (#21704)``
+
+Misc
+~~~~
+
+* ``Support for Python 3.10``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fixed changelog for January 2022 (delayed) provider's release (#21439)``
+   * ``Fix K8S changelog to be PyPI-compatible (#20614)``
+   * ``Fix mypy providers (#20190)``
+   * ``Add documentation for January 2021 providers release (#21257)``
+   * ``Replaced hql references to sql in TrinoHook and PrestoHook (#21630)``
+   * ``Pass Trino hook params to DbApiHook (#21479)``
+   * ``Remove ':type' lines now sphinx-autoapi supports typehints (#20951)``
+   * ``Update documentation for provider December 2021 release (#20523)``
 
 2.0.2
 .....

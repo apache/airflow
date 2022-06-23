@@ -17,11 +17,11 @@
 # under the License.
 
 import os
+from datetime import datetime
 
 from airflow import models
 from airflow.providers.google.cloud.operators.text_to_speech import CloudTextToSpeechSynthesizeOperator
 from airflow.providers.google.cloud.operators.translate_speech import CloudTranslateSpeechOperator
-from airflow.utils import dates
 
 GCP_PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 BUCKET_NAME = os.environ.get("GCP_TRANSLATE_SPEECH_TEST_BUCKET", "INVALID BUCKET NAME")
@@ -49,7 +49,8 @@ SOURCE_LANGUAGE = None  # type: None
 with models.DAG(
     "example_gcp_translate_speech",
     schedule_interval='@once',  # Override to match your needs
-    start_date=dates.days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
 ) as dag:
     text_to_speech_synthesize_task = CloudTextToSpeechSynthesizeOperator(

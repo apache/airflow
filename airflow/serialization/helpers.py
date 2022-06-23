@@ -16,12 +16,12 @@
 # under the License.
 
 """Serialized DAG and BaseOperator"""
-from typing import Union
+from typing import Any, Union
 
 from airflow.settings import json
 
 
-def serialize_template_field(template_field: dict) -> Union[str, dict]:
+def serialize_template_field(template_field: Any) -> Union[str, dict, list, int, float]:
     """
     Return a serializable representation of the templated_field.
     If a templated_field contains a Class or Instance for recursive templating, store them

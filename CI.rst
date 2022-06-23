@@ -32,6 +32,8 @@ However part of the philosophy we have is that we are not tightly coupled with a
 environments we use. Most of our CI jobs are written as bash scripts which are executed as steps in
 the CI jobs. And we have  a number of variables determine build behaviour.
 
+You can also take a look at the `CI Sequence Diagrams <CI_DIAGRAMS.md>`_ for more graphical overview
+of how Airlfow's CI works.
 
 GitHub Actions runs
 -------------------
@@ -57,14 +59,14 @@ Container Registry used as cache
 We are using GitHub Container Registry to store the results of the ``Build Images``
 workflow which is used in the ``Tests`` workflow.
 
-Currently in main version of Airflow we run tests in 4 different versions of Python (3.6, 3.7, 3.8, 3.9)
+Currently in main version of Airflow we run tests in 4 different versions of Python (3.7, 3.8, 3.9, 3.10)
 which means that we have to build 8 images (4 CI ones and 4 PROD ones). Yet we run around 12 jobs
 with each of the CI images. That is a lot of time to just build the environment to run. Therefore
 we are utilising ``pull_request_target`` feature of GitHub Actions.
 
 This feature allows to run a separate, independent workflow, when the main workflow is run -
 this separate workflow is different than the main one, because by default it runs using ``main`` version
-of the sources but also - and most of all - that it has WRITE access to the Github Container Image registry.
+of the sources but also - and most of all - that it has WRITE access to the GitHub Container Image registry.
 
 This is especially important in our case where Pull Requests to Airflow might come from any repository,
 and it would be a huge security issue if anyone from outside could
@@ -94,7 +96,7 @@ You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it i
 you to re-create CI environment in your local development instance and interact with it. In its basic
 form, when you do development you can run all the same tests that will be run in CI - but locally,
 before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
-take the full ``COMMIT_SHA`` of the failed build pass it as ``--github-image-id`` parameter of Breeze and it will
+take the full ``COMMIT_SHA`` of the failed build pass it as ``--image-tag`` parameter of Breeze and it will
 download the very same version of image that was used in CI and run it locally. This way, you can very
 easily reproduce any failed test that happens in CI - even if you do not check out the sources
 connected with the run.
@@ -124,7 +126,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | case of Postgres or MySQL. However,             |
 |                                         |             |              |            | it requires to perform manual init/reset        |
 |                                         |             |              |            | if you stop the environment.                    |
-+-----------------------------------------+-------------+--------------+-------------+------------------------------------------------+
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Mount variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``MOUNT_SELECTED_LOCAL_SOURCES``        |     true    |    false     |    false   | Determines whether local sources are            |
@@ -149,22 +151,6 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                           Force variables                                                           |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``FORCE_PULL_IMAGES``                   |    true     |    true      |    true    | Determines if images are force-pulled,          |
-|                                         |             |              |            | no matter if they are already present           |
-|                                         |             |              |            | locally. This includes not only the             |
-|                                         |             |              |            | CI/PROD images but also the Python base         |
-|                                         |             |              |            | images. Note that if Python base images         |
-|                                         |             |              |            | change, also the CI and PROD images             |
-|                                         |             |              |            | need to be fully rebuild unless they were       |
-|                                         |             |              |            | already built with that base Python             |
-|                                         |             |              |            | image. This is false for local development      |
-|                                         |             |              |            | to avoid often pulling and rebuilding           |
-|                                         |             |              |            | the image. It is true for CI workflow in        |
-|                                         |             |              |            | case waiting from images is enabled             |
-|                                         |             |              |            | as the images needs to be force-pulled from     |
-|                                         |             |              |            | GitHub Registry, but it is set to               |
-|                                         |             |              |            | false when waiting for images is disabled.      |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``FORCE_BUILD_IMAGES``                  |    false    |    false     |    false   | Forces building images. This is generally not   |
 |                                         |             |              |            | very useful in CI as in CI environment image    |
 |                                         |             |              |            | is built or pulled only once, so there is no    |
@@ -172,7 +158,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | builds it forces rebuild, regardless if it      |
 |                                         |             |              |            | is determined to be needed.                     |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``FORCE_ANSWER_TO_QUESTIONS``           |             |     yes      |     yes    | This variable determines if answer to questions |
+| ``ANSWER``                              |             |     yes      |     yes    | This variable determines if answer to questions |
 |                                         |             |              |            | during the build process should be              |
 |                                         |             |              |            | automatically given. For local development,     |
 |                                         |             |              |            | the user is occasionally asked to provide       |
@@ -200,16 +186,19 @@ You can use those variables when you try to reproduce the build locally.
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``HOST_OS``                             |             |    Linux     |    Linux   | OS of the Host (Darwin/Linux).                  |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``HOST_HOME``                           |             |              |            | Home directory on the host.                     |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-|                                                      Version suffix variables                                                       |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
-| ``VERSION_SUFFIX_FOR_PYPI``             |             |              |            | Version suffix used during provider             |
-|                                         |             |              |            | package preparation for PyPI builds.            |
-+-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                            Git variables                                                            |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 | ``COMMIT_SHA``                          |             | GITHUB_SHA   | GITHUB_SHA | SHA of the commit of the build is run           |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+|                                                         Initialization                                                              |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_ENVIRONMENT_INITIALIZATION``     |   false\*   |    false\*   |   false\*  | Skip initialization of test environment         |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* set to true in pre-commits                   |
++-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
+| ``SKIP_SSH_SETUP``                      |   false\*   |    false\*   |   false\*  | Skip setting up SSH server for tests.           |
+|                                         |             |              |            |                                                 |
+|                                         |             |              |            | \* set to true in GitHub CodeSpaces             |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
 |                                                         Verbosity variables                                                         |
 +-----------------------------------------+-------------+--------------+------------+-------------------------------------------------+
@@ -286,7 +275,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | should set it to false, especially              |
 |                                         |             |              |            | in case our local sources are not the           |
 |                                         |             |              |            | ones we intend to use (for example              |
-|                                         |             |              |            | when ``--github-image-id`` is used              |
+|                                         |             |              |            | when ``--image-tag`` is used              |
 |                                         |             |              |            | in Breeze.                                      |
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | In CI jobs it is set to true                    |
@@ -384,13 +373,10 @@ Our CI uses GitHub Registry to pull and push images to/from by default. You can 
 | GITHUB_TOKEN                   |                           | Token to use to login to GitHub.             |
 |                                |                           | Only used when pushing images on CI.         |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY_WAIT_FOR_IMAGE | ``false``                 | Wait for the image to be available. This is  |
-|                                |                           | useful if commit SHA is used as pull tag     |
-+--------------------------------+---------------------------+----------------------------------------------+
 | GITHUB_REGISTRY_PULL_IMAGE_TAG | ``latest``                | Pull this image tag. This is "latest" by     |
 |                                |                           | default, can also be full-length commit SHA. |
 +--------------------------------+---------------------------+----------------------------------------------+
-| GITHUB_REGISTRY_PUSH_IMAGE_TAG | ``latest``                | Pull this image tag. This is "latest" by     |
+| GITHUB_REGISTRY_PUSH_IMAGE_TAG | ``latest``                | Push this image tag. This is "latest" by     |
 |                                |                           | default, can also be full-length commit SHA. |
 +--------------------------------+---------------------------+----------------------------------------------+
 
@@ -474,7 +460,7 @@ Scheduled runs
 Those runs are results of (nightly) triggered job - only for ``main`` branch. The
 main purpose of the job is to check if there was no impact of external dependency changes on the Apache
 Airflow code (for example transitive dependencies released that fail the build). It also checks if the
-Docker images can be build from the scratch (again - to see if some dependencies have not changed - for
+Docker images can be built from the scratch (again - to see if some dependencies have not changed - for
 example downloaded package releases etc.
 
 All runs consist of the same jobs, but the jobs behave slightly differently or they are skipped in different
@@ -498,7 +484,7 @@ running, GitHub Actions will cancel the old workflow run automatically.
 Build Images Workflow
 ---------------------
 
-This workflow builds images for the CI Workflow.
+This workflow builds images for the CI Workflow for Pull Requests coming from forks.
 
 It's a special type of workflow: ``pull_request_target`` which means that it is triggered when a pull request
 is opened. This also means that the workflow has Write permission to push to the GitHub registry the images
@@ -506,12 +492,14 @@ used by CI jobs which means that the images can be built only once and reused by
 (including the matrix jobs). We've implemented it so that the ``Tests`` workflow waits
 until the images are built by the ``Build Images`` workflow before running.
 
-This workflow is also triggered on normal pushes to our "main" branches, i.e. after a
-pull request is merged and whenever ``scheduled`` run is triggered.
+Those "Build Image" steps are skipped in case Pull Requests do not come from "forks" (i.e. those
+are internal PRs for Apache Airflow repository. This is because in case of PRs coming from
+Apache Airflow (only committers can create those) the "pull_request" workflows have enough
+permission to push images to GitHub Registry.
 
-It's possible to disable this feature and go back to the previous behaviour via
-``GITHUB_REGISTRY_WAIT_FOR_IMAGE`` flag in the "Build Workflow image". Setting it to "false" switches back to
-the behaviour that each job builds its own image.
+This workflow is not triggered on normal pushes to our "main" branches, i.e. after a
+pull request is merged and whenever ``scheduled`` run is triggered. Again in this case the "CI" workflow
+has enough permissions to push the images. In this case we simply do not run this workflow.
 
 The workflow has the following jobs:
 
@@ -550,6 +538,8 @@ This workflow is a regular workflow that performs all checks of Airflow code.
 +---------------------------+----------------------------------------------+-------+-------+------+
 | UI tests                  | React UI tests for new Airflow UI            | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
+| WWW tests                 | React tests for current Airflow UI           | Yes   | Yes   | Yes  |
++---------------------------+----------------------------------------------+-------+-------+------+
 | Test image building       | Tests if PROD image build examples work      | Yes   | Yes   | Yes  |
 +---------------------------+----------------------------------------------+-------+-------+------+
 | CI Images                 | Waits for and verify CI Images (3)           | Yes   | Yes   | Yes  |
@@ -579,9 +569,7 @@ Comments:
  (1) CRON jobs builds images from scratch - to test if everything works properly for clean builds
  (2) The tests are run when the Trigger Tests job determine that important files change (this allows
      for example "no-code" changes to build much faster)
- (3) The jobs wait for CI images if ``GITHUB_REGISTRY_WAIT_FOR_IMAGE`` variable is set to "true".
-     You can set it to "false" to disable using shared images - this is slower though as the images
-     are rebuilt in every job that needs them.
+ (3) The jobs wait for CI images to be available.
  (4) PROD and CI images are pushed as "latest" to GitHub Container registry and constraints are upgraded
      only if all tests are successful. The images are rebuilt in this step using constraints pushed
      in the previous step.
@@ -628,11 +616,11 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 | Image        | Name:tag (both cases latest version and per-build)       | Description                                              |
 +==============+==========================================================+==========================================================+
-| Python image | python:<X.Y>-slim-buster                                 | Base Python image used by both production and CI image.  |
+| Python image | python:<X.Y>-slim-bullseye                               | Base Python image used by both production and CI image.  |
 | (DockerHub)  |                                                          | Python maintainer release new versions of those image    |
 |              |                                                          | with security fixes every few weeks in DockerHub.        |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
-| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-buster                | Version of python base image used in Airflow Builds      |
+| Airflow      | airflow/<BRANCH>/python:<X.Y>-slim-bullseye              | Version of python base image used in Airflow Builds      |
 | python base  |                                                          | We keep the "latest" version only to mark last "good"    |
 | image        |                                                          | python base that went through testing and was pushed.    |
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
@@ -660,7 +648,7 @@ have to be percent-encoded when you access them via UI (/ = %2F)
 +--------------+----------------------------------------------------------+----------------------------------------------------------+
 
 * <BRANCH> might be either "main" or "v2-*-test"
-* <X.Y> - Python version (Major + Minor).Should be one of ["3.6", "3.7", "3.8", "3.9"].
+* <X.Y> - Python version (Major + Minor).Should be one of ["3.7", "3.8", "3.9"].
 * <COMMIT_SHA> - full-length SHA of commit either from the tip of the branch (for pushes/schedule) or
   commit from the tip of the branch used for the PR.
 
@@ -673,19 +661,18 @@ For example knowing that the CI job was for commit ``cd27124534b46c9688a1d89e75f
 
 .. code-block:: bash
 
-  docker pull ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker pull ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-  docker run -it ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker run -it ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or
 enable some integrations. Therefore it is easiest to use `Breeze <BREEZE.rst>`_ for that. For example if
-you need to reproduce a MySQL environment with kerberos integration enabled for commit
-cd27124534b46c9688a1d89e75fcd137ab5137e3, in python 3.8 environment you can run:
+you need to reproduce a MySQL environment in python 3.8 environment you can run:
 
 .. code-block:: bash
 
-  ./breeze --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
+  breeze --image-tag cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8 --backend mysql
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in
@@ -693,38 +680,11 @@ this case, you do not need to checkout the sources that were used for that run -
 the image - but remember that any changes you make in those sources are lost when you leave the image as
 the sources are not mapped from your host machine.
 
-CI Sequence diagrams
-====================
-
-Sequence diagrams are shown of the flow happening during the CI Jobs.
-
-Pull request flow from fork
----------------------------
-
-.. image:: images/ci/pull_request_ci_flow.png
-    :align: center
-    :alt: Pull request flow from fork
-
-
-Direct Push/Merge flow
-----------------------
-
-.. image:: images/ci/push_ci_flow.png
-    :align: center
-    :alt: Direct Push/Merge flow
-
-Scheduled build flow
----------------------
-
-.. image:: images/ci/scheduled_ci_flow.png
-    :align: center
-    :alt: Scheduled build flow
-
 
 Adding new Python versions to CI
 --------------------------------
 
-In 2.0 line we currently support Python 3.6, 3.7, 3.8, 3.9.
+In the ``main`` branch of development line we currently support Python 3.7, 3.8, 3.9.
 
 In order to add a new version the following operations should be done (example uses Python 3.10)
 
@@ -739,14 +699,8 @@ In order to add a new version the following operations should be done (example u
 
 .. code-block:: bash
 
-  ./breeze build-image --python 3.10
+  breeze build-image --python 3.10
 
-* push image as cache to GitHub:
-
-.. code-block:: bash
-
-  ./breeze push-image --python 3.10
-
-* Find the 4 new images (main, ci, build, ci-manifest) created in
+* Find the 2 new images (prod, ci) created in
   `GitHub Container registry <https://github.com/orgs/apache/packages?tab=packages&ecosystem=container&q=airflow>`_
   go to Package Settings and turn on ``Public Visibility`` and set "Inherit access from Repository" flag.

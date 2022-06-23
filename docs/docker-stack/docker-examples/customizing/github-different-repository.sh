@@ -19,13 +19,23 @@
 # This is an example docker build script. It is not intended for PRODUCTION use
 set -euo pipefail
 AIRFLOW_SOURCES="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../../../" && pwd)"
-cd "${AIRFLOW_SOURCES}"
+TEMP_DOCKER_DIR=$(mktemp -d)
+pushd "${TEMP_DOCKER_DIR}"
+
+cp "${AIRFLOW_SOURCES}/Dockerfile" "${TEMP_DOCKER_DIR}"
+
 # [START build]
+export DEBIAN_VERSION="bullseye"
+export DOCKER_BUILDKIT=1
+
 docker build . \
-    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-buster" \
+    --pull \
+    --build-arg PYTHON_BASE_IMAGE="python:3.8-slim-${DEBIAN_VERSION}" \
     --build-arg AIRFLOW_INSTALLATION_METHOD="https://github.com/potiuk/airflow/archive/main.tar.gz#egg=apache-airflow" \
     --build-arg AIRFLOW_CONSTRAINTS_REFERENCE="constraints-main" \
     --build-arg CONSTRAINTS_GITHUB_REPOSITORY="potiuk/airflow" \
     --tag "github-different-repository-image:0.0.1"
 # [END build]
 docker rmi --force "github-different-repository-image:0.0.1"
+popd
+rm -rf "${TEMP_DOCKER_DIR}"

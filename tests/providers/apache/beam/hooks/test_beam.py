@@ -17,6 +17,7 @@
 #
 
 import copy
+import os
 import subprocess
 import unittest
 from unittest import mock
@@ -33,6 +34,7 @@ JOB_CLASS = 'com.example.UnitTest'
 PY_OPTIONS = ['-m']
 TEST_JOB_ID = 'test-job-id'
 
+GO_FILE = '/path/to/file.go'
 DEFAULT_RUNNER = "DirectRunner"
 BEAM_STRING = 'airflow.providers.apache.beam.hooks.beam.{}'
 BEAM_VARIABLES_PY = {'output': 'gs://test/output', 'labels': {'foo': 'bar'}}
@@ -40,6 +42,7 @@ BEAM_VARIABLES_JAVA = {
     'output': 'gs://test/output',
     'labels': {'foo': 'bar'},
 }
+BEAM_VARIABLES_GO = {'output': 'gs://test/output', 'labels': {'foo': 'bar'}}
 
 APACHE_BEAM_V_2_14_0_JAVA_SDK_LOG = f""""\
 Dataflow SDK version: 2.14.0
@@ -75,7 +78,9 @@ class TestBeamHook(unittest.TestCase):
             '--output=gs://test/output',
             '--labels=foo=bar',
         ]
-        mock_runner.assert_called_once_with(cmd=expected_cmd, process_line_callback=process_line_callback)
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None
+        )
         wait_for_done.assert_called_once_with()
 
     @parameterized.expand(
@@ -108,7 +113,9 @@ class TestBeamHook(unittest.TestCase):
             '--output=gs://test/output',
             '--labels=foo=bar',
         ]
-        mock_runner.assert_called_once_with(cmd=expected_cmd, process_line_callback=process_line_callback)
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None
+        )
         wait_for_done.assert_called_once_with()
 
     @parameterized.expand(
@@ -145,7 +152,9 @@ class TestBeamHook(unittest.TestCase):
             '--output=gs://test/output',
             '--labels=foo=bar',
         ]
-        mock_runner.assert_called_once_with(cmd=expected_cmd, process_line_callback=process_line_callback)
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None
+        )
         wait_for_done.assert_called_once_with()
         mock_virtualenv.assert_called_once_with(
             venv_directory=mock.ANY,
@@ -192,7 +201,9 @@ class TestBeamHook(unittest.TestCase):
             '--output=gs://test/output',
             '--labels={"foo":"bar"}',
         ]
-        mock_runner.assert_called_once_with(cmd=expected_cmd, process_line_callback=process_line_callback)
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None
+        )
         wait_for_done.assert_called_once_with()
 
     @mock.patch(BEAM_STRING.format('BeamCommandRunner'))
@@ -217,8 +228,56 @@ class TestBeamHook(unittest.TestCase):
             '--output=gs://test/output',
             '--labels={"foo":"bar"}',
         ]
-        mock_runner.assert_called_once_with(cmd=expected_cmd, process_line_callback=process_line_callback)
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=None
+        )
         wait_for_done.assert_called_once_with()
+
+    @mock.patch(BEAM_STRING.format('shutil.which'))
+    @mock.patch(BEAM_STRING.format('BeamCommandRunner'))
+    def test_start_go_pipeline(self, mock_runner, mock_which):
+        mock_which.return_value = "/some_path/to/go"
+        hook = BeamHook(runner=DEFAULT_RUNNER)
+        wait_for_done = mock_runner.return_value.wait_for_done
+        process_line_callback = MagicMock()
+
+        hook.start_go_pipeline(
+            go_file=GO_FILE,
+            variables=copy.deepcopy(BEAM_VARIABLES_GO),
+            process_line_callback=process_line_callback,
+        )
+
+        basename = os.path.basename(GO_FILE)
+        go_workspace = os.path.dirname(GO_FILE)
+        expected_cmd = [
+            'go',
+            'run',
+            basename,
+            f'--runner={DEFAULT_RUNNER}',
+            '--output=gs://test/output',
+            '--labels={"foo":"bar"}',
+        ]
+        mock_runner.assert_called_once_with(
+            cmd=expected_cmd, process_line_callback=process_line_callback, working_directory=go_workspace
+        )
+        wait_for_done.assert_called_once_with()
+
+    @mock.patch(BEAM_STRING.format('shutil.which'))
+    def test_start_go_pipeline_without_go_installed_raises(self, mock_which):
+        mock_which.return_value = None
+        hook = BeamHook(runner=DEFAULT_RUNNER)
+
+        with self.assertRaises(AirflowException) as ex_ctx:
+            hook.start_go_pipeline(
+                go_file=GO_FILE,
+                variables=copy.deepcopy(BEAM_VARIABLES_GO),
+            )
+
+        assert (
+            "You need to have Go installed to run beam go pipeline. See https://go.dev/doc/install "
+            "installation guide. If you are running airflow in Docker see more info at "
+            "'https://airflow.apache.org/docs/docker-stack/recipes.html'." == str(ex_ctx.exception)
+        )
 
 
 class TestBeamRunner(unittest.TestCase):
@@ -247,11 +306,7 @@ class TestBeamRunner(unittest.TestCase):
         beam = BeamCommandRunner(cmd)
         mock_logging.info.assert_called_once_with('Running command: %s', " ".join(cmd))
         mock_popen.assert_called_once_with(
-            cmd,
-            shell=False,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            close_fds=True,
+            cmd, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE, close_fds=True, cwd=None
         )
         self.assertRaises(Exception, beam.wait_for_done)
 

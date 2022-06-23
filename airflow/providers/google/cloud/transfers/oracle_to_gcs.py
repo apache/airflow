@@ -22,7 +22,7 @@ from datetime import date, datetime, timedelta
 from decimal import Decimal
 from typing import Dict
 
-import cx_Oracle
+import oracledb
 
 from airflow.providers.google.cloud.transfers.sql_to_gcs import BaseSQLToGCSOperator
 from airflow.providers.oracle.hooks.oracle import OracleHook
@@ -37,25 +37,23 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
 
     :param oracle_conn_id: Reference to a specific
         :ref:`Oracle hook <howto/connection:oracle>`.
-    :type oracle_conn_id: str
     :param ensure_utc: Ensure TIMESTAMP columns exported as UTC. If set to
         `False`, TIMESTAMP columns will be exported using the Oracle server's
         default timezone.
-    :type ensure_utc: bool
     """
 
     ui_color = '#a0e08c'
 
     type_map = {
-        cx_Oracle.DB_TYPE_BINARY_DOUBLE: 'DECIMAL',
-        cx_Oracle.DB_TYPE_BINARY_FLOAT: 'DECIMAL',
-        cx_Oracle.DB_TYPE_BINARY_INTEGER: 'INTEGER',
-        cx_Oracle.DB_TYPE_BOOLEAN: 'BOOLEAN',
-        cx_Oracle.DB_TYPE_DATE: 'TIMESTAMP',
-        cx_Oracle.DB_TYPE_NUMBER: 'NUMERIC',
-        cx_Oracle.DB_TYPE_TIMESTAMP: 'TIMESTAMP',
-        cx_Oracle.DB_TYPE_TIMESTAMP_LTZ: 'TIMESTAMP',
-        cx_Oracle.DB_TYPE_TIMESTAMP_TZ: 'TIMESTAMP',
+        oracledb.DB_TYPE_BINARY_DOUBLE: 'DECIMAL',  # type: ignore
+        oracledb.DB_TYPE_BINARY_FLOAT: 'DECIMAL',  # type: ignore
+        oracledb.DB_TYPE_BINARY_INTEGER: 'INTEGER',  # type: ignore
+        oracledb.DB_TYPE_BOOLEAN: 'BOOLEAN',  # type: ignore
+        oracledb.DB_TYPE_DATE: 'TIMESTAMP',  # type: ignore
+        oracledb.DB_TYPE_NUMBER: 'NUMERIC',  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP: 'TIMESTAMP',  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP_LTZ: 'TIMESTAMP',  # type: ignore
+        oracledb.DB_TYPE_TIMESTAMP_TZ: 'TIMESTAMP',  # type: ignore
     }
 
     def __init__(self, *, oracle_conn_id='oracle_default', ensure_utc=False, **kwargs):
@@ -87,7 +85,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
             'mode': field_mode,
         }
 
-    def convert_type(self, value, schema_type):
+    def convert_type(self, value, schema_type, **kwargs):
         """
         Takes a value from Oracle db, and converts it to a value that's safe for
         JSON/Google Cloud Storage/BigQuery.
@@ -102,9 +100,7 @@ class OracleToGCSOperator(BaseSQLToGCSOperator):
           https://cloud.google.com/bigquery/data-types
 
         :param value: Oracle db column value
-        :type value: Any
         :param schema_type: BigQuery data type
-        :type schema_type: str
         """
         if value is None:
             return value

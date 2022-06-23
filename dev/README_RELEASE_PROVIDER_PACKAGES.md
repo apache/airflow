@@ -20,10 +20,12 @@
 <!-- DON'T EDIT THIS SECTION, INSTEAD RE-RUN doctoc TO UPDATE -->
 **Table of contents**
 
+- [What the provider packages are](#what-the-provider-packages-are)
 - [Provider packages](#provider-packages)
 - [Decide when to release](#decide-when-to-release)
 - [Provider packages versioning](#provider-packages-versioning)
 - [Prepare Regular Provider packages (RC)](#prepare-regular-provider-packages-rc)
+  - [Increasing version number](#increasing-version-number)
   - [Generate release notes](#generate-release-notes)
   - [Build provider packages for SVN apache upload](#build-provider-packages-for-svn-apache-upload)
   - [Build and sign the source and convenience packages](#build-and-sign-the-source-and-convenience-packages)
@@ -38,14 +40,29 @@
 - [Publish release](#publish-release)
   - [Summarize the voting for the Apache Airflow release](#summarize-the-voting-for-the-apache-airflow-release)
   - [Publish release to SVN](#publish-release-to-svn)
-  - [Publish the Regular convenience package to PyPI](#publish-the-regular-convenience-package-to-pypi-1)
+  - [Publish the packages to PyPI](#publish-the-packages-to-pypi)
   - [Publish documentation prepared before](#publish-documentation-prepared-before)
   - [Add tags in git](#add-tags-in-git-1)
   - [Notify developers of release](#notify-developers-of-release)
+  - [Add release data to Apache Committee Report Helper](#add-release-data-to-apache-committee-report-helper)
+  - [Close the testing status issue](#close-the-testing-status-issue)
 
 <!-- END doctoc generated TOC please keep comment here to allow auto update -->
 
 ------------------------------------------------------------------------------------------------------------
+
+# What the provider packages are
+
+The Provider packages are separate packages (one package per provider) that implement
+integrations with external services for Airflow in the form of installable Python packages.
+
+The Release Manager prepares packages separately from the main Airflow Release, using
+`breeze` commands and accompanying scripts. This document provides an overview of the command line tools
+needed to prepare the packages.
+
+NOTE!! When you have problems with any of those commands that run inside `breeze` docker image, you
+can run the command with `--debug` flag that will drop you in the shell inside the image and will
+print the command that you should run.
 
 # Provider packages
 
@@ -72,11 +89,35 @@ Details about maintaining the SEMVER version are going to be discussed and imple
 
 # Prepare Regular Provider packages (RC)
 
+## Increasing version number
+
+First thing that release manager has to do is to change version of the provider to a target
+version. Each provider has a `provider.yaml` file that, among others, stores information
+about provider versions. When you attempt to release a provider you should update that
+information based on the changes for the provider, and it's `CHANGELOG.rst`. It might be that
+`CHANGELOG.rst` already contains the right target version. This will be especially true if some
+changes in the provider add new features (then minor version is increased) or when the changes
+introduce backwards-incompatible, breaking change in the provider (then major version is
+incremented). Committers, when approving and merging changes to the providers, should pay attention
+that the `CHANGELOG.rst` is updated whenever anything other than bugfix is added.
+
+If there are no new features or breaking changes, the release manager should simply increase the
+patch-level version for the provider.
+
+The new version should be first on the list.
+
 ## Generate release notes
 
-Prepare release notes for all the packages you plan to release. When the provider package version
-has not been updated since the latest version, the release notes are not generated. Release notes
-are only generated, when the latest version of the package does not yet have a corresponding TAG.
+Each of the provider packages contains Release notes in the form of the `CHANGELOG.rst` file that is
+automatically generated from history of the changes and code of the provider.
+They are stored in the documentation directory. The `README.md` file generated during package
+preparation is not stored anywhere in the repository - it contains however link to the Changelog
+generated.
+
+When the provider package version has not been updated since the latest version, the release notes
+are not generated. Release notes are only generated, when the latest version of the package does not
+yet have a corresponding TAG.
+
 The tags for providers is of the form ``providers-<PROVIDER_ID>/<VERSION>`` for example
 ``providers-amazon/1.0.0``. During releasing, the RC1/RC2 tags are created (for example
 ``providers-amazon/1.0.0rc1``).
@@ -84,22 +125,22 @@ The tags for providers is of the form ``providers-<PROVIDER_ID>/<VERSION>`` for 
 Details about maintaining the SEMVER version are going to be discussed and implemented in
 [the related issue](https://github.com/apache/airflow/issues/11425)
 
-
 ```shell script
-./breeze prepare-provider-documentation [packages]
+breeze prepare-provider-documentation [packages]
 ```
 
 This command will not only prepare documentation but will also help the release manager to review
 changes implemented in all providers, and determine which of the providers should be released. For each
 provider details will be printed on what changes were implemented since the last release including
-links to particular commits. This should help to determine which version of provider should be released:
+links to particular commits.
+
+This should help to determine which version of provider should be released:
 
 * increased patch-level for bugfix-only change
 * increased minor version if new features are added
 * increased major version if breaking changes are added
 
 It also helps the release manager to update CHANGELOG.rst where high-level overview of the changes should be documented for the providers released.
-
 You should iterate and re-generate the same content after any change as many times as you want.
 The generated files should be added and committed to the repository.
 
@@ -107,20 +148,8 @@ When you want to regenerate the changes before the release and make sure all cha
 are updated, run it in non-interactive mode:
 
 ```shell script
-./breeze --non-interactive prepare-provider-documentation [packages]
+breeze prepare-provider-documentation --answer yes [packages]
 ```
-
-When you run the command and documentation generation is successful you will get a command that you can run to
-create GitHub issue where you will be tracking status of tests for the providers you release.
-
-You can also trigger automated execution of the issue by running:
-
-```shell script
-./breeze --non-interactive --generate-providers-issue prepare-provider-documentation [packages]
-```
-
-Once you release packages, you should create the issue with the content specified and link to it in
-the email sent to the devlist.
 
 ## Build provider packages for SVN apache upload
 
@@ -144,13 +173,13 @@ rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 * Release candidate packages:
 
 ```shell script
-./breeze prepare-provider-packages --package-format both
+breeze prepare-provider-packages --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
+breeze prepare-provider-packages --package-format both PACKAGE PACKAGE ....
 ```
 
 * Sign all your packages
@@ -209,14 +238,13 @@ this will clean up dist folder before generating the packages, so you will only 
 ```shell script
 rm -rf ${AIRFLOW_REPO_ROOT}/dist/*
 
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
+breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both
 ```
 
 if you only build few packages, run:
 
 ```shell script
-./breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both \
-    PACKAGE PACKAGE ....
+breeze prepare-provider-packages --version-suffix-for-pypi rc1 --package-format both PACKAGE PACKAGE ....
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -276,10 +304,8 @@ export AIRFLOW_SITE_DIRECTORY="$(pwd)"
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-./breeze build-docs -- \
-  --for-production \
-  --package-filter apache-airflow-providers \
-  --package-filter 'apache-airflow-providers-*'
+breeze build-docs --for-production --package-filter apache-airflow-providers \
+   --package-filter 'apache-airflow-providers-*'
 ```
 
 Usually when we release packages we also build documentation for the "documentation-only" packages. This
@@ -290,8 +316,7 @@ If we want to just release some providers you can release them in this way:
 
 ```shell script
 cd "${AIRFLOW_REPO_ROOT}"
-./breeze build-docs -- \
-  --for-production \
+breeze build-docs --for-production \
   --package-filter apache-airflow-providers \
   --package-filter 'apache-airflow-providers-PACKAGE1' \
   --package-filter 'apache-airflow-providers-PACKAGE2' \
@@ -352,8 +377,18 @@ git push --set-upstream origin "${branch}"
 
 ## Prepare issue in GitHub to keep status of testing
 
-Create GitHub issue with the content generated via prepare-provider-documentation or manual
-execution of the script above. You will use link to that issue in the next step.
+Create a GitHub issue with the content generated via manual
+execution of the script below. You will use link to that issue in the next step. You need a GITHUB_TOKEN
+set as your environment variable.
+
+You can also pass the token as `--github-token` option in the script.
+
+```shell script
+./dev/provider_packages/prepare_provider_packages.py generate-issue-content --only-available-in-dist
+```
+
+You can also generate the token by following
+[this link](https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status)
 
 ## Prepare voting email for Providers release candidate
 
@@ -473,7 +508,7 @@ This can be done with the Apache RAT tool.
 
 * Download the latest jar from https://creadur.apache.org/rat/download_rat.cgi (unpack the binary,
   the jar is inside)
-* Unpack the release source archive (the `<package + version>-source.tar.gz` file) to a folder
+* Unpack the release source archive (the `<package + version>.tar.gz` file) to a folder
 * Enter the sources folder run the check
 
 ```shell script
@@ -498,7 +533,7 @@ retrieves it from the default GPG keyserver
 [OpenPGP.org](https://keys.openpgp.org):
 
 ```shell script
-gpg --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.openpgp.org --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 You should choose to import the key when asked.
@@ -508,7 +543,7 @@ errors or timeouts. Many of the release managers also uploaded their keys to the
 [GNUPG.net](https://keys.gnupg.net) keyserver, and you can retrieve it from there.
 
 ```shell script
-gpg --keyserver keys.gnupg.net --receive-keys 12717556040EEF2EEAF1B9C275FCCD0A25FA0E4B
+gpg --keyserver keys.gnupg.net --receive-keys CDE15C6E4D3A8EC4ECF4BA4B6674E08AD7DE406F
 ```
 
 Once you have the keys, the signatures can be verified by running this:
@@ -522,10 +557,11 @@ done
 
 This should produce results similar to the below. The "Good signature from ..." is indication
 that the signatures are correct. Do not worry about the "not certified with a trusted signature"
-warning. Most of the certificates used by release managers are self signed, that's why you get this
-warning. By importing the server in the previous step and importing it via ID from
+warning. Most of the certificates used by release managers are self-signed, and that's why you get this
+warning. By importing the key either from the server in the previous step or from the
 [KEYS](https://dist.apache.org/repos/dist/release/airflow/KEYS) page, you know that
-this is a valid Key already.
+this is a valid key already.  To suppress the warning you may edit the key's trust level
+by running `gpg --edit-key <key id> trust` and entering `5` to assign trust level `ultimate`.
 
 ```
 Checking apache-airflow-2.0.2rc4.tar.gz.asc
@@ -589,21 +625,25 @@ downloaded from the SVN).
 You have to make sure you have Airflow 2* installed in your PIP virtualenv
 (the version you want to install providers with).
 
-```shell script
+```shell
 pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
 ```
 
 ### Installing with Breeze
 
-There is also an easy way of installation with Breeze if you have the latest sources of Apache Airflow.
-Here is a typical scenario.
-
-First copy all the provider packages .whl files to the `dist` folder.
-
-```shell script
-./breeze start-airflow --use-airflow-version <VERSION>rc<X> \
-    --python 3.7 --backend postgres --use-packages-from-dist
+```shell
+breeze start-airflow --use-airflow-version 2.2.4 --python 3.7 --backend postgres \
+    --load-example-dags --load-default-connections
 ```
+
+After you are in Breeze:
+
+```shell
+pip install apache-airflow-providers-<provider>==<VERSION>rc<X>
+```
+
+NOTE! You should `Ctrl-C` and restart the connections to restart airflow components and make sure new
+provider packages is used.
 
 ### Building your own docker image
 
@@ -612,9 +652,9 @@ provider packages. This is especially helpful when you want to test integrations
 additional tools. Below is an example Dockerfile, which installs providers for Google/
 
 ```dockerfile
-FROM apache/airflow:2.0.0
+FROM apache/airflow:2.2.3
 
-RUN pip install --upgrade --user apache-airflow-providers-google==2.0.0.rc1
+RUN pip install  --user apache-airflow-providers-google==2.2.2.rc1
 
 USER ${AIRFLOW_UID}
 ```
@@ -647,7 +687,7 @@ Once the vote has been passed, you will need to send a result vote to dev@airflo
 Subject:
 
 ```
-[RESULT][VOTE] Airflow  Providers - release of DATE OF RELEASE
+[RESULT][VOTE] Airflow Providers - release of DATE OF RELEASE
 ```
 
 Message:
@@ -683,12 +723,12 @@ We also need to archive older releases before copying the new ones
 [Release policy](http://www.apache.org/legal/release-policy.html#when-to-archive)
 
 ```shell script
-# Go to the directory where you have checked out the dev svn release
-# And go to the sub-folder with RC candidates
 cd "<ROOT_OF_YOUR_AIRFLOW_REPO>"
 # Set AIRFLOW_REPO_ROOT to the path of your git repo
 export AIRFLOW_REPO_ROOT=$(pwd)
 
+# Go to the directory where you have checked out the dev svn release
+# And go to the sub-folder with RC candidates
 cd "<ROOT_OF_YOUR_DEV_REPO>/providers/"
 export SOURCE_DIR=$(pwd)
 
@@ -699,8 +739,10 @@ ls *<provider>*
 svn rm *<provider>*
 
 # Go the folder where you have checked out the release repo
-# Clone it if it's not done yet
+cd "<ROOT_OF_YOUR_RELEASE_REPO>"
+# or clone it if it's not done yet
 svn checkout https://dist.apache.org/repos/dist/release/airflow airflow-release
+cd airflow-release
 
 # Update to latest version
 svn update
@@ -720,7 +762,7 @@ do
  svn mv "${file}" "${base_file//rc[0-9]/}"
 done
 
-# Check which old packages will be removed (you need python 3.6+)
+# Check which old packages will be removed (you need python 3.7+)
 python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
     --directory .
 
@@ -730,20 +772,20 @@ python ${AIRFLOW_REPO_ROOT}/dev/provider_packages/remove_old_releases.py \
 
 
 # Commit to SVN
-svn commit -m "Release Airflow Providers on $(date)"
+svn commit -m "Release Airflow Providers on $(date "+%Y-%m-%d%n")"
 ```
 
 Verify that the packages appear in
 [providers](https://dist.apache.org/repos/dist/release/airflow/providers)
 
 
-## Publish the Regular convenience package to PyPI
+## Publish the packages to PyPI
 
-By that time the packages with proper name (renamed from rc* to final version should be in your dist
-folder.
+By that time the packages should be in your dist folder.
 
 ```shell script
 cd ${AIRFLOW_REPO_ROOT}
+git checkout <ONE_OF_THE_RC_TAGS_FOR_ONE_OF_THE_RELEASED_PROVIDERS>
 ```
 
 * Verify the artifacts that would be uploaded:
@@ -767,11 +809,25 @@ twine upload -r pypitest ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/di
 twine upload -r pypi ${AIRFLOW_REPO_ROOT}/dist/*.whl ${AIRFLOW_REPO_ROOT}/dist/*.tar.gz
 ```
 
+Copy links to updated packages.
+
 * Again, confirm that the packages are available under the links printed.
 
 ## Publish documentation prepared before
 
 Merge the PR that you prepared before with the documentation.
+
+If you decided to remove some packages from the release make sure to do amend the commit in this way:
+
+* find the packages you removed in `docs-archive/apache-airflow-providers-<PROVIDER>`
+* remove the latest version (the one you were releasing)
+* update `stable.txt` to the previous version
+* in the (unlikely) event you are removing first version of package:
+   * remove whole `docs-archive/apache-airflow-providers-<PROVIDER>` folder
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/index.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/connections.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/extra-links.html` (2 places)
+   * remove package from `docs-archive/apache-airflow-providers/core-extensions/packages-ref.html` (5 places)
 
 ## Add tags in git
 
@@ -782,7 +838,6 @@ set tags for the providers in the repo.
 ./dev/provider_packages/tag_providers.sh
 ```
 
-
 ## Notify developers of release
 
 - Notify users@airflow.apache.org (cc'ing dev@airflow.apache.org and announce@apache.org) that
@@ -792,7 +847,7 @@ Subject:
 
 ```shell script
 cat <<EOF
-Airflow Providers released on $(date) are ready
+Airflow Providers released on $(date "+%B %d, %Y") are ready
 EOF
 ```
 
@@ -804,11 +859,13 @@ Dear Airflow community,
 
 I'm happy to announce that new versions of Airflow Providers packages were just released.
 
+TODO: If there is just a few packages to release - paste the links to PyPI packages. Otherwise delete this TODO (too many links make the message unclear).
+
 The source release, as well as the binary releases, are available here:
 
 https://airflow.apache.org/docs/apache-airflow-providers/installing-from-sources
 
-You can install the providers via PyPI  https://airflow.apache.org/apache-airflow-providers/installing-from-pypi
+You can install the providers via PyPI: https://airflow.apache.org/docs/apache-airflow-providers/installing-from-pypi
 
 The documentation is available at https://airflow.apache.org/docs/ and linked from the PyPI packages.
 
@@ -816,3 +873,11 @@ Cheers,
 <your name>
 EOF
 ```
+
+## Add release data to Apache Committee Report Helper
+
+Add the release data (version and date) at: https://reporter.apache.org/addrelease.html?airflow
+
+## Close the testing status issue
+
+Don't forget to thank the folks who tested and close the issue tracking the testing status.

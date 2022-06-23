@@ -20,7 +20,8 @@
 Example Airflow DAG for Google ML Engine service.
 """
 import os
-from typing import Dict
+from datetime import datetime
+from typing import Any, Dict
 
 from airflow import models
 from airflow.operators.bash import BashOperator
@@ -36,7 +37,6 @@ from airflow.providers.google.cloud.operators.mlengine import (
     MLEngineStartTrainingJobOperator,
 )
 from airflow.providers.google.cloud.utils import mlengine_operator_utils
-from airflow.utils.dates import days_ago
 
 PROJECT_ID = os.environ.get("GCP_PROJECT_ID", "example-project")
 
@@ -60,11 +60,12 @@ SUMMARY_STAGING = os.environ.get("GCP_MLENGINE_DATAFLOW_STAGING", "gs://INVALID 
 with models.DAG(
     "example_gcp_mlengine",
     schedule_interval='@once',  # Override to match your needs
-    start_date=days_ago(1),
+    start_date=datetime(2021, 1, 1),
+    catchup=False,
     tags=['example'],
     params={"model_name": MODEL_NAME},
 ) as dag:
-    hyperparams = {
+    hyperparams: Dict[str, Any] = {
         'goal': 'MAXIMIZE',
         'hyperparameterMetricTag': 'metric1',
         'maxTrials': 30,

@@ -21,7 +21,10 @@ from base64 import b64decode, b64encode
 from collections import namedtuple
 from unittest import mock
 
+from google.api_core.gapic_v1.method import DEFAULT
+
 from airflow.providers.google.cloud.hooks.kms import CloudKMSHook
+from airflow.providers.google.common.consts import CLIENT_INFO
 
 Response = namedtuple("Response", ["plaintext", "ciphertext"])
 
@@ -61,18 +64,11 @@ class TestCloudKMSHook(unittest.TestCase):
         ):
             self.kms_hook = CloudKMSHook(gcp_conn_id="test")
 
-    @mock.patch(
-        "airflow.providers.google.cloud.hooks.kms.CloudKMSHook.client_info",
-        new_callable=mock.PropertyMock,
-    )
     @mock.patch("airflow.providers.google.cloud.hooks.kms.CloudKMSHook._get_credentials")
     @mock.patch("airflow.providers.google.cloud.hooks.kms.KeyManagementServiceClient")
-    def test_kms_client_creation(self, mock_client, mock_get_creds, mock_client_info):
+    def test_kms_client_creation(self, mock_client, mock_get_creds):
         result = self.kms_hook.get_conn()
-        mock_client.assert_called_once_with(
-            credentials=mock_get_creds.return_value,
-            client_info=mock_client_info.return_value,
-        )
+        mock_client.assert_called_once_with(credentials=mock_get_creds.return_value, client_info=CLIENT_INFO)
         assert mock_client.return_value == result
         assert self.kms_hook._conn == result
 
@@ -87,7 +83,7 @@ class TestCloudKMSHook(unittest.TestCase):
                 plaintext=PLAINTEXT,
                 additional_authenticated_data=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -104,7 +100,7 @@ class TestCloudKMSHook(unittest.TestCase):
                 plaintext=PLAINTEXT,
                 additional_authenticated_data=AUTH_DATA,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -121,7 +117,7 @@ class TestCloudKMSHook(unittest.TestCase):
                 ciphertext=CIPHERTEXT,
                 additional_authenticated_data=None,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )
@@ -138,7 +134,7 @@ class TestCloudKMSHook(unittest.TestCase):
                 ciphertext=CIPHERTEXT,
                 additional_authenticated_data=AUTH_DATA,
             ),
-            retry=None,
+            retry=DEFAULT,
             timeout=None,
             metadata=(),
         )

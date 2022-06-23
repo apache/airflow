@@ -18,12 +18,10 @@
 #}
 
 {% extends "airflow/dag.html" %}
-{% block page_title %}{{ dag.dag_id }} - Tree - {{ appbuilder.app_name }}{% endblock %}
+{% block page_title %}{{ dag.dag_id }} - Calendar - {{ appbuilder.app_name }}{% endblock %}
 
 {% block head_css %}
   {{ super() }}
-  <meta name="dag_id" content="{{ dag.dag_id }}">
-  <meta name="tree_url" content="{{ url_for('Airflow.tree') }}">
   <link rel="stylesheet" type="text/css" href="{{ url_for_asset('calendar.css') }}">
 {% endblock %}
 
@@ -32,7 +30,11 @@
   <hr>
   <div id="svg_container">
     <img id='loading' width="50" src="{{ url_for('static', filename='loading.gif') }}">
-    <svg id="calendar-svg"></svg>
+    <svg id="calendar-svg">
+      <pattern id="calendar-svg-greydot" patternUnits="userSpaceOnUse" width="16" height="16">
+        <circle cx="8" cy="8" r="2" fill="#a3a3a3"></circle>
+      </pattern>
+    </svg>
   </div>
 {% endblock %}
 
@@ -44,6 +46,7 @@
   <script>
     const statesColors = {};
     statesColors["no_status"] = "white";
+    statesColors["planned"] = "url(#calendar-svg-greydot)";
     {% for state in ['failed', 'success', 'running'] %}
       statesColors["{{state}}"] = "{{state_color_mapping[state]}}";
     {% endfor %}
