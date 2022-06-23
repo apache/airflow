@@ -44,7 +44,7 @@ class TestDbApiHook(unittest.TestCase):
                 return conn
 
         self.db_hook = UnitTestDbApiHook()
-        self.db_hook_log_sql = UnitTestDbApiHook(log_sql=False)
+        self.db_hook_no_log_sql = UnitTestDbApiHook(log_sql=False)
         self.db_hook_schema_override = UnitTestDbApiHook(schema='schema-override')
 
     def test_get_records(self):
