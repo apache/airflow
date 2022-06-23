@@ -809,7 +809,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for core
         language: python
@@ -817,14 +817,14 @@ repos:
         files: \.py$
         exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: ^airflow/providers/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for /docs/ folder
         language: python
@@ -832,7 +832,7 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-flake8
         name: Run flake8
         language: python
@@ -840,7 +840,7 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: lint-javascript
         name: ESLint against airflow/ui
         language: python
@@ -848,7 +848,7 @@ repos:
         files: ^airflow/ui/
         entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: lint-javascript
         name: ESLint against current UI JavaScript files
         language: python
@@ -856,12 +856,12 @@ repos:
         files: ^airflow/www/static/js/
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: update-migration-references
         name: Update migration ref doc
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE
