@@ -19,9 +19,8 @@
 import logging
 import os
 import warnings
-from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.context import Context
@@ -99,7 +98,7 @@ class FileTaskHandler(logging.Handler):
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
             else:
                 assert dag is not None  # For Mypy.
-                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+                data_interval = dag.get_run_data_interval(dag_run)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:

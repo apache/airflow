@@ -131,7 +131,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
         else:
             assert dag is not None  # For Mypy.
-            data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+            data_interval = dag.get_run_data_interval(dag_run)
 
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])
