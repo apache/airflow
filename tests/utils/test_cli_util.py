@@ -38,7 +38,7 @@ class TestCliUtil(unittest.TestCase):
         func_name = 'test'
         exec_date = datetime.utcnow()
         namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
-        metrics = cli._build_metrics(func_name, namespace)
+        metrics = cli._build_metrics(func_name, [namespace], {})
 
         expected = {
             'user': os.environ.get('USER'),
@@ -132,7 +132,7 @@ class TestCliUtil(unittest.TestCase):
         exec_date = datetime.utcnow()
         namespace = Namespace(dag_id='foo', task_id='bar', subcommand='test', execution_date=exec_date)
         with mock.patch.object(sys, "argv", args):
-            metrics = cli._build_metrics(args[1], namespace)
+            metrics = cli._build_metrics(args[1], [namespace], {})
 
         assert metrics.get('start_datetime') <= datetime.utcnow()
 
