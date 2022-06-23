@@ -55,5 +55,5 @@ def upgrade():
 
 
 def downgrade():
-    """Unapply Add DagWarning model"""
+    """Unapply Add Dataset model"""
     op.drop_table('dataset')
