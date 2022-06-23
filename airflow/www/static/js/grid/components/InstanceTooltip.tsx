@@ -23,25 +23,33 @@ import { Box, Text } from '@chakra-ui/react';
 import { finalStatesMap } from '../../utils';
 import { formatDuration, getDuration } from '../../datetime_utils';
 import Time from './Time';
+import type { TaskInstance, Task } from '../types';
+
+interface Props {
+  group: Task;
+  instance: TaskInstance;
+}
 
 const InstanceTooltip = ({
   group,
   instance: {
     startDate, endDate, state, runId, mappedStates,
   },
-}) => {
+}: Props) => {
+  if (!group) return null;
   const isGroup = !!group.children;
-  const { isMapped } = group;
-  const summary = [];
+  const summary: React.ReactNode[] = [];
+
+  const isMapped = group?.isMapped;
 
   const numMap = finalStatesMap();
   let numMapped = 0;
-  if (isGroup) {
+  if (isGroup && group.children) {
     group.children.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
         const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
-        if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+        if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
       }
     });
   } else if (isMapped && mappedStates) {
@@ -88,7 +96,7 @@ const InstanceTooltip = ({
       <Text>
         Started:
         {' '}
-        <Time dateTime={startDate} />
+        <Time dateTime={startDate || ''} />
       </Text>
       <Text>
         Duration:

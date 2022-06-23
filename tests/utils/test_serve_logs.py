@@ -21,7 +21,6 @@ import jwt
 import pytest
 from freezegun import freeze_time
 
-from airflow.configuration import conf
 from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.serve_logs import create_app
 from tests.test_utils.config import conf_vars
@@ -49,18 +48,18 @@ def sample_log(tmpdir):
 
 
 @pytest.fixture
-def signer():
+def signer(secret_key):
     return JWTSigner(
-        secret_key=conf.get('webserver', 'secret_key'),
+        secret_key=secret_key,
         expiration_time_in_seconds=30,
         audience="task-instance-logs",
     )
 
 
 @pytest.fixture
-def different_audience():
+def different_audience(secret_key):
     return JWTSigner(
-        secret_key=conf.get('webserver', 'secret_key'),
+        secret_key=secret_key,
         expiration_time_in_seconds=30,
         audience="different-audience",
     )
@@ -180,7 +179,7 @@ class TestServeLogs:
         )
 
     @pytest.mark.parametrize("claim_to_remove", ["iat", "exp", "nbf", "aud"])
-    def test_missing_claims(self, claim_to_remove: str, client: "FlaskClient"):
+    def test_missing_claims(self, claim_to_remove: str, client: "FlaskClient", secret_key):
         jwt_dict = {
             "aud": "task-instance-logs",
             "iat": datetime.datetime.utcnow(),
@@ -191,7 +190,7 @@ class TestServeLogs:
         jwt_dict.update({"filename": 'sample.log'})
         token = jwt.encode(
             jwt_dict,
-            conf.get('webserver', 'secret_key'),
+            secret_key,
             algorithm="HS512",
         )
         assert (

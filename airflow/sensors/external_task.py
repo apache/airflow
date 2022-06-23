@@ -25,7 +25,11 @@ import attr
 from sqlalchemy import func
 
 from airflow.exceptions import AirflowException
-from airflow.models import BaseOperatorLink, DagBag, DagModel, DagRun, TaskInstance
+from airflow.models.baseoperator import BaseOperatorLink
+from airflow.models.dag import DagModel
+from airflow.models.dagbag import DagBag
+from airflow.models.dagrun import DagRun
+from airflow.models.taskinstance import TaskInstance
 from airflow.operators.empty import EmptyOperator
 from airflow.sensors.base import BaseSensorOperator
 from airflow.utils.helpers import build_airflow_url_with_query

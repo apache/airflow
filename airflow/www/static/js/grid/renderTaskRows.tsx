@@ -30,30 +30,54 @@ import {
 import StatusBox, { boxSize, boxSizePx } from './components/StatusBox';
 import TaskName from './components/TaskName';
 
-import useSelection from './utils/useSelection';
+import useSelection, { SelectionProps } from './utils/useSelection';
+import type { Task, DagRun } from './types';
 
 const boxPadding = 3;
 const boxPaddingPx = `${boxPadding}px`;
 const columnWidth = boxSize + 2 * boxPadding;
 
+interface RowProps {
+  task: Task;
+  dagRunIds: DagRun['runId'][];
+  level?: number;
+  openParentCount?: number;
+  openGroupIds?: string[];
+  onToggleGroups?: (groupIds: string[]) => void;
+  hoveredTaskState?: string;
+}
+
 const renderTaskRows = ({
   task, level = 0, ...rest
-}) => task.children && task.children.map((t) => (
-  <Row
-    {...rest}
-    key={t.id}
-    task={t}
-    level={level}
-  />
-));
+}: RowProps) => (
+  <>
+    {(task?.children || []).map((t) => (
+      // eslint-disable-next-line @typescript-eslint/no-use-before-define
+      <Row
+        {...rest}
+        key={t.id}
+        task={t}
+        level={level}
+      />
+    ))}
+  </>
+);
+
+interface TaskInstancesProps {
+  task: Task;
+  dagRunIds: string[];
+  selectedRunId?: string | null;
+  onSelect: (selection: SelectionProps) => void;
+  hoveredTaskState?: string;
+}
 
 const TaskInstances = ({
-  task, dagRunIds, selectedRunId, onSelect, activeTaskState,
-}) => (
+  task, dagRunIds, selectedRunId, onSelect, hoveredTaskState,
+}: TaskInstancesProps) => (
   <Flex justifyContent="flex-end">
-    {dagRunIds.map((runId) => {
+    {dagRunIds.map((runId: string) => {
       // Check if an instance exists for the run, or return an empty box
-      const instance = task.instances.find((gi) => gi && gi.runId === runId);
+      const instance = task.instances.find((ti) => ti && ti.runId === runId);
       const isSelected = selectedRunId === runId;
       return (
         <Box
@@ -63,7 +87,7 @@ const TaskInstances = ({
           data-selected={isSelected}
           transition="background-color 0.2s"
           key={`${runId}-${task.id}`}
-          bg={isSelected && 'blue.100'}
+          bg={isSelected ? 'blue.100' : undefined}
         >
           {instance
             ? (
@@ -71,7 +95,7 @@ const TaskInstances = ({
                 instance={instance}
                 group={task}
                 onSelect={onSelect}
-                isActive={activeTaskState === undefined || activeTaskState === instance.state}
+                isActive={hoveredTaskState === undefined || hoveredTaskState === instance.state}
               />
             )
             : <Box width={boxSizePx} data-testid="blank-task" />}
@@ -81,10 +105,10 @@ const TaskInstances = ({
   </Flex>
 );
 
-const Row = (props) => {
+const Row = (props: RowProps) => {
   const {
     task,
-    level,
+    level = 0,
     dagRunIds,
     openParentCount = 0,
     openGroupIds = [],
@@ -103,7 +127,7 @@ const Row = (props) => {
   // assure the function is the same across renders
   const memoizedToggle = useCallback(
     () => {
-      if (isGroup) {
+      if (isGroup && task.label) {
         let newGroupIds = [];
         if (!isOpen) {
           newGroupIds = [...openGroupIds, task.label];
@@ -121,16 +145,16 @@ const Row = (props) => {
   return (
     <>
       <Tr
-        bg={isSelected && 'blue.100'}
+        bg={isSelected ? 'blue.100' : 'inherit'}
         borderBottomWidth={isFullyOpen ? 1 : 0}
         borderBottomColor={isGroup && isOpen ? 'gray.400' : 'gray.200'}
         role="group"
-        _hover={!isSelected && { bg: hoverBlue }}
+        _hover={!isSelected ? { bg: hoverBlue } : undefined}
         transition="background-color 0.2s"
       >
         <Td
           bg={isSelected ? 'blue.100' : 'white'}
-          _groupHover={!isSelected && ({ bg: 'blue.50' })}
+          _groupHover={!isSelected ? { bg: 'blue.50' } : undefined}
           p={0}
           transition="background-color 0.2s"
           lineHeight="18px"
@@ -164,7 +188,7 @@ const Row = (props) => {
               task={task}
               selectedRunId={selected.runId}
               onSelect={onSelect}
-              activeTaskState={hoveredTaskState}
+              hoveredTaskState={hoveredTaskState}
             />
           </Collapse>
         </Td>
