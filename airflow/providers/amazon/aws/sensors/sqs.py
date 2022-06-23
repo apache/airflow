@@ -38,9 +38,10 @@ class SqsSensor(BaseSensorOperator):
     If deletion of messages fails an AirflowException is thrown. Otherwise, the messages
     are pushed through XCom with the key ``messages``.
 
-    This sensor performs one and only one SQS call per poke, which limits the result to
-    a maximum of 10 messages
+    By default,the sensor performs one and only one SQS call per poke, which limits the result to
+    a maximum of 10 messages.
 
+    However, the total number of SQS API calls per poke can be controlled by num_batches params.
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SqsSensor`
@@ -48,6 +49,7 @@ class SqsSensor(BaseSensorOperator):
     :param aws_conn_id: AWS connection id
     :param sqs_queue: The SQS queue url (templated)
     :param max_messages: The maximum number of messages to retrieve for each poke (templated)
+    :param num_batches: The number of times the sensor will call the SQS API to receive messages (default: 1)
     :param wait_time_seconds: The time in seconds to wait for receiving messages (default: 1 second)
     :param visibility_timeout: Visibility timeout, a period of time during which
         Amazon SQS prevents other consumers from receiving and processing the message.
@@ -76,6 +78,7 @@ class SqsSensor(BaseSensorOperator):
         sqs_queue,
         aws_conn_id: str = 'aws_default',
         max_messages: int = 5,
+        num_batches: int = 1,
         wait_time_seconds: int = 1,
         visibility_timeout: Optional[int] = None,
         message_filtering: Optional[Literal["literal", "jsonpath"]] = None,
@@ -88,6 +91,7 @@ class SqsSensor(BaseSensorOperator):
         self.sqs_queue = sqs_queue
         self.aws_conn_id = aws_conn_id
         self.max_messages = max_messages
+        self.num_batches = num_batches
         self.wait_time_seconds = wait_time_seconds
         self.visibility_timeout = visibility_timeout
 
@@ -149,29 +153,36 @@ class SqsSensor(BaseSensorOperator):
         """
         sqs_conn = self.get_hook().get_conn()
 
-        messages = self.poll_sqs(sqs_conn=sqs_conn)
+        message_batch: List[Any] = []
 
-        if not len(messages):
+        # perform multiple SQS call to retrieve messages in series
+        for _ in range(self.num_batches):
+            messages = self.poll_sqs(sqs_conn=sqs_conn)
+
+            if not len(messages):
+                continue
+
+            message_batch.extend(messages)
+
+            if self.delete_message_on_reception:
+
+                self.log.info("Deleting %d messages", len(messages))
+
+                entries = [
+                    {'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
+                    for message in messages
+                ]
+                response = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
+
+                if 'Successful' not in response:
+                    raise AirflowException(
+                        'Delete SQS Messages failed ' + str(response) + ' for messages ' + str(messages)
+                    )
+        if not len(message_batch):
             return False
 
-        if not self.delete_message_on_reception:
-            context['ti'].xcom_push(key='messages', value=messages)
-            return True
-
-        self.log.info("Deleting %d messages", len(messages))
-
-        entries = [
-            {'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']} for message in messages
-        ]
-        response = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
-
-        if 'Successful' in response:
-            context['ti'].xcom_push(key='messages', value=messages)
-            return True
-        else:
-            raise AirflowException(
-                'Delete SQS Messages failed ' + str(response) + ' for messages ' + str(messages)
-            )
+        context['ti'].xcom_push(key='messages', value=message_batch)
+        return True
 
     def get_hook(self) -> SqsHook:
         """Create and return an SqsHook"""
@@ -229,68 +240,3 @@ class SQSSensor(SqsSensor):
             stacklevel=2,
         )
         super().__init__(*args, **kwargs)
-
-
-class SqsBatchSensor(SqsSensor):
-    """
-    Get messages from an Amazon SQS queue in batches and then delete the retrieved messages from the queue.
-    If deletion of messages fails an AirflowException is thrown. Otherwise, all messages
-    are pushed through XCom with the key ``messages``.
-
-    This sensor is identical to SqsSensor, except that SqsSensor performs one and only one SQS call
-    per poke, which limits the result to a maximum of 10 messages, while SqsBatchSensor performs multiple
-    SQS API calls per poke and combines the results into one list.
-
-    .. seealso::
-        For more information on how to use this sensor, take a look at the guide:
-        :ref:`howto/sensor:SqsBatchSensor`
-
-    :param num_batches: The number of times the sensor will call the SQS API to receive messages (default: 1)
-    """
-
-    def __init__(
-        self,
-        *,
-        num_batches: int = 1,
-        **kwargs,
-    ):
-        super().__init__(**kwargs)
-        self.num_batches = num_batches
-
-    def poke(self, context: 'Context'):
-        """
-        Check subscribed queue for messages and write them to xcom with the ``messages`` key.
-
-        :param context: the context object
-        :return: ``True`` if message is available or ``False``
-        """
-        sqs_conn = self.get_hook().get_conn()
-        message_batch: List[Any] = []
-        # perform multiple SQS call to retrieve messages in series
-        for _ in range(self.num_batches):
-            messages = self.poll_sqs(sqs_conn=sqs_conn)
-
-            if not len(messages):
-                continue
-
-            message_batch.extend(messages)
-
-            if self.delete_message_on_reception:
-
-                self.log.info("Deleting %d messages", len(messages))
-
-                entries = [
-                    {'Id': message['MessageId'], 'ReceiptHandle': message['ReceiptHandle']}
-                    for message in messages
-                ]
-                response = sqs_conn.delete_message_batch(QueueUrl=self.sqs_queue, Entries=entries)
-
-                if 'Successful' not in response:
-                    raise AirflowException(
-                        'Delete SQS Messages failed ' + str(response) + ' for messages ' + str(messages)
-                    )
-        if not len(message_batch):
-            return False
-
-        context['ti'].xcom_push(key='messages', value=message_batch)
-        return True

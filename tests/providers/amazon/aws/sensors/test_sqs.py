@@ -27,7 +27,7 @@ from moto import mock_sqs
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
-from airflow.providers.amazon.aws.sensors.sqs import SqsBatchSensor, SqsSensor
+from airflow.providers.amazon.aws.sensors.sqs import SqsSensor
 from airflow.utils import timezone
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
@@ -317,7 +317,7 @@ class TestSqsSensor(unittest.TestCase):
 
         # Init batch sensor to get 1 message for each SQS poll
         # and perform 3 polls
-        self.sensor = SqsBatchSensor(
+        self.sensor = SqsSensor(
             task_id='test_task3',
             dag=self.dag,
             sqs_queue=QUEUE_URL,

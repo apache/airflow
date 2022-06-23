@@ -68,20 +68,6 @@ To read messages from an Amazon SQS queue until exhausted use the
     :start-after: [START howto_sensor_sqs]
     :end-before: [END howto_sensor_sqs]
 
-.. _howto/sensor:SqsBatchSensor:
-
-Read messages from an Amazon SQS queue in batches
-=================================================
-
-To read messages from an Amazon SQS queue in multiple batches
-:class:`~airflow.providers.amazon.aws.sensors.sqs.SqsBatchSensor`
-
-.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_sqs.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_sensor_sqs_batch]
-    :end-before: [END howto_sensor_sqs_batch]
-
 References
 ----------
 
