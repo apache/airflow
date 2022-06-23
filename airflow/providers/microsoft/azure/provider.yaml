@@ -89,6 +89,12 @@ integrations:
     external-doc-url: https://azure.microsoft.com/
     logo: /integration-logos/azure/Microsoft-Azure.png
     tags: [azure]
+  - integration-name: Microsoft Azure Service Bus
+    external-doc-url: https://azure.microsoft.com/en-us/services/service-bus/
+    logo: /integration-logos/azure/Service-Bus.svg
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/asb.rst
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -117,6 +123,9 @@ operators:
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.operators.data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.asb
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -168,6 +177,9 @@ hooks:
     python-modules:
       - airflow.providers.microsoft.azure.hooks.data_factory
       - airflow.providers.microsoft.azure.hooks.azure_data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.asb
 
 transfers:
   - source-integration-name: Local
@@ -204,6 +216,7 @@ hook-class-names:  # deprecated - to be removed after providers add dependency o
   - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
   - airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
   - airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
+  - airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
@@ -230,6 +243,8 @@ connection-types:
   - hook-class-name: >-
       airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
     connection-type: azure_container_registry
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
+    connection-type: azure_service_bus
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend
