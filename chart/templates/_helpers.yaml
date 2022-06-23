@@ -74,6 +74,7 @@ If release name contains chart name it will be used as a full name.
         key: webserver-secret-key
   {{- end }}
   {{- if or (eq .Values.executor "CeleryExecutor") (eq .Values.executor "CeleryKubernetesExecutor") }}
+    {{- if or (semverCompare "<2.4.0" .Values.airflowVersion) (.Values.data.resultBackendSecretName) (.Values.data.resultBackendConnection) }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__CELERY_RESULT_BACKEND }}
   # (Airflow 1.10.* variant)
   - name: AIRFLOW__CELERY__CELERY_RESULT_BACKEND
@@ -88,6 +89,7 @@ If release name contains chart name it will be used as a full name.
       secretKeyRef:
         name: {{ template "airflow_result_backend_secret" . }}
         key: connection
+    {{- end }}
     {{- end }}
     {{- if .Values.enableBuiltInSecretEnvVars.AIRFLOW__CELERY__BROKER_URL }}
   - name: AIRFLOW__CELERY__BROKER_URL

@@ -1670,12 +1670,13 @@
         or insert it into a database (depending of the backend)
         This status is used by the scheduler to update the state of the task
         The use of a database is highly recommended
+        When not specified, sql_alchemy_conn with a db+ scheme prefix will be used
         http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-result-backend-settings
       version_added: ~
       type: string
       sensitive: true
-      example: ~
-      default: "db+postgresql://postgres:airflow@postgres/airflow"
+      example: "db+postgresql://postgres:airflow@postgres/airflow"
+      default: ~
     - name: flower_host
       description: |
         Celery Flower is a sweet UI for Celery. Airflow has a shortcut to start

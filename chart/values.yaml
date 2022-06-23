@@ -319,7 +319,22 @@ extraEnvFrom: ~
 # Airflow database & redis config
 data:
   # If secret names are provided, use those secrets
+  # These secrets must be created manually, eg:
+  #
+  # kind: Secret
+  # apiVersion: v1
+  # metadata:
+  #   name: custom-airflow-metadata-secret
+  # type: Opaque
+  # data:
+  #   connection: base64_encoded_connection_string
+
   metadataSecretName: ~
+  # When providing secret names and using the same database for metadata and
+  # result backend, for Airflow < 2.4.0 it is necessary to create a separate
+  # secret for result backend but with a db+ scheme prefix.
+  # For Airflow >= 2.4.0 it is possible to not specify the secret again,
+  # as Airflow will use sql_alchemy_conn with a db+ scheme prefix by default.
   resultBackendSecretName: ~
   brokerUrlSecretName: ~
 

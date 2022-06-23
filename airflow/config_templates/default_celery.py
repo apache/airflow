@@ -36,6 +36,12 @@ if 'visibility_timeout' not in broker_transport_options:
     if _broker_supports_visibility_timeout(broker_url):
         broker_transport_options['visibility_timeout'] = 21600
 
+if conf.has_option("celery", 'RESULT_BACKEND'):
+    result_backend = conf.get_mandatory_value('celery', 'RESULT_BACKEND')
+else:
+    log.debug("Value for celery result_backend not found. Using sql_alchemy_conn with db+ prefix.")
+    result_backend = f'db+{conf.get("database", "SQL_ALCHEMY_CONN")}'
+
 DEFAULT_CELERY_CONFIG = {
     'accept_content': ['json'],
     'event_serializer': 'json',
@@ -46,7 +52,7 @@ DEFAULT_CELERY_CONFIG = {
     'task_track_started': conf.getboolean('celery', 'task_track_started'),
     'broker_url': broker_url,
     'broker_transport_options': broker_transport_options,
-    'result_backend': conf.get('celery', 'RESULT_BACKEND'),
+    'result_backend': result_backend,
     'worker_concurrency': conf.getint('celery', 'WORKER_CONCURRENCY'),
     'worker_enable_remote_control': conf.getboolean('celery', 'worker_enable_remote_control'),
 }
@@ -92,7 +98,6 @@ except Exception as e:
         f'all necessary certs and key ({e}).'
     )
 
-result_backend = str(DEFAULT_CELERY_CONFIG['result_backend'])
 if 'amqp://' in result_backend or 'redis://' in result_backend or 'rpc://' in result_backend:
     log.warning(
         "You have configured a result_backend of %s, it is highly recommended "
