@@ -67,7 +67,7 @@
     "eonasdan-bootstrap-datetimepicker": "^4.17.49",
     "jquery": ">=3.5.0",
     "jshint": "^2.13.4",
-    "moment-timezone": "^0.5.28",
+    "moment-timezone": "^0.5.34",
     "nvd3": "^1.8.6",
     "redoc": "^2.0.0-rc.72",
     "url-search-params-polyfill": "^8.1.0"
