@@ -20,6 +20,7 @@
 # This tool is based on the Superset send_email script:
 # https://github.com/apache/incubator-superset/blob/master/RELEASING/send_email.py
 import os
+import shutil
 import smtplib
 import ssl
 import sys
@@ -83,7 +84,7 @@ def show_message(entity: str, message: str):
     """
     Show message on the Command Line
     """
-    width, _ = click.get_terminal_size()  # type: ignore[attr-defined]
+    width, _ = shutil.get_terminal_size()
     click.secho("-" * width, fg="blue")
     click.secho(f"{entity} Message:", fg="bright_red", bold=True)
     click.secho("-" * width, fg="blue")
