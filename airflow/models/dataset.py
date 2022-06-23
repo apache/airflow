@@ -44,7 +44,7 @@ class Dataset(Base):
         super().__init__(**kwargs)
         parsed = urlparse(uri)
         if parsed.scheme and parsed.scheme.lower() == 'airflow':
-            raise ValueError("Scheme `airflow` is reserved.")
+            raise ValueError("Scheme `airflow://` is reserved.")
         self.uri = uri
         self.extra = extra
 
