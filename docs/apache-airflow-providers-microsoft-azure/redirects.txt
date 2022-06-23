@@ -1,3 +1,0 @@
-connections/index.rst connections/azure.rst
-secrets-backends/index.rst secrets-backends/azure-key-vault-secrets-backend.rst
-logging.rst logging/index.rst

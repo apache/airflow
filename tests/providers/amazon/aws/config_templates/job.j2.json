@@ -1,5 +1,0 @@
-{
-  "Name": "test_job_flow",
-  "ReleaseLabel": "{{ params.releaseLabel }}",
-  "Steps": {% include 'steps.json' %}
-}

@@ -1,2 +1,0 @@
-api-auth-backend/index.rst api-auth-backend/google-openid.rst
-secrets-backends/index.rst secrets-backends/google-cloud-secret-manager-backend.rst
