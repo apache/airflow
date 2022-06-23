@@ -40,13 +40,11 @@ class Dataset(Base):
         {'sqlite_autoincrement': True},
     )
 
-    def __init__(self, uri, extra: Optional[Dict] = None, **kwargs):
-        super().__init__(**kwargs)
+    def __init__(self, uri: str, extra: Optional[Dict] = None, **kwargs):
         parsed = urlparse(uri)
         if parsed.scheme and parsed.scheme.lower() == 'airflow':
             raise ValueError("Scheme `airflow://` is reserved.")
-        self.uri = uri
-        self.extra = extra
+        super().__init__(uri=uri, extra=extra, **kwargs)
 
     def __eq__(self, other):
         return self.uri == other.uri
