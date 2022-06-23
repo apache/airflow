@@ -43,7 +43,7 @@ class TestAirbyteHook(unittest.TestCase):
     health_endpoint = 'http://test-airbyte:8001/api/v1/health'
     _mock_sync_conn_success_response_body = {'job': {'id': 1}}
     _mock_job_status_success_response_body = {'job': {'status': 'succeeded'}}
-    _mock_job_cancel_status='cancelled'
+    _mock_job_cancel_status = 'cancelled'
 
     def setUp(self):
         db.merge_conn(

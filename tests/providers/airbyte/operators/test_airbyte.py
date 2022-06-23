@@ -56,7 +56,7 @@ class TestAirbyteTriggerSyncOp(unittest.TestCase):
 
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.submit_sync_connection')
     @mock.patch('airflow.providers.airbyte.hooks.airbyte.AirbyteHook.cancel_job', return_value=None)
-    def test_on_kill(self, mock_cancel_job,mock_submit_sync_connection):
+    def test_on_kill(self, mock_cancel_job, mock_submit_sync_connection):
         mock_submit_sync_connection.return_value = mock.Mock(
             **{'json.return_value': {'job': {'id': self.job_id}}}
         )
