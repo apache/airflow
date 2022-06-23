@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Dict, Optional
+from urllib.parse import urlparse
 
 from sqlalchemy import Column, Index, Integer
 
@@ -38,8 +40,11 @@ class Dataset(Base):
         {'sqlite_autoincrement': True},
     )
 
-    def __init__(self, uri, extra, **kwargs):
+    def __init__(self, uri, extra: Optional[Dict] = None, **kwargs):
         super().__init__(**kwargs)
+        parsed = urlparse(uri)
+        if parsed.scheme and parsed.scheme.lower() == 'airflow':
+            raise ValueError("Scheme `airflow` is reserved.")
         self.uri = uri
         self.extra = extra
 
