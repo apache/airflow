@@ -43,7 +43,7 @@ class Dataset(Base):
     def __init__(self, uri: str, extra: Optional[Dict] = None, **kwargs):
         parsed = urlparse(uri)
         if parsed.scheme and parsed.scheme.lower() == 'airflow':
-            raise ValueError("Scheme `airflow://` is reserved.")
+            raise ValueError("Scheme `airflow` is reserved.")
         super().__init__(uri=uri, extra=extra, **kwargs)
 
     def __eq__(self, other):
