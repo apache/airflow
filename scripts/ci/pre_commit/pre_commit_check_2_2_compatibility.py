@@ -35,6 +35,7 @@ errors: List[str] = []
 
 TRY_NUM_MATCHER = re.compile(r".*context.*\[[\"']try_number[\"']].*")
 GET_MANDATORY_MATCHER = re.compile(r".*conf\.get_mandatory_value")
+GET_AIRFLOW_APP_MATCHER = re.compile(r".*get_airflow_app\(\)")
 
 
 def _check_file(_file: Path):
@@ -45,39 +46,48 @@ def _check_file(_file: Path):
             if "if ti_key is not None:" not in lines[index - 1]:
                 errors.append(
                     f"[red]In {_file}:{index} there is a forbidden construct "
-                    f"(Airflow 2.3.0 only):[/]\n\n"
+                    "(Airflow 2.3.0 only):[/]\n\n"
                     f"{lines[index-1]}\n{lines[index]}\n\n"
-                    f"[yellow]When you use XCom.get_value( in providers, it should be in the form:[/]\n\n"
-                    f"if ti_key is not None:\n"
-                    f"    value = XCom.get_value(...., ti_key=ti_key)\n\n"
-                    f"See: https://airflow.apache.org/docs/apache-airflow-providers/"
-                    f"howto/create-update-providers.html#using-providers-with-dynamic-task-mapping\n"
+                    "[yellow]When you use XCom.get_value( in providers, it should be in the form:[/]\n\n"
+                    "if ti_key is not None:\n"
+                    "    value = XCom.get_value(...., ti_key=ti_key)\n\n"
+                    "See: https://airflow.apache.org/docs/apache-airflow-providers/"
+                    "howto/create-update-providers.html#using-providers-with-dynamic-task-mapping\n"
                 )
         if "ti.map_index" in line:
             errors.append(
                 f"[red]In {_file}:{index} there is a forbidden construct "
-                f"(Airflow 2.3+ only):[/]\n\n"
+                "(Airflow 2.3+ only):[/]\n\n"
                 f"{lines[index]}\n\n"
-                f"[yellow]You should not use map_index field in providers "
-                f"as it is not available in Airflow 2.2[/]"
+                "[yellow]You should not use map_index field in providers "
+                "as it is only available in Airflow 2.3+[/]"
             )
 
         if TRY_NUM_MATCHER.match(line):
             errors.append(
                 f"[red]In {_file}:{index} there is a forbidden construct "
-                f"(Airflow 2.3+ only):[/]\n\n"
+                "(Airflow 2.3+ only):[/]\n\n"
                 f"{lines[index]}\n\n"
-                f"[yellow]You should not expect try_number field for context in providers "
-                f"as it is not available in Airflow 2.2[/]"
+                "[yellow]You should not expect try_number field for context in providers "
+                "as it is only available in Airflow 2.3+[/]"
             )
 
         if GET_MANDATORY_MATCHER.match(line):
             errors.append(
                 f"[red]In {_file}:{index} there is a forbidden construct "
-                f"(Airflow 2.3+ only):[/]\n\n"
+                "(Airflow 2.3+ only):[/]\n\n"
                 f"{lines[index]}\n\n"
-                f"[yellow]You should not use conf.get_mandatory_value "
-                f"as it is not available in Airflow 2.2[/]"
+                "[yellow]You should not use conf.get_mandatory_value in providers "
+                "as it is only available in Airflow 2.3+[/]"
+            )
+
+        if GET_AIRFLOW_APP_MATCHER.match(line):
+            errors.append(
+                f"[red]In {_file}:{index} there is a forbidden construct "
+                "(Airflow 2.4+ only):[/]\n\n"
+                f"{lines[index]}\n\n"
+                "[yellow]You should not use airflow.utils.airflow_flask_app.get_airflow_app() in providers "
+                "as it is not available in Airflow 2.4+. Use current_app instead.[/]"
             )
 
 
