@@ -62,7 +62,7 @@
     "d3-shape": "^2.1.0",
     "d3-tip": "^0.9.1",
     "dagre-d3": "^0.6.4",
-    "datatables.net": "^1.10.23",
+    "datatables.net": "^1.12.1",
     "datatables.net-bs": "^1.10.23",
     "eonasdan-bootstrap-datetimepicker": "^4.17.49",
     "jquery": ">=3.5.0",
