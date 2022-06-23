@@ -107,7 +107,6 @@ class AirbyteHook(HttpHook):
             headers={"accept": "application/json"},
         )
 
-
     def cancel_job(self, job_id: int) -> Any:
         """
         Cancel the job when task is cancelled
