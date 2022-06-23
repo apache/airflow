@@ -47,7 +47,6 @@ def upgrade():
         sa.Column('id', Integer, primary_key=True, autoincrement=True),
         sa.Column('uri', StringID(length=500)),
         sa.Column('extra', ExtendedJSON),
-        sa.Column('message', sa.String(1000), nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now(), nullable=False),
         sqlite_autoincrement=True,
