@@ -31,33 +31,58 @@ import {
   Select,
 } from '@chakra-ui/react';
 
+import { Select as MultiSelect } from 'chakra-react-select';
+
 import { getMetaValue } from '../../../../../utils';
 import LogLink from './LogLink';
 import useTaskLog from '../../../../api/useTaskLog';
 import LinkButton from '../../../../components/LinkButton';
-import { logLevel, parseLogs } from './utils';
+import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
 import { useTimezone } from '../../../../context/timezone';
+import type { Dag, DagRun, TaskInstance } from '../../../../types';
 
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 const externalLogName = getMetaValue('external_log_name');
 const logUrl = getMetaValue('log_url');
 
-const getLinkIndexes = (tryNumber) => {
-  const internalIndexes = [];
-  const externalIndexes = [];
+const getLinkIndexes = (tryNumber: number | undefined): Array<Array<number>> => {
+  const internalIndexes: Array<number> = [];
+  const externalIndexes: Array<number> = [];
 
-  [...Array(tryNumber + 1 || 0)].forEach((_, index) => {
-    if (index === 0 && tryNumber < 2) return;
-    const isExternal = index !== 0 && showExternalLogRedirect;
-    if (isExternal) {
-      externalIndexes.push(index);
-    } else {
-      internalIndexes.push(index);
-    }
-  });
+  if (tryNumber) {
+    [...Array(tryNumber + 1 || 0)].forEach((_, index) => {
+      if (index === 0 && tryNumber < 2) return;
+      const isExternal = index !== 0 && showExternalLogRedirect;
+      if (isExternal) {
+        externalIndexes.push(index);
+      } else {
+        internalIndexes.push(index);
+      }
+    });
+  }
 
   return [internalIndexes, externalIndexes];
 };
+
+interface LogLevelOption {
+  label: LogLevel;
+  value: LogLevel;
+  color: string;
+}
+
+const logLevelOptions: Array<LogLevelOption> = Object.values(LogLevel).map(
+  (value): LogLevelOption => ({
+    label: value, value, color: logLevelColorMapping[value],
+  }),
+);
+
+interface Props {
+  dagId: Dag['id'];
+  dagRunId: DagRun['runId'];
+  taskId: TaskInstance['taskId'];
+  executionDate: DagRun['executionDate'];
+  tryNumber: TaskInstance['tryNumber'];
+}
 
 const Logs = ({
   dagId,
@@ -65,12 +90,12 @@ const Logs = ({
   taskId,
   executionDate,
   tryNumber,
-}) => {
+}: Props) => {
   const [internalIndexes, externalIndexes] = getLinkIndexes(tryNumber);
   const [selectedAttempt, setSelectedAttempt] = useState(1);
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(false);
-  const [logLevelFilter, setLogLevelFilter] = useState('');
+  const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
   const [fileSourceFilter, setFileSourceFilter] = useState('');
   const { timezone } = useTimezone();
   const { data, isSuccess } = useTaskLog({
@@ -81,7 +106,7 @@ const Logs = ({
     fullContent: shouldRequestFullContent,
   });
 
-  const codeBlockBottomDiv = useRef(null);
+  const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (codeBlockBottomDiv.current) {
@@ -98,10 +123,10 @@ const Logs = ({
     () => parseLogs(
       data,
       timezone,
-      logLevelFilter,
+      logLevelFilters.map((option) => option.value),
       fileSourceFilter,
     ),
-    [data, fileSourceFilter, logLevelFilter, timezone],
+    [data, fileSourceFilter, logLevelFilters, timezone],
   );
 
   useEffect(() => {
@@ -117,7 +142,7 @@ const Logs = ({
 
   return (
     <>
-      {tryNumber > 0 && (
+      {tryNumber! > 0 && (
       <>
         <Text as="span"> (by attempts)</Text>
         <Flex my={1} justifyContent="space-between">
@@ -134,18 +159,45 @@ const Logs = ({
               </Button>
             ))}
           </Flex>
+        </Flex>
+        <Flex my={1} justifyContent="space-between">
           <Flex alignItems="center">
-            <Box w="90px" mr={2}>
-              <Select
+            <Box w="250px" mr={2}>
+              <MultiSelect
                 size="sm"
-                value={logLevelFilter}
-                onChange={(e) => setLogLevelFilter(e.target.value)}
-              >
-                <option value="" key="all">All Levels</option>
-                {Object.values(logLevel).map((value) => (
-                  <option value={value} key={value}>{value}</option>
-                ))}
-              </Select>
+                isMulti
+                options={logLevelOptions}
+                placeholder="All Levels"
+                value={logLevelFilters}
+                onChange={(options) => setLogLevelFilters([...options])}
+                selectedOptionStyle="check"
+                chakraStyles={{
+                  dropdownIndicator: (provided) => ({
+                    ...provided,
+                    bg: 'transparent',
+                    px: 2,
+                    cursor: 'inherit',
+                  }),
+                  indicatorSeparator: (provided) => ({
+                    ...provided,
+                    display: 'none',
+                  }),
+                  multiValue: (provided, ...rest) => ({
+                    ...provided,
+                    backgroundColor: rest[0].data.color,
+                  }),
+                  option: (provided, ...rest) => ({
+                    ...provided,
+                    borderLeft: 'solid 4px black',
+                    borderColor: rest[0].data.color,
+                    mt: 2,
+                  }),
+                  menuList: (provided) => ({
+                    ...provided,
+                    py: 0,
+                  }),
+                }}
+              />
             </Box>
             <Box w="110px">
               <Select
@@ -175,11 +227,11 @@ const Logs = ({
               <Text as="strong">Full Logs</Text>
             </Checkbox>
             <LogLink
-              index={selectedAttempt}
               dagId={dagId}
               taskId={taskId}
               executionDate={executionDate}
               isInternal
+              tryNumber={tryNumber}
             />
             <LinkButton
               href={`${logUrl}&${params}`}

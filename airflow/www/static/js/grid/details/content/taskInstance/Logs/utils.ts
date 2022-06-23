@@ -21,29 +21,42 @@
 
 import { defaultFormatWithTZ } from '../../../../../datetime_utils';
 
-export const logLevel = {
-  DEBUG: 'DEBUG',
-  INFO: 'INFO',
-  WARNING: 'WARNING',
-  ERROR: 'ERROR',
-  CRITICAL: 'CRITICAL',
+export enum LogLevel {
+  DEBUG = 'DEBUG',
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  CRITICAL = 'CRITICAL',
+}
+
+export const logLevelColorMapping = {
+  [LogLevel.DEBUG]: 'gray.300',
+  [LogLevel.INFO]: 'green.200',
+  [LogLevel.WARNING]: 'yellow.200',
+  [LogLevel.ERROR]: 'red.200',
+  [LogLevel.CRITICAL]: 'red.400',
 };
 
-export const parseLogs = (data, timezone, logLevelFilter, fileSourceFilter) => {
-  const lines = data.split('\n');
-
+export const parseLogs = (
+  data: string | undefined,
+  timezone: string,
+  logLevelFilters: Array<LogLevel>,
+  fileSourceFilter: string,
+) => {
   if (!data) {
     return {};
   }
 
-  const parsedLines = [];
-  const fileSources = new Set();
+  const lines = data.split('\n');
+
+  const parsedLines: Array<string> = [];
+  const fileSources: Set<string> = new Set();
 
   lines.forEach((line) => {
     let parsedLine = line;
 
     // Apply log level filter.
-    if (logLevelFilter && !line.includes(logLevelFilter)) {
+    if (logLevelFilters.length > 0 && logLevelFilters.every((level) => !line.includes(level))) {
       return;
     }
 

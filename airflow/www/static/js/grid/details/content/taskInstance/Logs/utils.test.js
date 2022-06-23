@@ -47,7 +47,7 @@ describe('Test Logs Utils.', () => {
     const { parsedLogs, fileSources } = parseLogs(
       mockTaskLog,
       'UTC',
-      null,
+      [],
       null,
     );
 
@@ -61,32 +61,32 @@ describe('Test Logs Utils.', () => {
     const result = parseLogs(
       mockTaskLog,
       'America/Los_Angeles',
-      null,
+      [],
       null,
     );
     expect(result.parsedLogs).toContain('2022-06-03, 17:00:01 PDT');
   });
 
   test.each([
-    { logLevelFilter: 'INFO', expectedNumberOfLines: 11, expectedNumberOfFileSources: 4 },
-    { logLevelFilter: 'WARNING', expectedNumberOfLines: 1, expectedNumberOfFileSources: 1 },
+    { logLevelFilters: ['INFO'], expectedNumberOfLines: 11, expectedNumberOfFileSources: 4 },
+    { logLevelFilters: ['WARNING'], expectedNumberOfLines: 1, expectedNumberOfFileSources: 1 },
   ])(
-    'Filtering logs on $logLevelFilter level should return $expectedNumberOfLines lines and $expectedNumberOfFileSources file sources',
+    'Filtering logs on $logLevelFilters level should return $expectedNumberOfLines lines and $expectedNumberOfFileSources file sources',
     ({
-      logLevelFilter,
+      logLevelFilters,
       expectedNumberOfLines, expectedNumberOfFileSources,
     }) => {
       const { parsedLogs, fileSources } = parseLogs(
         mockTaskLog,
         null,
-        logLevelFilter,
+        logLevelFilters,
         null,
       );
 
       expect(fileSources).toHaveLength(expectedNumberOfFileSources);
       const lines = parsedLogs.split('\n');
       expect(lines).toHaveLength(expectedNumberOfLines);
-      lines.forEach((line) => expect(line).toContain(logLevelFilter));
+      lines.forEach((line) => expect(line).toContain(logLevelFilters[0]));
     },
   );
 
@@ -94,7 +94,7 @@ describe('Test Logs Utils.', () => {
     const { parsedLogs, fileSources } = parseLogs(
       mockTaskLog,
       null,
-      null,
+      [],
       'taskinstance.py',
     );
 
@@ -113,7 +113,7 @@ describe('Test Logs Utils.', () => {
     const { parsedLogs, fileSources } = parseLogs(
       mockTaskLog,
       null,
-      'INFO',
+      ['INFO', 'WARNING'],
       'taskinstance.py',
     );
 
@@ -124,7 +124,7 @@ describe('Test Logs Utils.', () => {
       'taskinstance.py',
     ]);
     const lines = parsedLogs.split('\n');
-    expect(lines).toHaveLength(6);
-    lines.forEach((line) => expect(line).toContain('INFO'));
+    expect(lines).toHaveLength(7);
+    lines.forEach((line) => expect(line).toMatch(/INFO|WARNING/));
   });
 });
