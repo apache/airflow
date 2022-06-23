@@ -34,14 +34,27 @@ the Airflow team.
        any Airflow version from the ``Airflow 2`` line. There is no guarantee that it works, but if it does,
        then you can use latest features from that image to build the previous Airflow versions.
 
-:warning: Some of the images below (as noted in the Changelog) have been regenerated using newer
-       ``Dockerfiles``. This happens when there is a breaking change that invalidates already released images
-       and the images need regeneration. This has happened already when MySQL changed the keys they
-       used to release their packages: `#20911 <https://github.com/apache/airflow/issues/20911>`_
-       and 2.1 images were all regenerated using the 2.2 ``Dockerfile``. This is a rare event and
-       we do it only when we have no choice because of external factors. In such case, the newer version of
-       the image **might** contain breaking changes when it comes to running or building the image (but
-       we try to avoid those).
+Changes after publishing the images
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Occasionally our images need to be regenerated using newer ``Dockerfiles`` or constraints.
+This happens when an issue is found or a breaking change is released by our dependencies
+that invalidates the already released image, and regenerating the image makes it usable again.
+While we cannot assure 100% backwards compatibility when it happens, we at least document it
+here so that users affected can find the reason for the changes.
+
++--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
+| Date         | Affected images     | Potentially breaking change             | Reason                 | Link to Pull Request                         |
++==============+=====================+=========================================+========================+==============================================+
+| 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516 |
+|              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                              |
+|              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                              |
++--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
+| 18 Jan 2022  | All 2.2.\*, 2.1.\*  | * The AIRFLOW_GID 500 was removed       | MySQL changed keys     | https://github.com/apache/airflow/pull/20912 |
+|              |                     | * MySQL ``apt`` repository key changed. | to sign their packages |                                              |
+|              |                     |                                         | on 17 Jan 2022         |                                              |
++--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
+
 
 Airflow 2.3
 ~~~~~~~~~~~
@@ -66,12 +79,6 @@ Airflow 2.3
 
 Airflow 2.2
 ~~~~~~~~~~~
-
-* MySQL changed the keys to sign their packages on 17 Feb 2022. This caused all released images
-  to fail when being extended. As result, on 18 Feb 2021 we re-released all
-  the ``2.2`` and ``2.1`` images with latest versions of ``Dockerfile``
-  containing the new signing keys. The
-  detailed `issue here <https://github.com/apache/airflow/issues/20911>`_
 
 * 2.2.4
   * Add support for both ``.piprc`` and ``pip.conf`` customizations
