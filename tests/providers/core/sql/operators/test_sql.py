@@ -37,8 +37,8 @@ class TestColumnCheckOperator:
         "X": {
             "null_check": {"equal_to": 0},
             "distinct_check": {"equal_to": 10, "tolerance": 0.1},
-            "unique_check": {"geq_than": 10},
-            "min": {"leq_than": 1},
+            "unique_check": {"geq_to": 10},
+            "min": {"leq_to": 1},
             "max": {"less_than": 20, "greater_than": 10},
         }
     }

@@ -40,10 +40,10 @@ mapping is a set of three nested dictionaries and looks like:
                 },
                 "min": {
                     "greater_than": 5,
-                    "leq_than": 10,
+                    "leq_to": 10,
                     "tolerance": 0.2,
                 },
-                "max": {"less_than": 1000, "geq_than": 10, "tolerance": 0.01},
+                "max": {"less_than": 1000, "geq_to": 10, "tolerance": 0.01},
             }
         }
 
@@ -58,9 +58,9 @@ The valid checks are:
 Each entry in the check's dictionary is either a condition for success of the check or the tolerance. The
 conditions for success are:
 - greater_than
-- geq_than
+- geq_to
 - less_than
-- leq_than
+- leq_to
 - equal_to
 
 When specifying conditions, equal_to is not compatible with other conditions. Both a lower- and an upper-

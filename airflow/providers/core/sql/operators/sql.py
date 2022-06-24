@@ -50,8 +50,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
     - equal_to: an exact value to equal, cannot be used with other comparison options
     - greater_than: value that result should be strictly greater than
     - less_than: value that results should be strictly less than
-    - geq_than: value that results should be greater than or equal to
-    - leq_than: value that results should be less than or equal to
+    - geq_to: value that results should be greater than or equal to
+    - leq_to: value that results should be less than or equal to
     - tolerance: the percentage that the result may be off from the expected value
 
     :param table: the table to run checks on
@@ -66,10 +66,10 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                 },
                 "min": {
                     "greater_than": 5,
-                    "leq_than": 10,
+                    "leq_to": 10,
                     "tolerance": 0.2,
                 },
-                "max": {"less_than": 1000, "geq_than": 10, "tolerance": 0.01},
+                "max": {"less_than": 1000, "geq_to": 10, "tolerance": 0.01},
             }
         }
 
@@ -142,18 +142,18 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self.log.info("All tests have passed")
 
     def _get_match(self, check_values, record, tolerance=None) -> bool:
-        if "geq_than" in check_values:
+        if "geq_to" in check_values:
             if tolerance is not None:
-                return record >= check_values["geq_than"] * (1 - tolerance)
-            return record >= check_values["geq_than"]
+                return record >= check_values["geq_to"] * (1 - tolerance)
+            return record >= check_values["geq_to"]
         elif "greater_than" in check_values:
             if tolerance is not None:
                 return record > check_values["greater_than"] * (1 - tolerance)
             return record > check_values["greater_than"]
-        if "leq_than" in check_values:
+        if "leq_to" in check_values:
             if tolerance is not None:
-                return record <= check_values["leq_than"] * (1 + tolerance)
-            return record <= check_values["leq_than"]
+                return record <= check_values["leq_to"] * (1 + tolerance)
+            return record <= check_values["leq_to"]
         elif "less_than" in check_values:
             if tolerance is not None:
                 return record < check_values["less_than"] * (1 + tolerance)
@@ -172,58 +172,58 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             raise AirflowException(f"Invalid column check: {check}.")
         if (
             "greater_than" not in check_values
-            and "geq_than" not in check_values
+            and "geq_to" not in check_values
             and "less_than" not in check_values
-            and "leq_than" not in check_values
+            and "leq_to" not in check_values
             and "equal_to" not in check_values
         ):
             raise ValueError(
-                "Please provide one or more of: less_than, leq_than, "
-                "greater_than, geq_than, or equal_to in the check's dict."
+                "Please provide one or more of: less_than, leq_to, "
+                "greater_than, geq_to, or equal_to in the check's dict."
             )
 
         if "greater_than" in check_values and "less_than" in check_values:
             if check_values["greater_than"] >= check_values["less_than"]:
                 raise ValueError(
                     "greater_than should be strictly less than "
-                    "less_than. Use geq_than or leq_than for "
+                    "less_than. Use geq_to or leq_to for "
                     "overlapping equality."
                 )
 
-        if "greater_than" in check_values and "leq_than" in check_values:
-            if check_values["greater_than"] >= check_values["leq_than"]:
+        if "greater_than" in check_values and "leq_to" in check_values:
+            if check_values["greater_than"] >= check_values["leq_to"]:
                 raise ValueError(
-                    "greater_than must be strictly less than leq_than. "
-                    "Use geq_than with leq_than for overlapping equality."
+                    "greater_than must be strictly less than leq_to. "
+                    "Use geq_to with leq_to for overlapping equality."
                 )
 
-        if "geq_than" in check_values and "less_than" in check_values:
-            if check_values["geq_than"] >= check_values["less_than"]:
+        if "geq_to" in check_values and "less_than" in check_values:
+            if check_values["geq_to"] >= check_values["less_than"]:
                 raise ValueError(
-                    "geq_than should be strictly less than less_than. "
-                    "Use leq_than with geq_than for overlapping equality."
+                    "geq_to should be strictly less than less_than. "
+                    "Use leq_to with geq_to for overlapping equality."
                 )
 
-        if "geq_than" in check_values and "leq_than" in check_values:
-            if check_values["geq_than"] > check_values["leq_than"]:
-                raise ValueError("geq_than should be less than or equal to leq_than.")
+        if "geq_to" in check_values and "leq_to" in check_values:
+            if check_values["geq_to"] > check_values["leq_to"]:
+                raise ValueError("geq_to should be less than or equal to leq_to.")
 
-        if "greater_than" in check_values and "geq_than" in check_values:
-            raise ValueError("Only supply one of greater_than or geq_than.")
+        if "greater_than" in check_values and "geq_to" in check_values:
+            raise ValueError("Only supply one of greater_than or geq_to.")
 
-        if "less_than" in check_values and "leq_than" in check_values:
-            raise ValueError("Only supply one of less_than or leq_than.")
+        if "less_than" in check_values and "leq_to" in check_values:
+            raise ValueError("Only supply one of less_than or leq_to.")
 
         if (
             "greater_than" in check_values
-            or "geq_than" in check_values
+            or "geq_to" in check_values
             or "less_than" in check_values
-            or "leq_than" in check_values
+            or "leq_to" in check_values
         ) and "equal_to" in check_values:
             raise ValueError(
                 "equal_to cannot be passed with a greater or less than "
                 "function. To specify 'greater than or equal to' or "
-                "'less than or equal to', use geq_than or leq_than."
+                "'less than or equal to', use geq_to or leq_to."
             )
 
 
