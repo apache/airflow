@@ -24,7 +24,7 @@ from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable
 import attr
 from sqlalchemy import func
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.models.baseoperator import BaseOperatorLink
 from airflow.models.dag import DagModel
 from airflow.models.dagbag import DagBag
@@ -56,6 +56,24 @@ class ExternalTaskSensor(BaseSensorOperator):
     """
     Waits for a different DAG or a task in a different DAG to complete for a
     specific logical date.
+
+    By default the ExternalTaskSensor will wait for the external task to
+    succeed, at which point it will also succeed. However, by default it will
+    *not* fail if the external task fails, but will continue to check the status
+    until the sensor times out (thus giving you time to retry the external task
+    without also having to clear the sensor).
+
+    It is possible to alter the default behavior by setting states which
+    cause the sensor to fail, e.g. by setting ``allowed_states=[State.FAILED]``
+    and ``failed_states=[State.SUCCESS]`` you will flip the behaviour to get a
+    sensor which goes green when the external task *fails* and immediately goes
+    red if the external task *succeeds*!
+
+    Note that ``soft_fail`` is respected when examining the failed_states. Thus
+    if the external task enters a failed state and ``soft_fail == True`` the
+    sensor will _skip_ rather than fail. As a result, setting ``soft_fail=True``
+    and ``failed_states=[State.SKIPPED]`` will result in the sensor skipping if
+    the external task skips.
 
     :param external_dag_id: The dag_id that contains the task you want to
         wait for
@@ -184,11 +202,20 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if count_failed == len(dttm_filter):
             if self.external_task_ids:
+                if self.soft_fail:
+                    raise AirflowSkipException(
+                        f'Some of the external tasks {self.external_task_ids} '
+                        f'in DAG {self.external_dag_id} failed. Skipping due to soft_fail.'
+                    )
                 raise AirflowException(
                     f'Some of the external tasks {self.external_task_ids} '
                     f'in DAG {self.external_dag_id} failed.'
                 )
             else:
+                if self.soft_fail:
+                    raise AirflowSkipException(
+                        f'The external DAG {self.external_dag_id} failed. Skipping due to soft_fail.'
+                    )
                 raise AirflowException(f'The external DAG {self.external_dag_id} failed.')
 
         return count_allowed == len(dttm_filter)

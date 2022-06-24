@@ -23,12 +23,13 @@ from typing import Any, Dict, Iterable, Tuple
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy import TIMESTAMP, and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import ColumnElement
 from sqlalchemy.sql.expression import ColumnOperators
-from sqlalchemy.types import JSON, DateTime, Text, TypeDecorator, TypeEngine, UnicodeText
+from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow import settings
 from airflow.configuration import conf
@@ -42,21 +43,21 @@ using_mysql = conf.get_mandatory_value('database', 'sql_alchemy_conn').lower().s
 
 class UtcDateTime(TypeDecorator):
     """
-    Almost equivalent to :class:`~sqlalchemy.types.DateTime` with
+    Almost equivalent to :class:`~sqlalchemy.types.TIMESTAMP` with
     ``timezone=True`` option, but it differs from that by:
 
     - Never silently take naive :class:`~datetime.datetime`, instead it
       always raise :exc:`ValueError` unless time zone aware value.
     - :class:`~datetime.datetime` value's :attr:`~datetime.datetime.tzinfo`
       is always converted to UTC.
-    - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.DateTime`,
+    - Unlike SQLAlchemy's built-in :class:`~sqlalchemy.types.TIMESTAMP`,
       it never return naive :class:`~datetime.datetime`, but time zone
       aware value, even with SQLite or MySQL.
-    - Always returns DateTime in UTC
+    - Always returns TIMESTAMP in UTC
 
     """
 
-    impl = DateTime(timezone=True)
+    impl = TIMESTAMP(timezone=True)
 
     def process_bind_param(self, value, dialect):
         if value is not None:
@@ -91,6 +92,13 @@ class UtcDateTime(TypeDecorator):
                 value = value.astimezone(utc)
 
         return value
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'mssql':
+            return mssql.DATETIME2(precision=6)
+        elif dialect.name == 'mysql':
+            return mysql.TIMESTAMP(fsp=6)
+        return super().load_dialect_impl(dialect)
 
 
 class ExtendedJSON(TypeDecorator):
