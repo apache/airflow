@@ -49,8 +49,8 @@ def upgrade():
             nullable=False,
         ),
         sa.Column('extra', ExtendedJSON, nullable=True),
-        sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
-        sa.Column('updated_at', TIMESTAMP, default=func.now(), nullable=False),
+        sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
+        sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
     op.create_index('idx_uri', 'dataset', ['uri'], unique=True)

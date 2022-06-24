@@ -39,8 +39,8 @@ class Dataset(Base):
         nullable=False,
     )
     extra = Column(ExtendedJSON, nullable=True)
-    created_at = Column(UtcDateTime, default=timezone.utcnow(), nullable=False)
-    updated_at = Column(UtcDateTime, default=timezone.utcnow(), onupdate=timezone.utcnow(), nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
     __tablename__ = "dataset"
     __table_args__ = (
