@@ -55,6 +55,7 @@ from airflow_breeze.utils.common_options import (
     option_pull_image,
     option_push_image,
     option_python,
+    option_python_image,
     option_python_versions,
     option_run_in_parallel,
     option_runtime_apt_command,
@@ -118,6 +119,7 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
                 "--airflow-extras",
                 "--airflow-constraints-mode",
                 "--airflow-constraints-reference",
+                "--python-image",
                 "--additional-python-deps",
                 "--additional-extras",
                 "--additional-runtime-apt-deps",
@@ -301,6 +303,7 @@ def run_build_in_parallel(
 @option_additional_runtime_apt_command
 @option_dev_apt_command
 @option_dev_apt_deps
+@option_python_image
 @option_runtime_apt_command
 @option_runtime_apt_deps
 @option_tag_as_latest
