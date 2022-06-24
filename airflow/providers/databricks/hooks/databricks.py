@@ -418,7 +418,6 @@ class DatabricksHook(BaseDatabricksHook):
         try:
             result = hook._do_api_call(endpoint_info=LIST_ZONES_ENDPOINT).get('zones', [])
             if result:
-                self.log.info(result)
                 status = True
                 message = 'Connection successfully tested'
         except Exception as e:

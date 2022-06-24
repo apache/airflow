@@ -185,9 +185,7 @@ def list_jobs_endpoint(host):
 
 
 def list_zones_endpoint(host):
-    """
-    Utility function to generate the list zones endpoint given the host
-    """
+    """Utility function to generate the list zones endpoint given the host"""
     return f'https://{host}/api/2.0/clusters/list-zones'
 
 
