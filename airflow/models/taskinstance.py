@@ -465,7 +465,7 @@ class TaskInstance(Base, LoggingMixin):
 
     # Optional timeout datetime for the trigger (past this, we'll fail)
     trigger_timeout = Column(DateTime)
-    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for easy of
+    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
     # migration, we are keeping it as DateTime pending a change where expensive
     # migration is inevitable.
 
