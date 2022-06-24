@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     AVAILABLE_INTEGRATIONS,
+    DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
@@ -78,6 +79,7 @@ class ShellParams:
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     num_runs: str = ""
     package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
+    platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     skip_environment_initialization: bool = False

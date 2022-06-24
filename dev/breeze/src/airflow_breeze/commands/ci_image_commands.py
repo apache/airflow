@@ -51,7 +51,7 @@ from airflow_breeze.utils.common_options import (
     option_image_tag,
     option_install_providers_from_sources,
     option_parallelism,
-    option_platform,
+    option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull_image,
     option_push_image,
@@ -231,7 +231,7 @@ def run_build_in_parallel(
 @option_parallelism
 @option_python_versions
 @option_upgrade_to_newer_dependencies
-@option_platform
+@option_platform_multiple
 @option_debian_version
 @option_github_token
 @option_github_username
@@ -575,7 +575,10 @@ def rebuild_or_pull_ci_image_if_needed(
         BUILD_CACHE_DIR, command_params.airflow_branch, f".built_{command_params.python}"
     )
     ci_image_params = BuildCiParams(
-        python=command_params.python, upgrade_to_newer_dependencies=False, image_tag=command_params.image_tag
+        python=command_params.python,
+        upgrade_to_newer_dependencies=False,
+        image_tag=command_params.image_tag,
+        platform=command_params.platform,
     )
     if command_params.image_tag is not None:
         return_code, message = run_pull_image(

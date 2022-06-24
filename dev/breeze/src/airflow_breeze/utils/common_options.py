@@ -37,6 +37,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    SINGLE_PLATFORMS,
     get_available_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -196,11 +197,17 @@ option_image_tag = click.option(
 option_image_name = click.option(
     '-n', '--image-name', help='Name of the image to verify (overrides --python and --image-tag).'
 )
-option_platform = click.option(
+option_platform_multiple = click.option(
     '--platform',
     help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=BetterChoice(ALLOWED_PLATFORMS),
+)
+option_platform_single = click.option(
+    '--platform',
+    help='Platform for Airflow image.',
+    envvar='PLATFORM',
+    type=BetterChoice(SINGLE_PLATFORMS),
 )
 option_debian_version = click.option(
     '--debian-version',
