@@ -413,13 +413,11 @@ class DatabricksHook(BaseDatabricksHook):
 
     def test_connection(self):
         """Test the Databricks connectivity from UI"""
-        status, message = False, ''
         hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
         try:
-            result = hook._do_api_call(endpoint_info=LIST_ZONES_ENDPOINT).get('zones', [])
-            if result:
-                status = True
-                message = 'Connection successfully tested'
+            hook._do_api_call(endpoint_info=LIST_ZONES_ENDPOINT).get('zones')
+            status = True
+            message = 'Connection successfully tested'
         except Exception as e:
             status = False
             message = str(e)
