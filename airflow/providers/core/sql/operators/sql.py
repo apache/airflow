@@ -165,7 +165,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
                     <= record
                     <= check_values["equal_to"] * (1 + tolerance)
                 )
-        return record == check_values["equal_to"]
+            return record == check_values["equal_to"]
+        return False
 
     def _column_mapping_validation(self, check, check_values):
         if check not in self.column_checks:
