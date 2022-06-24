@@ -56,7 +56,7 @@ class Dataset(Base):
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 
-    def __init__(self, uri: str, extra: Optional[Dict] = None, **kwargs):
+    def __init__(self, uri: str, **kwargs):
         try:
             uri.encode('ascii')
         except UnicodeEncodeError:
@@ -64,7 +64,7 @@ class Dataset(Base):
         parsed = urlparse(uri)
         if parsed.scheme and parsed.scheme.lower() == 'airflow':
             raise ValueError("Scheme `airflow` is reserved.")
-        super().__init__(uri=uri, extra=extra, **kwargs)
+        super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
         return self.uri == other.uri
