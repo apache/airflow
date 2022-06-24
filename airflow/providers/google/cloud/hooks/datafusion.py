@@ -115,7 +115,7 @@ class DataFusionHook(GoogleBaseHook):
                 return
             if current_state in failure_states:
                 raise AirflowException(
-                    f"Pipeline {pipeline_name} state {current_state} is not " f"one of {success_states}"
+                    f"Pipeline {pipeline_name} state {current_state} is not one of {success_states}"
                 )
             sleep(30)
 

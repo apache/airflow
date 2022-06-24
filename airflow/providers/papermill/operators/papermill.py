@@ -50,7 +50,7 @@ class PapermillOperator(BaseOperator):
 
     supports_lineage = True
 
-    template_fields: Sequence[str] = ('input_nb', 'output_nb', 'parameters', 'kernel_name')
+    template_fields: Sequence[str] = ('input_nb', 'output_nb', 'parameters', 'kernel_name', 'language_name')
 
     def __init__(
         self,
@@ -59,6 +59,7 @@ class PapermillOperator(BaseOperator):
         output_nb: Optional[str] = None,
         parameters: Optional[Dict] = None,
         kernel_name: Optional[str] = None,
+        language_name: Optional[str] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -67,6 +68,7 @@ class PapermillOperator(BaseOperator):
         self.output_nb = output_nb
         self.parameters = parameters
         self.kernel_name = kernel_name
+        self.language_name = language_name
         if input_nb:
             self.inlets.append(NoteBook(url=input_nb, parameters=self.parameters))
         if output_nb:
@@ -84,4 +86,5 @@ class PapermillOperator(BaseOperator):
                 progress_bar=False,
                 report_mode=True,
                 kernel_name=self.kernel_name,
+                language=self.language_name,
             )

@@ -19,10 +19,7 @@
 
 """This module contains Google BigQuery operators."""
 import enum
-import hashlib
 import json
-import re
-import uuid
 import warnings
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence, Set, SupportsAbs, Union
@@ -30,7 +27,7 @@ from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Optional, Sequence,
 import attr
 from google.api_core.exceptions import Conflict
 from google.api_core.retry import Retry
-from google.cloud.bigquery import DEFAULT_RETRY
+from google.cloud.bigquery import DEFAULT_RETRY, CopyJob, ExtractJob, LoadJob, QueryJob
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink
@@ -709,7 +706,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 
         .. seealso::
             https://cloud.google.com/bigquery/docs/reference/rest/v2/tables#timePartitioning
-    :param bigquery_conn_id: [Optional] The connection ID used to connect to Google Cloud and
+    :param gcp_conn_id: [Optional] The connection ID used to connect to Google Cloud and
         interact with the Bigquery service.
     :param google_cloud_storage_conn_id: [Optional] The connection ID used to connect to Google Cloud.
         and interact with the Google Cloud Storage service.
@@ -726,7 +723,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 table_id='Employees',
                 project_id='internal-gcp-project',
                 gcs_schema_object='gs://schema-bucket/employee_schema.json',
-                bigquery_conn_id='airflow-conn-id',
+                gcp_conn_id='airflow-conn-id',
                 google_cloud_storage_conn_id='airflow-conn-id'
             )
 
@@ -754,7 +751,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
                 project_id='internal-gcp-project',
                 schema_fields=[{"name": "emp_name", "type": "STRING", "mode": "REQUIRED"},
                                {"name": "salary", "type": "INTEGER", "mode": "NULLABLE"}],
-                bigquery_conn_id='airflow-conn-id-account',
+                gcp_conn_id='airflow-conn-id-account',
                 google_cloud_storage_conn_id='airflow-conn-id'
             )
     :param view: [Optional] A dictionary containing definition for the view.
@@ -811,7 +808,8 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         schema_fields: Optional[List] = None,
         gcs_schema_object: Optional[str] = None,
         time_partitioning: Optional[Dict] = None,
-        bigquery_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
         google_cloud_storage_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         labels: Optional[Dict] = None,
@@ -824,6 +822,14 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         exists_ok: bool = False,
         **kwargs,
     ) -> None:
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            gcp_conn_id = bigquery_conn_id
+
         super().__init__(**kwargs)
 
         self.project_id = project_id
@@ -831,7 +837,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
         self.table_id = table_id
         self.schema_fields = schema_fields
         self.gcs_schema_object = gcs_schema_object
-        self.bigquery_conn_id = bigquery_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
         self.time_partitioning = {} if time_partitioning is None else time_partitioning
@@ -847,7 +853,7 @@ class BigQueryCreateEmptyTableOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> None:
         bq_hook = BigQueryHook(
-            gcp_conn_id=self.bigquery_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
@@ -949,7 +955,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         columns are treated as bad records, and if there are too many bad records, an
         invalid error is returned in the job result. Only applicable to CSV, ignored
         for other formats.
-    :param bigquery_conn_id: (Optional) The connection ID used to connect to Google Cloud and
+    :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud and
         interact with the Bigquery service.
     :param google_cloud_storage_conn_id: (Optional) The connection ID used to connect to Google Cloud
         and interact with the Google Cloud Storage service.
@@ -1006,7 +1012,8 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         quote_character: Optional[str] = None,
         allow_quoted_newlines: bool = False,
         allow_jagged_rows: bool = False,
-        bigquery_conn_id: str = 'google_cloud_default',
+        gcp_conn_id: str = 'google_cloud_default',
+        bigquery_conn_id: Optional[str] = None,
         google_cloud_storage_conn_id: str = 'google_cloud_default',
         delegate_to: Optional[str] = None,
         src_fmt_configs: Optional[dict] = None,
@@ -1016,6 +1023,14 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         **kwargs,
     ) -> None:
+        if bigquery_conn_id:
+            warnings.warn(
+                "The bigquery_conn_id parameter has been deprecated. Use the gcp_conn_id parameter instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            gcp_conn_id = bigquery_conn_id
+
         super().__init__(**kwargs)
 
         # BQ config
@@ -1085,7 +1100,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
         self.quote_character = quote_character
         self.allow_quoted_newlines = allow_quoted_newlines
         self.allow_jagged_rows = allow_jagged_rows
-        self.bigquery_conn_id = bigquery_conn_id
+        self.gcp_conn_id = gcp_conn_id
         self.google_cloud_storage_conn_id = google_cloud_storage_conn_id
         self.delegate_to = delegate_to
         self.autodetect = autodetect
@@ -1098,7 +1113,7 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> None:
         bq_hook = BigQueryHook(
-            gcp_conn_id=self.bigquery_conn_id,
+            gcp_conn_id=self.gcp_conn_id,
             delegate_to=self.delegate_to,
             location=self.location,
             impersonation_chain=self.impersonation_chain,
@@ -2119,21 +2134,6 @@ class BigQueryInsertJobOperator(BaseOperator):
         if job.error_result:
             raise AirflowException(f"BigQuery job {job.job_id} failed: {job.error_result}")
 
-    def _job_id(self, context):
-        if self.force_rerun:
-            hash_base = str(uuid.uuid4())
-        else:
-            hash_base = json.dumps(self.configuration, sort_keys=True)
-
-        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
-
-        if self.job_id:
-            return f"{self.job_id}_{uniqueness_suffix}"
-
-        exec_date = context['execution_date'].isoformat()
-        job_id = f"airflow_{self.dag_id}_{self.task_id}_{exec_date}_{uniqueness_suffix}"
-        return re.sub(r"[:\-+.]", "_", job_id)
-
     def execute(self, context: Any):
         hook = BigQueryHook(
             gcp_conn_id=self.gcp_conn_id,
@@ -2142,9 +2142,17 @@ class BigQueryInsertJobOperator(BaseOperator):
         )
         self.hook = hook
 
-        job_id = self._job_id(context)
+        job_id = hook.generate_job_id(
+            job_id=self.job_id,
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            logical_date=context["logical_date"],
+            configuration=self.configuration,
+            force_rerun=self.force_rerun,
+        )
 
         try:
+            self.log.info(f"Executing: {self.configuration}")
             job = self._submit_job(hook, job_id)
             self._handle_job_error(job)
         except Conflict:
@@ -2166,14 +2174,32 @@ class BigQueryInsertJobOperator(BaseOperator):
                     f"Or, if you want to reattach in this scenario add {job.state} to `reattach_states`"
                 )
 
-        table = job.to_api_repr()["configuration"]["query"]["destinationTable"]
-        BigQueryTableLink.persist(
-            context=context,
-            task_instance=self,
-            dataset_id=table["datasetId"],
-            project_id=table["projectId"],
-            table_id=table["tableId"],
-        )
+        job_types = {
+            LoadJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            CopyJob._JOB_TYPE: ["sourceTable", "destinationTable"],
+            ExtractJob._JOB_TYPE: ["sourceTable"],
+            QueryJob._JOB_TYPE: ["destinationTable"],
+        }
+
+        if self.project_id:
+            for job_type, tables_prop in job_types.items():
+                job_configuration = job.to_api_repr()["configuration"]
+                if job_type in job_configuration:
+                    for table_prop in tables_prop:
+                        if table_prop in job_configuration[job_type]:
+                            table = job_configuration[job_type][table_prop]
+                            persist_kwargs = {
+                                "context": context,
+                                "task_instance": self,
+                                "project_id": self.project_id,
+                                "table_id": table,
+                            }
+                            if not isinstance(table, str):
+                                persist_kwargs["table_id"] = table["tableId"]
+                                persist_kwargs["dataset_id"] = table["datasetId"]
+
+                            BigQueryTableLink.persist(**persist_kwargs)
+
         self.job_id = job.job_id
         return job.job_id
 

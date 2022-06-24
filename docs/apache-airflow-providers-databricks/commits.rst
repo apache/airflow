@@ -28,6 +28,42 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  =======================================================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =======================================================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`ddf9013098 <https://github.com/apache/airflow/commit/ddf9013098b09176d7b34861b2357ded50b9fe26>`_  2022-06-05   ``AIP-47 - Migrate databricks DAGs to new design #22442 (#24203)``
+`acf89510cd <https://github.com/apache/airflow/commit/acf89510cd5a18d15c1a45e674ba0bcae9293097>`_  2022-06-04   ``fix: DatabricksSubmitRunOperator and DatabricksRunNowOperator cannot define .json as template_ext (#23622) (#23641)``
+`92ddcf4ac6 <https://github.com/apache/airflow/commit/92ddcf4ac6fa452c5056b1f7cad1fca4d5759802>`_  2022-05-27   ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
+`6150d28323 <https://github.com/apache/airflow/commit/6150d283234b48f86362fd4da856e282dd91ebb4>`_  2022-05-22   ``Add Deferrable Databricks operators (#19736)``
+`cf5a78e91c <https://github.com/apache/airflow/commit/cf5a78e91cb920e7014b76914956681aeb44b29f>`_  2022-05-22   ``Fix UnboundLocalError when sql is empty list in DatabricksSqlHook (#23815)``
+`d0a5b3a4f2 <https://github.com/apache/airflow/commit/d0a5b3a4f25b736661693c73ea4df0e7d445a778>`_  2022-05-13   ``Add git_source to DatabricksSubmitRunOperator (#23620)``
+=================================================================================================  ===========  =======================================================================================================================
+
+2.7.0
+.....
+
+Latest change: 2022-05-12
+
+=================================================================================================  ===========  ===========================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===========================================================================
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`428a439953 <https://github.com/apache/airflow/commit/428a43995390b3623a51aa7bac7e21da69a8db22>`_  2022-05-09   ``Clean up in-line f-string concatenation (#23591)``
+`a58506b2a6 <https://github.com/apache/airflow/commit/a58506b2a68f0d4533b41feb67efb0caf34e14d8>`_  2022-04-26   ``Address review comments``
+`6a3d6cc32b <https://github.com/apache/airflow/commit/6a3d6cc32b4e3922d259c889460fe82e0ebf3663>`_  2022-04-26   ``Update to the released version of DBSQL connector``
+`7b3bf4e435 <https://github.com/apache/airflow/commit/7b3bf4e43558999af29a4ce7f60f2f9ef55f2ebf>`_  2022-04-26   ``DatabricksSqlOperator - switch to databricks-sql-connector 2.x``
+`f02b0b6b40 <https://github.com/apache/airflow/commit/f02b0b6b4054bd3038fc3fec85adef7502ea0c3c>`_  2022-04-25   ``Further improvement of Databricks Jobs operators (#23199)``
+`8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+=================================================================================================  ===========  ===========================================================================
+
 2.6.0
 .....
 

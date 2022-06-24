@@ -35,14 +35,15 @@ BUCKET = 'gs://test'
 FILENAME = 'test_{}.ndjson'
 
 NDJSON_LINES = [
-    b'{"some_num": 42, "some_str": "mock_row_content_1"}\n',
-    b'{"some_num": 43, "some_str": "mock_row_content_2"}\n',
-    b'{"some_num": 44, "some_str": "mock_row_content_3"}\n',
+    b'{"some_json": {"firtname": "John", "lastname": "Smith", "nested_dict": {"a": null, "b": "something"}}, "some_num": 42, "some_str": "mock_row_content_1"}\n',  # noqa
+    b'{"some_json": {}, "some_num": 43, "some_str": "mock_row_content_2"}\n',
+    b'{"some_json": {}, "some_num": 44, "some_str": "mock_row_content_3"}\n',
 ]
 SCHEMA_FILENAME = 'schema_test.json'
 SCHEMA_JSON = (
     b'[{"mode": "NULLABLE", "name": "some_str", "type": "STRING"}, '
-    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}]'
+    b'{"mode": "NULLABLE", "name": "some_num", "type": "INTEGER"}, '
+    b'{"mode": "NULLABLE", "name": "some_json", "type": "STRING"}]'
 )
 
 
@@ -55,16 +56,24 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
             with conn.cursor() as cur:
                 for table in TABLES:
                     cur.execute(f"DROP TABLE IF EXISTS {table} CASCADE;")
-                    cur.execute(f"CREATE TABLE {table}(some_str varchar, some_num integer);")
+                    cur.execute(f"CREATE TABLE {table}(some_str varchar, some_num integer, some_json json);")
 
                 cur.execute(
-                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);", ('mock_row_content_1', 42)
+                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s, %s);",
+                    (
+                        'mock_row_content_1',
+                        42,
+                        '{"lastname": "Smith", "firtname": "John", \
+                          "nested_dict": {"a": null, "b": "something"}}',
+                    ),
                 )
                 cur.execute(
-                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);", ('mock_row_content_2', 43)
+                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s, %s);",
+                    ('mock_row_content_2', 43, '{}'),
                 )
                 cur.execute(
-                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s);", ('mock_row_content_3', 44)
+                    "INSERT INTO postgres_to_gcs_operator VALUES(%s, %s, %s);",
+                    ('mock_row_content_3', 44, '{}'),
                 )
 
     @classmethod
@@ -83,7 +92,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
         assert op.bucket == BUCKET
         assert op.filename == FILENAME
 
-    def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip):
+    def _assert_uploaded_file_content(self, bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
         assert BUCKET == bucket
         assert FILENAME.format(0) == obj
         assert 'application/json' == mime_type
@@ -150,7 +159,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
             FILENAME.format(1): NDJSON_LINES[2],
         }
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             assert BUCKET == bucket
             assert 'application/json' == mime_type
             assert not gzip
@@ -174,7 +183,7 @@ class TestPostgresToGoogleCloudStorageOperator(unittest.TestCase):
 
         gcs_hook_mock = gcs_hook_mock_class.return_value
 
-        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip):
+        def _assert_upload(bucket, obj, tmp_filename, mime_type, gzip, metadata=None):
             if obj == SCHEMA_FILENAME:
                 with open(tmp_filename, 'rb') as file:
                     assert SCHEMA_JSON == file.read()

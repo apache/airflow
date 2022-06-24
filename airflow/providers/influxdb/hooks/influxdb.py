@@ -68,11 +68,9 @@ class InfluxDBHook(BaseHook):
         based on SSL or other InfluxDB host requirements
 
         """
-        return '{scheme}://{host}:{port}'.format(
-            scheme='https' if conn.schema is None else f'{conn.schema}',
-            host=conn.host,
-            port='7687' if conn.port is None else f'{conn.port}',
-        )
+        conn_scheme = 'https' if conn.schema is None else conn.schema
+        conn_port = 7687 if conn.port is None else conn.port
+        return f"{conn_scheme}://{conn.host}:{conn_port}"
 
     def get_conn(self) -> InfluxDBClient:
         """

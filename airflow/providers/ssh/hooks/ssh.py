@@ -17,23 +17,18 @@
 # under the License.
 """Hook for SSH connections."""
 import os
-import sys
 import warnings
 from base64 import decodebytes
 from io import StringIO
 from select import select
-from typing import Any, Dict, Optional, Sequence, Tuple, Type, Union
+from typing import Any, Dict, List, Optional, Sequence, Tuple, Type, Union
 
 import paramiko
 from paramiko.config import SSH_PORT
 from sshtunnel import SSHTunnelForwarder
 from tenacity import Retrying, stop_after_attempt, wait_fixed, wait_random
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 
@@ -68,6 +63,10 @@ class SSHHook(BaseHook):
     :param keepalive_interval: send a keepalive packet to remote host every
         keepalive_interval seconds
     :param banner_timeout: timeout to wait for banner from the server in seconds
+    :param disabled_algorithms: dictionary mapping algorithm type to an
+        iterable of algorithm identifiers, which will be disabled for the
+        lifetime of the transport
+    :param ciphers: list of ciphers to use in order of preference
     """
 
     # List of classes to try loading private keys as, ordered (roughly) by most common to least common
@@ -112,6 +111,8 @@ class SSHHook(BaseHook):
         conn_timeout: Optional[int] = None,
         keepalive_interval: int = 30,
         banner_timeout: float = 30.0,
+        disabled_algorithms: Optional[dict] = None,
+        ciphers: Optional[List[str]] = None,
     ) -> None:
         super().__init__()
         self.ssh_conn_id = ssh_conn_id
@@ -125,6 +126,8 @@ class SSHHook(BaseHook):
         self.conn_timeout = conn_timeout
         self.keepalive_interval = keepalive_interval
         self.banner_timeout = banner_timeout
+        self.disabled_algorithms = disabled_algorithms
+        self.ciphers = ciphers
         self.host_proxy_cmd = None
 
         # Default values, overridable from Connection
@@ -197,6 +200,12 @@ class SSHHook(BaseHook):
                 ):
                     self.look_for_keys = False
 
+                if "disabled_algorithms" in extra_options:
+                    self.disabled_algorithms = extra_options.get("disabled_algorithms")
+
+                if "ciphers" in extra_options:
+                    self.ciphers = extra_options.get("ciphers")
+
                 if host_key is not None:
                     if host_key.startswith("ssh-"):
                         key_type, host_key = host_key.split(None)[:2]
@@ -266,17 +275,16 @@ class SSHHook(BaseHook):
         self.log.debug('Creating SSH client for conn_id: %s', self.ssh_conn_id)
         client = paramiko.SSHClient()
 
-        if not self.allow_host_key_change:
+        if self.allow_host_key_change:
             self.log.warning(
                 "Remote Identification Change is not verified. "
                 "This won't protect against Man-In-The-Middle attacks"
             )
+        else:
             client.load_system_host_keys()
 
         if self.no_host_key_check:
             self.log.warning("No Host Key Verification. This won't protect against Man-In-The-Middle attacks")
-            # Default is RejectPolicy
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         else:
             if self.host_key is not None:
                 client_host_keys = client.get_host_keys()
@@ -288,6 +296,10 @@ class SSHHook(BaseHook):
                     )
             else:
                 pass  # will fallback to system host keys if none explicitly specified in conn extra
+
+        if self.no_host_key_check or self.allow_host_key_change:
+            # Default is RejectPolicy
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
 
         connect_kwargs: Dict[str, Any] = dict(
             hostname=self.remote_host,
@@ -310,6 +322,9 @@ class SSHHook(BaseHook):
         if self.key_file:
             connect_kwargs.update(key_filename=self.key_file)
 
+        if self.disabled_algorithms:
+            connect_kwargs.update(disabled_algorithms=self.disabled_algorithms)
+
         log_before_sleep = lambda retry_state: self.log.info(
             "Failed to connect. Sleeping before retry attempt %d", retry_state.attempt_number
         )
@@ -327,6 +342,11 @@ class SSHHook(BaseHook):
             # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
             # type "Optional[Transport]" and item "None" has no attribute "set_keepalive".
             client.get_transport().set_keepalive(self.keepalive_interval)  # type: ignore[union-attr]
+
+        if self.ciphers:
+            # MyPy check ignored because "paramiko" isn't well-typed. The `client.get_transport()` returns
+            # type "Optional[Transport]" and item "None" has no method `get_security_options`".
+            client.get_transport().get_security_options().ciphers = self.ciphers  # type: ignore[union-attr]
 
         self.client = client
         return client
@@ -415,6 +435,9 @@ class SSHHook(BaseHook):
         :return: ``paramiko.PKey`` appropriate for given key
         :raises AirflowException: if key cannot be read
         """
+        if len(private_key.split("\n", 2)) < 2:
+            raise AirflowException('Key must have BEGIN and END header/footer on separate lines.')
+
         for pkey_class in self._pkey_loaders:
             try:
                 key = pkey_class.from_private_key(StringIO(private_key), password=passphrase)

@@ -72,7 +72,7 @@ option_github_token = click.option(
     required=True,
     help=textwrap.dedent(
         """
-        Github token used to authenticate.
+        GitHub token used to authenticate.
         You can set omit it if you have GITHUB_TOKEN env variable set
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20sssues&scopes=repo:status"""
@@ -166,7 +166,7 @@ def get_changes(
             verbose, from_commit=previous_release, to_commit=current_release, is_helm_chart=is_helm_chart
         ),
         cwd=SOURCE_DIR_PATH,
-        universal_newlines=True,
+        text=True,
     )
     return [get_change_from_line(line) for line in change_strings.split("\n")]
 
@@ -274,7 +274,7 @@ def generate_issue_content(
         for i in range(count_prs):
             pr_number = prs[i]
             progress.console.print(
-                f"Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+                f"Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
             )
 
             pr: PullRequestOrIssue

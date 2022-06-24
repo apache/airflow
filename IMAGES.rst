@@ -188,8 +188,8 @@ Dockerfile image= and scripts further rebuilds with local build cache will be co
 You can also disable build cache altogether. This is the strategy used by the scheduled builds in CI - they
 will always rebuild all the images from scratch.
 
-You can change the strategy by providing one of the ``--build-cache-local``, ``--build-cache-pulled`` or
-even ``--build-cache-disabled`` flags when you run Breeze commands. For example:
+You can change the strategy by providing one of the ``--build-cache`` flags: ``registry`` (default), ``local``,
+or ``disabled`` flags when you run Breeze commands. For example:
 
 .. code-block:: bash
 
@@ -200,9 +200,9 @@ time you run it).
 
 .. code-block:: bash
 
-  breeze build-prod-image --python 3.7 --docker-cache pulled
+  breeze build-prod-image --python 3.7 --docker-cache registry
 
-Will build the production image with pulled images as cache.
+Will build the production image with cache used from registry.
 
 
 .. code-block:: bash
@@ -211,8 +211,14 @@ Will build the production image with pulled images as cache.
 
 Will build the production image from the scratch.
 
-You can also turn local docker caching by setting ``DOCKER_CACHE`` variable to "local", "pulled",
-"disabled" and exporting it.
+You can also turn local docker caching by setting ``DOCKER_CACHE`` variable to ``local``, ``registry``,
+``disabled`` and exporting it.
+
+.. code-block:: bash
+
+  export DOCKER_CACHE="registry"
+
+or
 
 .. code-block:: bash
 
@@ -227,7 +233,7 @@ or
 Naming conventions
 ==================
 
-By default images we are using cache for images in Github Container registry. We are using GitHub
+By default images we are using cache for images in GitHub Container registry. We are using GitHub
 Container Registry as development image cache and CI registry for build images.
 The images are all in organization wide "apache/" namespace. We are adding "airflow-" as prefix for
 the image names of all Airflow images. The images are linked to the repository
@@ -275,7 +281,7 @@ to refresh them.
 
 Every developer can also pull and run images being result of a specific CI run in GitHub Actions.
 This is a powerful tool that allows to reproduce CI failures locally, enter the images and fix them much
-faster. It is enough to pass ``--github-image-id`` and the registry and Breeze will download and execute
+faster. It is enough to pass ``--image-tag`` and the registry and Breeze will download and execute
 commands using the same image that was used during the CI tests.
 
 For example this command will run the same Python 3.8 image as was used in build identified with
@@ -283,8 +289,7 @@ For example this command will run the same Python 3.8 image as was used in build
 
 .. code-block:: bash
 
-  ./breeze-legacy --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e \
-    --python 3.8 --integration rabbitmq
+  breeze --image-tag 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e --python 3.8 --integration rabbitmq
 
 You can see more details and examples in `Breeze <BREEZE.rst>`_
 
@@ -469,7 +474,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``ADDITIONAL_RUNTIME_APT_ENV``           |                                          | Additional env variables defined         |
 |                                          |                                          | when installing runtime deps             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.0.4``                               | PIP version used.                        |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               | PIP version used.                        |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation        |
 +------------------------------------------+------------------------------------------+------------------------------------------+

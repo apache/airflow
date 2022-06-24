@@ -15,18 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 from typing import TYPE_CHECKING, Any, Dict, Iterable, Optional, Sequence
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
 from airflow.sensors.base import BaseSensorOperator
@@ -66,7 +60,7 @@ class EmrBaseSensor(BaseSensorOperator):
     def poke(self, context: 'Context'):
         response = self.get_emr_response()
 
-        if not response['ResponseMetadata']['HTTPStatusCode'] == 200:
+        if response['ResponseMetadata']['HTTPStatusCode'] != 200:
             self.log.info('Bad HTTP response: %s', response)
             return False
 
@@ -258,8 +252,9 @@ class EmrJobFlowSensor(EmrBaseSensor):
         cluster_status = response['Cluster']['Status']
         state_change_reason = cluster_status.get('StateChangeReason')
         if state_change_reason:
-            return 'for code: {} with message {}'.format(
-                state_change_reason.get('Code', 'No code'), state_change_reason.get('Message', 'Unknown')
+            return (
+                f"for code: {state_change_reason.get('Code', 'No code')} "
+                f"with message {state_change_reason.get('Message', 'Unknown')}"
             )
         return None
 
@@ -338,7 +333,8 @@ class EmrStepSensor(EmrBaseSensor):
         """
         fail_details = response['Step']['Status'].get('FailureDetails')
         if fail_details:
-            return 'for reason {} with message {} and log file {}'.format(
-                fail_details.get('Reason'), fail_details.get('Message'), fail_details.get('LogFile')
+            return (
+                f"for reason {fail_details.get('Reason')} "
+                f"with message {fail_details.get('Message')} and log file {fail_details.get('LogFile')}"
             )
         return None

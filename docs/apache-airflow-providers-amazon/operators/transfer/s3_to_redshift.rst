@@ -15,21 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-Amazon S3 to Amazon Redshift Transfer Operator
-==============================================
+============================
+Amazon S3 to Amazon Redshift
+============================
 
-Use the S3ToRedshiftOperator transfer to copy the data from an Amazon Simple Storage Service (S3) file into an
+Use the ``S3ToRedshiftOperator`` transfer to copy the data from an Amazon Simple Storage Service (S3) file into an
 Amazon Redshift table.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:S3ToRedshiftOperator:
 
-Amazon S3 To Amazon Redshift
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Amazon S3 To Amazon Redshift transfer operator
+==============================================
 
 This operator loads data from Amazon S3 to an existing Amazon Redshift table.
 
@@ -48,8 +52,8 @@ You can find more information to the ``COPY`` command used
 `here <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__.
 
 Reference
-^^^^^^^^^
+---------
 
-* `AWS COPY from Amazon S3 Documentation <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
-* `AWS boto3 Library Documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__
+* `AWS COPY from Amazon S3 documentation <https://docs.aws.amazon.com/us_en/redshift/latest/dg/copy-parameters-data-source-s3.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS boto3 library documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__

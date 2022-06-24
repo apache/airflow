@@ -72,6 +72,7 @@ class BaseXCom(Base, LoggingMixin):
         # but it goes over MySQL's index length limit. So we instead index 'key'
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
+        Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

@@ -200,9 +200,10 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
+    'mypy-boto3-appflow>=1.21.0',
 ]
 apache_beam = [
-    'apache-beam>=2.33.0',
+    'apache-beam>=2.39.0',
 ]
 arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
@@ -231,6 +232,7 @@ azure = [
     'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
+    'azure-servicebus>=7.6.1',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0',
@@ -263,8 +265,9 @@ dask = [
     'distributed>=2.11.1',
 ]
 databricks = [
-    'requests>=2.26.0, <3',
+    'requests>=2.27,<3',
     'databricks-sql-connector>=2.0.0, <3.0.0',
+    'aiohttp>=3.6.3, <4',
 ]
 datadog = [
     'datadog>=0.14.0',
@@ -308,8 +311,8 @@ exasol = ['pyexasol>=0.5.1', pandas_requirement]
 facebook = [
     'facebook-business>=6.0.2',
 ]
-flask_appbuilder_authlib = [
-    'authlib',
+flask_appbuilder_oauth = [
+    'flask-appbuilder[oauth]',
 ]
 github = [
     'pygithub',
@@ -366,6 +369,9 @@ google = [
     'pandas-gbq',
     pandas_requirement,
     'sqlalchemy-bigquery>=1.2.1',
+    # A transient dependency of google-cloud-bigquery-datatransfer, but we
+    # further constrain it since older versions are buggy.
+    'proto-plus>=1.19.6',
 ]
 grpc = [
     # Google has very clear rules on what dependencies should be used. All the limits below
@@ -459,7 +465,7 @@ opsgenie = [
     'opsgenie-sdk>=2.1.5',
 ]
 oracle = [
-    'cx_Oracle>=5.1.2',
+    'oracledb>=1.0.0',
 ]
 pagerduty = [
     'pdpyras>=4.1.2',
@@ -487,9 +493,7 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = [
-    # The limit to Presto 0.8 for unknown reason
-    # TODO: Remove the limit
-    'presto-python-client>=0.7.0,<0.8',
+    'presto-python-client>=0.8.2',
     pandas_requirement,
 ]
 psrp = [
@@ -535,7 +539,6 @@ spark = [
 ]
 ssh = [
     'paramiko>=2.6.0',
-    'pysftp>=0.2.9',
     'sshtunnel>=0.3.2',
 ]
 statsd = [
@@ -602,6 +605,7 @@ mypy_dependencies = [
 
 # Dependencies needed for development only
 devel_only = [
+    'asynctest~=0.13',
     'aws_xray_sdk',
     'beautifulsoup4>=4.7.1',
     'black',
@@ -612,31 +616,21 @@ devel_only = [
     'filelock',
     'flake8>=3.6.0',
     'flake8-colors',
+    'flake8-implicit-str-concat',
     'flaky',
     'freezegun',
-    # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0
-    # Actually GitHub3.1.0 already introduced PyJWT>=2.3.0 but so far `pip` was able to resolve it without
-    # getting into a long backtracking loop and figure out that github3 3.0.0 version is the right version
-    # similarly limiting it to 3.1.2 causes pip not to enter the backtracking loop. Apparently when there
-    # are 3 versions with PyJWT>=2.3.0 (3.1.0, 3.1.1 an 3.1.2) pip enters into backtrack loop and fails
-    # to resolve that github3 3.0.0 is the right version to use.
-    # This limitation could be removed if PyJWT limitation < 2.0.0 is dropped from FAB or when
-    # pip resolution is improved to handle the case. The issue which describes this PIP behaviour
-    # and hopefully allowing to improve it is tracked in https://github.com/pypa/pip/issues/10924
-    'github3.py<3.1.0',
     'gitpython',
     'ipdb',
     'jira',
     'jsondiff',
     'mongomock',
-    'moto[glue]>=3.1.6',
+    'moto[cloudformation, glue]>=3.1.12',
     'parameterized',
     'paramiko',
     'pipdeptree',
     'pre-commit',
     'pypsrp',
     'pygithub',
-    'pysftp',
     # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
     # It contains a number of potential breaking changes but none of them looks breaking our use
     # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
@@ -655,7 +649,7 @@ devel_only = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
-    'rich_click',
+    'rich-click>=1.5',
     'semver',
     'towncrier',
     'twine',
@@ -763,8 +757,8 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
     'deprecated_api': deprecated_api,
-    'github_enterprise': flask_appbuilder_authlib,
-    'google_auth': flask_appbuilder_authlib,
+    'github_enterprise': flask_appbuilder_oauth,
+    'google_auth': flask_appbuilder_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
     'leveldb': leveldb,

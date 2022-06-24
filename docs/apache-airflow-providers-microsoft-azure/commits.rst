@@ -28,14 +28,49 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
-3.8.0
+4.0.0
 .....
 
-Latest change: 2022-04-04
+Latest change: 2022-06-07
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`c23826915d <https://github.com/apache/airflow/commit/c23826915dcdca4f22b52b74633336cb2f4a1eca>`_  2022-06-07   ``Apply per-run log templates to log handlers (#24153)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+`389e858d93 <https://github.com/apache/airflow/commit/389e858d934a7813c7f15ab4e46df33c5720e415>`_  2022-06-03   ``Pass connection extra parameters to wasb BlobServiceClient (#24154)``
+`6e83885c95 <https://github.com/apache/airflow/commit/6e83885c954f781c5c64fcb6e7a0f5a9b113e717>`_  2022-06-03   ``Migrate Microsoft example DAGs to new design #22452 - azure (#24141)``
+`3393647aa6 <https://github.com/apache/airflow/commit/3393647aa63cbfdd2e6b90b7a5c9971732a54fc2>`_  2022-05-26   ``Add typing to Azure Cosmos Client Hook (#23941)``
+`ec6761a5c0 <https://github.com/apache/airflow/commit/ec6761a5c0d031221d53ce213c0e42813606c55d>`_  2022-05-23   ``Clean up f-strings in logging calls (#23597)``
+=================================================================================================  ===========  ==================================================================================
+
+3.9.0
+.....
+
+Latest change: 2022-05-12
+
+=================================================================================================  ===========  ===============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ===============================================================================
+`75c60923e0 <https://github.com/apache/airflow/commit/75c60923e01375ffc5f71c4f2f7968f489e2ca2f>`_  2022-05-12   ``Prepare provider documentation 2022.05.11 (#23631)``
+`8f181c1034 <https://github.com/apache/airflow/commit/8f181c10344bd319ac5f6aeb102ee3c06e1f1637>`_  2022-05-08   ``wasb hook: user defaultAzureCredentials instead of managedIdentity (#23394)``
+`2d109401b3 <https://github.com/apache/airflow/commit/2d109401b3566aef613501691d18cf7e4c776cd2>`_  2022-05-04   ``Bump pre-commit hook versions (#22887)``
+`8b6b0848a3 <https://github.com/apache/airflow/commit/8b6b0848a3cacf9999477d6af4d2a87463f03026>`_  2022-04-23   ``Use new Breese for building, pulling and verifying the images. (#23104)``
+`49e336ae03 <https://github.com/apache/airflow/commit/49e336ae0302b386a2f47269a6d13988382d975f>`_  2022-04-13   ``Replace usage of 'DummyOperator' with 'EmptyOperator' (#22974)``
+`6933022e94 <https://github.com/apache/airflow/commit/6933022e94acf139b2dea9a589bb8b25c62a5d20>`_  2022-04-10   ``Fix new MyPy errors in main (#22884)``
+=================================================================================================  ===========  ===============================================================================
+
+3.8.0
+.....
+
+Latest change: 2022-04-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `d3976d9b20 <https://github.com/apache/airflow/commit/d3976d9b20163550dbfe8cf9b326260516fd9bb8>`_  2022-04-04   ``Docs: Fix example usage for 'AzureCosmosDocumentSensor' (#22735)``
 `7ab45d41d6 <https://github.com/apache/airflow/commit/7ab45d41d6c4de322dc8afe8a74b712d0bae4ee7>`_  2022-03-24   ``Update secrets backends to use get_conn_value instead of get_conn_uri (#22348)``
 =================================================================================================  ===========  ==================================================================================

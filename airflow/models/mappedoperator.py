@@ -49,6 +49,7 @@ from airflow import settings
 from airflow.compat.functools import cache, cached_property
 from airflow.exceptions import AirflowException, UnmappableOperator
 from airflow.models.abstractoperator import (
+    DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST,
     DEFAULT_OWNER,
     DEFAULT_POOL_SLOTS,
     DEFAULT_PRIORITY_WEIGHT,
@@ -191,12 +192,17 @@ class OperatorPartial:
             warnings.warn(f"Task {task_id} was never mapped!")
 
     def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+        if not mapped_kwargs:
+            raise TypeError("no arguments to expand against")
+        return self._expand(**mapped_kwargs)
+
+    def _expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         self._expand_called = True
 
         from airflow.operators.empty import EmptyOperator
 
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
-        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="mapping already partial")
+        prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
         ensure_xcomarg_return_value(mapped_kwargs)
 
         partial_kwargs = self.kwargs.copy()
@@ -300,8 +306,7 @@ class MappedOperator(AbstractOperator):
         if self.dag:
             self.dag.add_task(self)
         for k, v in self.mapped_kwargs.items():
-            if k in self.template_fields:
-                XComArg.apply_upstream_relationship(self, v)
+            XComArg.apply_upstream_relationship(self, v)
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
@@ -319,6 +324,7 @@ class MappedOperator(AbstractOperator):
             "dag",
             "deps",
             "is_mapped",
+            "mapped_kwargs",  # This is needed to be able to accept XComArg.
             "subdag",
             "task_group",
             "upstream_task_ids",
@@ -384,6 +390,11 @@ class MappedOperator(AbstractOperator):
         return bool(self.partial_kwargs.get("depends_on_past"))
 
     @property
+    def ignore_first_depends_on_past(self) -> bool:
+        value = self.partial_kwargs.get("ignore_first_depends_on_past", DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST)
+        return bool(value)
+
+    @property
     def wait_for_downstream(self) -> bool:
         return bool(self.partial_kwargs.get("wait_for_downstream"))
 
@@ -406,6 +417,10 @@ class MappedOperator(AbstractOperator):
     @property
     def execution_timeout(self) -> Optional[datetime.timedelta]:
         return self.partial_kwargs.get("execution_timeout")
+
+    @property
+    def max_retry_delay(self) -> Optional[datetime.timedelta]:
+        return self.partial_kwargs.get("max_retry_delay")
 
     @property
     def retry_delay(self) -> datetime.timedelta:
@@ -467,6 +482,26 @@ class MappedOperator(AbstractOperator):
     def outlets(self) -> Optional[Any]:
         return self.partial_kwargs.get("outlets", None)
 
+    @property
+    def doc(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc")
+
+    @property
+    def doc_md(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_md")
+
+    @property
+    def doc_json(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_json")
+
+    @property
+    def doc_yaml(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_yaml")
+
+    @property
+    def doc_rst(self) -> Optional[str]:
+        return self.partial_kwargs.get("doc_rst")
+
     def get_dag(self) -> Optional["DAG"]:
         """Implementing Operator."""
         return self.dag
@@ -476,7 +511,6 @@ class MappedOperator(AbstractOperator):
         return DagAttributeTypes.OP, self.task_id
 
     def _get_unmap_kwargs(self) -> Dict[str, Any]:
-
         return {
             "task_id": self.task_id,
             "dag": self.dag,
@@ -795,7 +829,10 @@ class MappedOperator(AbstractOperator):
             if not isinstance(value, MAPPABLE_LITERAL_TYPES):
                 # None literal type encountered, so give up
                 return None
-            total += len(value)
+            if total == 0:
+                total = len(value)
+            else:
+                total *= len(value)
         return total
 
     @cache
@@ -807,7 +844,6 @@ class MappedOperator(AbstractOperator):
         :return: None if upstream tasks are not complete yet, or else total number of mapped TIs this task
             should have
         """
-
         lengths = self._get_map_lengths(run_id, session=session)
         expansion_kwargs = self._get_expansion_kwargs()
 

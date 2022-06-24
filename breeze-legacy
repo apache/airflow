@@ -647,7 +647,6 @@ export AIRFLOW_PROD_IMAGE="${AIRFLOW_PROD_IMAGE}"
 export AIRFLOW_IMAGE_KUBERNETES="${AIRFLOW_IMAGE_KUBERNETES}"
 export SQLITE_URL="${SQLITE_URL}"
 export USE_AIRFLOW_VERSION="${USE_AIRFLOW_VERSION}"
-export SKIP_PACKAGE_VERIFICATION="${SKIP_PACKAGE_VERIFICATION}"
 export USE_PACKAGES_FROM_DIST="${USE_PACKAGES_FROM_DIST}"
 export EXECUTOR="${EXECUTOR}"
 export START_AIRFLOW="${START_AIRFLOW}"
@@ -969,21 +968,6 @@ function breeze::parse_arguments() {
             echo "GitHub repository: ${2}"
             echo
             export GITHUB_REPOSITORY="${2}"
-            shift 2
-            ;;
-        -s | --github-image-id)
-            echo
-            echo "GitHub image id: ${2}"
-            echo
-            echo "Force pulling the image, using GitHub registry and skip mounting local sources."
-            echo "This is in order to get the exact same version as used in CI environment for SHA!."
-            echo "You can specify --skip-mounting-local-sources to not mount local sources to get exact. "
-            echo "behaviour as in the CI environment."
-            echo
-            export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
-            export CHECK_IMAGE_FOR_REBUILD="false"
-            export SKIP_BUILDING_PROD_IMAGE="true"
-            export SKIP_CHECK_REMOTE_IMAGE="true"
             shift 2
             ;;
         --init-script)
@@ -1370,15 +1354,6 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
 
       '${CMDNAME} shell -- -c \"ls -la\"'
       '${CMDNAME} -- -c \"ls -la\"'
-
-      For GitHub repository, the --github-repository flag can be used to specify the repository
-      to pull and push images. You can also use --github-image-id <COMMIT_SHA> in case
-      you want to pull the image with specific COMMIT_SHA tag.
-
-      '${CMDNAME} shell \\
-            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
-      '${CMDNAME} \\
-            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
 
 "
     readonly DETAILED_USAGE_SHELL
@@ -2595,8 +2570,6 @@ breeze::print_header_line
 breeze::check_and_save_all_params
 
 initialization::make_constants_read_only
-
-sanity_checks::sanitize_mounted_files
 
 breeze::prepare_command_files
 

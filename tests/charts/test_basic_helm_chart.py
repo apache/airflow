@@ -25,27 +25,46 @@ from parameterized import parameterized
 
 from tests.charts.helm_template_generator import render_chart
 
-OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 38
+OBJECT_COUNT_IN_BASIC_DEPLOYMENT = 34
 
 
 class TestBaseChartTest(unittest.TestCase):
-    def test_basic_deployments(self):
+    def _get_values_with_version(self, values, version):
+        if version != "default":
+            values["airflowVersion"] = version
+        return values
+
+    def _get_object_count(self, version):
+        # TODO remove default from condition after airflow update
+        if version == "2.3.2" or version == "default":
+            return OBJECT_COUNT_IN_BASIC_DEPLOYMENT + 1
+        return OBJECT_COUNT_IN_BASIC_DEPLOYMENT
+
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_basic_deployments(self, version):
+        expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
             "TEST-BASIC",
-            values={
-                "chart": {
-                    'metadata': 'AA',
+            self._get_values_with_version(
+                values={
+                    "chart": {
+                        'metadata': 'AA',
+                    },
+                    'labels': {"TEST-LABEL": "TEST-VALUE"},
+                    "fullnameOverride": "TEST-BASIC",
                 },
-                'labels': {"TEST-LABEL": "TEST-VALUE"},
-                "fullnameOverride": "TEST-BASIC",
-            },
+                version=version,
+            ),
         )
         list_of_kind_names_tuples = {
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         }
+        # TODO remove default from condition after airflow update
+        if version == "2.3.2" or version == "default":
+            assert ('Secret', 'TEST-BASIC-airflow-result-backend') in list_of_kind_names_tuples
+            list_of_kind_names_tuples.remove(('Secret', 'TEST-BASIC-airflow-result-backend'))
         assert list_of_kind_names_tuples == {
             ('ServiceAccount', 'TEST-BASIC-create-user-job'),
-            ('ServiceAccount', 'TEST-BASIC-flower'),
             ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
             ('ServiceAccount', 'TEST-BASIC-redis'),
             ('ServiceAccount', 'TEST-BASIC-scheduler'),
@@ -54,7 +73,6 @@ class TestBaseChartTest(unittest.TestCase):
             ('ServiceAccount', 'TEST-BASIC-webserver'),
             ('ServiceAccount', 'TEST-BASIC-worker'),
             ('Secret', 'TEST-BASIC-airflow-metadata'),
-            ('Secret', 'TEST-BASIC-airflow-result-backend'),
             ('Secret', 'TEST-BASIC-broker-url'),
             ('Secret', 'TEST-BASIC-fernet-key'),
             ('Secret', 'TEST-BASIC-webserver-secret-key'),
@@ -65,14 +83,12 @@ class TestBaseChartTest(unittest.TestCase):
             ('Role', 'TEST-BASIC-pod-log-reader-role'),
             ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
             ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
-            ('Service', 'TEST-BASIC-flower'),
             ('Service', 'TEST-BASIC-postgresql-headless'),
             ('Service', 'TEST-BASIC-postgresql'),
             ('Service', 'TEST-BASIC-redis'),
             ('Service', 'TEST-BASIC-statsd'),
             ('Service', 'TEST-BASIC-webserver'),
             ('Service', 'TEST-BASIC-worker'),
-            ('Deployment', 'TEST-BASIC-flower'),
             ('Deployment', 'TEST-BASIC-scheduler'),
             ('Deployment', 'TEST-BASIC-statsd'),
             ('Deployment', 'TEST-BASIC-triggerer'),
@@ -83,7 +99,7 @@ class TestBaseChartTest(unittest.TestCase):
             ('Job', 'TEST-BASIC-create-user'),
             ('Job', 'TEST-BASIC-run-airflow-migrations'),
         }
-        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT == len(k8s_objects)
+        assert expected_object_count_in_basic_deployment == len(k8s_objects)
         for k8s_object in k8s_objects:
             labels = jmespath.search('metadata.labels', k8s_object) or {}
             if 'helm.sh/chart' in labels:
@@ -97,16 +113,20 @@ class TestBaseChartTest(unittest.TestCase):
                 "TEST-LABEL"
             ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
-    def test_basic_deployment_without_default_users(self):
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_basic_deployment_without_default_users(self, version):
+        expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
             "TEST-BASIC",
-            values={"webserver": {"defaultUser": {'enabled': False}}},
+            values=self._get_values_with_version(
+                values={"webserver": {"defaultUser": {'enabled': False}}}, version=version
+            ),
         )
         list_of_kind_names_tuples = [
             (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
         ]
         assert ('Job', 'TEST-BASIC-create-user') not in list_of_kind_names_tuples
-        assert OBJECT_COUNT_IN_BASIC_DEPLOYMENT - 2 == len(k8s_objects)
+        assert expected_object_count_in_basic_deployment - 2 == len(k8s_objects)
 
     def test_network_policies_are_valid(self):
         k8s_objects = render_chart(
@@ -114,6 +134,7 @@ class TestBaseChartTest(unittest.TestCase):
             {
                 "networkPolicies": {"enabled": True},
                 "executor": "CeleryExecutor",
+                "flower": {"enabled": True},
                 "pgbouncer": {"enabled": True},
             },
         )
@@ -141,11 +162,23 @@ class TestBaseChartTest(unittest.TestCase):
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
                 "executor": "CeleryExecutor",
+                "data": {
+                    "resultBackendConnection": {
+                        "user": "someuser",
+                        "pass": "somepass",
+                        "host": "somehost",
+                        "protocol": "postgresql",
+                        "port": 7777,
+                        "db": "somedb",
+                        "sslmode": "allow",
+                    }
+                },
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
                 "ingress": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "logs": {"persistence": {"enabled": True}},
                 "dags": {"persistence": {"enabled": True}},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
@@ -240,6 +273,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
+                "flower": {"enabled": True},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
             },
         )
@@ -271,7 +305,10 @@ class TestBaseChartTest(unittest.TestCase):
         release_name = "TEST-BASIC"
         k8s_objects = render_chart(
             name=release_name,
-            values={"airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"}},
+            values={
+                "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
+                "flower": {"enabled": True},
+            },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",

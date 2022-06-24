@@ -27,7 +27,7 @@ from airflow.models import DagBag, DagRun, TaskInstance
 from airflow.models.dag import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
-from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor
+from airflow.sensors.external_task import ExternalTaskMarker, ExternalTaskSensor, ExternalTaskSensorLink
 from airflow.sensors.time_sensor import TimeSensor
 from airflow.serialization.serialized_objects import SerializedBaseOperator
 from airflow.utils.session import provide_session
@@ -125,8 +125,8 @@ class TestExternalTaskSensor(unittest.TestCase):
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\']'
-                ' in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                f'INFO:airflow.task.operators:Poking for tasks [\'time_sensor_check\'] '
+                f'in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... ' in cm.output
             )
             assert (
                 str(ctx.value) == "Some of the external tasks "
@@ -191,9 +191,9 @@ class TestExternalTaskSensor(unittest.TestCase):
             with pytest.raises(AirflowException) as ctx:
                 op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
             assert (
-                'INFO:airflow.task.operators:Poking for tasks '
-                '[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
-                'in dag unit_test_dag on %s ... ' % DEFAULT_DATE.isoformat() in cm.output
+                f'INFO:airflow.task.operators:Poking for tasks '
+                f'[\'time_sensor_check\', \'time_sensor_check_alternate\'] '
+                f'in dag unit_test_dag on {DEFAULT_DATE.isoformat()} ... ' in cm.output
             )
             assert (
                 str(ctx.value) == "Some of the external tasks "
@@ -977,3 +977,11 @@ def test_clear_overlapping_external_task_marker(dag_bag_head_tail, session):
         )
         == 30
     )
+
+
+class TestExternalTaskSensorLink:
+    def test_deprecation_warning(self):
+        with pytest.warns(DeprecationWarning) as warnings:
+            ExternalTaskSensorLink()
+            assert len(warnings) == 1
+            assert warnings[0].filename == __file__

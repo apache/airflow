@@ -27,6 +27,7 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   # All other permissions are set to none
   contents: read
+  packages: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   ANSWER: "yes"
@@ -44,10 +45,8 @@ env:
         secrets.CONSTRAINTS_GITHUB_REPOSITORY || 'apache/airflow' }}
   # In builds from forks, this token is read-only. For scheduler/direct push it is WRITE one
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  LOGIN_TO_GITHUB_REGISTRY: "true"
   ENABLE_TEST_COVERAGE: "${{ github.event_name == 'push' }}"
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
-  WITH_CI_GROUPS: "true"
 
 concurrency:
   group: ci-${{ github.event.pull_request.number || github.ref }}
@@ -81,7 +80,6 @@ jobs:
             "XD-DENG",
             "aijamalnk",
             "alexvanboxel",
-            "aneesh-joseph",
             "aoen",
             "artwr",
             "ashb",
@@ -108,6 +106,7 @@ jobs:
             "milton0825",
             "mistercrunch",
             "msumit",
+            "pingzh",
             "potiuk",
             "r39132",
             "ryanahamilton",
@@ -133,6 +132,7 @@ jobs:
       upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
       pythonVersions: ${{ steps.selective-checks.outputs.python-versions }}
       pythonVersionsListAsString: ${{ steps.selective-checks.outputs.python-versions-list-as-string }}
+      allPythonVersionsListAsString: ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
       defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
       kubernetesVersions: ${{ steps.selective-checks.outputs.kubernetes-versions }}
       kubernetesVersionsListAsString: ${{ steps.selective-checks.outputs.kubernetes-versions-list-as-string }}
@@ -265,7 +265,7 @@ jobs:
           if [[ "${{ github.event_name }}" == 'schedule' ]]; then
               echo "::set-output name=cacheDirective::disabled"
           else
-              echo "::set-output name=cacheDirective::pulled"
+              echo "::set-output name=cacheDirective::registry"
           fi
 
           if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then
@@ -286,13 +286,11 @@ jobs:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "${{needs.build-info.outputs.buildJobDescription}} CI image ${{matrix.python-version}}"
+    name: >
+      ${{needs.build-info.outputs.buildJobDescription}} CI images
+      ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
     steps:
@@ -310,11 +308,9 @@ jobs:
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Retrieve DEFAULTS from the _initialization.sh"
         # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # any code that comes from the sources coming from the PR. Therefore, we extract the
         # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
         id: defaults
         run: |
@@ -329,20 +325,26 @@ jobs:
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - run: ./scripts/ci/install_breeze.sh
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Free space"
         run: breeze free-space
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: Build & Push CI image ${{ matrix.python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        run: breeze build-image --push-image
+      - name: >
+          Build & Push CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+        run: breeze build-image --push-image --tag-as-latest --run-in-parallel
         env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: "Candidates for pip resolver backtrack triggers: ${{ matrix.python-version }}"
+      - name: "Candidates for pip resolver backtrack triggers"
         if: failure() || cancelled()
-        run: breeze find-newer-dependencies --max-age 1 --python "${{ matrix.python-version }}"
+        run: >
+          breeze find-newer-dependencies --max-age 1
+          --python "${{ needs.build-info.outputs.defaultPythonVersion }}"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always() && needs.build-info.outputs.inWorkflowBuild == 'true'
@@ -351,17 +353,14 @@ jobs:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "${{needs.build-info.outputs.buildJobDescription}} PROD image ${{matrix.python-version}}"
+    name: >
+      ${{needs.build-info.outputs.buildJobDescription}} PROD images
+      ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-ci-images]
-    strategy:
-      matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.allPythonVersions) }}
-      fail-fast: true
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
-      PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
       VERSION_SUFFIX_FOR_PYPI: "dev0"
     steps:
@@ -393,7 +392,7 @@ jobs:
             awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
           DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            cut -d "=" -f 3 | sed s'/["}]//g')
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
           echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - run: ./scripts/ci/install_breeze.sh
@@ -425,9 +424,13 @@ jobs:
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: >
+          Build & Push PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         run: >
           breeze build-prod-image
+          --tag-as-latest
+          --run-in-parallel
           --push-image
           --install-packages-from-context
           --disable-airflow-repo-cache
@@ -436,6 +439,7 @@ jobs:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Fix ownership"
         run: breeze fix-ownership
@@ -459,6 +463,7 @@ jobs:
           cache-dependency-path: ./dev/breeze/setup*
       - run: python -m pip install --editable ./dev/breeze/
       - run: python -m pytest ./dev/breeze/ -n auto --color=yes
+      - run: breeze version
 
   tests-ui:
     timeout-minutes: 10
@@ -484,6 +489,8 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/ui/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/ui/ run test
+        env:
+          FORCE_COLOR: 2
 
   tests-www:
     timeout-minutes: 10
@@ -509,6 +516,8 @@ jobs:
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
       - run: yarn --cwd airflow/www/ install --frozen-lockfile --non-interactive
       - run: yarn --cwd airflow/www/ run test
+        env:
+          FORCE_COLOR: 2
 
 
   test-openapi-client-generation:
@@ -580,7 +589,7 @@ jobs:
         run: breeze free-space
       - name: Wait for CI images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         id: wait-for-images
-        run: breeze pull-image --run-in-parallel --verify-image --wait-for-image
+        run: breeze pull-image --run-in-parallel --verify-image --wait-for-image --tag-as-latest
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
@@ -632,9 +641,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Static checks"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
-          VERBOSE: false
+          VERBOSE: "false"
           SKIP: "identity"
-          COLUMNS: 250
+          COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -649,8 +658,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     needs: [build-info]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
-      SKIP: "build,run-mypy,run-flake8,lint-javascript,update-migration-references,identity"
-      MOUNT_SELECTED_LOCAL_SOURCES: "true"
     if: needs.build-info.outputs.basic-checks-only == 'true'
     steps:
       - name: Cleanup repo
@@ -690,7 +697,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze static-checks --all-files --show-diff-on-failure --color always
           --commit-ref "${{ github.sha }}"
         env:
-          VERBOSE: false
+          VERBOSE: "false"
+          SKIP_IMAGE_PRE_COMMITS: "true"
+          SKIP: "identity"
+          COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -792,17 +802,37 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Prepare airflow package: wheel"
         run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
       - name: "Install and test provider packages and airflow via wheel files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        run: >
+          breeze verify-provider-packages --use-airflow-version wheel --use-packages-from-dist
+          --package-format wheel
         env:
-          USE_AIRFLOW_VERSION: "wheel"
-          PACKAGE_FORMAT: "wheel"
-      - name: "Replace non-compliant providers with their 2.1-compliant versions"
-        run: ./scripts/ci/provider_packages/ci_make_providers_2_1_compliant.sh
-      - name: "Install and test provider packages and airflow on Airflow 2.1 files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgradeToNewerDependencies }}"
+      - name: "Remove airflow package and replace providers with 2.2-compliant versions"
+        run: |
+          rm -vf dist/apache_airflow-*.whl \
+             dist/apache_airflow_providers_cncf_kubernetes*.whl \
+             dist/apache_airflow_providers_celery*.whl
+          pip download --no-deps --dest dist \
+              apache-airflow-providers-cncf-kubernetes==3.0.0 \
+              apache-airflow-providers-celery==2.1.3
+      - name: "Install and test provider packages and airflow on Airflow 2.2 files"
+        run: >
+          breeze verify-provider-packages --use-airflow-version 2.2.0
+          --use-packages-from-dist --package-format wheel --airflow-constraints-reference constraints-2.2.0
         env:
-          USE_AIRFLOW_VERSION: "2.1.0"
-          PACKAGE_FORMAT: "wheel"
+          # The extras below are all extras that should be installed with Airflow 2.2.0
+          AIRFLOW_EXTRAS: "airbyte,alibaba,amazon,apache.atlas.apache.beam,apache.cassandra,apache.drill,\
+            apache.druid,apache.hdfs,apache.hive,apache.kylin,apache.livy,apache.pig,apache.pinot,\
+            apache.spark,apache.sqoop,apache.webhdfs,arangodb,asana,async,\
+            celery,cgroups,cloudant,cncf.kubernetes,dask,databricks,datadog,dbt.cloud,\
+            deprecated_api,dingding,discord,docker,\
+            elasticsearch,exasol,facebook,ftp,github,github_enterprise,google,google_auth,\
+            grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
+            leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
+            neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
+            postgres,presto,qubole,rabbitmq,redis,salesforce,samba,segment,sendgrid,sentry,\
+            sftp,singularity,slack,snowflake,sqlite,ssh,statsd,tableau,telegram,trino,vertica,\
+            virtualenv,yandex,zendesk"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -851,11 +881,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           path: "./dist/apache-airflow-providers-*.tar.gz"
           retention-days: 1
       - name: "Install and test provider packages and airflow via sdist files"
-        run: ./scripts/ci/provider_packages/ci_install_and_test_provider_packages.sh
+        run: >
+          breeze verify-provider-packages --use-airflow-version sdist --use-packages-from-dist
+          --package-format sdist
         env:
-          USE_AIRFLOW_VERSION: "sdist"
-          PACKAGE_FORMAT: "sdist"
-          AIRFLOW_EXTRAS: "all"
+          SKIP_CONSTRAINTS: "${{ needs.build-info.outputs.upgradeToNewerDependencies }}"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -901,6 +931,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -974,6 +1005,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1046,6 +1078,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1116,6 +1149,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1184,6 +1218,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/testing/ci_run_airflow_testing.sh
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
         uses: actions/upload-artifact@v2
         if: failure()
@@ -1358,7 +1393,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
       - name: Wait for PROD images ${{ env.PYTHON_VERSIONS }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         # We wait for the images to be available either from "build-images.yml' run as pull_request_target
-        # or from build-prod-image above.
+        # or from build-prod-images above.
         # We are utilising single job to wait for all images because this job merely waits
         # For the images to be available and test them.
         run: breeze pull-prod-image --verify-image --wait-for-image --run-in-parallel
@@ -1405,7 +1440,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   tests-kubernetes:
-    timeout-minutes: 70
+    timeout-minutes: 240
     name: Helm Chart; ${{matrix.executor}}
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, wait-for-prod-images]
@@ -1475,7 +1510,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   tests-helm-executor-upgrade:
-    timeout-minutes: 100
+    timeout-minutes: 150
     name: Helm Chart Executor Upgrade
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, wait-for-prod-images]
@@ -1592,9 +1627,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Generate constraints"
         run: |
-          breeze generate-constraints --run-in-parallel --generate-constraints-mode source-providers
-          breeze generate-constraints --run-in-parallel --generate-constraints-mode pypi-providers
-          breeze generate-constraints --run-in-parallel --generate-constraints-mode no-providers
+          breeze generate-constraints --run-in-parallel \
+              --airflow-constraints-mode constraints-source-providers
+          breeze generate-constraints --run-in-parallel --airflow-constraints-mode constraints-no-providers
+          breeze generate-constraints --run-in-parallel --airflow-constraints-mode constraints
         env:
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
       - name: "Set constraints branch name"
@@ -1630,7 +1666,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     permissions:
       packages: write
     timeout-minutes: 120
-    name: "Push images as cache to GitHub Registry"
+    name: "Push Image Cache"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs:
       - build-info
@@ -1638,8 +1674,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - docs
     if: needs.build-info.outputs.mergeRun == 'true'
     strategy:
+      fail-fast: false
       matrix:
         python-version: ${{ fromJson(needs.build-info.outputs.pythonVersions) }}
+        platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn) }}
       PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
@@ -1659,15 +1697,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze free-space
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-      - name: "Build & Push CI image ${{ matrix.python-version }}:latest"
-        run: >
-          breeze build-image
-          --prepare-buildx-cache
-          --platform linux/amd64,linux/arm64
-        env:
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: >
           Pull CI image for PROD build
           ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}"
@@ -1678,32 +1707,43 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/* ./docker-context-files/*
-      - name: "Prepare providers packages"
+      - name: "Prepare providers packages for PROD build"
         run: >
           breeze prepare-provider-packages
           --package-list-file ./scripts/ci/installed_providers.txt
           --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
-      - name: "Prepare airflow package"
+      - name: "Prepare airflow package for PROD build"
         run: breeze prepare-airflow-package --package-format wheel
         env:
           VERSION_SUFFIX_FOR_PYPI: "dev0"
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: matrix.platform == 'linux/arm64'
+      - name: "Push CI cache ${{ matrix.python-version }} ${{ matrix.platform }}"
+        run: >
+          breeze build-image
+          --prepare-buildx-cache
+          --force-build
+          --platform ${{ matrix.platform }}
+        env:
+          PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-      - name: Build & Push PROD image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:latest
+      - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze build-prod-image
           --airflow-is-in-context
           --install-packages-from-context
           --prepare-buildx-cache
           --disable-airflow-repo-cache
-          --platform linux/amd64,linux/arm64
+          --platform ${{ matrix.platform }}
         env:
           PYTHON_MAJOR_MINOR_VERSION: ${{ matrix.python-version }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always()
+        if: always() && matrix.platform == 'linux/arm64'
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()

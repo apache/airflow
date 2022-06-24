@@ -89,7 +89,7 @@ option_github_token = click.option(
     required=True,
     help=textwrap.dedent(
         """
-        Github token used to authenticate.
+        GitHub token used to authenticate.
         You can set omit it if you have GITHUB_TOKEN env variable set
         Can be generated with:
         https://github.com/settings/tokens/new?description=Read%20Write%20isssues&scopes=repo"""
@@ -222,13 +222,13 @@ def get_changes(verbose: bool, previous_release: str, current_release: str) -> L
     change_strings = subprocess.check_output(
         get_git_log_command(verbose, from_commit=previous_release, to_commit=current_release),
         cwd=SOURCE_DIR_PATH,
-        universal_newlines=True,
+        text=True,
     )
     return [get_change_from_line(line) for line in change_strings.split("\n")]
 
 
 def update_milestone(r: Repository, pr: PullRequest, m: Milestone):
-    # PR in Github API does not have a way to update milestone. It should be opened as issue,
+    # PR in GitHub API does not have a way to update milestone. It should be opened as issue,
     # and then it can be updated ¯\_(ツ)_/¯
     r.get_issue(pr.number).edit(milestone=m)
 
@@ -294,7 +294,7 @@ def assign_prs(
             continue
         console.print('-' * 80)
         console.print(
-            f"\n >>>> Retrieving PR#{pr_number}: " f"https://github.com/apache/airflow/pull/{pr_number}"
+            f"\n >>>> Retrieving PR#{pr_number}: https://github.com/apache/airflow/pull/{pr_number}"
         )
         pr: PullRequest
         try:

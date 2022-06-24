@@ -133,10 +133,12 @@ function run_airflow_testing_in_docker() {
         echo "${COLOR_RED}***********************************************************************************************${COLOR_RESET}"
         echo
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
-        echo "${COLOR_BLUE}Reproduce the failed tests on your local machine (note that you need to use docker-compose v1 rather than v2 to enable Kerberos integration):${COLOR_RESET}"
-        echo "${COLOR_YELLOW}./breeze --github-image-id ${GITHUB_REGISTRY_PULL_IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} ${INTEGRATION_BREEZE_FLAGS[*]} shell${COLOR_RESET}"
+        echo "${COLOR_BLUE}Enter the same environment that was used for the tests:${COLOR_RESET}"
+        echo "${COLOR_YELLOW}breeze --image-tag ${IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} ${INTEGRATION_BREEZE_FLAGS[*]} shell${COLOR_RESET}"
         echo "${COLOR_BLUE}Then you can run failed tests with:${COLOR_RESET}"
         echo "${COLOR_YELLOW}pytest [TEST_NAME]${COLOR_RESET}"
+        echo "${COLOR_BLUE}Or you can run the tests: ${COLOR_RESET}"
+        echo "${COLOR_YELLOW}breeze --image-tag ${IMAGE_TAG=} --backend ${BACKEND} ${EXTRA_ARGS}--python ${PYTHON_MAJOR_MINOR_VERSION} --db-reset --skip-mounting-local-sources --test-type ${TEST_TYPE} ${INTEGRATION_BREEZE_FLAGS[*]} test${COLOR_RESET}"
         echo "${COLOR_BLUE}***********************************************************************************************${COLOR_RESET}"
 
 

@@ -19,60 +19,52 @@
 
 /* global localStorage, ResizeObserver */
 
-import React, { useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Table,
   Tbody,
   Box,
-  Switch,
-  FormControl,
-  FormLabel,
-  Spinner,
   Thead,
   Flex,
-  useDisclosure,
-  Button,
+  IconButton,
 } from '@chakra-ui/react';
 
+import { MdReadMore } from 'react-icons/md';
 import { useGridData } from './api';
 import renderTaskRows from './renderTaskRows';
 import ResetRoot from './ResetRoot';
 import DagRuns from './dagRuns';
-import Details from './details';
-import useSelection from './utils/useSelection';
-import { useAutoRefresh } from './context/autorefresh';
+import ToggleGroups from './ToggleGroups';
+import { getMetaValue } from '../utils';
+import AutoRefresh from './AutoRefresh';
 
-const sidePanelKey = 'hideSidePanel';
+const dagId = getMetaValue('dag_id');
 
-const Grid = () => {
+const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
   const scrollRef = useRef();
   const tableRef = useRef();
+
   const { data: { groups, dagRuns } } = useGridData();
-  const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
-  const isPanelOpen = localStorage.getItem(sidePanelKey) !== 'true';
-  const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
-  const { clearSelection } = useSelection();
-  const toggleSidePanel = () => {
-    if (!isOpen) {
-      localStorage.setItem(sidePanelKey, false);
-    } else {
-      clearSelection();
-      localStorage.setItem(sidePanelKey, true);
-    }
-    onToggle();
+  const openGroupsKey = `${dagId}/open-groups`;
+  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
+  const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
+
+  const onToggleGroups = (groupIds) => {
+    localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
+    setOpenGroupIds(groupIds);
   };
 
-  const scrollOnResize = new ResizeObserver(() => {
-    const runsContainer = scrollRef.current;
-    // Set scroll to top right if it is scrollable
-    if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
-      runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
-    }
-  });
-
   useEffect(() => {
+    const scrollOnResize = new ResizeObserver(() => {
+      const runsContainer = scrollRef.current;
+      // Set scroll to top right if it is scrollable
+      if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
+        runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
+      }
+    });
+
     if (tableRef && tableRef.current) {
       const table = tableRef.current;
 
@@ -82,61 +74,64 @@ const Grid = () => {
       };
     }
     return () => {};
-  }, [tableRef, scrollOnResize]);
+  }, [tableRef]);
 
   return (
-    <Box>
-      <Flex flexGrow={1} justifyContent="flex-end" alignItems="center">
-        <ResetRoot />
-        <FormControl display="flex" width="auto" mr={2}>
-          {isRefreshOn && <Spinner color="blue.500" speed="1s" mr="4px" />}
-          <FormLabel htmlFor="auto-refresh" mb={0} fontWeight="normal">
-            Auto-refresh
-          </FormLabel>
-          <Switch
-            id="auto-refresh"
-            onChange={() => toggleRefresh(true)}
-            isDisabled={isPaused}
-            isChecked={isRefreshOn}
-            size="lg"
-            title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
+    <Box
+      position="relative"
+      m={3}
+      mt={0}
+      overflow="auto"
+      ref={scrollRef}
+      flexGrow={1}
+      minWidth={isPanelOpen && '350px'}
+    >
+      <Flex
+        alignItems="center"
+        justifyContent="space-between"
+        position="sticky"
+        top={0}
+        left={0}
+        mb={2}
+        p={1}
+      >
+        <Flex alignItems="center">
+          <AutoRefresh />
+          <ToggleGroups
+            groups={groups}
+            openGroupIds={openGroupIds}
+            onToggleGroups={onToggleGroups}
           />
-        </FormControl>
-        <Button
-          onClick={toggleSidePanel}
-          aria-label={isOpen ? 'Show Details' : 'Hide Details'}
-          variant={isOpen ? 'solid' : 'outline'}
-        >
-          {isOpen ? 'Hide ' : 'Show '}
-          Details Panel
-        </Button>
+          <ResetRoot />
+        </Flex>
+        <IconButton
+          fontSize="2xl"
+          onClick={onPanelToggle}
+          title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
+          aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
+          icon={<MdReadMore />}
+          transform={!isPanelOpen && 'rotateZ(180deg)'}
+          transitionProperty="none"
+        />
       </Flex>
-      <Flex flexDirection="row" justifyContent="space-between">
-        <Box
-          position="relative"
-          mt={2}
-          m="12px"
-          overflow="auto"
-          ref={scrollRef}
-          flexGrow={1}
-          minWidth={isOpen && '300px'}
+      <Table>
+        <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
+          <DagRuns />
+        </Thead>
+        {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
+        <Tbody
+          display="block"
+          width="100%"
+          maxHeight="calc(100vh - 665px)"
+          minHeight="500px"
+          ref={tableRef}
+          pr="10px"
         >
-          <Table>
-            <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
-              <DagRuns />
-            </Thead>
-            {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
-            <Tbody display="block" width="100%" maxHeight="calc(100vh - 665px)" minHeight="500px" ref={tableRef} pr="10px">
-              {renderTaskRows({
-                task: groups, dagRunIds,
-              })}
-            </Tbody>
-          </Table>
-        </Box>
-        {isOpen && (
-          <Details />
-        )}
-      </Flex>
+          {renderTaskRows({
+            task: groups, dagRunIds, openGroupIds, onToggleGroups, hoveredTaskState,
+          })}
+        </Tbody>
+      </Table>
     </Box>
   );
 };

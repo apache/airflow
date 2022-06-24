@@ -18,15 +18,16 @@
 import json
 import logging
 import re
-import sys
 import warnings
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
+from airflow.compat.functools import cached_property
+from airflow.configuration import conf
 from airflow.exceptions import AirflowException
-from airflow.kubernetes import kube_client, pod_generator
+from airflow.kubernetes import pod_generator
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.kubernetes.secret import Secret
 from airflow.models import BaseOperator
@@ -42,6 +43,7 @@ from airflow.providers.cncf.kubernetes.backcompat.backwards_compat_converters im
     convert_volume,
     convert_volume_mount,
 )
+from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.providers.cncf.kubernetes.utils import xcom_sidecar  # type: ignore[attr-defined]
 from airflow.providers.cncf.kubernetes.utils.pod_manager import (
     PodLaunchFailedException,
@@ -53,11 +55,6 @@ from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 if TYPE_CHECKING:
     import jinja2
@@ -83,6 +80,8 @@ class KubernetesPodOperator(BaseOperator):
         :class:`~airflow.providers.google.cloud.operators.kubernetes_engine.GKEStartPodOperator`, which
         simplifies the authorization process.
 
+    :param kubernetes_conn_id: The :ref:`kubernetes connection id <howto/connection:kubernetes>`
+        for the Kubernetes cluster.
     :param namespace: the namespace to run within kubernetes.
     :param image: Docker image you wish to launch. Defaults to hub.docker.com,
         but fully qualified URLS will point to custom repositories. (templated)
@@ -98,6 +97,7 @@ class KubernetesPodOperator(BaseOperator):
     :param volume_mounts: volumeMounts for the launched pod.
     :param volumes: volumes for the launched pod. Includes ConfigMaps and PersistentVolumes.
     :param env_vars: Environment variables initialized in the container. (templated)
+    :param env_from: (Optional) List of sources to populate environment variables in the container.
     :param secrets: Kubernetes secrets to inject in the container.
         They can be exposed as environment vars or files in a volume.
     :param in_cluster: run kubernetes client with in_cluster configuration.
@@ -116,6 +116,8 @@ class KubernetesPodOperator(BaseOperator):
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
+    :param node_selectors: (Deprecated) A dict containing a group of scheduling rules.
+        Please use node_selector instead.
     :param node_selector: A dict containing a group of scheduling rules.
     :param image_pull_secrets: Any image pull secrets to be given to the pod.
         If more than one secret is required, provide a
@@ -137,8 +139,15 @@ class KubernetesPodOperator(BaseOperator):
         XCom when the container completes.
     :param pod_template_file: path to pod template file (templated)
     :param priority_class_name: priority class name for the launched Pod
+    :param pod_runtime_info_envs: (Optional) A list of environment variables,
+        to be set in the container.
     :param termination_grace_period: Termination grace period if task killed in UI,
         defaults to kubernetes default
+    :param configmaps: (Optional) A list of names of config maps from which it collects ConfigMaps
+        to populate the environment variables with. The contents of the target
+        ConfigMap's Data field will represent the key-value pairs as environment variables.
+        Extends env_from.
+    :param: kubernetes_conn_id: To retrieve credentials for your k8s cluster from an Airflow connection
     """
 
     BASE_CONTAINER_NAME = 'base'
@@ -158,6 +167,7 @@ class KubernetesPodOperator(BaseOperator):
     def __init__(
         self,
         *,
+        kubernetes_conn_id: Optional[str] = None,  # 'kubernetes_default',
         namespace: Optional[str] = None,
         image: Optional[str] = None,
         name: Optional[str] = None,
@@ -205,7 +215,7 @@ class KubernetesPodOperator(BaseOperator):
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(resources=None, **kwargs)
-
+        self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
         self.namespace = namespace
@@ -319,20 +329,24 @@ class KubernetesPodOperator(BaseOperator):
     def pod_manager(self) -> PodManager:
         return PodManager(kube_client=self.client)
 
+    def get_hook(self):
+        hook = KubernetesHook(
+            conn_id=self.kubernetes_conn_id,
+            in_cluster=self.in_cluster,
+            config_file=self.config_file,
+            cluster_context=self.cluster_context,
+        )
+        self._patch_deprecated_k8s_settings(hook)
+        return hook
+
     @cached_property
     def client(self) -> CoreV1Api:
-        # todo: use airflow Connection / hook to authenticate to the cluster
-        kwargs: Dict[str, Any] = dict(
-            cluster_context=self.cluster_context,
-            config_file=self.config_file,
-        )
-        if self.in_cluster is not None:
-            kwargs.update(in_cluster=self.in_cluster)
-        return kube_client.get_kube_client(**kwargs)
+        hook = self.get_hook()
+        return hook.core_v1_client
 
-    def find_pod(self, namespace, context) -> Optional[k8s.V1Pod]:
+    def find_pod(self, namespace, context, *, exclude_checked=True) -> Optional[k8s.V1Pod]:
         """Returns an already-running pod for this task instance if one exists."""
-        label_selector = self._build_find_pod_label_selector(context)
+        label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list = self.client.list_namespaced_pod(
             namespace=namespace,
             label_selector=label_selector,
@@ -381,6 +395,8 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+            # get remote pod for use in cleanup methods
+            remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
@@ -412,14 +428,14 @@ class KubernetesPodOperator(BaseOperator):
         pod_phase = remote_pod.status.phase if hasattr(remote_pod, 'status') else None
         if not self.is_delete_operator_pod:
             with _suppress(Exception):
-                self.patch_already_checked(pod)
+                self.patch_already_checked(remote_pod)
         if pod_phase != PodPhase.SUCCEEDED:
             if self.log_events_on_failure:
                 with _suppress(Exception):
                     for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
             with _suppress(Exception):
-                self.process_pod_deletion(pod)
+                self.process_pod_deletion(remote_pod)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
@@ -427,19 +443,24 @@ class KubernetesPodOperator(BaseOperator):
             )
         else:
             with _suppress(Exception):
-                self.process_pod_deletion(pod)
+                self.process_pod_deletion(remote_pod)
 
     def process_pod_deletion(self, pod):
-        if self.is_delete_operator_pod:
-            self.log.info("Deleting pod: %s", pod.metadata.name)
-            self.pod_manager.delete_pod(pod)
-        else:
-            self.log.info("skipping deleting pod: %s", pod.metadata.name)
+        if pod is not None:
+            if self.is_delete_operator_pod:
+                self.log.info("Deleting pod: %s", pod.metadata.name)
+                self.pod_manager.delete_pod(pod)
+            else:
+                self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
-    def _build_find_pod_label_selector(self, context: Optional[dict] = None) -> str:
+    def _build_find_pod_label_selector(self, context: Optional[dict] = None, *, exclude_checked=True) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
         label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
-        return ','.join(label_strings) + f',{self.POD_CHECKED_KEY}!=True,!airflow-worker'
+        labels_value = ','.join(label_strings)
+        if exclude_checked:
+            labels_value += f',{self.POD_CHECKED_KEY}!=True'
+        labels_value += ',!airflow-worker'
+        return labels_value
 
     def _set_name(self, name):
         if name is None:
@@ -561,6 +582,38 @@ class KubernetesPodOperator(BaseOperator):
         pod = self.build_pod_request_obj()
         print(yaml.dump(prune_dict(pod.to_dict(), mode='strict')))
 
+    def _patch_deprecated_k8s_settings(self, hook: KubernetesHook):
+        """
+        Here we read config from core Airflow config [kubernetes] section.
+        In a future release we will stop looking at this section and require users
+        to use Airflow connections to configure KPO.
+
+        When we find values there that we need to apply on the hook, we patch special
+        hook attributes here.
+        """
+        # default for enable_tcp_keepalive is True; patch if False
+        if conf.getboolean('kubernetes', 'enable_tcp_keepalive') is False:
+            hook._deprecated_core_disable_tcp_keepalive = True
+
+        # default verify_ssl is True; patch if False.
+        if conf.getboolean('kubernetes', 'verify_ssl') is False:
+            hook._deprecated_core_disable_verify_ssl = True
+
+        # default for in_cluster is True; patch if False and no KPO param.
+        conf_in_cluster = conf.getboolean('kubernetes', 'in_cluster')
+        if self.in_cluster is None and conf_in_cluster is False:
+            hook._deprecated_core_in_cluster = conf_in_cluster
+
+        # there's no default for cluster context; if we get something (and no KPO param) patch it.
+        conf_cluster_context = conf.get('kubernetes', 'cluster_context', fallback=None)
+        if not self.cluster_context and conf_cluster_context:
+            hook._deprecated_core_cluster_context = conf_cluster_context
+
+        # there's no default for config_file; if we get something (and no KPO param) patch it.
+        conf_config_file = conf.get('kubernetes', 'config_file', fallback=None)
+        if not self.config_file and conf_config_file:
+            hook._deprecated_core_config_file = conf_config_file
+
 
 class _suppress(AbstractContextManager):
     """
@@ -582,6 +635,6 @@ class _suppress(AbstractContextManager):
         caught_error = exctype is not None and issubclass(exctype, self._exceptions)
         if caught_error:
             self.exception = excinst
-            logger = logging.getLogger()
+            logger = logging.getLogger(__name__)
             logger.error(str(excinst), exc_info=True)
         return caught_error

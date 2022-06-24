@@ -67,8 +67,10 @@ class TestTaskEndpoint:
             task2 = EmptyOperator(task_id=self.task_id2, start_date=self.task2_start_date)
 
         with DAG(self.mapped_dag_id, start_date=self.task1_start_date) as mapped_dag:
-            task3 = EmptyOperator(task_id=self.task_id3)  # noqa
-            mapped_task = EmptyOperator.partial(task_id=self.mapped_task_id).expand()  # noqa
+            EmptyOperator(task_id=self.task_id3)
+            # Use the private _expand() method to avoid the empty kwargs check.
+            # We don't care about how the operator runs here, only its presence.
+            EmptyOperator.partial(task_id=self.mapped_task_id)._expand()
 
         task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)

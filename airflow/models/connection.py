@@ -208,8 +208,8 @@ class Connection(Base, LoggingMixin):
         """Return connection in URI format"""
         if '_' in self.conn_type:
             self.log.warning(
-                f"Connection schemes (type: {str(self.conn_type)}) "
-                f"shall not contain '_' according to RFC3986."
+                "Connection schemes (type: %s) shall not contain '_' according to RFC3986.",
+                self.conn_type,
             )
 
         uri = f"{str(self.conn_type).lower().replace('_', '-')}://"
@@ -231,10 +231,10 @@ class Connection(Base, LoggingMixin):
             host_block += quote(self.host, safe='')
 
         if self.port:
-            if host_block > '':
-                host_block += f':{self.port}'
-            else:
+            if host_block == '' and authority_block == '':
                 host_block += f'@:{self.port}'
+            else:
+                host_block += f':{self.port}'
 
         if self.schema:
             host_block += f"/{quote(self.schema, safe='')}"
@@ -247,9 +247,9 @@ class Connection(Base, LoggingMixin):
             except TypeError:
                 query = None
             if query and self.extra_dejson == dict(parse_qsl(query, keep_blank_values=True)):
-                uri += '?' + query
+                uri += ('?' if self.schema else '/?') + query
             else:
-                uri += '?' + urlencode({self.EXTRA_KEY: self.extra})
+                uri += ('?' if self.schema else '/?') + urlencode({self.EXTRA_KEY: self.extra})
 
         return uri
 

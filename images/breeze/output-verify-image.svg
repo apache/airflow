@@ -1,141 +1,140 @@
-<svg width="1720.0" height="736" viewBox="0 0 1720.0 736"
-     xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1482 538.0" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
     <style>
-        @font-face {
-            font-family: "Rich Fira Code";
-            src: local("FiraCode-Regular"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
-            font-style: normal;
-            font-weight: 400;
-        }
-        @font-face {
-            font-family: "Rich Fira Code";
-            src: local("FiraCode-Bold"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
-            font-style: bold;
-            font-weight: 700;
-        }
-        .rich-svg-2410044435-terminal-wrapper span {
-            display: inline-block;
-            white-space: pre;
-            vertical-align: top;
-            font-size: 18px;
-            font-family:'Rich Fira Code','Cascadia Code',Monaco,Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace;
-        }
-        .rich-svg-2410044435-terminal-wrapper a {
-            text-decoration: none;
-            color: inherit;
-        }
-        .rich-svg-2410044435-terminal-body .blink {
-           animation: rich-svg-2410044435-blinker 1s infinite;
-        }
-        @keyframes rich-svg-2410044435-blinker {
-            from { opacity: 1.0; }
-            50% { opacity: 0.3; }
-            to { opacity: 1.0; }
-        }
-        .rich-svg-2410044435-terminal-wrapper {
-            padding: 140px;
-            padding-top: 100px;
-        }
-        .rich-svg-2410044435-terminal {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #0c0c0c;
-            border-radius: 14px;
-            box-shadow: 0 0 0 1px #484848;
-        }
-        .rich-svg-2410044435-terminal:after {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            content: '';
-            border-radius: 14px;
-            background: rgb(71,77,102);
-            background: linear-gradient(90deg, #804D69 0%, #4E4B89 100%);
-            transform: rotate(-4.5deg);
-            z-index: -1;
-        }
-        .rich-svg-2410044435-terminal-header {
-            position: relative;
-            width: 100%;
-            background-color: #2e2e2e;
-            margin-bottom: 12px;
-            font-weight: bold;
-            border-radius: 14px 14px 0 0;
-            color: #f2f2f2;
-            font-size: 18px;
-            box-shadow: inset 0px -1px 0px 0px #4e4e4e,
-                        inset 0px -4px 8px 0px #1a1a1a;
-        }
-        .rich-svg-2410044435-terminal-title-tab {
-            display: inline-block;
-            margin-top: 14px;
-            margin-left: 124px;
-            font-family: sans-serif;
-            padding: 14px 28px;
-            border-radius: 6px 6px 0 0;
-            background-color: #0c0c0c;
-            box-shadow: inset 0px 1px 0px 0px #4e4e4e,
-                        0px -4px 4px 0px #1e1e1e,
-                        inset 1px 0px 0px 0px #4e4e4e,
-                        inset -1px 0px 0px 0px #4e4e4e;
-        }
-        .rich-svg-2410044435-terminal-traffic-lights {
-            position: absolute;
-            top: 24px;
-            left: 20px;
-        }
-        .rich-svg-2410044435-terminal-body {
-            line-height: 22px;
-            padding: 14px;
-        }
-        .rich-svg-2410044435-terminal-body .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
-.rich-svg-2410044435-terminal-body .r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-2410044435-terminal-body .r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-2410044435-terminal-body .r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.rich-svg-2410044435-terminal-body .r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-2410044435-terminal-body .r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
-.rich-svg-2410044435-terminal-body .r7 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .terminal-2021148750-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-2021148750-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-2021148750-r1 { fill: #c5c8c6;font-weight: bold }
+.terminal-2021148750-r2 { fill: #c5c8c6 }
+.terminal-2021148750-r3 { fill: #d0b344;font-weight: bold }
+.terminal-2021148750-r4 { fill: #868887 }
+.terminal-2021148750-r5 { fill: #68a0b3;font-weight: bold }
+.terminal-2021148750-r6 { fill: #98a84b;font-weight: bold }
+.terminal-2021148750-r7 { fill: #8d7b39 }
     </style>
-    <foreignObject x="0" y="0" width="100%" height="100%">
-        <body xmlns="http://www.w3.org/1999/xhtml">
-            <div class="rich-svg-2410044435-terminal-wrapper">
-                <div class="rich-svg-2410044435-terminal">
-                    <div class="rich-svg-2410044435-terminal-header">
-                        <svg class="rich-svg-2410044435-terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="14" cy="8" r="8" fill="#ff6159"/>
-                            <circle cx="38" cy="8" r="8" fill="#ffbd2e"/>
-                            <circle cx="62" cy="8" r="8" fill="#28c941"/>
-                        </svg>
-                        <div class="rich-svg-2410044435-terminal-title-tab">Command: verify-image</div>
-                    </div>
-                    <div class="rich-svg-2410044435-terminal-body">
-                        <div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze verify-image [OPTIONS] [EXTRA_PYTEST_ARGS]...                                                            </span></div>
-<div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r1"> </span><span class="r1">Verify CI image.                                                                                                      </span><span class="r1"> </span></div>
-<div><span class="r1">                                                                                                                        </span></div>
-<div><span class="r4">╭─ Verify image flags ─────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--image-name</span><span class="r1">  </span><span class="r6">-n</span><span class="r1">  Name of the image to verify (overrides </span><span class="r5">--python</span><span class="r1"> and </span><span class="r5">--image-tag</span><span class="r1">). </span><span class="r7">(TEXT)</span><span class="r1">                        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--python</span><span class="r1">      </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">Python major/minor version used in Airflow image for images.</span><span class="r1"> </span><span class="r7">(&gt;3.7&lt; | 3.8 | 3.9 | 3.10)</span><span class="r1">         </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                    </span><span class="r4">[default: 3.7]                                              </span><span class="r1"> </span><span class="r1">                                   </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--image-tag</span><span class="r1">   </span><span class="r6">-t</span><span class="r1">  </span><span class="r1">Tag added to the default naming conventions of Airflow CI/PROD images.</span><span class="r1"> </span><span class="r7">(TEXT)</span><span class="r1">                   </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--verbose</span><span class="r1">            </span><span class="r6">-v</span><span class="r1">  </span><span class="r1">Print verbose information about performed steps.                                         </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--dry-run</span><span class="r1">            </span><span class="r6">-D</span><span class="r1">  </span><span class="r1">If dry-run is set, commands are only printed, not executed.                              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--github-repository</span><span class="r1">  </span><span class="r6">-g</span><span class="r1">  </span><span class="r1">GitHub repository used to pull, push run images.</span><span class="r1"> </span><span class="r7">(TEXT)</span><span class="r1"> </span><span class="r4">[default: apache/airflow]</span><span class="r1">        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--help</span><span class="r1">               </span><span class="r6">-h</span><span class="r1">  </span><span class="r1">Show this message and exit.                                                              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r1"></span><span class="r1">                                                                                                                        </span></div>
-                    </div>
-                </div>
-            </div>
-        </body>
-    </foreignObject>
+
+    <defs>
+    <clipPath id="terminal-2021148750-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="487.0" />
+    </clipPath>
+    <clipPath id="terminal-2021148750-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-8">
+    <rect x="0" y="196.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-12">
+    <rect x="0" y="294.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-13">
+    <rect x="0" y="318.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-14">
+    <rect x="0" y="343.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-15">
+    <rect x="0" y="367.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-16">
+    <rect x="0" y="391.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-17">
+    <rect x="0" y="416.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-2021148750-line-18">
+    <rect x="0" y="440.7" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="536" rx="8"/><text class="terminal-2021148750-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;verify-image</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-2021148750-clip-terminal)">
+    
+    <g class="terminal-2021148750-matrix">
+    <text class="terminal-2021148750-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-2021148750-line-0)">
+</text><text class="terminal-2021148750-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#terminal-2021148750-line-1)">Usage:&#160;</text><text class="terminal-2021148750-r1" x="97.6" y="44.4" textLength="634.4" clip-path="url(#terminal-2021148750-line-1)">breeze&#160;verify-image&#160;[OPTIONS]&#160;[EXTRA_PYTEST_ARGS]...</text><text class="terminal-2021148750-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-1)">
+</text><text class="terminal-2021148750-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-2)">
+</text><text class="terminal-2021148750-r2" x="12.2" y="93.2" textLength="195.2" clip-path="url(#terminal-2021148750-line-3)">Verify&#160;CI&#160;image.</text><text class="terminal-2021148750-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-3)">
+</text><text class="terminal-2021148750-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-4)">
+</text><text class="terminal-2021148750-r4" x="0" y="142" textLength="24.4" clip-path="url(#terminal-2021148750-line-5)">╭─</text><text class="terminal-2021148750-r4" x="24.4" y="142" textLength="1415.2" clip-path="url(#terminal-2021148750-line-5)">&#160;Verify&#160;image&#160;flags&#160;────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-2021148750-r4" x="1439.6" y="142" textLength="24.4" clip-path="url(#terminal-2021148750-line-5)">─╮</text><text class="terminal-2021148750-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-2021148750-line-5)">
+</text><text class="terminal-2021148750-r4" x="0" y="166.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-6)">│</text><text class="terminal-2021148750-r5" x="24.4" y="166.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-6)">-</text><text class="terminal-2021148750-r5" x="36.6" y="166.4" textLength="73.2" clip-path="url(#terminal-2021148750-line-6)">-image</text><text class="terminal-2021148750-r5" x="109.8" y="166.4" textLength="61" clip-path="url(#terminal-2021148750-line-6)">-name</text><text class="terminal-2021148750-r6" x="195.2" y="166.4" textLength="24.4" clip-path="url(#terminal-2021148750-line-6)">-n</text><text class="terminal-2021148750-r2" x="244" y="166.4" textLength="475.8" clip-path="url(#terminal-2021148750-line-6)">Name&#160;of&#160;the&#160;image&#160;to&#160;verify&#160;(overrides&#160;</text><text class="terminal-2021148750-r5" x="719.8" y="166.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-6)">-</text><text class="terminal-2021148750-r5" x="732" y="166.4" textLength="85.4" clip-path="url(#terminal-2021148750-line-6)">-python</text><text class="terminal-2021148750-r2" x="817.4" y="166.4" textLength="61" clip-path="url(#terminal-2021148750-line-6)">&#160;and&#160;</text><text class="terminal-2021148750-r5" x="878.4" y="166.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-6)">-</text><text class="terminal-2021148750-r5" x="890.6" y="166.4" textLength="73.2" clip-path="url(#terminal-2021148750-line-6)">-image</text><text class="terminal-2021148750-r5" x="963.8" y="166.4" textLength="48.8" clip-path="url(#terminal-2021148750-line-6)">-tag</text><text class="terminal-2021148750-r2" x="1012.6" y="166.4" textLength="24.4" clip-path="url(#terminal-2021148750-line-6)">).</text><text class="terminal-2021148750-r7" x="1049.2" y="166.4" textLength="73.2" clip-path="url(#terminal-2021148750-line-6)">(TEXT)</text><text class="terminal-2021148750-r4" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-6)">│</text><text class="terminal-2021148750-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-6)">
+</text><text class="terminal-2021148750-r4" x="0" y="190.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-7)">│</text><text class="terminal-2021148750-r5" x="24.4" y="190.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-7)">-</text><text class="terminal-2021148750-r5" x="36.6" y="190.8" textLength="85.4" clip-path="url(#terminal-2021148750-line-7)">-python</text><text class="terminal-2021148750-r6" x="195.2" y="190.8" textLength="24.4" clip-path="url(#terminal-2021148750-line-7)">-p</text><text class="terminal-2021148750-r2" x="244" y="190.8" textLength="732" clip-path="url(#terminal-2021148750-line-7)">Python&#160;major/minor&#160;version&#160;used&#160;in&#160;Airflow&#160;image&#160;for&#160;images.</text><text class="terminal-2021148750-r7" x="988.2" y="190.8" textLength="317.2" clip-path="url(#terminal-2021148750-line-7)">(&gt;3.7&lt;&#160;|&#160;3.8&#160;|&#160;3.9&#160;|&#160;3.10)</text><text class="terminal-2021148750-r4" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-7)">│</text><text class="terminal-2021148750-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-7)">
+</text><text class="terminal-2021148750-r4" x="0" y="215.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-8)">│</text><text class="terminal-2021148750-r4" x="244" y="215.2" textLength="732" clip-path="url(#terminal-2021148750-line-8)">[default:&#160;3.7]&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-2021148750-r4" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-8)">│</text><text class="terminal-2021148750-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-8)">
+</text><text class="terminal-2021148750-r4" x="0" y="239.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-9)">│</text><text class="terminal-2021148750-r5" x="24.4" y="239.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-9)">-</text><text class="terminal-2021148750-r5" x="36.6" y="239.6" textLength="73.2" clip-path="url(#terminal-2021148750-line-9)">-image</text><text class="terminal-2021148750-r5" x="109.8" y="239.6" textLength="48.8" clip-path="url(#terminal-2021148750-line-9)">-tag</text><text class="terminal-2021148750-r6" x="195.2" y="239.6" textLength="24.4" clip-path="url(#terminal-2021148750-line-9)">-t</text><text class="terminal-2021148750-r2" x="244" y="239.6" textLength="793" clip-path="url(#terminal-2021148750-line-9)">Tag&#160;of&#160;the&#160;image&#160;which&#160;is&#160;used&#160;to&#160;pull&#160;or&#160;run&#160;the&#160;image&#160;(implies&#160;</text><text class="terminal-2021148750-r5" x="1037" y="239.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-9)">-</text><text class="terminal-2021148750-r5" x="1049.2" y="239.6" textLength="73.2" clip-path="url(#terminal-2021148750-line-9)">-mount</text><text class="terminal-2021148750-r5" x="1122.4" y="239.6" textLength="97.6" clip-path="url(#terminal-2021148750-line-9)">-sources</text><text class="terminal-2021148750-r2" x="1220" y="239.6" textLength="219.6" clip-path="url(#terminal-2021148750-line-9)">=skip&#160;when&#160;using&#160;&#160;</text><text class="terminal-2021148750-r4" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-9)">│</text><text class="terminal-2021148750-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-9)">
+</text><text class="terminal-2021148750-r4" x="0" y="264" textLength="12.2" clip-path="url(#terminal-2021148750-line-10)">│</text><text class="terminal-2021148750-r2" x="244" y="264" textLength="1195.6" clip-path="url(#terminal-2021148750-line-10)">to&#160;run&#160;shell&#160;or&#160;tests)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-2021148750-r4" x="1451.8" y="264" textLength="12.2" clip-path="url(#terminal-2021148750-line-10)">│</text><text class="terminal-2021148750-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-2021148750-line-10)">
+</text><text class="terminal-2021148750-r4" x="0" y="288.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-11)">│</text><text class="terminal-2021148750-r7" x="244" y="288.4" textLength="1195.6" clip-path="url(#terminal-2021148750-line-11)">(TEXT)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-2021148750-r4" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-11)">│</text><text class="terminal-2021148750-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-11)">
+</text><text class="terminal-2021148750-r4" x="0" y="312.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-12)">│</text><text class="terminal-2021148750-r5" x="24.4" y="312.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-12)">-</text><text class="terminal-2021148750-r5" x="36.6" y="312.8" textLength="61" clip-path="url(#terminal-2021148750-line-12)">-pull</text><text class="terminal-2021148750-r5" x="97.6" y="312.8" textLength="73.2" clip-path="url(#terminal-2021148750-line-12)">-image</text><text class="terminal-2021148750-r2" x="244" y="312.8" textLength="646.6" clip-path="url(#terminal-2021148750-line-12)">Pull&#160;image&#160;is&#160;missing&#160;before&#160;attempting&#160;to&#160;verify&#160;it.</text><text class="terminal-2021148750-r4" x="1451.8" y="312.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-12)">│</text><text class="terminal-2021148750-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-12)">
+</text><text class="terminal-2021148750-r4" x="0" y="337.2" textLength="1464" clip-path="url(#terminal-2021148750-line-13)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-2021148750-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-13)">
+</text><text class="terminal-2021148750-r4" x="0" y="361.6" textLength="24.4" clip-path="url(#terminal-2021148750-line-14)">╭─</text><text class="terminal-2021148750-r4" x="24.4" y="361.6" textLength="1415.2" clip-path="url(#terminal-2021148750-line-14)">&#160;Options&#160;───────────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-2021148750-r4" x="1439.6" y="361.6" textLength="24.4" clip-path="url(#terminal-2021148750-line-14)">─╮</text><text class="terminal-2021148750-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-14)">
+</text><text class="terminal-2021148750-r4" x="0" y="386" textLength="12.2" clip-path="url(#terminal-2021148750-line-15)">│</text><text class="terminal-2021148750-r5" x="24.4" y="386" textLength="12.2" clip-path="url(#terminal-2021148750-line-15)">-</text><text class="terminal-2021148750-r5" x="36.6" y="386" textLength="97.6" clip-path="url(#terminal-2021148750-line-15)">-verbose</text><text class="terminal-2021148750-r6" x="280.6" y="386" textLength="24.4" clip-path="url(#terminal-2021148750-line-15)">-v</text><text class="terminal-2021148750-r2" x="329.4" y="386" textLength="585.6" clip-path="url(#terminal-2021148750-line-15)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="terminal-2021148750-r4" x="1451.8" y="386" textLength="12.2" clip-path="url(#terminal-2021148750-line-15)">│</text><text class="terminal-2021148750-r2" x="1464" y="386" textLength="12.2" clip-path="url(#terminal-2021148750-line-15)">
+</text><text class="terminal-2021148750-r4" x="0" y="410.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-16)">│</text><text class="terminal-2021148750-r5" x="24.4" y="410.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-16)">-</text><text class="terminal-2021148750-r5" x="36.6" y="410.4" textLength="48.8" clip-path="url(#terminal-2021148750-line-16)">-dry</text><text class="terminal-2021148750-r5" x="85.4" y="410.4" textLength="48.8" clip-path="url(#terminal-2021148750-line-16)">-run</text><text class="terminal-2021148750-r6" x="280.6" y="410.4" textLength="24.4" clip-path="url(#terminal-2021148750-line-16)">-D</text><text class="terminal-2021148750-r2" x="329.4" y="410.4" textLength="719.8" clip-path="url(#terminal-2021148750-line-16)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="terminal-2021148750-r4" x="1451.8" y="410.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-16)">│</text><text class="terminal-2021148750-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#terminal-2021148750-line-16)">
+</text><text class="terminal-2021148750-r4" x="0" y="434.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-17)">│</text><text class="terminal-2021148750-r5" x="24.4" y="434.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-17)">-</text><text class="terminal-2021148750-r5" x="36.6" y="434.8" textLength="85.4" clip-path="url(#terminal-2021148750-line-17)">-github</text><text class="terminal-2021148750-r5" x="122" y="434.8" textLength="134.2" clip-path="url(#terminal-2021148750-line-17)">-repository</text><text class="terminal-2021148750-r6" x="280.6" y="434.8" textLength="24.4" clip-path="url(#terminal-2021148750-line-17)">-g</text><text class="terminal-2021148750-r2" x="329.4" y="434.8" textLength="585.6" clip-path="url(#terminal-2021148750-line-17)">GitHub&#160;repository&#160;used&#160;to&#160;pull,&#160;push&#160;run&#160;images.</text><text class="terminal-2021148750-r7" x="927.2" y="434.8" textLength="73.2" clip-path="url(#terminal-2021148750-line-17)">(TEXT)</text><text class="terminal-2021148750-r4" x="1012.6" y="434.8" textLength="305" clip-path="url(#terminal-2021148750-line-17)">[default:&#160;apache/airflow]</text><text class="terminal-2021148750-r4" x="1451.8" y="434.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-17)">│</text><text class="terminal-2021148750-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-2021148750-line-17)">
+</text><text class="terminal-2021148750-r4" x="0" y="459.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-18)">│</text><text class="terminal-2021148750-r5" x="24.4" y="459.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-18)">-</text><text class="terminal-2021148750-r5" x="36.6" y="459.2" textLength="61" clip-path="url(#terminal-2021148750-line-18)">-help</text><text class="terminal-2021148750-r6" x="280.6" y="459.2" textLength="24.4" clip-path="url(#terminal-2021148750-line-18)">-h</text><text class="terminal-2021148750-r2" x="329.4" y="459.2" textLength="329.4" clip-path="url(#terminal-2021148750-line-18)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="terminal-2021148750-r4" x="1451.8" y="459.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-18)">│</text><text class="terminal-2021148750-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-2021148750-line-18)">
+</text><text class="terminal-2021148750-r4" x="0" y="483.6" textLength="1464" clip-path="url(#terminal-2021148750-line-19)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-2021148750-r2" x="1464" y="483.6" textLength="12.2" clip-path="url(#terminal-2021148750-line-19)">
+</text>
+    </g>
+    </g>
 </svg>

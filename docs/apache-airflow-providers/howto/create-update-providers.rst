@@ -99,26 +99,6 @@ breeze and I'll run unit tests for my Hook.
 
       root@fafd8d630e46:/opt/airflow# python -m pytest tests/providers/<NEW_PROVIDER>/hook/<NEW_PROVIDER>.py
 
-Update Airflow validation tests
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-There are some tests that Airflow performs to ensure consistency that is related to the providers.
-
-  .. code-block:: bash
-
-      airflow/scripts/in_container/
-      └── run_install_and_test_provider_packages.sh
-      tests/core/
-      └── test_providers_manager.py
-
-Change expected number of providers, hooks and connections if needed in ``run_install_and_test_provider_packages.sh`` file.
-
-Add your provider information in the following variables in ``test_providers_manager.py``:
-
-- add your provider to ``ALL_PROVIDERS`` list;
-- add your provider into ``CONNECTIONS_LIST`` if your provider create a new connection type.
-
-
 Integration tests
 ^^^^^^^^^^^^^^^^^
 
@@ -301,8 +281,8 @@ main Airflow documentation that involves some steps with the providers is also w
 
   .. code-block:: bash
 
-    ./breeze build-docs -- --package-filter apache-airflow-providers-<NEW_PROVIDER>
-    ./breeze build-docs -- --package-filter apache-airflow
+    ./breeze build-docs --package-filter apache-airflow-providers-<NEW_PROVIDER>
+    ./breeze build-docs --package-filter apache-airflow
 
 Optional provider features
 --------------------------
@@ -323,11 +303,11 @@ missing in provider dependencies.
 In Airflow 2.3, new exception :class:`~airflow.exceptions.OptionalProviderFeatureException` has been
 introduced and Providers can use the exception to signal that the ImportError (or any other error) should
 be ignored by Airflow ProvidersManager. However this Exception is only available in Airflow 2.3 so if
-providers would like to remain compatible with Airflow 2.1 and 2.2, they should continue throwing
+providers would like to remain compatible with 2.2, they should continue throwing
 the ImportError exception.
 
 Example code (from Plyvel Hook, part of the Google Provider) explains how such conditional error handling
-should be implemented to keep compatibility with Airflow 2.1 and 2.2
+should be implemented to keep compatibility with 2.2
 
   .. code-block:: python
 

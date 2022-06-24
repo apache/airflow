@@ -54,7 +54,7 @@ To get information about jobs within a Azure Blob Storage use:
 
 Example usage:
 
-.. exampleinclude:: /../../airflow/providers/microsoft/azure/example_dags/example_azure_blob_to_gcs.py
+.. exampleinclude:: /../../tests/system/providers/microsoft/azure/example_azure_blob_to_gcs.py
     :language: python
     :start-after: [START how_to_azure_blob_to_gcs]
     :end-before: [END how_to_azure_blob_to_gcs]

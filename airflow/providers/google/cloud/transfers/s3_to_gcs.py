@@ -86,7 +86,7 @@ class S3ToGCSOperator(S3ListOperator):
            dest_gcs="gs://my.gcs.bucket/some/customers/",
            replace=False,
            gzip=True,
-           dag=my - dag,
+           dag=my_dag,
        )
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are

@@ -15,9 +15,9 @@
     specific language governing permissions and limitations
     under the License.
 
-
-AWS Glue Operators
-===================
+========
+AWS Glue
+========
 
 `AWS Glue <https://aws.amazon.com/glue/>`__ is a serverless data integration service that makes it
 easy to discover, prepare, and combine data for analytics, machine learning, and application development.
@@ -29,10 +29,13 @@ Prerequisite Tasks
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:GlueCrawlerOperator:
 
-AWS Glue Crawler Operator
-"""""""""""""""""""""""""
+Create an AWS Glue crawler
+==========================
 
 AWS Glue Crawlers allow you to easily extract data from various data sources.
 To create a new AWS Glue Crawler or run an existing one you can
@@ -44,16 +47,37 @@ use :class:`~airflow.providers.amazon.aws.operators.glue_crawler.GlueCrawlerOper
     :start-after: [START howto_operator_glue_crawler]
     :end-before: [END howto_operator_glue_crawler]
 
-Note that the AWS IAM role included in the ``config`` needs access to the source data location
-(e.g. s3:PutObject access if data is stored in Amazon S3) as well as the ``AWSGlueServiceRole``
-policy. See the References section below for a link to more details.
+.. note::
+  The AWS IAM role included in the ``config`` needs access to the source data location
+  (e.g. s3:PutObject access if data is stored in Amazon S3) as well as the ``AWSGlueServiceRole``
+  policy. See the References section below for a link to more details.
+
+.. _howto/operator:GlueJobOperator:
+
+Submit an AWS Glue job
+======================
+
+To submit a new AWS Glue job you can use :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
+
+.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glue.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_operator_glue]
+    :end-before: [END howto_operator_glue]
+
+.. note::
+  The same AWS IAM role used for the crawler can be used here as well, but it will need
+  policies to provide access to the output location for result data.
+
+Sensors
+-------
 
 .. _howto/sensor:GlueCrawlerSensor:
 
-AWS Glue Crawler Sensor
-"""""""""""""""""""""""
+Wait on an AWS Glue crawler state
+=================================
 
-To wait on the state of an AWS Glue Crawler execution until it reaches a terminal state you can
+To wait on the state of an AWS Glue crawler execution until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor`.
 
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glue.py
@@ -62,26 +86,10 @@ use :class:`~airflow.providers.amazon.aws.sensors.glue_crawler.GlueCrawlerSensor
     :start-after: [START howto_sensor_glue_crawler]
     :end-before: [END howto_sensor_glue_crawler]
 
-.. _howto/operator:GlueJobOperator:
-
-AWS Glue Job Operator
-"""""""""""""""""""""
-
-To submit a new AWS Glue Job you can use :class:`~airflow.providers.amazon.aws.operators.glue.GlueJobOperator`.
-
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glue.py
-    :language: python
-    :dedent: 4
-    :start-after: [START howto_operator_glue]
-    :end-before: [END howto_operator_glue]
-
-Note that the same AWS IAM role used for the Crawler can be used here as well, but it will need
-policies to provide access to the output location for result data.
-
 .. _howto/sensor:GlueJobSensor:
 
-AWS Glue Job Sensor
-"""""""""""""""""""
+Wait on an AWS Glue job state
+=============================
 
 To wait on the state of an AWS Glue Job until it reaches a terminal state you can
 use :class:`~airflow.providers.amazon.aws.sensors.glue.GlueJobSensor`
@@ -95,7 +103,5 @@ use :class:`~airflow.providers.amazon.aws.sensors.glue.GlueJobSensor`
 Reference
 ---------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for Glue <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html>`__
+* `AWS boto3 library documentation for Glue <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glue.html>`__
 * `Glue IAM Role creation <https://docs.aws.amazon.com/glue/latest/dg/create-an-iam-role.html>`__

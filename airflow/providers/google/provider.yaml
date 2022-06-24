@@ -26,9 +26,12 @@ description: |
       - `Google Firebase <https://firebase.google.com/>`__
       - `Google LevelDB <https://github.com/google/leveldb/>`__
       - `Google Marketing Platform <https://marketingplatform.google.com/>`__
-      - `Google Workspace <https://workspace.google.pl/>`__ (formerly Google Suite)
+      - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.1.0
+  - 8.0.0
+  - 7.0.0
   - 6.8.0
   - 6.7.0
   - 6.6.0
@@ -48,7 +51,7 @@ versions:
   - 1.0.0
 
 additional-dependencies:
-  - apache-airflow>=2.1.0
+  - apache-airflow>=2.2.0
 
 integrations:
   - integration-name: Google Analytics360
@@ -882,11 +885,15 @@ extra-links:
   - airflow.providers.google.cloud.operators.datafusion.DataFusionInstanceLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelineLink
   - airflow.providers.google.cloud.operators.datafusion.DataFusionPipelinesLink
+  - airflow.providers.google.cloud.links.cloud_sql.CloudSQLInstanceLink
+  - airflow.providers.google.cloud.links.cloud_sql.CloudSQLInstanceDatabaseLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTaskLink
   - airflow.providers.google.cloud.links.dataplex.DataplexTasksLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink
+  - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
+  - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
@@ -903,6 +910,9 @@ extra-links:
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIBatchPredictionJobListLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointLink
   - airflow.providers.google.cloud.links.vertex_ai.VertexAIEndpointListLink
+  - airflow.providers.google.cloud.links.workflows.WorkflowsWorkflowDetailsLink
+  - airflow.providers.google.cloud.links.workflows.WorkflowsListOfWorkflowsLink
+  - airflow.providers.google.cloud.links.workflows.WorkflowsExecutionLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentLink
   - airflow.providers.google.cloud.operators.cloud_composer.CloudComposerEnvironmentsLink
   - airflow.providers.google.cloud.links.dataflow.DataflowJobLink
@@ -911,13 +921,19 @@ extra-links:
   - airflow.providers.google.cloud.links.bigtable.BigtableInstanceLink
   - airflow.providers.google.cloud.links.bigtable.BigtableClusterLink
   - airflow.providers.google.cloud.links.bigtable.BigtableTablesLink
+  - airflow.providers.google.cloud.links.spanner.SpannerDatabaseLink
+  - airflow.providers.google.cloud.links.spanner.SpannerInstanceLink
+  - airflow.providers.google.cloud.links.stackdriver.StackdriverNotificationsLink
+  - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
   - airflow.providers.google.common.links.storage.StorageLink
+  - airflow.providers.google.common.links.storage.FileDetailsLink
 
 additional-extras:
   apache.beam: apache-beam[gcp]
   leveldb: plyvel
-  facebook: apache-airlfow-providers-facebook>=2.2.0
-  amazon: apache-airlfow-providers-facebook>=2.6.0
+  oracle: apache-airflow-providers-oracle>=3.1.0
+  facebook: apache-airflow-providers-facebook>=2.2.0
+  amazon: apache-airflow-providers-amazon>=2.6.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

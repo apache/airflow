@@ -19,8 +19,8 @@
 
 import { useToast } from '@chakra-ui/react';
 
-const getErrorDescription = (error, fallbackMessage) => {
-  if (error.response && error.response.data) {
+export const getErrorDescription = (error, fallbackMessage) => {
+  if (error && error.response && error.response.data) {
     return error.response.data;
   }
   if (error instanceof Error) return error.message;
@@ -35,10 +35,10 @@ const useErrorToast = () => {
   // Add an error prop and handle it as a description
   return ({ error, ...rest }) => {
     toast({
+      ...rest,
       status: 'error',
       title: getErrorTitle(error),
       description: getErrorDescription(error).slice(0, 500),
-      ...rest,
     });
   };
 };

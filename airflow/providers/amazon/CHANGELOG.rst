@@ -16,8 +16,110 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Add partition related methods to GlueCatalogHook: (#23857)``
+* ``Add support for associating  custom tags to job runs submitted via EmrContainerOperator (#23769)``
+* ``Add number of node params only for single-node cluster in RedshiftCreateClusterOperator (#23839)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: StepFunctionHook ignores explicit set 'region_name' (#23976)``
+* ``Fix Amazon EKS example DAG raises warning during Imports (#23849)``
+* ``Move string arg evals to 'execute()' in 'EksCreateClusterOperator' (#23877)``
+* ``fix: patches #24215. Won't raise KeyError when 'create_job_kwargs' contains the 'Command' key. (#24308)``
+
+Misc
+~~~~
+
+* ``Light Refactor and Clean-up AWS Provider (#23907)``
+* ``Update sample dag and doc for RDS (#23651)``
+* ``Reformat the whole AWS documentation (#23810)``
+* ``Replace "absolute()" with "resolve()" in pathlib objects (#23675)``
+* ``Apply per-run log templates to log handlers (#24153)``
+* ``Refactor GlueJobHook get_or_create_glue_job method. (#24215)``
+* ``Update the DMS Sample DAG and Docs (#23681)``
+* ``Update doc and sample dag for Quicksight (#23653)``
+* ``Update doc and sample dag for EMR Containers (#24087)``
+* ``Add AWS project structure tests (re: AIP-47) (#23630)``
+* ``Add doc and sample dag for GCSToS3Operator (#23730)``
+* ``Remove old Athena Sample DAG (#24170)``
+* ``Clean up f-strings in logging calls (#23597)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
+   * ``pydocstyle D202 added (#24221)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+3.4.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add Quicksight create ingestion Hook and Operator (#21863)``
+* ``Add default 'aws_conn_id' to SageMaker Operators #21808 (#23515)``
+* ``Add RedshiftCreateClusterOperator``
+* ``Add 'S3CreateObjectOperator' (#22758)``
+* ``Add 'RedshiftDeleteClusterOperator' support (#23563)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix conn close error on retrieving log events (#23470)``
+* ``Fix LocalFilesystemToS3Operator and S3CreateObjectOperator to support full s3:// style keys (#23180)``
+* ``Fix attempting to reattach in 'ECSOperator' (#23370)``
+* ``Fix doc build failure on main (#23240)``
+* ``Fix "Chain not supported for different length Iterable"``
+* ``'S3Hook': fix 'load_bytes' docstring (#23182)``
+* ``Deprecate 'S3PrefixSensor' and 'S3KeySizeSensor' in favor of 'S3KeySensor' (#22737)``
+* ``Allow back script_location in Glue to be None (#23357)``
+
+Misc
+~~~~
+
+* ``Add doc and example dag for Amazon SQS Operators (#23312)``
+* ``Add doc and sample dag for S3CopyObjectOperator and S3DeleteObjectsOperator (#22959)``
+* ``Add sample dag and doc for S3KeysUnchangedSensor``
+* ``Add doc and sample dag for S3FileTransformOperator``
+* ``Add doc and example dag for AWS Step Functions Operators``
+* ``Add sample dag and doc for S3ListOperator (#23449)``
+* ``Add doc and sample dag for EC2 (#23547)``
+* ``Add sample dag and doc for S3ListPrefixesOperator (#23448)``
+* ``Amazon Sagemaker Sample DAG and docs update (#23256)``
+* ``Update the Athena Sample DAG and Docs (#23428)``
+* ``Update sample dag and doc for Datasync (#23511)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Fix new MyPy errors in main (#22884)``
+   * ``Clean up in-line f-string concatenation (#23591)``
+   * ``Update docs Amazon Glacier Docs (#23372)``
+   * ``Bump pre-commit hook versions (#22887)``
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+
 
 3.3.0
 .....

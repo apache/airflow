@@ -25,7 +25,7 @@ from setproctitle import setproctitle
 
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.process_utils import reap_process_group
+from airflow.utils.process_utils import reap_process_group, set_new_process_group
 
 
 class StandardTaskRunner(BaseTaskRunner):
@@ -34,7 +34,6 @@ class StandardTaskRunner(BaseTaskRunner):
     def __init__(self, local_task_job):
         super().__init__(local_task_job)
         self._rc = None
-        self.dag = local_task_job.task_instance.task.dag
 
     def start(self):
         if CAN_FORK and not self.run_as_user:
@@ -42,9 +41,10 @@ class StandardTaskRunner(BaseTaskRunner):
         else:
             self.process = self._start_by_exec()
 
-    def _start_by_exec(self):
+    def _start_by_exec(self) -> psutil.Process:
         subprocess = self.run_command()
-        return psutil.Process(subprocess.pid)
+        self.process = psutil.Process(subprocess.pid)
+        return self.process
 
     def _start_by_fork(self):
         pid = os.fork()
@@ -53,7 +53,7 @@ class StandardTaskRunner(BaseTaskRunner):
             return psutil.Process(pid)
         else:
             # Start a new process group
-            os.setpgid(0, 0)
+            set_new_process_group()
             import signal
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)
@@ -62,6 +62,7 @@ class StandardTaskRunner(BaseTaskRunner):
             from airflow import settings
             from airflow.cli.cli_parser import get_parser
             from airflow.sentry import Sentry
+            from airflow.utils.cli import get_dag
 
             # Force a new SQLAlchemy session. We can't share open DB handles
             # between process. The cli code will re-create this as part of its
@@ -83,9 +84,13 @@ class StandardTaskRunner(BaseTaskRunner):
             if job_id is not None:
                 proc_title += " {0.job_id}"
             setproctitle(proc_title.format(args))
+
             return_code = 0
             try:
-                args.func(args, dag=self.dag)
+                # parse dag file since `airflow tasks run --local` does not parse dag file
+                dag = get_dag(args.subdir, args.dag_id)
+                args.func(args, dag=dag)
+                return_code = 0
             except Exception as exc:
                 return_code = 1
 
