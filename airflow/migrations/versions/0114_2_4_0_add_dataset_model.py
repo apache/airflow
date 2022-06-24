@@ -26,8 +26,6 @@ Create Date: 2022-06-22 14:37:20.880672
 
 import sqlalchemy as sa
 from alembic import op
-
-# revision identifiers, used by Alembic.
 from sqlalchemy import Integer, func
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
