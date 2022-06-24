@@ -157,7 +157,7 @@ Up until now the examples we've shown could all be achieved with a ``for`` loop 
 
     @task
     def consumer(arg):
-        print(list(arg))
+        print(arg)
 
 
     with DAG(dag_id="dynamic-map", start_date=datetime(2022, 4, 2)) as dag:
