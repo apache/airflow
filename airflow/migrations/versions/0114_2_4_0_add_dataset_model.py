@@ -45,11 +45,11 @@ def upgrade():
     op.create_table(
         'dataset',
         sa.Column('id', Integer, primary_key=True, autoincrement=True),
-        sa.Column('uri', StringID(length=500)),
+        sa.Column('uri', StringID(length=1000)),
         sa.Column('extra', ExtendedJSON),
         sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now(), nullable=False),
-        sqlite_autoincrement=True,
+        sqlite_autoincrement=True,  # ensures PK values not reused
     )
     op.create_index('idx_uri', 'dataset', ['uri'], unique=True)
 
