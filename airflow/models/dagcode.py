@@ -21,6 +21,7 @@ from datetime import datetime
 from typing import Iterable, List, Optional
 
 from sqlalchemy import BigInteger, Column, String, Text
+from sqlalchemy.dialects.mysql import MEDIUMTEXT
 from sqlalchemy.sql.expression import literal
 
 from airflow.exceptions import AirflowException, DagCodeNotFound
@@ -47,7 +48,7 @@ class DagCode(Base):
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
     last_updated = Column(UtcDateTime, nullable=False)
-    source_code = Column(Text, nullable=False)
+    source_code = Column(Text().with_variant(MEDIUMTEXT(), 'mysql'), nullable=False)
 
     def __init__(self, full_filepath: str, source_code: Optional[str] = None):
         self.fileloc = full_filepath

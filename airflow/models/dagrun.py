@@ -61,7 +61,7 @@ from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
@@ -100,13 +100,13 @@ class DagRun(Base, LoggingMixin):
     __tablename__ = "dag_run"
 
     id = Column(Integer, primary_key=True)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    dag_id = Column(StringID(), nullable=False)
     queued_at = Column(UtcDateTime)
     execution_date = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
     _state = Column('state', String(50), default=State.QUEUED)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
+    run_id = Column(StringID(), nullable=False)
     creating_job_id = Column(Integer)
     external_trigger = Column(Boolean, default=True)
     run_type = Column(String(50), nullable=False)

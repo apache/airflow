@@ -1675,6 +1675,61 @@ def create_global_lock(
             pass
 
 
+def compare_type(context, inspected_column, metadata_column, inspected_type, metadata_type):
+    """
+    Compare types between ORM and DB .
+
+    return False if the metadata_type is the same as the inspected_type
+    or None to allow the default implementation to compare these
+    types. a return value of True means the two types do not
+    match and should result in a type change operation.
+    """
+    if context.dialect.name == 'mysql':
+        from sqlalchemy import String
+        from sqlalchemy.dialects import mysql
+
+        if isinstance(inspected_type, mysql.VARCHAR) and isinstance(metadata_type, String):
+            # This is a hack to get around MySQL VARCHAR collation
+            # not being possible to change from utf8_bin to utf8mb3_bin
+            return False
+    return None
+
+
+def compare_server_default(
+    context, inspected_column, metadata_column, inspected_default, metadata_default, rendered_metadata_default
+):
+    """
+    Compare server defaults between ORM and DB .
+
+    return True if the defaults are different, False if not, or None to allow the default implementation
+    to compare these defaults
+
+    Comparing server_default is not accurate in MSSQL because the
+    inspected_default above != metadata_default, while in Postgres/MySQL they are equal.
+    This is an issue with alembic
+    In SQLite: task_instance.map_index & task_reschedule.map_index
+    are not comparing accurately. Sometimes they are equal, sometimes they are not.
+    Alembic warned that this feature has varied accuracy depending on backends.
+    See: (https://alembic.sqlalchemy.org/en/latest/api/runtime.html#alembic.runtime.
+        environment.EnvironmentContext.configure.params.compare_server_default)
+    """
+    dialect_name = context.connection.dialect.name
+    if dialect_name in ['mssql', 'sqlite']:
+        return False
+    if (
+        dialect_name == 'mysql'
+        and metadata_column.name == 'pool_slots'
+        and metadata_column.table.name == 'task_instance'
+    ):
+        # We removed server_default value in ORM to avoid expensive migration
+        # (it was removed in postgres DB in migration head 7b2661a43ba3 ).
+        # As a side note, server default value here was only actually needed for the migration
+        # where we added the column in the first place -- now that it exists and all
+        # existing rows are populated with a value this server default is never used.
+        return False
+    return None
+
+
 def get_sqla_model_classes():
     """
     Get all SQLAlchemy class mappers.

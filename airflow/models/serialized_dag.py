@@ -67,7 +67,7 @@ class SerializedDagModel(Base):
     dag_id = Column(String(ID_LEN), primary_key=True)
     fileloc = Column(String(2000), nullable=False)
     # The max length of fileloc exceeds the limit of indexing.
-    fileloc_hash = Column(BigInteger, nullable=False)
+    fileloc_hash = Column(BigInteger(), nullable=False)
     _data = Column('data', sqlalchemy_jsonfield.JSONField(json=json), nullable=True)
     _data_compressed = Column('data_compressed', LargeBinary, nullable=True)
     last_updated = Column(UtcDateTime, nullable=False)
