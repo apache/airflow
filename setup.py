@@ -232,7 +232,8 @@ azure = [
     'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
-    'azure-servicebus>=7.6.1',
+    # Limited due to https://github.com/Azure/azure-uamqp-python/issues/191
+    'azure-servicebus>=7.6.1; platform_machine != "aarch64"',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0',
