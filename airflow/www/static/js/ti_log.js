@@ -102,7 +102,9 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
 
       // Detect urls and log timestamps
       const urlRegex = /http(s)?:\/\/[\w.-]+(\.?:[\w.-]+)*([/?#][\w\-._~:/?#[\]@!$&'()*+,;=.%]+)?/g;
-      const dateRegex = /\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2},\d{3}/g;
+      const dateRegex = /(\d{4}[./-]\d{2}[./-]\d{2} \d{2}:\d{2}:\d{2})((,\d{3})|([+-]\d{4} \d{3}ms))/g;
+      // above regex is a kind of duplication of 'dateRegex'
+      // in airflow/www/static/js/grid/details/content/taskinstance/Logs/utils.js
 
       res.message.forEach((item) => {
         const logBlockElementId = `try-${tryNumber}-${item[0]}`;
@@ -120,7 +122,22 @@ function autoTailingLog(tryNumber, metadata = null, autoTailing = false) {
         const escapedMessage = escapeHtml(item[1]);
         const linkifiedMessage = escapedMessage
           .replace(urlRegex, (url) => `<a href="${url}" target="_blank">${url}</a>`)
-          .replaceAll(dateRegex, (date) => `<time datetime="${date}+00:00" data-with-tz="true">${formatDateTime(`${date}+00:00`)}</time>`);
+          .replaceAll(dateRegex, (dateMatches, date, msecOrUTCOffset) => {
+            // e.g) '2022-06-15 10:30:06,020' or '2022-06-15 10:30:06+0900 123ms'
+            if (msecOrUTCOffset.startsWith(',')) { // e.g) date='2022-06-15 10:30:06', msecOrUTCOffset=',020'
+              // for backward compatibility. (before 2.3.3)
+              // keep previous behavior if utcoffset not found.
+              //
+              return `<time datetime="${dateMatches}+00:00" data-with-tz="true">${formatDateTime(`${dateMatches}+00:00`)}</time>`;
+            }
+            // e.g) date='2022-06-15 10:30:06', msecOrUTCOffset='+0900 123ms'
+            // (formatted by airflow.utils.log.timezone_aware.TimezoneAware) (since 2.3.3)
+            const [utcoffset, threeDigitMs] = msecOrUTCOffset.split(' ');
+            const msec = threeDigitMs.replace(/\D+/g, ''); // drop 'ms'
+            const dateTime = `${date}.${msec}${utcoffset}`; // e.g) datetime='2022-06-15 10:30:06.123+0900'
+            //
+            return `<time datetime="${dateTime}" data-with-tz="true">${formatDateTime(`${dateTime}`)}</time>`;
+          });
         logBlock.innerHTML += `${linkifiedMessage}\n`;
       });
 

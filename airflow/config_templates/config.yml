@@ -633,6 +633,12 @@
       type: string
       example: ~
       default: "%%(asctime)s %%(levelname)s - %%(message)s"
+    - name: log_formatter_class
+      description: ~
+      version_added: 2.3.3
+      type: string
+      example: ~
+      default: "airflow.utils.log.timezone_aware.TimezoneAware"
     - name: task_log_prefix_template
       description: |
         Specify prefix pattern like mentioned below with stream handler TaskHandlerWithCustomFormatter

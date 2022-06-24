@@ -1,0 +1,23 @@
+Added new config ``[logging]log_formatter_class`` to fix timezone display for logs on UI
+
+If you are using a custom Formatter subclass in your ``[logging]logging_config_class``, please inherit from ``airflow.utils.log.timezone_aware.TimezoneAware`` instead of ``logging.Formatter``.
+For example, in your ``custom_config.py``:
+
+.. code-block:: python
+
+   from airflow.utils.log.timezone_aware import TimezoneAware
+
+   # before
+   class YourCustomFormatter(logging.Formatter):
+       ...
+
+
+   # after
+   class YourCustomFormatter(TimezoneAware):
+       ...
+
+
+   AIRFLOW_FORMATTER = LOGGING_CONFIG["formatters"]["airflow"]
+   AIRFLOW_FORMATTER["class"] = "somewhere.your.custom_config.YourCustomFormatter"
+   # or use TimezoneAware class directly. If you don't have custom Formatter.
+   AIRFLOW_FORMATTER["class"] = "airflow.utils.log.timezone_aware.TimezoneAware"
