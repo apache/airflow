@@ -465,6 +465,9 @@ class TaskInstance(Base, LoggingMixin):
 
     # Optional timeout datetime for the trigger (past this, we'll fail)
     trigger_timeout = Column(DateTime)
+    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for easy of
+    # migration, we are keeping it as DateTime pending a change where expensive
+    # migration is inevitable.
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
