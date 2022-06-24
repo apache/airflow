@@ -26,9 +26,9 @@ Create Date: 2022-06-22 14:37:20.880672
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Integer, func
+from sqlalchemy import Integer, String, func
 
-from airflow.migrations.db_types import TIMESTAMP, StringID
+from airflow.migrations.db_types import TIMESTAMP
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 revision = '0038cd0c28b4'
@@ -43,8 +43,12 @@ def upgrade():
     op.create_table(
         'dataset',
         sa.Column('id', Integer, primary_key=True, autoincrement=True),
-        sa.Column('uri', StringID(length=1000)),
-        sa.Column('extra', ExtendedJSON),
+        sa.Column(
+            'uri',
+            String(length=3000).with_variant(String(length=3000, collation='ascii_general_ci'), 'mysql'),
+            nullable=False,
+        ),
+        sa.Column('extra', ExtendedJSON, nullable=True),
         sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now(), nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused

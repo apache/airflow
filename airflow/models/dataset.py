@@ -18,9 +18,9 @@
 from typing import Dict, Optional
 from urllib.parse import urlparse
 
-from sqlalchemy import Column, Index, Integer
+from sqlalchemy import Column, Index, Integer, String
 
-from airflow.models.base import Base, StringID
+from airflow.models.base import Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
@@ -34,7 +34,10 @@ class Dataset(Base):
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    uri = Column(StringID(length=1000), nullable=False)
+    uri = Column(
+        String(length=3000).with_variant(String(length=3000, collation='ascii_general_ci'), 'mysql'),
+        nullable=False,
+    )
     extra = Column(ExtendedJSON, nullable=True)
     created_at = Column(UtcDateTime, default=timezone.utcnow(), nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow(), onupdate=timezone.utcnow(), nullable=False)
@@ -46,6 +49,10 @@ class Dataset(Base):
     )
 
     def __init__(self, uri: str, extra: Optional[Dict] = None, **kwargs):
+        try:
+            uri.encode('ascii')
+        except UnicodeEncodeError:
+            raise ValueError('URI must be ascii')
         parsed = urlparse(uri)
         if parsed.scheme and parsed.scheme.lower() == 'airflow':
             raise ValueError("Scheme `airflow` is reserved.")
