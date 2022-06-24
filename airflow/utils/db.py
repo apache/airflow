@@ -1721,6 +1721,11 @@ def compare_server_default(
         and metadata_column.name == 'pool_slots'
         and metadata_column.table.name == 'task_instance'
     ):
+        # We removed server_default value in ORM to avoid expensive migration
+        # (it was removed in postgres DB in migration head 7b2661a43ba3 ).
+        # As a side note, server default value here was only actually needed for the migration
+        # where we added the column in the first place -- now that it exists and all
+        # existing rows are populated with a value this server default is never used.
         return False
     return None
 
