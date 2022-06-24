@@ -202,7 +202,7 @@ amazon = [
     'mypy-boto3-redshift-data>=1.21.0',
 ]
 apache_beam = [
-    'apache-beam>=2.33.0',
+    'apache-beam>=2.39.0',
 ]
 arangodb = ['python-arango>=7.3.2']
 asana = ['asana>=0.10']
@@ -231,6 +231,8 @@ azure = [
     'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
+    # Limited due to https://github.com/Azure/azure-uamqp-python/issues/191
+    'azure-servicebus>=7.6.1; platform_machine != "aarch64"',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0',
@@ -488,9 +490,7 @@ postgres = [
     'psycopg2-binary>=2.7.4',
 ]
 presto = [
-    # The limit to Presto 0.8 for unknown reason
-    # TODO: Remove the limit
-    'presto-python-client>=0.7.0,<0.8',
+    'presto-python-client>=0.8.2',
     pandas_requirement,
 ]
 psrp = [
@@ -622,9 +622,7 @@ devel_only = [
     'jira',
     'jsondiff',
     'mongomock',
-    # Version 3.1.10 is breaking main bump to 3.1.11 when released.
-    # Fix already merged but was not released https://github.com/spulec/moto/pull/5165
-    'moto[glue]>=3.1.6, <3.1.10',
+    'moto[cloudformation, glue]>=3.1.12',
     'parameterized',
     'paramiko',
     'pipdeptree',
