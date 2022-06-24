@@ -349,8 +349,8 @@ class TestDbApiHook(unittest.TestCase):
 
     def test_run_no_log(self):
         statement = 'SQL'
-        self.db_hook_log_sql.run(statement)
-        assert self.db_hook_log_sql.log.info.call_count == 1
+        self.db_hook_no_log_sql.run(statement)
+        assert self.db_hook_no_log_sql.log.info.call_count == 1
 
     def test_run_with_handler(self):
         sql = 'SQL'
