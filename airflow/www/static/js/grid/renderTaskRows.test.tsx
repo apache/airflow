@@ -24,10 +24,11 @@ import { render } from '@testing-library/react';
 
 import renderTaskRows from './renderTaskRows';
 import { TableWrapper } from './utils/testUtils';
+import type { Task } from './types';
 
 describe('Test renderTaskRows', () => {
   test('Renders name and task instance', () => {
-    const task = {
+    const task: Task = {
       id: null,
       label: null,
       children: [
@@ -37,16 +38,11 @@ describe('Test renderTaskRows', () => {
           label: 'group_1',
           instances: [
             {
-              dagId: 'dagId',
-              duration: 0,
               endDate: '2021-10-26T15:42:03.391939+00:00',
-              executionDate: '2021-10-25T15:41:09.726436+00:00',
-              operator: 'DummyOperator',
               runId: 'run1',
               startDate: '2021-10-26T15:42:03.391917+00:00',
               state: 'success',
               taskId: 'group_1',
-              tryNumber: 1,
             },
           ],
           children: [
@@ -56,16 +52,11 @@ describe('Test renderTaskRows', () => {
               extraLinks: [],
               instances: [
                 {
-                  dagId: 'dagId',
-                  duration: 0,
                   endDate: '2021-10-26T15:42:03.391939+00:00',
-                  executionDate: '2021-10-25T15:41:09.726436+00:00',
-                  operator: 'DummyOperator',
                   runId: 'run1',
                   startDate: '2021-10-26T15:42:03.391917+00:00',
                   state: 'success',
                   taskId: 'group_1.task_1',
-                  tryNumber: 1,
                 },
               ],
             },
@@ -110,7 +101,7 @@ describe('Test renderTaskRows', () => {
   });
 
   test('Still renders correctly if task instance is null', () => {
-    const task = {
+    const task: Task = {
       id: null,
       label: null,
       children: [
@@ -118,18 +109,18 @@ describe('Test renderTaskRows', () => {
           extraLinks: [],
           id: 'group_1',
           label: 'group_1',
-          instances: [null],
+          instances: [],
           children: [
             {
               id: 'group_1.task_1',
               label: 'group_1.task_1',
               extraLinks: [],
-              instances: [null],
+              instances: [],
             },
           ],
         },
       ],
-      instances: [null],
+      instances: [],
     };
 
     const { queryByTestId, getByText } = render(

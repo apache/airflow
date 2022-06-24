@@ -45,12 +45,22 @@ import Details from './Details';
 import { useGridData, useTasks } from '../../../api';
 import MappedInstances from './MappedInstances';
 import { getMetaValue } from '../../../../utils';
+import type { Task, DagRun } from '../../../types';
 
 const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
 
 const dagId = getMetaValue('dag_id');
 
-const getTask = ({ taskId, runId, task }) => {
+interface Props {
+  taskId: Task['id'];
+  runId: DagRun['runId'];
+}
+
+interface GetTaskProps extends Props {
+  task: Task;
+}
+
+const getTask = ({ taskId, runId, task }: GetTaskProps) => {
   if (task.id === taskId) return task;
   if (task.children) {
     let foundTask;
@@ -63,10 +73,10 @@ const getTask = ({ taskId, runId, task }) => {
   return null;
 };
 
-const TaskInstance = ({ taskId, runId }) => {
+const TaskInstance = ({ taskId, runId }: Props) => {
   const [selectedRows, setSelectedRows] = useState([]);
-  const { data: { groups, dagRuns } } = useGridData();
-  const { data: { tasks } } = useTasks(dagId);
+  const { data: { dagRuns, groups } } = useGridData();
+  const { data: { tasks } } = useTasks();
 
   const storageTabIndex = parseInt(localStorage.getItem(detailsPanelActiveTabIndex) || '0', 10);
   const [preferedTabIndex, setPreferedTabIndex] = useState(storageTabIndex);
@@ -74,13 +84,13 @@ const TaskInstance = ({ taskId, runId }) => {
   const group = getTask({ taskId, runId, task: groups });
   const run = dagRuns.find((r) => r.runId === runId);
 
-  const handleTabsChange = (index) => {
-    localStorage.setItem(detailsPanelActiveTabIndex, index);
+  const handleTabsChange = (index: number) => {
+    localStorage.setItem(detailsPanelActiveTabIndex, index.toString());
     setPreferedTabIndex(index);
   };
 
-  const { isMapped, extraLinks } = group;
-  const isGroup = !!group.children;
+  const isGroup = !!group?.children;
+  const isMapped = !!group?.isMapped;
 
   const isSimpleTask = !isMapped && !isGroup;
 
@@ -102,8 +112,8 @@ const TaskInstance = ({ taskId, runId }) => {
   if (!group || !run) return null;
 
   const { executionDate } = run;
-  const task = tasks.find((t) => t.taskId === taskId);
-  const operator = task && task.classRef && task.classRef.className ? task.classRef.className : '';
+  const task: any = tasks.find((t: any) => t.taskId === taskId);
+  const operator = (task?.classRef && task?.classRef?.className) ?? '';
 
   const instance = group.instances.find((ti) => ti.runId === runId);
 
@@ -128,16 +138,13 @@ const TaskInstance = ({ taskId, runId }) => {
           <Tab>
             <Text as="strong">Details</Text>
           </Tab>
-
           { isSimpleTask && (
             <Tab>
               <Text as="strong">Logs</Text>
             </Tab>
           )}
         </TabList>
-
         <TabPanels>
-
           {/* Details Tab */}
           <TabPanel>
             <Box py="4px">
@@ -180,7 +187,7 @@ const TaskInstance = ({ taskId, runId }) => {
                 taskId={taskId}
                 dagId={dagId}
                 executionDate={executionDate}
-                extraLinks={extraLinks}
+                extraLinks={group?.extraLinks || []}
               />
               {isMapped && (
                 <MappedInstances
@@ -192,7 +199,6 @@ const TaskInstance = ({ taskId, runId }) => {
               )}
             </Box>
           </TabPanel>
-
           {/* Logs Tab */}
           { isSimpleTask && (
           <TabPanel>
@@ -201,9 +207,8 @@ const TaskInstance = ({ taskId, runId }) => {
               dagRunId={runId}
               taskId={taskId}
               executionDate={executionDate}
-              tryNumber={instance.tryNumber}
+              tryNumber={instance?.tryNumber}
             />
-
           </TabPanel>
           )}
         </TabPanels>
