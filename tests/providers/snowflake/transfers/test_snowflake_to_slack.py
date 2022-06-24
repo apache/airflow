@@ -31,7 +31,10 @@ class TestSnowflakeToSlackOperator:
         clear_db_runs()
 
     def setup_method(self):
+        import pandas as pd
+
         self.example_dag = DAG('unit_test_dag_snowflake_to_slack', start_date=DEFAULT_DATE)
+        self.example_df = pd.DataFrame([{"foo": "bar", "spam": "egg"}])
 
     def teardown_method(self):
         clear_db_runs()
@@ -61,7 +64,7 @@ class TestSnowflakeToSlackOperator:
         snowflake_to_slack_operator = self._construct_operator(**operator_args)
 
         snowflake_hook = mock_snowflake_hook_class.return_value
-        snowflake_hook.get_pandas_df.return_value = '1234'
+        snowflake_hook.get_pandas_df.return_value = self.example_df
         slack_webhook_hook = mock_slack_hook_class.return_value
 
         snowflake_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
@@ -81,7 +84,9 @@ class TestSnowflakeToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            http_conn_id='slack_connection', message='message: 2017-01-01, 1234', webhook_token='test_token'
+            http_conn_id='slack_connection',
+            message=f'message: 2017-01-01, {self.example_df}',
+            webhook_token='test_token',
         )
 
         # Test that the Slack hook's execute method gets run once

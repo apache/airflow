@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from typing import Optional, Sequence, Tuple
 
 
 def enclose_param(param: str) -> str:
@@ -35,3 +36,43 @@ def enclose_param(param: str) -> str:
     :param param: parameter which required single quotes enclosure.
     """
     return f"""'{param.replace("'", "''")}'"""
+
+
+def parse_filename(
+    filename: Optional[str], supported_file_formats: Sequence[str], fallback: Optional[str] = None
+) -> Tuple[str, Optional[str]]:
+    """
+    Parse filetype and compression from given filename.
+
+    :param filename: filename to parse.
+    :param supported_file_formats: list of supported file extensions.
+    :param fallback: fallback to given file format.
+
+    :returns: filetype and compression (if specified)
+    """
+    if not filename:
+        raise ValueError("Expected 'filename' parameter is missing.")
+    if fallback and fallback not in supported_file_formats:
+        raise ValueError(f"Invalid fallback value {fallback!r}, expected one of {supported_file_formats}.")
+
+    parts = filename.rsplit(".", 2)
+    try:
+        if len(parts) == 1:
+            raise ValueError(f"No file extension specified in filename {filename!r}.")
+        if parts[-1] in supported_file_formats:
+            return parts[-1], None
+        elif len(parts) == 2:
+            raise ValueError(
+                f"Unsupported file format {parts[-1]!r}, expected one of {supported_file_formats}."
+            )
+        else:
+            if parts[-2] not in supported_file_formats:
+                raise ValueError(
+                    f"Unsupported file format '{parts[-2]}.{parts[-1]}', "
+                    f"expected one of {supported_file_formats} with compression extension."
+                )
+            return parts[-2], parts[-1]
+    except ValueError as ex:
+        if fallback:
+            return fallback, None
+        raise ex from None
