@@ -133,7 +133,6 @@ def is_core_commit(files: List[str]) -> bool:
         "BREEZE.rst",
         "CI.rst",
         "CI_DIAGRAMS.md",
-        "SELECTIVE_CHECKS.md",
         "STATIC_CODE_CHECKS.rst",
         "images/",
         "TESTING.rst",
