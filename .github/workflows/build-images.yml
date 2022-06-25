@@ -225,21 +225,35 @@ jobs:
       - name: "Free space"
         run: breeze free-space
       - name: >
-          Build & Push CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         run: breeze build-image --push-image --tag-as-latest --run-in-parallel
+        if: matrix.platform == 'linux/amd64'
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: matrix.platform == 'linux/arm64'
+      - name: >
+          Build ARM CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+        run: breeze build-image --run-in-parallel
+        if: matrix.platform == 'linux/arm64'
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        if: failure() || cancelled()
+        if: (failure() || cancelled()) && matrix.platform == 'linux/amd64'
         run: breeze build-image --push-image --empty-image --run-in-parallel
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers"
-        if: failure() || cancelled()
+        if: (failure() || cancelled()) && matrix.platform == 'linux/amd64'
         run: >
           breeze find-newer-dependencies --max-age 1
           --python "${{ needs.build-info.outputs.defaultPythonVersion }}"
@@ -357,6 +371,91 @@ jobs:
         run: breeze build-prod-image --cleanup-context --push-image --empty-image --run-in-parallel
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always()
+
+
+  build-ci-images-arm:
+    timeout-minutes: 80
+    name: "Build ARM CI images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs: [build-info, build-prod-images]
+    if: |
+      needs.build-info.outputs.image-build == 'true' &&
+      needs.build-info.outputs.upgradeToNewerDependencies != 'false' &&
+      github.event.pull_request.head.repo.full_name != 'apache/airflow'
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      BACKEND: sqlite
+      outputs: ${{toJSON(needs.build-info.outputs) }}
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore, we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
+      - name: >
+          Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v2
+        with:
+          path: "main-airflow"
+          ref: "${{ needs.build-info.outputs.targetBranch }}"
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
+          so that the PR does not override it
+        # We should not override those scripts which become part of the image as they will not be
+        # changed in the image built - we should only override those that are executed to build
+        # the image.
+        run: |
+          rm -rfv "scripts/ci"
+          rm -rfv "dev"
+          mv -v "main-airflow/scripts/ci" "scripts"
+          mv -v "main-airflow/dev" "."
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+      - run: ./scripts/ci/install_breeze.sh
+      - name: "Free space"
+        run: breeze free-space
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+      - name: >
+          Build ARM CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+        run: >
+          breeze build-image --run-in-parallel --parallelism 1
+          --builder airflow_cache --platform "linux/arm64"
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+      - name: "Stop ARM instance"
+        run: ./scripts/ci/images/ci_stop_arm_instance.sh
+        if: always()
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
