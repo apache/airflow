@@ -1336,7 +1336,7 @@ needed to run the CI Builds. You can also use the tool to test what tests will b
 a specific commit that Breeze should run the tests on.
 
 More details about the algorithm used to pick the right tests can be
-found in `Selective Checks <SELECTIVE_CHECKS.md>`_.
+found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
 
 Those are all available flags of ``selective-check`` command:
 

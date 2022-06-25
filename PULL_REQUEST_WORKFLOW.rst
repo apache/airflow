@@ -43,16 +43,9 @@ We approached the problem by:
 
 2) Heavily decreasing strain on the GitHub Actions jobs by introducing selective checks - mechanism
    to control which parts of the tests are run during the tests. This is implemented by the
-   ``scripts/ci/selective_ci_checks.sh`` script in our repository. This script analyses which part of the
-   code has changed and based on that it sets the right outputs that control which tests are executed in
-   the ``Tests`` workflow, and whether we need to build CI images necessary to run those steps. This allowed to
-   heavily decrease the strain especially for the Pull Requests that were not touching code (in which case
-   the builds can complete in < 2 minutes) but also by limiting the number of tests executed in PRs that do
-   not touch the "core" of Airflow, or only touching some - standalone - parts of Airflow such as
-   "Providers", "WWW" or "CLI". This solution is not yet perfect as there are likely some edge cases but
-   it is easy to maintain and we have an escape-hatch - all the tests are always executed in main pushes,
-   so contributors can easily spot if there is a "missed" case and fix it - both by fixing the problem and
-   adding those exceptions to the code. More about it can be found in `Selective checks <SELECTIVE_CHECKS.md>`_
+   ``breeze selective-check`` command. It selectively chooses which tests should be run in the PR based on
+   type of the PR and its content. More about it can be found in
+   `Selective checks <dev/breeze/SELECTIVE_CHECKS.md>`_
 
 3) Even more optimisation came from limiting the scope of tests to only "default" matrix parameters. So far
    in Airflow we always run all tests for all matrix combinations. The primary matrix components are:
