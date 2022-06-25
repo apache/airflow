@@ -21,7 +21,7 @@ from sqlalchemy import Column, Index, Integer, String
 
 from airflow.models.base import Base
 from airflow.utils import timezone
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
+from airflow.utils.sqlalchemy import UtcDateTime
 
 
 class Dataset(Base):
@@ -29,7 +29,6 @@ class Dataset(Base):
     A table to store datasets.
 
     :param uri: a string that uniquely identifies the dataset
-    :param extra: JSON field for arbitrary extra info
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -45,7 +44,6 @@ class Dataset(Base):
         ),
         nullable=False,
     )
-    extra = Column(ExtendedJSON, nullable=True)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
@@ -72,4 +70,4 @@ class Dataset(Base):
         return hash((self.uri, self.extra))
 
     def __repr__(self):
-        return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+        return f"{self.__class__.__name__}(uri={self.uri!r})"
