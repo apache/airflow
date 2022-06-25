@@ -87,7 +87,7 @@ def get_container_termination_message(pod: V1Pod, container_name: str):
         container_statuses = pod.status.container_statuses
         container_status = next(iter([x for x in container_statuses if x.name == container_name]), None)
         return container_status.state.terminated.message if container_status else None
-    except AttributeError:
+    except (AttributeError, TypeError):
         return None
 
 
@@ -256,7 +256,7 @@ class PodManager(LoggingMixin):
                 time.sleep(1)
 
     def await_container_completion(self, pod: V1Pod, container_name: str) -> None:
-        while self.container_is_running(pod=pod, container_name=container_name):
+        while not self.container_is_running(pod=pod, container_name=container_name):
             time.sleep(1)
 
     def await_pod_completion(self, pod: V1Pod) -> V1Pod:

@@ -1688,18 +1688,13 @@ def test_mapped_operator_serde():
         '_task_type': 'BashOperator',
         'downstream_task_ids': [],
         'mapped_kwargs': {
-            'bash_command': [
-                1,
-                2,
-                {"__type": "dict", "__var": {'a': 'b'}},
-            ]
+            "__type": "dict",
+            "__var": {'bash_command': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
         },
         'partial_kwargs': {
             'executor_config': {
                 '__type': 'dict',
-                '__var': {
-                    'dict': {"__type": "dict", "__var": {'sub': 'value'}},
-                },
+                '__var': {'dict': {"__type": "dict", "__var": {'sub': 'value'}}},
             },
         },
         'task_id': 'a',
@@ -1744,7 +1739,10 @@ def test_mapped_operator_xcomarg_serde():
         '_task_module': 'tests.test_utils.mock_operators',
         '_task_type': 'MockOperator',
         'downstream_task_ids': [],
-        'mapped_kwargs': {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
+        'mapped_kwargs': {
+            "__type": "dict",
+            "__var": {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
+        },
         'partial_kwargs': {},
         'task_id': 'task_2',
         'template_fields': ['arg1', 'arg2'],
@@ -1825,13 +1823,18 @@ def test_mapped_decorator_serde():
         'downstream_task_ids': [],
         'partial_kwargs': {
             'op_args': [],
-            'op_kwargs': {'arg1': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+            'op_kwargs': {
+                '__type': 'dict',
+                '__var': {'arg1': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+            },
             'retry_delay': {'__type': 'timedelta', '__var': 30.0},
         },
-        'mapped_kwargs': {},
         'mapped_op_kwargs': {
-            'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
-            'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
+            "__type": "dict",
+            "__var": {
+                'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
+                'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
+            },
         },
         'operator_extra_links': [],
         'ui_color': '#ffefeb',

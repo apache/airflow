@@ -651,8 +651,14 @@ class ProvidersManager(LoggingMixin):
         """Force-import all hooks and initialize the connections/fields"""
         # Retrieve all hooks to make sure that all of them are imported
         _ = list(self._hooks_lazy_dict.values())
-        self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
         self._field_behaviours = OrderedDict(sorted(self._field_behaviours.items()))
+
+        # Widgets for connection forms are currently used in two places:
+        # 1. In the UI Connections, expected same order that it defined in Hook.
+        # 2. cli command - `airflow providers widgets` and expected that it in alphabetical order.
+        # It is not possible to recover original ordering after sorting,
+        # that the main reason why original sorting moved to cli part:
+        # self._connection_form_widgets = OrderedDict(sorted(self._connection_form_widgets.items()))
 
     def _discover_taskflow_decorators(self) -> None:
         for name, info in self._provider_dict.items():
@@ -900,7 +906,10 @@ class ProvidersManager(LoggingMixin):
 
     @property
     def connection_form_widgets(self) -> Dict[str, ConnectionFormWidgetInfo]:
-        """Returns widgets for connection forms."""
+        """
+        Returns widgets for connection forms.
+        Dictionary keys in the same order that it defined in Hook.
+        """
         self.initialize_providers_hooks()
         self._import_info_from_all_hooks()
         return self._connection_form_widgets

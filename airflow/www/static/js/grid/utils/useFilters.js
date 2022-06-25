@@ -50,8 +50,10 @@ const useFilters = () => {
     setSearchParams(params);
   };
 
-  const onBaseDateChange = makeOnChangeFn(BASE_DATE_PARAM,
-    (localDate) => moment(localDate).utc().format());
+  const onBaseDateChange = makeOnChangeFn(
+    BASE_DATE_PARAM,
+    (localDate) => moment(localDate).utc().format(),
+  );
   const onNumRunsChange = makeOnChangeFn(NUM_RUNS_PARAM);
   const onRunTypeChange = makeOnChangeFn(RUN_TYPE_PARAM);
   const onRunStateChange = makeOnChangeFn(RUN_STATE_PARAM);

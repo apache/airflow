@@ -43,6 +43,7 @@ from airflow_breeze.global_constants import (
     MIN_DOCKER_COMPOSE_VERSION,
     MIN_DOCKER_VERSION,
     MOUNT_ALL,
+    MOUNT_REMOVE,
     MOUNT_SELECTED,
     MSSQL_HOST_PORT,
     MYSQL_HOST_PORT,
@@ -112,7 +113,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
         extra_docker_flags.extend(
             ['--mount', "type=volume,src=mypy-cache-volume,dst=/opt/airflow/.mypy_cache"]
         )
-    else:  # none
+    elif mount_sources == MOUNT_REMOVE:
         extra_docker_flags.extend(
             ["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT / 'empty'},dst=/opt/airflow/airflow"]
         )
@@ -571,6 +572,7 @@ DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES = {
     "POSTGRES_VERSION": "postgres_version",
     "SQLITE_URL": "sqlite_url",
     "START_AIRFLOW": "start_airflow",
+    "SKIP_CONSTRAINTS": "skip_constraints",
     "SKIP_ENVIRONMENT_INITIALIZATION": "skip_environment_initialization",
     "USE_AIRFLOW_VERSION": "use_airflow_version",
     "USE_PACKAGES_FROM_DIST": "use_packages_from_dist",

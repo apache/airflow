@@ -37,6 +37,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    SINGLE_PLATFORMS,
     get_available_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -133,7 +134,7 @@ option_use_airflow_version = click.option(
     '--use-airflow-version',
     help="Use (reinstall at entry) Airflow version from PyPI. It can also be `none`, `wheel`, or `sdist`"
     " if Airflow should be removed, installed from wheel packages or sdist packages available in dist "
-    "folder respectively. Implies --mount-sources `none`.",
+    "folder respectively. Implies --mount-sources `remove`.",
     type=UseAirflowVersionType(ALLOWED_USE_AIRFLOW_VERSIONS),
     envvar='USE_AIRFLOW_VERSION',
 )
@@ -149,7 +150,7 @@ option_mount_sources = click.option(
     type=BetterChoice(ALLOWED_MOUNT_OPTIONS),
     default=ALLOWED_MOUNT_OPTIONS[0],
     show_default=True,
-    help="Choose scope of local sources should be mounted (default = selected).",
+    help="Choose scope of local sources that should be mounted, skipped, or removed (default = selected).",
 )
 option_force_build = click.option(
     '--force-build', help="Force image build no matter if it is determined as needed.", is_flag=True
@@ -186,26 +187,27 @@ option_github_username = click.option(
     help='The user name used to authenticate to GitHub.',
     envvar='GITHUB_USERNAME',
 )
-option_github_image_id = click.option(
-    '-s',
-    '--github-image-id',
-    help='Commit SHA of the image. \
-    Breeze can automatically pull the commit SHA id specified Default: latest',
-)
 option_image_tag = click.option(
     '-t',
     '--image-tag',
-    help='Tag added to the default naming conventions of Airflow CI/PROD images.',
+    help='Tag of the image which is used to pull or run the image (implies --mount-sources=skip'
+    ' when using to run shell or tests) ',
     envvar='IMAGE_TAG',
 )
 option_image_name = click.option(
     '-n', '--image-name', help='Name of the image to verify (overrides --python and --image-tag).'
 )
-option_platform = click.option(
+option_platform_multiple = click.option(
     '--platform',
     help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=BetterChoice(ALLOWED_PLATFORMS),
+)
+option_platform_single = click.option(
+    '--platform',
+    help='Platform for Airflow image.',
+    envvar='PLATFORM',
+    type=BetterChoice(SINGLE_PLATFORMS),
 )
 option_debian_version = click.option(
     '--debian-version',
@@ -382,12 +384,6 @@ option_parallelism = click.option(
     envvar='PARALLELISM',
     show_default=True,
 )
-option_build_multiple_images = click.option(
-    '--build-multiple-images',
-    help="Run the operation sequentially on all or selected subset of Python versions.",
-    is_flag=True,
-    envvar='BUILD_MULTIPLE_IMAGES',
-)
 argument_packages = click.argument(
     "packages",
     nargs=-1,
@@ -438,4 +434,17 @@ option_airflow_constraints_mode_prod = click.option(
     default=ALLOWED_CONSTRAINTS_MODES_PROD[0],
     show_default=True,
     help='Mode of constraints for PROD image building',
+)
+option_pull_image = click.option(
+    '--pull-image',
+    help="Pull image is missing before attempting to verify it.",
+    is_flag=True,
+    envvar='PULL_IMAGE',
+)
+
+option_python_image = click.option(
+    '--python-image',
+    help="If specified this is the base python image used to build the image. "
+    "Should be something like: python:VERSION-slim-bullseye",
+    envvar='PYTHON_IMAGE',
 )

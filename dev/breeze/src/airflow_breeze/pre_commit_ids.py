@@ -94,7 +94,7 @@ PRE_COMMIT_LIST = [
     'run-shellcheck',
     'static-check-autoflake',
     'trailing-whitespace',
-    'update-breeze-file',
+    'update-breeze-cmd-output',
     'update-breeze-readme-config-hash',
     'update-extras',
     'update-in-the-wild-to-be-sorted',

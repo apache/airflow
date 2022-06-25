@@ -2739,7 +2739,7 @@ class DagModel(Base):
     max_active_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
-    has_import_errors = Column(Boolean(), default=False)
+    has_import_errors = Column(Boolean(), default=False, server_default='0')
 
     # The logical date of the next dag run.
     next_dagrun = Column(UtcDateTime)

@@ -21,7 +21,7 @@ from typing import Iterable, Optional, Tuple
 
 import rich_click as click
 
-from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -45,6 +45,7 @@ from airflow_breeze.utils.common_options import (
     option_force_build,
     option_forward_credentials,
     option_github_repository,
+    option_image_tag,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -52,6 +53,7 @@ from airflow_breeze.utils.common_options import (
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
+    option_platform_single,
     option_postgres_version,
     option_python,
     option_use_airflow_version,
@@ -113,6 +115,7 @@ DEVELOPER_PARAMETERS = {
                 "--force-build",
                 "--mount-sources",
                 "--debian-version",
+                "--image-tag",
             ],
         },
     ],
@@ -141,6 +144,7 @@ DEVELOPER_PARAMETERS = {
                 "--force-build",
                 "--mount-sources",
                 "--debian-version",
+                "--image-tag",
             ],
         },
     ],
@@ -170,6 +174,7 @@ DEVELOPER_PARAMETERS = {
                 "--package-format",
                 "--force-build",
                 "--mount-sources",
+                "--image-tag",
             ],
         },
     ],
@@ -222,6 +227,7 @@ DEVELOPER_PARAMETERS = {
 @option_verbose
 @option_dry_run
 @option_python
+@option_platform_single
 @option_backend
 @option_debian_version
 @option_github_repository
@@ -238,6 +244,7 @@ DEVELOPER_PARAMETERS = {
 @option_mount_sources
 @option_integration
 @option_db_reset
+@option_image_tag
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
@@ -261,6 +268,8 @@ def shell(
     force_build: bool,
     db_reset: bool,
     answer: Optional[str],
+    image_tag: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment. this is the default command use when no other is selected."""
@@ -289,6 +298,8 @@ def shell(
         extra_args=extra_args,
         answer=answer,
         debian_version=debian_version,
+        image_tag=image_tag,
+        platform=platform,
     )
 
 
@@ -296,6 +307,7 @@ def shell(
 @main.command(name='start-airflow')
 @option_dry_run
 @option_python
+@option_platform_single
 @option_github_repository
 @option_backend
 @option_postgres_version
@@ -312,6 +324,7 @@ def shell(
 @option_installation_package_format
 @option_mount_sources
 @option_integration
+@option_image_tag
 @option_db_reset
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
@@ -335,8 +348,10 @@ def start_airflow(
     use_packages_from_dist: bool,
     package_format: str,
     force_build: bool,
+    image_tag: Optional[str],
     db_reset: bool,
     answer: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
@@ -362,6 +377,8 @@ def start_airflow(
         force_build=force_build,
         db_reset=db_reset,
         start_airflow=True,
+        image_tag=image_tag,
+        platform=platform,
         extra_args=extra_args,
         answer=answer,
     )
@@ -398,7 +415,7 @@ def build_docs(
     """Build documentation in the container."""
     perform_environment_checks(verbose=verbose)
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    rebuild_ci_image_if_needed(build_params=params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=params, dry_run=dry_run, verbose=verbose)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
@@ -581,7 +598,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
     enter_shell_params.include_mypy_volume = True
-    rebuild_ci_image_if_needed(build_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
     return run_shell(verbose, dry_run, enter_shell_params)
 
 
