@@ -30,7 +30,7 @@ with DAG(
     catchup=False,
 ) as dag:
 
-    # [START howto_salesforce_bulk_insert_operator]
+    # [START howto_salesforce_bulk_insert_operation]
     bulk_insert = SalesforceBulkOperator(
         task_id="bulk_insert",
         operation="insert",
@@ -43,9 +43,9 @@ with DAG(
         batch_size=10000,
         use_serial=False,
     )
-    # [END howto_salesforce_bulk_insert_operator]
+    # [END howto_salesforce_bulk_insert_operation]
 
-    # [START howto_salesforce_bulk_update_operator]
+    # [START howto_salesforce_bulk_update_operation]
     bulk_update = SalesforceBulkOperator(
         task_id="bulk_update",
         operation="update",
@@ -57,9 +57,9 @@ with DAG(
         batch_size=10000,
         use_serial=False,
     )
-    # [END howto_salesforce_bulk_update_operator]
+    # [END howto_salesforce_bulk_update_operation]
 
-    # [START howto_salesforce_bulk_upsert_operator]
+    # [START howto_salesforce_bulk_upsert_operation]
     bulk_upsert = SalesforceBulkOperator(
         task_id="bulk_upsert",
         operation="upsert",
@@ -72,9 +72,9 @@ with DAG(
         batch_size=10000,
         use_serial=False,
     )
-    # [END howto_salesforce_bulk_upsert_operator]
+    # [END howto_salesforce_bulk_upsert_operation]
 
-    # [START howto_salesforce_bulk_delete_operator]
+    # [START howto_salesforce_bulk_delete_operation]
     bulk_delete = SalesforceBulkOperator(
         task_id="bulk_delete",
         operation="delete",
@@ -86,7 +86,7 @@ with DAG(
         batch_size=10000,
         use_serial=False,
     )
-    # [END howto_salesforce_bulk_delete_operator]
+    # [END howto_salesforce_bulk_delete_operation]
 
 
 from tests.system.utils import get_test_run  # noqa: E402
