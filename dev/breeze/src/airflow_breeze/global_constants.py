@@ -306,6 +306,7 @@ class GithubEvents(Enum):
     PULL_REQUEST_TARGET = "pull_request_target"
     PUSH = "push"
     SCHEDULE = "schedule"
+    WORKFLOW_RUN = "workflow_run"
 
 
 @lru_cache(maxsize=None)

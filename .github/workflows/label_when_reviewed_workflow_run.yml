@@ -96,7 +96,7 @@ jobs:
         env:
           PR_LABELS: "${{ steps.source-run-info.outputs.pullRequestLabels }}"
           COMMIT_REF: "${{ steps.source-run-info.outputs.targetCommitSha }}"
-        run: breeze selective-check --github-event-name "${{ steps.source-run-info.outputs.targetCommitSha }}"
+        run: breeze selective-check
       - name: "Label when approved by committers for PRs that require full tests"
         uses: ./.github/actions/label-when-approved-action
         id: label-full-test-prs-when-approved-by-commiters
