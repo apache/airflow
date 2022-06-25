@@ -109,18 +109,20 @@ jobs:
         with:
           persist-credentials: false
           submodules: recursive
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          # We do not have output from selective checks yet, so we need to hardcode python
+          python-version: 3.7
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
+      - run: ./scripts/ci/install_breeze.sh
       - name: Selective checks
         id: selective-checks
         env:
-          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
-        run: |
-          if [[ ${GITHUB_EVENT_NAME} == "pull_request_target" ]]; then
-            # Run selective checks
-            ./scripts/ci/selective_ci_checks.sh "${TARGET_COMMIT_SHA}"
-          else
-            # Run all checks
-            ./scripts/ci/selective_ci_checks.sh
-          fi
+          PR_LABELS: "$${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}"
+          COMMIT_REF: "${{ github.sha }}"
+        run: breeze selective-check
       - name: Compute dynamic outputs
         id: dynamic-outputs
         run: |

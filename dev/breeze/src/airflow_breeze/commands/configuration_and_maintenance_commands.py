@@ -28,8 +28,6 @@ from click import Context
 
 from airflow_breeze import NAME, VERSION
 from airflow_breeze.commands.main_command import main
-from airflow_breeze.global_constants import DEFAULT_PYTHON_MAJOR_MINOR_VERSION, MOUNT_ALL
-from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.cache import check_if_cache_exists, delete_cache, touch_cache_file
 from airflow_breeze.utils.common_options import (
     option_answer,
@@ -44,13 +42,7 @@ from airflow_breeze.utils.common_options import (
 )
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
-from airflow_breeze.utils.docker_command_utils import (
-    check_docker_resources,
-    get_env_variables_for_docker_commands,
-    get_extra_docker_flags,
-    perform_environment_checks,
-)
-from airflow_breeze.utils.image import find_available_ci_image
+from airflow_breeze.utils.docker_command_utils import perform_environment_checks
 from airflow_breeze.utils.path_utils import (
     AIRFLOW_SOURCES_ROOT,
     BUILD_CACHE_DIR,
@@ -72,9 +64,6 @@ CONFIGURATION_AND_MAINTENANCE_COMMANDS = {
         "self-upgrade",
         "setup-autocomplete",
         "config",
-        "resource-check",
-        "free-space",
-        "fix-ownership",
         "regenerate-command-images",
         "command-hash-export",
         "version",
@@ -394,31 +383,6 @@ def change_config(
     get_console().print()
 
 
-@main.command(name="free-space", help="Free space for jobs run in CI.")
-@option_verbose
-@option_dry_run
-@option_answer
-def free_space(verbose: bool, dry_run: bool, answer: str):
-    if user_confirm("Are you sure to run free-space and perform cleanup?") == Answer.YES:
-        run_command(["sudo", "swapoff", "-a"], verbose=verbose, dry_run=dry_run)
-        run_command(["sudo", "rm", "-f", "/swapfile"], verbose=verbose, dry_run=dry_run)
-        run_command(["sudo", "apt-get", "clean"], verbose=verbose, dry_run=dry_run, check=False)
-        run_command(
-            ["docker", "system", "prune", "--all", "--force", "--volumes"], verbose=verbose, dry_run=dry_run
-        )
-        run_command(["df", "-h"], verbose=verbose, dry_run=dry_run)
-        run_command(["docker", "logout", "ghcr.io"], verbose=verbose, dry_run=dry_run, check=False)
-
-
-@main.command(name="resource-check", help="Check if available docker resources are enough.")
-@option_verbose
-@option_dry_run
-def resource_check(verbose: bool, dry_run: bool):
-    perform_environment_checks(verbose=verbose)
-    shell_params = ShellParams(verbose=verbose, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
-
-
 def dict_hash(dictionary: Dict[str, Any]) -> str:
     """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
     dhash = hashlib.md5()
@@ -440,32 +404,6 @@ def command_hash_export(verbose: bool, output: IO):
         if verbose:
             get_console().print(the_context_dict)
         output.write(dict_hash(the_context_dict) + "\n")
-
-
-@main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
-@option_github_repository
-@option_verbose
-@option_dry_run
-def fix_ownership(github_repository: str, verbose: bool, dry_run: bool):
-    perform_environment_checks(verbose=verbose)
-    shell_params = find_available_ci_image(github_repository, dry_run, verbose)
-    extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)
-    env = get_env_variables_for_docker_commands(shell_params)
-    cmd = [
-        "docker",
-        "run",
-        "-t",
-        *extra_docker_flags,
-        "--pull",
-        "never",
-        shell_params.airflow_image_name_with_tag,
-        "/opt/airflow/scripts/in_container/run_fix_ownership.sh",
-    ]
-    run_command(
-        cmd, verbose=verbose, dry_run=dry_run, text=True, env=env, check=False, enabled_output_group=True
-    )
-    # Always succeed
-    sys.exit(0)
 
 
 def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, force_setup: bool) -> bool:
