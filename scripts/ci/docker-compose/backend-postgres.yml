@@ -33,6 +33,7 @@ services:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=airflow
       - POSTGRES_DB=airflow
+      - POSTGRES_HOST_AUTH_METHOD=password
     volumes:
       - /dev/urandom:/dev/random   # Required to get non-blocking entropy source
       - postgres-db-volume:/var/lib/postgresql/data
