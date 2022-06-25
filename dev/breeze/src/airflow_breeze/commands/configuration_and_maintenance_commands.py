@@ -330,7 +330,6 @@ def version(verbose: bool):
 @click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet.", default=None)
 @click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart.", default=None)
 @click.option(
-    '-B/-b',
     '--colour/--no-colour',
     help="Enable/disable Colour mode (useful for colour blind-friendly communication).",
     default=None,
