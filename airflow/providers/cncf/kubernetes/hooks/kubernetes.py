@@ -127,6 +127,9 @@ class KubernetesHook(BaseHook):
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
 
+        # Expose whether the hook is configured to use incluster_config or not
+        self.is_in_cluster: Optional[bool] = None
+
         # these params used for transition in KPO to K8s hook
         # for a deprecation period we will continue to consider k8s settings from airflow.cfg
         self._deprecated_core_disable_tcp_keepalive: Optional[bool] = None
@@ -232,8 +235,11 @@ class KubernetesHook(BaseHook):
 
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
+            self.is_in_cluster = True
             config.load_incluster_config()
             return client.ApiClient()
+
+        self.is_in_cluster = False
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
@@ -265,6 +271,7 @@ class KubernetesHook(BaseHook):
         # in the default location
         try:
             config.load_incluster_config(client_configuration=self.client_configuration)
+            self.is_in_cluster = True
         except ConfigException:
             self.log.debug("loading kube_config from: default file")
             config.load_kube_config(

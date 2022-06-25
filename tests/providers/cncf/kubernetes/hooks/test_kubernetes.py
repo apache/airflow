@@ -97,6 +97,7 @@ class TestKubernetesHook:
         Hook param should beat extra.
         """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, in_cluster=in_cluster_param)
+        assert kubernetes_hook.is_in_cluster is None
         mock_get_default_client.return_value = kubernetes.client.api_client.ApiClient()
         api_conn = kubernetes_hook.get_conn()
         if in_cluster_called:
@@ -106,6 +107,7 @@ class TestKubernetesHook:
         else:
             mock_get_default_client.assert_called()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        assert kubernetes_hook.is_in_cluster is in_cluster_called
 
     @pytest.mark.parametrize('in_cluster_fails', [True, False])
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
@@ -130,10 +132,12 @@ class TestKubernetesHook:
             mock_incluster.assert_called_once()
             mock_merger.assert_called_once_with(KUBE_CONFIG_PATH)
             mock_loader.assert_called_once()
+            # Don't check is_in_cluster is false, as it's set in the caller, not here
         else:
             mock_incluster.assert_called_once()
             mock_merger.assert_not_called()
             mock_loader.assert_not_called()
+            assert kubernetes_hook.is_in_cluster is True
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(

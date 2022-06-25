@@ -330,6 +330,11 @@ class KubernetesPodOperator(BaseOperator):
         return PodManager(kube_client=self.client)
 
     def get_hook(self):
+        warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
+        return self.hook
+
+    @cached_property
+    def hook(self) -> KubernetesHook:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
@@ -341,8 +346,7 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def client(self) -> CoreV1Api:
-        hook = self.get_hook()
-        return hook.core_v1_client
+        return self.hook.core_v1_client
 
     def find_pod(self, namespace, context, *, exclude_checked=True) -> Optional[k8s.V1Pod]:
         """Returns an already-running pod for this task instance if one exists."""
@@ -568,10 +572,18 @@ class KubernetesPodOperator(BaseOperator):
         pod.metadata.labels.update(
             {
                 'airflow_version': airflow_version.replace('+', '-'),
+                'airflow_kpo_in_cluster': str(self._is_in_cluster),
             }
         )
         pod_mutation_hook(pod)
         return pod
+
+    @cached_property
+    def _is_in_cluster(self) -> bool:
+        # run get_conn so we can determine if we are in_cluster or not
+        self.hook.get_conn()
+        assert self.hook.is_in_cluster is not None
+        return self.hook.is_in_cluster
 
     def dry_run(self) -> None:
         """
