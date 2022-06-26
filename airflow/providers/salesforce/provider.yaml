@@ -36,8 +36,11 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - simple-salesforce>=1.0.0
+  - tableauserverclient
+  - pandas>=0.17.1
 
 integrations:
   - integration-name: Salesforce

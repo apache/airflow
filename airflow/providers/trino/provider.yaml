@@ -33,8 +33,10 @@ versions:
   - 2.0.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - pandas>=0.17.1
+  - trino>=0.301.0
 
 integrations:
   - integration-name: Trino

@@ -31,8 +31,13 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  # Redis 4 introduced a number of changes that likely need testing including mixins in redis commands
+  # as well as unquoting URLS with `urllib.parse.unquote`:
+  # https://github.com/redis/redis-py/blob/master/CHANGES
+  # TODO: upgrade to support redis package >=4
+  - redis~=3.2
 
 integrations:
   - integration-name: Redis

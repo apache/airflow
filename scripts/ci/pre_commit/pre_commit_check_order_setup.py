@@ -142,7 +142,6 @@ if __name__ == '__main__':
         file_contents = setup_file.read()
     check_main_dependent_group(file_contents)
     check_alias_dependent_group(file_contents)
-    check_variable_order("PROVIDERS_REQUIREMENTS")
     check_variable_order("CORE_EXTRAS_REQUIREMENTS")
     check_variable_order("ADDITIONAL_EXTRAS_REQUIREMENTS")
     check_variable_order("EXTRAS_DEPRECATED_ALIASES")

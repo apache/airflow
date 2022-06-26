@@ -35,8 +35,9 @@ versions:
   - 2.0.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - tableauserverclient
 
 integrations:
   - integration-name: Tableau

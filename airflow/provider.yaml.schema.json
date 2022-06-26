@@ -21,8 +21,8 @@
         "type": "string"
       }
     },
-    "additional-dependencies": {
-      "description": "Additional dependencies that should be added to the provider",
+    "dependencies": {
+      "description": "Dependencies that should be added to the provider",
       "type": "array",
       "items": {
         "type": "string"
@@ -219,9 +219,12 @@
                   "description": "Hook class name that implements the connection type",
                   "type": "string"
               }
-          }
-      },
-      "required": ["connection-type", "hook-class-name"]
+          },
+          "required": [
+              "connection-type",
+              "hook-class-name"
+          ]
+      }
     },
     "extra-links": {
       "type": "array",
@@ -231,8 +234,26 @@
       }
     },
     "additional-extras": {
-      "type": "object",
-      "description": "Additional extras that the provider should have"
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "description": "Name of the extra",
+            "type": "string"
+          },
+          "extras": {
+            "description": "Requirements that should be added for the extra",
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [ "name", "extras"]
+      },
+
+      "description": "Additional extras that the provider should have. Replaces extras that match the same previf"
     },
     "task-decorators": {
         "type": "array",
@@ -273,6 +294,7 @@
     "name",
     "package-name",
     "description",
+    "dependencies",
     "versions"
   ]
 }

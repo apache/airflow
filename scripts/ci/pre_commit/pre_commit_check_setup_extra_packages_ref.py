@@ -41,7 +41,6 @@ from setup import (  # noqa # isort:skip
     add_all_provider_packages,
     EXTRAS_DEPRECATED_ALIASES,
     EXTRAS_REQUIREMENTS,
-    PROVIDERS_REQUIREMENTS,
     PREINSTALLED_PROVIDERS,
 )
 
@@ -125,8 +124,7 @@ def check_extras(console: Console) -> bool:
             f"""\
 [red bold]ERROR!![/red bold]
 
-The "[bold]CORE_EXTRAS_REQUIREMENTS[/bold]", "[bold]ADDITIONAL_PROVIDERS_REQUIREMENTS[/bold]", and
-    "[bold]PROVIDERS_REQUIREMENTS[/bold]"
+The "[bold]CORE_EXTRAS_REQUIREMENTS[/bold]"
 sections in the setup file: [bold yellow]{SETUP_PY_FILE}[/bold yellow]
 should be synchronized with the "Extra Packages Reference"
 in the documentation file: [bold yellow]{DOCS_FILE}[/bold yellow].
