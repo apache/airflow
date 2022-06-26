@@ -1202,6 +1202,9 @@ flower:
   #Labels specific to flower app
   labels: {}
 
+  #Labels specific to flower app
+  labels: {}
+
   # Command to use when running flower (templated).
   command: ~
   # Args to use when running flower (templated).

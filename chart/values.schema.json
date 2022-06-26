@@ -3863,7 +3863,6 @@
                     "x-docsSection": "Common",
                     "default": false
                 },
-<<<<<<< HEAD
                 "revisionHistoryLimit": {
                     "description": "Number of old replicasets to retain.",
                     "type": [
@@ -3872,7 +3871,7 @@
                     ],
                     "default": null,
                     "x-docsSection": null
-=======
+		},
                 "labels": {
                     "description": "labels to add to pgbouncer pods.",
                     "type": "object",
@@ -3880,7 +3879,6 @@
                     "additionalProperties": {
                         "type": "string"
                     }
->>>>>>> added component specific labels
                 },
                 "command": {
                     "description": "Command to use for PgBouncer (templated).",
