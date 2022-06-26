@@ -436,6 +436,8 @@ kerberos:
 
 # Airflow Worker Config
 workers:
+  # Labels specific to workers
+  labels: {}
   # Number of airflow celery workers in StatefulSet
   replicas: 1
   # Max number of old replicasets to retain
@@ -603,6 +605,8 @@ workers:
 
 # Airflow scheduler settings
 scheduler:
+  # Label Specific to scheduler app
+  labels: {}
   # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
   # scheduler and let Kubernetes restart it
   livenessProbe:
@@ -717,6 +721,8 @@ scheduler:
 
 # Airflow create user job settings
 createUserJob:
+  # Labels specific to createUserJob
+  labels: {}
   # Command to use when running the create user job (templated).
   command: ~
   # Args to use when running the create user job (templated).
@@ -789,6 +795,8 @@ createUserJob:
 # Airflow database migration job settings
 migrateDatabaseJob:
   enabled: true
+  # Labels specific to MigrateDatabase Job
+  labels: {}
   # Command to use when running the migrate database job (templated).
   command: ~
   # Args to use when running the migrate database job (templated).
@@ -847,6 +855,9 @@ migrateDatabaseJob:
 
 # Airflow webserver settings
 webserver:
+  # Labels specific webserver app
+  labels: {}
+
   allowPodLogReading: true
   livenessProbe:
     initialDelaySeconds: 15
@@ -997,6 +1008,8 @@ webserver:
 # Airflow Triggerer Config
 triggerer:
   enabled: true
+  # Lbels specific to triggerer app
+  labels: {}
   # Number of airflow triggerers in the deployment
   replicas: 1
   # Max number of old replicasets to retain
@@ -1186,6 +1199,9 @@ flower:
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 
+  #Labels specific to flower app
+  labels: {}
+
   # Command to use when running flower (templated).
   command: ~
   # Args to use when running flower (templated).
@@ -1279,6 +1295,8 @@ statsd:
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
 
+  # Labels specific to statsd  app
+  labels: {}
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1327,6 +1345,8 @@ pgbouncer:
   enabled: false
   # Max number of old replicasets to retain
   revisionHistoryLimit: ~
+  # Labels specific to pgbouncer
+  labels: {}
   # Command to use for PgBouncer(templated).
   command: ["pgbouncer", "-u", "nobody", "/etc/pgbouncer/pgbouncer.ini"]
   # Args to use for PgBouncer(templated).
@@ -1446,6 +1466,8 @@ redis:
   enabled: true
   terminationGracePeriodSeconds: 600
 
+  # Labels specific to redis app
+  labels: {}
   # Create ServiceAccount
   serviceAccount:
     # Specifies whether a ServiceAccount should be created
@@ -1549,6 +1571,8 @@ limits: []
 # This runs as a CronJob to cleanup old pods.
 cleanup:
   enabled: false
+  # Labels specific to cleanup
+  labels: {}
   # Run every 15 minutes
   schedule: "*/15 * * * *"
   # Command to use when running the cleanup cronjob (templated).
