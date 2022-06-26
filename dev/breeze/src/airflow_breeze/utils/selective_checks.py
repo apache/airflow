@@ -96,6 +96,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^scripts",
             r"^setup.py",
             r"^setup.cfg",
+            r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.PYTHON_PRODUCTION_FILES: [
             r"^airflow/.*\.py",
@@ -119,6 +120,7 @@ CI_FILE_GROUP_MATCHES = HashableDict(
             r"^pyproject.toml",
             r"^setup.cfg",
             r"^setup.py",
+            r"^generated/provider_dependencies.json$",
         ],
         FileGroupForCi.DOC_FILES: [
             r"^docs",
