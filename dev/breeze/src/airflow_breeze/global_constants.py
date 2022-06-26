@@ -304,6 +304,7 @@ class GithubEvents(Enum):
     PULL_REQUEST = "pull_request"
     PULL_REQUEST_REVIEW = "pull_request_review"
     PULL_REQUEST_TARGET = "pull_request_target"
+    PULL_REQUEST_WORKFLOW = "pull_request_workflow"
     PUSH = "push"
     SCHEDULE = "schedule"
     WORKFLOW_RUN = "workflow_run"
