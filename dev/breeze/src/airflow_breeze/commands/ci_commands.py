@@ -205,7 +205,7 @@ def selective_check(
     from airflow_breeze.utils.selective_checks import SelectiveChecks
 
     github_event = GithubEvents(github_event_name)
-    if github_event == GithubEvents.PULL_REQUEST:
+    if commit_ref is not None:
         changed_files = get_changed_files(commit_ref=commit_ref, dry_run=dry_run, verbose=verbose)
     else:
         changed_files = ()

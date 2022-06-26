@@ -298,7 +298,7 @@ def test_expected_output_full_tests_needed(
                 "upgrade-to-newer-dependencies": "false",
                 "test-types": "",
             },
-            id="Everything should run when full tests are needed even if no files are changed",
+            id="Nothing should run if only non-important files changed",
         ),
         pytest.param(
             (
@@ -367,6 +367,76 @@ def test_expected_output_pull_request_v2_3(
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=(),
         default_branch="v2-3-stable",
+    )
+    assert_outputs_are_printed(expected_outputs, str(sc))
+
+
+@pytest.mark.parametrize(
+    "files, expected_outputs,",
+    [
+        pytest.param(
+            ("INTHEWILD.md",),
+            {
+                "all-python-versions": "['3.7']",
+                "all-python-versions-list-as-string": "3.7",
+                "image-build": "false",
+                "needs-helm-tests": "false",
+                "run-tests": "false",
+                "docs-build": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "test-types": "",
+            },
+            id="Nothing should run if only non-important files changed",
+        ),
+        pytest.param(
+            (
+                "airflow/cli/test.py",
+                "chart/aaaa.txt",
+                "tests/providers/google/file.py",
+            ),
+            {
+                "all-python-versions": "['3.7']",
+                "all-python-versions-list-as-string": "3.7",
+                "image-build": "true",
+                "needs-helm-tests": "true",
+                "run-tests": "true",
+                "docs-build": "true",
+                "run-kubernetes-tests": "true",
+                "upgrade-to-newer-dependencies": "false",
+                "test-types": "Always CLI",
+            },
+            id="CLI tests and Kubernetes tests should run if cli/chart files changed",
+        ),
+        pytest.param(
+            (
+                "airflow/file.py",
+                "tests/providers/google/file.py",
+            ),
+            {
+                "all-python-versions": "['3.7']",
+                "all-python-versions-list-as-string": "3.7",
+                "image-build": "true",
+                "needs-helm-tests": "false",
+                "run-tests": "true",
+                "docs-build": "true",
+                "run-kubernetes-tests": "false",
+                "upgrade-to-newer-dependencies": "false",
+                "test-types": "API Always CLI Core Integration Other Providers WWW",
+            },
+            id="All tests except should run if core file changed",
+        ),
+    ],
+)
+def test_expected_output_pull_request_target(
+    files: Tuple[str, ...],
+    expected_outputs: Dict[str, str],
+):
+    sc = SelectiveChecks(
+        files=files,
+        commit_ref="HEAD",
+        github_event=GithubEvents.PULL_REQUEST_TARGET,
+        pr_labels=(),
+        default_branch="main",
     )
     assert_outputs_are_printed(expected_outputs, str(sc))
 
@@ -441,11 +511,21 @@ def test_expected_output_push(
     assert_outputs_are_printed(expected_outputs, str(sc))
 
 
-def test_no_commit_provided():
+@pytest.mark.parametrize(
+    "github_event",
+    [
+        GithubEvents.PUSH,
+        GithubEvents.PULL_REQUEST,
+        GithubEvents.PULL_REQUEST_TARGET,
+        GithubEvents.PULL_REQUEST_WORKFLOW,
+        GithubEvents.SCHEDULE,
+    ],
+)
+def test_no_commit_provided_trigger_full_build_for_any_event_type(github_event):
     sc = SelectiveChecks(
         files=(),
         commit_ref="",
-        github_event=GithubEvents.PULL_REQUEST,
+        github_event=github_event,
         pr_labels=(),
         default_branch="main",
     )
@@ -457,7 +537,9 @@ def test_no_commit_provided():
             "needs-helm-tests": "true",
             "run-tests": "true",
             "docs-build": "true",
-            "upgrade-to-newer-dependencies": "false",
+            "upgrade-to-newer-dependencies": "true"
+            if github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+            else "false",
             "test-types": "API Always CLI Core Integration Other Providers WWW",
         },
         str(sc),
