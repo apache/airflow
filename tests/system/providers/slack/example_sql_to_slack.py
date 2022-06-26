@@ -41,7 +41,7 @@ with models.DAG(
     SqlToSlackOperator(
         task_id="presto_to_slack",
         sql_conn_id=SQL_CONN_ID,
-        sql=f"SELECT col FROM {PRESTO_TABLE}",
+        sql=f"SELECT col FROM {SQL_TABLE}",
         slack_channel="my_channel",
         slack_conn_id='slack_default',
         slack_message="message: {{ ds }}, {{ results_df }}",
