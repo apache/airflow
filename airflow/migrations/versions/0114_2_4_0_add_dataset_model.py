@@ -29,6 +29,7 @@ from alembic import op
 from sqlalchemy import Integer, String, func
 
 from airflow.migrations.db_types import TIMESTAMP
+from airflow.utils.sqlalchemy import ExtendedJSON
 
 revision = '0038cd0c28b4'
 down_revision = '44b7034f6bdc'
@@ -55,6 +56,7 @@ def upgrade():
             ),
             nullable=False,
         ),
+        sa.Column('extra', ExtendedJSON, nullable=True),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
