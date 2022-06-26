@@ -125,7 +125,7 @@ class S3ToSnowflakeOperator(BaseOperator):
             f"FROM @{self.stage}/{self.prefix or ''}",
         ]
         if self.s3_keys:
-            files = ", ".join(f"'{key}'" for key in self.s3_keys)
+            files = ", ".join(map(enclose_param, self.s3_keys))
             sql_parts.append(f"files=({files})")
         sql_parts.append(f"file_format={self.file_format}")
         if self.pattern:

@@ -69,3 +69,26 @@ class TestS3ToSnowflakeTransfer:
 
         mock_run.assert_called_once()
         assert mock_run.call_args[0][0] == copy_query
+
+    @pytest.mark.parametrize("pattern", [None, '.*[.]csv'])
+    @pytest.mark.parametrize("files", [None, ["foo.csv", "bar.json", "spam.parquet", "egg.xml"]])
+    @mock.patch("airflow.providers.snowflake.transfers.s3_to_snowflake.enclose_param")
+    def test_escaping_in_operator(self, mock_enclose_fn, files, pattern):
+        mock_enclose_fn.return_value = "mock"
+        with mock.patch("airflow.providers.snowflake.hooks.snowflake.SnowflakeHook.run"):
+            S3ToSnowflakeOperator(
+                s3_keys=files,
+                table="mock",
+                stage="mock",
+                prefix="mock",
+                file_format="mock",
+                pattern=pattern,
+                task_id="task_id",
+                dag=None,
+            ).execute(None)
+
+            for file in files or []:
+                assert mock.call(file) in mock_enclose_fn.call_args_list
+
+            if pattern:
+                assert mock.call(pattern) in mock_enclose_fn.call_args_list
