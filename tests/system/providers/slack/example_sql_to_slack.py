@@ -25,7 +25,7 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
-PRESTO_TABLE = os.environ.get("PRESTO_TABLE", "test_table")
+SQL_TABLE = os.environ.get("SQL_TABLE", "test_table")
 SQL_CONN_ID = 'presto_default'
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_sql_to_slack"
