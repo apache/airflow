@@ -83,7 +83,7 @@ class DAGSchema(SQLAlchemySchema):
     @staticmethod
     def get_token(obj: DagModel):
         """Return file token"""
-        serializer = URLSafeSerializer(conf.get('webserver', 'secret_key'))
+        serializer = URLSafeSerializer(conf.get_mandatory_value('webserver', 'secret_key'))
         return serializer.dumps(obj.fileloc)
 
 

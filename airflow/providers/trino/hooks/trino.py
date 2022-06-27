@@ -93,6 +93,7 @@ class TrinoHook(DbApiHook):
     default_conn_name = 'trino_default'
     conn_type = 'trino'
     hook_name = 'Trino'
+    query_id = ''
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
@@ -301,6 +302,7 @@ class TrinoHook(DbApiHook):
                 results = []
                 for sql_statement in sql:
                     self._run_command(cur, self._strip_sql(sql_statement), parameters)
+                    self.query_id = cur.stats["queryId"]
                     if handler is not None:
                         result = handler(cur)
                         results.append(result)
@@ -348,3 +350,19 @@ class TrinoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every, replace)
+
+    def test_connection(self):
+        """Tests the connection from UI using Trino specific query"""
+        status, message = False, ''
+        try:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.execute("select 1")
+                    if cur.fetchone():
+                        status = True
+                        message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message
