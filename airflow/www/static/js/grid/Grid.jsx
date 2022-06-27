@@ -79,6 +79,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
   return (
     <Box
       minWidth={isPanelOpen && '350px'}
+      flexGrow={!isPanelOpen && 1}
       m={3}
       mt={0}
     >
