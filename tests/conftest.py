@@ -194,9 +194,11 @@ def pytest_addoption(parser):
 
 def initial_db_init():
     from airflow.utils import db
+    from airflow.www.app import create_app
 
     db.resetdb()
     db.bootstrap_dagbag()
+    create_app(config={'UPDATE_FAB_PERMS': True})
 
 
 @pytest.fixture(autouse=True, scope="session")
