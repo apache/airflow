@@ -49,9 +49,11 @@ class SqlToSlackOperator(BaseOperator):
         SQL results
     :param sql_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
+    :param sql_hook_params: Extra config params to be passed to the underlying hook.
+           Should match the desired hook constructor params.
     :param slack_conn_id: The connection id for Slack. Mutually exclusive with 'slack_webhook_token'
     :param slack_webhook_token: The token to use to authenticate to Slack. If this is not provided, the
-        'slack_conn_id' attribute needs to be specified in the 'Extra' JSON field.
+        'slack_conn_id' attribute needs to be specified in the 'password' field.
          Mutually exclusive with 'slack_conn_id'.
     :param slack_channel: The channel to send message. Override default from Slack connection.
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
@@ -68,6 +70,7 @@ class SqlToSlackOperator(BaseOperator):
         *,
         sql: str,
         sql_conn_id: str,
+        sql_hook_params: Optional[dict] = None,
         slack_conn_id: Optional[str] = None,
         slack_webhook_token: Optional[str] = None,
         slack_channel: Optional[str] = None,
@@ -80,6 +83,7 @@ class SqlToSlackOperator(BaseOperator):
         super().__init__(**kwargs)
 
         self.sql_conn_id = sql_conn_id
+        self.sql_hook_params = sql_hook_params
         self.sql = sql
         self.parameters = parameters
         self.slack_conn_id = slack_conn_id
@@ -100,7 +104,7 @@ class SqlToSlackOperator(BaseOperator):
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
-        hook = conn.get_hook(hook_params=self.kwargs)
+        hook = conn.get_hook(hook_params=self.sql_hook_params)
         if not callable(getattr(hook, 'get_pandas_df', None)):
             raise AirflowException(
                 "This hook is not supported. The hook class must have get_pandas_df method."

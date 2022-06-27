@@ -17,9 +17,9 @@
 
 from unittest import mock
 
-from airflow.models import DAG
+from airflow.models import DAG, Connection
 from airflow.providers.presto.transfers.presto_to_slack import PrestoToSlackOperator
-from airflow.utils import timezone
+from airflow.utils import db, timezone
 from tests.test_utils.db import clear_db_runs
 
 TEST_DAG_ID = 'presto_to_slack_unit_test'
@@ -43,6 +43,14 @@ class TestPrestoToSlackOperator:
 
     @mock.patch('airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook')
     def test_hooks_and_rendering_with_slack_conn(self, mock_slack_hook_class):
+        db.merge_conn(
+            Connection(
+                conn_id='slack_connection',
+                conn_type='slackwebhook',
+                extra='{"webhook_token": "your_token_here"}',
+            )
+        )
+
         operator_args = {
             'presto_conn_id': 'presto_connection',
             'slack_conn_id': 'slack_connection',
@@ -95,6 +103,43 @@ class TestPrestoToSlackOperator:
             message='message: 2022-01-01, 1234',
             webhook_token='test_token',
             channel='my_channel',
+        )
+
+        slack_webhook_hook.execute.assert_called_once()
+
+    @mock.patch('airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook')
+    def test_hooks_and_rendering_with_slack_conn_and_webhook(self, mock_slack_hook_class):
+        db.merge_conn(
+            Connection(
+                conn_id='slack_connection',
+                conn_type='slackwebhook',
+                extra='{"webhook_token": "your_token_here"}',
+            )
+        )
+
+        operator_args = {
+            'presto_conn_id': 'presto_connection',
+            'slack_conn_id': 'slack_connection',
+            'slack_token': 'test_token',
+            'sql': "sql {{ ds }}",
+            'results_df_name': 'xxxx',
+            'parameters': ['1', '2', '3'],
+            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
+            'slack_channel': 'my_channel',
+            'dag': self.example_dag,
+        }
+        presto_to_slack_operator = self._construct_operator(**operator_args)
+        mock_dbapi_hook = mock.Mock()
+        presto_to_slack_operator._get_hook = mock_dbapi_hook
+
+        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
+        get_pandas_df_mock.return_value = '1234'
+
+        slack_webhook_hook = mock_slack_hook_class.return_value
+        presto_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        mock_slack_hook_class.assert_called_once_with(
+            http_conn_id='slack_connection', message='message: 2022-01-01, 1234', channel='my_channel'
         )
 
         slack_webhook_hook.execute.assert_called_once()

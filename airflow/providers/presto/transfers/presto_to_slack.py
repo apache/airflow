@@ -15,14 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import logging
 import warnings
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Mapping, Optional, Sequence, Union
 
-from airflow.exceptions import AirflowException
+from airflow.exceptions import AirflowNotFoundException
+from airflow.hooks.base import BaseHook
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
-if TYPE_CHECKING:
-    pass
+log = logging.getLogger(__name__)
 
 
 class PrestoToSlackOperator(SqlToSlackOperator):
@@ -63,14 +64,13 @@ class PrestoToSlackOperator(SqlToSlackOperator):
         sql: str,
         slack_message: str,
         presto_conn_id: str = 'presto_default',
-        slack_conn_id: Optional[str] = None,
+        slack_conn_id: str = 'slack_default',
         results_df_name: str = 'results_df',
         parameters: Optional[Union[Iterable, Mapping]] = None,
         slack_token: Optional[str] = None,
         slack_channel: Optional[str] = None,
         **kwargs,
     ) -> None:
-
         self.presto_conn_id = presto_conn_id
         self.sql = sql
         self.parameters = parameters
@@ -89,15 +89,30 @@ class PrestoToSlackOperator(SqlToSlackOperator):
             stacklevel=2,
         )
 
-
-        super().__init__(
-            sql=self.sql,
-            sql_conn_id=self.presto_conn_id,
-            slack_conn_id=self.slack_conn_id,
-            slack_webhook_token=self.slack_token,
-            slack_message=self.slack_message,
-            slack_channel=self.slack_channel,
-            results_df_name=self.results_df_name,
-            parameters=self.parameters,
-            **kwargs,
-        )
+        try:
+            # Passing the connection in case it exists
+            BaseHook.get_connection(self.slack_conn_id)
+            super().__init__(
+                sql=self.sql,
+                sql_conn_id=self.presto_conn_id,
+                slack_conn_id=self.slack_conn_id,
+                slack_webhook_token=None,
+                slack_message=self.slack_message,
+                slack_channel=self.slack_channel,
+                results_df_name=self.results_df_name,
+                parameters=self.parameters,
+                **kwargs,
+            )
+        except AirflowNotFoundException:
+            log.info(f"Didn't find the Slack connection {self.slack_conn_id}. Using the webhook instead")
+            super().__init__(
+                sql=self.sql,
+                sql_conn_id=self.presto_conn_id,
+                slack_conn_id=None,
+                slack_webhook_token=self.slack_token,
+                slack_message=self.slack_message,
+                slack_channel=self.slack_channel,
+                results_df_name=self.results_df_name,
+                parameters=self.parameters,
+                **kwargs,
+            )

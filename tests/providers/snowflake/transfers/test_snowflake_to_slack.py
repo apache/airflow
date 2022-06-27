@@ -60,9 +60,6 @@ class TestSnowflakeToSlackOperator:
         }
         snowflake_to_slack_operator = self._construct_operator(**operator_args)
 
-        # snowflake_hook = mock_snowflake_hook_class.return_value
-        # snowflake_hook.get_pandas_df.return_value = '1234'
-        # slack_webhook_hook = mock_slack_hook_class.return_value
         mock_dbapi_hook = mock.Mock()
         snowflake_to_slack_operator._get_hook = mock_dbapi_hook
 
@@ -71,23 +68,64 @@ class TestSnowflakeToSlackOperator:
 
         snowflake_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-        # Test that the Snowflake hook is instantiated with the right parameters
-        # mock_snowflake_hook_class.assert_called_once_with(
-        #     database='test_database',
-        #     role='test_role',
-        #     schema='test_schema',
-        #     snowflake_conn_id='snowflake_connection',
-        #     warehouse='test_warehouse',
-        # )
-
-        # Test that the get_pandas_df method is executed on the Snowflake hook with the pre-rendered sql and
-        # correct params
-        # snowflake_hook.get_pandas_df.assert_called_once_with('sql 2017-01-01', parameters=['1', '2', '3'])
-
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
             message='message: 2017-01-01, 1234', webhook_token='test_token', channel=None
         )
 
-        # Test that the Slack hook's execute method gets run once
-        # slack_webhook_hook.execute.assert_called_once()
+    def test_hook_params_building(self):
+        hook_params = {
+            'schema': 'test_schema',
+            'role': 'test_role',
+            'database': 'test_database',
+            'warehouse': 'test_warehouse',
+        }
+        operator_args = {
+            'snowflake_conn_id': 'snowflake_connection',
+            'sql': "sql {{ ds }}",
+            'results_df_name': 'xxxx',
+            'warehouse': hook_params['warehouse'],
+            'database': hook_params['database'],
+            'role': hook_params['role'],
+            'schema': hook_params['schema'],
+            'parameters': ['1', '2', '3'],
+            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
+            'slack_token': 'test_token',
+            'dag': self.example_dag,
+        }
+        snowflake_operator = self._construct_operator(**operator_args)
+
+        assert snowflake_operator.sql_hook_params == hook_params
+
+    def test_partial_hook_params_building(self):
+        hook_params = {'role': 'test_role', 'database': 'test_database', 'warehouse': 'test_warehouse'}
+        operator_args = {
+            'snowflake_conn_id': 'snowflake_connection',
+            'sql': "sql {{ ds }}",
+            'results_df_name': 'xxxx',
+            'warehouse': hook_params['warehouse'],
+            'database': hook_params['database'],
+            'role': hook_params['role'],
+            'schema': None,
+            'parameters': ['1', '2', '3'],
+            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
+            'slack_token': 'test_token',
+            'dag': self.example_dag,
+        }
+        snowflake_operator = self._construct_operator(**operator_args)
+
+        assert snowflake_operator.sql_hook_params == hook_params
+
+    def test_no_hook_params_building(self):
+        operator_args = {
+            'snowflake_conn_id': 'snowflake_connection',
+            'sql': "sql {{ ds }}",
+            'results_df_name': 'xxxx',
+            'parameters': ['1', '2', '3'],
+            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
+            'slack_token': 'test_token',
+            'dag': self.example_dag,
+        }
+        snowflake_operator = self._construct_operator(**operator_args)
+
+        assert snowflake_operator.sql_hook_params == {}

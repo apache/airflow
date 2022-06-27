@@ -16,13 +16,9 @@
 # under the License.
 
 import warnings
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Mapping, Optional, Sequence, Union
 
-from airflow.exceptions import AirflowException
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
-
-if TYPE_CHECKING:
-    pass
 
 
 class SnowflakeToSlackOperator(SqlToSlackOperator):
@@ -77,7 +73,6 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         slack_token: Optional[str] = None,
         **kwargs,
     ) -> None:
-
         self.snowflake_conn_id = snowflake_conn_id
         self.sql = sql
         self.parameters = parameters
@@ -99,6 +94,14 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
             stacklevel=2,
         )
 
+        hook_params = {
+            "schema": self.schema,
+            "role": self.role,
+            "database": self.database,
+            "warehouse": self.warehouse,
+        }
+        cleaned_hook_params = {k: v for k, v in hook_params.items() if v is not None}
+
         super().__init__(
             sql=self.sql,
             sql_conn_id=self.snowflake_conn_id,
@@ -107,9 +110,6 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
             slack_message=self.slack_message,
             results_df_name=self.results_df_name,
             parameters=self.parameters,
-            role=self.role,
-            warehouse=self.warehouse,
-            schema=self.schema,
-            database=self.database,
+            sql_hook_params=cleaned_hook_params,
             **kwargs,
         )
