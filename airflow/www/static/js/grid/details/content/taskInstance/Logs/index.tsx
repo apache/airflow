@@ -28,10 +28,7 @@ import {
   Code,
   Button,
   Checkbox,
-  Select,
 } from '@chakra-ui/react';
-
-import { Select as MultiSelect } from 'chakra-react-select';
 
 import { getMetaValue } from '../../../../../utils';
 import LogLink from './LogLink';
@@ -40,6 +37,18 @@ import LinkButton from '../../../../components/LinkButton';
 import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
 import { useTimezone } from '../../../../context/timezone';
 import type { Dag, DagRun, TaskInstance } from '../../../../types';
+import MultiSelect from '../../../../components/MultiSelect';
+
+interface LogLevelOption {
+  label: LogLevel;
+  value: LogLevel;
+  color: string;
+}
+
+interface FileSourceOption {
+  label: string;
+  value: string;
+}
 
 const showExternalLogRedirect = getMetaValue('show_external_log_redirect') === 'True';
 const externalLogName = getMetaValue('external_log_name');
@@ -63,12 +72,6 @@ const getLinkIndexes = (tryNumber: number | undefined): Array<Array<number>> => 
 
   return [internalIndexes, externalIndexes];
 };
-
-interface LogLevelOption {
-  label: LogLevel;
-  value: LogLevel;
-  color: string;
-}
 
 const logLevelOptions: Array<LogLevelOption> = Object.values(LogLevel).map(
   (value): LogLevelOption => ({
@@ -96,7 +99,7 @@ const Logs = ({
   const [shouldRequestFullContent, setShouldRequestFullContent] = useState(false);
   const [wrap, setWrap] = useState(false);
   const [logLevelFilters, setLogLevelFilters] = useState<Array<LogLevelOption>>([]);
-  const [fileSourceFilter, setFileSourceFilter] = useState('');
+  const [fileSourceFilters, setFileSourceFilters] = useState<Array<FileSourceOption>>([]);
   const { timezone } = useTimezone();
   const { data, isSuccess } = useTaskLog({
     dagId,
@@ -124,170 +127,161 @@ const Logs = ({
       data,
       timezone,
       logLevelFilters.map((option) => option.value),
-      fileSourceFilter,
+      fileSourceFilters.map((option) => option.value),
     ),
-    [data, fileSourceFilter, logLevelFilters, timezone],
+    [data, fileSourceFilters, logLevelFilters, timezone],
   );
 
   useEffect(() => {
-    // Reset fileSourceFilter and selected attempt when changing to
+    // Reset fileSourceFilters and selected attempt when changing to
     // a task that do not have those filters anymore.
     if (!internalIndexes.includes(selectedAttempt)) {
       setSelectedAttempt(internalIndexes[0]);
     }
-    if (fileSourceFilter && !fileSources.includes(fileSourceFilter)) {
-      setFileSourceFilter('');
+
+    if (data && fileSourceFilters.length > 0
+      && fileSourceFilters.reduce(
+        (isSourceMissing, option) => (isSourceMissing || !fileSources.includes(option.value)),
+        false,
+      )) {
+      setFileSourceFilters([]);
     }
-  }, [data, internalIndexes, fileSourceFilter, fileSources, selectedAttempt]);
+  }, [data, internalIndexes, fileSourceFilters, fileSources, selectedAttempt]);
 
   return (
     <>
       {tryNumber! > 0 && (
-      <>
-        <Text as="span"> (by attempts)</Text>
-        <Flex my={1} justifyContent="space-between">
-          <Flex flexWrap="wrap">
-            {internalIndexes.map((index) => (
-              <Button
-                key={index}
-                variant="ghost"
-                colorScheme="blue"
-                onClick={() => setSelectedAttempt(index)}
-                data-testid={`log-attempt-select-button-${index}`}
-              >
-                {index}
-              </Button>
-            ))}
+        <>
+          <Text as="span"> (by attempts)</Text>
+          <Flex my={1} justifyContent="space-between">
+            <Flex flexWrap="wrap">
+              {internalIndexes.map((index) => (
+                <Button
+                  key={index}
+                  variant="ghost"
+                  colorScheme="blue"
+                  onClick={() => setSelectedAttempt(index)}
+                  data-testid={`log-attempt-select-button-${index}`}
+                >
+                  {index}
+                </Button>
+              ))}
+            </Flex>
           </Flex>
-        </Flex>
-        <Flex my={1} justifyContent="space-between">
-          <Flex alignItems="center">
-            <Box w="250px" mr={2}>
-              <MultiSelect
-                size="sm"
-                isMulti
-                options={logLevelOptions}
-                placeholder="All Levels"
-                value={logLevelFilters}
-                onChange={(options) => setLogLevelFilters([...options])}
-                selectedOptionStyle="check"
-                chakraStyles={{
-                  dropdownIndicator: (provided) => ({
-                    ...provided,
-                    bg: 'transparent',
-                    px: 2,
-                    cursor: 'inherit',
-                  }),
-                  indicatorSeparator: (provided) => ({
-                    ...provided,
-                    display: 'none',
-                  }),
-                  multiValue: (provided, ...rest) => ({
-                    ...provided,
-                    backgroundColor: rest[0].data.color,
-                  }),
-                  option: (provided, ...rest) => ({
-                    ...provided,
-                    borderLeft: 'solid 4px black',
-                    borderColor: rest[0].data.color,
-                    mt: 2,
-                  }),
-                  menuList: (provided) => ({
-                    ...provided,
-                    py: 0,
-                  }),
-                }}
+          <Flex my={1} justifyContent="space-between">
+            <Flex alignItems="center" flexGrow={1} mr={10}>
+              <Box width="100%" mr={2}>
+                <MultiSelect
+                  size="sm"
+                  isMulti
+                  options={logLevelOptions}
+                  placeholder="All Levels"
+                  value={logLevelFilters}
+                  onChange={(options) => setLogLevelFilters([...options])}
+                  chakraStyles={{
+                    multiValue: (provided, ...rest) => ({
+                      ...provided,
+                      backgroundColor: rest[0].data.color,
+                    }),
+                    option: (provided, ...rest) => ({
+                      ...provided,
+                      borderLeft: 'solid 4px black',
+                      borderColor: rest[0].data.color,
+                      mt: 2,
+                    }),
+                  }}
+                />
+              </Box>
+              <Box width="100%">
+                <MultiSelect
+                  size="sm"
+                  isMulti
+                  options={fileSources.map((fileSource) => ({
+                    label: fileSource,
+                    value: fileSource,
+                  }))}
+                  placeholder="All File Sources"
+                  value={fileSourceFilters}
+                  onChange={(options) => setFileSourceFilters([...options])}
+                />
+              </Box>
+            </Flex>
+            <Flex alignItems="center">
+              <Checkbox
+                onChange={() => setWrap((previousState) => !previousState)}
+                px={4}
+              >
+                <Text as="strong">Wrap</Text>
+              </Checkbox>
+              <Checkbox
+                onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
+                px={4}
+                data-testid="full-content-checkbox"
+              >
+                <Text as="strong" whiteSpace="nowrap">Full Logs</Text>
+              </Checkbox>
+              <LogLink
+                dagId={dagId}
+                taskId={taskId}
+                executionDate={executionDate}
+                isInternal
+                tryNumber={tryNumber}
               />
-            </Box>
-            <Box w="110px">
-              <Select
-                size="sm"
-                value={fileSourceFilter}
-                onChange={(e) => setFileSourceFilter(e.target.value)}
+              <LinkButton
+                href={`${logUrl}&${params}`}
               >
-                <option value="" key="all">All File Sources</option>
-                {fileSources.map((value) => (
-                  <option value={value} key={value}>{value}</option>
-                ))}
-              </Select>
-            </Box>
+                See More
+              </LinkButton>
+            </Flex>
           </Flex>
-          <Flex alignItems="center">
-            <Checkbox
-              onChange={() => setWrap((previousState) => !previousState)}
-              px={4}
-            >
-              <Text as="strong">Wrap</Text>
-            </Checkbox>
-            <Checkbox
-              onChange={() => setShouldRequestFullContent((previousState) => !previousState)}
-              px={4}
-              data-testid="full-content-checkbox"
-            >
-              <Text as="strong">Full Logs</Text>
-            </Checkbox>
-            <LogLink
-              dagId={dagId}
-              taskId={taskId}
-              executionDate={executionDate}
-              isInternal
-              tryNumber={tryNumber}
-            />
-            <LinkButton
-              href={`${logUrl}&${params}`}
-            >
-              See More
-            </LinkButton>
-          </Flex>
-        </Flex>
-        {
-          isSuccess && (
-            <Code
-              height={350}
-              overflowY="scroll"
-              p={3}
-              pb={0}
-              display="block"
-              whiteSpace={wrap ? 'pre-wrap' : 'pre'}
-              border="1px solid"
-              borderRadius={3}
-              borderColor="blue.500"
-            >
-              {parsedLogs}
-              <div ref={codeBlockBottomDiv} />
-            </Code>
-          )
-        }
-      </>
+          {
+            isSuccess && (
+              <Code
+                height={350}
+                overflowY="scroll"
+                p={3}
+                pb={0}
+                display="block"
+                whiteSpace={wrap ? 'pre-wrap' : 'pre'}
+                border="1px solid"
+                borderRadius={3}
+                borderColor="blue.500"
+              >
+                {parsedLogs}
+                <div ref={codeBlockBottomDiv} />
+              </Code>
+            )
+          }
+        </>
       )}
       {externalLogName && externalIndexes.length > 0 && (
-      <>
-        <Box>
-          <Text>
-            View Logs in
-            {' '}
-            {externalLogName}
-            {' '}
-            (by attempts):
-          </Text>
-          <Flex flexWrap="wrap">
-            {
-              externalIndexes.map(
-                (index) => (
-                  <LogLink
-                    key={index}
-                    dagId={dagId}
-                    taskId={taskId}
-                    executionDate={executionDate}
-                    tryNumber={index}
-                  />
-                ),
-              )
-            }
-          </Flex>
-        </Box>
-        <Divider my={2} />
-      </>
+        <>
+          <Box>
+            <Text>
+              View Logs in
+              {' '}
+              {externalLogName}
+              {' '}
+              (by attempts):
+            </Text>
+            <Flex flexWrap="wrap">
+              {
+                externalIndexes.map(
+                  (index) => (
+                    <LogLink
+                      key={index}
+                      dagId={dagId}
+                      taskId={taskId}
+                      executionDate={executionDate}
+                      tryNumber={index}
+                    />
+                  ),
+                )
+              }
+            </Flex>
+          </Box>
+          <Divider my={2} />
+        </>
       )}
     </>
   );

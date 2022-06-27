@@ -41,7 +41,7 @@ export const parseLogs = (
   data: string | undefined,
   timezone: string | null,
   logLevelFilters: Array<LogLevel>,
-  fileSourceFilter: string,
+  fileSourceFilters: Array<string>,
 ) => {
   if (!data) {
     return {};
@@ -98,7 +98,9 @@ export const parseLogs = (
       [logGroup] = matches[2].split(':');
       fileSources.add(logGroup);
     }
-    if (!fileSourceFilter || fileSourceFilter === logGroup) {
+
+    if (fileSourceFilters.length === 0
+        || fileSourceFilters.some((fileSourceFilter) => line.includes(fileSourceFilter))) {
       parsedLines.push(parsedLine);
     }
   });

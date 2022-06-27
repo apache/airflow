@@ -48,7 +48,7 @@ describe('Test Logs Utils.', () => {
       mockTaskLog,
       'UTC',
       [],
-      '',
+      [],
     );
 
     expect(parsedLogs).toContain('2022-06-04, 00:00:01 UTC');
@@ -62,7 +62,7 @@ describe('Test Logs Utils.', () => {
       mockTaskLog,
       'America/Los_Angeles',
       [],
-      '',
+      [],
     );
     expect(result.parsedLogs).toContain('2022-06-03, 17:00:01 PDT');
   });
@@ -84,7 +84,7 @@ describe('Test Logs Utils.', () => {
         mockTaskLog,
         null,
         logLevelFilters,
-        '',
+        [],
       );
 
       expect(fileSources).toHaveLength(expectedNumberOfFileSources);
@@ -100,7 +100,7 @@ describe('Test Logs Utils.', () => {
       mockTaskLog,
       null,
       [],
-      'taskinstance.py',
+      ['taskinstance.py'],
     );
 
     expect(fileSources).toEqual([
@@ -119,7 +119,7 @@ describe('Test Logs Utils.', () => {
       mockTaskLog,
       null,
       [LogLevel.INFO, LogLevel.WARNING],
-      'taskinstance.py',
+      ['taskinstance.py'],
     );
 
     expect(fileSources).toEqual([
