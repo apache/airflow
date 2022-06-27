@@ -27,10 +27,9 @@ This module contains Base AWS Hook.
 import configparser
 import datetime
 import logging
-import sys
 import warnings
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Generic, Optional, Tuple, Type, TypeVar, Union
 
 import boto3
 import botocore
@@ -40,20 +39,17 @@ import tenacity
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from dateutil.tz import tzlocal
 from slugify import slugify
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
-from dateutil.tz import tzlocal
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
 
 class BaseSessionFactory(LoggingMixin):
@@ -372,7 +368,7 @@ class BaseSessionFactory(LoggingMixin):
         return web_identity_token_loader
 
 
-class AwsBaseHook(BaseHook):
+class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     """
     Interact with AWS.
     This class is a thin wrapper around the boto3 python library.
@@ -537,7 +533,7 @@ class AwsBaseHook(BaseHook):
     def conn_partition(self) -> str:
         return self.conn_client_meta.partition
 
-    def get_conn(self) -> Union[boto3.client, boto3.resource]:
+    def get_conn(self) -> BaseAwsConnection:
         """
         Get the underlying boto3 client/resource (cached)
 
@@ -614,6 +610,17 @@ class AwsBaseHook(BaseHook):
             return decorator_f
 
         return retry_decorator
+
+
+class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
+    """
+    Interact with AWS.
+    This class is a thin wrapper around the boto3 python library
+    with basic conn annotation.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
+    """
 
 
 def _parse_s3_config(

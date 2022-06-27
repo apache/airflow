@@ -200,6 +200,7 @@ amazon = [
     pandas_requirement,
     'mypy-boto3-rds>=1.21.0',
     'mypy-boto3-redshift-data>=1.21.0',
+    'mypy-boto3-appflow>=1.21.0',
 ]
 apache_beam = [
     'apache-beam>=2.39.0',
@@ -231,6 +232,8 @@ azure = [
     'azure-storage-blob>=12.7.0,<12.9.0',
     'azure-storage-common>=2.1.0',
     'azure-storage-file>=2.1.0',
+    # Limited due to https://github.com/Azure/azure-uamqp-python/issues/191
+    'azure-servicebus>=7.6.1; platform_machine != "aarch64"',
 ]
 cassandra = [
     'cassandra-driver>=3.13.0',
@@ -309,8 +312,8 @@ exasol = ['pyexasol>=0.5.1', pandas_requirement]
 facebook = [
     'facebook-business>=6.0.2',
 ]
-flask_appbuilder_authlib = [
-    'authlib',
+flask_appbuilder_oauth = [
+    'flask-appbuilder[oauth]',
 ]
 github = [
     'pygithub',
@@ -537,7 +540,6 @@ spark = [
 ]
 ssh = [
     'paramiko>=2.6.0',
-    'pysftp>=0.2.9',
     'sshtunnel>=0.3.2',
 ]
 statsd = [
@@ -618,16 +620,6 @@ devel_only = [
     'flake8-implicit-str-concat',
     'flaky',
     'freezegun',
-    # Github3 version 3.1.2 requires PyJWT>=2.3.0 which clashes with Flask App Builder where PyJWT is <2.0.0
-    # Actually GitHub3.1.0 already introduced PyJWT>=2.3.0 but so far `pip` was able to resolve it without
-    # getting into a long backtracking loop and figure out that github3 3.0.0 version is the right version
-    # similarly limiting it to 3.1.2 causes pip not to enter the backtracking loop. Apparently when there
-    # are 3 versions with PyJWT>=2.3.0 (3.1.0, 3.1.1 an 3.1.2) pip enters into backtrack loop and fails
-    # to resolve that github3 3.0.0 is the right version to use.
-    # This limitation could be removed if PyJWT limitation < 2.0.0 is dropped from FAB or when
-    # pip resolution is improved to handle the case. The issue which describes this PIP behaviour
-    # and hopefully allowing to improve it is tracked in https://github.com/pypa/pip/issues/10924
-    'github3.py<3.1.0',
     'gitpython',
     'ipdb',
     'jira',
@@ -640,7 +632,6 @@ devel_only = [
     'pre-commit',
     'pypsrp',
     'pygithub',
-    'pysftp',
     # Pytest 7 has been released in February 2022 and we should attempt to upgrade and remove the limit
     # It contains a number of potential breaking changes but none of them looks breaking our use
     # https://docs.pytest.org/en/latest/changelog.html#pytest-7-0-0-2022-02-03
@@ -659,7 +650,7 @@ devel_only = [
     'qds-sdk>=1.9.6',
     'pytest-httpx',
     'requests_mock',
-    'rich_click',
+    'rich-click>=1.5',
     'semver',
     'towncrier',
     'twine',
@@ -767,8 +758,8 @@ CORE_EXTRAS_REQUIREMENTS: Dict[str, List[str]] = {
     'cncf.kubernetes': kubernetes,  # also has provider, but it extends the core with the KubernetesExecutor
     'dask': dask,
     'deprecated_api': deprecated_api,
-    'github_enterprise': flask_appbuilder_authlib,
-    'google_auth': flask_appbuilder_authlib,
+    'github_enterprise': flask_appbuilder_oauth,
+    'google_auth': flask_appbuilder_oauth,
     'kerberos': kerberos,
     'ldap': ldap,
     'leveldb': leveldb,

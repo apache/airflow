@@ -970,21 +970,6 @@ function breeze::parse_arguments() {
             export GITHUB_REPOSITORY="${2}"
             shift 2
             ;;
-        -s | --github-image-id)
-            echo
-            echo "GitHub image id: ${2}"
-            echo
-            echo "Force pulling the image, using GitHub registry and skip mounting local sources."
-            echo "This is in order to get the exact same version as used in CI environment for SHA!."
-            echo "You can specify --skip-mounting-local-sources to not mount local sources to get exact. "
-            echo "behaviour as in the CI environment."
-            echo
-            export GITHUB_REGISTRY_PULL_IMAGE_TAG="${2}"
-            export CHECK_IMAGE_FOR_REBUILD="false"
-            export SKIP_BUILDING_PROD_IMAGE="true"
-            export SKIP_CHECK_REMOTE_IMAGE="true"
-            shift 2
-            ;;
         --init-script)
             export INIT_SCRIPT_FILE="${2}"
             echo "The initialization file is in ${INIT_SCRIPT_FILE}"
@@ -1369,15 +1354,6 @@ ${CMDNAME} shell [FLAGS] [-- <EXTRA_ARGS>]
 
       '${CMDNAME} shell -- -c \"ls -la\"'
       '${CMDNAME} -- -c \"ls -la\"'
-
-      For GitHub repository, the --github-repository flag can be used to specify the repository
-      to pull and push images. You can also use --github-image-id <COMMIT_SHA> in case
-      you want to pull the image with specific COMMIT_SHA tag.
-
-      '${CMDNAME} shell \\
-            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
-      '${CMDNAME} \\
-            --github-image-id 9a621eaa394c0a0a336f8e1b31b35eff4e4ee86e' - pull/use image with SHA
 
 "
     readonly DETAILED_USAGE_SHELL

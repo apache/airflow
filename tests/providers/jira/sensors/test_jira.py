@@ -28,15 +28,22 @@ from airflow.utils import db, timezone
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 jira_client_mock = Mock(name="jira_client_for_test")
 
-minimal_test_ticket = {
-    "id": "911539",
-    "self": "https://sandbox.localhost/jira/rest/api/2/issue/911539",
-    "key": "TEST-1226",
-    "fields": {
-        "labels": ["test-label-1", "test-label-2"],
-        "description": "this is a test description",
-    },
-}
+
+class _MockJiraTicket(dict):
+    class _TicketFields:
+        labels = ["test-label-1", "test-label-2"]
+        description = "this is a test description"
+
+    fields = _TicketFields
+
+
+minimal_test_ticket = _MockJiraTicket(
+    {
+        "id": "911539",
+        "self": "https://sandbox.localhost/jira/rest/api/2/issue/911539",
+        "key": "TEST-1226",
+    }
+)
 
 
 class TestJiraSensor(unittest.TestCase):
@@ -62,7 +69,8 @@ class TestJiraSensor(unittest.TestCase):
             method_name='issue',
             task_id='search-ticket-test',
             ticket_id='TEST-1226',
-            field_checker_func=TestJiraSensor.field_checker_func,
+            field='labels',
+            expected_value='test-label-1',
             timeout=518400,
             poke_interval=10,
             dag=self.dag,
@@ -72,7 +80,3 @@ class TestJiraSensor(unittest.TestCase):
 
         assert jira_mock.called
         assert jira_mock.return_value.issue.called
-
-    @staticmethod
-    def field_checker_func(context, issue):
-        return "test-label-1" in issue['fields']['labels']

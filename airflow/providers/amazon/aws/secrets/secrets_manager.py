@@ -20,20 +20,14 @@
 import ast
 import json
 import re
-import sys
 import warnings
 from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
 
-from airflow.version import version as airflow_version
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
+from airflow.providers.amazon.aws.utils import get_airflow_version
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -214,7 +208,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        if _parse_version(airflow_version) >= (2, 3):
+        if get_airflow_version() >= (2, 3):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
                 "in a future release.  Please use method `get_conn_value` instead.",

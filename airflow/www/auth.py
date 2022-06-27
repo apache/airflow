@@ -37,7 +37,10 @@ def has_access(permissions: Optional[Sequence[Tuple[str, str]]] = None) -> Calla
             appbuilder = current_app.appbuilder
 
             dag_id = (
-                request.args.get("dag_id") or request.form.get("dag_id") or (request.json or {}).get("dag_id")
+                request.args.get("dag_id")
+                or request.form.get("dag_id")
+                or (request.is_json and request.json.get("dag_id"))
+                or None
             )
             if appbuilder.sm.check_authorization(permissions, dag_id):
                 return func(*args, **kwargs)
