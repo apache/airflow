@@ -37,6 +37,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
     option_answer,
+    option_builder,
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -48,10 +49,12 @@ from airflow_breeze.utils.common_options import (
     option_github_token,
     option_github_username,
     option_image_name,
-    option_image_tag,
+    option_image_tag_for_building,
+    option_image_tag_for_pulling,
+    option_image_tag_for_verifying,
     option_install_providers_from_sources,
     option_parallelism,
-    option_platform,
+    option_platform_multiple,
     option_prepare_buildx_cache,
     option_pull_image,
     option_push_image,
@@ -191,7 +194,7 @@ CI_IMAGE_TOOLS_PARAMETERS = {
 }
 
 
-def start_building(ci_image_params: BuildCiParams, dry_run: bool, verbose: bool) -> bool:
+def check_if_image_building_is_needed(ci_image_params: BuildCiParams, dry_run: bool, verbose: bool) -> bool:
     """Starts building attempt. Returns false if we should not continue"""
     if not ci_image_params.force_build and not ci_image_params.upgrade_to_newer_dependencies:
         if not should_we_run_the_build(build_ci_params=ci_image_params):
@@ -233,12 +236,12 @@ def run_build_in_parallel(
 @option_parallelism
 @option_python_versions
 @option_upgrade_to_newer_dependencies
-@option_platform
+@option_platform_multiple
 @option_debian_version
 @option_github_token
 @option_github_username
 @option_docker_cache
-@option_image_tag
+@option_image_tag_for_building
 @option_prepare_buildx_cache
 @option_push_image
 @option_empty_image
@@ -252,13 +255,13 @@ def run_build_in_parallel(
 @option_additional_dev_apt_env
 @option_additional_runtime_apt_env
 @option_additional_runtime_apt_command
+@option_builder
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_force_build
 @option_python_image
 @option_runtime_apt_command
 @option_runtime_apt_deps
-@option_force_build
 @option_airflow_constraints_mode_ci
 @option_airflow_constraints_reference_build
 @option_tag_as_latest
@@ -293,7 +296,7 @@ def build_image(
             params.python = python
             params.answer = answer
             params_list.append(params)
-        start_building(params_list[0], dry_run=dry_run, verbose=verbose)
+        check_if_image_building_is_needed(params_list[0], dry_run=dry_run, verbose=verbose)
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -303,7 +306,7 @@ def build_image(
         )
     else:
         params = BuildCiParams(**parameters_passed)
-        start_building(params, dry_run=dry_run, verbose=verbose)
+        check_if_image_building_is_needed(params, dry_run=dry_run, verbose=verbose)
         run_build(ci_image_params=params)
 
 
@@ -318,7 +321,7 @@ def build_image(
 @option_github_token
 @option_verify_image
 @option_wait_for_image
-@option_image_tag
+@option_image_tag_for_pulling
 @option_tag_as_latest
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def pull_ci_image(
@@ -330,13 +333,20 @@ def pull_ci_image(
     python_versions: str,
     github_token: str,
     parallelism: int,
-    image_tag: Optional[str],
+    image_tag: str,
     wait_for_image: bool,
     tag_as_latest: bool,
     verify_image: bool,
     extra_pytest_args: Tuple,
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
+    if image_tag == "latest":
+        get_console().print("[red]You cannot pull latest images because they are not published any more!\n")
+        get_console().print(
+            "[yellow]You need to specify commit tag to pull and image. If you wish to get"
+            " the latest image, you need to run `breeze build-image` command\n"
+        )
+        sys.exit(1)
     perform_environment_checks(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
@@ -387,7 +397,7 @@ def pull_ci_image(
 @option_dry_run
 @option_python
 @option_github_repository
-@option_image_tag
+@option_image_tag_for_verifying
 @option_image_name
 @option_pull_image
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
@@ -397,7 +407,7 @@ def verify_ci_image(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: str,
+    image_tag: Optional[str],
     pull_image: bool,
     extra_pytest_args: Tuple,
 ):
@@ -421,7 +431,7 @@ def verify_ci_image(
     sys.exit(return_code)
 
 
-def should_we_run_the_build(build_ci_params: BuildCiParams, verbose: bool) -> bool:
+def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
     """
     Check if we should run the build based on what files have been modified since last build and answer from
     the user.
@@ -436,9 +446,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams, verbose: bool) -> bo
     # We import those locally so that click autocomplete works
     from inputimeout import TimeoutOccurred
 
-    if not md5sum_check_if_build_is_needed(
-        md5sum_cache_dir=build_ci_params.md5sum_cache_dir, verbose=verbose
-    ):
+    if not md5sum_check_if_build_is_needed(md5sum_cache_dir=build_ci_params.md5sum_cache_dir):
         return False
     try:
         answer = user_confirm(
@@ -581,9 +589,13 @@ def rebuild_or_pull_ci_image_if_needed(
         BUILD_CACHE_DIR, command_params.airflow_branch, f".built_{command_params.python}"
     )
     ci_image_params = BuildCiParams(
-        python=command_params.python, upgrade_to_newer_dependencies=False, image_tag=command_params.image_tag
+        python=command_params.python,
+        upgrade_to_newer_dependencies=False,
+        image_tag=command_params.image_tag,
+        platform=command_params.platform,
+        force_build=command_params.force_build,
     )
-    if command_params.image_tag is not None:
+    if command_params.image_tag is not None and command_params.image_tag != "latest":
         return_code, message = run_pull_image(
             image_params=ci_image_params,
             dry_run=dry_run,
@@ -605,4 +617,5 @@ def rebuild_or_pull_ci_image_if_needed(
             'Forcing build.[/]'
         )
         ci_image_params.force_build = True
-    run_build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False)
+    if check_if_image_building_is_needed(ci_image_params=ci_image_params, dry_run=dry_run, verbose=verbose):
+        run_build_ci_image(verbose, dry_run=dry_run, ci_image_params=ci_image_params, parallel=False)

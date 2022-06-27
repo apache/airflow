@@ -45,7 +45,7 @@ from airflow_breeze.utils.common_options import (
     option_force_build,
     option_forward_credentials,
     option_github_repository,
-    option_image_tag,
+    option_image_tag_for_running,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -112,9 +112,9 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
-                "--image-tag",
             ],
         },
     ],
@@ -141,9 +141,9 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
-                "--image-tag",
             ],
         },
     ],
@@ -172,8 +172,8 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
-                "--mount-sources",
                 "--image-tag",
+                "--mount-sources",
             ],
         },
     ],
@@ -242,7 +242,7 @@ DEVELOPER_PARAMETERS = {
 @option_mount_sources
 @option_integration
 @option_db_reset
-@option_image_tag
+@option_image_tag_for_running
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
@@ -319,7 +319,7 @@ def shell(
 @option_installation_package_format
 @option_mount_sources
 @option_integration
-@option_image_tag
+@option_image_tag_for_running
 @option_db_reset
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
