@@ -54,7 +54,7 @@ class SqlToSlackOperator(BaseOperator):
     :param slack_conn_id: The connection id for Slack. Mutually exclusive with 'slack_webhook_token'
     :param slack_webhook_token: The token to use to authenticate to Slack. If this is not provided, the
         'slack_conn_id' attribute needs to be specified in the 'password' field.
-         Mutually exclusive with 'slack_conn_id'.
+        Mutually exclusive with 'slack_conn_id'.
     :param slack_channel: The channel to send message. Override default from Slack connection.
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
     :param parameters: The parameters to pass to the SQL query

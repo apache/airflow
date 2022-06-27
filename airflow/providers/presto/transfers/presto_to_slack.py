@@ -101,7 +101,8 @@ class PrestoToSlackOperator(SqlToSlackOperator):
             )
         except AirflowNotFoundException:
             self.log.info(
-                f"Didn't find the Slack connection '{self.slack_conn_id}'. Using the webhook instead")
+                f"Didn't find the Slack connection '{self.slack_conn_id}'. Using the webhook instead"
+            )
             super().__init__(
                 sql=self.sql,
                 sql_conn_id=self.presto_conn_id,
