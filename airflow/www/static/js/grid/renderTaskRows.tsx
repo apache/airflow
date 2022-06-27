@@ -175,7 +175,6 @@ const Row = (props: RowProps) => {
             />
           </Collapse>
         </Td>
-        <Td width={0} p={0} borderBottom={0} />
         <Td
           p={0}
           align="right"

@@ -106,7 +106,7 @@ const DagRunBar = ({
           </Flex>
         </Tooltip>
       </Flex>
-      {index < totalRuns - 3 && index % 10 === 0 && (
+      {(index === totalRuns - 4 || (index + 4) % 10 === 0) && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
         <Text fontSize="sm" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
           <Time dateTime={run.executionDate} format="MMM DD, HH:mm" />
