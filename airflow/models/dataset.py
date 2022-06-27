@@ -51,7 +51,7 @@ class Dataset(Base):
 
     __tablename__ = "dataset"
     __table_args__ = (
-        Index('idx_uri', uri, unique=True),
+        Index('idx_uri_unique', uri, unique=True),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 
