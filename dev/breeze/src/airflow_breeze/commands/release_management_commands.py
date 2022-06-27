@@ -43,7 +43,7 @@ from airflow_breeze.utils.common_options import (
     option_answer,
     option_dry_run,
     option_github_repository,
-    option_image_tag,
+    option_image_tag_for_running,
     option_installation_package_format,
     option_package_format,
     option_parallelism,
@@ -402,7 +402,7 @@ def run_generate_constraints_in_parallel(
 @option_run_in_parallel
 @option_parallelism
 @option_python_versions
-@option_image_tag
+@option_image_tag_for_running
 @option_answer
 @option_debug_release_management
 @option_airflow_constraints_mode_ci
@@ -414,7 +414,7 @@ def generate_constraints(
     run_in_parallel: bool,
     parallelism: int,
     python_versions: str,
-    image_tag: str,
+    image_tag: Optional[str],
     answer: Optional[str],
     debug: bool,
     airflow_constraints_mode: str,

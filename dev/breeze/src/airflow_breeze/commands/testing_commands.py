@@ -38,7 +38,7 @@ from airflow_breeze.utils.common_options import (
     option_dry_run,
     option_github_repository,
     option_image_name,
-    option_image_tag,
+    option_image_tag_for_running,
     option_integration,
     option_mount_sources,
     option_mssql_version,
@@ -109,7 +109,7 @@ TESTING_PARAMETERS = {
 @option_dry_run
 @option_python
 @option_github_repository
-@option_image_tag
+@option_image_tag_for_running
 @option_image_name
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def docker_compose_tests(
@@ -118,7 +118,7 @@ def docker_compose_tests(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: str,
+    image_tag: Optional[str],
     extra_pytest_args: Tuple,
 ):
     """Run docker-compose tests."""
@@ -243,7 +243,7 @@ def run_with_progress(
     help="Limit progress to percentage only and just show the summary when tests complete.",
     is_flag=True,
 )
-@option_image_tag
+@option_image_tag_for_running
 @option_mount_sources
 @click.option(
     "--test-type",
