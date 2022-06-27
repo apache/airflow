@@ -566,7 +566,8 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``create_db_instance``
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.create_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param wait_for_completion:  Whether or not wait for creation of the DB instance complete. (default: True)
+    :param wait_for_completion:  Whether or not wait for creation of the DB instance to
+        complete. (default: True)
     """
 
     def __init__(
@@ -589,7 +590,7 @@ class RdsCreateDbInstanceOperator(RdsBaseOperator):
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
-        self.log.info(f"Creating new DB instance {self.db_instance_identifier}")
+        self.log.info("Creating new DB instance %s", self.db_instance_identifier)
 
         create_db_instance = self.hook.conn.create_db_instance(
             DBInstanceIdentifier=self.db_instance_identifier,
@@ -618,7 +619,8 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
     :param rds_kwargs: Named arguments to pass to boto3 RDS client function ``delete_db_instance``
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/rds.html#RDS.Client.delete_db_instance
     :param aws_conn_id: The Airflow connection used for AWS credentials.
-    :param wait_for_completion:  Whether or not wait for deletion of the DB instance complete. (default: True)
+    :param wait_for_completion:  Whether or not wait for deletion of the DB instance to
+        complete. (default: True)
     """
 
     def __init__(
@@ -636,7 +638,7 @@ class RdsDeleteDbInstanceOperator(RdsBaseOperator):
         self.wait_for_completion = wait_for_completion
 
     def execute(self, context: 'Context') -> str:
-        self.log.info(f"Deleting DB instance {self.db_instance_identifier}")
+        self.log.info("Deleting DB instance %s", self.db_instance_identifier)
 
         delete_db_instance = self.hook.conn.delete_db_instance(
             DBInstanceIdentifier=self.db_instance_identifier,

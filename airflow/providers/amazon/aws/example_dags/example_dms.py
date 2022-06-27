@@ -319,16 +319,16 @@ with DAG(
     )
 
     chain(
-        create_db_instance
-        >> create_sample_table()
-        >> create_dms_assets()
-        >> create_task
-        >> start_task
-        >> describe_tasks
-        >> await_task_start
-        >> stop_task
-        >> await_task_stop
-        >> delete_task
-        >> delete_dms_assets()
-        >> delete_db_instance
+        create_db_instance,
+        create_sample_table(),
+        create_dms_assets(),
+        create_task,
+        start_task,
+        describe_tasks,
+        await_task_start,
+        stop_task,
+        await_task_stop,
+        delete_task,
+        delete_dms_assets(),
+        delete_db_instance,
     )
