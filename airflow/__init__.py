@@ -57,6 +57,7 @@ PY310 = sys.version_info >= (3, 10)
 # Things to lazy import in form 'name': 'path.to.module'
 __lazy_imports = {
     'DAG': 'airflow.models.dag',
+    'Dataset': 'airflow.models.dataset',
     'XComArg': 'airflow.models.xcom_arg',
     'AirflowException': 'airflow.exceptions',
 }

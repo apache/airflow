@@ -252,8 +252,9 @@ class TestDBCleanup:
                         all_models.update({class_.__tablename__: class_})
         exclusion_list = {
             'variable',  # leave alone
+            'dataset',  # not good way to know if "stale"
             'trigger',  # self-maintaining
-            'task_map',  # TODO: add datetime column to TaskMap so we can include it here
+            'task_map',  # keys to TI, so no need
             'serialized_dag',  # handled through FK to Dag
             'log_template',  # not a significant source of data; age not indicative of staleness
             'dag_tag',  # not a significant source of data; age not indicative of staleness,
