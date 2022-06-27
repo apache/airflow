@@ -3822,7 +3822,10 @@ class DagFilter(BaseFilter):
 
 
 class AirflowModelView(ModelView):
-    """Airflow Mode View."""
+    """Airflow Mode View.
+
+    Overridden `__getattribute__` to wraps REST methods with action_logger
+    """
 
     list_widget = AirflowModelListWidget
     page_size = PAGE_SIZE
@@ -3830,6 +3833,14 @@ class AirflowModelView(ModelView):
     CustomSQLAInterface = wwwutils.CustomSQLAInterface
 
     def __getattribute__(self, attr):
+        """Wraps action REST methods with `action_logging` wrapper
+        Overriding enables differentiating resource and generation of event name at the decorator level.
+
+        if attr in ["show", "list", "read", "get", "get_list"]:
+            return action_logging(event="RESOURCE_NAME"."action_name")(attr)
+        else:
+            return attr
+        """
         attribute = object.__getattribute__(self, attr)
         if (
             callable(attribute)
