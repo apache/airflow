@@ -216,7 +216,7 @@ class TestWebHDFSHook(unittest.TestCase):
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
     @patch(
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection',
-        return_value=Connection(host='host_1', port=123, schema="schema" ,extra={"use_ssl": "True", "verify": False}),
+        return_value=Connection(host='host_1', schema="schema" ,extra={"use_ssl": "True", "verify": False}),
     )
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
     def test_conn_insecure_ssl_without_port(self, socket_mock, mock_get_connection, mock_insecure_client):

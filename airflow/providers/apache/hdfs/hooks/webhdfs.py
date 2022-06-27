@@ -99,9 +99,9 @@ class WebHDFSHook(BaseHook):
         connection_str = f'http://{namenode}'
         session = requests.Session()
 
-        if extra_dejson.get('use_ssl', 'False') == 'True':
+        if extra_dejson.get('use_ssl', 'False') == 'True' or extra_dejson.get('use_ssl',False):
             connection_str = f'https://{namenode}'
-            session.verify = extra_dejson.get('verify', 'True') == 'True'
+            session.verify = extra_dejson.get('verify', False)
 
         if port is not None:
             connection_str += f':{port}'
