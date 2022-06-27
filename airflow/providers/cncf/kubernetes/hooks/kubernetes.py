@@ -282,7 +282,7 @@ class KubernetesHook(BaseHook):
 
     @property
     def is_in_cluster(self):
-        """Expose whether the hook is configured with incluster_config or not"""
+        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
         if self._is_in_cluster is not None:
             return self._is_in_cluster
         self.api_client  # so we can determine if we are in_cluster or not
