@@ -64,6 +64,18 @@ class TestColumnCheckOperator:
         operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 19))
         operator.execute()
 
+    def test_max_less_than_fails_check(self, monkeypatch):
+        with pytest.raises(AirflowException):
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 21))
+            operator.execute()
+            assert operator.column_mapping["X"]["max"]["success"] is False
+
+    def test_max_greater_than_fails_check(self, monkeypatch):
+        with pytest.raises(AirflowException):
+            operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 10, 10, 1, 9))
+            operator.execute()
+            assert operator.column_mapping["X"]["max"]["success"] is False
+
     def test_pass_all_checks_inexact_check(self, monkeypatch):
         operator = self._construct_operator(monkeypatch, self.valid_column_mapping, (0, 9, 12, 0, 15))
         operator.execute()
