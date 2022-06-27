@@ -64,10 +64,10 @@ class BaseXCom(Base, LoggingMixin):
 
     __tablename__ = "xcom"
 
-    dag_run_id = Column(Integer(), nullable=False)
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
-    key = Column(String(512, **COLLATION_ARGS), nullable=False)
+    dag_run_id = Column(Integer(), nullable=False, primary_key=True)
+    task_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False, primary_key=True)
+    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
+    key = Column(String(512, **COLLATION_ARGS), nullable=False, primary_key=True)
 
     # Denormalized for easier lookup.
     dag_id = Column(String(ID_LEN, **COLLATION_ARGS), nullable=False)
@@ -82,7 +82,9 @@ class BaseXCom(Base, LoggingMixin):
         # separately, and enforce uniqueness with DagRun.id instead.
         Index("idx_xcom_key", key),
         Index("idx_xcom_task_instance", dag_id, task_id, run_id, map_index),
-        PrimaryKeyConstraint("dag_run_id", "task_id", "map_index", "key", name="xcom_pkey"),
+        PrimaryKeyConstraint(
+            "dag_run_id", "task_id", "map_index", "key", name="xcom_pkey", mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [dag_id, task_id, run_id, map_index],
             [

@@ -429,10 +429,10 @@ class TaskInstance(Base, LoggingMixin):
     """
 
     __tablename__ = "task_instance"
-    task_id = Column(StringID(), nullable=False)
-    dag_id = Column(StringID(), nullable=False)
-    run_id = Column(StringID(), nullable=False)
-    map_index = Column(Integer, nullable=False, server_default=text("-1"))
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    run_id = Column(StringID(), primary_key=True, nullable=False)
+    map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
     end_date = Column(UtcDateTime)
@@ -480,7 +480,9 @@ class TaskInstance(Base, LoggingMixin):
         Index('ti_pool', pool, state, priority_weight),
         Index('ti_job_id', job_id),
         Index('ti_trigger_id', trigger_id),
-        PrimaryKeyConstraint("dag_id", "task_id", "run_id", "map_index", name='task_instance_pkey'),
+        PrimaryKeyConstraint(
+            "dag_id", "task_id", "run_id", "map_index", name='task_instance_pkey', mssql_clustered=True
+        ),
         ForeignKeyConstraint(
             [trigger_id],
             ['trigger.id'],
