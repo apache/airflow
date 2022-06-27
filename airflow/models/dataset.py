@@ -69,7 +69,7 @@ class Dataset(Base):
         return self.uri == other.uri
 
     def __hash__(self):
-        return hash((self.uri, self.extra))
+        return hash(self.uri)
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
