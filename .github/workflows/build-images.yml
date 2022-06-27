@@ -121,7 +121,7 @@ jobs:
         id: selective-checks
         env:
           PR_LABELS: "$${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}"
-          COMMIT_REF: "${{ github.sha }}"
+          COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
         run: breeze selective-check
       - name: Compute dynamic outputs
         id: dynamic-outputs

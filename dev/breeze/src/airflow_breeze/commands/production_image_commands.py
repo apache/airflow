@@ -47,7 +47,9 @@ from airflow_breeze.utils.common_options import (
     option_github_token,
     option_github_username,
     option_image_name,
-    option_image_tag,
+    option_image_tag_for_building,
+    option_image_tag_for_pulling,
+    option_image_tag_for_verifying,
     option_install_providers_from_sources,
     option_parallelism,
     option_platform_multiple,
@@ -246,7 +248,7 @@ def run_build_in_parallel(
 @option_github_token
 @option_github_username
 @option_docker_cache
-@option_image_tag
+@option_image_tag_for_building
 @option_prepare_buildx_cache
 @option_push_image
 @option_empty_image
@@ -363,7 +365,7 @@ def build_prod_image(
 @option_parallelism
 @option_python_versions
 @option_github_token
-@option_image_tag
+@option_image_tag_for_pulling
 @option_wait_for_image
 @option_tag_as_latest
 @option_verify_image
@@ -377,13 +379,20 @@ def pull_prod_image(
     parallelism: int,
     python_versions: str,
     github_token: str,
-    image_tag: Optional[str],
+    image_tag: str,
     wait_for_image: bool,
     tag_as_latest: bool,
     verify_image: bool,
     extra_pytest_args: Tuple,
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
+    if image_tag == "latest":
+        get_console().print("[red]You cannot pull latest images because they are not published any more!\n")
+        get_console().print(
+            "[yellow]You need to specify commit tag to pull and image. If you wish to get"
+            " the latest image, you need to run `breeze build-image` command\n"
+        )
+        sys.exit(1)
     perform_environment_checks(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
@@ -436,7 +445,7 @@ def pull_prod_image(
 @option_dry_run
 @option_python
 @option_github_repository
-@option_image_tag
+@option_image_tag_for_verifying
 @option_image_name
 @option_pull_image
 @click.option(
@@ -451,7 +460,7 @@ def verify_prod_image(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: str,
+    image_tag: Optional[str],
     pull_image: bool,
     slim_image: bool,
     extra_pytest_args: Tuple,
