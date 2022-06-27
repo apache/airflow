@@ -44,11 +44,15 @@ const Th = ({ ...props }: TableCellProps) => (
   <Td position="sticky" top={0} zIndex={1} p={0} height="155px" bg="white" {...props} />
 );
 
+export interface RunWithDuration extends DagRun {
+  duration: number;
+}
+
 const DagRuns = () => {
   const { data: { dagRuns } } = useGridData();
   const { selected, onSelect } = useSelection();
   const durations: number[] = [];
-  const runs = dagRuns.map((dagRun) => {
+  const runs: RunWithDuration[] = dagRuns.map((dagRun) => {
     const duration = getDuration(dagRun.startDate, dagRun.endDate);
     durations.push(duration);
     return {
@@ -82,7 +86,7 @@ const DagRuns = () => {
       </Th>
       <Th align="right" verticalAlign="bottom">
         <Flex justifyContent="flex-end" borderBottomWidth={3} position="relative">
-          {runs.map((run: DagRun, index) => (
+          {runs.map((run: RunWithDuration, index) => (
             <DagRunBar
               key={run.runId}
               run={run}

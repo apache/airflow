@@ -35,12 +35,23 @@ import { RiArrowGoBackFill } from 'react-icons/ri';
 import DagRunTooltip from './Tooltip';
 import { useContainerRef } from '../context/containerRef';
 import Time from '../components/Time';
+import type { SelectionProps } from '../utils/useSelection';
+import type { RunWithDuration } from '.';
 
 const BAR_HEIGHT = 100;
 
+interface Props {
+  run: RunWithDuration
+  max: number;
+  index: number;
+  totalRuns: number;
+  isSelected: boolean;
+  onSelect: (props: SelectionProps) => void;
+}
+
 const DagRunBar = ({
   run, max, index, totalRuns, isSelected, onSelect,
-}) => {
+}: Props) => {
   const containerRef = useContainerRef();
   const { colors } = useTheme();
   const hoverBlue = `${colors.blue[100]}50`;
@@ -48,20 +59,20 @@ const DagRunBar = ({
   // Fetch the corresponding column element and set its background color when hovering
   const onMouseEnter = () => {
     if (!isSelected) {
-      [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
-        .forEach((e) => { e.style.backgroundColor = hoverBlue; });
+      const els = Array.from(containerRef?.current?.getElementsByClassName(`js-${run.runId}`) as HTMLCollectionOf<HTMLElement>);
+      els.forEach((e) => { e.style.backgroundColor = hoverBlue; });
     }
   };
   const onMouseLeave = () => {
-    [...containerRef.current.getElementsByClassName(`js-${run.runId}`)]
-      .forEach((e) => { e.style.backgroundColor = null; });
+    const els = Array.from(containerRef?.current?.getElementsByClassName(`js-${run.runId}`) as HTMLCollectionOf<HTMLElement>);
+    els.forEach((e) => { e.style.backgroundColor = ''; });
   };
 
   return (
     <Box
       className={`js-${run.runId}`}
       data-selected={isSelected}
-      bg={isSelected && 'blue.100'}
+      bg={isSelected ? 'blue.100' : undefined}
       transition="background-color 0.2s"
       px="1px"
       pb="2px"
@@ -121,8 +132,8 @@ const DagRunBar = ({
 // The default equality function is a shallow comparison and json objects will return false
 // This custom compare function allows us to do a deeper comparison
 const compareProps = (
-  prevProps,
-  nextProps,
+  prevProps: Props,
+  nextProps: Props,
 ) => (
   isEqual(prevProps.run, nextProps.run)
   && prevProps.max === nextProps.max
