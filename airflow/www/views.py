@@ -99,7 +99,7 @@ from airflow.api.common.mark_tasks import (
     set_state,
 )
 from airflow.compat.functools import cached_property
-from airflow.configuration import AIRFLOW_CONFIG, conf
+from airflow.configuration import AIRFLOW_CONFIG, conf, get_custom_secret_backend
 from airflow.exceptions import AirflowException, ParamValidationError
 from airflow.executors.executor_loader import ExecutorLoader
 from airflow.jobs.base_job import BaseJob
@@ -4026,10 +4026,16 @@ class ConnectionFormWidget(FormWidget):
         ]
 
 
+def _is_using_secrets_backend() -> bool:
+    return True if get_custom_secret_backend() else False
+
+
 class ConnectionModelView(AirflowModelView):
     """View to show records from Connections table"""
 
     route_base = '/connection'
+
+    list_template = 'airflow/connection_list.html'
 
     datamodel = AirflowModelView.CustomSQLAInterface(Connection)  # type: ignore
 
@@ -4086,6 +4092,7 @@ class ConnectionModelView(AirflowModelView):
     base_order = ('conn_id', 'asc')
 
     extra_field_name_mapping: Dict[str, str] = {}
+    extra_args = {"is_using_secrets_backend": _is_using_secrets_backend}
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
@@ -4539,7 +4546,10 @@ class VariableModelView(AirflowModelView):
             item, orders=orders, pages=pages, page_sizes=page_sizes, widgets=widgets
         )
 
-    extra_args = {"can_create_variable": _can_create_variable}
+    extra_args = {
+        "can_create_variable": _can_create_variable,
+        "is_using_secrets_backend": _is_using_secrets_backend,
+    }
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     def action_muldelete(self, items):

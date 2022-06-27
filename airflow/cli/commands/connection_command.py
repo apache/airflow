@@ -28,6 +28,7 @@ from sqlalchemy.orm import exc
 
 from airflow.cli.simple_table import AirflowConsole
 from airflow.compat.functools import cache
+from airflow.configuration import get_custom_secret_backend
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
@@ -36,6 +37,8 @@ from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
+
+CUSTOM_BACKEND: bool = True if get_custom_secret_backend() else False
 
 
 def _connection_mapper(conn: Connection) -> Dict[str, Any]:
@@ -59,11 +62,20 @@ def _connection_mapper(conn: Connection) -> Dict[str, Any]:
 @suppress_logs_and_warning
 def connections_get(args):
     """Get a connection."""
+    airflow_console = AirflowConsole()
+    if CUSTOM_BACKEND:
+        airflow_console.print(
+            (
+                "WARNING: The Airflow CLI will not return Connections or "
+                "Variables stored in an alternative secrets backend."
+            ),
+            style="magenta",
+        )
     try:
         conn = BaseHook.get_connection(args.conn_id)
     except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
-    AirflowConsole().print_as(
+    airflow_console.print_as(
         data=[conn],
         output=args.output,
         mapper=_connection_mapper,
@@ -73,13 +85,22 @@ def connections_get(args):
 @suppress_logs_and_warning
 def connections_list(args):
     """Lists all connections at the command line"""
+    airflow_console = AirflowConsole()
+    if CUSTOM_BACKEND:
+        airflow_console.print(
+            (
+                "WARNING: The Airflow CLI will not return Connections or "
+                "Variables stored in an alternative secrets backend."
+            ),
+            style="magenta",
+        )
     with create_session() as session:
         query = session.query(Connection)
         if args.conn_id:
             query = query.filter(Connection.conn_id == args.conn_id)
         conns = query.all()
 
-        AirflowConsole().print_as(
+        airflow_console.print_as(
             data=conns,
             output=args.output,
             mapper=_connection_mapper,

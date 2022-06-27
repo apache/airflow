@@ -21,23 +21,44 @@ import os
 from json import JSONDecodeError
 
 from airflow.cli.simple_table import AirflowConsole
+from airflow.configuration import get_custom_secret_backend
 from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
 
+CUSTOM_BACKEND: bool = True if get_custom_secret_backend() else False
+
 
 @suppress_logs_and_warning
 def variables_list(args):
     """Displays all of the variables"""
+    airflow_console = AirflowConsole()
+    if CUSTOM_BACKEND:
+        airflow_console.print(
+            (
+                "WARNING: The Airflow CLI will not return Connections or "
+                "Variables stored in an alternative secrets backend."
+            ),
+            style="magenta",
+        )
     with create_session() as session:
         variables = session.query(Variable)
-    AirflowConsole().print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
+    airflow_console.print_as(data=variables, output=args.output, mapper=lambda x: {"key": x.key})
 
 
 @suppress_logs_and_warning
 def variables_get(args):
     """Displays variable by a given name"""
+    airflow_console = AirflowConsole()
+    if CUSTOM_BACKEND:
+        airflow_console.print(
+            (
+                "WARNING: The Airflow CLI will not return Connections or "
+                "Variables stored in an alternative secrets backend."
+            ),
+            style="magenta",
+        )
     try:
         if args.default is None:
             var = Variable.get(args.key, deserialize_json=args.json)
