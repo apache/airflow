@@ -26,6 +26,7 @@ import {
   TextProps,
   TableCellProps,
   Flex,
+  BoxProps,
 } from '@chakra-ui/react';
 
 import { useGridData } from '../api';
@@ -34,13 +35,17 @@ import { getDuration, formatDuration } from '../../datetime_utils';
 import useSelection from '../utils/useSelection';
 import type { DagRun } from '../types';
 
+const DurationAxis = (props: BoxProps) => (
+  <Box position="absolute" borderBottomWidth={1} zIndex={0} opacity={0.7} width="100%" {...props} />
+);
+
 const DurationTick = ({ children, ...rest }: TextProps) => (
   <Text fontSize="sm" color="gray.400" right={1} position="absolute" whiteSpace="nowrap" {...rest}>
     {children}
   </Text>
 );
 
-const Th = ({ ...props }: TableCellProps) => (
+const Th = (props: TableCellProps) => (
   <Td position="sticky" top={0} zIndex={1} p={0} height="155px" bg="white" {...props} />
 );
 
@@ -97,9 +102,9 @@ const DagRuns = () => {
               onSelect={onSelect}
             />
           ))}
-          <Box position="absolute" bottom="100px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="100%" />
-          <Box position="absolute" bottom="50px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="100%" />
-          <Box position="absolute" bottom="4px" borderBottomWidth={1} zIndex={0} opacity={0.7} width="100%" />
+          <DurationAxis bottom="100px" />
+          <DurationAxis bottom="50px" />
+          <DurationAxis bottom="4px" />
         </Flex>
       </Th>
     </Tr>
