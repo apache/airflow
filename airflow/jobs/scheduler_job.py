@@ -1737,7 +1737,7 @@ class SchedulerJob(BaseJob):  # pylint: disable=too-many-instance-attributes
                 .filter(TI.state.in_(State.unfinished))
             )
             for task_instance in unfinished_task_instances:
-                task_instance.state = State.SKIPPED
+                task_instance.state = State.FAILED
                 session.merge(task_instance)
             session.flush()
             self.log.info("Run %s of %s has timed-out", dag_run.run_id, dag_run.dag_id)
