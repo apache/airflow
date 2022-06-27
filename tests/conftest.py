@@ -26,6 +26,8 @@ import pytest
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
+from itsdangerous import URLSafeSerializer
+
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 tests_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -56,6 +58,28 @@ def reset_environment():
             del os.environ[key]
         else:
             os.environ[key] = init_env[key]
+
+
+@pytest.fixture()
+def secret_key() -> str:
+    """
+    Return secret key configured.
+    :return:
+    """
+    from airflow.configuration import conf
+
+    the_key = conf.get('webserver', 'SECRET_KEY')
+    if the_key is None:
+        raise RuntimeError(
+            "The secret key SHOULD be configured as `[webserver] secret_key` in the "
+            "configuration/environment at this stage! "
+        )
+    return the_key
+
+
+@pytest.fixture()
+def url_safe_serializer(secret_key) -> URLSafeSerializer:
+    return URLSafeSerializer(secret_key)
 
 
 @pytest.fixture()

@@ -28,7 +28,7 @@ from typing import Dict, List, Optional, Tuple
 import click
 
 from airflow_breeze.commands.main_command import main
-from airflow_breeze.global_constants import ALLOWED_TEST_TYPES
+from airflow_breeze.global_constants import ALLOWED_TEST_TYPE_CHOICES
 from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.ci_group import ci_group
@@ -38,7 +38,7 @@ from airflow_breeze.utils.common_options import (
     option_dry_run,
     option_github_repository,
     option_image_name,
-    option_image_tag,
+    option_image_tag_for_running,
     option_integration,
     option_mount_sources,
     option_mssql_version,
@@ -109,7 +109,7 @@ TESTING_PARAMETERS = {
 @option_dry_run
 @option_python
 @option_github_repository
-@option_image_tag
+@option_image_tag_for_running
 @option_image_name
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
 def docker_compose_tests(
@@ -118,7 +118,7 @@ def docker_compose_tests(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: str,
+    image_tag: Optional[str],
     extra_pytest_args: Tuple,
 ):
     """Run docker-compose tests."""
@@ -243,13 +243,13 @@ def run_with_progress(
     help="Limit progress to percentage only and just show the summary when tests complete.",
     is_flag=True,
 )
-@option_image_tag
+@option_image_tag_for_running
 @option_mount_sources
 @click.option(
     "--test-type",
     help="Type of test to run.",
     default="All",
-    type=BetterChoice(ALLOWED_TEST_TYPES),
+    type=BetterChoice(ALLOWED_TEST_TYPE_CHOICES),
 )
 @option_db_reset
 @click.argument('extra_pytest_args', nargs=-1, type=click.UNPROCESSED)
