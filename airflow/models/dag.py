@@ -28,6 +28,7 @@ import sys
 import traceback
 import warnings
 import weakref
+from collections import defaultdict
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -39,6 +40,7 @@ from typing import (
     FrozenSet,
     Iterable,
     List,
+    NamedTuple,
     Optional,
     Sequence,
     Set,
@@ -83,7 +85,7 @@ from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
 from airflow.utils.file import correct_maybe_zipped
-from airflow.utils.helpers import exactly_one, validate_key
+from airflow.utils.helpers import at_most_one, exactly_one, validate_key
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import Interval, UtcDateTime, skip_locked, tuple_in_condition, with_row_locks
@@ -279,6 +281,7 @@ class DAG(LoggingMixin):
         to render templates as native Python types. If False, a Jinja
         ``Environment`` is used to render templates as string values.
     :param tags: List of tags to help filtering DAGs in the UI.
+    :param schedule_on_dataset: If, True, DAG runs will be created when upstream dataset is updated.
     """
 
     _comps = {
@@ -338,9 +341,14 @@ class DAG(LoggingMixin):
         jinja_environment_kwargs: Optional[Dict] = None,
         render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
+        schedule_on_dataset: Optional[bool] = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
+        scheduling_args = [schedule_interval, timetable, schedule_on_dataset]
+        if not at_most_one(*scheduling_args):
+            raise ValueError(f"At most one allowed for args {scheduling_args}")
+        self.schedule_on_dataset = schedule_on_dataset
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
@@ -2418,6 +2426,47 @@ class DAG(LoggingMixin):
 
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
+
+        from airflow.models.dataset import Dataset
+        from airflow.models.dataset_reference import DatasetReference, InletDataset, OutletDataset
+
+        class Ref(NamedTuple):
+            dag_id: str
+            task_id: str
+            is_outlet: bool
+            dataset_ref: Union[InletDataset, OutletDataset]
+
+        for dag in dags:
+            dataset_references = defaultdict(set)
+            for task in dag.tasks:
+                for dataset_ref in getattr(task, '_outlets', []):  # type: Union[InletDataset, OutletDataset]
+                    if isinstance(dataset_ref, OutletDataset):
+                        dataset_references[Dataset(uri=dataset_ref.uri, extra=dataset_ref.extra)].add(
+                            Ref(task.dag_id, task.task_id, True, dataset_ref)
+                        )
+                for dataset_ref in getattr(task, '_inlets', []):  # type: Union[InletDataset, OutletDataset]
+                    if isinstance(dataset_ref, InletDataset):
+                        dataset_references[Dataset(uri=dataset_ref.uri)].add(
+                            Ref(task.dag_id, task.task_id, False, dataset_ref)
+                        )
+            for dataset, dataset_ref_list in dataset_references.items():
+                stored_dataset = session.query(Dataset).filter(Dataset.uri == dataset.uri).first()
+                if stored_dataset:
+                    dataset = stored_dataset
+                else:
+                    session.add(dataset)
+                    session.flush()  # needed, to get integer ID col
+                for ref in dataset_ref_list:  # type: Ref
+                    session.merge(
+                        DatasetReference(
+                            dataset_id=dataset.id,
+                            dag_id=ref.dag_id,
+                            task_id=ref.task_id,
+                            is_write=ref.is_outlet,
+                            is_scheduling_dep=getattr(ref.dataset_ref, 'schedule_on', None),
+                        )
+                    )
+
         dag_ids = set(dag_by_ids.keys())
         query = (
             session.query(DagModel)
@@ -2483,6 +2532,7 @@ class DAG(LoggingMixin):
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
             orm_dag.timetable_description = dag.timetable.description
+            orm_dag.schedule_on_dataset = dag.schedule_on_dataset
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
@@ -2731,7 +2781,8 @@ class DagModel(Base):
     schedule_interval = Column(Interval)
     # Timetable/Schedule Interval description
     timetable_description = Column(String(1000), nullable=True)
-
+    # if DAG runs should be created when upstream datasets are updated
+    schedule_on_dataset = Column(Boolean, nullable=True)
     # Tags for view filter
     tags = relationship('DagTag', cascade='all, delete, delete-orphan', backref=backref('dag'))
 

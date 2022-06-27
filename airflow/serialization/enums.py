@@ -49,3 +49,6 @@ class DagAttributeTypes(str, Enum):
     EDGE_INFO = 'edgeinfo'
     PARAM = 'param'
     XCOM_REF = 'xcomref'
+    DATASET = 'dataset'
+    INLET_DATASET = 'inlet_dataset'
+    OUTLET_DATASET = 'outlet_dataset'

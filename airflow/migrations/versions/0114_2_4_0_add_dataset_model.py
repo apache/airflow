@@ -26,9 +26,9 @@ Create Date: 2022-06-22 14:37:20.880672
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Integer, String
+from sqlalchemy import Boolean, Integer, String, func
 
-from airflow.migrations.db_types import TIMESTAMP
+from airflow.migrations.db_types import TIMESTAMP, StringID
 from airflow.utils.sqlalchemy import ExtendedJSON
 
 revision = '0038cd0c28b4'
@@ -38,8 +38,7 @@ depends_on = None
 airflow_version = '2.4.0'
 
 
-def upgrade():
-    """Apply Add Dataset model"""
+def _create_dataset_table():
     op.create_table(
         'dataset',
         sa.Column('id', Integer, primary_key=True, autoincrement=True),
@@ -64,6 +63,62 @@ def upgrade():
     op.create_index('idx_uri_unique', 'dataset', ['uri'], unique=True)
 
 
+def _create_dataset_reference_table():
+    op.create_table(
+        'dataset_reference',
+        sa.Column('id', Integer, primary_key=True, autoincrement=True),
+        sa.Column('dataset_id', Integer, nullable=False),
+        sa.Column('dag_id', String(250), nullable=False),
+        sa.Column('task_id', String(250), nullable=False),
+        sa.Column('is_write', Boolean, nullable=False),
+        sa.Column('is_scheduling_dep', Boolean, nullable=True),
+        sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
+        sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
+        sa.ForeignKeyConstraint(
+            ('dataset_id',),
+            ['dataset.id'],
+            name="dataset_ref_dataset_fkey",
+            ondelete="CASCADE",
+        ),
+        sqlite_autoincrement=True,  # ensures PK values not reused
+    )
+    op.create_index(
+        'idx_pk', 'dataset_reference', ['dataset_id', 'dag_id', 'task_id', 'is_write'], unique=True
+    )
+
+
+def _create_dataset_dag_run_event_table():
+    op.create_table(
+        'dataset_dag_run_event',
+        sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
+        sa.Column('target_dag_id', StringID(), primary_key=True, nullable=True),
+        sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
+        sa.ForeignKeyConstraint(
+            ('dataset_id',),
+            ['dataset.id'],
+            name="ddre_dataset_fkey",
+            ondelete="CASCADE",
+        ),
+        sa.ForeignKeyConstraint(
+            ('target_dag_id',),
+            ['dag.dag_id'],
+            name="ddre_dag_fkey",
+            ondelete="CASCADE",
+        ),
+    )
+
+
+def upgrade():
+    """Apply Add Dataset model"""
+    _create_dataset_table()
+    _create_dataset_reference_table()
+    _create_dataset_dag_run_event_table()
+    op.add_column('dag', sa.Column('schedule_on_dataset', Boolean, nullable=True))
+
+
 def downgrade():
     """Unapply Add Dataset model"""
+    op.drop_table('dataset_reference')
+    op.drop_table('dataset_dag_run_event')
     op.drop_table('dataset')
+    op.drop_column('dag', 'schedule_on_dataset')
