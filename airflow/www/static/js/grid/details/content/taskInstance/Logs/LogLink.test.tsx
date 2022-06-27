@@ -40,7 +40,7 @@ describe('Test LogLink Component.', () => {
     const linkElement = container.querySelector('a');
     expect(linkElement).toBeDefined();
     expect(linkElement).not.toHaveAttribute('target');
-    expect(linkElement.href.includes(
+    expect(linkElement?.href.includes(
       `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&format=file&try_number=${tryNumber}`,
     )).toBeTruthy();
   });
@@ -60,7 +60,7 @@ describe('Test LogLink Component.', () => {
     const linkElement = container.querySelector('a');
     expect(linkElement).toBeDefined();
     expect(linkElement).toHaveAttribute('target', '_blank');
-    expect(linkElement.href.includes(
+    expect(linkElement?.href.includes(
       `?dag_id=dummyDagId&task_id=dummyTaskId&execution_date=2020%3A01%3A01T01%3A00%2B00%3A00&try_number=${tryNumber}`,
     )).toBeTruthy();
   });

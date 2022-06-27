@@ -39,7 +39,7 @@ export const logLevelColorMapping = {
 
 export const parseLogs = (
   data: string | undefined,
-  timezone: string,
+  timezone: string | null,
   logLevelFilters: Array<LogLevel>,
   fileSourceFilter: string,
 ) => {
@@ -80,6 +80,7 @@ export const parseLogs = (
           // keep previous behavior if utcoffset not found. (consider it UTC)
           //
           if (dateTime && timezone) { // dateTime === fullMatch
+            // @ts-ignore
             const localDateTime = moment.utc(dateTime).tz(timezone).format(defaultFormatWithTZ);
             parsedLine = line.replace(dateTime, localDateTime);
           }
@@ -89,6 +90,7 @@ export const parseLogs = (
           const [utcoffset, threeDigitMs] = msecOrUTCOffset.split(' ');
           const msec = threeDigitMs.replace(/\D+/g, ''); // drop 'ms'
           // e.g) datetime='2022-06-15 10:30:06.123+0900'
+          // @ts-ignore
           const localDateTime = moment(`${date}.${msec}${utcoffset}`).tz(timezone).format(defaultFormatWithTZ);
           parsedLine = line.replace(dateTime, localDateTime);
         }

@@ -37,7 +37,7 @@ const useTaskLog = ({
     url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber.toString());
   }
 
-  return useQuery<string, Error>(
+  return useQuery(
     ['taskLogs', dagId, dagRunId, taskId, taskTryNumber, fullContent],
     () => axios.get<AxiosResponse, string>(url, { headers: { Accept: 'text/plain' }, params: { full_content: fullContent } }),
     {
