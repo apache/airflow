@@ -15,15 +15,12 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import logging
 import warnings
 from typing import Iterable, Mapping, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowNotFoundException
 from airflow.hooks.base import BaseHook
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
-
-log = logging.getLogger(__name__)
 
 
 class PrestoToSlackOperator(SqlToSlackOperator):
@@ -104,7 +101,8 @@ class PrestoToSlackOperator(SqlToSlackOperator):
                 **kwargs,
             )
         except AirflowNotFoundException:
-            log.info(f"Didn't find the Slack connection {self.slack_conn_id}. Using the webhook instead")
+            self.log.info(
+                f"Didn't find the Slack connection '{self.slack_conn_id}'. Using the webhook instead")
             super().__init__(
                 sql=self.sql,
                 sql_conn_id=self.presto_conn_id,
