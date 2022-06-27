@@ -33,9 +33,11 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
+from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
+from airflow.models.dataset_reference import InletDataset, OutletDataset
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
@@ -370,6 +372,12 @@ class BaseSerialization:
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
             return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
+        elif isinstance(var, Dataset):
+            return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
+        elif isinstance(var, InletDataset):
+            return cls._encode(dict(uri=var.uri, schedule_on=var.schedule_on), type_=DAT.INLET_DATASET)
+        elif isinstance(var, OutletDataset):
+            return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.OUTLET_DATASET)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -415,6 +423,12 @@ class BaseSerialization:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
             return cls._deserialize_xcomref(var)
+        elif type_ == DAT.DATASET:
+            return Dataset(**var)
+        elif type_ == DAT.INLET_DATASET:
+            return InletDataset(**var)
+        elif type_ == DAT.OUTLET_DATASET:
+            return OutletDataset(**var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 

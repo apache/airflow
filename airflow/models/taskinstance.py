@@ -96,6 +96,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
+from airflow.models.dataset_dag_run_event import DatasetDagRunEvent
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -1425,6 +1426,9 @@ class TaskInstance(Base, LoggingMixin):
         :param pool: specifies the pool to use to run the task instance
         :param session: SQLAlchemy ORM Session
         """
+        from airflow.models import Dataset
+        from airflow.models.dataset_reference import OutletDataset
+
         self.test_mode = test_mode
         self.refresh_from_task(self.task, pool_override=pool)
         self.refresh_from_db(session=session)
@@ -1521,7 +1525,19 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-
+            for obj in getattr(self.task, '_outlets', []):
+                self.log.debug("outlet obj %s", obj)
+                if isinstance(obj, OutletDataset):
+                    dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).first()
+                    if not dataset:
+                        dataset = Dataset(uri=obj.uri, extra=obj.extra)
+                        self.log.debug("adding dataset %s", dataset)
+                        session.add(dataset)
+                        session.flush()
+                    downstream_dag_ids = dataset.get_downstream_dag_ids()
+                    self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                    for dag_id in downstream_dag_ids:
+                        session.merge(DatasetDagRunEvent(dataset_id=dataset.id, target_dag_id=dag_id))
             session.commit()
 
     def _execute_task_with_callbacks(self, context, test_mode=False):

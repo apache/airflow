@@ -53,15 +53,16 @@ from sqlalchemy import (
 )
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
-from sqlalchemy.orm import joinedload, relationship, synonym
+from sqlalchemy.orm import aliased, joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.expression import false, select, true
+from sqlalchemy.sql.expression import case, false, select, true
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.configuration import conf as airflow_conf
 from airflow.exceptions import AirflowException, TaskNotFound
 from airflow.models.base import Base, StringID
+from airflow.models.dataset_reference import DatasetReference
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskinstance import TaskInstance as TI
 from airflow.models.tasklog import LogTemplate
@@ -630,6 +631,64 @@ class DagRun(Base, LoggingMixin):
 
         session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
+
+        inlet_ref = aliased(DatasetReference)
+        outlet_ref = aliased(DatasetReference)
+        dependent_dag_ids = [
+            x.dag_id
+            for x in session.query(inlet_ref.dag_id)
+            .join(
+                outlet_ref,
+                outlet_ref.dataset_id == inlet_ref.dataset_id,
+            )
+            .filter(
+                inlet_ref.is_write == False,
+                inlet_ref.is_scheduling_dep == True,
+                outlet_ref.dag_id == self.dag_id,
+                outlet_ref.is_write == True,
+            )
+            .all()
+        ]
+
+        from airflow.models.dataset_dag_run_event import DatasetDagRunEvent as DDRE
+        from airflow.models.serialized_dag import SerializedDagModel
+
+        dag_ids_to_trigger = None
+        if dependent_dag_ids:
+            dag_ids_to_trigger = [
+                x.dag_id
+                for x in session.query(DatasetReference.dag_id)
+                .join(
+                    DDRE,
+                    and_(
+                        DDRE.dataset_id == DatasetReference.dataset_id,
+                        DDRE.target_dag_id == DatasetReference.dag_id,
+                    ),
+                    isouter=True,
+                )
+                .filter(
+                    DDRE.target_dag_id.in_(dependent_dag_ids),
+                    DatasetReference.is_scheduling_dep == True,
+                    DatasetReference.is_write == False,
+                )
+                .group_by(DatasetReference.dag_id)
+                .having(func.count() == func.sum(case((DDRE.target_dag_id.is_not(None), 1), else_=0)))
+                .all()
+            ]
+
+        if dag_ids_to_trigger:
+            for dag_id in dag_ids_to_trigger:
+                row = SerializedDagModel.get(dag_id, session)
+                dag = row.dag
+                if dag.schedule_on_dataset is True:  # todo: don't log events when this is true
+                    dag.create_dagrun(
+                        run_type=DagRunType.MANUAL,
+                        run_id=self.generate_run_id(DagRunType.MANUAL, execution_date=timezone.utcnow()),
+                        state=DagRunState.QUEUED,
+                        external_trigger=True,
+                        session=session,
+                    )
+                session.query(DDRE).filter(DDRE.target_dag_id.in_(dag_ids_to_trigger)).delete()
 
         return schedulable_tis, callback
 

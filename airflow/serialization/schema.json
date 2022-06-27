@@ -90,6 +90,7 @@
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
         },
+        "schedule_on_dataset": { "type": "boolean" },
         "timetable": {
           "type": "object",
           "properties": {

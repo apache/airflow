@@ -20,7 +20,9 @@ from urllib.parse import urlparse
 from sqlalchemy import Column, Index, Integer, String
 
 from airflow.models.base import Base
+from airflow.models.dataset_reference import DatasetReference
 from airflow.utils import timezone
+from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 
@@ -66,6 +68,8 @@ class Dataset(Base):
         super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
         return self.uri == other.uri
 
     def __hash__(self):
@@ -73,3 +77,16 @@ class Dataset(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+
+    @provide_session
+    def get_downstream_dag_ids(self, session=NEW_SESSION):
+        return [
+            x.dag_id
+            for x in session.query(DatasetReference.dag_id)
+            .filter(
+                DatasetReference.dataset_id == self.id,
+                DatasetReference.is_write == False,
+                DatasetReference.is_scheduling_dep == True,
+            )
+            .all()
+        ]
