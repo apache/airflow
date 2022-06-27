@@ -41,6 +41,10 @@ const MultiSelect: SelectComponent = ({ chakraStyles, ...props }) => (
         ...provided,
         py: 0,
       }),
+      placeholder: (provided) => ({
+        ...provided,
+        color: 'inherit',
+      }),
       ...chakraStyles,
     }}
   />
