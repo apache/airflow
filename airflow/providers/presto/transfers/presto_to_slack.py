@@ -41,12 +41,11 @@ class PrestoToSlackOperator(SqlToSlackOperator):
         You can use the default JINJA variable {{ results_df }} to access the pandas dataframe containing the
         SQL results
     :param presto_conn_id: destination presto connection
-    :param slack_conn_id: The connection id for Slack. Mutually exclusive with 'slack_token'
+    :param slack_conn_id: The connection id for Slack
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
     :param parameters: The parameters to pass to the SQL query
     :param slack_token: The token to use to authenticate to Slack. If this is not provided, the
         'webhook_token' attribute needs to be specified in the 'Extra' JSON field against the slack_conn_id
-        Mutually exclusive with 'slack_conn_id'
     :param slack_channel: The channel to send message. Override default from Slack connection.
     """
 
