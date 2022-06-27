@@ -43,6 +43,7 @@ body:
         - celery
         - cloudant
         - cncf-kubernetes
+        - core-sql
         - databricks
         - datadog
         - dbt-cloud

@@ -683,6 +683,7 @@ PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
     'celery': celery,
     'cloudant': cloudant,
     'cncf.kubernetes': kubernetes,
+    'core.sql': [],
     'databricks': databricks,
     'datadog': datadog,
     'dbt.cloud': http_provider,
