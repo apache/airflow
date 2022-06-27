@@ -97,7 +97,6 @@ class TestKubernetesHook:
         Hook param should beat extra.
         """
         kubernetes_hook = KubernetesHook(conn_id=conn_id, in_cluster=in_cluster_param)
-        assert kubernetes_hook.is_in_cluster is None
         mock_get_default_client.return_value = kubernetes.client.api_client.ApiClient()
         api_conn = kubernetes_hook.get_conn()
         if in_cluster_called:

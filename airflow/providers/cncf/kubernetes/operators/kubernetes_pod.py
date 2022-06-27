@@ -572,18 +572,11 @@ class KubernetesPodOperator(BaseOperator):
         pod.metadata.labels.update(
             {
                 'airflow_version': airflow_version.replace('+', '-'),
-                'airflow_kpo_in_cluster': str(self._is_in_cluster),
+                'airflow_kpo_in_cluster': str(self.hook.is_in_cluster),
             }
         )
         pod_mutation_hook(pod)
         return pod
-
-    @cached_property
-    def _is_in_cluster(self) -> bool:
-        # run get_conn so we can determine if we are in_cluster or not
-        self.hook.get_conn()
-        assert self.hook.is_in_cluster is not None
-        return self.hook.is_in_cluster
 
     def dry_run(self) -> None:
         """
