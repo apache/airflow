@@ -132,8 +132,7 @@ class SqlToSlackOperator(BaseOperator):
             hook = conn.get_hook(hook_params=self.sql_hook_params)
         else:
             # For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-            # when "apache-airflow-providers-slack" will depend on Airflow >= 2.3. Git reference:
-            # https://github.com/apache/airflow/blob/main/airflow/providers/slack/provider.yaml#L38
+            # when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
             hook = _backported_get_hook(conn, hook_params=self.sql_hook_params)
         if not callable(getattr(hook, 'get_pandas_df', None)):
             raise AirflowException(
