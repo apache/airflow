@@ -54,8 +54,6 @@ hooks:
     python-modules:
       - airflow.providers.alibaba.cloud.hooks.oss
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.alibaba.cloud.hooks.oss.OSSHook
 
 connection-types:
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.oss.OSSHook
