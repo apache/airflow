@@ -228,32 +228,18 @@ jobs:
           Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
         run: breeze build-image --push-image --tag-as-latest --run-in-parallel
-        if: matrix.platform == 'linux/amd64'
-        env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
-          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
-      - name: "Start ARM instance"
-        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: matrix.platform == 'linux/arm64'
-      - name: >
-          Build ARM CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
-        run: breeze build-image --run-in-parallel
-        if: matrix.platform == 'linux/arm64'
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-        if: (failure() || cancelled()) && matrix.platform == 'linux/amd64'
+        if: failure() || cancelled()
         run: breeze build-image --push-image --empty-image --run-in-parallel
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Candidates for pip resolver backtrack triggers"
-        if: (failure() || cancelled()) && matrix.platform == 'linux/amd64'
+        if: failure() || cancelled()
         run: >
           breeze find-newer-dependencies --max-age 1
           --python "${{ needs.build-info.outputs.defaultPythonVersion }}"
