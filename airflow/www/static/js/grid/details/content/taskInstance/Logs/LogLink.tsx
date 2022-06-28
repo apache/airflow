@@ -21,20 +21,29 @@ import React from 'react';
 
 import { getMetaValue } from '../../../../../utils';
 import LinkButton from '../../../../components/LinkButton';
+import type { Dag, DagRun, TaskInstance } from '../../../../types';
 
 const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');
 
+interface Props {
+  dagId: Dag['id'];
+  taskId: TaskInstance['taskId'];
+  executionDate: DagRun['executionDate'];
+  isInternal?: boolean;
+  tryNumber: TaskInstance['tryNumber'];
+}
+
 const LogLink = ({
   dagId, taskId, executionDate, isInternal, tryNumber,
-}) => {
+}: Props) => {
   let fullMetadataUrl = `${isInternal ? logsWithMetadataUrl : externalLogUrl
   }?dag_id=${encodeURIComponent(dagId)
   }&task_id=${encodeURIComponent(taskId)
   }&execution_date=${encodeURIComponent(executionDate)
   }`;
 
-  if (isInternal) {
+  if (isInternal && tryNumber) {
     fullMetadataUrl += `&format=file${tryNumber > 0 && `&try_number=${tryNumber}`}`;
   } else {
     fullMetadataUrl += `&try_number=${tryNumber}`;

@@ -21,6 +21,7 @@
 
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
+import type { UseQueryResult } from 'react-query';
 import Logs from './index';
 import * as useTaskLogModule from '../../../../api/useTaskLog';
 
@@ -45,14 +46,16 @@ AIRFLOW_CTX_DAG_OWNER=***
 AIRFLOW_CTX_DAG_ID=test_ui_grid
 `;
 
-let useTaskLogMock;
+let useTaskLogMock: jest.SpyInstance;
 
 describe('Test Logs Component.', () => {
+  const returnValue = {
+    data: mockTaskLog,
+    isSuccess: true,
+  } as UseQueryResult<string, unknown>;
+
   beforeEach(() => {
-    useTaskLogMock = jest.spyOn(useTaskLogModule, 'default').mockImplementation(() => ({
-      data: mockTaskLog,
-      isSuccess: true,
-    }));
+    useTaskLogMock = jest.spyOn(useTaskLogModule, 'default').mockImplementation(() => returnValue);
     window.HTMLElement.prototype.scrollIntoView = jest.fn();
   });
 

@@ -21,29 +21,42 @@
 
 import { defaultFormatWithTZ } from '../../../../../datetime_utils';
 
-export const logLevel = {
-  DEBUG: 'DEBUG',
-  INFO: 'INFO',
-  WARNING: 'WARNING',
-  ERROR: 'ERROR',
-  CRITICAL: 'CRITICAL',
+export enum LogLevel {
+  DEBUG = 'DEBUG',
+  INFO = 'INFO',
+  WARNING = 'WARNING',
+  ERROR = 'ERROR',
+  CRITICAL = 'CRITICAL',
+}
+
+export const logLevelColorMapping = {
+  [LogLevel.DEBUG]: 'gray.300',
+  [LogLevel.INFO]: 'green.200',
+  [LogLevel.WARNING]: 'yellow.200',
+  [LogLevel.ERROR]: 'red.200',
+  [LogLevel.CRITICAL]: 'red.400',
 };
 
-export const parseLogs = (data, timezone, logLevelFilter, fileSourceFilter) => {
-  const lines = data.split('\n');
-
+export const parseLogs = (
+  data: string | undefined,
+  timezone: string | null,
+  logLevelFilters: Array<LogLevel>,
+  fileSourceFilters: Array<string>,
+) => {
   if (!data) {
     return {};
   }
 
-  const parsedLines = [];
-  const fileSources = new Set();
+  const lines = data.split('\n');
+
+  const parsedLines: Array<string> = [];
+  const fileSources: Set<string> = new Set();
 
   lines.forEach((line) => {
     let parsedLine = line;
 
     // Apply log level filter.
-    if (logLevelFilter && !line.includes(logLevelFilter)) {
+    if (logLevelFilters.length > 0 && logLevelFilters.every((level) => !line.includes(level))) {
       return;
     }
 
@@ -67,6 +80,7 @@ export const parseLogs = (data, timezone, logLevelFilter, fileSourceFilter) => {
           // keep previous behavior if utcoffset not found. (consider it UTC)
           //
           if (dateTime && timezone) { // dateTime === fullMatch
+            // @ts-ignore
             const localDateTime = moment.utc(dateTime).tz(timezone).format(defaultFormatWithTZ);
             parsedLine = line.replace(dateTime, localDateTime);
           }
@@ -76,6 +90,7 @@ export const parseLogs = (data, timezone, logLevelFilter, fileSourceFilter) => {
           const [utcoffset, threeDigitMs] = msecOrUTCOffset.split(' ');
           const msec = threeDigitMs.replace(/\D+/g, ''); // drop 'ms'
           // e.g) datetime='2022-06-15 10:30:06.123+0900'
+          // @ts-ignore
           const localDateTime = moment(`${date}.${msec}${utcoffset}`).tz(timezone).format(defaultFormatWithTZ);
           parsedLine = line.replace(dateTime, localDateTime);
         }
@@ -83,7 +98,9 @@ export const parseLogs = (data, timezone, logLevelFilter, fileSourceFilter) => {
       [logGroup] = matches[2].split(':');
       fileSources.add(logGroup);
     }
-    if (!fileSourceFilter || fileSourceFilter === logGroup) {
+
+    if (fileSourceFilters.length === 0
+        || fileSourceFilters.some((fileSourceFilter) => line.includes(fileSourceFilter))) {
       parsedLines.push(parsedLine);
     }
   });

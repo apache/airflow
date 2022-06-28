@@ -49,7 +49,7 @@ import type { Task, DagRun } from '../../../types';
 
 const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
 
-const dagId = getMetaValue('dag_id');
+const dagId = getMetaValue('dag_id')!;
 
 interface Props {
   taskId: Task['id'];
@@ -205,7 +205,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
             <Logs
               dagId={dagId}
               dagRunId={runId}
-              taskId={taskId}
+              taskId={taskId!}
               executionDate={executionDate}
               tryNumber={instance?.tryNumber}
             />

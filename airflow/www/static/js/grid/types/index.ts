@@ -32,6 +32,15 @@ type TaskState = RunState
 | 'deferred'
 | null;
 
+interface Dag {
+  id: string,
+  rootDagId: string,
+  isPaused: boolean,
+  isSubdag: boolean,
+  owners: Array<string>,
+  description: string,
+}
+
 interface DagRun {
   runId: string;
   runType: 'manual' | 'backfill' | 'scheduled';
@@ -67,6 +76,7 @@ interface Task {
 }
 
 export type {
+  Dag,
   DagRun,
   RunState,
   TaskState,
