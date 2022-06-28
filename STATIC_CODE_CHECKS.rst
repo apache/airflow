@@ -136,7 +136,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-1-compatibility                        | Check that providers are 2.1 compatible.                         |         |
+| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
