@@ -459,10 +459,15 @@ option_pull_image = click.option(
     is_flag=True,
     envvar='PULL_IMAGE',
 )
-
 option_python_image = click.option(
     '--python-image',
     help="If specified this is the base python image used to build the image. "
     "Should be something like: python:VERSION-slim-bullseye",
     envvar='PYTHON_IMAGE',
+)
+option_builder = click.option(
+    '--builder',
+    help="Buildx builder used to perform `docker buildx build` commands",
+    envvar='BUILDER',
+    default='default',
 )
