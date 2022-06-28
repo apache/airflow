@@ -26,7 +26,6 @@ from dataclasses import dataclass
 from tempfile import gettempdir
 from typing import TYPE_CHECKING, Callable, Generator, Iterable, List, Optional, Tuple, Union
 
-from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import Table, and_, column, exc, func, inspect, or_, select, table, text, tuple_
 from sqlalchemy.orm.session import Session
 
@@ -667,6 +666,7 @@ def initdb(session: Session = NEW_SESSION):
     """Initialize Airflow database."""
     from alembic import command
     from flask import Flask
+    from flask_sqlalchemy import SQLAlchemy
 
     from airflow.models import Base
     from airflow.www.fab_security.sqla.models import Model
