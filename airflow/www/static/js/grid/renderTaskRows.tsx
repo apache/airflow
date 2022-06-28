@@ -173,7 +173,6 @@ const Row = (props: RowProps) => {
             level={level}
           />
         </Td>
-        <Td width={0} p={0} borderBottom={0} />
         <Td
           p={0}
           align="right"

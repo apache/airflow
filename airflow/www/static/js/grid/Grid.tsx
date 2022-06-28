@@ -40,18 +40,24 @@ import AutoRefresh from './AutoRefresh';
 
 const dagId = getMetaValue('dag_id');
 
-const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
-  const scrollRef = useRef();
-  const tableRef = useRef();
+interface Props {
+  isPanelOpen?: boolean;
+  onPanelToggle: () => void;
+  hoveredTaskState?: string;
+}
+
+const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const tableRef = useRef<HTMLTableSectionElement>(null);
 
   const { data: { groups, dagRuns } } = useGridData();
   const dagRunIds = dagRuns.map((dr) => dr.runId);
 
   const openGroupsKey = `${dagId}/open-groups`;
-  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey)) || [];
+  const storedGroups = JSON.parse(localStorage.getItem(openGroupsKey) || '[]');
   const [openGroupIds, setOpenGroupIds] = useState(storedGroups);
 
-  const onToggleGroups = (groupIds) => {
+  const onToggleGroups = (groupIds: string[]) => {
     localStorage.setItem(openGroupsKey, JSON.stringify(groupIds));
     setOpenGroupIds(groupIds);
   };
@@ -60,7 +66,11 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
     const scrollOnResize = new ResizeObserver(() => {
       const runsContainer = scrollRef.current;
       // Set scroll to top right if it is scrollable
-      if (runsContainer && runsContainer.scrollWidth > runsContainer.clientWidth) {
+      if (
+        tableRef?.current
+        && runsContainer
+        && runsContainer.scrollWidth > runsContainer.clientWidth
+      ) {
         runsContainer.scrollBy(tableRef.current.offsetWidth, 0);
       }
     });
@@ -74,26 +84,21 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
       };
     }
     return () => {};
-  }, [tableRef]);
+  }, [tableRef, isPanelOpen]);
 
   return (
     <Box
-      position="relative"
+      minWidth={isPanelOpen ? '350px' : undefined}
+      flexGrow={1}
       m={3}
       mt={0}
-      overflow="auto"
-      ref={scrollRef}
-      flexGrow={1}
-      minWidth={isPanelOpen && '350px'}
     >
       <Flex
         alignItems="center"
         justifyContent="space-between"
-        position="sticky"
-        top={0}
-        left={0}
         mb={2}
         p={1}
+        backgroundColor="white"
       >
         <Flex alignItems="center">
           <AutoRefresh />
@@ -110,28 +115,28 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }) => {
           title={`${isPanelOpen ? 'Hide ' : 'Show '} Details Panel`}
           aria-label={isPanelOpen ? 'Show Details' : 'Hide Details'}
           icon={<MdReadMore />}
-          transform={!isPanelOpen && 'rotateZ(180deg)'}
+          transform={!isPanelOpen ? 'rotateZ(180deg)' : undefined}
           transitionProperty="none"
         />
       </Flex>
-      <Table>
-        <Thead display="block" pr="10px" position="sticky" top={0} zIndex={2} bg="white">
-          <DagRuns />
-        </Thead>
-        {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
-        <Tbody
-          display="block"
-          width="100%"
-          maxHeight="calc(100vh - 665px)"
-          minHeight="500px"
-          ref={tableRef}
-          pr="10px"
-        >
-          {renderTaskRows({
-            task: groups, dagRunIds, openGroupIds, onToggleGroups, hoveredTaskState,
-          })}
-        </Tbody>
-      </Table>
+      <Box
+        overflow="auto"
+        ref={scrollRef}
+        maxHeight="900px"
+        position="relative"
+      >
+        <Table pr="10px">
+          <Thead>
+            <DagRuns />
+          </Thead>
+          {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
+          <Tbody ref={tableRef}>
+            {renderTaskRows({
+              task: groups, dagRunIds, openGroupIds, onToggleGroups, hoveredTaskState,
+            })}
+          </Tbody>
+        </Table>
+      </Box>
     </Box>
   );
 };
