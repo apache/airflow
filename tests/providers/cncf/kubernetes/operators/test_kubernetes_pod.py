@@ -197,6 +197,20 @@ class TestKubernetesPodOperator:
             "airflow_kpo_in_cluster": str(in_cluster),
         }
 
+    def test_hook_namespace(self):
+        self.hook_mock.return_value.get_namespace.return_value = 'hihi'
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            in_cluster=False,
+        )
+        pod = self.run_pod(k)
+        assert pod.metadata.namespace == 'hihi'
+
     def test_labels_mapped(self):
         k = KubernetesPodOperator(
             namespace="default",
