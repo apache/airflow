@@ -70,7 +70,7 @@ describe('Test useMappedInstances hook', () => {
       taskId: 'task_id',
     }), { wrapper: Wrapper });
 
-    await new Promise((r) => { setTimeout(r, 10); });
+    await new Promise((r) => { setTimeout(r, 50); });
     await waitFor(() => result.current.isSuccess);
     scope.done();
     expect(result.current.data.taskInstances[0].state).toBe('queued');
@@ -97,7 +97,7 @@ describe('Test useMappedInstances hook', () => {
       taskId: 'task_id',
     }), { wrapper: Wrapper });
 
-    await new Promise((r) => { setTimeout(r, 10); });
+    await new Promise((r) => { setTimeout(r, 50); });
     await waitFor(() => result.current.isSuccess);
     scope.done();
     expect(result.current.data.taskInstances[0].state).toBe('success');
