@@ -18,9 +18,7 @@
 from unittest import mock
 
 import pandas as pd
-import pytest
 
-from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 from airflow.utils import timezone
@@ -220,7 +218,7 @@ class TestSqlToSlackOperator:
             'schema': 'schema',
         }
         operator_args = {
-            'sql_conn_id': 'dummy_connection',
+            'sql_conn_id': 'snowflake_default',
             'sql': "sql {{ ds }}",
             'results_df_name': 'xxxx',
             'sql_hook_params': hook_params,
