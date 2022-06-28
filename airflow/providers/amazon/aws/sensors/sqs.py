@@ -35,13 +35,13 @@ if TYPE_CHECKING:
 class SqsSensor(BaseSensorOperator):
     """
     Get messages from an Amazon SQS queue and then delete the messages from the queue.
-    If deletion of messages fails an AirflowException is thrown. Otherwise, the messages
+    If deletion of messages fails, an AirflowException is thrown. Otherwise, the messages
     are pushed through XCom with the key ``messages``.
 
     By default,the sensor performs one and only one SQS call per poke, which limits the result to
-    a maximum of 10 messages.
+    a maximum of 10 messages. However, the total number of SQS API calls per poke can be controlled
+    by num_batches param.
 
-    However, the total number of SQS API calls per poke can be controlled by num_batches params.
     .. seealso::
         For more information on how to use this sensor, take a look at the guide:
         :ref:`howto/sensor:SqsSensor`
