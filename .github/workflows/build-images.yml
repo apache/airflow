@@ -105,12 +105,12 @@ jobs:
           persist-credentials: false
           fetch-depth: 2
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           # We do not have output from selective checks yet, so we need to hardcode python
           python-version: 3.7
@@ -171,7 +171,7 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
@@ -195,14 +195,14 @@ jobs:
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: "main-airflow"
           ref: "${{ needs.build-info.outputs.targetBranch }}"
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: >
@@ -216,7 +216,7 @@ jobs:
           rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
           mv -v "main-airflow/dev" "."
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -263,7 +263,7 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
@@ -287,14 +287,14 @@ jobs:
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           path: "main-airflow"
           ref: "${{ needs.build-info.outputs.targetBranch }}"
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
       - name: >
@@ -308,7 +308,7 @@ jobs:
           rm -rfv "dev"
           mv -v "main-airflow/scripts/ci" "scripts"
           mv -v "main-airflow/dev" "."
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
