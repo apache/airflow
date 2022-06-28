@@ -46,12 +46,12 @@ const Main = () => {
   const [hoveredTaskState, setHoveredTaskState] = useState<string | null | undefined>();
 
   // Add a debounced delay to not constantly trigger highlighting certain task states
-  const onStatusHover = debounce((state) => setHoveredTaskState(state), 400)
+  const onStatusHover = debounce((state) => setHoveredTaskState(state), 400);
 
   const onStatusLeave = () => {
     setHoveredTaskState(undefined);
-    onStatusHover.cancel()
-  }
+    onStatusHover.cancel();
+  };
 
   const onPanelToggle = () => {
     if (!isOpen) {
