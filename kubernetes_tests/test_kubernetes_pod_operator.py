@@ -362,7 +362,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             task_id="task" + self.get_current_task_name(),
             in_cluster=False,
             do_xcom_push=False,
-            resources=resources,
+            container_resources=resources,
         )
         context = create_context(k)
         k.execute(context)
