@@ -2221,10 +2221,11 @@ class DAG(LoggingMixin):
         return task_id in self.task_dict
 
     def has_task_group(self, task_group_id: str):
-        task_groups_ids = set(
-            task_id.split(".")[0] for task_id in self.task_ids if
-            "." in task_id)
-        return task_group_id in task_groups_ids
+        return task_group_id in self.task_group_dict
+
+    @property
+    def task_group_dict(self) -> Dict[str, "TaskGroup"]:
+        return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
 
     def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
         if task_id in self.task_dict:

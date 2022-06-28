@@ -36,6 +36,9 @@ from airflow.utils.helpers import build_airflow_url_with_query
 from airflow.utils.session import provide_session
 from airflow.utils.state import State
 
+if TYPE_CHECKING:
+    from sqlalchemy.orm import Query
+
 
 class ExternalDagLink(BaseOperatorLink):
     """
@@ -193,12 +196,21 @@ class ExternalTaskSensor(BaseSensorOperator):
         dttm_filter = self._get_dttm_filter(context)
         serialized_dttm_filter = ','.join(dt.isoformat() for dt in dttm_filter)
 
-        self.log.info(
-            'Poking for tasks %s in dag %s on %s ... ',
-            self.external_task_ids,
-            self.external_dag_id,
-            serialized_dttm_filter,
-        )
+        if self.external_task_ids:
+            self.log.info(
+                'Poking for tasks %s in dag %s on %s ... ',
+                self.external_task_ids,
+                self.external_dag_id,
+                serialized_dttm_filter,
+            )
+
+        if self.external_task_group_id:
+            self.log.info(
+                'Poking for task_group %s in dag %s on %s ... ',
+                self.external_task_group_id,
+                self.external_dag_id,
+                serialized_dttm_filter,
+            )
 
         # In poke mode this will check dag existence only once
         if self.check_existence and not self._has_checked_existence:
@@ -261,12 +273,15 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_group_id:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
-
+            self.log.info("ashish")
+            self.log.info(str(refreshed_dag_info.task_group_dict))
             if not refreshed_dag_info.has_task_group(self.external_task_group_id):
                 raise AirflowException(
                     f'The external task group {self.external_task_group_id} in '
                     f'DAG {self.external_dag_id} does not exist.'
                 )
+            else: # remove this
+                self.log.info("%s exists in %s", self.external_task_group_id, self.external_dag_id)
 
         self._has_checked_existence = True
 
@@ -286,27 +301,50 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_ids:
             count = (
-                session.query(func.count())  # .count() is inefficient
-                    .filter(
-                    TI.dag_id == self.external_dag_id,
-                    TI.task_id.in_(self.external_task_ids),
-                    TI.state.in_(states),
-                    TI.execution_date.in_(dttm_filter),
-                )
-                    .scalar()
-            )
-            count = count / len(self.external_task_ids)
-        else:
+                self._count_query(TI, session, states, dttm_filter)
+                .filter(TI.task_id.in_(self.external_task_ids))
+                .scalar()
+            ) / len(self.external_task_ids)
+        elif self.external_task_group_id:
+            external_task_group_task_ids = self.get_external_task_group_task_ids(session)
+            self.log.info(str(external_task_group_task_ids))
+            # we need list of task_ids for this task_group
             count = (
-                session.query(func.count())
-                    .filter(
-                    DR.dag_id == self.external_dag_id,
-                    DR.state.in_(states),
-                    DR.execution_date.in_(dttm_filter),
-                )
-                    .scalar()
-            )
+                self._count_query(TI, session, states, dttm_filter)
+                .filter(TI.task_id.in_(external_task_group_task_ids))
+                .scalar()
+            ) / len(external_task_group_task_ids)
+        else:
+            count = self._count_query(DR, session, states, dttm_filter).scalar()
         return count
+
+    def _count_query(self, model, session, states, dttm_filter) -> "Query":
+        query = session.query(func.count()).filter(
+            model.dag_id == self.external_dag_id,
+            model.state.in_(states),  # pylint: disable=no-member
+            model.execution_date.in_(dttm_filter),
+        )
+        return query
+
+    # def get_external_task_group_task_ids(self, session):
+    #     """Return task ids for the external TaskGroup"""
+    #     refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
+    #     task_group: Optional["TaskGroup"] = refreshed_dag_info.task_group_dict.get(
+    #         self.external_task_group_id
+    #     )
+    #     if not task_group:
+    #         raise AirflowException(
+    #             f"The external task group {self.external_task_group_id} in "
+    #             f"DAG {self.external_dag_id} does not exist."
+    #         )
+    #     task_ids = [task.task_id for task in task_group]
+    #     return task_ids
+
+    def get_external_task_group_task_ids(self, session):
+        refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
+        task_group = refreshed_dag_info.task_group_dict.get(self.external_task_group_id)
+        task_ids = [task.task_id for task in task_group]
+        return task_ids
 
     def _handle_execution_date_fn(self, context) -> Any:
         """
