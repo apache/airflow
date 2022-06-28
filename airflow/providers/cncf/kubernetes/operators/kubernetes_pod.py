@@ -532,7 +532,7 @@ class KubernetesPodOperator(BaseOperator):
             api_version="v1",
             kind="Pod",
             metadata=k8s.V1ObjectMeta(
-                namespace=self.namespace,
+                namespace=self.namespace or self.hook.get_namespace(),
                 labels=self.labels,
                 name=self.name,
                 annotations=self.annotations,

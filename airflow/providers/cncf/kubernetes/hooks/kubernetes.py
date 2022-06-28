@@ -147,16 +147,16 @@ class KubernetesHook(BaseHook):
             extras = {}
         return extras
 
-    def _get_field(self, field_name):
+    def _get_field(self, field_name, default=None):
         if field_name.startswith('extra_'):
             raise ValueError(
                 f"Got prefixed name {field_name}; please remove the 'extra__kubernetes__' prefix "
                 f"when using this method."
             )
         if field_name in self.conn_extras:
-            return self.conn_extras[field_name] or None
+            return self.conn_extras[field_name] or default
         prefixed_name = f"extra__kubernetes__{field_name}"
-        return self.conn_extras.get(prefixed_name) or None
+        return self.conn_extras.get(prefixed_name) or default
 
     @staticmethod
     def _deprecation_warning_core_param(deprecation_warnings):
@@ -359,11 +359,9 @@ class KubernetesHook(BaseHook):
     def get_namespace(self) -> Optional[str]:
         """Returns the namespace that defined in the connection"""
         if self.conn_id:
-            connection = self.get_connection(self.conn_id)
-            extras = connection.extra_dejson
-            namespace = extras.get("extra__kubernetes__namespace", "default")
-            return namespace
-        return None
+            return self._get_field('namespace', 'default')
+        else:
+            return None
 
     def get_pod_log_stream(
         self,
