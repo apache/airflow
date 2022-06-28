@@ -55,7 +55,7 @@ def print_help_for_all_commands():
     env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / "output-commands.svg")
     env['TERM'] = "xterm-256color"
     env['PYTHONPATH'] = str(BREEZE_SOURCES_DIR)
-    new_hash = check_output(
+    new_hash_dump = PREAMBLE + check_output(
         [
             sys.executable,
             str(BREEZE_SOURCES_DIR / "airflow_breeze" / "breeze.py"),
@@ -67,12 +67,17 @@ def print_help_for_all_commands():
     )
     hash_file_path = BREEZE_IMAGES_DIR / "output-commands-hash.txt"
     try:
-        old_hash = hash_file_path.read_text()[len(PREAMBLE) :]
+        old_hash_dump = hash_file_path.read_text()
     except FileNotFoundError:
-        old_hash = ""
-    if old_hash == new_hash:
-        console.print(f"[bright_blue]Skip generation of SVG images as command hash is unchanged {old_hash}")
+        old_hash_dump = ""
+    if old_hash_dump == new_hash_dump:
+        console.print("[bright_blue]Skip generation of SVG images as command hash files are unchanged:")
+        console.print(old_hash_dump, markup=False)
         return
+    else:
+        console.print("[yellow]The hash files differ")
+        console.print(new_hash_dump, markup=False)
+        console.print(old_hash_dump, markup=False)
     run([sys.executable, "-m", "pip", "install", "--upgrade", "-e", BREEZE_INSTALL_DIR])
     env = os.environ.copy()
     env['AIRFLOW_SOURCES_ROOT'] = str(AIRFLOW_SOURCES_DIR)
@@ -89,7 +94,7 @@ def print_help_for_all_commands():
         env['RECORD_BREEZE_OUTPUT_FILE'] = str(BREEZE_IMAGES_DIR / f"output-{command}.svg")
         env['TERM'] = "xterm-256color"
         check_call(["breeze", command, "--help"], env=env)
-    hash_file_path.write_text(PREAMBLE + new_hash)
+    hash_file_path.write_text(new_hash_dump)
 
 
 def verify_all_commands_described_in_docs():
