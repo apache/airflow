@@ -487,8 +487,6 @@ This is done for three reasons:
 1. in order to selectively run only subset of the test types for some PRs
 2. in order to allow parallel execution of the tests on Self-Hosted runners
 
-For case 1. see `Pull Request Workflow <PULL_REQUEST_WORKFLOW.rst#selective-ci-checks>`_  for details.
-
 For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
 test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
 60 minutes to ~15 minutes.

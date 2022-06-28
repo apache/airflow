@@ -126,7 +126,6 @@ def is_core_commit(files: List[str]) -> bool:
         "CONTRIBUTORS_QUICK_START.rst",
         "IMAGES.rst",
         "LOCAL_VIRTUALENV.rst",
-        "PULL_REQUEST_WORKFLOW.rst",
         "INTHEWILD.md",
         "INSTALL",
         "README.md",
