@@ -20,9 +20,10 @@
 import React from 'react';
 import {
   Button,
+  ButtonProps,
   Link,
 } from '@chakra-ui/react';
 
-const LinkButton = ({ children, ...rest }) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
+const LinkButton = ({ children, ...rest }: ButtonProps) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
 
 export default LinkButton;

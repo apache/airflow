@@ -24,9 +24,18 @@ import {
 } from '@chakra-ui/react';
 import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
+interface Props {
+  isGroup?: boolean;
+  isMapped?: boolean;
+  onToggle: () => void;
+  isOpen?: boolean;
+  level?: number;
+  label: string;
+}
+
 const TaskName = ({
   isGroup = false, isMapped = false, onToggle, isOpen = false, level = 0, label,
-}) => (
+}: Props) => (
   <Flex
     as={isGroup ? 'button' : 'div'}
     onClick={onToggle}
