@@ -17,7 +17,7 @@
 
 import inspect
 from textwrap import dedent
-from typing import Callable, Optional, Sequence, TypeVar
+from typing import Callable, Optional, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import PythonVirtualenvOperator
@@ -63,9 +63,6 @@ class _PythonVirtualenvDecoratedOperator(DecoratedOperator, PythonVirtualenvOper
         res = dedent(raw_source)
         res = remove_task_decorator(res, "@task.virtualenv")
         return res
-
-
-T = TypeVar("T", bound=Callable)
 
 
 def virtualenv_task(

@@ -20,7 +20,7 @@
 # necessarily exist at run time. See "Creating Custom @task Decorators"
 # documentation for more details.
 
-from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union, overload
+from typing import Any, Dict, Iterable, List, Mapping, Optional, Union, overload
 
 from airflow.decorators.base import Function, Task, TaskDecorator
 from airflow.decorators.branch_python import branch_task
@@ -60,7 +60,7 @@ class TaskDecoratorCollection:
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
-            in your callable's context after the template has been applied
+            in your callable's context after the template has been applied.
         :param show_return_value_in_logs: a bool value whether to show return_value
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
@@ -115,7 +115,7 @@ class TaskDecoratorCollection:
         :param templates_dict: a dictionary where the values are templates that
             will get templated by the Airflow engine sometime between
             ``__init__`` and ``execute`` takes place and are made available
-            in your callable's context after the template has been applied
+            in your callable's context after the template has been applied.
         :param show_return_value_in_logs: a bool value whether to show return_value
             logs. Defaults to True, which allows return value log output.
             It can be set to False to prevent log output of return value when you return huge data
@@ -124,20 +124,14 @@ class TaskDecoratorCollection:
     @overload
     def virtualenv(self, python_callable: Function) -> Task[Function]: ...
     @overload
-    def branch(
-        self, python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs
-    ) -> TaskDecorator:
-        """Wraps a python function into a BranchPythonOperator
+    def branch(self, *, multiple_outputs: Optional[bool] = None, **kwargs) -> TaskDecorator:
+        """Create a decorator to wrap the decorated callable into a BranchPythonOperator.
 
-        For more information on how to use this operator, take a look at the guide:
-        :ref:`howto/operator:BranchPythonOperator`
-        Accepts kwargs for operator kwarg. Can be reused in a single DAG.
-        :param python_callable: Function to decorate
-        :type python_callable: Optional[Callable]
-        :param multiple_outputs: if set, function return value will be
-            unrolled to multiple XCom values. Dict will unroll to xcom values with keys as XCom keys.
-            Defaults to False.
-        :type multiple_outputs: bool
+        For more information on how to use this decorator, see :ref:`howto/operator:BranchPythonOperator`.
+        Accepts arbitrary for operator kwarg. Can be reused in a single DAG.
+
+        :param multiple_outputs: If set, function return value will be unrolled to multiple XCom values.
+            Dict will unroll to XCom values with keys as XCom keys. Defaults to False.
         """
     @overload
     def branch(self, python_callable: Function) -> Task[Function]: ...
