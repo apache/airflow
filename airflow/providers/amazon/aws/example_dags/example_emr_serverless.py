@@ -53,7 +53,7 @@ with DAG(
     # [START howto_operator_emr_serverless_create_application]
     emr_serverless_app = EmrServerlessCreateApplicationOperator(
         task_id='create_emr_serverless_task',
-        release_label='emr-6.5.0-preview',
+        release_label='emr-6.6.0',
         job_type="SPARK",
         config={'name': 'new_application'},
     )
