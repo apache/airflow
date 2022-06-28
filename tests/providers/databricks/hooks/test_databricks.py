@@ -104,6 +104,7 @@ LIST_JOBS_RESPONSE = {
     ],
     'has_more': False,
 }
+LIST_ZONES_RESPONSE = {'zones': ['us-east-2b', 'us-east-2c', 'us-east-2a'], 'default_zone': 'us-east-2b'}
 
 
 def run_now_endpoint(host):
@@ -178,9 +179,14 @@ def uninstall_endpoint(host):
 
 def list_jobs_endpoint(host):
     """
-    Utility function to generate the list jobs endpoint giver the host
+    Utility function to generate the list jobs endpoint given the host
     """
     return f'https://{host}/api/2.1/jobs/list'
+
+
+def list_zones_endpoint(host):
+    """Utility function to generate the list zones endpoint given the host"""
+    return f'https://{host}/api/2.0/clusters/list-zones'
 
 
 def create_valid_response_mock(content):
@@ -701,6 +707,40 @@ class TestDatabricksHook(unittest.TestCase):
             list_jobs_endpoint(HOST),
             json=None,
             params={'limit': 25, 'offset': 0, 'expand_tasks': False},
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
+    def test_connection_success(self, mock_requests):
+        mock_requests.codes.ok = 200
+        mock_requests.get.return_value.json.return_value = LIST_ZONES_RESPONSE
+        status_code_mock = mock.PropertyMock(return_value=200)
+        type(mock_requests.get.return_value).status_code = status_code_mock
+        response = self.hook.test_connection()
+        assert response == (True, 'Connection successfully tested')
+        mock_requests.get.assert_called_once_with(
+            list_zones_endpoint(HOST),
+            json=None,
+            params=None,
+            auth=HTTPBasicAuth(LOGIN, PASSWORD),
+            headers=USER_AGENT_HEADER,
+            timeout=self.hook.timeout_seconds,
+        )
+
+    @mock.patch('airflow.providers.databricks.hooks.databricks_base.requests')
+    def test_connection_failure(self, mock_requests):
+        mock_requests.codes.ok = 404
+        mock_requests.get.side_effect = Exception('Connection Failure')
+        status_code_mock = mock.PropertyMock(return_value=404)
+        type(mock_requests.get.return_value).status_code = status_code_mock
+        response = self.hook.test_connection()
+        assert response == (False, 'Connection Failure')
+        mock_requests.get.assert_called_once_with(
+            list_zones_endpoint(HOST),
+            json=None,
+            params=None,
             auth=HTTPBasicAuth(LOGIN, PASSWORD),
             headers=USER_AGENT_HEADER,
             timeout=self.hook.timeout_seconds,
