@@ -87,11 +87,7 @@ class TriggerDagRunOperator(BaseOperator):
     template_fields: Sequence[str] = ("trigger_dag_id", "trigger_run_id", "execution_date", "conf")
     template_fields_renderers = {"conf": "py"}
     ui_color = "#ffefeb"
-
-    @property
-    def operator_extra_links(self):
-        """Return operator extra links"""
-        return [TriggerDagRunLink()]
+    operator_extra_links = [TriggerDagRunLink()]
 
     def __init__(
         self,
