@@ -733,18 +733,3 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Error logging DAG warnings.")
 
         return len(dagbag.dags), len(dagbag.import_errors)
-
-
-#
-# from airflow import settings
-#
-# session = settings.Session()
-# from airflow.models.dagwarning import DagWarning
-# stored_warnings = set(
-#     session.query(DagWarning).filter(DagWarning.dag_id.in_(('resource',))).all()
-# )
-# dag_ids = session.query(DagModel).filter(DagModel.is_active == false()).all()
-# session.query(cls).filter(cls.dag_id.in_(dag_ids)).delete(synchronize_session=False)
-#
-# for warning_to_delete in stored_warnings:
-#     session.delete(warning_to_delete)
