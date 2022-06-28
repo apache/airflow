@@ -197,7 +197,7 @@ class TestSqlToSlackOperator:
     def test_hook_params(self, mock_get_conn):
         mock_get_conn.return_value = Connection(conn_id='postgres_test', conn_type='postgres')
         op = SqlToSlackOperator(
-            task_id='sql_sensor_hook_params',
+            task_id='sql_hook_params',
             sql_conn_id='postgres_test',
             sql="SELECT 1",
             slack_message='message: {{ ds }}, {{ xxxx }}',
@@ -211,25 +211,22 @@ class TestSqlToSlackOperator:
     @mock.patch('airflow.operators.sql.BaseHook.get_connection')
     def test_hook_params_snowflake(self, mock_get_conn):
         mock_get_conn.return_value = Connection(conn_id='snowflake_default', conn_type='snowflake')
-        hook_params = {
-            'warehouse': 'warehouse',
-            'database': 'database',
-            'role': 'role',
-            'schema': 'schema',
-        }
-        operator_args = {
-            'sql_conn_id': 'snowflake_default',
-            'sql': "sql {{ ds }}",
-            'results_df_name': 'xxxx',
-            'sql_hook_params': hook_params,
-            'parameters': ['1', '2', '3'],
-            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
-            'slack_webhook_token': 'test_token',
-            'dag': self.example_dag,
-        }
-        sql_to_slack_operator = self._construct_operator(**operator_args)
+        op = SqlToSlackOperator(
+            task_id='snowflake_hook_params',
+            sql_conn_id='snowflake_default',
+            results_df_name='xxxx',
+            sql="SELECT 1",
+            slack_message='message: {{ ds }}, {{ xxxx }}',
+            sql_hook_params={
+                'warehouse': 'warehouse',
+                'database': 'database',
+                'role': 'role',
+                'schema': 'schema',
+            },
+        )
+        hook = op._get_hook()
 
-        assert sql_to_slack_operator._get_hook.warehouse == 'warehouse'
-        assert sql_to_slack_operator._get_hook.database == 'database'
-        assert sql_to_slack_operator._get_hook.role == 'role'
-        assert sql_to_slack_operator._get_hook.schema == 'schema'
+        assert hook.warehouse == 'warehouse'
+        assert hook.database == 'database'
+        assert hook.role == 'role'
+        assert hook.schema == 'schema'
