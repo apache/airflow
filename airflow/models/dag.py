@@ -2224,7 +2224,7 @@ class DAG(LoggingMixin):
         return task_group_id in self.task_group_dict
 
     @property
-    def task_group_dict(self) -> Dict[str, "TaskGroup"]:
+    def task_group_dict(self):
         return {k: v for k, v in self._task_group.get_task_group_dict().items() if k is not None}
 
     def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
