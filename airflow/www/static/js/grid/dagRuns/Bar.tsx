@@ -37,6 +37,7 @@ import { useContainerRef } from '../context/containerRef';
 import Time from '../components/Time';
 import type { SelectionProps } from '../utils/useSelection';
 import type { RunWithDuration } from '.';
+import { hoverDelay } from '../utils';
 
 const BAR_HEIGHT = 100;
 
@@ -95,7 +96,7 @@ const DagRunBar = ({
           hasArrow
           portalProps={{ containerRef }}
           placement="top"
-          openDelay={100}
+          openDelay={hoverDelay}
         >
           <Flex
             width="10px"

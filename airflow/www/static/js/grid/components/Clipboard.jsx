@@ -60,7 +60,6 @@ export const ClipboardButton = forwardRef(
         label="Copied"
         isOpen={hasCopied}
         isDisabled={!hasCopied}
-        closeDelay={500}
         placement="top"
         portalProps={{ containerRef }}
       >

@@ -43,7 +43,7 @@ const dagId = getMetaValue('dag_id');
 interface Props {
   isPanelOpen?: boolean;
   onPanelToggle: () => void;
-  hoveredTaskState?: string;
+  hoveredTaskState?: string | null;
 }
 
 const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) => {
@@ -129,7 +129,6 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
           <Thead>
             <DagRuns />
           </Thead>
-          {/* TODO: remove hardcoded values. 665px is roughly the total heade+footer height */}
           <Tbody ref={tableRef}>
             {renderTaskRows({
               task: groups, dagRunIds, openGroupIds, onToggleGroups, hoveredTaskState,

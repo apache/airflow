@@ -43,7 +43,7 @@ interface RowProps {
   openParentCount?: number;
   openGroupIds?: string[];
   onToggleGroups?: (groupIds: string[]) => void;
-  hoveredTaskState?: string;
+  hoveredTaskState?: string | null;
 }
 
 const renderTaskRows = ({
@@ -67,7 +67,7 @@ interface TaskInstancesProps {
   dagRunIds: string[];
   selectedRunId?: string | null;
   onSelect: (selection: SelectionProps) => void;
-  hoveredTaskState?: string;
+  hoveredTaskState?: string | null;
 }
 
 const TaskInstances = ({

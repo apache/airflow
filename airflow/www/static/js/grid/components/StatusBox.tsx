@@ -30,6 +30,7 @@ import InstanceTooltip from './InstanceTooltip';
 import { useContainerRef } from '../context/containerRef';
 import type { Task, TaskInstance, TaskState } from '../types';
 import type { SelectionProps } from '../utils/useSelection';
+import { hoverDelay } from '../utils';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
@@ -92,7 +93,7 @@ const StatusBox = ({
       portalProps={{ containerRef }}
       hasArrow
       placement="top"
-      openDelay={400}
+      openDelay={hoverDelay}
     >
       <Box>
         <SimpleStatus

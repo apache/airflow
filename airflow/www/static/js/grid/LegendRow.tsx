@@ -26,23 +26,34 @@ import {
 } from '@chakra-ui/react';
 import React from 'react';
 
+interface LegendProps {
+  onStatusHover: (status: string | null) => void;
+  onStatusLeave: () => void;
+}
+
+interface BadgeProps extends LegendProps {
+  state: string | null;
+  stateColor: string;
+  displayValue?: string;
+}
+
 const StatusBadge = ({
-  state, stateColor, setHoveredTaskState, displayValue,
-}) => (
+  state, stateColor, onStatusHover, onStatusLeave, displayValue,
+}: BadgeProps) => (
   <Text
     borderRadius={4}
     border={`solid 2px ${stateColor}`}
     px={1}
     cursor="pointer"
     fontSize="11px"
-    onMouseEnter={() => setHoveredTaskState(state)}
-    onMouseLeave={() => setHoveredTaskState()}
+    onMouseEnter={() => onStatusHover(state)}
+    onMouseLeave={() => onStatusLeave()}
   >
     {displayValue || state }
   </Text>
 );
 
-const LegendRow = ({ setHoveredTaskState }) => (
+const LegendRow = ({ onStatusHover, onStatusLeave }: LegendProps) => (
   <Flex p={4} flexWrap="wrap" justifyContent="end">
     <HStack spacing={2} wrap="wrap">
       {
@@ -51,7 +62,8 @@ const LegendRow = ({ setHoveredTaskState }) => (
           key={state}
           state={state}
           stateColor={stateColor}
-          setHoveredTaskState={setHoveredTaskState}
+          onStatusHover={onStatusHover}
+          onStatusLeave={onStatusLeave}
         />
       ))
       }
@@ -60,7 +72,8 @@ const LegendRow = ({ setHoveredTaskState }) => (
         displayValue="no_status"
         state={null}
         stateColor="white"
-        setHoveredTaskState={setHoveredTaskState}
+        onStatusHover={onStatusHover}
+        onStatusLeave={onStatusLeave}
       />
     </HStack>
   </Flex>
