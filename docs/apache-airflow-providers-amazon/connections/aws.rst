@@ -76,26 +76,28 @@ Extra (optional)
       `botocore.config.Config <https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html>`__
       passed to `boto3.client <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.client>`__
       and `boto3.resource <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html#boto3.session.Session.resource>`__.
-    * ``role_arn``: If specified, then use this role for obtain a set of temporary security credentials will be done to this role.
-    * ``assume_role_method``: `AWS STS Client method <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts.html#client>`__
-      for `assume role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__,
-      if not specified than `assume_role <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/sts.html#STS.Client.assume_role>`__ use.
+    * ``role_arn``: If specified, then assume this role, obtaining a set of temporary security credentials using the ``assume_role_method``.
+    * ``assume_role_method``: AWS STS client method, one of
+      `assume_role <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRole.html>`__,
+      `assume_role_with_saml <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithSAML.html>`__ or
+      `assume_role_with_web_identity <https://docs.aws.amazon.com/STS/latest/APIReference/API_AssumeRoleWithWebIdentity.html>`__
+      if not specified then **assume_role** is used.
     * ``assume_role_kwargs``: Additional **kwargs** passed to ``assume_role_method``.
     * ``host``: Endpoint URL for the connection.
-    * ``s3_config_file``: Path to local credentials file.
-    * ``s3_config_format``: ``s3_config_file`` format, one of
-      `aws <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`_,
-      `boto <http://boto.cloudhackers.com/en/latest/boto_config_tut.html#details>`_ or
-      `s3cmd <https://s3tools.org/kb/item14.htm>`_ if not specified than **boto** use.
-    * ``profile``: If you are getting your credentials from the ``s3_config_file``
-      you can specify the profile with this parameter.
 
-.. warning:: Extra parameters below deprecated and will remove in future version of provider.
+.. warning:: Extra parameters below are deprecated and will be removed in a future version of this provider.
 
     * ``aws_account_id``: Used to construct ``role_arn`` if it was not specified.
     * ``aws_iam_role``: Used to construct ``role_arn`` if it was not specified.
     * ``external_id``: A unique identifier that might be required when you assume a role in another account.
       Used if ``ExternalId`` in ``assume_role_kwargs`` was not specified.
+    * ``s3_config_file``: Path to local credentials file.
+    * ``s3_config_format``: ``s3_config_file`` format, one of
+      `aws <https://docs.aws.amazon.com/cli/latest/userguide/cli-configure-files.html#cli-configure-files-settings>`_,
+      `boto <http://boto.cloudhackers.com/en/latest/boto_config_tut.html#details>`_ or
+      `s3cmd <https://s3tools.org/kb/item14.htm>`_ if not specified then **boto** is used.
+    * ``profile``: If you are getting your credentials from the ``s3_config_file``
+      you can specify the profile with this parameter.
 
 If you are configuring the connection via a URI, ensure that all components of the URI are URL-encoded.
 

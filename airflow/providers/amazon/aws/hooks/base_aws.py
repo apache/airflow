@@ -221,6 +221,12 @@ class BaseSessionFactory(LoggingMixin):
             aws_secret_access_key = self.extra_config["aws_secret_access_key"]
             self.log.info("Credentials retrieved from extra_config")
         elif "s3_config_file" in self.extra_config:
+            warnings.warn(
+                "Use local credentials file is never documented and well tested. "
+                "Obtain credentials by this way deprecated and will be removed in a future releases.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             aws_access_key_id, aws_secret_access_key = _parse_s3_config(
                 self.extra_config["s3_config_file"],
                 self.extra_config.get("s3_config_format"),
