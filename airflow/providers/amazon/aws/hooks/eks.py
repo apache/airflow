@@ -26,11 +26,11 @@ from enum import Enum
 from functools import partial
 from typing import Callable, Dict, Generator, List, Optional
 
-import yaml
 from botocore.exceptions import ClientError
 from botocore.signers import RequestSigner
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
+from airflow.utils import yaml
 from airflow.utils.json import AirflowJsonEncoder
 
 DEFAULT_PAGINATION_TOKEN = ''
