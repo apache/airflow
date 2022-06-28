@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-25T22:33:01Z
+# This constraints file was automatically generated on 2022-06-28T13:56:11Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -16,8 +16,8 @@ Deprecated==1.2.13
 Flask-AppBuilder==4.1.2
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
-Flask-Caching==1.11.1
-Flask-JWT-Extended==4.4.1
+Flask-Caching==2.0.0
+Flask-JWT-Extended==4.4.2
 Flask-Login==0.6.1
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
@@ -57,7 +57,7 @@ amqp==5.1.1
 analytics-python==1.4.0
 ansiwrap==0.8.4
 anyio==3.6.1
-apache-beam==2.39.0
+apache-beam==2.40.0
 apispec==3.3.2
 appdirs==1.4.4
 argcomplete==2.0.0
@@ -98,15 +98,15 @@ backports.zoneinfo==0.2.1
 bcrypt==3.2.2
 beautifulsoup4==4.11.1
 billiard==3.6.4.0
-black==22.3.0
-bleach==5.0.0
+black==22.6.0
+bleach==5.0.1
 blinker==1.4
-boto3==1.24.17
+boto3==1.24.18
 boto==2.49.0
-botocore==1.27.17
+botocore==1.27.18
 bowler==0.9.0
 cached-property==1.5.2
-cachelib==0.8.0
+cachelib==0.9.0
 cachetools==4.2.2
 cassandra-driver==3.25.0
 cattrs==1.10.0
@@ -158,7 +158,7 @@ eventlet==0.33.1
 execnet==1.9.0
 executing==0.8.3
 facebook-business==13.0.0
-fastavro==1.5.1
+fastavro==1.5.2
 fastjsonschema==2.15.3
 filelock==3.7.1
 fissix==21.11.13
@@ -233,9 +233,9 @@ h11==0.12.0
 hdfs==2.7.0
 hmsclient==0.1.1
 httpcore==0.15.0
-httplib2==0.18.1
+httplib2==0.20.4
 httpx==0.23.0
-humanize==4.2.1
+humanize==4.2.2
 hvac==0.11.2
 identify==2.5.1
 idna==3.3
@@ -282,7 +282,7 @@ markdown-it-py==2.1.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.16.0
+marshmallow==3.17.0
 matplotlib-inline==0.1.3
 mccabe==0.6.1
 mdit-py-plugins==0.3.0
@@ -291,7 +291,7 @@ mongomock==4.0.0
 monotonic==1.6
 more-itertools==8.13.0
 moreorless==0.4.0
-moto==3.1.14
+moto==3.1.16
 msal-extensions==1.0.0
 msal==1.18.0
 msgpack==1.0.4
@@ -319,7 +319,7 @@ openapi-schema-validator==0.2.3
 openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
 oracledb==1.0.1
-orjson==3.7.3
+orjson==3.7.5
 oscrypto==1.3.0
 oss2==2.15.0
 packaging==21.3
@@ -349,7 +349,7 @@ pre-commit==2.19.0
 presto-python-client==0.8.2
 prison==0.2.1
 prometheus-client==0.14.1
-prompt-toolkit==3.0.29
+prompt-toolkit==3.0.30
 proto-plus==1.19.6
 protobuf==3.20.0
 psutil==5.9.1
@@ -392,7 +392,7 @@ pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
 pytest-xdist==2.5.0
 pytest==6.2.5
-python-arango==7.3.4
+python-arango==7.4.0
 python-daemon==2.3.0
 python-dateutil==2.8.2
 python-http-client==3.3.7
@@ -488,24 +488,24 @@ tqdm==4.64.0
 traitlets==5.3.0
 trino==0.313.0
 twine==4.0.1
-types-Deprecated==1.2.8
-types-Markdown==3.3.28
+types-Deprecated==1.2.9
+types-Markdown==3.3.29
 types-PyMySQL==1.0.19
 types-PyYAML==6.0.9
-types-boto==2.49.15
+types-boto==2.49.16
 types-certifi==2021.10.8.3
-types-croniter==1.0.10
+types-croniter==1.3.0
 types-cryptography==3.3.21
 types-docutils==0.18.3
 types-freezegun==1.1.10
-types-paramiko==2.11.0
+types-paramiko==2.11.1
 types-protobuf==3.19.22
 types-python-dateutil==2.8.18
 types-python-slugify==5.0.4
-types-pytz==2022.1.0
+types-pytz==2022.1.1
 types-redis==4.3.2
 types-requests==2.28.0
-types-setuptools==57.4.17
+types-setuptools==57.4.18
 types-six==1.16.16
 types-tabulate==0.8.11
 types-termcolor==1.1.5
@@ -531,7 +531,7 @@ websocket-client==1.3.3
 wrapt==1.14.1
 xmltodict==0.13.0
 yamllint==1.26.3
-yandexcloud==0.166.0
+yandexcloud==0.170.0
 yarl==1.7.2
 zeep==4.1.0
 zenpy==2.0.24

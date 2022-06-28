@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-25T22:38:53Z
+# This constraints file was automatically generated on 2022-06-28T14:00:24Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -14,8 +14,8 @@ Deprecated==1.2.13
 Flask-AppBuilder==4.1.2
 Flask-Babel==2.0.0
 Flask-Bcrypt==1.0.1
-Flask-Caching==1.11.1
-Flask-JWT-Extended==4.4.1
+Flask-Caching==2.0.0
+Flask-JWT-Extended==4.4.2
 Flask-Login==0.6.1
 Flask-SQLAlchemy==2.5.1
 Flask-Session==0.4.0
@@ -43,7 +43,7 @@ attrs==20.3.0
 bcrypt==3.2.2
 billiard==3.6.4.0
 blinker==1.4
-cachelib==0.8.0
+cachelib==0.9.0
 cachetools==5.2.0
 cattrs==1.10.0
 celery==5.2.7
@@ -85,7 +85,7 @@ gunicorn==20.1.0
 h11==0.12.0
 httpcore==0.15.0
 httpx==0.23.0
-humanize==4.2.1
+humanize==4.2.2
 idna==3.3
 inflection==0.5.1
 itsdangerous==2.1.2
@@ -102,7 +102,7 @@ markdown-it-py==2.1.0
 marshmallow-enum==1.5.1
 marshmallow-oneofschema==3.0.1
 marshmallow-sqlalchemy==0.26.1
-marshmallow==3.16.0
+marshmallow==3.17.0
 mdit-py-plugins==0.3.0
 mdurl==0.1.1
 msgpack==1.0.4
@@ -118,7 +118,7 @@ pluggy==1.0.0
 plyvel==1.4.0
 prison==0.2.1
 prometheus-client==0.14.1
-prompt-toolkit==3.0.29
+prompt-toolkit==3.0.30
 psutil==5.9.1
 pure-sasl==0.6.2
 pyasn1-modules==0.2.8
