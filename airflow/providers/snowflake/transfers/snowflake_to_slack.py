@@ -40,7 +40,7 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         SQL results
     :param snowflake_conn_id: Reference to
         :ref:`Snowflake connection id<howto/connection:snowflake>`
-    :param slack_conn_id: The connection id for Slack. Mutually exclusive with 'slack_token'
+    :param slack_conn_id: The connection id for Slack.
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
     :param parameters: The parameters to pass to the SQL query
     :param warehouse: The Snowflake virtual warehouse to use to run the SQL query
@@ -49,7 +49,6 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
     :param role: The role to use when connecting to Snowflake
     :param slack_token: The token to use to authenticate to Slack. If this is not provided, the
         'webhook_token' attribute needs to be specified in the 'Extra' JSON field against the slack_conn_id.
-        Mutually exclusive with 'slack_conn_id'
     """
 
     template_fields: Sequence[str] = ('sql', 'slack_message')
