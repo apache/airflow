@@ -38,15 +38,18 @@ class HttpSensor(BaseSensorOperator):
 
     The response check can access the template context to the operator:
 
+    .. code-block:: python
+
         def response_check(response, task_instance):
             # The task_instance is injected, so you can pull data form xcom
             # Other context variables such as dag, ds, execution_date are also available.
-            xcom_data = task_instance.xcom_pull(task_ids='pushing_task')
+            xcom_data = task_instance.xcom_pull(task_ids="pushing_task")
             # In practice you would do something more sensible with this data..
             print(xcom_data)
             return True
 
-        HttpSensor(task_id='my_http_sensor', ..., response_check=response_check)
+
+        HttpSensor(task_id="my_http_sensor", ..., response_check=response_check)
 
     .. seealso::
         For more information on how to use this operator, take a look at the guide:
