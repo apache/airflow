@@ -20,6 +20,7 @@ from typing import Any, Callable, Dict, List, Optional, Set
 
 from botocore.exceptions import ClientError
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowNotFoundException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -105,7 +106,7 @@ class EmrServerlessHook(AwsBaseHook):
         kwargs["client_type"] = "emr-serverless"
         super().__init__(*args, **kwargs)
 
-    @property
+    @cached_property
     def conn(self):
         """Get the underlying boto3 EmrServerlessAPIService client (cached)"""
         return super().conn
