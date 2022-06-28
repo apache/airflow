@@ -36,7 +36,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 @provide_session
 def get_dataset(dataset_id, session):
     """Get a Dataset"""
-    dataset = session.query(Dataset).filter(Dataset.id == dataset_id).one_or_none()
+    dataset = session.query(Dataset).get(dataset_id)
     if not dataset:
         raise NotFound(
             "Dataset not found",
