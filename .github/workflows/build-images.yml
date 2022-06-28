@@ -161,6 +161,9 @@ jobs:
     name: "Build CI images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
+    strategy:
+      matrix:
+        platform: ["linux/amd64", "linux/arm64"]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
