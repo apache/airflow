@@ -76,6 +76,12 @@ class KubernetesRequestFactory:
             req['spec']['affinity'][k] = v
 
     @staticmethod
+    def extract_tolerations(pod, req):
+        req['spec']['tolerations'] = req['spec'].get('tolerations', [])
+        for k in pod.tolerations:
+            req['spec']['tolerations'].append(k)
+
+    @staticmethod
     def extract_cmds(pod, req):
         req['spec']['containers'][0]['command'] = pod.cmds
 
