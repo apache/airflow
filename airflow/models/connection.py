@@ -90,7 +90,7 @@ class Connection(Base, LoggingMixin):
     id = Column(Integer(), primary_key=True)
     conn_id = Column(String(ID_LEN), unique=True, nullable=False)
     conn_type = Column(String(500), nullable=False)
-    description = Column(Text(5000))
+    description = Column(Text().with_variant(Text(5000), 'mysql').with_variant(String(5000), 'sqlite'))
     host = Column(String(500))
     schema = Column(String(500))
     login = Column(String(500))

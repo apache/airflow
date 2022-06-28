@@ -256,10 +256,23 @@ def create_volume_if_missing(volume_name: str):
     from airflow_breeze.utils.run_utils import run_command
 
     res_inspect = run_command(
-        cmd=["docker", "volume", "inspect", volume_name], stdout=subprocess.DEVNULL, check=False
+        cmd=["docker", "volume", "inspect", volume_name],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
     )
     if res_inspect.returncode != 0:
-        run_command(cmd=["docker", "volume", "create", volume_name], check=True)
+        result = run_command(
+            cmd=["docker", "volume", "create", volume_name],
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            get_console().print(
+                "[warning]\nMypy Cache volume could not be created. Continuing, but you "
+                "should make sure your docker works.\n\n"
+                f"Error: {result.stdout}\n"
+            )
 
 
 def create_static_check_volumes():

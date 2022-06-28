@@ -33,7 +33,7 @@ pre-installed when Airflow is installed.
 Core Airflow extras
 -------------------
 
-Those are core airflow extras that extend capabilities of core Airflow. They usually do not install provider
+These are core airflow extras that extend capabilities of core Airflow. They usually do not install provider
 packages (with the exception of ``celery`` and ``cncf.kubernetes`` extras), they just install necessary
 python dependencies for the provided package.
 
@@ -79,7 +79,7 @@ python dependencies for the provided package.
 Providers extras
 ----------------
 
-Those providers extras are simply convenience extras to install provider packages so that you can install the providers with simple command - including
+These providers extras are simply convenience extras to install provider packages so that you can install the providers with simple command - including
 provider package and necessary dependencies in single command, which allows PIP to resolve any conflicting dependencies. This is extremely useful
 for first time installation where you want to repeatably install version of dependencies which are 'valid' for both airflow and providers installed.
 
@@ -105,7 +105,7 @@ upgrade those providers manually if you want to use latest versions of the provi
 Apache Software extras
 ======================
 
-Those are extras that add dependencies needed for integration with other Apache projects (note that ``apache.atlas`` and
+These are extras that add dependencies needed for integration with other Apache projects (note that ``apache.atlas`` and
 ``apache.webhdfs`` do not have their own providers - they only install additional libraries that can be used in
 custom bash/python providers).
 
@@ -145,7 +145,7 @@ custom bash/python providers).
 External Services extras
 ========================
 
-Those are extras that add dependencies needed for integration with external services - either cloud based or on-premises.
+These are extras that add dependencies needed for integration with external services - either cloud based or on-premises.
 
 +---------------------+-----------------------------------------------------+-----------------------------------------------------+
 | extra               | install command                                     | enables                                             |
@@ -213,7 +213,7 @@ Those are extras that add dependencies needed for integration with external serv
 Locally installed software extras
 =================================
 
-Those are extras that add dependencies needed for integration with other software packages installed usually as part of the deployment of Airflow.
+These are extras that add dependencies needed for integration with other software packages installed usually as part of the deployment of Airflow.
 
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | extra               | install command                                     | enables                                   |
@@ -263,11 +263,13 @@ Those are extras that add dependencies needed for integration with other softwar
 Other extras
 ============
 
-Those are extras that provide support for integration with external systems via some - usually - standard protocols.
+These are extras that provide support for integration with external systems via some - usually - standard protocols.
 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
+| core.sql            | ``pip install 'apache-airflow[core.sql]'``          | Core SQL Operators                   |              |
++---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | grpc                | ``pip install 'apache-airflow[grpc]'``              | Grpc hooks and operators             |              |
@@ -294,7 +296,7 @@ Those are extras that provide support for integration with external systems via 
 Bundle extras
 -------------
 
-Those are extras that install one ore more extras as a bundle. Note that those extras should only be used for "development" version
+These are extras that install one ore more extras as a bundle. Note that these extras should only be used for "development" version
 of Airflow - i.e. when Airflow is installed from sources. Because of the way how bundle extras are constructed they might not
 work when airflow is installed from 'PyPI`.
 
@@ -332,7 +334,7 @@ This is the extra that is needed to generated documentation for Airflow. This is
 Deprecated 1.10 extras
 ----------------------
 
-Those are the extras that have been deprecated in 2.0 and will be removed in Airflow 3.0.0. They were
+These are the extras that have been deprecated in 2.0 and will be removed in Airflow 3.0.0. They were
 all replaced by new extras, which have naming consistent with the names of provider packages.
 
 The ``crypto`` extra is not needed any more, because all crypto dependencies are part of airflow package,

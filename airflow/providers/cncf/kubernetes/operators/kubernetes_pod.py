@@ -112,7 +112,7 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param resources: resources for the launched pod.
+    :param container_resources: resources for the launched pod.
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
@@ -188,7 +188,7 @@ class KubernetesPodOperator(BaseOperator):
         get_logs: bool = True,
         image_pull_policy: Optional[str] = None,
         annotations: Optional[Dict] = None,
-        resources: Optional[k8s.V1ResourceRequirements] = None,
+        container_resources: Optional[k8s.V1ResourceRequirements] = None,
         affinity: Optional[k8s.V1Affinity] = None,
         config_file: Optional[str] = None,
         node_selectors: Optional[dict] = None,
@@ -210,11 +210,23 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
+        resources: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
         if kwargs.get('xcom_push') is not None:
             raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(resources=None, **kwargs)
+
+        if isinstance(resources, k8s.V1ResourceRequirements):
+            warnings.warn(
+                "Specifying resources for the launched pod with 'resources' is deprecated. "
+                "Use 'container_resources' instead.",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            container_resources = resources
+            resources = None
+
+        super().__init__(resources=resources, **kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
@@ -250,7 +262,7 @@ class KubernetesPodOperator(BaseOperator):
             self.node_selector = {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
-        self.k8s_resources = convert_resources(resources) if resources else {}
+        self.k8s_resources = convert_resources(container_resources) if container_resources else {}
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name

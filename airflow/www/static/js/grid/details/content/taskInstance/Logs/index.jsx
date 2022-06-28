@@ -85,7 +85,7 @@ const Logs = ({
 
   useEffect(() => {
     if (codeBlockBottomDiv.current) {
-      codeBlockBottomDiv.current.scrollIntoView();
+      codeBlockBottomDiv.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     }
   }, [wrap, data]);
 
