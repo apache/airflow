@@ -2220,6 +2220,12 @@ class DAG(LoggingMixin):
     def has_task(self, task_id: str):
         return task_id in self.task_dict
 
+    def has_task_group(self, task_group_id: str):
+        task_groups_ids = set(
+            task_id.split(".")[0] for task_id in self.task_ids if
+            "." in task_id)
+        return task_group_id in task_groups_ids
+
     def get_task(self, task_id: str, include_subdags: bool = False) -> Operator:
         if task_id in self.task_dict:
             return self.task_dict[task_id]
