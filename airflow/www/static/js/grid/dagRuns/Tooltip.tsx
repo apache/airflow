@@ -22,12 +22,17 @@ import { Box, Text } from '@chakra-ui/react';
 
 import { formatDuration } from '../../datetime_utils';
 import Time from '../components/Time';
+import type { RunWithDuration } from './index';
+
+interface Props {
+  dagRun: RunWithDuration;
+}
 
 const DagRunTooltip = ({
   dagRun: {
     state, duration, dataIntervalStart, executionDate, runType,
   },
-}) => (
+}: Props) => (
   <Box py="2px">
     <Text>
       Status:

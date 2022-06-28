@@ -39,12 +39,17 @@ import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
 import { useGridData } from '../../../api';
 import { appendSearchParams, getMetaValue } from '../../../../utils';
+import type { DagRun as DagRunType } from '../../../types';
 
 const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');
 const dagRunDetailsUrl = getMetaValue('dagrun_details_url');
 
-const DagRun = ({ runId }) => {
+interface Props {
+  runId: DagRunType['runId'];
+}
+
+const DagRun = ({ runId }: Props) => {
   const { data: { dagRuns } } = useGridData();
   const run = dagRuns.find((dr) => dr.runId === runId);
   if (!run) return null;

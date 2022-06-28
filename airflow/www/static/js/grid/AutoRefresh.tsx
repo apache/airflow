@@ -44,7 +44,7 @@ const AutoRefresh = () => {
       </FormLabel>
       <Switch
         id="auto-refresh"
-        onChange={() => toggleRefresh(true)}
+        onChange={toggleRefresh}
         isDisabled={isPaused}
         isChecked={isRefreshOn}
         size="lg"
