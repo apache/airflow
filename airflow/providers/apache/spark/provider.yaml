@@ -62,10 +62,6 @@ hooks:
       - airflow.providers.apache.spark.hooks.spark_sql
       - airflow.providers.apache.spark.hooks.spark_submit
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook
-  - airflow.providers.apache.spark.hooks.spark_sql.SparkSqlHook
-  - airflow.providers.apache.spark.hooks.spark_submit.SparkSubmitHook
 
 connection-types:
   - hook-class-name: airflow.providers.apache.spark.hooks.spark_jdbc.SparkJDBCHook

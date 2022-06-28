@@ -106,6 +106,11 @@ class TestKubernetesHook:
         else:
             mock_get_default_client.assert_called()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
+        if mock_get_default_client.called:
+            # get_default_client sets it, but it's mocked
+            assert kubernetes_hook.is_in_cluster is None
+        else:
+            assert kubernetes_hook.is_in_cluster is in_cluster_called
 
     @pytest.mark.parametrize('in_cluster_fails', [True, False])
     @patch("kubernetes.config.kube_config.KubeConfigLoader")
@@ -130,10 +135,12 @@ class TestKubernetesHook:
             mock_incluster.assert_called_once()
             mock_merger.assert_called_once_with(KUBE_CONFIG_PATH)
             mock_loader.assert_called_once()
+            assert kubernetes_hook.is_in_cluster is False
         else:
             mock_incluster.assert_called_once()
             mock_merger.assert_not_called()
             mock_loader.assert_not_called()
+            assert kubernetes_hook.is_in_cluster is True
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
 
     @pytest.mark.parametrize(

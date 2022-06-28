@@ -127,6 +127,8 @@ class KubernetesHook(BaseHook):
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
 
+        self._is_in_cluster: Optional[bool] = None
+
         # these params used for transition in KPO to K8s hook
         # for a deprecation period we will continue to consider k8s settings from airflow.cfg
         self._deprecated_core_disable_tcp_keepalive: Optional[bool] = None
@@ -232,11 +234,13 @@ class KubernetesHook(BaseHook):
 
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
+            self._is_in_cluster = True
             config.load_incluster_config()
             return client.ApiClient()
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
+            self._is_in_cluster = False
             config.load_kube_config(
                 config_file=kubeconfig_path,
                 client_configuration=self.client_configuration,
@@ -249,6 +253,7 @@ class KubernetesHook(BaseHook):
                 self.log.debug("loading kube_config from: connection kube_config")
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
+                self._is_in_cluster = False
                 config.load_kube_config(
                     config_file=temp_config.name,
                     client_configuration=self.client_configuration,
@@ -265,13 +270,23 @@ class KubernetesHook(BaseHook):
         # in the default location
         try:
             config.load_incluster_config(client_configuration=self.client_configuration)
+            self._is_in_cluster = True
         except ConfigException:
             self.log.debug("loading kube_config from: default file")
+            self._is_in_cluster = False
             config.load_kube_config(
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
         return client.ApiClient()
+
+    @property
+    def is_in_cluster(self):
+        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
+        if self._is_in_cluster is not None:
+            return self._is_in_cluster
+        self.api_client  # so we can determine if we are in_cluster or not
+        return self._is_in_cluster
 
     @cached_property
     def api_client(self) -> Any:

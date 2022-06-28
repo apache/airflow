@@ -57,8 +57,6 @@ hooks:
     python-modules:
       - airflow.providers.postgres.hooks.postgres
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.postgres.hooks.postgres.PostgresHook
 
 connection-types:
   - hook-class-name: airflow.providers.postgres.hooks.postgres.PostgresHook
