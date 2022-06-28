@@ -206,7 +206,7 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_group_id:
             self.log.info(
-                'Poking for task_group %s in dag %s on %s ... ',
+                "Poking for task_group '%s' in dag '%s' on %s ... ",
                 self.external_task_group_id,
                 self.external_dag_id,
                 serialized_dttm_filter,
@@ -236,12 +236,12 @@ class ExternalTaskSensor(BaseSensorOperator):
             elif self.external_task_group_id:
                 if self.soft_fail:
                     raise AirflowSkipException(
-                        f"The external task group {self.external_task_group_id}"
-                        f"in DAG {self.external_dag_id} failed. Skipping due to soft_fail."
+                        f"The external task_group '{self.external_task_group_id}'"
+                        f"in DAG '{self.external_dag_id}' failed. Skipping due to soft_fail."
                     )
                 raise AirflowException(
-                    f"The external task group {self.external_task_group_id}"
-                    f"in DAG {self.external_dag_id} failed.'"
+                    f"The external task_group '{self.external_task_group_id}'"
+                    f"in DAG '{self.external_dag_id}' failed.'"
                 )
 
             else:
@@ -273,15 +273,11 @@ class ExternalTaskSensor(BaseSensorOperator):
 
         if self.external_task_group_id:
             refreshed_dag_info = DagBag(dag_to_wait.fileloc).get_dag(self.external_dag_id)
-            self.log.info("ashish")
-            self.log.info(str(refreshed_dag_info.task_group_dict))
             if not refreshed_dag_info.has_task_group(self.external_task_group_id):
                 raise AirflowException(
-                    f'The external task group {self.external_task_group_id} in '
-                    f'DAG {self.external_dag_id} does not exist.'
+                    f"The external task group '{self.external_task_group_id}' in "
+                    f"DAG '{self.external_dag_id}' does not exist."
                 )
-            else: # remove this
-                self.log.info("%s exists in %s", self.external_task_group_id, self.external_dag_id)
 
         self._has_checked_existence = True
 
@@ -307,8 +303,6 @@ class ExternalTaskSensor(BaseSensorOperator):
             ) / len(self.external_task_ids)
         elif self.external_task_group_id:
             external_task_group_task_ids = self.get_external_task_group_task_ids(session)
-            self.log.info(str(external_task_group_task_ids))
-            # we need list of task_ids for this task_group
             count = (
                 self._count_query(TI, session, states, dttm_filter)
                 .filter(TI.task_id.in_(external_task_group_task_ids))
@@ -326,25 +320,16 @@ class ExternalTaskSensor(BaseSensorOperator):
         )
         return query
 
-    # def get_external_task_group_task_ids(self, session):
-    #     """Return task ids for the external TaskGroup"""
-    #     refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
-    #     task_group: Optional["TaskGroup"] = refreshed_dag_info.task_group_dict.get(
-    #         self.external_task_group_id
-    #     )
-    #     if not task_group:
-    #         raise AirflowException(
-    #             f"The external task group {self.external_task_group_id} in "
-    #             f"DAG {self.external_dag_id} does not exist."
-    #         )
-    #     task_ids = [task.task_id for task in task_group]
-    #     return task_ids
-
     def get_external_task_group_task_ids(self, session):
         refreshed_dag_info = DagBag(read_dags_from_db=True).get_dag(self.external_dag_id, session)
         task_group = refreshed_dag_info.task_group_dict.get(self.external_task_group_id)
-        task_ids = [task.task_id for task in task_group]
-        return task_ids
+
+        if task_group:
+            return [task.task_id for task in task_group]
+
+        # returning default task_id as group_id itself, this will avoid any failure in case of
+        # 'check_existence=False' and will fail on timeout
+        return [self.external_task_group_id]
 
     def _handle_execution_date_fn(self, context) -> Any:
         """
