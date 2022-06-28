@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from typing import Callable, Optional, Sequence, TypeVar
+from typing import Callable, Optional, Sequence
 
 from airflow.decorators.base import DecoratedOperator, TaskDecorator, task_decorator_factory
 from airflow.operators.python import PythonOperator
@@ -54,9 +54,6 @@ class _PythonDecoratedOperator(DecoratedOperator, PythonOperator):
             op_kwargs=op_kwargs,
             **kwargs,
         )
-
-
-T = TypeVar("T", bound=Callable)
 
 
 def python_task(
