@@ -36,8 +36,7 @@ if TYPE_CHECKING:
 def _backported_get_hook(connection, *, hook_params=None):
     """Return hook based on conn_type
      For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-     when "apache-airflow-providers-slack" will depend on Airflow >= 2.3. Git reference:
-     https://github.com/apache/airflow/blob/main/airflow/providers/slack/provider.yaml#L38
+     when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
     """
     hook = ProvidersManager().hooks.get(connection.conn_type, None)
 
