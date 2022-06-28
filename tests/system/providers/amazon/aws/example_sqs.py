@@ -52,8 +52,13 @@ with DAG(
     sqs_queue = create_queue()
 
     # [START howto_operator_sqs]
-    publish_to_queue = SqsPublishOperator(
-        task_id='publish_to_queue',
+    publish_to_queue_1 = SqsPublishOperator(
+        task_id='publish_to_queue_1',
+        sqs_queue=sqs_queue,
+        message_content='{{ task_instance }}-{{ logical_date }}',
+    )
+    publish_to_queue_2 = SqsPublishOperator(
+        task_id='publish_to_queue_2',
         sqs_queue=sqs_queue,
         message_content='{{ task_instance }}-{{ logical_date }}',
     )
@@ -64,14 +69,26 @@ with DAG(
         task_id='read_from_queue',
         sqs_queue=sqs_queue,
     )
+    # Retrieve multiple batches of messages from SQS.
+    # The SQS API only returns a maximum of 10 messages per poll.
+    read_from_queue_in_batch = SqsSensor(
+        task_id='read_from_queue_in_batch',
+        sqs_queue=create_queue,
+        # Get maximum 10 messages each poll
+        max_messages=10,
+        # Combine 3 polls before returning results
+        num_batches=3,
+    )
     # [END howto_sensor_sqs]
 
     chain(
         # TEST SETUP
         sqs_queue,
         # TEST BODY
-        publish_to_queue,
+        publish_to_queue_1,
         read_from_queue,
+        publish_to_queue_2,
+        read_from_queue_in_batch,
         # TEST TEARDOWN
         delete_queue(sqs_queue),
     )
