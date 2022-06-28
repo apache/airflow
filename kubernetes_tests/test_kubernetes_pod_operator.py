@@ -93,6 +93,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
                     'foo': 'bar',
                     'kubernetes_pod_operator': 'True',
                     'airflow_version': airflow_version.replace('+', '-'),
+                    'airflow_kpo_in_cluster': 'False',
                     'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
                     'dag_id': 'dag',
                     'task_id': ANY,
@@ -734,6 +735,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'fizz': 'buzz',
             'foo': 'bar',
             'airflow_version': mock.ANY,
+            'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
             'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
             'kubernetes_pod_operator': 'True',
@@ -773,6 +775,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'fizz': 'buzz',
             'foo': 'bar',
             'airflow_version': mock.ANY,
+            'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
             'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
             'kubernetes_pod_operator': 'True',
@@ -815,6 +818,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'fizz': 'buzz',
             'foo': 'bar',
             'airflow_version': mock.ANY,
+            'airflow_kpo_in_cluster': 'False',
             'dag_id': 'dag',
             'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
             'kubernetes_pod_operator': 'True',
@@ -882,9 +886,10 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
     @mock.patch(f"{POD_MANAGER_CLASS}.extract_xcom")
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
-    @mock.patch(HOOK_CLASS, new=MagicMock)
-    def test_pod_template_file(self, await_pod_completion_mock, extract_xcom_mock):
+    @mock.patch(HOOK_CLASS)
+    def test_pod_template_file(self, hook_mock, await_pod_completion_mock, extract_xcom_mock):
         # todo: This isn't really a system test
+        hook_mock.return_value.is_in_cluster = False
         extract_xcom_mock.return_value = '{}'
         path = sys.path[0] + '/tests/kubernetes/pod.yaml'
         k = KubernetesPodOperator(
@@ -920,6 +925,7 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
             'metadata': {
                 'annotations': {},
                 'labels': {
+                    'airflow_kpo_in_cluster': 'False',
                     'dag_id': 'dag',
                     'run_id': 'manual__2016-01-01T0100000100-da4d1ce7b',
                     'kubernetes_pod_operator': 'True',
@@ -968,13 +974,14 @@ class TestKubernetesPodOperatorSystem(unittest.TestCase):
 
     @mock.patch(f"{POD_MANAGER_CLASS}.await_pod_completion")
     @mock.patch(f"{POD_MANAGER_CLASS}.create_pod", new=MagicMock)
-    @mock.patch(HOOK_CLASS, new=MagicMock)
-    def test_pod_priority_class_name(self, await_pod_completion_mock):
+    @mock.patch(HOOK_CLASS)
+    def test_pod_priority_class_name(self, hook_mock, await_pod_completion_mock):
         """
         Test ability to assign priorityClassName to pod
 
         todo: This isn't really a system test
         """
+        hook_mock.return_value.is_in_cluster = False
 
         priority_class_name = "medium-test"
         k = KubernetesPodOperator(
