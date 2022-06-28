@@ -51,10 +51,9 @@ class SqlToSlackOperator(BaseOperator):
         :ref:`Snowflake connection id<howto/connection:snowflake>`
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
            Should match the desired hook constructor params.
-    :param slack_conn_id: The connection id for Slack. Mutually exclusive with 'slack_webhook_token'
+    :param slack_conn_id: The connection id for Slack.
     :param slack_webhook_token: The token to use to authenticate to Slack. If this is not provided, the
         'slack_conn_id' attribute needs to be specified in the 'password' field.
-        Mutually exclusive with 'slack_conn_id'.
     :param slack_channel: The channel to send message. Override default from Slack connection.
     :param results_df_name: The name of the JINJA template's dataframe variable, default is 'results_df'
     :param parameters: The parameters to pass to the SQL query
@@ -71,7 +70,7 @@ class SqlToSlackOperator(BaseOperator):
         sql: str,
         sql_conn_id: str,
         sql_hook_params: Optional[dict] = None,
-        slack_conn_id: Optional[str] = None,
+        slack_conn_id: str = 'slack_default',
         slack_webhook_token: Optional[str] = None,
         slack_channel: Optional[str] = None,
         slack_message: str,
@@ -97,9 +96,6 @@ class SqlToSlackOperator(BaseOperator):
             raise AirflowException(
                 "SqlToSlackOperator requires either a `slack_conn_id` or a `slack_webhook_token` argument"
             )
-
-        if self.slack_conn_id and self.slack_webhook_token:
-            raise AirflowException("Cannot pass both `slack_conn_id` and `slack_webhook_token` arguments")
 
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
@@ -128,16 +124,12 @@ class SqlToSlackOperator(BaseOperator):
         slack_hook.execute()
 
     def _get_slack_hook(self) -> SlackWebhookHook:
-        if self.slack_conn_id:
-            return SlackWebhookHook(
-                http_conn_id=self.slack_conn_id, message=self.slack_message, channel=self.slack_channel
-            )
-        elif self.slack_webhook_token:
-            return SlackWebhookHook(
-                message=self.slack_message, webhook_token=self.slack_webhook_token, channel=self.slack_channel
-            )
-        else:
-            raise AirflowException("Could not initiate SlackWebhookHook")
+        return SlackWebhookHook(
+            http_conn_id=self.slack_conn_id,
+            message=self.slack_message,
+            channel=self.slack_channel,
+            webhook_token=self.slack_webhook_token,
+        )
 
     def render_template_fields(self, context, jinja_env=None) -> None:
         # If this is the first render of the template fields, exclude slack_message from rendering since

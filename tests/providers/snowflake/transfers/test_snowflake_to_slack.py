@@ -70,7 +70,10 @@ class TestSnowflakeToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            message='message: 2017-01-01, 1234', webhook_token='test_token', channel=None
+            message='message: 2017-01-01, 1234',
+            webhook_token='test_token',
+            channel=None,
+            http_conn_id='slack_default',
         )
 
     def test_hook_params_building(self):

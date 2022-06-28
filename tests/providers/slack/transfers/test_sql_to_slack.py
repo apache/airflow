@@ -21,7 +21,7 @@ import pandas as pd
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.models import DAG
+from airflow.models import DAG, Connection
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 from airflow.utils import timezone
 
@@ -63,20 +63,86 @@ class TestSqlToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            http_conn_id='slack_connection', message=f'message: 2017-01-01, {test_df}', channel='#test'
+            http_conn_id='slack_connection',
+            message=f'message: 2017-01-01, {test_df}',
+            channel='#test',
+            webhook_token=None,
         )
 
         # Test that the Slack hook's execute method gets run once
         slack_webhook_hook.execute.assert_called_once()
 
     @mock.patch('airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook')
-    def test_duplicated_slack_parameters_provided_exception_thrown(self, mock_slack_hook_class):
+    def test_rendering_and_message_execution_with_default_slack(self, mock_slack_hook_class):
+        mock_dbapi_hook = mock.Mock()
+
+        test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
+        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
+        get_pandas_df_mock.return_value = test_df
+
+        operator_args = {
+            'sql_conn_id': 'snowflake_connection',
+            'slack_message': 'message: {{ ds }}, {{ results_df }}',
+            'slack_channel': '#test',
+            'sql': "sql {{ ds }}",
+            'dag': self.example_dag,
+        }
+        sql_to_slack_operator = self._construct_operator(**operator_args)
+
+        slack_webhook_hook = mock_slack_hook_class.return_value
+        sql_to_slack_operator._get_hook = mock_dbapi_hook
+        sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # Test that the Slack hook is instantiated with the right parameters
+        mock_slack_hook_class.assert_called_once_with(
+            http_conn_id='slack_default',
+            message=f'message: 2017-01-01, {test_df}',
+            channel='#test',
+            webhook_token=None,
+        )
+
+        # Test that the Slack hook's execute method gets run once
+        slack_webhook_hook.execute.assert_called_once()
+
+    @mock.patch('airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook')
+    def test_rendering_and_message_execution_with_slack_hook(self, mock_slack_hook_class):
+        mock_dbapi_hook = mock.Mock()
+
+        test_df = pd.DataFrame({'a': '1', 'b': '2'}, index=[0, 1])
+        get_pandas_df_mock = mock_dbapi_hook.return_value.get_pandas_df
+        get_pandas_df_mock.return_value = test_df
+
         operator_args = {
             'sql_conn_id': 'snowflake_connection',
             'slack_conn_id': 'slack_connection',
+            'slack_webhook_token': 'test_token',
+            'slack_message': 'message: {{ ds }}, {{ results_df }}',
+            'slack_channel': '#test',
+            'sql': "sql {{ ds }}",
+            'dag': self.example_dag,
+        }
+        sql_to_slack_operator = self._construct_operator(**operator_args)
+
+        slack_webhook_hook = mock_slack_hook_class.return_value
+        sql_to_slack_operator._get_hook = mock_dbapi_hook
+        sql_to_slack_operator.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
+
+        # Test that the Slack hook is instantiated with the right parameters
+        mock_slack_hook_class.assert_called_once_with(
+            http_conn_id='slack_connection',
+            message=f'message: 2017-01-01, {test_df}',
+            channel='#test',
+            webhook_token='test_token',
+        )
+
+        # Test that the Slack hook's execute method gets run once
+        slack_webhook_hook.execute.assert_called_once()
+
+    def test_non_existing_slack_parameters_provided_exception_thrown(self):
+        operator_args = {
+            'sql_conn_id': 'snowflake_connection',
             'slack_message': 'message: {{ ds }}, {{ xxxx }}',
             'sql': "sql {{ ds }}",
-            'slack_webhook_token': 'test_token',
         }
         with pytest.raises(AirflowException):
             self._construct_operator(**operator_args)
@@ -106,8 +172,76 @@ class TestSqlToSlackOperator:
 
         # Test that the Slack hook is instantiated with the right parameters
         mock_slack_hook_class.assert_called_once_with(
-            http_conn_id='slack_connection', message=f'message: 2017-01-01, {test_df}', channel='#test'
+            http_conn_id='slack_connection',
+            message=f'message: 2017-01-01, {test_df}',
+            channel='#test',
+            webhook_token=None,
         )
 
         # Test that the Slack hook's execute method gets run once
         slack_webhook_hook.execute.assert_called_once()
+
+    @mock.patch('airflow.operators.sql.BaseHook.get_connection')
+    def test_hook_params_building(self, mock_get_conn):
+        mock_get_conn.return_value = Connection(conn_id='snowflake_connection', conn_type='snowflake')
+        hook_params = {
+            'schema': 'test_schema',
+            'role': 'test_role',
+            'database': 'test_database',
+            'warehouse': 'test_warehouse',
+        }
+        operator_args = {
+            'sql_conn_id': 'dummy_connection',
+            'sql': "sql {{ ds }}",
+            'results_df_name': 'xxxx',
+            'sql_hook_params': hook_params,
+            'parameters': ['1', '2', '3'],
+            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
+            'slack_webhook_token': 'test_token',
+            'dag': self.example_dag,
+        }
+        sql_to_slack_operator = SqlToSlackOperator(task_id=TEST_TASK_ID, **operator_args)
+
+        assert sql_to_slack_operator.sql_hook_params == hook_params
+
+    @mock.patch('airflow.operators.sql.BaseHook.get_connection')
+    def test_hook_params(self, mock_get_conn):
+        mock_get_conn.return_value = Connection(conn_id='postgres_test', conn_type='postgres')
+        op = SqlToSlackOperator(
+            task_id='sql_sensor_hook_params',
+            sql_conn_id='postgres_test',
+            sql="SELECT 1",
+            slack_message='message: {{ ds }}, {{ xxxx }}',
+            sql_hook_params={
+                'schema': 'public',
+            },
+        )
+        hook = op._get_hook()
+        assert hook.schema == 'public'
+
+    @mock.patch('airflow.operators.sql.BaseHook.get_connection')
+    def test_hook_params_snowflake(self, mock_get_conn):
+        mock_get_conn.return_value = Connection(conn_id='snowflake_default', conn_type='snowflake')
+        hook_params = {
+            'warehouse': 'warehouse',
+            'database': 'database',
+            'role': 'role',
+            'schema': 'schema',
+        }
+        operator_args = {
+            'sql_conn_id': 'dummy_connection',
+            'sql': "sql {{ ds }}",
+            'results_df_name': 'xxxx',
+            'sql_hook_params': hook_params,
+            'parameters': ['1', '2', '3'],
+            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
+            'slack_webhook_token': 'test_token',
+            'dag': self.example_dag,
+        }
+        sql_to_slack_operator = self._construct_operator(**operator_args)
+
+        assert sql_to_slack_operator._get_hook.conn_type == 'snowflake'
+        assert sql_to_slack_operator._get_hook.warehouse == 'warehouse'
+        assert sql_to_slack_operator._get_hook.database == 'database'
+        assert sql_to_slack_operator._get_hook.role == 'role'
+        assert sql_to_slack_operator._get_hook.schema == 'schema'

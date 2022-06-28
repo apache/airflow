@@ -63,7 +63,7 @@ class SnowflakeToSlackOperator(SqlToSlackOperator):
         sql: str,
         slack_message: str,
         snowflake_conn_id: str = 'snowflake_default',
-        slack_conn_id: Optional[str] = None,
+        slack_conn_id: str = 'slack_default',
         results_df_name: str = 'results_df',
         parameters: Optional[Union[Iterable, Mapping]] = None,
         warehouse: Optional[str] = None,
