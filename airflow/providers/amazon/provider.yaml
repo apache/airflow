@@ -561,11 +561,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-amazon/operators/transfer/sql_to_s3.rst
     python-module: airflow.providers.amazon.aws.transfers.sql_to_s3
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.amazon.aws.hooks.s3.S3Hook
-  - airflow.providers.amazon.aws.hooks.base_aws.AwsBaseHook
-  - airflow.providers.amazon.aws.hooks.emr.EmrHook
-  - airflow.providers.amazon.aws.hooks.redshift_sql.RedshiftSQLHook
 
 extra-links:
   - airflow.providers.amazon.aws.links.batch.BatchJobDefinitionLink

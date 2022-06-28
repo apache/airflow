@@ -426,12 +426,6 @@ CI, Production Images as well as base Python images that are also cached in the 
 Also for those builds we only execute Python tests if important files changed (so for example if it is
 "no-code" change, no tests will be executed.
 
-The workflow involved in Pull Requests review and approval is a bit more complex than simple workflows
-in most of other projects because we've implemented some optimizations related to efficient use
-of queue slots we share with other Apache Software Foundation projects. More details about it
-can be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
-
-
 Direct Push/Merge Run
 ---------------------
 
