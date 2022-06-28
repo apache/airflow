@@ -109,14 +109,6 @@ const Logs = ({
     fullContent: shouldRequestFullContent,
   });
 
-  const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (codeBlockBottomDiv.current) {
-      codeBlockBottomDiv.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-    }
-  }, [wrap, data]);
-
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,
@@ -131,6 +123,14 @@ const Logs = ({
     ),
     [data, fileSourceFilters, logLevelFilters, timezone],
   );
+
+  const codeBlockBottomDiv = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (codeBlockBottomDiv.current) {
+      codeBlockBottomDiv.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+  }, [wrap, parsedLogs]);
 
   useEffect(() => {
     // Reset fileSourceFilters and selected attempt when changing to
