@@ -17,23 +17,31 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 import { getMetaValue } from '../../utils';
 
 const taskLogApi = getMetaValue('task_log_api');
 
 const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, fullContent, enabled,
+  dagId, dagRunId, taskId, taskTryNumber, fullContent,
+}: {
+  dagId: string,
+  dagRunId: string,
+  taskId: string,
+  taskTryNumber: number,
+  fullContent: boolean,
 }) => {
-  const url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber);
+  let url: string = '';
+  if (taskLogApi) {
+    url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber.toString());
+  }
 
   return useQuery(
     ['taskLogs', dagId, dagRunId, taskId, taskTryNumber, fullContent],
-    () => axios.get(url, { headers: { Accept: 'text/plain' }, params: { full_content: fullContent } }),
+    () => axios.get<AxiosResponse, string>(url, { headers: { Accept: 'text/plain' }, params: { full_content: fullContent } }),
     {
       placeholderData: '',
-      enabled,
     },
   );
 };
