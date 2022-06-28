@@ -33,10 +33,10 @@ import useSelection from '../utils/useSelection';
 const Details = () => {
   const { selected: { runId, taskId } } = useSelection();
   return (
-    <Flex flexDirection="column" pl={3} mr={3}>
+    <Flex flexDirection="column" pl={3} mr={3} flexGrow={1} maxWidth="750px">
       <Header />
       <Divider my={2} />
-      <Box>
+      <Box minWidth="750px">
         {!runId && !taskId && <DagContent />}
         {runId && !taskId && (
           <DagRunContent runId={runId} />

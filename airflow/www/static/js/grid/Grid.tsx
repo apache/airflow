@@ -89,7 +89,7 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
   return (
     <Box
       minWidth={isPanelOpen ? '350px' : undefined}
-      flexGrow={!isPanelOpen ? 1 : 0}
+      flexGrow={1}
       m={3}
       mt={0}
     >
@@ -98,7 +98,6 @@ const Grid = ({ isPanelOpen = false, onPanelToggle, hoveredTaskState }: Props) =
         justifyContent="space-between"
         mb={2}
         p={1}
-        zIndex={3}
         backgroundColor="white"
       >
         <Flex alignItems="center">

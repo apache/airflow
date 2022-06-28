@@ -70,7 +70,7 @@ const Main = () => {
                 onPanelToggle={onPanelToggle}
                 hoveredTaskState={hoveredTaskState}
               />
-              <Box borderLeftWidth={isOpen ? 1 : 0} position="relative" flexGrow={isOpen ? 1 : 0}>
+              <Box borderLeftWidth={isOpen ? 1 : 0} position="relative">
                 {isOpen && (<Details />)}
               </Box>
             </>
