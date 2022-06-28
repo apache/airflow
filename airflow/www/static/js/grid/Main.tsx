@@ -35,6 +35,7 @@ import Grid from './Grid';
 import FilterBar from './FilterBar';
 import LegendRow from './LegendRow';
 import { useGridData } from './api';
+import { hoverDelay } from './utils';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
@@ -46,7 +47,7 @@ const Main = () => {
   const [hoveredTaskState, setHoveredTaskState] = useState<string | null | undefined>();
 
   // Add a debounced delay to not constantly trigger highlighting certain task states
-  const onStatusHover = debounce((state) => setHoveredTaskState(state), 400);
+  const onStatusHover = debounce((state) => setHoveredTaskState(state), hoverDelay);
 
   const onStatusLeave = () => {
     setHoveredTaskState(undefined);
