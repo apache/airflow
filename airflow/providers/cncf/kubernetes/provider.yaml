@@ -75,8 +75,6 @@ hooks:
     python-modules:
       - airflow.providers.cncf.kubernetes.hooks.kubernetes
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook
 
 connection-types:
   - hook-class-name: airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook

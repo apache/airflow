@@ -204,19 +204,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/sftp_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
-  - airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook
-  - airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook
-  - airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook
-  - airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook
-  - airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook
-  - airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook
-  - airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
-  - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
-  - airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
-  - airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
-  - airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
