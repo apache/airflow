@@ -23,7 +23,6 @@ import {
   Td,
   Box,
   Flex,
-  Collapse,
   useTheme,
 } from '@chakra-ui/react';
 
@@ -140,13 +139,14 @@ const Row = (props: RowProps) => {
     [isGroup, isOpen, task.label, openGroupIds, onToggleGroups],
   );
 
-  const isFullyOpen = level === openParentCount;
+  // check if the group's parents are all open, if not, return null
+  if (level !== openParentCount) return null;
 
   return (
     <>
       <Tr
         bg={isSelected ? 'blue.100' : 'inherit'}
-        borderBottomWidth={isFullyOpen ? 1 : 0}
+        borderBottomWidth={1}
         borderBottomColor={isGroup && isOpen ? 'gray.400' : 'gray.200'}
         role="group"
         _hover={!isSelected ? { bg: hoverBlue } : undefined}
@@ -164,16 +164,14 @@ const Row = (props: RowProps) => {
           width="100%"
           zIndex={1}
         >
-          <Collapse in={isFullyOpen} unmountOnExit>
-            <TaskName
-              onToggle={memoizedToggle}
-              isGroup={isGroup}
-              isMapped={task.isMapped}
-              label={task.label}
-              isOpen={isOpen}
-              level={level}
-            />
-          </Collapse>
+          <TaskName
+            onToggle={memoizedToggle}
+            isGroup={isGroup}
+            isMapped={task.isMapped}
+            label={task.label}
+            isOpen={isOpen}
+            level={level}
+          />
         </Td>
         <Td width={0} p={0} borderBottom={0} />
         <Td
@@ -182,20 +180,18 @@ const Row = (props: RowProps) => {
           width={`${dagRunIds.length * columnWidth}px`}
           borderBottom={0}
         >
-          <Collapse in={isFullyOpen} unmountOnExit>
-            <TaskInstances
-              dagRunIds={dagRunIds}
-              task={task}
-              selectedRunId={selected.runId}
-              onSelect={onSelect}
-              hoveredTaskState={hoveredTaskState}
-            />
-          </Collapse>
+          <TaskInstances
+            dagRunIds={dagRunIds}
+            task={task}
+            selectedRunId={selected.runId}
+            onSelect={onSelect}
+            hoveredTaskState={hoveredTaskState}
+          />
         </Td>
       </Tr>
-      {isGroup && (
+      {isGroup && isOpen && (
         renderTaskRows({
-          ...props, level: level + 1, openParentCount: openParentCount + (isOpen ? 1 : 0),
+          ...props, level: level + 1, openParentCount: openParentCount + 1,
         })
       )}
     </>
