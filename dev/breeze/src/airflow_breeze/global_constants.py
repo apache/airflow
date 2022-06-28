@@ -19,7 +19,7 @@ Global constants that are used by all other Breeze components.
 """
 from __future__ import annotations
 
-import os
+import platform
 from enum import Enum
 from functools import lru_cache
 
@@ -106,7 +106,8 @@ ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
 ALLOWED_DEBIAN_VERSIONS = ['bullseye', 'buster']
 ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
 MULTI_PLATFORM = "linux/amd64,linux/arm64"
-ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", MULTI_PLATFORM]
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
 ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
 
 PARAM_NAME_DESCRIPTION = {
@@ -144,8 +145,15 @@ def get_available_packages(short_version=False) -> list[str]:
     return package_list
 
 
+def get_default_platform_machine() -> str:
+    machine = platform.uname().machine
+    # Some additional conversion for various platforms...
+    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    return machine
+
+
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{os.uname().machine}"
+DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
 DOCKER_BUILDKIT = 1
 
 SSH_PORT = "12322"
@@ -296,6 +304,7 @@ class GithubEvents(Enum):
     PULL_REQUEST = "pull_request"
     PULL_REQUEST_REVIEW = "pull_request_review"
     PULL_REQUEST_TARGET = "pull_request_target"
+    PULL_REQUEST_WORKFLOW = "pull_request_workflow"
     PUSH = "push"
     SCHEDULE = "schedule"
     WORKFLOW_RUN = "workflow_run"

@@ -28,7 +28,7 @@ from airflow_breeze.params.build_prod_params import BuildProdParams
 from airflow_breeze.params.common_build_params import CommonBuildParams
 from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.host_info_utils import get_host_group_id, get_host_os, get_host_user_id
-from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT, MSSQL_DATA_VOLUME
 
 try:
     from packaging import version
@@ -352,7 +352,7 @@ def prepare_docker_build_cache_command(
     build_flags = image_params.extra_docker_build_flags
     final_command = []
     final_command.extend(["docker"])
-    final_command.extend(["buildx", "build", "--builder", "airflow_cache", "--progress=tty"])
+    final_command.extend(["buildx", "build", "--builder", image_params.builder, "--progress=tty"])
     final_command.extend(build_flags)
     final_command.extend(["--pull"])
     final_command.extend(arguments)
@@ -388,7 +388,7 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
                 "buildx",
                 "build",
                 "--builder",
-                "default",
+                image_params.builder,
                 "--progress=tty",
                 "--push" if image_params.push_image else "--load",
             ]
@@ -525,6 +525,7 @@ def update_expected_environment_variables(env: Dict[str, str]) -> None:
     set_value_to_default_if_not_set(env, 'LIST_OF_INTEGRATION_TESTS_TO_RUN', "")
     set_value_to_default_if_not_set(env, 'LOAD_DEFAULT_CONNECTIONS', "false")
     set_value_to_default_if_not_set(env, 'LOAD_EXAMPLES', "false")
+    set_value_to_default_if_not_set(env, 'MSSQL_DATA_VOLUME', str(MSSQL_DATA_VOLUME))
     set_value_to_default_if_not_set(env, 'PACKAGE_FORMAT', ALLOWED_PACKAGE_FORMATS[0])
     set_value_to_default_if_not_set(env, 'PRINT_INFO_FROM_SCRIPTS', "true")
     set_value_to_default_if_not_set(env, 'PYTHONDONTWRITEBYTECODE', "true")

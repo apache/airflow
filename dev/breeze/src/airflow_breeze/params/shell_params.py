@@ -31,6 +31,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     AVAILABLE_INTEGRATIONS,
+    DOCKER_DEFAULT_PLATFORM,
     MOUNT_ALL,
     MOUNT_REMOVE,
     MOUNT_SELECTED,
@@ -78,6 +79,7 @@ class ShellParams:
     mysql_version: str = ALLOWED_MYSQL_VERSIONS[0]
     num_runs: str = ""
     package_format: str = ALLOWED_INSTALLATION_PACKAGE_FORMATS[0]
+    platform: str = DOCKER_DEFAULT_PLATFORM
     postgres_version: str = ALLOWED_POSTGRES_VERSIONS[0]
     python: str = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
     skip_environment_initialization: bool = False
@@ -189,6 +191,8 @@ class ShellParams:
             backend_files = []
             for backend in ALLOWED_BACKENDS:
                 backend_files.extend(self.get_backend_compose_files(backend))
+            compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-mssql-bind-volume.yml")
+            compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/backend-mssql-docker-volume.yml")
         local_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/local.yml"
         local_all_sources_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/local-all-sources.yml"
         files_docker_compose_file = f"{str(SCRIPTS_CI_DIR)}/docker-compose/files.yml"
@@ -239,7 +243,7 @@ class ShellParams:
         if len(integrations) > 0:
             for integration in integrations:
                 compose_ci_file.append(f"{str(SCRIPTS_CI_DIR)}/docker-compose/integration-{integration}.yml")
-        return ':'.join(compose_ci_file)
+        return os.pathsep.join(compose_ci_file)
 
     @property
     def command_passed(self):

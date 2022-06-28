@@ -238,7 +238,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
+DAGS_DIR = AIRFLOW_SOURCES_ROOT / 'dags'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
+HOOKS_DIR = AIRFLOW_SOURCES_ROOT / 'hooks'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
@@ -260,12 +262,17 @@ def create_volume_if_missing(volume_name: str):
         check=False,
     )
     if res_inspect.returncode != 0:
-        run_command(
+        result = run_command(
             cmd=["docker", "volume", "create", volume_name],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            check=True,
+            check=False,
+            capture_output=True,
         )
+        if result.returncode != 0:
+            get_console().print(
+                "[warning]\nMypy Cache volume could not be created. Continuing, but you "
+                "should make sure your docker works.\n\n"
+                f"Error: {result.stdout}\n"
+            )
 
 
 def create_static_check_volumes():
@@ -278,7 +285,9 @@ def create_directories_and_files() -> None:
     Checks if setup has been updates since last time and proposes to upgrade if so.
     """
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    DAGS_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
+    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
     KUBE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)

@@ -319,7 +319,6 @@ def version(verbose: bool):
 @click.option('-C/-c', '--cheatsheet/--no-cheatsheet', help="Enable/disable cheatsheet.", default=None)
 @click.option('-A/-a', '--asciiart/--no-asciiart', help="Enable/disable ASCIIart.", default=None)
 @click.option(
-    '-B/-b',
     '--colour/--no-colour',
     help="Enable/disable Colour mode (useful for colour blind-friendly communication).",
     default=None,
@@ -404,7 +403,10 @@ def command_hash_export(verbose: bool, output: IO):
         the_context_dict = ctx.to_info_dict()
         if verbose:
             get_console().print(the_context_dict)
-        output.write(dict_hash(the_context_dict) + "\n")
+        output.write(f"main:{dict_hash(the_context_dict['command']['params'])}\n")
+        commands_dict = the_context_dict['command']['commands']
+        for command in sorted(commands_dict.keys()):
+            output.write(f"{command}:{dict_hash(commands_dict[command])}\n")
 
 
 def write_to_shell(command_to_execute: str, dry_run: bool, script_path: str, force_setup: bool) -> bool:

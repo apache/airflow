@@ -22,6 +22,7 @@ from datetime import datetime
 from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
+from airflow_breeze.global_constants import DOCKER_DEFAULT_PLATFORM
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.platforms import get_real_platform
 
@@ -44,6 +45,7 @@ class CommonBuildParams:
     airflow_constraints_location: str = ""
     answer: Optional[str] = None
     build_id: int = 0
+    builder: str = "default"
     constraints_github_repository: str = "apache/airflow"
     debian_version: str = "bullseye"
     dev_apt_command: str = ""
@@ -56,7 +58,7 @@ class CommonBuildParams:
     github_username: str = ""
     image_tag: Optional[str] = None
     install_providers_from_sources: bool = False
-    platform: str = f"linux/{os.uname().machine}"
+    platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
     python_image: Optional[str] = None
     push_image: bool = False
