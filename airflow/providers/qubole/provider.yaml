@@ -62,8 +62,6 @@ hooks:
       - airflow.providers.qubole.hooks.qubole
       - airflow.providers.qubole.hooks.qubole_check
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.qubole.hooks.qubole.QuboleHook
 
 connection-types:
   - hook-class-name: airflow.providers.qubole.hooks.qubole.QuboleHook

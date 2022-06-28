@@ -87,12 +87,6 @@ transfers:
     target-integration-name: Apache Hive
     python-module: airflow.providers.apache.hive.transfers.mssql_to_hive
 
-hook-class-names:
-  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.apache.hive.hooks.hive.HiveCliHook
-  - airflow.providers.apache.hive.hooks.hive.HiveServer2Hook
-  - airflow.providers.apache.hive.hooks.hive.HiveMetastoreHook
-
 connection-types:
   - hook-class-name: airflow.providers.apache.hive.hooks.hive.HiveCliHook
     connection-type: hive_cli

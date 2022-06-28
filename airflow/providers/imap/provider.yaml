@@ -49,9 +49,6 @@ hooks:
     python-modules:
       - airflow.providers.imap.hooks.imap
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.imap.hooks.imap.ImapHook
-
 connection-types:
   - hook-class-name: airflow.providers.imap.hooks.imap.ImapHook
     connection-type: imap

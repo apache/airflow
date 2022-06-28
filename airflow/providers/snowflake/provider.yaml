@@ -72,9 +72,6 @@ transfers:
     python-module: airflow.providers.snowflake.transfers.snowflake_to_slack
     how-to-guide: /docs/apache-airflow-providers-snowflake/operators/snowflake_to_slack.rst
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
-
 connection-types:
   - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
     connection-type: snowflake

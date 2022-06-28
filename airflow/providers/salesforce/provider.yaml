@@ -66,9 +66,6 @@ hooks:
     python-modules:
       - airflow.providers.salesforce.hooks.salesforce
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.salesforce.hooks.salesforce.SalesforceHook
-
 connection-types:
   - hook-class-name: airflow.providers.salesforce.hooks.salesforce.SalesforceHook
     connection-type: salesforce

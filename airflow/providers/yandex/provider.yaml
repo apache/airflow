@@ -61,9 +61,6 @@ hooks:
     python-modules:
       - airflow.providers.yandex.hooks.yandexcloud_dataproc
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook
-
 connection-types:
   - hook-class-name: airflow.providers.yandex.hooks.yandex.YandexCloudBaseHook
     connection-type: yandexcloud

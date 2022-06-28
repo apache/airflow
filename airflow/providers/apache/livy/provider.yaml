@@ -59,9 +59,6 @@ hooks:
     python-modules:
       - airflow.providers.apache.livy.hooks.livy
 
-hook-class-names:
-  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.apache.livy.hooks.livy.LivyHook
 
 connection-types:
   - hook-class-name: airflow.providers.apache.livy.hooks.livy.LivyHook

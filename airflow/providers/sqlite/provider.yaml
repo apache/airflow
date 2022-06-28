@@ -52,9 +52,6 @@ hooks:
     python-modules:
       - airflow.providers.sqlite.hooks.sqlite
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.sqlite.hooks.sqlite.SqliteHook
-
 connection-types:
   - hook-class-name: airflow.providers.sqlite.hooks.sqlite.SqliteHook
     connection-type: sqlite

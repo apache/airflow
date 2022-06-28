@@ -60,9 +60,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-trino/operators/transfer/gcs_to_trino.rst
     python-module: airflow.providers.trino.transfers.gcs_to_trino
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.trino.hooks.trino.TrinoHook
-
 connection-types:
   - hook-class-name: airflow.providers.trino.hooks.trino.TrinoHook
     connection-type: trino

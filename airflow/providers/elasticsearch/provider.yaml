@@ -52,9 +52,6 @@ hooks:
     python-modules:
       - airflow.providers.elasticsearch.hooks.elasticsearch
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
-
 connection-types:
   - hook-class-name: airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook
     connection-type: elasticsearch

@@ -57,9 +57,6 @@ hooks:
     python-modules:
       - airflow.providers.ssh.hooks.ssh
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.ssh.hooks.ssh.SSHHook
-
 connection-types:
   - hook-class-name: airflow.providers.ssh.hooks.ssh.SSHHook
     connection-type: ssh

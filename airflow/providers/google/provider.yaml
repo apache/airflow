@@ -853,14 +853,6 @@ transfers:
     python-module: airflow.providers.google.cloud.transfers.mssql_to_gcs
     how-to-guide: /docs/apache-airflow-providers-google/operators/transfer/mssql_to_gcs.rst
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.google.common.hooks.base_google.GoogleBaseHook
-  - airflow.providers.google.cloud.hooks.dataprep.GoogleDataprepHook
-  - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLHook
-  - airflow.providers.google.cloud.hooks.cloud_sql.CloudSQLDatabaseHook
-  - airflow.providers.google.cloud.hooks.compute_ssh.ComputeEngineSSHHook
-  - airflow.providers.google.cloud.hooks.bigquery.BigQueryHook
-  - airflow.providers.google.leveldb.hooks.leveldb.LevelDBHook
 
 connection-types:
   - hook-class-name: airflow.providers.google.common.hooks.base_google.GoogleBaseHook

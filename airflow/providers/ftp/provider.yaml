@@ -48,9 +48,6 @@ hooks:
     python-modules:
       - airflow.providers.ftp.hooks.ftp
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.ftp.hooks.ftp.FTPHook
-
 connection-types:
   - hook-class-name: airflow.providers.ftp.hooks.ftp.FTPHook
     connection-type: ftp

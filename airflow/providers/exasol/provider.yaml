@@ -52,9 +52,6 @@ hooks:
     python-modules:
       - airflow.providers.exasol.hooks.exasol
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.exasol.hooks.exasol.ExasolHook
-
 connection-types:
   - hook-class-name: airflow.providers.exasol.hooks.exasol.ExasolHook
     connection-type: exasol

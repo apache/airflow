@@ -57,9 +57,6 @@ hooks:
       - airflow.providers.slack.hooks.slack
       - airflow.providers.slack.hooks.slack_webhook
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
-
 connection-types:
   - hook-class-name: airflow.providers.slack.hooks.slack_webhook.SlackWebhookHook
     connection-type: slackwebhook

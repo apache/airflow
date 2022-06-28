@@ -51,9 +51,6 @@ hooks:
     python-modules:
       - airflow.providers.discord.hooks.discord_webhook
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
-
 connection-types:
   - hook-class-name: airflow.providers.discord.hooks.discord_webhook.DiscordWebhookHook
     connection-type: discord
