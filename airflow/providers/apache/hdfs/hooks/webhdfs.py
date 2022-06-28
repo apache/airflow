@@ -77,7 +77,11 @@ class WebHDFSHook(BaseHook):
                 if conn_check == 0:
                     self.log.info('Trying namenode %s', namenode)
                     client = self._get_client(
-                        namenode, connection.port, connection.login, connection.extra_dejson
+                        namenode,
+                        connection.port,
+                        connection.login,
+                        connection.schema,
+                        connection.extra_dejson,
                     )
                     client.status('/')
                     self.log.info('Using namenode %s for hook', namenode)
@@ -89,13 +93,19 @@ class WebHDFSHook(BaseHook):
                 self.log.info('Read operation on namenode %s failed with error: %s', namenode, hdfs_error)
         return None
 
-    def _get_client(self, namenode: str, port: int, login: str, extra_dejson: dict) -> Any:
-        connection_str = f'http://{namenode}:{port}'
+    def _get_client(self, namenode: str, port: int, login: str, schema: str, extra_dejson: dict) -> Any:
+        connection_str = f'http://{namenode}'
         session = requests.Session()
 
-        if extra_dejson.get('use_ssl', False):
-            connection_str = f'https://{namenode}:{port}'
-            session.verify = extra_dejson.get('verify', True)
+        if extra_dejson.get('use_ssl', 'False') == 'True' or extra_dejson.get('use_ssl', False):
+            connection_str = f'https://{namenode}'
+            session.verify = extra_dejson.get('verify', False)
+
+        if port is not None:
+            connection_str += f':{port}'
+
+        if schema is not None:
+            connection_str += f'/{schema}'
 
         if _kerberos_security_mode:
             return KerberosClient(connection_str, session=session)

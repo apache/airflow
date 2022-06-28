@@ -50,9 +50,6 @@ hooks:
     python-modules:
       - airflow.providers.grpc.hooks.grpc
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.grpc.hooks.grpc.GrpcHook
-
 connection-types:
   - hook-class-name: airflow.providers.grpc.hooks.grpc.GrpcHook
     connection-type: grpc

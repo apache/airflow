@@ -59,9 +59,6 @@ sensors:
     python-modules:
       - 'airflow.providers.jenkins.sensors.jenkins'
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.jenkins.hooks.jenkins.JenkinsHook
-
 connection-types:
   - hook-class-name: airflow.providers.jenkins.hooks.jenkins.JenkinsHook
     connection-type: jenkins

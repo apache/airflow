@@ -14,15 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
----
-name: Label when reviewed
-on: pull_request_review  # yamllint disable-line rule:truthy
-jobs:
-
-  label-when-reviewed:
-    name: "Label PRs when reviewed"
-    runs-on: ubuntu-20.04
-    steps:
-      - name: "Do nothing. Only trigger corresponding workflow_run event"
-        run: echo
