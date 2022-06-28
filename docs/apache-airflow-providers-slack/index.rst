@@ -36,7 +36,7 @@ Content
     :maxdepth: 1
     :caption: Guides
 
-    SqlToSlackOperator types <operators/transfer/sql_to_slack>
+    SqlToSlackOperator types <operators/sql_to_slack>
 
 .. toctree::
     :maxdepth: 1
