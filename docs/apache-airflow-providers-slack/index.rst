@@ -21,12 +21,22 @@
 
 Content
 -------
+.. toctree::
+    :hidden:
+    :caption: System tests
 
+    System Tests <_api/tests/system/providers/slack/index>
 .. toctree::
     :maxdepth: 1
     :caption: Guides
 
     How-to Guide <operators/slack_operator_howto_guide>
+
+.. toctree::
+    :maxdepth: 1
+    :caption: Guides
+
+    SqlToSlackOperator types <operators/sql_to_slack>
 
 .. toctree::
     :maxdepth: 1
