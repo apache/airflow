@@ -30,7 +30,7 @@ import type { DagRun } from '../types';
 
 const datestring = (new Date()).toISOString();
 const generateRuns = (length: number): DagRun[] => (
-  Array.apply(null, Array(length)).map((_, i) => ({
+  [...Array(length)].map((_, i) => ({
     runId: `run-${i}`,
     dataIntervalStart: datestring,
     dataIntervalEnd: datestring,
@@ -40,7 +40,7 @@ const generateRuns = (length: number): DagRun[] => (
     endDate: '2021-11-08T21:17:13.206426+00:00',
     lastSchedulingDecision: datestring,
     executionDate: datestring,
-  })) as DagRun[]
+  }))
 );
 
 describe('Test DagRuns', () => {
@@ -85,7 +85,7 @@ describe('Test DagRuns', () => {
     expect(queryAllByTestId('manual-run')).toHaveLength(1);
     expect(getByText('00:02:53')).toBeInTheDocument();
     expect(getByText('00:01:26')).toBeInTheDocument();
-    expect(queryByText(moment.utc(datestring).format('MMM DD, HH:mm'))).toBeNull();
+    expect(queryByText(moment.utc(dagRuns[0].executionDate).format('MMM DD, HH:mm'))).toBeNull();
 
     spy.mockRestore();
   });
