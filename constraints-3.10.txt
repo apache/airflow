@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-28T20:35:38Z
+# This constraints file was automatically generated on 2022-06-29T00:01:25Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -465,7 +465,7 @@ pytest-rerunfailures==9.1.1
 pytest-timeouts==1.2.1
 pytest-xdist==2.5.0
 pytest==6.2.5
-python-arango==7.4.0
+python-arango==7.4.1
 python-daemon==2.3.0
 python-dateutil==2.8.2
 python-http-client==3.3.7
