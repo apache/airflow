@@ -62,11 +62,7 @@ Set schedule based on a cron expression. Can be selected by providing a string t
   cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
 
 .. code-block:: python
-
-    @dag(
-        schedule_interval="0 1 * * 3"  # At 01:00 on Wednesday.
-        ...
-    )
+    schedule_interval="0 1 * * 3"  # At 01:00 on Wednesday.
 
 DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -76,10 +72,8 @@ Schedules data intervals with a time delta. Can be selected by providing a
 
 .. code-block:: python
 
-    @dag(
-        schedule_interval=datetime.timedelta(minutes=30)
-        ...
-    )
+    schedule_interval=datetime.timedelta(minutes=30)
+
 
 EventsTimetable
 ^^^^^^^^^^^^^^^
