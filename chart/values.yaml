@@ -32,7 +32,7 @@ kubeVersionOverride: ""
 uid: 50000
 gid: 0
 
-# Default security context for airflow (depreacated)
+# Default security context for airflow (deprecated)
 securityContext: {}
 #  runAsUser: 50000
 #  fsGroup: 0
