@@ -30,6 +30,7 @@ from airflow_breeze.params.shell_params import ShellParams
 from airflow_breeze.utils.common_options import (
     option_airflow_constraints_reference,
     option_answer,
+    option_debian_version,
     option_dry_run,
     option_github_repository,
     option_max_age,
@@ -185,6 +186,13 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
     show_default=True,
 )
 @click.option(
+    '--default-constraints-branch',
+    help="Branch against which the constraints should be downloaded from",
+    default="constraints-main",
+    envvar="DEFAULT_CONSTRAINTS_BRANCH",
+    show_default=True,
+)
+@click.option(
     '--github-event-name',
     type=BetterChoice(github_events()),
     default=github_events()[0],
@@ -192,12 +200,15 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
     envvar="GITHUB_EVENT_NAME",
     show_default=True,
 )
+@option_debian_version
 @option_verbose
 @option_dry_run
 def selective_check(
     commit_ref: Optional[str],
     pr_labels: str,
     default_branch: str,
+    default_constraints_branch: str,
+    debian_version: str,
     github_event_name: str,
     verbose: bool,
     dry_run: bool,
@@ -213,6 +224,8 @@ def selective_check(
         commit_ref=commit_ref,
         files=changed_files,
         default_branch=default_branch,
+        default_constraints_branch=default_constraints_branch,
+        debian_version=debian_version,
         pr_labels=tuple(" ".split(pr_labels)) if pr_labels else (),
         github_event=github_event,
     )

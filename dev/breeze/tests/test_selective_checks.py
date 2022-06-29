@@ -191,16 +191,21 @@ def test_expected_output_pull_request_main(
 
 
 @pytest.mark.parametrize(
-    "files, pr_labels, default_branch, expected_outputs,",
+    "files, pr_labels, default_branch, default_constraints_branch, debian_version, expected_outputs,",
     [
         (
             pytest.param(
                 ("INTHEWILD.md",),
                 ("full tests needed",),
                 "main",
+                "constraints-main",
+                "bullseye",
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "default-branch": "main",
+                    "default-constraints-branch": "constraints-main",
+                    "debian-version": "bullseye",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -218,6 +223,8 @@ def test_expected_output_pull_request_main(
                     "full tests needed",
                 ),
                 "main",
+                "constraints-main",
+                "bullseye",
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
@@ -235,9 +242,14 @@ def test_expected_output_pull_request_main(
                 (),
                 ("full tests needed",),
                 "main",
+                "constraints-main",
+                "bullseye",
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "default-branch": "main",
+                    "default-constraints-branch": "constraints-main",
+                    "debian-version": "bullseye",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -252,9 +264,14 @@ def test_expected_output_pull_request_main(
                 ("INTHEWILD.md",),
                 ("full tests needed",),
                 "v2-3-stable",
+                "constraints-2-3",
+                "bullseye",
                 {
                     "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
                     "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "default-branch": "v2-3-stable",
+                    "default-constraints-branch": "constraints-2-3",
+                    "debian-version": "bullseye",
                     "image-build": "true",
                     "run-tests": "true",
                     "docs-build": "true",
@@ -270,6 +287,8 @@ def test_expected_output_full_tests_needed(
     files: Tuple[str, ...],
     pr_labels: Tuple[str, ...],
     default_branch: str,
+    default_constraints_branch: str,
+    debian_version: str,
     expected_outputs: Dict[str, str],
 ):
     sc = SelectiveChecks(
@@ -278,6 +297,8 @@ def test_expected_output_full_tests_needed(
         github_event=GithubEvents.PULL_REQUEST,
         pr_labels=pr_labels,
         default_branch=default_branch,
+        default_constraints_branch=default_constraints_branch,
+        debian_version=debian_version,
     )
     output = str(sc)
     assert_outputs_are_printed(expected_outputs, output)

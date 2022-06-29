@@ -189,12 +189,16 @@ class SelectiveChecks:
         self,
         files: tuple[str, ...] = (),
         default_branch="main",
+        default_constraints_branch="constraints-main",
+        debian_version="bullseye",
         commit_ref: str | None = None,
         pr_labels: tuple[str, ...] = (),
         github_event: GithubEvents = GithubEvents.PULL_REQUEST,
     ):
         self._files = files
         self._default_branch = default_branch
+        self._default_constraints_branch = default_constraints_branch
+        self._debian_version = debian_version
         self._commit_ref = commit_ref
         self._pr_labels = pr_labels
         self._github_event = github_event
@@ -229,6 +233,14 @@ class SelectiveChecks:
     @cached_property
     def default_branch(self) -> str:
         return self._default_branch
+
+    @cached_property
+    def default_constraints_branch(self) -> str:
+        return self._default_constraints_branch
+
+    @cached_property
+    def debian_version(self) -> str:
+        return self._debian_version
 
     @cached_property
     def _full_tests_needed(self) -> bool:
@@ -395,7 +407,10 @@ class SelectiveChecks:
 
     @cached_property
     def needs_helm_tests(self) -> bool:
-        return self._should_be_run(FileGroupForCi.HELM_FILES) and self._default_branch == "main"
+        if self._default_branch != 'main':
+            get_console().print(f"[warning]Not running helm tests in {self._default_branch} branch")
+            return False
+        return self._should_be_run(FileGroupForCi.HELM_FILES)
 
     @cached_property
     def run_tests(self) -> bool:
@@ -478,3 +493,11 @@ class SelectiveChecks:
         return len(
             self._matching_files(FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES)
         ) > 0 or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+
+    @cached_property
+    def docs_filter(self) -> str:
+        return (
+            ""
+            if self._default_branch == 'main'
+            else "--package-filter apache-airflow --package-filter docker-stack"
+        )

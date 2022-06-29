@@ -52,6 +52,9 @@ jobs:
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     env:
       targetBranch: ${{ github.event.pull_request.base.ref }}
+      DEFAULT_BRANCH: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ steps.selective-checks.outputs.debian-version }}
     outputs:
       runsOn: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
       pythonVersions: "${{ steps.selective-checks.python-versions }}"
@@ -65,6 +68,8 @@ jobs:
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
       defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
+      defaultConstraintsBranch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      debianVersion: ${{ steps.selective-checks.outputs.debian-version }}
       targetCommitSha: "${{steps.discover-pr-merge-commit.outputs.targetCommitSha ||
           github.event.pull_request.head.sha ||
           github.sha
@@ -104,9 +109,27 @@ jobs:
           ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
           fetch-depth: 2
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            cut -d "=" -f 3 | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
+      - name: Checkout main branch to 'main-airflow' folder to use breeze from there.
         uses: actions/checkout@v2
         with:
+          path: "main-airflow"
+          ref: "main"
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
@@ -165,6 +188,9 @@ jobs:
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
@@ -176,29 +202,11 @@ jobs:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore, we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
-      - name: >
-          Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
-          to use ci/scripts from there.
+      - name: Checkout main branch to 'main-airflow' folder to use ci/scripts from there.
         uses: actions/checkout@v2
         with:
           path: "main-airflow"
-          ref: "${{ needs.build-info.outputs.targetBranch }}"
+          ref: "main"
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
@@ -258,6 +266,9 @@ jobs:
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
     steps:
@@ -268,22 +279,6 @@ jobs:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            cut -d "=" -f 3 | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
@@ -372,6 +367,9 @@ jobs:
       needs.build-info.outputs.upgradeToNewerDependencies != 'false' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
@@ -383,22 +381,6 @@ jobs:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore, we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
           Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
           to use ci/scripts from there.
