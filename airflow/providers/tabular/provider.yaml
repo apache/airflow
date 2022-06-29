@@ -24,7 +24,7 @@ description: |
 versions:
   - 0.0.1
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
 
 integrations:
