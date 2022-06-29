@@ -276,6 +276,8 @@ class MultiCronDataIntervalTimetable(BaseCronDataIntervalTimetable):
 
             self._crons[cron_expression] = interval_description
 
+        self.description = ", ".join(self._crons.values())
+
         if isinstance(timezone, str):
             timezone = Timezone(timezone)
         self._timezone = timezone
