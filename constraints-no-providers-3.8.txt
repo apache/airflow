@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-29T07:48:14Z
+# This constraints file was automatically generated on 2022-06-29T23:10:47Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -50,7 +50,7 @@ celery==5.2.7
 certifi==2022.6.15
 cffi==1.15.0
 cgroupspy==0.2.2
-charset-normalizer==2.0.12
+charset-normalizer==2.1.0
 click-didyoumean==0.3.0
 click-plugins==1.1.1
 click-repl==0.2.0
@@ -61,7 +61,7 @@ colorama==0.4.5
 colorlog==4.8.0
 commonmark==0.9.1
 connexion==2.14.0
-cron-descriptor==1.2.24
+cron-descriptor==1.2.27
 croniter==1.3.5
 cryptography==37.0.2
 dask==2022.6.1
@@ -139,7 +139,7 @@ pytz==2022.1
 pytzdata==2020.1
 requests-kerberos==0.14.0
 requests-oauthlib==1.3.1
-requests==2.28.0
+requests==2.28.1
 rfc3986==1.5.0
 rich-click==1.5.1
 rich==12.4.4

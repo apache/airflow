@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-29T07:43:51Z
+# This constraints file was automatically generated on 2022-06-29T23:04:20Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -100,9 +100,9 @@ billiard==3.6.4.0
 black==22.6.0
 bleach==5.0.1
 blinker==1.4
-boto3==1.24.19
+boto3==1.24.20
 boto==2.49.0
-botocore==1.27.19
+botocore==1.27.20
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -130,7 +130,7 @@ commonmark==0.9.1
 connexion==2.14.0
 coverage==6.4.1
 crcmod==1.7
-cron-descriptor==1.2.24
+cron-descriptor==1.2.27
 croniter==1.3.5
 cryptography==36.0.2
 curlify==2.2.1
@@ -379,6 +379,7 @@ pyodbc==4.0.32
 pyparsing==3.0.9
 pypsrp==0.8.1
 pyrsistent==0.18.1
+pysftp==0.2.9
 pyspark==3.3.0
 pyspnego==0.5.2
 pytest-asyncio==0.18.3
@@ -499,7 +500,7 @@ types-freezegun==1.1.10
 types-paramiko==2.11.1
 types-protobuf==3.19.22
 types-python-dateutil==2.8.18
-types-python-slugify==5.0.4
+types-python-slugify==6.1.0
 types-pytz==2022.1.1
 types-redis==4.3.3
 types-requests==2.28.0
