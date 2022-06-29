@@ -34,7 +34,6 @@
     "@babel/preset-typescript": "^7.17.12",
     "@testing-library/jest-dom": "^5.16.0",
     "@testing-library/react": "^13.0.0",
-    "@testing-library/react-hooks": "^8.0.0",
     "@types/react": "^18.0.12",
     "@types/react-dom": "^18.0.5",
     "@typescript-eslint/eslint-plugin": "^5.13.0",
