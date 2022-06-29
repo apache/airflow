@@ -309,15 +309,13 @@ class MultiCronDataIntervalTimetable(BaseCronDataIntervalTimetable):
 
     def _get_next(self, current: DateTime) -> DateTime:
         """Get the next datetime for a given datetime."""
-        naive = make_naive(current, self._timezone)
-        crons = [croniter(cron, start_time=naive) for cron in self._crons.keys()]
+        crons = [croniter(cron, start_time=current) for cron in self._crons.keys()]
         first_scheduled = min(cron.get_next(datetime.datetime) for cron in crons)
         return convert_to_utc(first_scheduled)
 
     def _get_prev(self, current: DateTime) -> DateTime:
         """Get the previous datetime for a given datetime."""
-        naive = make_naive(current, self._timezone)
-        crons = [croniter(cron, start_time=naive) for cron in self._crons.keys()]
+        crons = [croniter(cron, start_time=current) for cron in self._crons.keys()]
         last_scheduled = max(cron.get_prev(datetime.datetime) for cron in crons)
         return convert_to_utc(last_scheduled)
 
