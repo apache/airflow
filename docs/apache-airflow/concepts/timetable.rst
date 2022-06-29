@@ -65,7 +65,6 @@ cron expression to the ``schedule_interval`` parameter of a DAG as described in 
 
     @dag(
         schedule_interval="0 1 * * 3"  # At 01:00 on Wednesday.
-        ...
     )
 
 DeltaDataIntervalTimetable
@@ -78,13 +77,12 @@ Schedules data intervals with a time delta. Can be selected by providing a
 
     @dag(
         schedule_interval=datetime.timedelta(minutes=30)
-        ...
     )
 
 EventsTimetable
 ^^^^^^^^^^^^^^^
 
-Simply pass a list of ``datetime``s for the DAG to run after. Useful for timing based on sporting
+Simply pass a list of ``datetime``\s for the DAG to run after. Useful for timing based on sporting
 events, planned communication campaigns, and other schedules that are arbitrary and irregular but predictable.
 
 The list of events must be finite and of reasonable size as it must be loaded every time the DAG is parsed. Optionally,
@@ -107,5 +105,4 @@ first) event for the data interval, otherwise manual runs will run with a ``data
             description="My Team's Baseball Games",
             restrict_to_events=False,
         ),
-        ...,
     )
