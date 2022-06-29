@@ -16,7 +16,8 @@
 # under the License.
 
 import datetime
-from typing import Any, Dict, Optional, Union
+import json
+from typing import Any, Dict, List, Optional, Union
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
@@ -114,7 +115,52 @@ def _is_schedule_fixed(expression: str) -> bool:
     return next_b.minute == next_a.minute and next_b.hour == next_a.hour
 
 
-class CronDataIntervalTimetable(_DataIntervalTimetable):
+class BaseCronDataIntervalTimetable(_DataIntervalTimetable):
+    """Default method implementations for cron-based timetables."""
+
+    def _align(self, current: DateTime) -> DateTime:
+        """Get the next scheduled time.
+
+        This is ``current + interval``, unless ``current`` falls right on the
+        interval boundary, when ``current`` is returned.
+        """
+        next_time = self._get_next(current)
+        if self._get_prev(next_time) != current:
+            return next_time
+        return current
+
+    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
+        """Bound the earliest time a run can be scheduled.
+
+        The logic is that we move start_date up until one period before, so the
+        current time is AFTER the period end, and the job can be created...
+
+        This is slightly different from the delta version at terminal values.
+        If the next schedule should start *right now*, we want the data interval
+        that start now, not the one that ends now.
+        """
+        current_time = DateTime.utcnow()
+        last_start = self._get_prev(current_time)
+        next_start = self._get_next(last_start)
+        if next_start == current_time:  # Current time is on interval boundary.
+            new_start = last_start
+        elif next_start > current_time:  # Current time is between boundaries.
+            new_start = self._get_prev(last_start)
+        else:
+            raise AssertionError("next schedule shouldn't be earlier")
+        if earliest is None:
+            return new_start
+        return max(new_start, self._align(earliest))
+
+    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
+        # Get the last complete period before run_after, e.g. if a DAG run is
+        # scheduled at each midnight, the data interval of a manually triggered
+        # run at 1am 25th is between 0am 24th and 0am 25th.
+        end = self._get_prev(self._align(run_after))
+        return DataInterval(start=self._get_prev(end), end=end)
+
+
+class CronDataIntervalTimetable(BaseCronDataIntervalTimetable):
     """Timetable that schedules data intervals with a cron expression.
 
     This corresponds to ``schedule_interval=<cron>``, where ``<cron>`` is either
@@ -203,46 +249,77 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
         delta = naive - scheduled
         return convert_to_utc(current.in_timezone(self._timezone) - delta)
 
-    def _align(self, current: DateTime) -> DateTime:
-        """Get the next scheduled time.
 
-        This is ``current + interval``, unless ``current`` falls right on the
-        interval boundary, when ``current`` is returned.
+class MultiCronDataIntervalTimetable(BaseCronDataIntervalTimetable):
+    """Timetable that schedules data intervals using multiple cron expressions."""
+
+    def __init__(self, cron_expressions: List[str], timezone: Union[str, Timezone]) -> None:
         """
-        next_time = self._get_next(current)
-        if self._get_prev(next_time) != current:
-            return next_time
-        return current
-
-    def _skip_to_latest(self, earliest: Optional[DateTime]) -> DateTime:
-        """Bound the earliest time a run can be scheduled.
-
-        The logic is that we move start_date up until one period before, so the
-        current time is AFTER the period end, and the job can be created...
-
-        This is slightly different from the delta version at terminal values.
-        If the next schedule should start *right now*, we want the data interval
-        that start now, not the one that ends now.
+        :param cron_expressions: A list of cron expressions e.g. ["0 3 * * *", "0 0 * * MON,TUE"]
+        :param timezone:
         """
-        current_time = DateTime.utcnow()
-        last_start = self._get_prev(current_time)
-        next_start = self._get_next(last_start)
-        if next_start == current_time:  # Current time is on interval boundary.
-            new_start = last_start
-        elif next_start > current_time:  # Current time is between boundaries.
-            new_start = self._get_prev(last_start)
-        else:
-            raise AssertionError("next schedule shouldn't be earlier")
-        if earliest is None:
-            return new_start
-        return max(new_start, self._align(earliest))
+        self._crons: Dict[str, str] = {}  # key = cron expression, value = description
+        for cron_expression in cron_expressions:
+            cron_expression = cron_presets.get(cron_expression, cron_expression)
+            descriptor = ExpressionDescriptor(
+                expression=cron_expression, casing_type=CasingTypeEnum.Sentence, use_24hour_time_format=True
+            )
 
-    def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
-        # Get the last complete period before run_after, e.g. if a DAG run is
-        # scheduled at each midnight, the data interval of a manually triggered
-        # run at 1am 25th is between 0am 24th and 0am 25th.
-        end = self._get_prev(self._align(run_after))
-        return DataInterval(start=self._get_prev(end), end=end)
+            try:
+                # Check if cron expression contains more than 5 elements and avoiding evaluation for now as
+                # Croniter has inconsistent evaluation with other libraries
+                if len(croniter(cron_expression).expanded) > 5:
+                    raise FormatException()
+                interval_description = descriptor.get_description()
+            except (CroniterBadCronError, FormatException, MissingFieldException):
+                interval_description = ""
+
+            self._crons[cron_expression] = interval_description
+
+        if isinstance(timezone, str):
+            timezone = Timezone(timezone)
+        self._timezone = timezone
+
+    @classmethod
+    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+        from airflow.serialization.serialized_objects import decode_timezone
+
+        return cls(cron_expressions=data["cron_expressions"], timezone=decode_timezone(data["timezone"]))
+
+    def __eq__(self, other: Any) -> bool:
+        if not isinstance(other, MultiCronDataIntervalTimetable):
+            return NotImplemented
+        return self._crons == other._crons and self._timezone == other._timezone
+
+    @property
+    def summary(self) -> str:
+        return json.dumps(self._crons)
+
+    def serialize(self) -> Dict[str, Any]:
+        from airflow.serialization.serialized_objects import encode_timezone
+
+        return {"cron_expressions": [*self._crons], "timezone": encode_timezone(self._timezone)}
+
+    def validate(self) -> None:
+        try:
+            for cron_expression in self._crons.keys():
+                croniter(cron_expression)
+        except (CroniterBadCronError, CroniterBadDateError) as e:
+            raise AirflowTimetableInvalid(str(e))
+
+    def _get_next(self, current: DateTime) -> DateTime:
+        """Get the next datetime for a given datetime."""
+        naive = make_naive(current, self._timezone)
+        crons = [croniter(cron, start_time=naive) for cron in self._crons.keys()]
+        first_scheduled = min(cron.get_next(datetime.datetime) for cron in crons)
+        return convert_to_utc(first_scheduled)
+
+    def _get_prev(self, current: DateTime) -> DateTime:
+        """Get the previous datetime for a given datetime."""
+        naive = make_naive(current, self._timezone)
+        crons = [croniter(cron, start_time=naive) for cron in self._crons.keys()]
+        last_scheduled = max(cron.get_prev(datetime.datetime) for cron in crons)
+        return convert_to_utc(last_scheduled)
 
 
 class DeltaDataIntervalTimetable(_DataIntervalTimetable):

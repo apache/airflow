@@ -39,7 +39,7 @@ def date_range(
     start_date: datetime,
     end_date: Optional[datetime] = None,
     num: Optional[int] = None,
-    delta: Optional[Union[str, timedelta, relativedelta]] = None,
+    delta: Optional[Union[str, timedelta, relativedelta, List[str]]] = None,
 ) -> List[datetime]:
     """
     Get a set of dates as a list based on a start, end and delta, delta

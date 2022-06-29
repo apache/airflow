@@ -105,7 +105,7 @@ ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta]
+ScheduleInterval = Union[None, str, timedelta, relativedelta, List[str]]
 
 # FIXME: Ideally this should be Union[Literal[NOTSET], ScheduleInterval],
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
@@ -170,6 +170,8 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str):
         return CronDataIntervalTimetable(interval, timezone)
+    if isinstance(interval, list) and all(isinstance(element, str) for element in interval):
+        return MultiCronDataIntervalTimetable(interval, timezone)
     raise ValueError(f"{interval!r} is not a valid schedule_interval.")
 
 

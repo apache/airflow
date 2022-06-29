@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import datetime
 from typing import Optional
 
@@ -26,7 +27,11 @@ import pytest
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
+from airflow.timetables.interval import (
+    CronDataIntervalTimetable,
+    DeltaDataIntervalTimetable,
+    MultiCronDataIntervalTimetable,
+)
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
 
@@ -43,6 +48,10 @@ HOURLY_RELATIVEDELTA_TIMETABLE = DeltaDataIntervalTimetable(dateutil.relativedel
 
 CRON_TIMETABLE = CronDataIntervalTimetable("30 16 * * *", TIMEZONE)
 DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
+
+# 0 3 * * *       = daily at 03:00
+# 0 0 * * MON,TUE = at 00:00 on Monday and Tuesday
+MULTI_CRON_TIMETABLE = MultiCronDataIntervalTimetable(["0 3 * * *", "0 0 * * MON,TUE"], TIMEZONE)
 
 
 @pytest.mark.parametrize(
@@ -112,6 +121,7 @@ def test_catchup_next_info_starts_at_previous_interval_end(timetable: Timetable)
         pytest.param(HOURLY_CRON_TIMETABLE, id="cron"),
         pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="timedelta"),
         pytest.param(HOURLY_RELATIVEDELTA_TIMETABLE, id="relativedelta"),
+        pytest.param(MULTI_CRON_TIMETABLE, id="multicron"),
     ],
 )
 def test_validate_success(timetable: Timetable) -> None:
@@ -158,3 +168,36 @@ def test_validate_failure(timetable: Timetable, error_message: str) -> None:
 def test_cron_interval_timezone_from_string():
     timetable = CronDataIntervalTimetable("@hourly", "UTC")
     assert timetable.serialize()['timezone'] == 'UTC'
+
+
+@pytest.mark.parametrize(
+    "timetable",
+    [
+        pytest.param(CRON_TIMETABLE, id="cron"),
+        pytest.param(HOURLY_TIMEDELTA_TIMETABLE, id="deltadata"),
+        pytest.param(MULTI_CRON_TIMETABLE, id="multicron"),
+    ],
+)
+def test_serialize_deserialize(timetable):
+    """Verify if serialization & deserialization results in the same Timetable."""
+    timetable_copy = copy.deepcopy(timetable)
+    assert timetable == timetable.__class__.deserialize(data=timetable_copy.serialize())
+
+
+def test_multicron_timetable():
+    """Verify if the MultiCronDataIntervalTimetable first 5 results return the expected datetimes."""
+    next_five = []
+    current_datetime = START_DATE
+    for _ in range(5):
+        current_datetime = MULTI_CRON_TIMETABLE._get_next(current=current_datetime)
+        next_five.append(current_datetime)
+
+    expected_next_five = [
+        pendulum.DateTime(2021, 9, 4, 3, 0, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 5, 3, 0, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 6, 0, 0, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 6, 3, 0, 0, tzinfo=TIMEZONE),
+        pendulum.DateTime(2021, 9, 7, 0, 0, 0, tzinfo=TIMEZONE),
+    ]
+
+    assert expected_next_five == next_five
