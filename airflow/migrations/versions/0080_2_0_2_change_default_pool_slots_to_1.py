@@ -37,6 +37,7 @@ airflow_version = '2.0.2'
 
 def upgrade():
     """Change default ``pool_slots`` to ``1`` and make pool_slots not nullable"""
+    op.execute("UPDATE task_instance SET pool_slots = 1 WHERE pool_slots IS NULL")
     with op.batch_alter_table("task_instance", schema=None) as batch_op:
         batch_op.alter_column("pool_slots", existing_type=sa.Integer, nullable=False, server_default='1')
 
