@@ -50,8 +50,62 @@ versions:
   - 2.0.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  # Google has very clear rules on what dependencies should be used. All the limits below
+  # follow strict guidelines of Google Libraries as quoted here:
+  # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
+  # should preserve >1, <3 pins on these packages.
+  # https://github.com/googleapis/google-cloud-python/issues/10566
+  # Some of Google Packages are limited to <2.0.0 because 2.0.0 releases of the libraries
+  # Introduced breaking changes across the board. Those libraries should be upgraded soon
+  # TODO: Upgrade all Google libraries that are limited to <2.0.0
+  - PyOpenSSL
+  - google-ads>=15.1.1
+  - google-api-core>=2.7.0,<3.0.0
+  - google-api-python-client>=1.6.0,<2.0.0
+  - google-auth>=1.0.0
+  - google-auth-httplib2>=0.0.1
+  - google-cloud-aiplatform>=1.7.1,<2.0.0
+  - google-cloud-automl>=2.1.0
+  - google-cloud-bigquery-datatransfer>=3.0.0
+  - google-cloud-bigtable>=1.0.0,<2.0.0
+  - google-cloud-build>=3.0.0
+  - google-cloud-container>=2.2.0,<3.0.0
+  - google-cloud-datacatalog>=3.0.0
+  - google-cloud-dataplex>=0.1.0
+  - google-cloud-dataproc>=3.1.0
+  - google-cloud-dataproc-metastore>=1.2.0,<2.0.0
+  - google-cloud-dlp>=0.11.0,<2.0.0
+  - google-cloud-kms>=2.0.0
+  - google-cloud-language>=1.1.1,<2.0.0
+  - google-cloud-logging>=2.1.1
+  - google-cloud-memcache>=0.2.0
+  - google-cloud-monitoring>=2.0.0
+  - google-cloud-os-login>=2.0.0
+  - google-cloud-orchestration-airflow>=1.0.0,<2.0.0
+  - google-cloud-pubsub>=2.0.0
+  - google-cloud-redis>=2.0.0
+  - google-cloud-secret-manager>=0.2.0,<2.0.0
+  - google-cloud-spanner>=1.10.0,<2.0.0
+  - google-cloud-speech>=0.36.3,<2.0.0
+  - google-cloud-storage>=1.30,<2.0.0
+  - google-cloud-tasks>=2.0.0
+  - google-cloud-texttospeech>=0.4.0,<2.0.0
+  - google-cloud-translate>=1.5.0,<2.0.0
+  - google-cloud-videointelligence>=1.7.0,<2.0.0
+  - google-cloud-vision>=0.35.2,<2.0.0
+  - google-cloud-workflows>=0.1.0,<2.0.0
+  - grpcio-gcp>=0.2.2
+  - httpx
+  - json-merge-patch>=0.2
+  - looker-sdk>=22.2.0
+  - pandas-gbq
+  - pandas>=0.17.1
+  - sqlalchemy-bigquery>=1.2.1
+  # A transient dependency of google-cloud-bigquery-datatransfer, but we
+  # further constrain it since older versions are buggy.
+  - proto-plus>=1.19.6
 
 integrations:
   - integration-name: Google Analytics360
@@ -921,11 +975,21 @@ extra-links:
   - airflow.providers.google.common.links.storage.FileDetailsLink
 
 additional-extras:
-  apache.beam: apache-beam[gcp]
-  leveldb: plyvel
-  oracle: apache-airflow-providers-oracle>=3.1.0
-  facebook: apache-airflow-providers-facebook>=2.2.0
-  amazon: apache-airflow-providers-amazon>=2.6.0
+  - name: apache.beam
+    dependencies:
+      - apache-beam[gcp]
+  - name: leveldb
+    dependencies:
+      - plyvel
+  - name: oracle
+    dependencies:
+      - apache-airflow-providers-oracle>=3.1.0
+  - name: facebook
+    dependencies:
+      - apache-airflow-providers-facebook>=2.2.0
+  - name: amazon
+    dependencies:
+      - apache-airflow-providers-amazon>=2.6.0
 
 secrets-backends:
   - airflow.providers.google.cloud.secrets.secret_manager.CloudSecretManagerBackend

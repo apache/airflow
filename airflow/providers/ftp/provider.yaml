@@ -32,6 +32,8 @@ versions:
   - 1.0.1
   - 1.0.0
 
+dependencies: []
+
 integrations:
   - integration-name: File Transfer Protocol (FTP)
     external-doc-url: https://tools.ietf.org/html/rfc114

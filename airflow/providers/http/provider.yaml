@@ -34,6 +34,11 @@ versions:
   - 1.1.0
   - 1.0.0
 
+dependencies:
+  # The 2.26.0 release of requests got rid of the chardet LGPL mandatory dependency, allowing us to
+  # release it as a requirement for airflow
+  - requests>=2.26.0
+
 integrations:
   - integration-name: Hypertext Transfer Protocol (HTTP)
     external-doc-url: https://www.w3.org/Protocols/

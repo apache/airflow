@@ -32,8 +32,14 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  # The Celery is known to introduce problems when upgraded to a MAJOR version. Airflow Core
+  # Uses Celery for CeleryExecutor, and we also know that Kubernetes Python client follows SemVer
+  # (https://docs.celeryq.dev/en/stable/contributing.html?highlight=semver#versions).
+  # Make sure that the limit here is synchronized with [celery] extra in the airflow core
+  - celery>=5.2.3,<6
+  - flower>=1.0.0
 
 integrations:
   - integration-name: Celery

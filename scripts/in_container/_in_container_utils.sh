@@ -314,7 +314,7 @@ function install_local_airflow_with_eager_upgrade() {
 
 
 function install_all_providers_from_pypi_with_eager_upgrade() {
-    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_REQUIREMENTS))')
+    NO_PROVIDERS_EXTRAS=$(python -c 'import setup; print(",".join(setup.CORE_EXTRAS_DEPENDENCIES))')
     ALL_PROVIDERS_PACKAGES=$(python -c 'import setup; print(setup.get_all_provider_packages())')
     local packages_to_install=()
     local provider_package

@@ -637,7 +637,23 @@ Provider packages
 Airflow 2.0 is split into core and providers. They are delivered as separate packages:
 
 * ``apache-airflow`` - core of Apache Airflow
-* ``apache-airflow-providers-*`` - More than 50 provider packages to communicate with external services
+* ``apache-airflow-providers-*`` - More than 70 provider packages to communicate with external services
+
+The information/meta-data about the providers is kept in ``provider.yaml`` file in the right sub-directory
+of ``airflow\providers``. This file contains:
+
+* package name (``apache-airflow-provider-*``)
+* user-facing name of the provider package
+* description of the package that is available in the documentation
+* list of versions of package that have been released so far
+* list of dependencies of the provider package
+* list of additional-extras that the provider package provides (together with dependencies of those extras)
+* list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
+* list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
+  register them as they are needed by Airflow and to include them in documentation automatically).
+
+If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
+and Airflow pre-commits and package generation commands will use them when preparing package information.
 
 In Airflow 1.10 all those providers were installed together within one single package and when you installed
 airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
@@ -656,7 +672,7 @@ in this airflow folder - the providers package is importable.
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
 data between the providers. The list of dependencies is maintained (automatically with pre-commits)
-in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+in the ``generated/provider_dependencies.json``. Pre-commits are also used to generate dependencies.
 The dependency list is automatically used during PyPI packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
@@ -666,49 +682,8 @@ the other provider package you can install it adding [extra] after the
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
-pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
-dependencies are properly added when package is installed.
-
-You can regenerate the whole list of provider dependencies by running this command (you need to have
-``pre-commits`` installed).
-
-.. code-block:: bash
-
-  pre-commit run build-providers-dependencies
-
-
-Here is the list of packages and their extras:
-
-
-  .. START PACKAGE DEPENDENCIES HERE
-
-========================== ===========================
-Package                    Extras
-========================== ===========================
-airbyte                    http
-amazon                     apache.hive,cncf.kubernetes,exasol,ftp,google,imap,mongo,salesforce,ssh
-apache.beam                google
-apache.druid               apache.hive
-apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
-apache.livy                http
-dbt.cloud                  http
-dingding                   http
-discord                    http
-google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh,trino
-hashicorp                  google
-microsoft.azure            google,oracle,sftp
-mysql                      amazon,presto,trino,vertica
-postgres                   amazon
-presto                     google,slack
-salesforce                 tableau
-sftp                       ssh
-slack                      http
-snowflake                  slack
-trino                      google
-========================== ===========================
-
-  .. END PACKAGE DEPENDENCIES HERE
-
+and pre-commit will generate new entry in ``generated/provider_dependencies.json`` so that
+the package extra dependencies are properly handled when package is installed.
 
 Developing community managed provider packages
 ----------------------------------------------

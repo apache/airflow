@@ -92,19 +92,27 @@ AIRFLOW_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow"
 DIST_PATH = AIRFLOW_SOURCES_ROOT_PATH / "dist"
 PROVIDERS_PATH = AIRFLOW_PATH / "providers"
 DOCUMENTATION_PATH = AIRFLOW_SOURCES_ROOT_PATH / "docs"
+
+DEPENDENCIES_JSON_FILE_PATH = AIRFLOW_SOURCES_ROOT_PATH / "generated" / "provider_dependencies.json"
+
 TARGET_PROVIDER_PACKAGES_PATH = AIRFLOW_SOURCES_ROOT_PATH / "provider_packages"
 GENERATED_AIRFLOW_PATH = TARGET_PROVIDER_PACKAGES_PATH / "airflow"
 GENERATED_PROVIDERS_PATH = GENERATED_AIRFLOW_PATH / "providers"
 
 PROVIDER_RUNTIME_DATA_SCHEMA_PATH = AIRFLOW_SOURCES_ROOT_PATH / "airflow" / "provider_info.schema.json"
 
+CROSS_PROVIDERS_DEPS = "cross-providers-deps"
+DEPS = "deps"
+
 sys.path.insert(0, str(AIRFLOW_SOURCES_ROOT_PATH))
+
+
+ALL_DEPENDENCIES = json.loads(DEPENDENCIES_JSON_FILE_PATH.read_text())
 
 # those imports need to come after the above sys.path.insert to make sure that Airflow
 # sources are importable without having to add the airflow sources to the PYTHONPATH before
 # running the script
-from setup import PROVIDERS_REQUIREMENTS  # type: ignore[attr-defined] # isort:skip # noqa
-from setup import PREINSTALLED_PROVIDERS  # type: ignore[attr-defined] # isort:skip # noqa
+from setup import PREINSTALLED_PROVIDERS, ALL_PROVIDERS  # type: ignore[attr-defined] # isort:skip # noqa
 
 # Note - we do not test protocols as they are not really part of the official API of
 # Apache Airflow
@@ -133,14 +141,6 @@ class EntityType(Enum):
     Sensors = "Sensors"
     Hooks = "Hooks"
     Secrets = "Secrets"
-
-
-def get_provider_packages() -> List[str]:
-    """
-    Returns all provider packages.
-
-    """
-    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 @click.group(context_settings={'help_option_names': ['-h', '--help'], 'max_content_width': 500})
@@ -258,9 +258,6 @@ def get_target_providers_package_folder(provider_package_id: str) -> str:
     return os.path.join(get_target_providers_folder(), *provider_package_id.split("."))
 
 
-DEPENDENCIES_JSON_FILE = os.path.join(PROVIDERS_PATH, "dependencies.json")
-
-
 def get_pip_package_name(provider_package_id: str) -> str:
     """
     Returns PIP package name for the package id.
@@ -317,28 +314,7 @@ def get_install_requirements(provider_package_id: str, version_suffix: str) -> s
 
     :return: install requirements of the package
     """
-    dependencies = PROVIDERS_REQUIREMENTS[provider_package_id]
-    provider_yaml = get_provider_yaml(provider_package_id)
-    install_requires = []
-    if "additional-dependencies" in provider_yaml:
-        additional_dependencies = provider_yaml['additional-dependencies']
-        if version_suffix:
-            # In case we are preparing "rc" or dev0 packages, we should also
-            # make sure that cross-dependency with Airflow or Airflow Providers will
-            # contain the version suffix, otherwise we will have conflicting dependencies.
-            # For example if (in sftp) we have ssh>=2.0.1 and release ssh==2.0.1
-            # we want to turn this into ssh>=2.0.1.dev0 if we build dev0 version of the packages
-            # or >=2.0.1rc1 if we build rc1 version of the packages.
-            for dependency in additional_dependencies:
-                if dependency.startswith("apache-airflow") and ">=" in dependency:
-                    dependency = (
-                        dependency + ("." if not version_suffix.startswith(".") else "") + version_suffix
-                    )
-                install_requires.append(dependency)
-        else:
-            install_requires.extend(additional_dependencies)
-
-    install_requires.extend(dependencies)
+    install_requires = ALL_DEPENDENCIES[provider_package_id][DEPS]
     prefix = "\n    "
     return prefix + prefix.join(install_requires)
 
@@ -362,24 +338,28 @@ def get_package_extras(provider_package_id: str) -> Dict[str, List[str]]:
     """
     if provider_package_id == 'providers':
         return {}
-    with open(DEPENDENCIES_JSON_FILE) as dependencies_file:
-        cross_provider_dependencies: Dict[str, List[str]] = json.load(dependencies_file)
-    extras_dict = (
-        {
-            module: [get_pip_package_name(module)]
-            for module in cross_provider_dependencies[provider_package_id]
-        }
-        if cross_provider_dependencies.get(provider_package_id)
-        else {}
-    )
+    extras_dict: Dict[str, List[str]] = {
+        module: [get_pip_package_name(module)]
+        for module in ALL_DEPENDENCIES[provider_package_id][CROSS_PROVIDERS_DEPS]
+    }
     provider_yaml_dict = get_provider_yaml(provider_package_id)
     additional_extras = provider_yaml_dict.get('additional-extras')
     if additional_extras:
-        for key in additional_extras:
-            if key in extras_dict:
-                extras_dict[key].append(additional_extras[key])
+        for entry in additional_extras:
+            name = entry['name']
+            dependencies = entry['dependencies']
+            if name in extras_dict:
+                # remove non-versioned dependencies if versioned ones are coming
+                existing_dependencies = set(extras_dict[name])
+                for new_dependency in dependencies:
+                    for dependency in existing_dependencies:
+                        # remove extra if exists as non-versioned one
+                        if new_dependency.startswith(dependency):
+                            extras_dict[name].remove(dependency)
+                            break
+                    extras_dict[name].append(new_dependency)
             else:
-                extras_dict[key] = additional_extras[key]
+                extras_dict[name] = dependencies
     return extras_dict
 
 
@@ -413,7 +393,7 @@ def render_template(
     return content
 
 
-PR_PATTERN = re.compile(r".*\(#([0-9]+)\)")
+PR_PATTERN = re.compile(r".*\(#(\d+)\)")
 
 
 class Change(NamedTuple):
@@ -660,9 +640,7 @@ def get_cross_provider_dependent_packages(provider_package_id: str) -> List[str]
     :param provider_package_id: package id
     :return: list of cross-provider dependencies
     """
-    with open(os.path.join(PROVIDERS_PATH, "dependencies.json")) as dependencies_file:
-        dependent_packages = json.load(dependencies_file).get(provider_package_id) or []
-    return dependent_packages
+    return ALL_DEPENDENCIES[provider_package_id][CROSS_PROVIDERS_DEPS]
 
 
 def make_sure_remote_apache_exists_and_fetch(git_update: bool, verbose: bool):
@@ -1023,11 +1001,7 @@ def get_provider_details(provider_package_id: str) -> ProviderPackageDetails:
 
 def get_provider_requirements(provider_package_id: str) -> List[str]:
     provider_yaml = get_provider_yaml(provider_package_id)
-    requirements = (
-        provider_yaml['additional-dependencies'].copy() if 'additional-dependencies' in provider_yaml else []
-    )
-    requirements.extend(PROVIDERS_REQUIREMENTS[provider_package_id])
-    return requirements
+    return provider_yaml['dependencies']
 
 
 def get_provider_jinja_context(
@@ -1077,7 +1051,7 @@ def get_provider_jinja_context(
             provider_package_path=provider_details.source_provider_package_path
         ),
         "CROSS_PROVIDERS_DEPENDENCIES": cross_providers_dependencies,
-        "PIP_REQUIREMENTS": PROVIDERS_REQUIREMENTS[provider_details.provider_package_id],
+        "PIP_REQUIREMENTS": get_provider_requirements(provider_details.provider_package_id),
         "PROVIDER_TYPE": "Provider",
         "PROVIDERS_FOLDER": "providers",
         "PROVIDER_DESCRIPTION": provider_details.provider_description,
@@ -1218,7 +1192,7 @@ def update_release_notes(
     :param version_suffix: version suffix corresponding to the version in the code
     :param force: regenerate already released documentation
     :param verbose: whether to print verbose messages
-    :param answer: force answer to questions if set.
+    :param answer: force answer to question if set.
     :returns False if the package should be skipped, True if everything generated properly
     """
     verify_provider_package(provider_package_id)
@@ -1449,7 +1423,7 @@ def get_all_providers() -> List[str]:
     Returns all providers for regular packages.
     :return: list of providers that are considered for provider packages
     """
-    return list(PROVIDERS_REQUIREMENTS.keys())
+    return list(ALL_PROVIDERS)
 
 
 def verify_provider_package(provider_package_id: str) -> None:
@@ -1458,10 +1432,10 @@ def verify_provider_package(provider_package_id: str) -> None:
     :param provider_package_id: package id to verify
     :return: None
     """
-    if provider_package_id not in get_provider_packages():
+    if provider_package_id not in get_all_providers():
         console.print(f"[red]Wrong package name: {provider_package_id}[/]")
         console.print("Use one of:")
-        console.print(get_provider_packages())
+        console.print(get_all_providers())
         raise Exception(f"The package {provider_package_id} is not a provider package.")
 
 

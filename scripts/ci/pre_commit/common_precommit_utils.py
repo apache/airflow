@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 from pathlib import Path
 from typing import List
+
+AIRFLOW_SOURCES_ROOT = Path(__file__).parents[3].resolve()
 
 
 def insert_documentation(file_path: Path, content: List[str], header: str, footer: str):
@@ -32,4 +33,5 @@ def insert_documentation(file_path: Path, content: List[str], header: str, foote
             replacing = False
         if not replacing:
             result.append(line)
-    file_path.write_text("".join(result))
+    src = "".join(result)
+    file_path.write_text(src)

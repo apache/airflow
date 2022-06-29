@@ -33,8 +33,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - qds-sdk>=1.10.4
 
 integrations:
   - integration-name: Qubole

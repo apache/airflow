@@ -40,8 +40,7 @@ sys.path.insert(0, AIRFLOW_SOURCES_DIR)
 from setup import (  # noqa # isort:skip
     add_all_provider_packages,
     EXTRAS_DEPRECATED_ALIASES,
-    EXTRAS_REQUIREMENTS,
-    PROVIDERS_REQUIREMENTS,
+    EXTRAS_DEPENDENCIES,
     PREINSTALLED_PROVIDERS,
 )
 
@@ -54,7 +53,7 @@ def get_file_content(*path_elements: str) -> str:
 
 def get_extras_from_setup() -> Set[str]:
     """Returns a set of regular (non-deprecated) extras from setup."""
-    return set(EXTRAS_REQUIREMENTS.keys()) - set(EXTRAS_DEPRECATED_ALIASES.keys())
+    return set(EXTRAS_DEPENDENCIES.keys()) - set(EXTRAS_DEPRECATED_ALIASES.keys())
 
 
 def get_extras_from_docs() -> Set[str]:
@@ -125,8 +124,7 @@ def check_extras(console: Console) -> bool:
             f"""\
 [red bold]ERROR!![/red bold]
 
-The "[bold]CORE_EXTRAS_REQUIREMENTS[/bold]", "[bold]ADDITIONAL_PROVIDERS_REQUIREMENTS[/bold]", and
-    "[bold]PROVIDERS_REQUIREMENTS[/bold]"
+The "[bold]CORE_EXTRAS_DEPENDENCIES[/bold]"
 sections in the setup file: [bold yellow]{SETUP_PY_FILE}[/bold yellow]
 should be synchronized with the "Extra Packages Reference"
 in the documentation file: [bold yellow]{DOCS_FILE}[/bold yellow].

@@ -29,8 +29,10 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - sqlalchemy-drill>=1.1.0
+  - sqlparse>=0.4.1
 
 integrations:
   - integration-name: Apache Drill

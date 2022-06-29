@@ -283,9 +283,9 @@ def get_all_providers() -> List[str]:
     Returns all providers for regular packages.
     :return: list of providers that are considered for provider packages
     """
-    from setup import PROVIDERS_REQUIREMENTS
+    from setup import ALL_PROVIDERS
 
-    return list(PROVIDERS_REQUIREMENTS.keys())
+    return list(ALL_PROVIDERS)
 
 
 def import_all_classes(
@@ -378,16 +378,6 @@ def import_all_classes(
         sys.exit(1)
     else:
         return imported_classes, all_warnings
-
-
-def get_provider_packages() -> List[str]:
-    """
-    Returns all provider packages.
-
-    """
-    from setup import PROVIDERS_REQUIREMENTS
-
-    return list(PROVIDERS_REQUIREMENTS.keys())
 
 
 def is_imported_from_same_module(the_class: str, imported_name: str) -> bool:

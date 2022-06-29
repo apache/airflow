@@ -130,7 +130,6 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
       │       └── operators/
       │           └── <NEW_PROVIDER>.rst
       └── providers/
-          ├── dependencies.json
           └── <NEW_PROVIDER>/
               ├── provider.yaml
               └── CHANGELOG.rst
@@ -138,8 +137,7 @@ Some steps for documentation occurs automatically by ``pre-commit`` see `Install
 
 Files automatically updated by pre-commit:
 
-- ``airflow/providers/dependencies.json``
-- ``INSTALL``
+- ``INSTALL`` in provider
 
 Files automatically created when the provider is released:
 
@@ -168,26 +166,8 @@ lowercase in the second block.
     nobr
     nodash
 
-Add your provider dependencies into **PROVIDER_REQUIREMENTS** variable in ``setup.py``. If your provider doesn't have
-any dependency add a empty list.
-
-  .. code-block:: python
-
-      PROVIDERS_REQUIREMENTS: Dict[str, List[str]] = {
-          # ...
-          "microsoft.winrm": winrm,
-          "mongo": mongo,
-          "mysql": mysql,
-          "neo4j": neo4j,
-          "<NEW_PROVIDER>": [],
-          "odbc": odbc,
-          # ...
-      }
-
-In the ``CONTRIBUTING.rst`` adds:
-
-- your provider name in the list in the **Extras** section
-- your provider dependencies in the **Provider Packages** section table, only if your provider has external dependencies.
+Add your provider dependencies into ``provider.yaml`` under ``dependencies`` key..
+If your provider doesn't have any dependency add a empty list.
 
 In the ``docs/apache-airflow-providers-<NEW_PROVIDER>/connections.rst``:
 

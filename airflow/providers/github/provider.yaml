@@ -22,8 +22,9 @@ name: Github
 description: |
     `GitHub <https://www.github.com/>`__
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - pygithub
 
 versions:
   - 2.0.0

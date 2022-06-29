@@ -27,7 +27,6 @@ PRE_COMMIT_LIST = [
     'blacken-docs',
     'check-airflow-2-2-compatibility',
     'check-airflow-config-yaml-consistent',
-    'check-airflow-providers-have-extras',
     'check-apache-license-rat',
     'check-base-operator-partial-arguments',
     'check-base-operator-usage',

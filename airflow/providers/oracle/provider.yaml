@@ -35,8 +35,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - oracledb>=1.0.0
 
 integrations:
   - integration-name: Oracle
@@ -45,7 +46,9 @@ integrations:
     tags: [software]
 
 additional-extras:
-  numpy: numpy
+  - name: numpy
+    dependencies:
+      - numpy
 
 operators:
   - integration-name: Oracle

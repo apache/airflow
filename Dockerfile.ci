@@ -1321,8 +1321,8 @@ RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" bash /scripts/docker/compile_www
 # So in case setup.py changes we can install latest dependencies required.
 COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
-
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
+COPY generated/provider_dependencies.json ${AIRFLOW_SOURCES}/generated/
 
 COPY --from=scripts install_airflow.sh /scripts/docker/
 
