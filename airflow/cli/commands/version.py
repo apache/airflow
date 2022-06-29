@@ -15,14 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Version command"""
-from rich.console import Console
-
-import airflow
 from airflow.cli import airflow_cmd
 
 
 @airflow_cmd.command('version')
 def version():
     """Displays Airflow version at the command line"""
+    from rich.console import Console
+
+    import airflow
+
     console = Console()
     console.print(airflow.__version__)
