@@ -116,7 +116,7 @@ Refer to the models documentation for more information on the objects'
 attributes and methods.
 
 Airflow Variables in Templates
----------
+------------------------------
 The ``var`` template variable allows you to access variables defined in Airflow's
 UI. You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
@@ -129,7 +129,7 @@ supplied in case the variable does not exist.
 
 
 Airflow Connections in Templates
----------
+---------------------------------
 Similarly, Airflow Connections data can be accessed via the ``conn`` template variable. For example, you could use expressions in your templates like ``{{ conn.my_conn_id.login }}``,
 ``{{ conn.my_conn_id.password }}``, etc.
 
