@@ -321,9 +321,9 @@ class DockerOperator(BaseOperator):
                     return None
                 try:
                     if self.xcom_all:
-                        return [stringify(line).strip() for line in log_lines]
+                        return log_lines
                     else:
-                        return stringify(log_lines[-1]).strip()
+                        return log_lines[-1]
                 except StopIteration:
                     # handle the case when there is not a single line to iterate on
                     return None

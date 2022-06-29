@@ -502,8 +502,6 @@ class TestDockerOperator(unittest.TestCase):
         self.log_messages = []
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']
         self.client_mock.attach.return_value = iter([])
-        # Make sure the logs side effect is updated after the change
-        self.client_mock.logs.side_effect = iter([])
 
         kwargs = {
             'api_version': '1.19',
