@@ -18,7 +18,9 @@
 # under the License.
 
 from airflow.cli import airflow_cmd
-from airflow.cli.commands import version  # noqa: F401
+from airflow.cli.commands import version
+
+__all__ = ["version"]
 
 if __name__ == '__main__':
     airflow_cmd(obj={})
