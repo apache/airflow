@@ -31,7 +31,7 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_operators import MockOperator
+from tests.test_utils.mock_operators import MockOperator, XCOMPushOperator
 
 
 def test_task_mapping_with_dag():
@@ -98,6 +98,25 @@ def test_map_xcom_arg():
 
     assert task1.downstream_list == [mapped]
 
+
+def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
+    """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
+        input_list = [1, 2, 3]
+        task1 = XCOMPushOperator(return_value=input_list, task_id="task_1")
+        task2 = XCOMPushOperator.partial(task_id='task_2').expand(return_value=XComArg(task1))
+        task3 = XCOMPushOperator.partial(task_id='task_3').expand(return_value=XComArg(task2))
+
+    dr = dag_maker.create_dagrun()
+    for ti in dr.get_task_instances():
+        ti.run()
+
+    downstream_tasks = (
+        session.query(TaskInstance.map_index)
+            .filter_by(task_id=task3.task_id, dag_id=task3.dag_id, run_id=dr.run_id)
+            .all()
+    )
+    assert len(downstream_tasks) == len(input_list)
 
 def test_partial_on_instance() -> None:
     """`.partial` on an instance should fail -- it's only designed to be called on classes"""
