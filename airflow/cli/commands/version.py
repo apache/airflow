@@ -25,5 +25,4 @@ def version():
 
     import airflow
 
-    console = Console()
-    console.print(airflow.__version__)
+    Console().print(airflow.__version__)
