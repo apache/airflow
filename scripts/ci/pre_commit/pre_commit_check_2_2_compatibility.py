@@ -32,7 +32,7 @@ console = Console(color_system="standard", width=200)
 
 errors: List[str] = []
 
-SKIP_COMP_CHECK = "# ignore 2.2 comp check"
+SKIP_COMP_CHECK = "# ignore airflow compat check"
 TRY_NUM_MATCHER = re.compile(r".*context.*\[[\"']try_number[\"']].*")
 GET_MANDATORY_MATCHER = re.compile(r".*conf\.get_mandatory_value")
 GET_AIRFLOW_APP_MATCHER = re.compile(r".*get_airflow_app\(\)")

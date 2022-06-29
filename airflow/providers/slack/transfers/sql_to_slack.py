@@ -129,7 +129,7 @@ class SqlToSlackOperator(BaseOperator):
         conn = BaseHook.get_connection(self.sql_conn_id)
         if version >= '2.3':
             # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
-            hook = conn.get_hook(hook_params=self.sql_hook_params)  # ignore 2.2 comp check
+            hook = conn.get_hook(hook_params=self.sql_hook_params)  # ignore airflow compat check
         else:
             # For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
             # when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
