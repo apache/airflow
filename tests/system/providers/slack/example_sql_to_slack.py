@@ -16,19 +16,19 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-Example DAG using PrestoToSlackOperator.
+Example DAG using SqlToSlackOperator.
 """
 
 import os
 from datetime import datetime
 
 from airflow import models
-from airflow.providers.presto.transfers.presto_to_slack import PrestoToSlackOperator
+from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
-PRESTO_TABLE = os.environ.get("PRESTO_TABLE", "test_table")
+SQL_TABLE = os.environ.get("SQL_TABLE", "test_table")
+SQL_CONN_ID = 'presto_default'
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-DAG_ID = "example_presto_to_slack"
-SLACK_CONN_WEBHOOK = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
+DAG_ID = "example_sql_to_slack"
 
 with models.DAG(
     dag_id=DAG_ID,
@@ -37,15 +37,16 @@ with models.DAG(
     catchup=False,
     tags=["example"],
 ) as dag:
-    # [START howto_operator_presto_to_slack]
-    PrestoToSlackOperator(
+    # [START howto_operator_sql_to_slack]
+    SqlToSlackOperator(
         task_id="presto_to_slack",
-        slack_token=SLACK_CONN_WEBHOOK,
-        sql=f"SELECT col FROM {PRESTO_TABLE}",
+        sql_conn_id=SQL_CONN_ID,
+        sql=f"SELECT col FROM {SQL_TABLE}",
         slack_channel="my_channel",
+        slack_conn_id='slack_default',
         slack_message="message: {{ ds }}, {{ results_df }}",
     )
-    # [END howto_operator_presto_to_slack]
+    # [END howto_operator_sql_to_slack]
 
 
 from tests.system.utils import get_test_run  # noqa: E402

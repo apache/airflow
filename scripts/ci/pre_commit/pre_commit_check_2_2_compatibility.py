@@ -28,11 +28,11 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command [FILE] ..."
     )
 
-
 console = Console(color_system="standard", width=200)
 
 errors: List[str] = []
 
+SKIP_COMP_CHECK = "# ignore airflow compat check"
 TRY_NUM_MATCHER = re.compile(r".*context.*\[[\"']try_number[\"']].*")
 GET_MANDATORY_MATCHER = re.compile(r".*conf\.get_mandatory_value")
 GET_AIRFLOW_APP_MATCHER = re.compile(r".*get_airflow_app\(\)")
@@ -43,6 +43,9 @@ def _check_file(_file: Path):
     lines = _file.read_text().splitlines()
 
     for index, line in enumerate(lines):
+        if SKIP_COMP_CHECK in line:
+            continue
+
         if "XCom.get_value(" in line:
             if "if ti_key is not None:" not in lines[index - 1]:
                 errors.append(
