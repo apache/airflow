@@ -22,15 +22,10 @@ from kubernetes import client, config, watch
 from kubernetes.config import ConfigException
 
 from airflow.compat.functools import cached_property
-from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
-
-try:
-    import airflow.utils.yaml as yaml
-except ImportError:
-    import yaml  # type: ignore[no-redef]
-
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.utils import yaml
 
 
 def _load_body_to_dict(body):
