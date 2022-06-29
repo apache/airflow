@@ -21,6 +21,7 @@ import re
 import socket
 import subprocess
 import time
+import warnings
 from collections import OrderedDict
 from tempfile import NamedTemporaryFile, TemporaryDirectory
 from typing import Any, Dict, List, Optional, Union
@@ -492,10 +493,19 @@ class HiveMetastoreHook(BaseHook):
         if not host:
             raise AirflowException("Failed to locate the valid server.")
 
-        auth_mechanism = conn.extra_dejson.get('authMechanism', 'NOSASL')
+        if 'authMechanism' in conn.extra_dejson:
+            warnings.warn(
+                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            conn.extra_dejson['auth_mechanism'] = conn.extra_dejson['authMechanism']
+            del conn.extra_dejson['authMechanism']
+
+        auth_mechanism = conn.extra_dejson.get('auth_mechanism', 'NOSASL')
 
         if conf.get('core', 'security') == 'kerberos':
-            auth_mechanism = conn.extra_dejson.get('authMechanism', 'GSSAPI')
+            auth_mechanism = conn.extra_dejson.get('auth_mechanism', 'GSSAPI')
             kerberos_service_name = conn.extra_dejson.get('kerberos_service_name', 'hive')
 
         conn_socket = TSocket.TSocket(host, conn.port)
@@ -779,7 +789,7 @@ class HiveServer2Hook(DbApiHook):
     Wrapper around the pyhive library
 
     Notes:
-    * the default authMechanism is PLAIN, to override it you
+    * the default auth_mechanism is PLAIN, to override it you
     can specify it in the ``extra`` of your connection in the UI
     * the default for run_set_variable_statements is true, if you
     are using impala you may need to set it to false in the
@@ -803,19 +813,28 @@ class HiveServer2Hook(DbApiHook):
 
         db = self.get_connection(self.hiveserver2_conn_id)  # type: ignore
 
-        auth_mechanism = db.extra_dejson.get('authMechanism', 'NONE')
+        if 'authMechanism' in db.extra_dejson:
+            warnings.warn(
+                "The 'authMechanism' option is deprecated. Please use 'auth_mechanism'.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            db.extra_dejson['auth_mechanism'] = db.extra_dejson['authMechanism']
+            del db.extra_dejson['authMechanism']
+
+        auth_mechanism = db.extra_dejson.get('auth_mechanism', 'NONE')
         if auth_mechanism == 'NONE' and db.login is None:
             # we need to give a username
             username = 'airflow'
         kerberos_service_name = None
         if conf.get('core', 'security') == 'kerberos':
-            auth_mechanism = db.extra_dejson.get('authMechanism', 'KERBEROS')
+            auth_mechanism = db.extra_dejson.get('auth_mechanism', 'KERBEROS')
             kerberos_service_name = db.extra_dejson.get('kerberos_service_name', 'hive')
 
         # pyhive uses GSSAPI instead of KERBEROS as a auth_mechanism identifier
         if auth_mechanism == 'GSSAPI':
             self.log.warning(
-                "Detected deprecated 'GSSAPI' for authMechanism for %s. Please use 'KERBEROS' instead",
+                "Detected deprecated 'GSSAPI' for auth_mechanism for %s. Please use 'KERBEROS' instead",
                 self.hiveserver2_conn_id,  # type: ignore
             )
             auth_mechanism = 'KERBEROS'

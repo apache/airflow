@@ -174,6 +174,22 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 id="Everything should run and upgrading to newer requirements as setup.py changed",
             )
         ),
+        (
+            pytest.param(
+                ("generated/provider_dependencies.json",),
+                {
+                    "all-python-versions": "['3.7', '3.8', '3.9', '3.10']",
+                    "all-python-versions-list-as-string": "3.7 3.8 3.9 3.10",
+                    "image-build": "true",
+                    "needs-helm-tests": "true",
+                    "run-tests": "true",
+                    "docs-build": "true",
+                    "upgrade-to-newer-dependencies": "true",
+                    "test-types": "API Always CLI Core Integration Other Providers WWW",
+                },
+                id="Everything should run and upgrading to newer requirements as dependencies change",
+            )
+        ),
     ],
 )
 def test_expected_output_pull_request_main(
