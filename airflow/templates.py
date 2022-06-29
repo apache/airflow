@@ -56,9 +56,11 @@ def ts_filter(value):
     return value.isoformat()
 
 
-def ts_nodash_filter(value):
-    return value.strftime('%Y%m%dT%H%M%S')
-
+def ts_nodash_filter(*value):
+    if value:
+      return value.strftime('%Y%m%dT%H%M%S')
+    else:
+      return None
 
 def ts_nodash_with_tz_filter(value):
     return value.isoformat().replace('-', '').replace(':', '')
