@@ -32,11 +32,28 @@ kubeVersionOverride: ""
 uid: 50000
 gid: 0
 
-# Default security context for airflow
+# Default security context for airflow (depreacated)
 securityContext: {}
 #  runAsUser: 50000
 #  fsGroup: 0
 #  runAsGroup: 0
+
+# Detailed default security context for airflow deployments
+securityContexts:
+  pod:
+    default: {}
+    # webserver: {}
+    # scheduler: {}
+    # statsd: {}
+  containers:
+    default:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+          - ALL
+    # webserver: {}
+    # scheduler: {}
+    # statsd: {}
 
 # Airflow home directory
 # Used for mount paths

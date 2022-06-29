@@ -183,11 +183,7 @@ spec:
           {{- end }}
           resources:
 {{ toYaml .Values.scheduler.resources | indent 12 }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
+          securityContext: {{ or .Values.securityContexts.container.scheduler .Values.securityContexts.container.default }}
           volumeMounts:
             {{- if semverCompare ">=1.10.12" .Values.airflowVersion }}
             - name: config
