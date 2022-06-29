@@ -341,9 +341,13 @@ class TestGoogleBaseHook(unittest.TestCase):
         )
         assert ('CREDENTIALS', 'PROJECT_ID') == result
 
+    @mock.patch('requests.post')
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
-    def test_connection_success(self, mock_get_creds_and_proj_id):
-        mock_get_creds_and_proj_id.return_value = ("CREDENTIALS", "PROJECT_ID")
+    def test_connection_success(self, mock_get_creds_and_proj_id, requests_post):
+        requests_post.return_value.status_code = 200
+        credentials = mock.MagicMock()
+        type(credentials).token = mock.PropertyMock(return_value="TOKEN")
+        mock_get_creds_and_proj_id.return_value = (credentials, "PROJECT_ID")
         self.instance.extras = {}
         result = self.instance.test_connection()
         assert result == (True, 'Connection successfully tested')
