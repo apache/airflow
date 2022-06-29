@@ -178,6 +178,7 @@ class TestSqlToSlackOperator:
         op = SqlToSlackOperator(
             task_id='sql_hook_params',
             sql_conn_id='postgres_test',
+            slack_webhook_token='slack_token',
             sql="SELECT 1",
             slack_message='message: {{ ds }}, {{ xxxx }}',
             sql_hook_params={
@@ -193,6 +194,7 @@ class TestSqlToSlackOperator:
         op = SqlToSlackOperator(
             task_id='snowflake_hook_params',
             sql_conn_id='snowflake_default',
+            slack_conn_id='slack_default',
             results_df_name='xxxx',
             sql="SELECT 1",
             slack_message='message: {{ ds }}, {{ xxxx }}',
