@@ -140,28 +140,41 @@ You can also provide an ``.airflowignore`` file inside your ``DAG_FOLDER``, or a
 Running DAGs
 ------------
 
-DAGs will run in one of two ways:
+A DAG can run in two ways:
 
- - When they are *triggered* either manually or via the API
- - On a defined *schedule*, which is defined as part of the DAG
+ - *Manually triggered* via the UI or API
+ - Or *scheduled*, defined by ``schedule_interval`` on the DAG. For example::
 
-DAGs do not *require* a schedule, but it's very common to define one. You define it via the ``schedule_interval`` argument, like this::
 
-    with DAG("my_daily_dag", schedule_interval="@daily"):
+    from airflow.models import DAG
+
+
+    with DAG("my_dag", schedule_interval="0 0 * * *"):
         ...
 
-The ``schedule_interval`` argument takes any value that is a valid `Crontab <https://en.wikipedia.org/wiki/Cron>`_ schedule value, so you could also do::
 
-    with DAG("my_daily_dag", schedule_interval="0 * * * *"):
-        ...
+This DAG will run every day at 00:00, as defined by the cron expression given to ``schedule_interval``. The value of ``schedule_interval`` can take several types:
+
++------------------------------------------+----------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+| Type                                     | When to use                                                                                                          | Example                              |
++==========================================+======================================================================================================================+======================================+
+| ``None``                                 | No schedule, use for manually triggered DAGs                                                                         | ``None``                             |
++------------------------------------------+----------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+| Cron expression (``str``)                | To run at cron-based intervals                                                                                       + ``"0 0 * * *"``                      |
++------------------------------------------+----------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+| Cron preset (``str``)                    | Convenience cron expression for readability                                                                          + ``"@daily"``                         |
++------------------------------------------+----------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+| List of cron expressions/presets         | To run at intervals that cannot be expressed by a single cron expression.                                            + ``["0 3 * * *", "0 0 * * MON,TUE"]`` |
++------------------------------------------+----------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+| ``datetime.timedelta``                   | To run at frequency-based intervals. Useful if your interval cannot be expressed by cron e.g. ``timedelta(days=3)``. + ``timedelta(days=3)``                |
++------------------------------------------+----------------------------------------------------------------------------------------------------------------------+--------------------------------------+
+| ``dateutil.relativedelta.relativedelta`` | To express an interval in weeks, months, or years (which timedelta cannot do natively).                              + ``relativedelta(months=1)``          |
++------------------------------------------+----------------------------------------------------------------------------------------------------------------------+--------------------------------------+
 
 .. tip::
+    A convenient tool for converting cron expressions to human language is `Crontab.guru <https://crontab.guru/>`_.
 
-    For more information on ``schedule_interval`` values, see :doc:`DAG Run </dag-run>`.
-
-    If ``schedule_interval`` is not enough to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
-    For more information on ``logical date``, see :ref:`data-interval` and
-    :ref:`faq:what-does-execution-date-mean`.
+For a full list of all available cron presets, see :ref:`dag-run:cron-presets`. If ``schedule_interval`` does not provide enough flexibility to express the DAG's schedule, see :doc:`Timetables </howto/timetable>`.
 
 Every time you run a DAG, you are creating a new instance of that DAG which
 Airflow calls a :doc:`DAG Run </dag-run>`. DAG Runs can run in parallel for the
