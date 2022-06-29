@@ -1749,3 +1749,80 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
+
+  build-ci-arm-images:
+    timeout-minutes: 80
+    name: >
+      ${{needs.build-info.outputs.buildJobDescription}} CI ARM images
+      ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    needs:
+      - build-info
+      - wait-for-ci-images
+      - wait-for-prod-images
+      - static-checks
+      - tests-sqlite
+      - tests-mysql
+      - tests-mssql
+      - tests-postgres
+    env:
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+    if: needs.build-info.outputs.upgradeToNewerDependencies != 'false'
+    steps:
+      - name: Cleanup repo
+        run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - uses: actions/checkout@v2
+        with:
+          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          persist-credentials: false
+          submodules: recursive
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Setup python"
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore, we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - run: ./scripts/ci/install_breeze.sh
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Free space"
+        run: breeze free-space
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Start ARM instance"
+        run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: >
+          Build CI ARM images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+        run: >
+          breeze build-image --run-in-parallel --parallelism 1
+          --builder airflow_cache --platform "linux/arm64"
+        env:
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+        if: needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Stop ARM instance"
+        run: ./scripts/ci/images/ci_stop_arm_instance.sh
+        if: always() && needs.build-info.outputs.inWorkflowBuild == 'true'
+      - name: "Fix ownership"
+        run: breeze fix-ownership
+        if: always() && needs.build-info.outputs.inWorkflowBuild == 'true'

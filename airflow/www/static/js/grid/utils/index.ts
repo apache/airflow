@@ -1,3 +1,4 @@
+/* eslint-disable import/prefer-default-export */
 /*!
  * Licensed to the Apache Software Foundation (ASF) under one
  * or more contributor license agreements.  See the NOTICE file
@@ -17,25 +18,9 @@
  * under the License.
  */
 
-import axios from 'axios';
-import { useQuery } from 'react-query';
-import { getMetaValue } from '../../utils';
+// Delay in ms for various hover actions
+const hoverDelay = 200;
 
-const taskLogApi = getMetaValue('task_log_api');
-
-const useTaskLog = ({
-  dagId, dagRunId, taskId, taskTryNumber, fullContent, enabled,
-}) => {
-  const url = taskLogApi.replace('_DAG_RUN_ID_', dagRunId).replace('_TASK_ID_', taskId).replace(/-1$/, taskTryNumber);
-
-  return useQuery(
-    ['taskLogs', dagId, dagRunId, taskId, taskTryNumber, fullContent],
-    () => axios.get(url, { headers: { Accept: 'text/plain' }, params: { full_content: fullContent } }),
-    {
-      placeholderData: '',
-      enabled,
-    },
-  );
+export {
+  hoverDelay,
 };
-
-export default useTaskLog;

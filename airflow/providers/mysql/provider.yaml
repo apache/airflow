@@ -71,8 +71,6 @@ transfers:
     target-integration-name: MySQL
     python-module: airflow.providers.mysql.transfers.trino_to_mysql
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.mysql.hooks.mysql.MySqlHook
 
 connection-types:
   - hook-class-name: airflow.providers.mysql.hooks.mysql.MySqlHook
