@@ -79,6 +79,7 @@ class SageMakerBaseOperator(BaseOperator):
 
     def preprocess_config(self) -> None:
         """Process the config into a usable form."""
+        self._create_integer_fields()
         self.log.info('Preprocessing the config and doing required s3_operations')
         self.hook.configure_s3_resources(self.config)
         self.parse_config_integers()
@@ -87,6 +88,13 @@ class SageMakerBaseOperator(BaseOperator):
             'After preprocessing the config is:\n %s',
             json.dumps(self.config, sort_keys=True, indent=4, separators=(',', ': ')),
         )
+
+    def _create_integer_fields(self) -> None:
+        """
+        Set fields which should be cast to integers.
+        Child classes should override this method if they need integer fields parsed.
+        """
+        self.integer_fields = []
 
     def execute(self, context: 'Context') -> Union[None, Dict]:
         raise NotImplementedError('Please implement execute() in sub class!')
@@ -148,7 +156,6 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         self.print_log = print_log
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
-        self._create_integer_fields()
 
     def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
@@ -202,8 +209,6 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the endpoint config created in Amazon SageMaker.
     """
 
-    integer_fields = [['ProductionVariants', 'InitialInstanceCount']]
-
     def __init__(
         self,
         *,
@@ -214,6 +219,10 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         super().__init__(config=config, **kwargs)
         self.config = config
         self.aws_conn_id = aws_conn_id
+
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
+        self.integer_fields: List[List[str]] = [['ProductionVariants', 'InitialInstanceCount']]
 
     def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
@@ -293,9 +302,8 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         self.operation = operation.lower()
         if self.operation not in ['create', 'update']:
             raise ValueError('Invalid value! Argument operation has to be one of "create" and "update"')
-        self.create_integer_fields()
 
-    def create_integer_fields(self) -> None:
+    def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
         if 'EndpointConfig' in self.config:
             self.integer_fields: List[List[str]] = [
@@ -411,9 +419,8 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         self.wait_for_completion = wait_for_completion
         self.check_interval = check_interval
         self.max_ingestion_time = max_ingestion_time
-        self.create_integer_fields()
 
-    def create_integer_fields(self) -> None:
+    def _create_integer_fields(self) -> None:
         """Set fields which should be cast to integers."""
         self.integer_fields: List[List[str]] = [
             ['Transform', 'TransformResources', 'InstanceCount'],
@@ -482,14 +489,6 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the tuning job created in Amazon SageMaker.
     """
 
-    integer_fields = [
-        ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],
-        ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxParallelTrainingJobs'],
-        ['TrainingJobDefinition', 'ResourceConfig', 'InstanceCount'],
-        ['TrainingJobDefinition', 'ResourceConfig', 'VolumeSizeInGB'],
-        ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds'],
-    ]
-
     def __init__(
         self,
         *,
@@ -514,6 +513,16 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
             if 'RoleArn' in config:
                 hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
                 config['RoleArn'] = hook.expand_role(config['RoleArn'])
+
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
+        self.integer_fields: List[List[str]] = [
+            ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxNumberOfTrainingJobs'],
+            ['HyperParameterTuningJobConfig', 'ResourceLimits', 'MaxParallelTrainingJobs'],
+            ['TrainingJobDefinition', 'ResourceConfig', 'InstanceCount'],
+            ['TrainingJobDefinition', 'ResourceConfig', 'VolumeSizeInGB'],
+            ['TrainingJobDefinition', 'StoppingCondition', 'MaxRuntimeInSeconds'],
+        ]
 
     def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
@@ -600,12 +609,6 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
     :return Dict: Returns The ARN of the training job created in Amazon SageMaker.
     """
 
-    integer_fields = [
-        ['ResourceConfig', 'InstanceCount'],
-        ['ResourceConfig', 'VolumeSizeInGB'],
-        ['StoppingCondition', 'MaxRuntimeInSeconds'],
-    ]
-
     def __init__(
         self,
         *,
@@ -639,6 +642,14 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         if 'RoleArn' in self.config:
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
+
+    def _create_integer_fields(self) -> None:
+        """Set fields which should be cast to integers."""
+        self.integer_fields: List[List[str]] = [
+            ['ResourceConfig', 'InstanceCount'],
+            ['ResourceConfig', 'VolumeSizeInGB'],
+            ['StoppingCondition', 'MaxRuntimeInSeconds'],
+        ]
 
     def execute(self, context: 'Context') -> Dict:
         self.preprocess_config()
