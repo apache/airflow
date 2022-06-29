@@ -18,7 +18,9 @@
 from unittest import mock
 
 import pandas as pd
+import pytest
 
+from airflow import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 from airflow.utils import timezone
@@ -103,6 +105,15 @@ class TestSqlToSlackOperator:
 
         # Test that the Slack hook's execute method gets run once
         slack_webhook_hook.execute.assert_called_once()
+
+    def test_non_existing_slack_parameters_provided_exception_thrown(self):
+        operator_args = {
+            'sql_conn_id': 'snowflake_connection',
+            'slack_message': 'message: {{ ds }}, {{ xxxx }}',
+            'sql': "sql {{ ds }}",
+        }
+        with pytest.raises(AirflowException):
+            self._construct_operator(**operator_args)
 
     @mock.patch('airflow.providers.slack.transfers.sql_to_slack.SlackWebhookHook')
     def test_rendering_custom_df_name_message_execution(self, mock_slack_hook_class):
