@@ -20,7 +20,7 @@ from typing import Sequence
 import attr
 
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
-from airflow.models.xcom import XCom
+from airflow.models.xcom import XCom, XCOM_RETURN_KEY
 from airflow.utils.context import Context
 
 
@@ -161,3 +161,17 @@ class DeprecatedOperator(BaseOperator):
 
     def execute(self, context: Context):
         pass
+
+
+class XCOMPushOperator(BaseOperator):
+    """
+    Operator which pushes an extra XCOM value along with the default XCOM_RETURN_KEY
+    """
+
+    def __init__(self, return_value, **kwargs):
+        super().__init__(do_xcom_push=True, **kwargs)
+        self.return_value = return_value
+
+    def execute(self, context: Context):
+        context['task_instance'].xcom_push(key='extra_key', value="extra_value")
+        return self.return_value
