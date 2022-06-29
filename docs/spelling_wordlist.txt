@@ -17,6 +17,7 @@ Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
+Appflow
 ArangoDB
 Arg
 Args
@@ -25,6 +26,7 @@ Async
 AsyncResult
 Atlassian
 Auth
+Authlib
 AutoMlClient
 Autoscale
 Avro
@@ -346,6 +348,7 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+SFTPClient
 SIGTERM
 SSHClient
 SSHTunnelForwarder
@@ -857,6 +860,7 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+geq
 getattr
 getfqdn
 getframe
@@ -1014,6 +1018,7 @@ latencies
 latin
 ldap
 ldaps
+leq
 leveldb
 libs
 libz
@@ -1251,6 +1256,7 @@ readme
 readthedocs
 realtime
 rebase
+recurse
 recurses
 redbubble
 redis

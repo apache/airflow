@@ -19,6 +19,7 @@ default_stages: [commit, push]
 default_language_version:
   # force all unspecified python hooks to run python3
   python: python3
+  node: 16.15.1
 minimum_pre_commit_version: "2.0.0"
 repos:
   - repo: meta
@@ -334,20 +335,20 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_check_setup_extra_packages_ref.py
         additional_dependencies: ['rich>=12.4.4']
         # This check might be removed when min-airflow-version in providers is 2.2
-      - id: check-airflow-2-1-compatibility
-        name: Check that providers are 2.1 compatible.
+      - id: check-airflow-2-2-compatibility
+        name: Check that providers are 2.2 compatible.
         entry: ./scripts/ci/pre_commit/pre_commit_check_2_2_compatibility.py
         language: python
         pass_filenames: true
         files: ^airflow/providers/.*\.py$
         additional_dependencies: ['rich>=12.4.4']
-      - id: update-breeze-file
+      - id: update-breeze-cmd-output
         name: Update output of breeze commands in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
         files: ^BREEZE\.rst$|^dev/breeze/.*$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4', 'rich-click']
+        additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file
         name: Update mounts in the local yml file
         entry: ./scripts/ci/pre_commit/pre_commit_local_yml_mounts.py
@@ -363,11 +364,11 @@ repos:
         pass_filenames: false
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
-        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.sh
+        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
         language: python
-        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|$airflow/providers/.*/provider.yaml$
         pass_filenames: false
-        additional_dependencies: ['setuptools']
+        additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
@@ -620,14 +621,6 @@ repos:
         additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
-      - id: check-airflow-providers-have-extras
-        name: Checks providers available when declared by extras in setup.py
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
-        files: ^setup\.py$|^airflow/providers/.*\.py$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-breeze-readme-config-hash
         name: Update Breeze README.md with config files hash
         language: python
@@ -809,7 +802,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py
         files: ^dev/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for core
         language: python
@@ -817,14 +810,14 @@ repos:
         files: \.py$
         exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for providers
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: ^airflow/providers/.*\.py$
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
         name: Run mypy for /docs/ folder
         language: python
@@ -832,7 +825,7 @@ repos:
         files: ^docs/.*\.py$
         exclude: ^docs/rtd-deprecation
         require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-flake8
         name: Run flake8
         language: python
@@ -840,7 +833,7 @@ repos:
         files: \.py$
         pass_filenames: true
         exclude: ^airflow/_vendor/
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: lint-javascript
         name: ESLint against airflow/ui
         language: python
@@ -848,7 +841,7 @@ repos:
         files: ^airflow/ui/
         entry: ./scripts/ci/pre_commit/pre_commit_ui_lint.py
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: lint-javascript
         name: ESLint against current UI JavaScript files
         language: python
@@ -856,12 +849,12 @@ repos:
         files: ^airflow/www/static/js/
         entry: ./scripts/ci/pre_commit/pre_commit_www_lint.py
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: update-migration-references
         name: Update migration ref doc
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

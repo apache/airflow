@@ -26,7 +26,7 @@ from airflow_breeze.utils.run_utils import run_command
 
 
 def verify_an_image(
-    image_name: str, image_type: str, dry_run: bool, verbose: bool, extra_pytest_args: Tuple
+    image_name: str, image_type: str, dry_run: bool, verbose: bool, slim_image: bool, extra_pytest_args: Tuple
 ) -> Tuple[int, str]:
     command_result = run_command(
         ["docker", "inspect", image_name], dry_run=dry_run, verbose=verbose, check=False, stdout=DEVNULL
@@ -43,6 +43,8 @@ def verify_an_image(
         test_path = AIRFLOW_SOURCES_ROOT / "docker_tests" / "test_ci_image.py"
     env = os.environ.copy()
     env['DOCKER_IMAGE'] = image_name
+    if slim_image:
+        env['TEST_SLIM_IMAGE'] = 'true'
     command_result = run_command(
         [sys.executable, "-m", "pytest", str(test_path), *pytest_args, *extra_pytest_args],
         dry_run=dry_run,

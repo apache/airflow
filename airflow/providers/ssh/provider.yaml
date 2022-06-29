@@ -38,8 +38,10 @@ versions:
   - 1.1.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - paramiko>=2.6.0
+  - sshtunnel>=0.3.2
 
 integrations:
   - integration-name: Secure Shell (SSH)
@@ -56,9 +58,6 @@ hooks:
   - integration-name: Secure Shell (SSH)
     python-modules:
       - airflow.providers.ssh.hooks.ssh
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.ssh.hooks.ssh.SSHHook
 
 connection-types:
   - hook-class-name: airflow.providers.ssh.hooks.ssh.SSHHook

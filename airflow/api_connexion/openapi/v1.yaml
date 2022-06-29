@@ -1465,6 +1465,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+
   /dags/{dag_id}/details:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -1572,6 +1573,41 @@ paths:
           $ref: '#/components/responses/NotFound'
         '406':
           $ref: '#/components/responses/NotAcceptable'
+
+  /dagWarnings:
+    get:
+      summary: List dag warnings
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_warning_endpoint
+      operationId: get_dag_warnings
+      tags: [DagWarning]
+      parameters:
+        - name: dag_id
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If set, only return DAG warnings with this dag_id.
+        - name: warning_type
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If set, only return DAG warnings with this type.
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/OrderBy'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagWarningCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
 
   /config:
     get:
@@ -2494,6 +2530,41 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/DAGRun'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    DagWarning:
+      type: object
+      properties:
+        dag_id:
+          type: string
+          readOnly: true
+          description: The dag_id.
+        warning_type:
+          type: string
+          readOnly: true
+          description: The warning type for the dag warning.
+        message:
+          type: string
+          readOnly: true
+          description: The message for the dag warning.
+        timestamp:
+          type: string
+          format: datetime
+          readOnly: true
+          description: The time when this warning was logged.
+
+    DagWarningCollection:
+      type: object
+      description: |
+        Collection of DAG warnings.
+
+      allOf:
+        - type: object
+          properties:
+            import_errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/DagWarning'
         - $ref: '#/components/schemas/CollectionInfo'
 
     EventLog:

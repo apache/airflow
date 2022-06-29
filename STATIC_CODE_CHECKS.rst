@@ -136,11 +136,9 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-1-compatibility                        | Check that providers are 2.1 compatible.                         |         |
+| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-providers-have-extras                    | Checks providers available when declared by extras in setup.py   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -294,7 +292,7 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | trailing-whitespace                                    | Remove trailing whitespace at end of line                        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| update-breeze-file                                     | Update output of breeze commands in BREEZE.rst                   |         |
+| update-breeze-cmd-output                               | Update output of breeze commands in BREEZE.rst                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | update-breeze-readme-config-hash                       | Update Breeze README.md with config files hash                   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
