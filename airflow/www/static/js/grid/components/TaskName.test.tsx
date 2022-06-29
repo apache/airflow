@@ -27,19 +27,19 @@ import { ChakraWrapper } from '../utils/testUtils';
 
 describe('Test TaskName', () => {
   test('Displays a normal task name', () => {
-    const { getByText } = render(<TaskName label="test" />, { wrapper: ChakraWrapper });
+    const { getByText } = render(<TaskName label="test" onToggle={() => {}} />, { wrapper: ChakraWrapper });
 
     expect(getByText('test')).toBeDefined();
   });
 
   test('Displays a mapped task name', () => {
-    const { getByText } = render(<TaskName level={0} label="test" isMapped />, { wrapper: ChakraWrapper });
+    const { getByText } = render(<TaskName level={0} label="test" isMapped onToggle={() => {}} />, { wrapper: ChakraWrapper });
 
     expect(getByText('test [ ]')).toBeDefined();
   });
 
   test('Displays a group task name', () => {
-    const { getByText, getByTestId } = render(<TaskName level={0} label="test" isGroup />, { wrapper: ChakraWrapper });
+    const { getByText, getByTestId } = render(<TaskName level={0} label="test" isGroup onToggle={() => {}} />, { wrapper: ChakraWrapper });
 
     expect(getByText('test')).toBeDefined();
     expect(getByTestId('closed-group')).toBeDefined();

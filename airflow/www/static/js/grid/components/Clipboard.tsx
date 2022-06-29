@@ -75,7 +75,11 @@ export const ClipboardButton = forwardRef(
   },
 );
 
-export const ClipboardText = ({ value }) => (
+interface Props {
+  value: string
+}
+
+export const ClipboardText = ({ value }: Props) => (
   <>
     {value}
     <ClipboardButton value={value} iconOnly variant="ghost" size="xs" fontSize="xl" ml={1} />

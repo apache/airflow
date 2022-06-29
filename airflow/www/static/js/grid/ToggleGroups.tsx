@@ -20,12 +20,13 @@
 import React from 'react';
 import { Flex, IconButton } from '@chakra-ui/react';
 import { MdExpand, MdCompress } from 'react-icons/md';
+import type { Task } from './types';
 
-const getGroupIds = (groups) => {
-  const groupIds = [];
-  const checkTasks = (tasks) => tasks.forEach((task) => {
+const getGroupIds = (groups: Task[]) => {
+  const groupIds: string[] = [];
+  const checkTasks = (tasks: Task[]) => tasks.forEach((task) => {
     if (task.children) {
-      groupIds.push(task.label);
+      groupIds.push(task.label!);
       checkTasks(task.children);
     }
   });
@@ -33,12 +34,18 @@ const getGroupIds = (groups) => {
   return groupIds;
 };
 
-const ToggleGroups = ({ groups, openGroupIds, onToggleGroups }) => {
+interface Props {
+  groups: Task;
+  openGroupIds: string[];
+  onToggleGroups: (groupIds: string[]) => void;
+}
+
+const ToggleGroups = ({ groups, openGroupIds, onToggleGroups }: Props) => {
   // Don't show button if the DAG has no task groups
   const hasGroups = groups.children && groups.children.find((c) => !!c.children);
   if (!hasGroups) return null;
 
-  const allGroupIds = getGroupIds(groups.children);
+  const allGroupIds = getGroupIds(groups.children || []);
 
   const isExpandDisabled = allGroupIds.length === openGroupIds.length;
   const isCollapseDisabled = !openGroupIds.length;

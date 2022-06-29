@@ -29,10 +29,17 @@ import { getDuration, formatDuration } from '../../../../datetime_utils';
 import { SimpleStatus } from '../../../components/StatusBox';
 import Time from '../../../components/Time';
 import { ClipboardText } from '../../../components/Clipboard';
+import type { Task, TaskInstance, TaskState } from '../../../types';
 
-const Details = ({ instance, group, operator }) => {
+interface Props {
+  instance: TaskInstance;
+  group: Task;
+  operator: string;
+}
+
+const Details = ({ instance, group, operator }: Props) => {
   const isGroup = !!group.children;
-  const summary = [];
+  const summary: React.ReactNode[] = [];
 
   const {
     taskId,
@@ -45,18 +52,17 @@ const Details = ({ instance, group, operator }) => {
 
   const {
     isMapped,
-    children,
     tooltip,
   } = group;
 
   const numMap = finalStatesMap();
   let numMapped = 0;
   if (isGroup) {
-    children.forEach((child) => {
+    group.children?.forEach((child) => {
       const taskInstance = child.instances.find((ti) => ti.runId === runId);
       if (taskInstance) {
         const stateKey = taskInstance.state == null ? 'no_status' : taskInstance.state;
-        if (numMap.has(stateKey)) numMap.set(stateKey, numMap.get(stateKey) + 1);
+        if (numMap.has(stateKey)) numMap.set(stateKey, (numMap.get(stateKey) || 0) + 1);
       }
     });
   } else if (isMapped && mappedStates) {
@@ -72,7 +78,7 @@ const Details = ({ instance, group, operator }) => {
       summary.push(
         // eslint-disable-next-line react/no-array-index-key
         <Flex key={val} ml="10px" alignItems="center">
-          <SimpleStatus state={val} mx={2} />
+          <SimpleStatus state={val as TaskState} mx={2} />
           {val}
           {': '}
           {key}
@@ -82,7 +88,7 @@ const Details = ({ instance, group, operator }) => {
   });
 
   const taskIdTitle = isGroup ? 'Task Group Id: ' : 'Task Id: ';
-  const isStateFinal = ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
+  const isStateFinal = state && ['success', 'failed', 'upstream_failed', 'skipped'].includes(state);
   const isOverall = (isMapped || isGroup) && 'Overall ';
 
   return (

@@ -116,6 +116,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
   const operator = (task?.classRef && task?.classRef?.className) ?? '';
 
   const instance = group.instances.find((ti) => ti.runId === runId);
+  if (!instance) return null;
 
   let taskActionsTitle = 'Task Actions';
   if (isMapped) {
@@ -185,7 +186,7 @@ const TaskInstance = ({ taskId, runId }: Props) => {
               <Details instance={instance} group={group} operator={operator} />
               <ExtraLinks
                 taskId={taskId}
-                dagId={dagId}
+                dagId={dagId || ''}
                 executionDate={executionDate}
                 extraLinks={group?.extraLinks || []}
               />

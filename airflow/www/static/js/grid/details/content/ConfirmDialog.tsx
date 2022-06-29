@@ -32,10 +32,20 @@ import {
 
 import { useContainerRef } from '../../context/containerRef';
 
+interface Props {
+  isOpen: boolean;
+  onClose: () => void;
+  title?: string;
+  description: string;
+  body?: string[];
+  onConfirm: () => void;
+  isLoading?: boolean;
+}
+
 const ConfirmDialog = ({
   isOpen, onClose, title = 'Wait a minute', description, body = [], onConfirm, isLoading = false,
-}) => {
-  const initialFocusRef = useRef();
+}: Props) => {
+  const initialFocusRef = useRef<HTMLButtonElement>(null);
   const containerRef = useContainerRef();
   return (
     <AlertDialog

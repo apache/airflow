@@ -27,7 +27,7 @@ import { getMetaValue } from '../../utils';
 const autoRefreshKey = 'disabledAutoRefresh';
 
 const initialIsPaused = getMetaValue('is_paused') === 'True';
-const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey));
+const isRefreshDisabled = JSON.parse(localStorage.getItem(autoRefreshKey) || 'false');
 
 const AutoRefreshContext = React.createContext({
   isRefreshOn: false,
@@ -37,7 +37,11 @@ const AutoRefreshContext = React.createContext({
   startRefresh: () => {},
 });
 
-export const AutoRefreshProvider = ({ children }) => {
+interface Props {
+  children: React.ReactNode;
+}
+
+export const AutoRefreshProvider = ({ children }: Props) => {
   const [isPaused, setIsPaused] = useState(initialIsPaused);
   const isRefreshAllowed = !(isPaused || isRefreshDisabled);
   const initialState = isRefreshAllowed;
@@ -72,10 +76,16 @@ export const AutoRefreshProvider = ({ children }) => {
   );
 
   useEffect(() => {
-    const handleChange = (e) => {
-      setIsPaused(!e.detail);
-      if (!e.detail) {
-        stopRefresh();
+    function isCustomEvent(event: Event): event is CustomEvent {
+      return 'detail' in event;
+    }
+
+    const handleChange = (e: Event) => {
+      if (isCustomEvent(e)) {
+        setIsPaused(!e.detail);
+        if (!e.detail) {
+          stopRefresh();
+        }
       }
     };
 

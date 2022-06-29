@@ -19,41 +19,39 @@
 
 import React from 'react';
 import {
-  Text,
-  Flex,
+  Switch,
+  FormControl,
+  FormLabel,
+  Spinner,
 } from '@chakra-ui/react';
-import { FiChevronUp, FiChevronDown } from 'react-icons/fi';
 
-const TaskName = ({
-  isGroup = false, isMapped = false, onToggle, isOpen = false, level = 0, label,
-}) => (
-  <Flex
-    as={isGroup ? 'button' : 'div'}
-    onClick={onToggle}
-    aria-label={label}
-    title={label}
-    mr={4}
-    width="100%"
-    alignItems="center"
-    fontWeight={isGroup || isMapped ? 'bold' : 'normal'}
-  >
-    <Text
-      display="inline"
-      ml={level * 4 + 4}
-      noOfLines={1}
-    >
-      {label}
-      {isMapped && (
-        ' [ ]'
-      )}
-    </Text>
-    {isGroup && (
-      isOpen ? <FiChevronDown data-testid="open-group" /> : <FiChevronUp data-testid="closed-group" />
-    )}
-  </Flex>
-);
+import { useAutoRefresh } from './context/autorefresh';
 
-// Only rerender the component if props change
-const MemoizedTaskName = React.memo(TaskName);
+const AutoRefresh = () => {
+  const { isRefreshOn, toggleRefresh, isPaused } = useAutoRefresh();
 
-export default MemoizedTaskName;
+  return (
+    <FormControl display="flex" width="auto" mr={2}>
+      <Spinner color="blue.500" speed="1s" mr="4px" visibility={isRefreshOn ? 'visible' : 'hidden'} />
+      <FormLabel
+        htmlFor="auto-refresh"
+        mb={0}
+        fontWeight="normal"
+        display="flex"
+        alignItems="center"
+      >
+        Auto-refresh
+      </FormLabel>
+      <Switch
+        id="auto-refresh"
+        onChange={toggleRefresh}
+        isDisabled={isPaused}
+        isChecked={isRefreshOn}
+        size="lg"
+        title={isPaused ? 'Autorefresh is disabled while the DAG is paused' : ''}
+      />
+    </FormControl>
+  );
+};
+
+export default AutoRefresh;

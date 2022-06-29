@@ -25,8 +25,9 @@ import {
 
 import { getMetaValue, appendSearchParams } from '../../../../utils';
 import LinkButton from '../../../components/LinkButton';
+import type { Task, DagRun } from '../../../types';
 
-const dagId = getMetaValue('dag_id');
+const dagId = getMetaValue('dag_id') || '';
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';
 const numRuns = getMetaValue('num_runs');
 const baseDate = getMetaValue('base_date');
@@ -36,12 +37,21 @@ const renderedTemplatesUrl = getMetaValue('rendered_templates_url');
 const xcomUrl = getMetaValue('xcom_url');
 const logUrl = getMetaValue('log_url');
 const taskUrl = getMetaValue('task_url');
-const gridUrl = getMetaValue('grid_url');
+const gridUrl = getMetaValue('grid_url') || '';
 const gridUrlNoRoot = getMetaValue('grid_url_no_root');
 
+interface Props {
+  runId: DagRun['runId'];
+  taskId: Task['id'];
+  executionDate: string;
+  operator: string;
+  isMapped?: boolean;
+}
+
 const Nav = ({
-  runId, taskId, executionDate, operator, isMapped,
-}) => {
+  runId, taskId, executionDate, operator, isMapped = false,
+}: Props) => {
+  if (!taskId) return null;
   const params = new URLSearchParams({
     task_id: taskId,
     execution_date: executionDate,
@@ -63,14 +73,15 @@ const Nav = ({
   const filterParams = new URLSearchParams({
     task_id: taskId,
     dag_run_id: runId,
-    base_date: baseDate,
-    num_runs: numRuns,
     root: taskId,
-  }).toString();
+  });
+
+  if (baseDate) filterParams.append('base_date', baseDate);
+  if (numRuns) filterParams.append('num_runs', numRuns);
 
   const allInstancesLink = `${taskInstancesUrl}?${listParams.toString()}`;
 
-  const filterUpstreamLink = appendSearchParams(gridUrlNoRoot, filterParams);
+  const filterUpstreamLink = appendSearchParams(gridUrlNoRoot, filterParams.toString());
   const subDagLink = appendSearchParams(gridUrl.replace(dagId, `${dagId}.${taskId}`), subDagParams);
 
   // TODO: base subdag zooming as its own attribute instead of via operator name

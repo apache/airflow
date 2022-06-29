@@ -26,19 +26,27 @@ import {
 } from '@chakra-ui/react';
 
 import { useExtraLinks } from '../../../api';
+import type { Task } from '../../../types';
+
+interface Props {
+  dagId: string;
+  taskId: Task['id'];
+  executionDate: string;
+  extraLinks: string[];
+}
 
 const ExtraLinks = ({
   dagId,
   taskId,
   executionDate,
   extraLinks = [],
-}) => {
+}: Props) => {
   const { data: links = [] } = useExtraLinks({
     dagId, taskId, executionDate, extraLinks,
   });
 
   if (!links.length) return null;
-  const isExternal = (url) => /^(?:[a-z]+:)?\/\//.test(url);
+  const isExternal = (url: string) => /^(?:[a-z]+:)?\/\//.test(url);
 
   return (
     <>
