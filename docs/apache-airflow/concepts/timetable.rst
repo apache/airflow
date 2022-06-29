@@ -59,7 +59,7 @@ CronDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Set schedule based on a cron expression. Can be selected by providing a string that is a valid
-  cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
+cron expression to the ``schedule_interval`` parameter of a DAG as described in the :doc:`/concepts/dags` documentation.
 
 .. code-block:: python
 
@@ -72,7 +72,7 @@ DeltaDataIntervalTimetable
 ^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 Schedules data intervals with a time delta. Can be selected by providing a
-  :class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
+:class:`datetime.timedelta` or ``dateutil.relativedelta.relativedelta`` to the ``schedule_interval`` parameter of a DAG.
 
 .. code-block:: python
 
