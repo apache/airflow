@@ -84,11 +84,7 @@ spec:
             - "--statsd.mapping-config=/etc/statsd-exporter/mappings.yml"
           resources:
 {{ toYaml .Values.statsd.resources | indent 12 }}
-          securityContext:
-            allowPrivilegeEscalation: false
-            capabilities:
-              drop:
-                - ALL
+          securityContext: {{ or .Values.securityContexts.container.statsd .Values.securityContexts.container.default }}
           ports:
             - name: statsd-ingest
               protocol: UDP
