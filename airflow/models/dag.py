@@ -2159,7 +2159,12 @@ class DAG(LoggingMixin):
         if (
             task.task_id in self.task_dict and self.task_dict[task.task_id] is not task
         ) or task.task_id in self._task_group.used_group_ids:
-            raise DuplicateTaskIdFound(f"Task id '{task.task_id}' has already been added to the DAG")
+            warnings.warn(
+                'The requested task could not be added to the DAG with dag_id {} because a '
+                'task with task_id {} is already in the DAG. This is not supported'
+                'behavior as overwritten tasks enables unexpected behavior from DAG definition to creation.'
+                'This will cause an exception once this patch is removed.'.format(self.dag_id, task.task_id),
+                category=PendingDeprecationWarning)
         else:
             self.task_dict[task.task_id] = task
             task.dag = self
