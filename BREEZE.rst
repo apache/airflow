@@ -440,7 +440,7 @@ Regenerating images for documentation
 
 This documentation contains exported images with "help" of their commands and parameters. You can
 regenerate all those images (which might be needed in case new version of rich is used) via
-``regenerate-breeze-images`` command.
+``regenerate-command-images`` command.
 
 .. image:: ./images/breeze/output-regenerate-command-images.svg
   :width: 100%
