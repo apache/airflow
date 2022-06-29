@@ -515,10 +515,11 @@ def dag_maker(request):
                 self.serialized_model = SerializedDagModel(dag)
                 self.session.merge(self.serialized_model)
                 serialized_dag = self._serialized_dag()
-                self.dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
+                self.active_dagbag.bag_dag(serialized_dag, root_dag=serialized_dag)
                 self.session.flush()
             else:
-                self.dagbag.bag_dag(self.dag, self.dag)
+                self.active_dagbag.bag_dag(self.dag, self.dag)
+            del self.active_dagbag
 
         def create_dagrun(self, **kwargs):
             from airflow.utils import timezone
@@ -568,7 +569,13 @@ def dag_maker(request):
             )
 
         def __call__(
-            self, dag_id='test_dag', serialized=want_serialized, fileloc=None, session=None, **kwargs
+            self,
+            dag_id='test_dag',
+            dagbag=None,
+            serialized=want_serialized,
+            fileloc=None,
+            session=None,
+            **kwargs,
         ):
             from airflow import settings
             from airflow.models import DAG
@@ -578,6 +585,7 @@ def dag_maker(request):
                 self._own_session = True
                 session = settings.Session()
 
+            self.active_dagbag = dagbag or self.dagbag
             self.kwargs = kwargs
             self.session = session
             self.start_date = self.kwargs.get('start_date', None)

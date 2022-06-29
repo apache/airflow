@@ -1444,6 +1444,7 @@ class TestClearDagRun(TestDagRunEndpoint):
                     "dag_run_id": dag_run_id,
                     "execution_date": dr.execution_date.isoformat(),
                     "task_id": "task_id",
+                    "map_index": -1,
                 }
             ]
         }

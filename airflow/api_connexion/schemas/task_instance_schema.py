@@ -88,6 +88,13 @@ class TaskInstanceCollectionSchema(Schema):
     total_entries = fields.Int()
 
 
+class TaskInstanceInRunSchema(Schema):
+    """Schema to specify one task instance in a DAG run."""
+
+    task_id = fields.String()
+    map_index = fields.Integer(load_default=None)
+
+
 class TaskInstanceBatchFormSchema(Schema):
     """Schema for the request form passed to Task Instance Batch endpoint"""
 
@@ -118,6 +125,7 @@ class ClearTaskInstanceFormSchema(Schema):
     include_subdags = fields.Boolean(load_default=False)
     include_parentdag = fields.Boolean(load_default=False)
     reset_dag_runs = fields.Boolean(load_default=False)
+    tasks = fields.List(fields.Nested(TaskInstanceInRunSchema), validate=validate.Length(min=1))
     task_ids = fields.List(fields.String(), validate=validate.Length(min=1))
 
     @validates_schema
@@ -157,6 +165,7 @@ class TaskInstanceReferenceSchema(Schema):
     run_id = fields.Str(data_key="dag_run_id")
     dag_id = fields.Str()
     execution_date = fields.DateTime()
+    map_index = fields.Int()
 
 
 class TaskInstanceReferenceCollection(NamedTuple):

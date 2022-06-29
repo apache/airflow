@@ -434,10 +434,26 @@ def post_clear_task_instances(*, dag_id: str, session: Session = NEW_SESSION) ->
     if not dag:
         error_message = f"Dag id {dag_id} not found"
         raise NotFound(error_message)
+
     reset_dag_runs = data.pop('reset_dag_runs')
     dry_run = data.pop('dry_run')
-    # We always pass dry_run here, otherwise this would try to confirm on the terminal!
-    task_instances = dag.clear(dry_run=True, dag_bag=get_airflow_app().dag_bag, **data)
+
+    if "task_ids" not in data and "tasks" not in data:
+        task_ids = None
+    else:
+        task_ids = data.pop("task_ids", [])
+        for task_data in data.pop("tasks", ()):
+            if task_data["map_index"] is None:
+                task_ids.append(task_data["task_id"])
+            else:
+                task_ids.append((task_data["task_id"], task_data["map_index"]))
+
+    task_instances = dag.clear(
+        dry_run=True,  # Otherwise this would try to confirm on the terminal!
+        dag_bag=get_airflow_app().dag_bag,
+        task_ids=task_ids,
+        **data,
+    )
     if not dry_run:
         clear_task_instances(
             task_instances.all(),

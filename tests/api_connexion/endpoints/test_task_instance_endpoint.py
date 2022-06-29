@@ -26,7 +26,7 @@ from airflow.models.renderedtifields import RenderedTaskInstanceFields as RTIF
 from airflow.security import permissions
 from airflow.utils.platform import getuser
 from airflow.utils.session import provide_session
-from airflow.utils.state import State
+from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.timezone import datetime
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
@@ -1009,6 +1009,52 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
         assert response.status_code == 200
         assert len(response.json["task_instances"]) == expected_ti
 
+    @pytest.mark.parametrize(
+        "payload, changed_ti_count",
+        [
+            pytest.param(
+                {"tasks": [{"task_id": "mapped", "map_index": 1}, {"task_id": "normal", "map_index": 2}]},
+                1,
+                id="combo",
+            ),
+            pytest.param(
+                {"tasks": [{"task_id": "mapped"}]},
+                2,  # The SUCCESS one is not cleared.
+                id="combo-no-index",
+            ),
+            pytest.param(
+                {"tasks": [{"task_id": "mapped", "map_index": 2}], "task_ids": ["normal"]},
+                2,
+                id="combo-and-id",
+            ),
+        ],
+    )
+    def test_should_respond_200_mapped(self, dag_maker, payload, changed_ti_count):
+        def echo(i):
+            pass
+
+        with dag_maker(dag_id="test_clear_for_mapped", dagbag=self.app.dag_bag) as dag:
+            dag.task(task_id="normal")(echo)(i=-1)  # A non-mapped task named 'normal'.
+            dag.task(task_id="mapped")(echo).expand(i=[0, 1, 2])  # A mapped task named 'mapped'.
+
+        dr = dag_maker.create_dagrun(execution_date=DEFAULT_DATETIME_1, run_type=DagRunType.SCHEDULED)
+        dag.get_task("mapped").expand_mapped_task(dr.run_id, session=dag_maker.session)
+        tis = {(ti.task_id, ti.map_index): ti for ti in dr.get_task_instances(session=dag_maker.session)}
+        tis["normal", -1].state = TaskInstanceState.FAILED
+        tis["mapped", 0].state = TaskInstanceState.SUCCESS
+        tis["mapped", 1].state = TaskInstanceState.FAILED
+        tis["mapped", 2].state = TaskInstanceState.UPSTREAM_FAILED
+
+        dag_maker.session.commit()
+
+        response = self.client.post(
+            "/api/v1/dags/test_clear_for_mapped/clearTaskInstances",
+            environ_overrides={"REMOTE_USER": "test"},
+            json={"dry_run": True, **payload},
+        )
+        assert response.status_code == 200
+        assert len(response.json["task_instances"]) == changed_ti_count
+
     @mock.patch("airflow.api_connexion.endpoints.task_instance_endpoint.clear_task_instances")
     def test_clear_taskinstance_is_called_with_queued_dr_state(self, mock_clearti, session):
         """Test that if reset_dag_runs is True, then clear_task_instances is called with State.QUEUED"""
@@ -1096,30 +1142,35 @@ class TestPostClearTaskInstances(TestTaskInstanceEndpoint):
                 'dag_run_id': 'TEST_DAG_RUN_ID_0',
                 'execution_date': '2020-01-01T00:00:00+00:00',
                 'task_id': 'print_the_context',
+                "map_index": -1,
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_1',
                 'execution_date': '2020-01-02T00:00:00+00:00',
                 'task_id': 'sleep_for_0',
+                "map_index": -1,
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_2',
                 'execution_date': '2020-01-03T00:00:00+00:00',
                 'task_id': 'sleep_for_1',
+                "map_index": -1,
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_3',
                 'execution_date': '2020-01-04T00:00:00+00:00',
                 'task_id': 'sleep_for_2',
+                "map_index": -1,
             },
             {
                 'dag_id': 'example_python_operator',
                 'dag_run_id': 'TEST_DAG_RUN_ID_4',
                 'execution_date': '2020-01-05T00:00:00+00:00',
                 'task_id': 'sleep_for_3',
+                "map_index": -1,
             },
         ]
         for task_instance in expected_response:
@@ -1221,6 +1272,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                     'dag_run_id': 'TEST_DAG_RUN_ID',
                     'execution_date': '2020-01-01T00:00:00+00:00',
                     'task_id': 'print_the_context',
+                    "map_index": -1,
                 }
             ]
         }
@@ -1270,6 +1322,7 @@ class TestPostSetTaskInstanceState(TestTaskInstanceEndpoint):
                     'dag_run_id': 'TEST_DAG_RUN_ID',
                     'execution_date': '2020-01-01T00:00:00+00:00',
                     'task_id': 'print_the_context',
+                    "map_index": -1,
                 }
             ]
         }

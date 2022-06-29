@@ -2893,14 +2893,18 @@ components:
           type: string
           readOnly: true
           description: The DAG ID.
-        execution_date:
-          type: string
-          format: datetime
-          readOnly: true
         dag_run_id:
           type: string
           readOnly: true
           description: The DAG run ID.
+        execution_date:
+          type: string
+          format: datetime
+          readOnly: true
+        map_index:
+          type: integer
+          readOnly: true
+          description: Index of a mapped task, or -1 if the task is not mapped.
 
     TaskInstanceReferenceCollection:
       type: object
@@ -3439,9 +3443,26 @@ components:
           type: boolean
           default: true
 
+        tasks:
+          description: |
+            A list of {task_id, map_index} combinations to clear.
+
+            *New in version 2.4.0*
+          type: array
+          items:
+            type: object
+            properties:
+              task_id:
+                type: string
+              map_index:
+                type: integer
+            required:
+              - "task_id"
+          minItems: 1
+
         task_ids:
           description: |
-            A list of task ids to clear.
+            A list of task IDs to clear.
 
             *New in version 2.1.0*
           type: array
