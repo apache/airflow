@@ -26,6 +26,7 @@ import {
 
 interface Props extends ButtonProps {
   href?: string;
+  target?: string;
 }
 
 const LinkButton = ({ children, ...rest }: Props) => (<Button as={Link} variant="ghost" colorScheme="blue" {...rest}>{children}</Button>);
