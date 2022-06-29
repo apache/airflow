@@ -363,11 +363,11 @@ repos:
         pass_filenames: false
       - id: update-providers-dependencies
         name: Update cross-dependencies for providers packages
-        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.sh
+        entry: ./scripts/ci/pre_commit/pre_commit_build_providers_dependencies.py
         language: python
-        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$
+        files: ^airflow/providers/.*\.py$|^tests/providers/.*\.py$|^tests/system/providers/.*\.py$|$airflow/providers/.*/provider.yaml$
         pass_filenames: false
-        additional_dependencies: ['setuptools']
+        additional_dependencies: ['setuptools', 'rich>=12.4.4', 'pyyaml']
       - id: update-extras
         name: Update extras in documentation
         entry: ./scripts/ci/pre_commit/pre_commit_insert_extras.py
@@ -620,14 +620,6 @@ repos:
         additional_dependencies: ['pyyaml', 'jinja2', 'black==22.3.0', 'tabulate', 'rich>=12.4.4']
         require_serial: true
         pass_filenames: false
-      - id: check-airflow-providers-have-extras
-        name: Checks providers available when declared by extras in setup.py
-        language: python
-        entry: ./scripts/ci/pre_commit/pre_commit_check_extras_have_providers.py
-        files: ^setup\.py$|^airflow/providers/.*\.py$
-        pass_filenames: false
-        require_serial: true
-        additional_dependencies: ['rich>=12.4.4']
       - id: update-breeze-readme-config-hash
         name: Update Breeze README.md with config files hash
         language: python
@@ -863,5 +855,5 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_migration_reference.py
         pass_filenames: false
         files: ^airflow/migrations/versions/.*\.py$|^docs/apache-airflow/migrations-ref\.rst$
-        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout', 'markdown-it-py']
         ## ONLY ADD PRE-COMMITS HERE THAT REQUIRE CI IMAGE

@@ -840,7 +840,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   prepare-test-provider-packages-sdist:
-    timeout-minutes: 40
+    timeout-minutes: 80
     name: "Build and test provider packages sdist"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, wait-for-ci-images]
