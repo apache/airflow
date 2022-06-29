@@ -18,7 +18,7 @@
  */
 
 /* global describe, expect, jest, test, moment */
-import { act, renderHook } from '@testing-library/react-hooks';
+import { act, renderHook } from '@testing-library/react';
 
 import { RouterWrapper } from './testUtils';
 

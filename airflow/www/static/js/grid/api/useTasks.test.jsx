@@ -20,7 +20,7 @@
 /* global describe, test, expect, beforeEach, afterEach, jest */
 
 import React from 'react';
-import { renderHook } from '@testing-library/react-hooks';
+import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import nock from 'nock';
 
@@ -59,15 +59,12 @@ describe('Test useTasks hook', () => {
     const scope = nock(fakeUrl)
       .get('/')
       .reply(200, { totalEntries: 1, tasks: [{ taskId: 'task_id' }] });
-    const { result, waitFor } = renderHook(() => useTasks(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useTasks(), { wrapper: Wrapper });
 
     expect(result.current.data.totalEntries).toBe(0);
+    expect(result.current.isFetching).toBeTruthy();
 
-    await waitFor(() => result.current.isFetching);
-
-    expect(result.current.data.totalEntries).toBe(0);
-
-    await waitFor(() => !result.current.isFetching);
+    await waitFor(() => expect(result.current.isFetching).toBeFalsy());
 
     expect(result.current.data.totalEntries).toBe(1);
     scope.done();
@@ -77,11 +74,11 @@ describe('Test useTasks hook', () => {
     const scope = nock(fakeUrl)
       .get('/')
       .replyWithError('something awful happened');
-    const { result, waitFor } = renderHook(() => useTasks(), { wrapper: Wrapper });
+    const { result } = renderHook(() => useTasks(), { wrapper: Wrapper });
 
     expect(result.current.data.totalEntries).toBe(0);
 
-    await waitFor(() => result.current.isError);
+    await waitFor(() => expect(result.current.isError).toBeTruthy());
 
     expect(result.current.data.totalEntries).toBe(0);
     scope.done();

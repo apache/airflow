@@ -110,8 +110,13 @@ describe('Test DagRuns', () => {
   });
 
   test('Handles empty data correctly', () => {
-    global.autoRefreshInterval = 0;
+    const spy = jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
+      data: { groups: {}, dagRuns: [] },
+    }));
+
     const { queryByTestId } = render(<DagRuns />, { wrapper: TableWrapper });
     expect(queryByTestId('run')).toBeNull();
+
+    spy.mockRestore();
   });
 });
