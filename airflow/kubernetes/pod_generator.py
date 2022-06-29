@@ -42,7 +42,7 @@ from airflow.version import version as airflow_version
 MAX_LABEL_LEN = 63
 
 
-def make_safe_label_value(string):
+def make_safe_label_value(string: str) -> str:
     """
     Valid label values must be 63 characters or less and must be empty or begin and
     end with an alphanumeric character ([a-z0-9A-Z]) with dashes (-), underscores (_),
