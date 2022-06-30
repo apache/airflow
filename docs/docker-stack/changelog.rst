@@ -48,7 +48,7 @@ here so that users affected can find the reason for the changes.
 +==============+=====================+=========================================+========================+==============================================+
 | 17 June 2022 | 2.2.5               | * The ``Authlib`` library downgraded    | Flask App Builder      | https://github.com/apache/airflow/pull/24516 |
 |              |                     |   from 1.0.1 to 0.15.5 version          | not compatible with    |                                              |
-|              | 2.3.0-2.3.2         |                                         | Authlib >= 1.0.0       |                                              |
+|              | 2.3.0-2.3.3         |                                         | Authlib >= 1.0.0       |                                              |
 +--------------+---------------------+-----------------------------------------+------------------------+----------------------------------------------+
 | 18 Jan 2022  | All 2.2.\*, 2.1.\*  | * The AIRFLOW_GID 500 was removed       | MySQL changed keys     | https://github.com/apache/airflow/pull/20912 |
 |              |                     | * MySQL ``apt`` repository key changed. | to sign their packages |                                              |
