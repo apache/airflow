@@ -176,7 +176,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
@@ -186,14 +186,14 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
         if: github.event_name  == 'pull_request'
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           # We do not have output from selective checks yet, so we need to hardcode python
           python-version: 3.7
@@ -299,14 +299,14 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
@@ -369,14 +369,14 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
@@ -455,10 +455,10 @@ jobs:
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v3
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -477,11 +477,11 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup node"
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 14
       - name: "Cache eslint"
@@ -504,15 +504,15 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup node"
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-version: 14
       - name: "Cache eslint"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: 'airflow/www/node_modules'
           key: ${{ runner.os }}-ui-node-modules-${{ hashFiles('airflow/ui/**/yarn.lock') }}
@@ -532,7 +532,7 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
@@ -554,7 +554,7 @@ jobs:
           fetch-depth: 2
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -577,11 +577,11 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -612,17 +612,17 @@ jobs:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - name: Cache pre-commit envs
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
           key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
@@ -665,24 +665,24 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - name: Cache pre-commit envs
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cache/pre-commit
           key: "pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-basic-${{steps.host-python-version.outputs.host-python-version}}
       - name: Fetch incoming commit ${{ github.sha }} with its parent
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           ref: ${{ github.sha }}
           fetch-depth: 2
@@ -720,11 +720,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
-      - uses: actions/setup-python@v2
+      - uses: actions/setup-python@v4
         with:
           python-version: ${{needs.build-info.outputs.defaultPythonVersion}}
           cache: 'pip'
@@ -736,7 +736,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze pull-image --tag-as-latest
         env:
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-      - uses: actions/cache@v2
+      - uses: actions/cache@v3
         id: cache-doc-inventories
         with:
           path: ./docs/_inventory_cache/
@@ -777,12 +777,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
         if: needs.build-info.outputs.default-branch == 'main'
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -852,12 +852,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
         if: needs.build-info.outputs.default-branch == 'main'
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -912,11 +912,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -935,21 +935,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: airflow-logs-helm
           path: "./files/airflow_logs*"
           retention-days: 7
       - name: "Upload container logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: container-logs-helm
           path: "./files/container_logs*"
           retention-days: 7
       - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-helm
@@ -983,11 +983,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1009,21 +1009,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/airflow_logs*"
           retention-days: 7
       - name: "Upload container logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: container-logs-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
           path: "./files/container_logs*"
           retention-days: 7
       - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-postgres-${{matrix.python-version}}-${{matrix.postgres-version}}
@@ -1056,11 +1056,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1082,21 +1082,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/airflow_logs*"
           retention-days: 7
       - name: "Upload container logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: container-logs-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
           path: "./files/container_logs*"
           retention-days: 7
       - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-mysql-${{matrix.python-version}}-${{matrix.mysql-version}}
@@ -1129,11 +1129,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1153,21 +1153,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: airflow-logs-${{matrix.python-version}}-${{matrix.mssql-version}}
           path: "./files/airflow_logs*"
           retention-days: 7
       - name: "Upload container logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: container-logs-mssql-${{matrix.python-version}}-${{matrix.mssql-version}}
           path: "./files/container_logs*"
           retention-days: 7
       - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-mssql-${{matrix.python-version}}-${{matrix.mssql-version}}
@@ -1198,11 +1198,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1222,21 +1222,21 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Upload airflow logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: airflow-logs-${{matrix.python-version}}
           path: './files/airflow_logs*'
           retention-days: 7
       - name: "Upload container logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: container-logs-sqlite-${{matrix.python-version}}
           path: "./files/container_logs*"
           retention-days: 7
       - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-sqlite-${{matrix.python-version}}
@@ -1263,11 +1263,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1296,28 +1296,28 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload Quarantine test results"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: always()
         with:
           name: quarantined-tests
           path: "files/test_result-*.xml"
           retention-days: 7
       - name: "Upload airflow logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: airflow-logs-quarantined-${{ matrix.backend }}
           path: "./files/airflow_logs*"
           retention-days: 7
       - name: "Upload container logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure()
         with:
           name: container-logs-quarantined-${{ matrix.backend }}
           path: "./files/container_logs*"
           retention-days: 7
       - name: "Upload artifact for coverage"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: needs.build-info.outputs.runCoverage == 'true'
         with:
           name: coverage-quarantined-${{ matrix.backend }}
@@ -1347,12 +1347,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
       - name: "Download all artifacts from the current build"
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           path: ./coverage-files
       - name: "Removes unnecessary artifacts"
@@ -1376,11 +1376,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1389,7 +1389,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Free space"
         run: breeze free-space
       - name: "Cache virtualenv environment"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: '.build/.docker_venv'
           key: ${{ runner.os }}-docker-venv-${{ hashFiles('scripts/ci/images/ci_run_docker_tests.py') }}
@@ -1418,12 +1418,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1471,11 +1471,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1489,7 +1489,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ".build/kubernetes-bin"
           key: "kubernetes-binaries
@@ -1501,7 +1501,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
           name: kind-logs-${{matrix.executor}}
@@ -1536,11 +1536,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1554,7 +1554,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.pythonVersionsListAsString }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Cache virtualenv for kubernetes testing"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ".build/.kubernetes_venv"
           key: "kubernetes-${{ needs.build-info.outputs.defaultPythonVersion }}\
@@ -1565,7 +1565,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   -${{needs.build-info.outputs.kubernetesVersionsListAsString}}
   -${{needs.build-info.outputs.pythonVersionsListAsString}}"
       - name: "Cache bin folder with tools for kubernetes testing"
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ".build/kubernetes-bin"
           key: "kubernetes-binaries
@@ -1577,7 +1577,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           PR_LABELS: "${{ needs.build-info.outputs.pullRequestLabels }}"
       - name: "Upload KinD logs"
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         if: failure() || cancelled()
         with:
           name: kind-logs-KubernetesExecutor
@@ -1609,12 +1609,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'
@@ -1640,7 +1640,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/constraints/ci_branch_constraints.sh
         if: needs.build-info.outputs.mergeRun == 'true'
       - name: Checkout ${{ steps.constraints-branch.outputs.branch }}
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         if: needs.build-info.outputs.mergeRun == 'true'
         with:
           path: "repo"
@@ -1687,11 +1687,11 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
           cache: 'pip'

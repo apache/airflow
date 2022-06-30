@@ -39,12 +39,12 @@ jobs:
       needs-javascript-scans: ${{ steps.selective-checks.outputs.needs-javascript-scans }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 2
           persist-credentials: false
       - name: "Setup python"
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
           # We do not have output from selective checks yet, so we need to hardcode python
           python-version: 3.7
@@ -74,7 +74,7 @@ jobs:
       security-events: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
         if: |
@@ -83,7 +83,7 @@ jobs:
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v1
+        uses: github/codeql-action/init@v2
         with:
           languages: ${{ matrix.language }}
           # If you wish to specify custom queries, you can do so here or in a config file.
@@ -97,13 +97,13 @@ jobs:
       # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
       # If this step fails, then you should remove it and run the build manually (see below)
       - name: Autobuild
-        uses: github/codeql-action/autobuild@v1
+        uses: github/codeql-action/autobuild@v2
         if: |
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@v1
+        uses: github/codeql-action/analyze@v2
         if: |
           matrix.language == 'python' && needs.selective-checks.outputs.needs-python-scans == 'true' ||
           matrix.language == 'javascript' && needs.selective-checks.outputs.needs-javascript-scans == 'true'
