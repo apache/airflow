@@ -212,11 +212,13 @@ def test_check_docker_context_default(mock_get_console, mock_run_command):
         ["docker", "context", "show"],
         verbose=True,
         no_output_dump_on_exception=False,
-        text=False,
+        text=True,
         capture_output=True,
         check=False,
     )
-    mock_get_console.return_value.print.assert_not_called()
+    mock_get_console.return_value.print.assert_called_with(
+        '[success]Good Docker context used: default.[/]'
+    )
 
 
 @mock.patch('airflow_breeze.utils.docker_command_utils.run_command')
@@ -229,11 +231,10 @@ def test_check_docker_context_other(mock_get_console, mock_run_command):
         ["docker", "context", "show"],
         verbose=True,
         no_output_dump_on_exception=False,
-        text=False,
+        text=True,
         capture_output=True,
         check=False,
     )
-    # mock_get_console.return_value.print.assert_not_called()
     mock_get_console.return_value.print.assert_called_with(
         '[error]Docker is not using the default context[/]\n'
         '[warning]Please make sure Docker is using the default context.[/]\n'

@@ -309,7 +309,7 @@ def check_docker_context(verbose: bool):
         ["docker", "context", "show"],
         verbose=verbose,
         no_output_dump_on_exception=False,
-        text=False,
+        text=True,
         capture_output=True,
         check=False,
     )
@@ -320,9 +320,11 @@ def check_docker_context(verbose: bool):
         )
         sys.exit(1)
 
-    used_docker_context = response.stdout.decode('UTF-8').strip()
+    used_docker_context = response.stdout.strip()
 
-    if used_docker_context != expected_docker_context:
+    if used_docker_context == expected_docker_context:
+        get_console().print(f'[success]Good Docker context used: {used_docker_context}.[/]')
+    else:
         get_console().print(
             '[error]Docker is not using the default context[/]\n'
             f'[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n'
