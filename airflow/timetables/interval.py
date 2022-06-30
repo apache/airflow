@@ -16,7 +16,7 @@
 # under the License.
 
 import datetime
-from typing import Any, Collection, Dict, Optional, Union
+from typing import Any, Dict, List, Optional, Set, Tuple, Union
 
 from cron_descriptor import CasingTypeEnum, ExpressionDescriptor, FormatException, MissingFieldException
 from croniter import CroniterBadCronError, CroniterBadDateError, croniter
@@ -112,7 +112,9 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
 
-    def __init__(self, crons: Union[str, Collection[str]], timezone: Union[str, Timezone]) -> None:
+    def __init__(
+        self, crons: Union[str, List[str], Set[str], Tuple[str, ...]], timezone: Union[str, Timezone]
+    ) -> None:
         """
         :param crons: One or more cron expressions
         :param timezone:

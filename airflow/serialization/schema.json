@@ -65,6 +65,24 @@
       ],
       "additionalProperties": false
     },
+    "tuple": {
+      "description": "A Python tuple",
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "tuple"
+        },
+        "__var": {
+          "type": "array"
+         }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
     "timezone": {
       "anyOf": [
         { "type": "string" },
@@ -139,7 +157,8 @@
               "description": "List of cron expressions (string)",
               "items": { "type": "string" }
             },
-            { "$ref": "#/definitions/set" }
+            { "$ref": "#/definitions/set" },
+            { "$ref": "#/definitions/tuple" }
           ]
         },
         "schedule_on":{

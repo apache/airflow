@@ -105,7 +105,7 @@ ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
 DagStateChangeCallback = Callable[[Context], None]
-MultiCron = Union[List[str], Set[str]]
+MultiCron = Union[List[str], Set[str], Tuple[str, ...]]
 ScheduleInterval = Union[None, str, timedelta, relativedelta, MultiCron]
 
 # FIXME: Ideally this should be Union[Literal[NOTSET], ScheduleInterval],
@@ -170,7 +170,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str) or (
-        isinstance(interval, (list, set)) and all(isinstance(element, str) for element in interval)
+        isinstance(interval, (list, set, tuple)) and all(isinstance(element, str) for element in interval)
     ):
         return CronDataIntervalTimetable(interval, timezone)
     raise ValueError(f"{interval!r} is not a valid schedule_interval.")
