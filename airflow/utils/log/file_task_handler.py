@@ -19,9 +19,8 @@
 import logging
 import os
 import warnings
-from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
+from typing import TYPE_CHECKING, Optional
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.context import Context
@@ -93,12 +92,13 @@ class FileTaskHandler(logging.Handler):
             context["try_number"] = try_number
             return render_template_to_string(jinja_tpl, context)
         elif str_tpl:
-            dag = ti.task.dag
-            assert dag is not None  # For Mypy.
             try:
-                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+                dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            else:
+                assert dag is not None  # For Mypy.
+                data_interval = dag.get_run_data_interval(dag_run)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
