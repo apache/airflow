@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-29T08:33:12Z
+# This constraints file was automatically generated on 2022-06-30T20:14:04Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -8,7 +8,7 @@
 # They represent "latest" and greatest set of constraints that HEAD of the "apache-airflow" package should
 # Install with "HEAD" of providers. Those are the only constraints that are used by our CI builds.
 #
-# Editable install with no version control (apache-airflow==2.3.2)
+# Editable install with no version control (apache-airflow==2.3.3)
 APScheduler==3.6.3
 Authlib==0.15.5
 Babel==2.10.3
@@ -28,7 +28,7 @@ HeapDict==1.0.1
 JPype1==1.4.0
 JayDeBeApi==1.2.3
 Jinja2==3.1.2
-Mako==1.2.0
+Mako==1.2.1
 Markdown==3.3.7
 MarkupSafe==2.1.1
 PyGithub==1.55
@@ -62,7 +62,7 @@ apispec==3.3.2
 appdirs==1.4.4
 argcomplete==2.0.0
 arrow==1.2.2
-asana==0.10.13
+asana==1.0.0
 asn1crypto==1.5.1
 astroid==2.11.6
 async-timeout==4.0.2
@@ -70,10 +70,10 @@ asynctest==0.13.0
 atlasclient==1.0.0
 attrs==20.3.0
 aws-sam-translator==1.46.0
-aws-xray-sdk==2.9.0
+aws-xray-sdk==2.10.0
 azure-batch==12.0.0
 azure-common==1.1.28
-azure-core==1.24.1
+azure-core==1.24.2
 azure-cosmos==4.3.0
 azure-datalake-store==0.0.52
 azure-identity==1.10.0
@@ -100,9 +100,9 @@ billiard==3.6.4.0
 black==22.6.0
 bleach==5.0.1
 blinker==1.4
-boto3==1.24.19
+boto3==1.24.21
 boto==2.49.0
-botocore==1.27.19
+botocore==1.27.21
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -111,7 +111,7 @@ cassandra-driver==3.25.0
 cattrs==1.10.0
 celery==5.2.7
 certifi==2020.12.5
-cffi==1.15.0
+cffi==1.15.1
 cfgv==3.3.1
 cfn-lint==0.61.1
 cgroupspy==0.2.2
@@ -130,7 +130,7 @@ commonmark==0.9.1
 connexion==2.14.0
 coverage==6.4.1
 crcmod==1.7
-cron-descriptor==1.2.24
+cron-descriptor==1.2.28
 croniter==1.3.5
 cryptography==36.0.2
 curlify==2.2.1
@@ -180,7 +180,7 @@ google-api-python-client==1.12.11
 google-auth-httplib2==0.1.0
 google-auth-oauthlib==0.5.2
 google-auth==2.9.0
-google-cloud-aiplatform==1.14.0
+google-cloud-aiplatform==1.15.0
 google-cloud-appengine-logging==1.1.2
 google-cloud-audit-log==0.2.2
 google-cloud-automl==2.7.3
@@ -234,7 +234,7 @@ hmsclient==0.1.1
 httpcore==0.15.0
 httplib2==0.20.4
 httpx==0.23.0
-humanize==4.2.2
+humanize==4.2.3
 hvac==0.11.2
 identify==2.5.1
 idna==3.3
@@ -304,7 +304,7 @@ mypy-extensions==0.4.3
 mypy==0.910
 mysql-connector-python==8.0.29
 mysqlclient==2.1.1
-nbclient==0.6.4
+nbclient==0.6.5
 nbformat==5.4.0
 neo4j==4.4.4
 nest-asyncio==1.5.5
@@ -498,7 +498,7 @@ types-freezegun==1.1.10
 types-paramiko==2.11.1
 types-protobuf==3.19.22
 types-python-dateutil==2.8.18
-types-python-slugify==5.0.4
+types-python-slugify==6.1.0
 types-pytz==2022.1.1
 types-redis==4.3.3
 types-requests==2.28.0
