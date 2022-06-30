@@ -326,7 +326,8 @@ def check_docker_context(verbose: bool):
         get_console().print(
             f'[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n'
             f'[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n'
-            f'[warning]You can try switching contexts by running: "docker context use {expected_docker_context}"[/]'
+            f'[warning]You can try switching contexts by running: "docker context use '
+            f'{expected_docker_context}"[/]'
         )
 
 

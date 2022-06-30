@@ -18,8 +18,11 @@
 from unittest import mock
 from unittest.mock import call
 
-from airflow_breeze.utils.docker_command_utils import check_docker_compose_version, check_docker_version, \
-    check_docker_context
+from airflow_breeze.utils.docker_command_utils import (
+    check_docker_compose_version,
+    check_docker_context,
+    check_docker_version,
+)
 
 
 @mock.patch('airflow_breeze.utils.docker_command_utils.check_docker_permission_denied')
@@ -215,9 +218,7 @@ def test_check_docker_context_default(mock_get_console, mock_run_command):
         text=True,
         capture_output=True,
     )
-    mock_get_console.return_value.print.assert_called_with(
-        '[success]Good Docker context used: default.[/]'
-    )
+    mock_get_console.return_value.print.assert_called_with('[success]Good Docker context used: default.[/]')
 
 
 @mock.patch('airflow_breeze.utils.docker_command_utils.run_command')
