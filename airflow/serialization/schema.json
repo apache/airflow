@@ -47,6 +47,24 @@
         }
       }
     },
+    "set": {
+      "description": "A Python set",
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+          "const": "set"
+        },
+        "__var": {
+          "type": "array"
+         }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
     "timezone": {
       "anyOf": [
         { "type": "string" },
@@ -117,10 +135,11 @@
             { "$ref": "#/definitions/typed_timedelta" },
             { "$ref": "#/definitions/typed_relativedelta" },
             {
-              "description": "List of cron expressions (string)",
               "type": "array",
+              "description": "List of cron expressions (string)",
               "items": { "type": "string" }
-            }
+            },
+            { "$ref": "#/definitions/set" }
           ]
         },
         "schedule_on":{

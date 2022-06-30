@@ -105,7 +105,8 @@ ORIENTATION_PRESETS = ['LR', 'TB', 'RL', 'BT']
 
 
 DagStateChangeCallback = Callable[[Context], None]
-ScheduleInterval = Union[None, str, timedelta, relativedelta, List[str]]
+MultiCron = Union[List[str], Set[str]]
+ScheduleInterval = Union[None, str, timedelta, relativedelta, MultiCron]
 
 # FIXME: Ideally this should be Union[Literal[NOTSET], ScheduleInterval],
 # but Mypy cannot handle that right now. Track progress of PEP 661 for progress.
@@ -169,7 +170,7 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
     if isinstance(interval, str) or (
-        isinstance(interval, list) and all(isinstance(element, str) for element in interval)
+        isinstance(interval, (list, set)) and all(isinstance(element, str) for element in interval)
     ):
         return CronDataIntervalTimetable(interval, timezone)
     raise ValueError(f"{interval!r} is not a valid schedule_interval.")
@@ -2502,7 +2503,11 @@ class DAG(LoggingMixin):
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
-            orm_dag.schedule_interval = dag.schedule_interval
+            orm_dag.schedule_interval = (
+                list(dag.schedule_interval)
+                if isinstance(dag.schedule_interval, set)
+                else dag.schedule_interval
+            )
             orm_dag.timetable_description = dag.timetable.description
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)

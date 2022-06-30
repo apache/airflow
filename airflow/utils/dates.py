@@ -18,7 +18,7 @@
 
 import warnings
 from datetime import datetime, timedelta
-from typing import Dict, List, Optional, Union
+from typing import Dict, List, Optional, Set, Union
 
 from croniter import croniter
 from dateutil.relativedelta import relativedelta  # for doctest
@@ -39,7 +39,7 @@ def date_range(
     start_date: datetime,
     end_date: Optional[datetime] = None,
     num: Optional[int] = None,
-    delta: Optional[Union[str, timedelta, relativedelta, List[str]]] = None,
+    delta: Optional[Union[str, timedelta, relativedelta, List[str], Set[str]]] = None,
 ) -> List[datetime]:
     """
     Get a set of dates as a list based on a start, end and delta, delta
