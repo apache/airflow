@@ -19,6 +19,9 @@
 
 # Airflow UI
 
+> **Warning**
+> This is the work-in-progress UI for [AIP-38](https://cwiki.apache.org/confluence/display/AIRFLOW/AIP-38+Modern+Web+Application). The current UI can be found in [www](https://github.com/apache/airflow/tree/main/airflow/www).
+
 ## Built with:
 
 - [React](https://reactjs.org/) - a JavaScript library for building user interfaces
