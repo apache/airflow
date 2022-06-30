@@ -45,24 +45,31 @@ class SandboxedEnvironment(_AirflowEnvironmentMixin, jinja2.sandbox.SandboxedEnv
 
 
 def ds_filter(value):
+    if value is None:
+       return None
     return value.strftime('%Y-%m-%d')
 
 
 def ds_nodash_filter(value):
+    if value is None:
+       return None
     return value.strftime('%Y%m%d')
 
 
 def ts_filter(value):
+    if value is None:
+       return None
     return value.isoformat()
 
 
-def ts_nodash_filter(*value):
-    if value:
-      return value.strftime('%Y%m%dT%H%M%S')
-    else:
-      return None
+def ts_nodash_filter(value):
+    if value is None:
+       return None
+    return value.strftime('%Y%m%dT%H%M%S')
 
 def ts_nodash_with_tz_filter(value):
+    if value is None:
+       return None
     return value.isoformat().replace('-', '').replace(':', '')
 
 
