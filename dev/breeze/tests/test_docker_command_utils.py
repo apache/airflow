@@ -18,7 +18,8 @@
 from unittest import mock
 from unittest.mock import call
 
-from airflow_breeze.utils.docker_command_utils import check_docker_compose_version, check_docker_version
+from airflow_breeze.utils.docker_command_utils import check_docker_compose_version, check_docker_version, \
+    check_docker_context
 
 
 @mock.patch('airflow_breeze.utils.docker_command_utils.check_docker_permission_denied')
@@ -198,4 +199,43 @@ def test_check_docker_compose_version_higher(mock_get_console, mock_run_command)
     )
     mock_get_console.return_value.print.assert_called_with(
         "[success]Good version of docker-compose: 1.29.2[/]"
+    )
+
+
+@mock.patch('airflow_breeze.utils.docker_command_utils.run_command')
+@mock.patch('airflow_breeze.utils.docker_command_utils.get_console')
+def test_check_docker_context_default(mock_get_console, mock_run_command):
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "default"
+    check_docker_context(verbose=True)
+    mock_run_command.assert_called_with(
+        ["docker", "context", "show"],
+        verbose=True,
+        no_output_dump_on_exception=False,
+        text=False,
+        capture_output=True,
+        check=False,
+    )
+    mock_get_console.return_value.print.assert_not_called()
+
+
+@mock.patch('airflow_breeze.utils.docker_command_utils.run_command')
+@mock.patch('airflow_breeze.utils.docker_command_utils.get_console')
+def test_check_docker_context_other(mock_get_console, mock_run_command):
+    mock_run_command.return_value.returncode = 0
+    mock_run_command.return_value.stdout = "other"
+    check_docker_context(verbose=True)
+    mock_run_command.assert_called_with(
+        ["docker", "context", "show"],
+        verbose=True,
+        no_output_dump_on_exception=False,
+        text=False,
+        capture_output=True,
+        check=False,
+    )
+    # mock_get_console.return_value.print.assert_not_called()
+    mock_get_console.return_value.print.assert_called_with(
+        '[error]Docker is not using the default context[/]\n'
+        '[warning]Please make sure Docker is using the default context.[/]\n'
+        '[warning]You can try switching contexts by running: "docker context use default"[/]'
     )

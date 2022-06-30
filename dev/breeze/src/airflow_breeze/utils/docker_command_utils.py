@@ -299,6 +299,37 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
+def check_docker_context(verbose: bool):
+    """
+    Checks whether Docker is using the expected context
+    :param verbose: print commands when running
+    """
+    expected_docker_context = 'default'
+    response = run_command(
+        ["docker", "context", "show"],
+        verbose=verbose,
+        no_output_dump_on_exception=False,
+        text=False,
+        capture_output=True,
+        check=False,
+    )
+    if response.returncode != 0:
+        get_console().print(
+            '[error]Could not check for Docker context.[/]\n'
+            '[warning]Please make sure Docker is installed and running.[/]'
+        )
+        sys.exit(1)
+
+    used_docker_context = response.stdout.decode('UTF-8').strip()
+
+    if used_docker_context != expected_docker_context:
+        get_console().print(
+            '[error]Docker is not using the default context[/]\n'
+            f'[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n'
+            f'[warning]You can try switching contexts by running: "docker context use {expected_docker_context}"[/]'
+        )
+
+
 def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ''
@@ -622,3 +653,4 @@ def perform_environment_checks(verbose: bool):
     check_docker_is_running(verbose=verbose)
     check_docker_version(verbose=verbose)
     check_docker_compose_version(verbose=verbose)
+    check_docker_context(verbose=verbose)
