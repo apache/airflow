@@ -209,12 +209,11 @@ def test_check_docker_context_default(mock_get_console, mock_run_command):
     mock_run_command.return_value.stdout = "default"
     check_docker_context(verbose=True)
     mock_run_command.assert_called_with(
-        ["docker", "context", "show"],
+        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
         verbose=True,
         no_output_dump_on_exception=False,
         text=True,
         capture_output=True,
-        check=False,
     )
     mock_get_console.return_value.print.assert_called_with(
         '[success]Good Docker context used: default.[/]'
@@ -228,15 +227,14 @@ def test_check_docker_context_other(mock_get_console, mock_run_command):
     mock_run_command.return_value.stdout = "other"
     check_docker_context(verbose=True)
     mock_run_command.assert_called_with(
-        ["docker", "context", "show"],
+        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
         verbose=True,
         no_output_dump_on_exception=False,
         text=True,
         capture_output=True,
-        check=False,
     )
     mock_get_console.return_value.print.assert_called_with(
-        '[error]Docker is not using the default context[/]\n'
+        '[error]Docker is not using the default context, used context is: other[/]\n'
         '[warning]Please make sure Docker is using the default context.[/]\n'
         '[warning]You can try switching contexts by running: "docker context use default"[/]'
     )

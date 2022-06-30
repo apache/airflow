@@ -304,29 +304,27 @@ def check_docker_context(verbose: bool):
     Checks whether Docker is using the expected context
     :param verbose: print commands when running
     """
-    expected_docker_context = 'default'
+    expected_docker_context = "default"
     response = run_command(
-        ["docker", "context", "show"],
+        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
         verbose=verbose,
         no_output_dump_on_exception=False,
         text=True,
         capture_output=True,
-        check=False,
     )
     if response.returncode != 0:
         get_console().print(
             '[error]Could not check for Docker context.[/]\n'
-            '[warning]Please make sure Docker is installed and running.[/]'
+            '[warning]Please make sure Docker is installed and running properly.[/]'
         )
-        sys.exit(1)
 
-    used_docker_context = response.stdout.strip()
+    used_docker_context = response.stdout.strip().replace('"', '')
 
     if used_docker_context == expected_docker_context:
         get_console().print(f'[success]Good Docker context used: {used_docker_context}.[/]')
     else:
         get_console().print(
-            '[error]Docker is not using the default context[/]\n'
+            f'[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n'
             f'[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n'
             f'[warning]You can try switching contexts by running: "docker context use {expected_docker_context}"[/]'
         )
