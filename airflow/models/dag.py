@@ -168,10 +168,10 @@ def create_timetable(interval: ScheduleIntervalArg, timezone: Timezone) -> Timet
         return OnceTimetable()
     if isinstance(interval, (timedelta, relativedelta)):
         return DeltaDataIntervalTimetable(interval)
-    if isinstance(interval, str):
+    if isinstance(interval, str) or (
+        isinstance(interval, list) and all(isinstance(element, str) for element in interval)
+    ):
         return CronDataIntervalTimetable(interval, timezone)
-    if isinstance(interval, list) and all(isinstance(element, str) for element in interval):
-        return MultiCronDataIntervalTimetable(interval, timezone)
     raise ValueError(f"{interval!r} is not a valid schedule_interval.")
 
 

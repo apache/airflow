@@ -27,11 +27,7 @@ import pytest
 from airflow.exceptions import AirflowTimetableInvalid
 from airflow.settings import TIMEZONE
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
-from airflow.timetables.interval import (
-    CronDataIntervalTimetable,
-    DeltaDataIntervalTimetable,
-    MultiCronDataIntervalTimetable,
-)
+from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 
 START_DATE = pendulum.DateTime(2021, 9, 4, tzinfo=TIMEZONE)
 
@@ -51,7 +47,7 @@ DELTA_FROM_MIDNIGHT = datetime.timedelta(minutes=30, hours=16)
 
 # 0 3 * * *       = daily at 03:00
 # 0 0 * * MON,TUE = at 00:00 on Monday and Tuesday
-MULTI_CRON_TIMETABLE = MultiCronDataIntervalTimetable(["0 3 * * *", "0 0 * * MON,TUE"], TIMEZONE)
+MULTI_CRON_TIMETABLE = CronDataIntervalTimetable(["0 3 * * *", "0 0 * * MON,TUE"], TIMEZONE)
 
 
 @pytest.mark.parametrize(
@@ -185,7 +181,10 @@ def test_serialize_deserialize(timetable):
 
 
 def test_multicron_timetable():
-    """Verify if the MultiCronDataIntervalTimetable first 5 results return the expected datetimes."""
+    """
+    Verify if the first 5 results of CronDataIntervalTimetable with multiple cron expressions returns the
+    expected datetimes.
+    """
     next_five = []
     current_datetime = START_DATE
     for _ in range(5):
