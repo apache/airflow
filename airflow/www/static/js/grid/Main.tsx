@@ -27,7 +27,7 @@ import {
   Divider,
   Spinner,
 } from '@chakra-ui/react';
-import { isEmpty } from 'lodash';
+import { isEmpty, debounce } from 'lodash';
 
 import Details from './details';
 import useSelection from './utils/useSelection';
@@ -35,6 +35,7 @@ import Grid from './Grid';
 import FilterBar from './FilterBar';
 import LegendRow from './LegendRow';
 import { useGridData } from './api';
+import { hoverDelay } from './utils';
 
 const detailsPanelKey = 'hideDetailsPanel';
 
@@ -43,7 +44,15 @@ const Main = () => {
   const isPanelOpen = localStorage.getItem(detailsPanelKey) !== 'true';
   const { isOpen, onToggle } = useDisclosure({ defaultIsOpen: isPanelOpen });
   const { clearSelection } = useSelection();
-  const [hoveredTaskState, setHoveredTaskState] = useState();
+  const [hoveredTaskState, setHoveredTaskState] = useState<string | null | undefined>();
+
+  // Add a debounced delay to not constantly trigger highlighting certain task states
+  const onStatusHover = debounce((state) => setHoveredTaskState(state), hoverDelay);
+
+  const onStatusLeave = () => {
+    setHoveredTaskState(undefined);
+    onStatusHover.cancel();
+  };
 
   const onPanelToggle = () => {
     if (!isOpen) {
@@ -58,7 +67,7 @@ const Main = () => {
   return (
     <Box>
       <FilterBar />
-      <LegendRow setHoveredTaskState={setHoveredTaskState} />
+      <LegendRow onStatusHover={onStatusHover} onStatusLeave={onStatusLeave} />
       <Divider mb={5} borderBottomWidth={2} />
       <Flex justifyContent="space-between">
         {isLoading || isEmpty(groups)

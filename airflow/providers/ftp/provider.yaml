@@ -32,6 +32,8 @@ versions:
   - 1.0.1
   - 1.0.0
 
+dependencies: []
+
 integrations:
   - integration-name: File Transfer Protocol (FTP)
     external-doc-url: https://tools.ietf.org/html/rfc114
@@ -47,9 +49,6 @@ hooks:
   - integration-name: File Transfer Protocol (FTP)
     python-modules:
       - airflow.providers.ftp.hooks.ftp
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.ftp.hooks.ftp.FTPHook
 
 connection-types:
   - hook-class-name: airflow.providers.ftp.hooks.ftp.FTPHook

@@ -67,14 +67,20 @@ class AirbyteTriggerSyncOperator(BaseOperator):
 
     def execute(self, context: 'Context') -> None:
         """Create Airbyte Job and wait to finish"""
-        hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
-        job_object = hook.submit_sync_connection(connection_id=self.connection_id)
-        job_id = job_object.json()['job']['id']
+        self.hook = AirbyteHook(airbyte_conn_id=self.airbyte_conn_id, api_version=self.api_version)
+        job_object = self.hook.submit_sync_connection(connection_id=self.connection_id)
+        self.job_id = job_object.json()['job']['id']
 
-        self.log.info("Job %s was submitted to Airbyte Server", job_id)
+        self.log.info("Job %s was submitted to Airbyte Server", self.job_id)
         if not self.asynchronous:
-            self.log.info('Waiting for job %s to complete', job_id)
-            hook.wait_for_job(job_id=job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
-            self.log.info('Job %s completed successfully', job_id)
+            self.log.info('Waiting for job %s to complete', self.job_id)
+            self.hook.wait_for_job(job_id=self.job_id, wait_seconds=self.wait_seconds, timeout=self.timeout)
+            self.log.info('Job %s completed successfully', self.job_id)
 
-        return job_id
+        return self.job_id
+
+    def on_kill(self):
+        """Cancel the job if task is cancelled"""
+        if self.job_id:
+            self.log.info('on_kill: cancel the airbyte Job %s', self.job_id)
+            self.hook.cancel_job(self.job_id)
