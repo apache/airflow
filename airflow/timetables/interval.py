@@ -105,10 +105,6 @@ class CronDataIntervalTimetable(_DataIntervalTimetable):
     - One of ``cron_presets``
     - Or a collection containing values from the above
 
-    The implementation extends on croniter to add timezone awareness. This is
-    because croniter works only with naive timestamps, and cannot consider DST
-    when determining the next/previous time.
-
     Don't pass ``@once`` in here; use ``OnceTimetable`` instead.
     """
 
