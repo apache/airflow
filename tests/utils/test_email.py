@@ -85,7 +85,12 @@ class TestEmail(unittest.TestCase):
 
     @mock.patch('airflow.utils.email.send_email_smtp')
     def test_custom_backend(self, mock_send_email):
-        with conf_vars({('email', 'email_backend'): 'tests.utils.test_email.send_email_test'}):
+        with conf_vars(
+            {
+                ('email', 'email_backend'): 'tests.utils.test_email.send_email_test',
+                ('email', 'email_conn_id'): 'smtp_default',
+            }
+        ):
             email.send_email('to', 'subject', 'content')
         send_email_test.assert_called_once_with(
             'to',
@@ -107,6 +112,7 @@ class TestEmail(unittest.TestCase):
     @conf_vars(
         {
             ('email', 'email_backend'): 'tests.utils.test_email.send_email_test',
+            ('email', 'email_conn_id'): 'smtp_default',
             ('email', 'from_email'): 'from@test.com',
         }
     )

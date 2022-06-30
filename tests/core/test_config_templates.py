@@ -60,18 +60,12 @@ DEFAULT_TEST_SECTIONS = [
     'core',
     'database',
     "logging",
-    'cli',
     'api',
-    'operators',
     'hive',
-    'webserver',
-    'email',
     'smtp',
     'celery',
     'scheduler',
     'elasticsearch',
-    'elasticsearch_configs',
-    'kubernetes',
 ]
 
 
