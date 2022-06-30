@@ -106,10 +106,8 @@ class TestKubernetesHook:
         else:
             mock_get_default_client.assert_called()
         assert isinstance(api_conn, kubernetes.client.api_client.ApiClient)
-        if mock_get_default_client.called:
-            # get_default_client sets it, but it's mocked
-            assert kubernetes_hook.is_in_cluster is None
-        else:
+        if not mock_get_default_client.called:
+            # get_default_client is mocked, so only check is_in_cluster if it isn't called
             assert kubernetes_hook.is_in_cluster is in_cluster_called
 
     @pytest.mark.parametrize('in_cluster_fails', [True, False])
