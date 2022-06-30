@@ -1751,7 +1751,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   build-ci-arm-images:
-    timeout-minutes: 80
+    timeout-minutes: 120
     name: >
       ${{needs.build-info.outputs.buildJobDescription}} CI ARM images
       ${{ needs.build-info.outputs.allPythonVersionsListAsString }}

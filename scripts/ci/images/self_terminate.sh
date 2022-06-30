@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 
-# This instance will run for maximum 50 minutes and
+# This instance will run for maximum 100 minutes and
 # It will terminate itself after that (it can also
 # be terminated immediately when the job finishes)
-echo "sudo shutdown -h now" | at now +50 min
+echo "sudo shutdown -h now" | at now +100 min
