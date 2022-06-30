@@ -210,6 +210,9 @@ schedule interval put in place, the logical date is going to indicate the time
 at which it marks the start of the data interval, where the DAG run's start
 date would then be the logical date + scheduled interval.
 
+.. tip::
+    For more information on ``logical date``, see :ref:`data-interval` and :ref:`faq:what-does-execution-date-mean`.
+
 DAG Assignment
 --------------
 
