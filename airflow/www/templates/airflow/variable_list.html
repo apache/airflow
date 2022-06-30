@@ -24,7 +24,7 @@
 
    {% if is_using_secrets_backend() %}
     {% call show_message(category='warning') %}
-      <b>WARNING: </b>The Airflow UI will not display Connections or Variables stored in an alternative secrets backend.
+      <b>WARNING:</b> {{ warn_list_secrets_alternative_backend("ui", "variable") }}
     {% endcall %}
    {% endif %}
    {% if can_create_variable() %}

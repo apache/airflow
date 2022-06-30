@@ -37,6 +37,7 @@ from airflow.secrets.local_filesystem import load_connections_dict
 from airflow.utils import cli as cli_utils, yaml
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
+from airflow.utils.warnings import warn_list_secrets_alternative_backend
 
 CUSTOM_BACKEND: bool = True if get_custom_secret_backend() else False
 
@@ -62,20 +63,11 @@ def _connection_mapper(conn: Connection) -> Dict[str, Any]:
 @suppress_logs_and_warning
 def connections_get(args):
     """Get a connection."""
-    airflow_console = AirflowConsole()
-    if CUSTOM_BACKEND:
-        airflow_console.print(
-            (
-                "WARNING: The Airflow CLI will not return Connections or "
-                "Variables stored in an alternative secrets backend."
-            ),
-            style="magenta",
-        )
     try:
         conn = BaseHook.get_connection(args.conn_id)
     except AirflowNotFoundException:
         raise SystemExit("Connection not found.")
-    airflow_console.print_as(
+    AirflowConsole().print_as(
         data=[conn],
         output=args.output,
         mapper=_connection_mapper,
@@ -87,11 +79,9 @@ def connections_list(args):
     """Lists all connections at the command line"""
     airflow_console = AirflowConsole()
     if CUSTOM_BACKEND:
+        warning = warn_list_secrets_alternative_backend(cli_or_ui="cli", connection_or_variable="connection")
         airflow_console.print(
-            (
-                "WARNING: The Airflow CLI will not return Connections or "
-                "Variables stored in an alternative secrets backend."
-            ),
+            f'WARNING: {warning}',
             style="magenta",
         )
     with create_session() as session:

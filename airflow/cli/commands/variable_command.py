@@ -26,6 +26,7 @@ from airflow.models import Variable
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.utils.session import create_session
+from airflow.utils.warnings import warn_list_secrets_alternative_backend
 
 CUSTOM_BACKEND: bool = True if get_custom_secret_backend() else False
 
@@ -35,11 +36,9 @@ def variables_list(args):
     """Displays all of the variables"""
     airflow_console = AirflowConsole()
     if CUSTOM_BACKEND:
+        warning = warn_list_secrets_alternative_backend(cli_or_ui="cli", connection_or_variable="variable")
         airflow_console.print(
-            (
-                "WARNING: The Airflow CLI will not return Connections or "
-                "Variables stored in an alternative secrets backend."
-            ),
+            f'WARNING: {warning}',
             style="magenta",
         )
     with create_session() as session:
@@ -50,15 +49,6 @@ def variables_list(args):
 @suppress_logs_and_warning
 def variables_get(args):
     """Displays variable by a given name"""
-    airflow_console = AirflowConsole()
-    if CUSTOM_BACKEND:
-        airflow_console.print(
-            (
-                "WARNING: The Airflow CLI will not return Connections or "
-                "Variables stored in an alternative secrets backend."
-            ),
-            style="magenta",
-        )
     try:
         if args.default is None:
             var = Variable.get(args.key, deserialize_json=args.json)

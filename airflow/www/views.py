@@ -130,6 +130,7 @@ from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import State, TaskInstanceState
 from airflow.utils.strings import to_boolean
 from airflow.utils.timezone import td_format, utcnow
+from airflow.utils.warnings import warn_list_secrets_alternative_backend
 from airflow.version import version
 from airflow.www import auth, utils as wwwutils
 from airflow.www.decorators import action_logging, gzipped
@@ -4092,7 +4093,10 @@ class ConnectionModelView(AirflowModelView):
     base_order = ('conn_id', 'asc')
 
     extra_field_name_mapping: Dict[str, str] = {}
-    extra_args = {"is_using_secrets_backend": _is_using_secrets_backend}
+    extra_args = {
+        "is_using_secrets_backend": _is_using_secrets_backend,
+        "warn_list_secrets_alternative_backend": warn_list_secrets_alternative_backend,
+    }
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
     @auth.has_access(
@@ -4549,6 +4553,7 @@ class VariableModelView(AirflowModelView):
     extra_args = {
         "can_create_variable": _can_create_variable,
         "is_using_secrets_backend": _is_using_secrets_backend,
+        "warn_list_secrets_alternative_backend": warn_list_secrets_alternative_backend,
     }
 
     @action('muldelete', 'Delete', 'Are you sure you want to delete selected records?', single=False)
