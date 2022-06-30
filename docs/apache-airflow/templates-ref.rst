@@ -117,8 +117,8 @@ attributes and methods.
 
 Airflow Variables in Templates
 ------------------------------
-The ``var`` template variable allows you to access variables defined in Airflow's
-UI. You can access them as either plain-text or JSON. If you use JSON, you are
+The ``var`` template variable allows you to access Airflow Variables.
+You can access them as either plain-text or JSON. If you use JSON, you are
 also able to walk nested structures, such as dictionaries like:
 ``{{ var.json.my_dict_var.key1 }}``.
 
