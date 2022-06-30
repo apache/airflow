@@ -77,20 +77,10 @@ class TestKeda:
                 "workers": {
                     "keda": {
                         "enabled": True,
-                        "advanced": {
-                            "horizontalPodAutoscalerConfig": {
-                                "behavior": {
-                                    "scaleDown": {
-                                        "stabilizationWindowSeconds": 300,
-                                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
-                                    }
-                                }
-                            }
-                        },
+                        "advanced": expected_advanced,
                     },
-                    "persistence": {"enabled": False},
                 },
-                'executor': executor,
+                "executor": executor,
             },
             show_only=["templates/workers/worker-kedaautoscaler.yaml"],
         )
