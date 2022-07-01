@@ -562,6 +562,7 @@ ALL_DB_PROVIDERS = [
     'apache.pinot',
     'arangodb',
     'cloudant',
+    'common.sql',
     'databricks',
     'exasol',
     'influxdb',

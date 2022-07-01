@@ -268,7 +268,7 @@ These are extras that provide support for integration with external systems via 
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | extra               | install command                                     | enables                              | Preinstalled |
 +=====================+=====================================================+======================================+==============+
-| core.sql            | ``pip install 'apache-airflow[core.sql]'``          | Core SQL Operators                   |              |
+| common.sql          | ``pip install 'apache-airflow[common.sql]'``        | Common SQL Operators                 |              |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+
 | ftp                 | ``pip install 'apache-airflow[ftp]'``               | FTP hooks and operators              |      *       |
 +---------------------+-----------------------------------------------------+--------------------------------------+--------------+

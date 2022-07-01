@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow import DAG
-from airflow.providers.core.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
+from airflow.providers.common.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
 from airflow.utils.dates import datetime
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"

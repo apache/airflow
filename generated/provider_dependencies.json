@@ -178,7 +178,7 @@
     ],
     "cross-providers-deps": []
   },
-  "core.sql": {
+  "common.sql": {
     "deps": [
       "apache-airflow>=2.2.0"
     ],
