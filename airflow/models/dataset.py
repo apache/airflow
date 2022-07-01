@@ -81,6 +81,8 @@ class Dataset(Base):
 
     @provide_session
     def get_downstream_dag_ids(self, session=NEW_SESSION):
+        if not self.id:
+            raise RuntimeError("Dataset must be persisted to database before we can look up downstream dags.")
         return [
             x.dag_id
             for x in session.query(DatasetDagRef.dag_id)
