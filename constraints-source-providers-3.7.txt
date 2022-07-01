@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-06-30T20:14:04Z
+# This constraints file was automatically generated on 2022-07-01T09:45:53Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -156,7 +156,7 @@ email-validator==1.2.1
 entrypoints==0.4
 eventlet==0.33.1
 execnet==1.9.0
-facebook-business==13.0.0
+facebook-business==14.0.0
 fastavro==1.5.2
 fastjsonschema==2.15.3
 filelock==3.7.1
@@ -239,7 +239,7 @@ hvac==0.11.2
 identify==2.5.1
 idna==3.3
 ijson==3.1.4
-imagesize==1.3.0
+imagesize==1.4.0
 importlib-metadata==4.12.0
 importlib-resources==5.8.0
 incremental==21.3.0
