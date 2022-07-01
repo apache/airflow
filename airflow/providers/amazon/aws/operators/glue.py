@@ -66,7 +66,7 @@ class GlueJobOperator(BaseOperator):
         *,
         job_name: str = 'aws_glue_default_job',
         job_desc: str = 'AWS Glue Job with Airflow',
-        script_location: str,
+        script_location: Optional[str] = None,
         concurrent_run_limit: Optional[int] = None,
         script_args: Optional[dict] = None,
         retry_limit: int = 0,
