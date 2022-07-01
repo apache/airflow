@@ -314,9 +314,11 @@ def check_docker_context(verbose: bool):
     )
     if response.returncode != 0:
         get_console().print(
-            '[error]Could not check for Docker context.[/]\n'
-            '[warning]Please make sure Docker is installed and running properly.[/]'
+            '[warning]Could not check for Docker context.[/]\n'
+            '[warning]Please make sure that Docker is using the right context by running "docker info" and '
+            'checking the active Context.[/]'
         )
+        return
 
     used_docker_context = response.stdout.strip().replace('"', '')
 
@@ -329,6 +331,7 @@ def check_docker_context(verbose: bool):
             f'[warning]You can try switching contexts by running: "docker context use '
             f'{expected_docker_context}"[/]'
         )
+        sys.exit(1)
 
 
 def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
