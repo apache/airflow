@@ -69,6 +69,10 @@ const DagRunBar = ({
     els.forEach((e) => { e.style.backgroundColor = ''; });
   };
 
+  // show the tick on the 4th DagRun and then every 10th tick afterwards
+  const shouldShowTick = index === totalRuns - 4
+    || (index < totalRuns - 4 && (index + 4) % 10 === 0);
+
   return (
     <Box
       className={`js-${run.runId}`}
@@ -118,7 +122,7 @@ const DagRunBar = ({
           </Flex>
         </Tooltip>
       </Flex>
-      {(index === totalRuns - 4 || (index + 4) % 10 === 0) && (
+      {shouldShowTick && (
       <VStack position="absolute" top="0" left="8px" spacing={0} zIndex={0} width={0}>
         <Text fontSize="sm" color="gray.400" whiteSpace="nowrap" transform="rotate(-30deg) translateX(28px)" mt="-23px !important">
           <Time dateTime={run.executionDate} format="MMM DD, HH:mm" />

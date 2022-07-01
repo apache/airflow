@@ -36,8 +36,11 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - requests>=2.27,<3
+  - databricks-sql-connector>=2.0.0, <3.0.0
+  - aiohttp>=3.6.3, <4
 
 integrations:
   - integration-name: Databricks

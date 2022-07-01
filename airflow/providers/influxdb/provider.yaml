@@ -23,8 +23,10 @@ name: Influxdb
 description: |
     `InfluxDB <https://www.influxdata.com/>`__
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - influxdb-client>=1.19.0
+  - requests>=2.26.0
 
 versions:
   - 2.0.0

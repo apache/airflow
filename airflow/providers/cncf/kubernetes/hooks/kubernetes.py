@@ -169,7 +169,7 @@ class KubernetesHook(BaseHook):
             DeprecationWarning,
         )
 
-    def get_conn(self) -> Any:
+    def get_conn(self) -> client.ApiClient:
         """Returns kubernetes api session for use with requests"""
         in_cluster = self._coalesce_param(
             self.in_cluster, self.conn_extras.get("extra__kubernetes__in_cluster") or None
@@ -258,7 +258,7 @@ class KubernetesHook(BaseHook):
 
         return self._get_default_client(cluster_context=cluster_context)
 
-    def _get_default_client(self, *, cluster_context=None):
+    def _get_default_client(self, *, cluster_context: Optional[str] = None) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
         # but failing that just load assuming a kubeconfig file
@@ -276,20 +276,21 @@ class KubernetesHook(BaseHook):
         return client.ApiClient()
 
     @property
-    def is_in_cluster(self):
+    def is_in_cluster(self) -> bool:
         """Expose whether the hook is configured with ``load_incluster_config`` or not"""
         if self._is_in_cluster is not None:
             return self._is_in_cluster
         self.api_client  # so we can determine if we are in_cluster or not
+        assert self._is_in_cluster is not None
         return self._is_in_cluster
 
     @cached_property
-    def api_client(self) -> Any:
+    def api_client(self) -> client.ApiClient:
         """Cached Kubernetes API client"""
         return self.get_conn()
 
     @cached_property
-    def core_v1_client(self):
+    def core_v1_client(self) -> client.CoreV1Api:
         return client.CoreV1Api(api_client=self.api_client)
 
     def create_custom_object(
@@ -377,12 +378,11 @@ class KubernetesHook(BaseHook):
         :param container: container name
         :param namespace: kubernetes namespace
         """
-        api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
         return (
             watcher,
             watcher.stream(
-                api.read_namespaced_pod_log,
+                self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
                 namespace=namespace if namespace else self.get_namespace(),
@@ -402,8 +402,7 @@ class KubernetesHook(BaseHook):
         :param container: container name
         :param namespace: kubernetes namespace
         """
-        api = client.CoreV1Api(self.api_client)
-        return api.read_namespaced_pod_log(
+        return self.core_v1_client.read_namespaced_pod_log(
             name=pod_name,
             container=container,
             _preload_content=False,
