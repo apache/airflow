@@ -33,6 +33,8 @@ versions:
   - 1.0.1
   - 1.0.0
 
+dependencies: []
+
 integrations:
   - integration-name: SQLite
     external-doc-url: https://www.sqlite.org/index.html

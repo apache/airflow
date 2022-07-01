@@ -168,7 +168,7 @@ const Row = (props: RowProps) => {
             onToggle={memoizedToggle}
             isGroup={isGroup}
             isMapped={task.isMapped}
-            label={task.label}
+            label={task.label || task.id || ''}
             isOpen={isOpen}
             level={level}
           />
