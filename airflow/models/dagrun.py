@@ -667,7 +667,7 @@ class DagRun(Base, LoggingMixin):
                     isouter=True,
                 )
                 .filter(
-                    DDRE.target_dag_id.in_(dependent_dag_ids),
+                    DatasetReference.dag_id.in_(dependent_dag_ids),
                     DatasetReference.is_scheduling_dep == True,
                     DatasetReference.is_write == False,
                 )
