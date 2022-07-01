@@ -26,7 +26,7 @@ Create Date: 2022-06-22 14:37:20.880672
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy import Boolean, Integer, String, func
+from sqlalchemy import Integer, String, func
 
 from airflow.migrations.db_types import TIMESTAMP, StringID
 from airflow.utils.sqlalchemy import ExtendedJSON
@@ -138,7 +138,6 @@ def upgrade():
     _create_dataset_dag_ref_table()
     _create_dataset_task_ref_table()
     _create_dataset_dag_run_event_table()
-    op.add_column('dag', sa.Column('schedule_on_dataset', Boolean, nullable=True))
 
 
 def downgrade():
@@ -147,4 +146,3 @@ def downgrade():
     op.drop_table('dataset_task_ref')
     op.drop_table('dataset_dag_run_event')
     op.drop_table('dataset')
-    op.drop_column('dag', 'schedule_on_dataset')
