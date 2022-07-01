@@ -323,13 +323,13 @@ def check_pypi_repository_in_provider_tocs() -> List[DocBuildError]:
     return build_errors
 
 
-def run_all_check() -> List[DocBuildError]:
+def run_all_check(disable_provider_checks: bool = False) -> List[DocBuildError]:
     """Run all checks from this module"""
     general_errors = []
     general_errors.extend(check_guide_links_in_operator_descriptions())
     general_errors.extend(check_enforce_code_block())
     general_errors.extend(check_exampleinclude_for_example_dags())
-    general_errors.extend(check_example_dags_in_provider_tocs())
-    general_errors.extend(check_pypi_repository_in_provider_tocs())
-
+    if not disable_provider_checks:
+        general_errors.extend(check_pypi_repository_in_provider_tocs())
+        general_errors.extend(check_example_dags_in_provider_tocs())
     return general_errors

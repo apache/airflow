@@ -108,6 +108,12 @@ def _get_parser():
         '--disable-checks', dest='disable_checks', action='store_true', help='Disables extra checks'
     )
     parser.add_argument(
+        '--disable-provider-checks',
+        dest='disable_provider_checks',
+        action='store_true',
+        help='Disables extra checks for providers',
+    )
+    parser.add_argument(
         '--one-pass-only',
         dest='one_pass_only',
         action='store_true',
@@ -441,6 +447,7 @@ def main():
     available_packages = get_available_packages()
     docs_only = args.docs_only
     spellcheck_only = args.spellcheck_only
+    disable_provider_checks = args.disable_provider_checks
     disable_checks = args.disable_checks
     package_filters = args.package_filter
     for_production = args.for_production
@@ -531,7 +538,7 @@ def main():
         )
 
     if not disable_checks:
-        general_errors = lint_checks.run_all_check()
+        general_errors = lint_checks.run_all_check(disable_provider_checks=disable_provider_checks)
         if general_errors:
             all_build_errors[None] = general_errors
 

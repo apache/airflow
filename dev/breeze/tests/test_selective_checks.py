@@ -275,9 +275,10 @@ def test_expected_output_pull_request_main(
                     "run-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always CLI Core Integration Other WWW",
+                    "test-types": "API Always CLI Core Other WWW",
                 },
-                id="Everything should run except Providers when full tests are needed for non-main branch",
+                id="Everything should run except Providers and Integration "
+                "when full tests are needed for non-main branch",
             )
         ),
     ],
@@ -367,9 +368,10 @@ def test_expected_output_full_tests_needed(
                 "docs-build": "true",
                 "run-kubernetes-tests": "false",
                 "upgrade-to-newer-dependencies": "false",
-                "test-types": "API Always CLI Core Integration Other WWW",
+                "test-types": "API Always CLI Core Other WWW",
             },
-            id="All tests except providers should run if core file changed in non-main branch",
+            id="All tests except providers and Integration should "
+            "run if core file changed in non-main branch",
         ),
     ],
 )
@@ -488,9 +490,9 @@ def test_expected_output_pull_request_target(
                 "run-tests": "true",
                 "docs-build": "true",
                 "upgrade-to-newer-dependencies": "true",
-                "test-types": "API Always CLI Core Integration Other WWW",
+                "test-types": "API Always CLI Core Other WWW",
             },
-            id="All tests except Providers and Helm run on push"
+            id="All tests except Providers Integration and Helm run on push"
             " even if unimportant file changed in non-main branch",
         ),
         pytest.param(

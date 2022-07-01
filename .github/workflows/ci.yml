@@ -126,6 +126,8 @@ jobs:
       GITHUB_CONTEXT: ${{ toJson(github) }}
     outputs:
       defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
+      defaultConstraintsBranch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      debianVersion: ${{ steps.selective-checks.outputs.debian-version }}
       cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
       waitForImage: ${{ steps.wait-for-image.outputs.wait-for-image }}
       allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
@@ -164,6 +166,8 @@ jobs:
       needs-api-tests: ${{ steps.selective-checks.outputs.needs-api-tests }}
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
+      skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
@@ -191,7 +195,6 @@ jobs:
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
-        if: github.event_name  == 'pull_request'
       - name: "Setup python"
         uses: actions/setup-python@v4
         with:
@@ -200,6 +203,22 @@ jobs:
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
+      - name: "Retrieve DEFAULTS from the _initialization.sh"
+        # We cannot "source" the script here because that would be a security problem (we cannot run
+        # any code that comes from the sources coming from the PR. Therefore, we extract the
+        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
+        id: defaults
+        run: |
+          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
+          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
+            scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
+          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
+            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
+          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: Selective checks
         id: selective-checks
         env:
@@ -294,6 +313,9 @@ jobs:
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info]
     env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
     steps:
       - name: Cleanup repo
@@ -309,23 +331,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-        if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore, we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
@@ -361,6 +366,9 @@ jobs:
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-ci-images]
     env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
       BACKEND: sqlite
       DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
@@ -379,23 +387,6 @@ jobs:
         uses: actions/setup-python@v4
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-        if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
@@ -644,7 +635,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
           VERBOSE: "false"
-          SKIP: "identity"
+          SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
@@ -701,7 +692,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           VERBOSE: "false"
           SKIP_IMAGE_PRE_COMMITS: "true"
-          SKIP: "identity"
+          SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
@@ -745,7 +736,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
             docs-inventory-${{ hashFiles('setup.py','setup.cfg','pyproject.toml;') }}
             docs-inventory-
       - name: "Build docs"
-        run: breeze build-docs
+        run: breeze build-docs ${{ needs.build-info.outputs.docs-filter }}
       - name: Configure AWS credentials
         uses: ./.github/actions/configure-aws-credentials
         if: >
@@ -1766,6 +1757,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - tests-mssql
       - tests-postgres
     env:
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
     if: needs.build-info.outputs.upgradeToNewerDependencies != 'false'
     steps:
@@ -1782,23 +1776,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
-        if: needs.build-info.outputs.inWorkflowBuild == 'true'
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore, we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
         if: needs.build-info.outputs.inWorkflowBuild == 'true'
       - run: ./scripts/ci/install_breeze.sh
         if: needs.build-info.outputs.inWorkflowBuild == 'true'

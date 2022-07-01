@@ -469,6 +469,12 @@ class SelectiveChecks:
                     f"is {self._default_branch} and not main[/]"
                 )
                 current_test_types.remove("Providers")
+            if "Integration" in current_test_types:
+                get_console().print(
+                    "[warning]Removing 'Integration' because the target branch "
+                    f"is {self._default_branch} and not main[/]"
+                )
+                current_test_types.remove("Integration")
         return " ".join(sorted(current_test_types))
 
     @cached_property
@@ -480,3 +486,15 @@ class SelectiveChecks:
         return len(
             self._matching_files(FileGroupForCi.SETUP_FILES, CI_FILE_GROUP_MATCHES)
         ) > 0 or self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]
+
+    @cached_property
+    def docs_filter(self) -> str:
+        return (
+            ""
+            if self._default_branch == 'main'
+            else "--package-filter apache-airflow --package-filter docker-stack"
+        )
+
+    @cached_property
+    def skip_pre_commits(self) -> str:
+        return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
