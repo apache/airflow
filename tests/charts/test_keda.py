@@ -52,6 +52,40 @@ class TestKeda:
         else:
             assert docs == []
 
+    @parameterized.expand(
+        [
+            ('CeleryExecutor'),
+            ('CeleryKubernetesExecutor'),
+        ]
+    )
+    def test_keda_advanced(self, executor):
+        """
+        Verify keda advanced config.
+        """
+        expected_advanced = {
+            "horizontalPodAutoscalerConfig": {
+                "behavior": {
+                    "scaleDown": {
+                        "stabilizationWindowSeconds": 300,
+                        "policies": [{"type": "Percent", "value": 100, "periodSeconds": 15}],
+                    }
+                }
+            }
+        }
+        docs = render_chart(
+            values={
+                "workers": {
+                    "keda": {
+                        "enabled": True,
+                        "advanced": expected_advanced,
+                    },
+                },
+                "executor": executor,
+            },
+            show_only=["templates/workers/worker-kedaautoscaler.yaml"],
+        )
+        assert jmespath.search("spec.advanced", docs[0]) == expected_advanced
+
     @staticmethod
     def build_query(executor, concurrency=16, queue=None):
         """Builds the query used by KEDA autoscaler to determine how many workers there should be"""

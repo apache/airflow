@@ -487,6 +487,17 @@ workers:
     # Maximum number of workers created by keda
     maxReplicaCount: 10
 
+    # Specify HPA related options
+    advanced: {}
+    # horizontalPodAutoscalerConfig:
+    #   behavior:
+    #     scaleDown:
+    #       stabilizationWindowSeconds: 300
+    #       policies:
+    #         - type: Percent
+    #           value: 100
+    #           periodSeconds: 15
+
   persistence:
     # Enable persistent volumes
     enabled: true

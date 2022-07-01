@@ -363,7 +363,7 @@ jobs:
 
 
   build-ci-images-arm:
-    timeout-minutes: 80
+    timeout-minutes: 120
     name: "Build ARM CI images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
     needs: [build-info, build-prod-images]
