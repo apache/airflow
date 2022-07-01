@@ -70,12 +70,11 @@ class SqlToSlackOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SqlToSlackOperator`
 
-    :param sql: The SQL statement to execute on Snowflake (templated)
-    :param slack_message: The templated Slack message to send with the data returned from Snowflake.
+    :param sql: The SQL query to be executed (templated)
+    :param slack_message: The templated Slack message to send with the data returned from the SQL connection.
         You can use the default JINJA variable {{ results_df }} to access the pandas dataframe containing the
         SQL results
-    :param sql_conn_id: Reference to
-        :ref:`Snowflake connection id<howto/connection:snowflake>`
+    :param sql_conn_id: reference to a specific database.
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
            Should match the desired hook constructor params.
     :param slack_conn_id: The connection id for Slack.
@@ -166,7 +165,7 @@ class SqlToSlackOperator(BaseOperator):
 
     def render_template_fields(self, context, jinja_env=None) -> None:
         # If this is the first render of the template fields, exclude slack_message from rendering since
-        # the snowflake results haven't been retrieved yet.
+        # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
             fields_to_render: Iterable[str] = filter(lambda x: x != 'slack_message', self.template_fields)
         else:
