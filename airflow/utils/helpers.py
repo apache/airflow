@@ -39,7 +39,7 @@ from typing import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.module_loading import import_string
-from airflow.utils.types import ArgNotSet
+from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import jinja2
@@ -323,7 +323,7 @@ def at_most_one(*args) -> bool:
     """
 
     def is_set(val):
-        if isinstance(val, ArgNotSet):
+        if val is NOTSET:
             return False
         else:
             return bool(val)

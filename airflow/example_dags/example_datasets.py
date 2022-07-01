@@ -14,58 +14,124 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+"""
+Example DAG for demonstrating behavior of Datasets feature.
 
+Notes on usage:
+
+Turn on all the dags.
+
+DAG dag1 should run because it's on a schedule.
+
+After dag1 runs, dag3 should be triggered immediately because its only
+dataset dependency is managed by dag1.
+
+No other dags should be triggered.  Note that even though dag4 depends on
+the dataset in dag1, it will not be triggered until dag2 runs.
+
+Next, trigger dag2.  After dag2 finishes, dag4 should run.
+
+Dags 5 and 6 should not run because they depend on datasets that never get updated.
+
+"""
 from datetime import datetime
 
-from airflow.models import DAG
-from airflow.models.dataset_reference import InletDataset, OutletDataset
+from airflow.models import DAG, Dataset
 from airflow.operators.bash import BashOperator
 
+dag1_dataset = Dataset('s3://dag1/output_1.txt', extra={'hi': 'bye'})
+dag2_dataset = Dataset('s3://dag2/output_1.txt', extra={'hi': 'bye'})
 with DAG(
-    dag_id='upstream_dag',
+    dag_id='dag1',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_interval='@daily',
+    tags=['upstream'],
 ) as dag1:
     BashOperator(
-        outlets=[OutletDataset('s3://abc/dataset3.txt', extra={'hi': 'bye'})],
+        outlets=[dag1_dataset],
         inlets=[
-            InletDataset('s3://abc/dataset1.txt', schedule_on=False),
-            InletDataset('s3://abc/dataset2.txt', schedule_on=False),
+            Dataset('s3://some-dataset/dataset1.txt'),
+            Dataset('s3://some-dataset/dataset2.txt'),
         ],
         task_id='upstream_task_1',
         bash_command="sleep 5",
     )
 
 with DAG(
-    dag_id='some_downstream_dag',
+    dag_id='dag2',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_on_dataset=True,
     schedule_interval=None,
+    tags=['upstream'],
 ) as dag2:
     BashOperator(
-        outlets=[OutletDataset('s3://abc/dataset_other.txt')],
+        outlets=[dag1_dataset],
         inlets=[
-            InletDataset('s3://abc/dataset3.txt', schedule_on=True),
-            InletDataset('s3://abc/dataset_unknown.txt', schedule_on=False),
+            Dataset('s3://abc/dataset2.txt'),
         ],
+        task_id='upstream_task_1',
+        bash_command="sleep 5",
+    )
+
+with DAG(
+    dag_id='dag3',
+    catchup=False,
+    start_date=datetime(2020, 1, 1),
+    schedule_on=[dag1_dataset],
+    schedule_interval=None,
+    tags=['downstream'],
+) as dag3:
+    BashOperator(
+        outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
         task_id='downstream_1',
         bash_command="sleep 5",
     )
 
 with DAG(
-    dag_id='other_downstream_dag',
+    dag_id='dag4',
     catchup=False,
     start_date=datetime(2020, 1, 1),
-    schedule_on_dataset=True,
+    schedule_on=[dag1_dataset, dag2_dataset],
     schedule_interval=None,
-) as dag3:
+    tags=['downstream'],
+) as dag4:
     BashOperator(
-        inlets=[
-            InletDataset('s3://abc/dataset3.txt', schedule_on=True),
-            InletDataset('s3://abc/dataset_other_unknown.txt', schedule_on=True),
-        ],
+        outlets=[Dataset('s3://downstream_2_task/dataset_other_unknown.txt')],
         task_id='downstream_2',
+        bash_command="sleep 5",
+    )
+
+with DAG(
+    dag_id='dag5',
+    catchup=False,
+    start_date=datetime(2020, 1, 1),
+    schedule_on=[
+        dag1_dataset,
+        Dataset('s3://this-dataset-doesnt-get-triggered'),
+    ],
+    schedule_interval=None,
+    tags=['downstream'],
+) as dag5:
+    BashOperator(
+        outlets=[Dataset('s3://downstream_2_task/dataset_other_unknown.txt')],
+        task_id='downstream_2',
+        bash_command="sleep 5",
+    )
+
+with DAG(
+    dag_id='dag6',
+    catchup=False,
+    start_date=datetime(2020, 1, 1),
+    schedule_on=[
+        Dataset('s3://unrelated/dataset3.txt'),
+        Dataset('s3://unrelated/dataset_other_unknown.txt'),
+    ],
+    schedule_interval=None,
+    tags=['unrelated'],
+) as dag6:
+    BashOperator(
+        task_id='unrelated_task',
+        outlets=[Dataset('s3://unrelated_task/dataset_other_unknown.txt')],
         bash_command="sleep 5",
     )

@@ -20,7 +20,7 @@ from urllib.parse import urlparse
 from sqlalchemy import Column, Index, Integer, String
 
 from airflow.models.base import Base
-from airflow.models.dataset_reference import DatasetReference
+from airflow.models.dataset_dag_ref import DatasetDagRef
 from airflow.utils import timezone
 from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
@@ -83,11 +83,23 @@ class Dataset(Base):
     def get_downstream_dag_ids(self, session=NEW_SESSION):
         return [
             x.dag_id
-            for x in session.query(DatasetReference.dag_id)
+            for x in session.query(DatasetDagRef.dag_id)
             .filter(
-                DatasetReference.dataset_id == self.id,
-                DatasetReference.is_write == False,
-                DatasetReference.is_scheduling_dep == True,
+                DatasetDagRef.dataset_id == self.id,
             )
             .all()
         ]
+
+    @provide_session
+    def get_dataset_id(self, session=NEW_SESSION):
+        if self.id:
+            dataset_id = self.id
+        else:
+            stored = session.query(self.__class__).filter(self.__class__.uri == self.uri).first()
+            if not stored:
+                session.add(self)
+                session.flush()
+                dataset_id = self.id
+            else:
+                dataset_id = stored.id
+        return dataset_id

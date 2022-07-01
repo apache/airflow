@@ -1418,7 +1418,6 @@ class TaskInstance(Base, LoggingMixin):
         :param session: SQLAlchemy ORM Session
         """
         from airflow.models import Dataset
-        from airflow.models.dataset_reference import OutletDataset
 
         self.test_mode = test_mode
         self.refresh_from_task(self.task, pool_override=pool)
@@ -1518,13 +1517,11 @@ class TaskInstance(Base, LoggingMixin):
             session.merge(self)
             for obj in getattr(self.task, '_outlets', []):
                 self.log.debug("outlet obj %s", obj)
-                if isinstance(obj, OutletDataset):
+                if isinstance(obj, Dataset):
                     dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).first()
                     if not dataset:
-                        dataset = Dataset(uri=obj.uri, extra=obj.extra)
-                        self.log.debug("adding dataset %s", dataset)
-                        session.add(dataset)
-                        session.flush()
+                        self.log.warning("Dataset %s not found", dataset)
+                        continue
                     downstream_dag_ids = dataset.get_downstream_dag_ids()
                     self.log.debug("downstream dag ids %s", downstream_dag_ids)
                     for dag_id in downstream_dag_ids:

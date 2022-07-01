@@ -16,47 +16,47 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from sqlalchemy import Column, ForeignKeyConstraint, Integer
+from sqlalchemy import Column, ForeignKeyConstraint, Integer, String
 
-from airflow.models.base import Base, StringID
+from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class DatasetDagRunEvent(Base):
-    """Model for storing dataset events that need processing."""
+class DatasetTaskRef(Base):
+    """References from a task to a downstream dataset."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
-    target_dag_id = Column(StringID(), primary_key=True, nullable=False)
+    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    task_id = Column(String(ID_LEN), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    __tablename__ = "dataset_dag_run_event"
+    __tablename__ = "dataset_task_ref"
     __table_args__ = (
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='ddre_dataset_fkey',
-            ondelete="CASCADE",
-        ),
-        ForeignKeyConstraint(
-            (target_dag_id,),
-            ["dag.dag_id"],
-            name='ddre_dag_fkey',
+            name='dataset_event_dataset_fkey',
             ondelete="CASCADE",
         ),
     )
 
     def __eq__(self, other):
         if isinstance(other, self.__class__):
-            return self.dataset_id == other.dataset_id and self.target_dag_id == other.target_dag_id
+            return (
+                self.dataset_id == other.dataset_id
+                and self.dag_id == other.dag_id
+                and self.task_id == other.task_id
+            )
         else:
             return NotImplemented
 
     def __hash__(self):
-        return hash((self.dataset_id, self.target_dag_id))
+        return hash((self.uri, self.extra))
 
     def __repr__(self):
         args = []
-        for attr in ('dataset_id', 'target_dag_id'):
+        for attr in ('dataset_id', 'dag_id', 'task_id'):
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
