@@ -346,12 +346,6 @@ class DAG(LoggingMixin):
     ):
         from airflow.utils.task_group import TaskGroup
 
-        scheduling_args = [schedule_interval, timetable, schedule_on]
-        if not at_most_one(*scheduling_args):
-            raise ValueError(f"At most one allowed for args {scheduling_args}")
-        self.schedule_on = schedule_on
-        if schedule_on:
-            self.schedule_interval = None
         self.user_defined_macros = user_defined_macros
         self.user_defined_filters = user_defined_filters
         if default_args and not isinstance(default_args, dict):
@@ -426,17 +420,25 @@ class DAG(LoggingMixin):
         if 'end_date' in self.default_args:
             self.default_args['end_date'] = timezone.convert_to_utc(self.default_args['end_date'])
 
-        # Calculate the DAG's timetable.
-        if timetable is None:
-            self.timetable = create_timetable(schedule_interval, self.timezone)
-            if isinstance(schedule_interval, ArgNotSet):
-                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
-            self.schedule_interval: ScheduleInterval = schedule_interval
-        elif isinstance(schedule_interval, ArgNotSet):
+        # sort out DAG's scheduling behavior
+        scheduling_args = [schedule_interval, timetable, schedule_on]
+        if not at_most_one(*scheduling_args):
+            raise ValueError(f"At most one allowed for args {scheduling_args}")
+
+        self.schedule_on = schedule_on
+        if schedule_on:
+            if not isinstance(schedule_on, list):
+                raise ValueError("Param `schedule_on` must be List[Dataset]")
+            self.schedule_interval = None
+            self.timetable = NullTimetable()
+        elif timetable:
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
         else:
-            raise TypeError("cannot specify both 'schedule_interval' and 'timetable'")
+            if isinstance(schedule_interval, ArgNotSet):
+                schedule_interval = DEFAULT_SCHEDULE_INTERVAL
+            self.schedule_interval: ScheduleInterval = schedule_interval
+            self.timetable = create_timetable(schedule_interval, self.timezone)
 
         if isinstance(template_searchpath, str):
             template_searchpath = [template_searchpath]
