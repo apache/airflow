@@ -44,6 +44,7 @@ from airflow.utils.cli import get_dag, get_dags, process_subdir, sigint_handler,
 from airflow.utils.dot_renderer import render_dag, render_dag_dependencies
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.state import DagRunState
+from airflow.utils.helpers import ask_yesno
 
 log = logging.getLogger(__name__)
 
@@ -69,11 +70,20 @@ def dag_backfill(args, dag=None):
         raise AirflowException("Provide a start_date and/or end_date")
 
     if not dag:
-        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.dag_regex)
+        dags = get_dags(args.subdir, dag_id=args.dag_id, use_regex=args.treat_dag_as_regex)
     else:
         dags = dag if type(dag) == list else [dag]
 
     dags.sort(key=lambda d: d.dag_id)
+
+    dag_id_list = "\n".join(str(dag.dag_id) for dag in dags)
+    question = (
+        "You are about to backfill these {count} DAGs:\n{dag_id_list}\n\nAre you sure? [y/n]"
+    ).format(count=len(dags), dag_id_list=dag_id_list)
+    do_it = ask_yesno(question)
+
+    if not do_it:
+        sys.exit(0)
 
     # If only one date is passed, using same as start and end
     args.end_date = args.end_date or args.start_date
