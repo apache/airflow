@@ -18,6 +18,8 @@
 from unittest import mock
 from unittest.mock import call
 
+import pytest
+
 from airflow_breeze.utils.docker_command_utils import (
     check_docker_compose_version,
     check_docker_context,
@@ -226,7 +228,8 @@ def test_check_docker_context_default(mock_get_console, mock_run_command):
 def test_check_docker_context_other(mock_get_console, mock_run_command):
     mock_run_command.return_value.returncode = 0
     mock_run_command.return_value.stdout = "other"
-    check_docker_context(verbose=True)
+    with pytest.raises(SystemExit):
+        check_docker_context(verbose=True)
     mock_run_command.assert_called_with(
         ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
         verbose=True,
