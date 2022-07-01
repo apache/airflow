@@ -240,7 +240,17 @@ class OperatorPartial:
         return op
 
 
-@attr.define(kw_only=True)
+@attr.define(
+    kw_only=True,
+    # Disable custom __getstate__ and __setstate__ generation since it interacts
+    # badly with Airflow's DAG serialization and pickling. When a mapped task is
+    # deserialized, subclasses are coerced into MappedOperator, but when it goes
+    # through DAG pickling, all attributes defined in the subclasses are dropped
+    # by attrs's custom state management. Since attrs does not do anything too
+    # special here (the logic is only important for slots=True), we use Python's
+    # built-in implementation, which works (as proven by good old BaseOperator).
+    getstate_setstate=False,
+)
 class MappedOperator(AbstractOperator):
     """Object representing a mapped operator in a DAG."""
 
