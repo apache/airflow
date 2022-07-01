@@ -77,12 +77,7 @@ class OracleHook(DbApiHook):
 
         .. code-block:: python
 
-           {
-               "dsn": (
-                   "(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)"
-                   "(HOST=host)(PORT=1521))(CONNECT_DATA=(SID=sid)))"
-               )
-           }
+           {"dsn": ("(DESCRIPTION=(ADDRESS=(PROTOCOL=TCP)(HOST=host)(PORT=1521))(CONNECT_DATA=(SID=sid)))")}
 
         see more param detail in `oracledb.connect
         <https://python-oracledb.readthedocs.io/en/latest/api_manual/module.html#oracledb.connect>`_

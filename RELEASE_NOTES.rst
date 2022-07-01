@@ -6874,9 +6874,7 @@ New signature:
 
 .. code-block:: python
 
-   def wait_for_transfer_job(
-       self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)
-   ):
+   def wait_for_transfer_job(self, job, expected_statuses=(GcpTransferOperationStatus.SUCCESS,)):
        ...
 
 The behavior of ``wait_for_transfer_job`` has changed:

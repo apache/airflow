@@ -313,17 +313,13 @@ Example
         def federated(self):
             return "federation" in self.extra_config
 
-        def _create_basic_session(
-            self, session_kwargs: Dict[str, Any]
-        ) -> boto3.session.Session:
+        def _create_basic_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
             if self.federated:
                 return self._create_federated_session(session_kwargs)
             else:
                 return super()._create_basic_session(session_kwargs)
 
-        def _create_federated_session(
-            self, session_kwargs: Dict[str, Any]
-        ) -> boto3.session.Session:
+        def _create_federated_session(self, session_kwargs: Dict[str, Any]) -> boto3.session.Session:
             username = self.extra_config["federation"]["username"]
             region_name = self._get_region_name()
             self.log.debug(

@@ -173,9 +173,7 @@ It is possible to use ``partial`` and ``expand`` with classic style operators as
 
 .. code-block:: python
 
-    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
-        bash_command=["echo 1", "echo 2"]
-    )
+    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(bash_command=["echo 1", "echo 2"])
 
 .. note:: Only keyword arguments are allowed to be passed to ``partial()``.
 
@@ -224,9 +222,7 @@ In this example you have a regular data delivery to an S3 bucket and want to app
         def total(lines):
             return sum(lines)
 
-        counts = count_lines.partial(aws_conn_id="aws_default", bucket=files.bucket).expand(
-            file=XComArg(files)
-        )
+        counts = count_lines.partial(aws_conn_id="aws_default", bucket=files.bucket).expand(file=XComArg(files))
         total(lines=counts)
 
 What data types can be expanded?
@@ -299,9 +295,7 @@ There are two limits that you can place on a task:
           return x + 1
 
 
-      BashOperator.partial(task_id="my_task", max_active_tis_per_dag=16).expand(
-          bash_command=commands
-      )
+      BashOperator.partial(task_id="my_task", max_active_tis_per_dag=16).expand(bash_command=commands)
 
 Automatically skipping zero-length maps
 =======================================

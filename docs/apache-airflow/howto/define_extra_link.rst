@@ -93,12 +93,10 @@ tasks using :class:`~airflow.providers.amazon.aws.transfers.gcs_to_s3.GCSToS3Ope
       operators = [GCSToS3Operator]
 
       def get_link(self, operator, *, ti_key):
-          return (
-              "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{run_id}".format(
-                  dag_id=operator.dag_id,
-                  task_id=operator.task_id,
-                  run_id=ti_key.run_id,
-              )
+          return "https://s3.amazonaws.com/airflow-logs/{dag_id}/{task_id}/{run_id}".format(
+              dag_id=operator.dag_id,
+              task_id=operator.task_id,
+              run_id=ti_key.run_id,
           )
 
 
