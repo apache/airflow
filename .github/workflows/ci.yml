@@ -1717,6 +1717,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Push CI cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze build-image
+          --builder airflow_cache
           --prepare-buildx-cache
           --force-build
           --platform ${{ matrix.platform }}
@@ -1727,6 +1728,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Push PROD cache ${{ matrix.python-version }} ${{ matrix.platform }}"
         run: >
           breeze build-prod-image
+          --builder airflow_cache
           --airflow-is-in-context
           --install-packages-from-context
           --prepare-buildx-cache
