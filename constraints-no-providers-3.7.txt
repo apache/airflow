@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-01T09:52:49Z
+# This constraints file was automatically generated on 2022-07-01T18:16:22Z
 # via "eager-upgrade" mechanism of PIP. For the "v2-3-test" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -160,7 +160,7 @@ thrift-sasl==0.4.3
 thrift==0.16.0
 toolz==0.11.2
 tornado==6.1
-typing_extensions==4.2.0
+typing_extensions==4.3.0
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
 urllib3==1.26.9
