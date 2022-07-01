@@ -211,6 +211,19 @@ class TestKubernetesPodOperator:
         pod = self.run_pod(k)
         assert pod.metadata.namespace == 'hihi'
 
+    def test_hook_get_namespace_call(self):
+        k = KubernetesPodOperator(
+            image="ubuntu:16.04",
+            cmds=["bash", "-cx"],
+            labels={"foo": "bar"},
+            name="test",
+            task_id="task",
+            do_xcom_push=False,
+            in_cluster=False,
+        )
+        k.build_pod_request_obj()
+        self.hook_mock.return_value.get_namespace.assert_called_once_with(default=None)
+
     def test_labels_mapped(self):
         k = KubernetesPodOperator(
             namespace="default",
@@ -383,7 +396,7 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
     def test_full_pod_spec(self, randomize_name, pod_spec):
         pod_spec_name_base = pod_spec.metadata.name
-
+        self.hook_mock.return_value.get_namespace.return_value = None  # true since no conn_id provided
         k = KubernetesPodOperator(
             task_id="task",
             random_name_suffix=randomize_name,
@@ -418,6 +431,7 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
     def test_full_pod_spec_kwargs(self, randomize_name, pod_spec):
         # kwargs take precedence, however
+        self.hook_mock.return_value.get_namespace.return_value = None  # true since no conn_id provided
         image = "some.custom.image:andtag"
         name_base = "world"
         k = KubernetesPodOperator(
@@ -500,6 +514,7 @@ class TestKubernetesPodOperator:
 
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
     def test_pod_template_file(self, randomize_name, pod_template_file):
+        self.hook_mock.return_value.get_namespace.return_value = None  # true since no conn_id provided
         k = KubernetesPodOperator(
             task_id="task",
             random_name_suffix=randomize_name,
@@ -562,6 +577,7 @@ class TestKubernetesPodOperator:
     @pytest.mark.parametrize(("randomize_name",), ([True], [False]))
     def test_pod_template_file_kwargs_override(self, randomize_name, pod_template_file):
         # kwargs take precedence, however
+        self.hook_mock.return_value.get_namespace.return_value = None  # true since no conn_id provided
         image = "some.custom.image:andtag"
         name_base = "world"
         k = KubernetesPodOperator(
