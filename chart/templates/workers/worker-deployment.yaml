@@ -219,6 +219,9 @@ spec:
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" . | indent 8 }}
         {{- end }}
+{{- if .Values.workers.extraEnv }}
+{{ tpl (toYaml .Values.workers.extraEnv) $ | indent 12 }}
+{{- end }}
 {{- if $persistence }}
         - name: worker-log-groomer
           image: {{ template "airflow_image" . }}

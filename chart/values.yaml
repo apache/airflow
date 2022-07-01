@@ -591,6 +591,9 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+  extraEnv:
+  - name: TEST_ENV_1
+    value: "test_env_1"
 
 # Airflow scheduler settings
 scheduler:
@@ -703,6 +706,10 @@ scheduler:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+
+  extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
 
 # Airflow create user job settings
 createUserJob:
@@ -978,6 +985,9 @@ webserver:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+  extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
 
 # Airflow Triggerer Config
 triggerer:
@@ -1068,6 +1078,9 @@ triggerer:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+  extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
 
 # Flower settings
 flower:
@@ -1161,6 +1174,10 @@ flower:
   priorityClassName: ~
 
   podAnnotations: {}
+
+  extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
 
 # StatsD settings
 statsd:

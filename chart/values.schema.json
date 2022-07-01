@@ -551,6 +551,11 @@
                                 "IfNotPresent"
                             ],
                             "default": "IfNotPresent"
+                        },
+                        "extraEnv": {
+                            "description": "Add additional env vars to flower.",
+                            "type": "array",
+                            "default": []
                         }
                     }
                 },
@@ -1538,6 +1543,11 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "extraEnv": {
+                    "description": "Add additional env vars to worker.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
@@ -1874,6 +1884,11 @@
                             "default": true
                         }
                     }
+                },
+                "extraEnv": {
+                    "description": "Add additional env vars to scheduler.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
@@ -2132,6 +2147,11 @@
                             "default": true
                         }
                     }
+                },
+                "extraEnv": {
+                    "description": "Add additional env vars to triggerer.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
@@ -2961,6 +2981,11 @@
                             "default": true
                         }
                     }
+                },
+                "extraEnv": {
+                    "description": "Add additional env vars to webserver.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
@@ -3282,6 +3307,11 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "extraEnv": {
+                    "description": "Add additional env vars to flower.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },

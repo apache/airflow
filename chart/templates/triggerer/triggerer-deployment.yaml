@@ -166,6 +166,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+{{- if .Values.triggerer.extraEnv }}
+{{ tpl (toYaml .Values.triggerer.extraEnv) $ | indent 12 }}
+{{- end }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.triggerer.livenessProbe.initialDelaySeconds }}
             timeoutSeconds: {{ .Values.triggerer.livenessProbe.timeoutSeconds }}
