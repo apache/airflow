@@ -59,10 +59,21 @@ class MongoHook(BaseHook):
 
         srv = self.extras.pop('srv', False)
         scheme = 'mongodb+srv' if srv else 'mongodb'
-
+        if self.extras:
+            extras='?'
+            first=True
+            for k,v in self.extras.items():
+                if first:
+                   extras += f"{k}={v}"
+                   first = False
+                else:
+                   extras += f"&{k}={v}"
+        else:
+            extras = ''
         creds = f'{self.connection.login}:{self.connection.password}@' if self.connection.login else ''
         port = '' if self.connection.port is None else f':{self.connection.port}'
-        self.uri = f'{scheme}://{creds}{self.connection.host}{port}/{self.connection.schema}'
+        database = '/' + self.connection.schema if self.connection.schema else ''
+        self.uri = f'{scheme}://{creds}{self.connection.host}{port}{database}{extras if self.connection.schema else '/' + extras}'
 
     def __enter__(self):
         return self
