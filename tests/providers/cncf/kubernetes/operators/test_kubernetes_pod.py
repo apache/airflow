@@ -211,19 +211,6 @@ class TestKubernetesPodOperator:
         pod = self.run_pod(k)
         assert pod.metadata.namespace == 'hihi'
 
-    def test_hook_get_namespace_call(self):
-        k = KubernetesPodOperator(
-            image="ubuntu:16.04",
-            cmds=["bash", "-cx"],
-            labels={"foo": "bar"},
-            name="test",
-            task_id="task",
-            do_xcom_push=False,
-            in_cluster=False,
-        )
-        k.build_pod_request_obj()
-        self.hook_mock.return_value.get_namespace.assert_called_once_with(default=None)
-
     def test_labels_mapped(self):
         k = KubernetesPodOperator(
             namespace="default",
