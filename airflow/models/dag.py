@@ -63,7 +63,7 @@ import airflow.templates
 from airflow import settings, utils
 from airflow.compat.functools import cached_property
 from airflow.configuration import conf
-from airflow.exceptions import AirflowException, DuplicateTaskIdFound, TaskNotFound
+from airflow.exceptions import AirflowDagInconsistent, AirflowException, DuplicateTaskIdFound, TaskNotFound
 from airflow.models.abstractoperator import AbstractOperator
 from airflow.models.base import ID_LEN, Base
 from airflow.models.dagbag import DagBag
@@ -78,7 +78,7 @@ from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
 from airflow.timetables.simple import NullTimetable, OnceTimetable
-from airflow.typing_compat import Literal, RePatternType
+from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
 from airflow.utils.dates import cron_presets, date_range as utils_date_range
@@ -483,6 +483,47 @@ class DAG(LoggingMixin):
         self.tags = tags or []
         self._task_group = TaskGroup.create_root(self)
         self.validate_schedule_and_params()
+
+    def _check_schedule_interval_matches_timetable(self) -> bool:
+        """Check ``schedule_interval`` and ``timetable`` match.
+
+        This is done as a part of the DAG validation done before it's bagged, to
+        guard against the DAG's ``timetable`` (or ``schedule_interval``) from
+        being changed after it's created, e.g.
+
+        .. code-block:: python
+
+            dag1 = DAG("d1", timetable=MyTimetable())
+            dag1.schedule_interval = "@once"
+
+            dag2 = DAG("d2", schedule_interval="@once")
+            dag2.timetable = MyTimetable()
+
+        Validation is done by creating a timetable and check its summary matches
+        ``schedule_interval``. The logic is not bullet-proof, especially if a
+        custom timetable does not provide a useful ``summary``. But this is the
+        best we can do.
+        """
+        if self.schedule_interval == self.timetable.summary:
+            return True
+        try:
+            timetable = create_timetable(self.schedule_interval, self.timezone)
+        except ValueError:
+            return False
+        return timetable.summary == self.timetable.summary
+
+    def validate(self):
+        """Validate the DAG has a coherent setup.
+
+        This is called by the DAG bag before bagging the DAG.
+        """
+        if not self._check_schedule_interval_matches_timetable():
+            raise AirflowDagInconsistent(
+                f"inconsistent schedule: timetable {self.timetable.summary!r} "
+                f"does not match schedule_interval {self.schedule_interval!r}",
+            )
+        self.params.validate()
+        self.timetable.validate()
 
     def __repr__(self):
         return f"<DAG: {self.dag_id}>"
@@ -1957,7 +1998,7 @@ class DAG(LoggingMixin):
 
     def partial_subset(
         self,
-        task_ids_or_regex: Union[str, RePatternType, Iterable[str]],
+        task_ids_or_regex: Union[str, re.Pattern, Iterable[str]],
         include_downstream=False,
         include_upstream=True,
         include_direct_upstream=False,
@@ -1976,7 +2017,6 @@ class DAG(LoggingMixin):
         :param include_direct_upstream: Include all tasks directly upstream of matched
             and downstream (if include_downstream = True) tasks
         """
-
         from airflow.models.baseoperator import BaseOperator
         from airflow.models.mappedoperator import MappedOperator
 
@@ -1985,7 +2025,7 @@ class DAG(LoggingMixin):
         memo = {id(self.task_dict): None, id(self._task_group): None}
         dag = copy.deepcopy(self, memo)  # type: ignore
 
-        if isinstance(task_ids_or_regex, (str, RePatternType)):
+        if isinstance(task_ids_or_regex, (str, re.Pattern)):
             matched_tasks = [t for t in self.tasks if re.findall(task_ids_or_regex, t.task_id)]
         else:
             matched_tasks = [t for t in self.tasks if t.task_id in task_ids_or_regex]
@@ -2699,7 +2739,7 @@ class DagModel(Base):
     max_active_runs = Column(Integer, nullable=True)
 
     has_task_concurrency_limits = Column(Boolean, nullable=False)
-    has_import_errors = Column(Boolean(), default=False)
+    has_import_errors = Column(Boolean(), default=False, server_default='0')
 
     # The logical date of the next dag run.
     next_dagrun = Column(UtcDateTime)

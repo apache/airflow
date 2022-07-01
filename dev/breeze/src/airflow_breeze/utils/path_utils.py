@@ -19,6 +19,7 @@ Useful tools for various Paths used inside Airflow Sources.
 """
 import hashlib
 import os
+import subprocess
 import sys
 import tempfile
 from functools import lru_cache
@@ -237,7 +238,9 @@ def find_airflow_sources_root_to_operate_on() -> Path:
 
 AIRFLOW_SOURCES_ROOT = find_airflow_sources_root_to_operate_on().resolve()
 BUILD_CACHE_DIR = AIRFLOW_SOURCES_ROOT / '.build'
+DAGS_DIR = AIRFLOW_SOURCES_ROOT / 'dags'
 FILES_DIR = AIRFLOW_SOURCES_ROOT / 'files'
+HOOKS_DIR = AIRFLOW_SOURCES_ROOT / 'hooks'
 MSSQL_DATA_VOLUME = AIRFLOW_SOURCES_ROOT / 'tmp_mssql_volume'
 KUBE_DIR = AIRFLOW_SOURCES_ROOT / ".kube"
 LOGS_DIR = AIRFLOW_SOURCES_ROOT / 'logs'
@@ -249,13 +252,42 @@ OUTPUT_LOG = Path(CACHE_TMP_FILE_DIR.name, 'out.log')
 BREEZE_SOURCES_ROOT = AIRFLOW_SOURCES_ROOT / "dev" / "breeze"
 
 
+def create_volume_if_missing(volume_name: str):
+    from airflow_breeze.utils.run_utils import run_command
+
+    res_inspect = run_command(
+        cmd=["docker", "volume", "inspect", volume_name],
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        check=False,
+    )
+    if res_inspect.returncode != 0:
+        result = run_command(
+            cmd=["docker", "volume", "create", volume_name],
+            check=False,
+            capture_output=True,
+        )
+        if result.returncode != 0:
+            get_console().print(
+                "[warning]\nMypy Cache volume could not be created. Continuing, but you "
+                "should make sure your docker works.\n\n"
+                f"Error: {result.stdout}\n"
+            )
+
+
+def create_static_check_volumes():
+    create_volume_if_missing("mypy-cache-volume")
+
+
 def create_directories_and_files() -> None:
     """
     Creates all directories and files that are needed for Breeze to work via docker-compose.
     Checks if setup has been updates since last time and proposes to upgrade if so.
     """
     BUILD_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    DAGS_DIR.mkdir(parents=True, exist_ok=True)
     FILES_DIR.mkdir(parents=True, exist_ok=True)
+    HOOKS_DIR.mkdir(parents=True, exist_ok=True)
     MSSQL_DATA_VOLUME.mkdir(parents=True, exist_ok=True)
     KUBE_DIR.mkdir(parents=True, exist_ok=True)
     LOGS_DIR.mkdir(parents=True, exist_ok=True)
@@ -264,3 +296,4 @@ def create_directories_and_files() -> None:
     (AIRFLOW_SOURCES_ROOT / ".bash_aliases").touch()
     (AIRFLOW_SOURCES_ROOT / ".bash_history").touch()
     (AIRFLOW_SOURCES_ROOT / ".inputrc").touch()
+    create_static_check_volumes()

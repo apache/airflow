@@ -68,6 +68,7 @@ Committers
 - Kevin Yang (@KevinYang21)
 - Leah Cole (@leahecole)
 - Maxime "Max" Beauchemin (@mistercrunch)
+- Ping Zhang (@pingzh)
 - Qian Yu (@yuqian90)
 - Qingping Hou (@houqp)
 - Ry Walker (@ryw)

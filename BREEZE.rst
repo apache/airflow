@@ -127,9 +127,17 @@ Docker in WSL 2
 
 - **WSL 2 Docker mount errors**:
     Another reason to use Linux filesystem, is that sometimes - depending on the length of
-    your path, you might get strange errors when you try start ``Breeze``, such us
+    your path, you might get strange errors when you try start ``Breeze``, such as
     ``caused: mount through procfd: not a directory: unknown:``. Therefore checking out
     Airflow in Windows-mounted Filesystem is strongly discouraged.
+
+- **WSL 2 Docker volume remount errors**:
+    If you're experiencing errors such as ``ERROR: for docker-compose_airflow_run
+    Cannot create container for service airflow: not a directory`` when starting Breeze
+    after the first time or an error like ``docker: Error response from daemon: not a directory.
+    See 'docker run --help'.`` when running the pre-commit tests, you may need to consider
+    `installing Docker directly in WSL 2 <https://dev.to/bowmanjd/install-docker-on-windows-wsl-without-docker-desktop-34m9>`_
+    instead of using Docker Desktop for Windows.
 
 - **WSL 2 Memory Usage** :
     WSL 2 can consume a lot of memory under the process name "Vmmem". To reclaim the memory after
@@ -427,6 +435,17 @@ of help of the commands only when they change.
   :width: 100%
   :alt: Breeze command-hash-export
 
+Regenerating images for documentation
+=====================================
+
+This documentation contains exported images with "help" of their commands and parameters. You can
+regenerate all those images (which might be needed in case new version of rich is used) via
+``regenerate-command-images`` command.
+
+.. image:: ./images/breeze/output-regenerate-command-images.svg
+  :width: 100%
+  :alt: Breeze regenerate-command-images
+
 
 Starting complete Airflow installation
 ======================================
@@ -546,12 +565,16 @@ Configuration and maintenance
 * Cleanup breeze with ``breeze cleanup`` command
 * Self-upgrade breeze with ``breeze self-upgrade`` command
 * Setup autocomplete for Breeze with ``breeze setup-autocomplete`` command
-* Checking available resources for docker with ``breeze resource-check`` command
-* Freeing space needed to run CI tests with ``breeze free-space`` command
-* Fixing ownership of files in your repository with ``breeze fix-ownership`` command
 * Print Breeze version with ``breeze version`` command
 * Outputs hash of commands defined by ``breeze`` with ``command-hash-export`` (useful to avoid needless
   regeneration of Breeze images)
+
+CI tasks
+--------
+* Freeing space needed to run CI tests with ``breeze free-space`` command
+* Fixing ownership of files in your repository with ``breeze fix-ownership`` command
+* Checking available resources for docker with ``breeze resource-check`` command
+* Deciding which tests should be run with ``breeze selective-check`` command
 
 Release tasks
 -------------
@@ -1000,7 +1023,7 @@ you have auto-complete setup you should see auto-completable list of all checks 
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy
+     breeze static-checks -t run-mypy
 
 The above will run mypy check for currently staged files.
 
@@ -1008,7 +1031,7 @@ You can also pass specific pre-commit flags for example ``--all-files`` :
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --all-files
+     breeze static-checks -t run-mypy --all-files
 
 The above will run mypy check for all files.
 
@@ -1016,7 +1039,7 @@ There is a convenience ``--last-commit`` flag that you can use to run static che
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --last-commit
+     breeze static-checks -t run-mypy --last-commit
 
 The above will run mypy check for all files in the last commit.
 
@@ -1024,7 +1047,7 @@ There is another convenience ``--commit-ref`` flag that you can use to run stati
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks -t run-mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
@@ -1276,8 +1299,8 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
-Resource check
-==============
+Running resource check
+----------------------
 
 Breeze requires certain resources to be available - disk, memory, CPU. When you enter Breeze's shell,
 the resources are checked and information if there is enough resources is displayed. However you can
@@ -1291,7 +1314,7 @@ Those are all available flags of ``resource-check`` command:
 
 
 Freeing the space
-=================
+-----------------
 
 When our CI runs a job, it needs all memory and disk it can have. We have a Breeze command that frees
 the memory and disk space used. You can also use it clear space locally but it performs a few operations
@@ -1304,8 +1327,26 @@ Those are all available flags of ``free-space`` command:
   :alt: Breeze free-space
 
 
+Selective check
+---------------
+
+When our CI runs a job, it needs to decide which tests to run, whether to build images and how much the test
+should be run on multiple combinations of Python, Kubernetes, Backend versions. In order to optimize time
+needed to run the CI Builds. You can also use the tool to test what tests will be run when you provide
+a specific commit that Breeze should run the tests on.
+
+More details about the algorithm used to pick the right tests can be
+found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
+
+Those are all available flags of ``selective-check`` command:
+
+.. image:: ./images/breeze/output-selective-check.svg
+  :width: 100%
+  :alt: Breeze selective-check
+
+
 Tracking backtracking issues for CI builds
-==========================================
+------------------------------------------
 
 When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
 lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.

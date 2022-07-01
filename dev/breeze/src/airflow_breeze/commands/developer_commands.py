@@ -21,10 +21,11 @@ from typing import Iterable, Optional, Tuple
 
 import rich_click as click
 
-from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
+    DOCKER_DEFAULT_PLATFORM,
     MOUNT_SELECTED,
     get_available_packages,
 )
@@ -44,6 +45,7 @@ from airflow_breeze.utils.common_options import (
     option_force_build,
     option_forward_credentials,
     option_github_repository,
+    option_image_tag_for_running,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -51,6 +53,7 @@ from airflow_breeze.utils.common_options import (
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
+    option_platform_single,
     option_postgres_version,
     option_python,
     option_use_airflow_version,
@@ -110,6 +113,7 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
             ],
@@ -138,6 +142,7 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
             ],
@@ -168,6 +173,7 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
             ],
         },
@@ -221,6 +227,7 @@ DEVELOPER_PARAMETERS = {
 @option_verbose
 @option_dry_run
 @option_python
+@option_platform_single
 @option_backend
 @option_debian_version
 @option_github_repository
@@ -237,6 +244,7 @@ DEVELOPER_PARAMETERS = {
 @option_mount_sources
 @option_integration
 @option_db_reset
+@option_image_tag_for_running
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
@@ -260,6 +268,8 @@ def shell(
     force_build: bool,
     db_reset: bool,
     answer: Optional[str],
+    image_tag: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment. this is the default command use when no other is selected."""
@@ -288,6 +298,8 @@ def shell(
         extra_args=extra_args,
         answer=answer,
         debian_version=debian_version,
+        image_tag=image_tag,
+        platform=platform,
     )
 
 
@@ -295,6 +307,7 @@ def shell(
 @main.command(name='start-airflow')
 @option_dry_run
 @option_python
+@option_platform_single
 @option_github_repository
 @option_backend
 @option_postgres_version
@@ -311,6 +324,7 @@ def shell(
 @option_installation_package_format
 @option_mount_sources
 @option_integration
+@option_image_tag_for_running
 @option_db_reset
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
@@ -334,8 +348,10 @@ def start_airflow(
     use_packages_from_dist: bool,
     package_format: str,
     force_build: bool,
+    image_tag: Optional[str],
     db_reset: bool,
     answer: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
@@ -361,6 +377,8 @@ def start_airflow(
         force_build=force_build,
         db_reset=db_reset,
         start_airflow=True,
+        image_tag=image_tag,
+        platform=platform,
         extra_args=extra_args,
         answer=answer,
     )
@@ -397,7 +415,7 @@ def build_docs(
     """Build documentation in the container."""
     perform_environment_checks(verbose=verbose)
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    rebuild_ci_image_if_needed(build_params=params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=params, dry_run=dry_run, verbose=verbose)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
@@ -524,7 +542,7 @@ def stop(verbose: bool, dry_run: bool, preserve_volumes: bool):
     command_to_execute = ['docker-compose', 'down', "--remove-orphans"]
     if not preserve_volumes:
         command_to_execute.append("--volumes")
-    shell_params = ShellParams(verbose=verbose, backend="all")
+    shell_params = ShellParams(verbose=verbose, backend="all", include_mypy_volume=True)
     env_variables = get_env_variables_for_docker_commands(shell_params)
     run_command(command_to_execute, verbose=verbose, dry_run=dry_run, env=env_variables)
 
@@ -579,7 +597,8 @@ def enter_shell(**kwargs) -> RunCommandResult:
     if read_from_cache_file('suppress_cheatsheet') is None:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
-    rebuild_ci_image_if_needed(build_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
+    enter_shell_params.include_mypy_volume = True
+    rebuild_or_pull_ci_image_if_needed(command_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
     return run_shell(verbose, dry_run, enter_shell_params)
 
 
@@ -600,7 +619,13 @@ def run_shell(verbose: bool, dry_run: bool, shell_params: ShellParams) -> RunCom
     env_variables = get_env_variables_for_docker_commands(shell_params)
     if cmd_added is not None:
         cmd.extend(['-c', cmd_added])
-
+    if "arm64" in DOCKER_DEFAULT_PLATFORM:
+        if shell_params.backend == "mysql":
+            get_console().print('\n[error]MySQL is not supported on ARM architecture.[/]\n')
+            sys.exit(1)
+        if shell_params.backend == "mssql":
+            get_console().print('\n[error]MSSQL is not supported on ARM architecture[/]\n')
+            sys.exit(1)
     command_result = run_command(
         cmd, verbose=verbose, dry_run=dry_run, env=env_variables, text=True, check=False
     )

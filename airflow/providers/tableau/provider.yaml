@@ -22,6 +22,7 @@ description: |
     `Tableau <https://www.tableau.com/>`__
 
 versions:
+  - 3.0.0
   - 2.1.8
   - 2.1.7
   - 2.1.6
@@ -34,8 +35,9 @@ versions:
   - 2.0.0
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.2.0
+  - tableauserverclient
 
 integrations:
   - integration-name: Tableau
@@ -61,9 +63,6 @@ hooks:
   - integration-name: Tableau
     python-modules:
       - airflow.providers.tableau.hooks.tableau
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.tableau.hooks.tableau.TableauHook
 
 connection-types:
   - hook-class-name: airflow.providers.tableau.hooks.tableau.TableauHook

@@ -122,6 +122,28 @@ class TestGoogleCloudStorageToCloudStorageOperator(unittest.TestCase):
         mock_hook.return_value.list.assert_has_calls(mock_calls)
 
     @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
+    def test_copy_file_with_exact_match(self, mock_hook):
+        SOURCE_FILES = [
+            'test_object.txt',
+            'test_object.txt.copy/',
+            'test_object.txt.folder/',
+        ]
+        mock_hook.return_value.list.return_value = SOURCE_FILES
+        operator = GCSToGCSOperator(
+            task_id=TASK_ID,
+            source_bucket=TEST_BUCKET,
+            source_object=SOURCE_OBJECT_NO_WILDCARD,
+            destination_bucket=DESTINATION_BUCKET,
+            exact_match=True,
+        )
+
+        operator.execute(None)
+        mock_calls = [
+            mock.call(TEST_BUCKET, prefix="test_object.txt", delimiter=None),
+        ]
+        mock_hook.return_value.list.assert_has_calls(mock_calls)
+
+    @mock.patch('airflow.providers.google.cloud.transfers.gcs_to_gcs.GCSHook')
     def test_execute_prefix_and_suffix(self, mock_hook):
         operator = GCSToGCSOperator(
             task_id=TASK_ID,

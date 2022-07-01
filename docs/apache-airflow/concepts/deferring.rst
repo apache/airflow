@@ -82,6 +82,12 @@ You are free to set ``method_name`` to ``execute`` if you want your Operator to 
 
 Here's a basic example of how a sensor might trigger deferral::
 
+    from datetime import timedelta
+
+    from airflow.sensors.base import BaseSensorOperator
+    from airflow.triggers.temporal import TimeDeltaTrigger
+
+
     class WaitOneHourSensor(BaseSensorOperator):
         def execute(self, context):
             self.defer(trigger=TimeDeltaTrigger(timedelta(hours=1)), method_name="execute_complete")
@@ -120,6 +126,12 @@ There's also some design constraints to be aware of:
 
 
 Here's the structure of a basic Trigger::
+
+
+    import asyncio
+
+    from airflow.triggers.base import BaseTrigger, TriggerEvent
+    from airflow.utils import timezone
 
 
     class DateTimeTrigger(BaseTrigger):

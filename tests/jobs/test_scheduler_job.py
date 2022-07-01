@@ -381,6 +381,68 @@ class TestSchedulerJob:
         ti1.refresh_from_db()
         assert ti1.state == State.FAILED
 
+    @mock.patch('airflow.jobs.scheduler_job.TaskCallbackRequest')
+    @mock.patch('airflow.jobs.scheduler_job.Stats.incr')
+    def test_process_executor_events_ti_requeued(self, mock_stats_incr, mock_task_callback, dag_maker):
+        dag_id = "test_process_executor_events_ti_requeued"
+        task_id_1 = 'dummy_task'
+
+        session = settings.Session()
+        with dag_maker(dag_id=dag_id, fileloc='/test_path1/'):
+            task1 = EmptyOperator(task_id=task_id_1)
+        ti1 = dag_maker.create_dagrun().get_task_instance(task1.task_id)
+
+        mock_stats_incr.reset_mock()
+
+        executor = MockExecutor(do_update=False)
+        task_callback = mock.MagicMock()
+        mock_task_callback.return_value = task_callback
+        self.scheduler_job = SchedulerJob(executor=executor)
+        self.scheduler_job.id = 1
+        self.scheduler_job.processor_agent = mock.MagicMock()
+
+        # ti is queued with another try number - do not fail it
+        ti1.state = State.QUEUED
+        ti1.queued_by_job_id = 1
+        ti1.try_number = 2
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key.with_try_number(1)] = State.SUCCESS, None
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.QUEUED
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
+
+        # ti is queued by another scheduler - do not fail it
+        ti1.state = State.QUEUED
+        ti1.queued_by_job_id = 2
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.QUEUED
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
+
+        # ti is queued by this scheduler but it is handed back to the executor - do not fail it
+        ti1.state = State.QUEUED
+        ti1.queued_by_job_id = 1
+        session.merge(ti1)
+        session.commit()
+
+        executor.event_buffer[ti1.key] = State.SUCCESS, None
+        executor.has_task = mock.MagicMock(return_value=True)
+
+        self.scheduler_job._process_executor_events(session=session)
+        ti1.refresh_from_db(session=session)
+        assert ti1.state == State.QUEUED
+        self.scheduler_job.executor.callback_sink.send.assert_not_called()
+        mock_stats_incr.assert_not_called()
+
     def test_execute_task_instances_is_paused_wont_execute(self, session, dag_maker):
         dag_id = 'SchedulerJobTest.test_execute_task_instances_is_paused_wont_execute'
         task_id_1 = 'dummy_task'
@@ -2665,6 +2727,7 @@ class TestSchedulerJob:
             'test_ignore_this.py',
             'test_invalid_param.py',
             'test_nested_dag.py',
+            '__init__.py',
         }
         for root, _, files in os.walk(TEST_DAG_FOLDER):
             for file_name in files:
@@ -4099,42 +4162,42 @@ class TestSchedulerJob:
         ) > (timezone.utcnow() - timedelta(days=2))
 
 
-@pytest.mark.xfail(reason="Work out where this goes")
-def test_task_with_upstream_skip_process_task_instances():
+@pytest.mark.need_serialized_dag
+def test_schedule_dag_run_with_upstream_skip(dag_maker, session):
     """
-    Test if _process_task_instances puts a task instance into SKIPPED state if any of its
+    Test if _schedule_dag_run puts a task instance into SKIPPED state if any of its
     upstream tasks are skipped according to TriggerRuleDep.
     """
-    clear_db_runs()
-    with DAG(
-        dag_id='test_task_with_upstream_skip_dag', start_date=DEFAULT_DATE, schedule_interval=None
-    ) as dag:
+    with dag_maker(
+        dag_id='test_task_with_upstream_skip_process_task_instances',
+        start_date=DEFAULT_DATE,
+        session=session,
+    ):
         dummy1 = EmptyOperator(task_id='dummy1')
         dummy2 = EmptyOperator(task_id="dummy2")
         dummy3 = EmptyOperator(task_id="dummy3")
         [dummy1, dummy2] >> dummy3
-
     # dag_file_processor = DagFileProcessor(dag_ids=[], log=mock.MagicMock())
-    dag.clear()
-    dr = dag.create_dagrun(run_type=DagRunType.MANUAL, state=State.RUNNING, execution_date=DEFAULT_DATE)
+    dr = dag_maker.create_dagrun(state=State.RUNNING)
     assert dr is not None
 
-    with create_session() as session:
-        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
-        # Set dummy1 to skipped and dummy2 to success. dummy3 remains as none.
-        tis[dummy1.task_id].state = State.SKIPPED
-        tis[dummy2.task_id].state = State.SUCCESS
-        assert tis[dummy3.task_id].state == State.NONE
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    # Set dummy1 to skipped and dummy2 to success. dummy3 remains as none.
+    tis[dummy1.task_id].state = State.SKIPPED
+    tis[dummy2.task_id].state = State.SUCCESS
+    assert tis[dummy3.task_id].state == State.NONE
+    session.flush()
 
     # dag_runs = DagRun.find(dag_id='test_task_with_upstream_skip_dag')
     # dag_file_processor._process_task_instances(dag, dag_runs=dag_runs)
-
-    with create_session() as session:
-        tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
-        assert tis[dummy1.task_id].state == State.SKIPPED
-        assert tis[dummy2.task_id].state == State.SUCCESS
-        # dummy3 should be skipped because dummy1 is skipped.
-        assert tis[dummy3.task_id].state == State.SKIPPED
+    scheduler_job = SchedulerJob(subdir=os.devnull)
+    scheduler_job._schedule_dag_run(dr, session)
+    session.flush()
+    tis = {ti.task_id: ti for ti in dr.get_task_instances(session=session)}
+    assert tis[dummy1.task_id].state == State.SKIPPED
+    assert tis[dummy2.task_id].state == State.SUCCESS
+    # dummy3 should be skipped because dummy1 is skipped.
+    assert tis[dummy3.task_id].state == State.SKIPPED
 
 
 class TestSchedulerJobQueriesCount:

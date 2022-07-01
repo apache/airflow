@@ -39,13 +39,13 @@ from typing import (
 import attr
 import typing_extensions
 
-from airflow.compat.functools import cache, cached_property
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import DEFAULT_RETRIES, DEFAULT_RETRY_DELAY
 from airflow.models.baseoperator import (
     BaseOperator,
     coerce_resources,
-    coerce_retry_delay,
+    coerce_timedelta,
     get_merged_defaults,
     parse_retries,
 )
@@ -344,8 +344,15 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         if partial_kwargs.get("pool") is None:
             partial_kwargs["pool"] = Pool.DEFAULT_POOL_NAME
         partial_kwargs["retries"] = parse_retries(partial_kwargs.get("retries", DEFAULT_RETRIES))
-        partial_kwargs["retry_delay"] = coerce_retry_delay(
+        partial_kwargs["retry_delay"] = coerce_timedelta(
             partial_kwargs.get("retry_delay", DEFAULT_RETRY_DELAY),
+            key="retry_delay",
+        )
+        max_retry_delay = partial_kwargs.get("max_retry_delay")
+        partial_kwargs["max_retry_delay"] = (
+            max_retry_delay
+            if max_retry_delay is None
+            else coerce_timedelta(max_retry_delay, key="max_retry_delay")
         )
         partial_kwargs["resources"] = coerce_resources(partial_kwargs.get("resources"))
         partial_kwargs.setdefault("executor_config", {})
@@ -419,14 +426,6 @@ class DecoratedMappedOperator(MappedOperator):
 
     def __hash__(self):
         return id(self)
-
-    @classmethod
-    @cache
-    def get_serialized_fields(cls):
-        # The magic super() doesn't work here, so we use the explicit form.
-        # Not using super(..., cls) to work around pyupgrade bug.
-        sup = super(DecoratedMappedOperator, DecoratedMappedOperator)
-        return sup.get_serialized_fields() | {"mapped_op_kwargs"}
 
     def __attrs_post_init__(self):
         # The magic super() doesn't work here, so we use the explicit form.
