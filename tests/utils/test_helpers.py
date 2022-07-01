@@ -30,6 +30,7 @@ from airflow.utils.helpers import (
     validate_group_key,
     validate_key,
 )
+from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -248,16 +249,23 @@ class TestHelpers:
         they can safely be used in any combination.
         """
 
-        def assert_exactly_one(true=0, truthy=0, false=0, falsy=0):
+        def assert_exactly_one(true=0, truthy=0, false=0, falsy=0, notset=0):
             sample = []
-            for truth_value, num in [(True, true), (False, false), ('a', truthy), ('', falsy)]:
+            for truth_value, num in [
+                (True, true),
+                (False, false),
+                ('a', truthy),
+                ('', falsy),
+                (NOTSET, notset),
+            ]:
                 if num:
                     sample.extend([truth_value] * num)
             if sample:
                 expected = True if true + truthy == 1 else False
                 assert exactly_one(*sample) is expected
 
-        for row in product(range(4), range(4), range(4), range(4)):
+        for row in product(range(4), range(4), range(4), range(4), range(4)):
+            print(row)
             assert_exactly_one(*row)
 
     def test_exactly_one_should_fail(self):

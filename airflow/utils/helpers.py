@@ -39,6 +39,7 @@ from typing import (
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.utils.module_loading import import_string
+from airflow.utils.types import ArgNotSet
 
 if TYPE_CHECKING:
     import jinja2
@@ -311,7 +312,14 @@ def exactly_one(*args) -> bool:
         raise ValueError(
             "Not supported for iterable args. Use `*` to unpack your iterable in the function call."
         )
-    return sum(map(bool, args)) == 1
+
+    def is_set(val):
+        if isinstance(val, ArgNotSet):
+            return False
+        else:
+            return bool(val)
+
+    return sum(map(is_set, args)) == 1
 
 
 def prune_dict(val: Any, mode='strict'):
