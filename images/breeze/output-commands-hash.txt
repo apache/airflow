@@ -28,7 +28,7 @@ self-upgrade:b5437c0a1a91533a11ee9d0a9692369c
 setup-autocomplete:355b72dee171c2fcba46fc90ac7c97b0
 shell:ab7955da71048b3a695485c152d06786
 start-airflow:30caa077555bef44e5bdf76dfeca092c
-static-checks:96a0bcc981be838ae32f53e804157ee5
+static-checks:69bbef8c50c452faf58403d7a06f34b6
 stop:8ebd8a42f1003495d37b884de5ac7ce6
 tests:ae8d62b505ff8f79bddc202fe9d575e3
 verify-image:a6b3c70957aea96a5d4d261f23359a2d

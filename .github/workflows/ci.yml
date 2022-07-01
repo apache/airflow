@@ -167,6 +167,7 @@ jobs:
       needs-api-codegen: ${{ steps.selective-checks.outputs.needs-api-codegen }}
       default-branch: ${{ steps.selective-checks.outputs.default-branch }}
       docs-filter: ${{ steps.selective-checks.outputs.docs-filter }}
+      skip-pre-commits: ${{ steps.selective-checks.outputs.skip-pre-commits }}
       sourceHeadRepo: ${{ steps.source-run-info.outputs.sourceHeadRepo }}
       pullRequestNumber: ${{ steps.source-run-info.outputs.pullRequestNumber }}
       pullRequestLabels: ${{ steps.source-run-info.outputs.pullRequestLabels }}
@@ -634,7 +635,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze static-checks --all-files --show-diff-on-failure --color always
         env:
           VERBOSE: "false"
-          SKIP: "identity"
+          SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
@@ -691,7 +692,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         env:
           VERBOSE: "false"
           SKIP_IMAGE_PRE_COMMITS: "true"
-          SKIP: "identity"
+          SKIP: ${{ needs.build-info.outputs.skip-pre-commits }}
           COLUMNS: "250"
       - name: "Fix ownership"
         run: breeze fix-ownership
