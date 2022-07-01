@@ -66,7 +66,7 @@ with DAG(
     tags=['upstream'],
 ) as dag2:
     BashOperator(
-        outlets=[dag1_dataset],
+        outlets=[dag2_dataset],
         inlets=[
             Dataset('s3://abc/dataset2.txt'),
         ],
