@@ -68,9 +68,10 @@ class Dataset(Base):
         super().__init__(uri=uri, **kwargs)
 
     def __eq__(self, other):
-        if not isinstance(other, self.__class__):
-            return False
-        return self.uri == other.uri
+        if isinstance(other, self.__class__):
+            return self.uri == other.uri
+        else:
+            return NotImplemented
 
     def __hash__(self):
         return hash(self.uri)
