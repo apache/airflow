@@ -2531,7 +2531,7 @@
                         "scheme": {
                             "description": "Webserver Liveness probe scheme.",
                             "type": "string",
-                            "default": "http"
+                            "default": "HTTP"
                         }
                     }
                 },
