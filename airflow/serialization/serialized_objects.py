@@ -420,10 +420,6 @@ class BaseSerialization:
             return cls._deserialize_xcomref(var)
         elif type_ == DAT.DATASET:
             return Dataset(**var)
-        elif type_ == DAT.INLET_DATASET:
-            return InletDataset(**var)
-        elif type_ == DAT.OUTLET_DATASET:
-            return OutletDataset(**var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
