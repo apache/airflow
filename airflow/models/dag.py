@@ -28,7 +28,6 @@ import sys
 import traceback
 import warnings
 import weakref
-from collections import defaultdict
 from datetime import datetime, timedelta
 from inspect import signature
 from typing import (
@@ -2432,47 +2431,6 @@ class DAG(LoggingMixin):
         log.info("Sync %s DAGs", len(dags))
         dag_by_ids = {dag.dag_id: dag for dag in dags}
 
-        from airflow.models.dataset import Dataset
-        from airflow.models.dataset_dag_ref import DatasetDagRef
-        from airflow.models.dataset_task_ref import DatasetTaskRef
-
-        class OutletRef(NamedTuple):
-            dag_id: str
-            task_id: str
-            dataset_ref: Dataset
-
-        for dag in dags:
-            for dataset in dag.schedule_on or []:
-                session.merge(
-                    DatasetDagRef(
-                        dataset_id=dataset.get_dataset_id(),
-                        dag_id=dag.dag_id,
-                    )
-                )
-
-            dataset_references = defaultdict(set)
-            for task in dag.tasks:
-                for outlet_dataset in getattr(task, '_outlets', []):  # type: Dataset
-                    if isinstance(outlet_dataset, Dataset):
-                        dataset_references[Dataset(uri=outlet_dataset.uri, extra=outlet_dataset.extra)].add(
-                            OutletRef(task.dag_id, task.task_id, outlet_dataset)
-                        )
-            for dataset, outlet_dataset_list in dataset_references.items():
-                stored_dataset = session.query(Dataset).filter(Dataset.uri == dataset.uri).first()
-                if stored_dataset:
-                    dataset = stored_dataset
-                else:
-                    session.add(dataset)
-                    session.flush()  # needed, to get integer ID col
-                for ref in outlet_dataset_list:  # type: OutletRef
-                    session.merge(
-                        DatasetTaskRef(
-                            dataset_id=dataset.id,
-                            dag_id=ref.dag_id,
-                            task_id=ref.task_id,
-                        )
-                    )
-
         dag_ids = set(dag_by_ids.keys())
         query = (
             session.query(DagModel)
@@ -2563,6 +2521,67 @@ class DAG(LoggingMixin):
                     session.add(dag_tag_orm)
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
+
+        from airflow.models.dataset import Dataset
+        from airflow.models.dataset_dag_ref import DatasetDagRef
+        from airflow.models.dataset_task_ref import DatasetTaskRef
+
+        class OutletRef(NamedTuple):
+            dag_id: str
+            task_id: str
+            uri: str
+
+        class InletRef(NamedTuple):
+            dag_id: str
+            uri: str
+
+        dag_references = set()
+        outlet_references = set()
+        all_datasets = set()
+        for dag in dags:
+            this_dag_datasets = set()
+            for dataset in dag.schedule_on or []:
+                dag_references.add(InletRef(dag.dag_id, dataset.uri))
+                this_dag_datasets.add(dataset)
+            for task in dag.tasks:
+                for obj in getattr(task, '_outlets', []):  # type: Dataset
+                    if isinstance(obj, Dataset):
+                        outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
+                        all_datasets.add(obj)
+            all_datasets.update(this_dag_datasets)
+
+        # store datasets
+        stored_datasets = {}
+        for dataset in all_datasets:
+            stored_dataset = session.query(Dataset).filter(Dataset.uri == dataset.uri).first()
+            if stored_dataset:
+                stored_datasets[stored_dataset.uri] = stored_dataset
+            else:
+                session.add(dataset)
+                stored_datasets[dataset.uri] = dataset
+
+        session.flush()  # this is required to ensure each dataset has its PK loaded
+
+        del all_datasets
+
+        # store dag-schedule-on-dataset references
+        for dag_ref in dag_references:
+            session.merge(
+                DatasetDagRef(
+                    dataset_id=stored_datasets[dag_ref.uri].id,
+                    dag_id=dag_ref.dag_id,
+                )
+            )
+
+        # store task-outlet-dataset references
+        for outlet_ref in outlet_references:
+            session.merge(
+                DatasetTaskRef(
+                    dataset_id=stored_datasets[outlet_ref.uri].id,
+                    dag_id=outlet_ref.dag_id,
+                    task_id=outlet_ref.task_id,
+                )
+            )
 
         # Issue SQL/finish "Unit of Work", but let @provide_session commit (or if passed a session, let caller
         # decide when to commit
