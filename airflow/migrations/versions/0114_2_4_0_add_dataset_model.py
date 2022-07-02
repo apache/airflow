@@ -79,7 +79,7 @@ def _create_dataset_dag_ref_table():
         ),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
-    op.create_index('idx_pk', 'dataset_dag_ref', ['dataset_id', 'dag_id'], unique=True)
+    op.create_index('idx_ddr_pk', 'dataset_dag_ref', ['dataset_id', 'dag_id'], unique=True)
 
 
 def _create_dataset_task_ref_table():
@@ -100,7 +100,7 @@ def _create_dataset_task_ref_table():
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
     op.create_index(
-        'idx_pk',
+        'idx_dtr_pk',
         'dataset_task_ref',
         [
             'dataset_id',
