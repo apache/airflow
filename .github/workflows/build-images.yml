@@ -27,7 +27,6 @@ env:
   ANSWER: "yes"
   CHECK_IMAGE_FOR_REBUILD: "true"
   SKIP_CHECK_REMOTE_IMAGE: "true"
-  DEBIAN_VERSION: "bullseye"
   DB_RESET: "true"
   VERBOSE: "true"
   GITHUB_REPOSITORY: ${{ github.repository }}
@@ -51,21 +50,22 @@ jobs:
     name: "Build Info"
     runs-on: ${{ github.repository == 'apache/airflow' && 'self-hosted' || 'ubuntu-20.04' }}
     env:
-      targetBranch: ${{ github.event.pull_request.base.ref }}
+      TARGET_BRANCH: ${{ github.event.pull_request.base.ref }}
     outputs:
-      runsOn: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
-      pythonVersions: "${{ steps.selective-checks.python-versions }}"
-      upgradeToNewerDependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
-      allPythonVersions: ${{ steps.selective-checks.outputs.all-python-versions }}
-      allPythonVersionsListAsString: ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
-      defaultPythonVersion: ${{ steps.selective-checks.outputs.default-python-version }}
+      runs-on: ${{ github.repository == 'apache/airflow' && '["self-hosted"]' || '["ubuntu-20.04"]' }}
+      python-versions: "${{ steps.selective-checks.python-versions }}"
+      upgrade-to-newer-dependencies: ${{ steps.selective-checks.outputs.upgrade-to-newer-dependencies }}
+      all-python-versions-list-as-string: >-
+        ${{ steps.selective-checks.outputs.all-python-versions-list-as-string }}
+      default-python-version: ${{ steps.selective-checks.outputs.default-python-version }}
       run-tests: ${{ steps.selective-checks.outputs.run-tests }}
       run-kubernetes-tests: ${{ steps.selective-checks.outputs.run-kubernetes-tests }}
-      image-build: ${{ steps.dynamic-outputs.outputs.image-build }}
-      cacheDirective: ${{ steps.dynamic-outputs.outputs.cacheDirective }}
-      targetBranch: ${{ steps.dynamic-outputs.outputs.targetBranch }}
-      defaultBranch: ${{ steps.selective-checks.outputs.default-branch }}
-      targetCommitSha: "${{steps.discover-pr-merge-commit.outputs.targetCommitSha ||
+      image-build: ${{ steps.selective-checks.outputs.image-build }}
+      cache-directive: ${{ steps.selective-checks.outputs.cache-directive }}
+      default-branch: ${{ steps.selective-checks.outputs.default-branch }}
+      default-constraints-branch: ${{ steps.selective-checks.outputs.default-constraints-branch }}
+      debian-version: ${{ steps.selective-checks.outputs.debian-version }}
+      target-commit-sha: "${{steps.discover-pr-merge-commit.outputs.target-commit-sha ||
           github.event.pull_request.head.sha ||
           github.sha
         }}"
@@ -75,14 +75,14 @@ jobs:
         run: |
           TARGET_COMMIT_SHA="$(gh api '${{ github.event.pull_request.url }}' --jq .merge_commit_sha)"
           echo "TARGET_COMMIT_SHA=$TARGET_COMMIT_SHA" >> $GITHUB_ENV
-          echo "::set-output name=targetCommitSha::${TARGET_COMMIT_SHA}"
+          echo "::set-output name=target-commit-sha::${TARGET_COMMIT_SHA}"
         if: github.event_name == 'pull_request_target'
       # The labels in the event aren't updated when re-triggering the job, So lets hit the API to get
       # up-to-date values
       - name: Get latest PR labels
         id: get-latest-pr-labels
         run: |
-          echo -n "::set-output name=pullRequestLabels::"
+          echo -n "::set-output name=pull-request-labels::"
           gh api graphql --paginate -F node_id=${{github.event.pull_request.node_id}} -f query='
             query($node_id: ID!, $endCursor: String) {
               node(id:$node_id) {
@@ -104,11 +104,6 @@ jobs:
           ref: ${{ env.TARGET_COMMIT_SHA }}
           persist-credentials: false
           fetch-depth: 2
-      - name: "Checkout ${{ github.ref }} ( ${{ github.sha }} )"
-        uses: actions/checkout@v3
-        with:
-          persist-credentials: false
-          submodules: recursive
       - name: "Setup python"
         uses: actions/setup-python@v4
         with:
@@ -116,56 +111,72 @@ jobs:
           python-version: 3.7
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
+      - name: "Retrieve defaults from branch_defaults.py"
+        # We cannot "execute" the branch_defaults.py python code here because that would be
+        # a security problem (we cannot run any code that comes from the sources coming from the PR.
+        # Therefore, we extract the branches via embedded Python code
+        # we need to do it before next step replaces checked-out breeze and scripts code coming from
+        # the PR, because the PR defaults have to be retrieved here.
+        id: defaults
+        run: |
+          python - <<EOF >>$GITHUB_ENV
+          from pathlib import Path
+          import re
+          import sys
+
+          DEFAULTS_CONTENT = Path('dev/breeze/src/airflow_breeze/branch_defaults.py').read_text()
+          BRANCH_PATTERN = r'^AIRFLOW_BRANCH = "(.*)"$'
+          CONSTRAINTS_BRANCH_PATTERN = r'^DEFAULT_AIRFLOW_CONSTRAINTS_BRANCH = "(.*)"$'
+          DEBIAN_VERSION_PATTERN = r'^DEBIAN_VERSION = "(.*)"$'
+
+          branch = re.search(BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
+          constraints_branch = re.search(CONSTRAINTS_BRANCH_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
+          debian_version = re.search(DEBIAN_VERSION_PATTERN, DEFAULTS_CONTENT, re.MULTILINE).group(1)
+
+          output = f"""
+          DEFAULT_BRANCH={branch}
+          DEFAULT_CONSTRAINTS_BRANCH={constraints_branch}
+          DEBIAN_VERSION={debian_version}
+          """.strip()
+
+          print(output)
+          # Stdout is redirected to GITHUB_ENV but we also print it to stderr to see it in ci log
+          print(output, file=sys.stderr)
+          EOF
+      - name: Checkout main branch to use breeze from there.
+        uses: actions/checkout@v3
+        with:
+          ref: "main"
+          persist-credentials: false
+          submodules: recursive
       - run: ./scripts/ci/install_breeze.sh
       - name: Selective checks
         id: selective-checks
         env:
-          PR_LABELS: "$${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}"
+          PR_LABELS: "$${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}"
           COMMIT_REF: "${{ env.TARGET_COMMIT_SHA }}"
         run: breeze selective-check
-      - name: Compute dynamic outputs
-        id: dynamic-outputs
-        run: |
-          set -x
-          if [[ "${{ github.event_name }}" == 'pull_request_target' ]]; then
-              echo "::set-output name=targetBranch::${targetBranch}"
-          else
-            # Direct push to branch, or scheduled build
-              echo "::set-output name=targetBranch::${GITHUB_REF#refs/heads/}"
-          fi
-
-          if [[ "${{ github.event_name }}" == 'schedule' ]]; then
-              echo "::set-output name=cacheDirective::disabled"
-          else
-              echo "::set-output name=cacheDirective:registry"
-          fi
-
-          if [[ "$SELECTIVE_CHECKS_IMAGE_BUILD" == "true" ]]; then
-              echo "::set-output name=image-build::true"
-          else
-              echo "::set-output name=image-build::false"
-          fi
-        env:
-          SELECTIVE_CHECKS_IMAGE_BUILD: ${{ steps.selective-checks.outputs.image-build }}
       - name: env
         run: printenv
         env:
-          dynamicOutputs: ${{ toJSON(steps.dynamic-outputs.outputs) }}
-          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pullRequestLabels }}
+          PR_LABELS: ${{ steps.get-latest-pr-labels.outputs.pull-request-labels }}
           GITHUB_CONTEXT: ${{ toJson(github) }}
 
   build-ci-images:
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build CI images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    name: "Build CI images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
@@ -173,40 +184,24 @@ jobs:
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v3
         with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
-          persist-credentials: false
-          submodules: recursive
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore, we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
-      - name: >
-          Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
-          to use ci/scripts from there.
-        uses: actions/checkout@v3
-        with:
-          path: "main-airflow"
-          ref: "${{ needs.build-info.outputs.targetBranch }}"
+          ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
       - name: >
-          Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
+          Checkout "main branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v3
+        with:
+          path: "main-airflow"
+          ref: "main"
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Override "scripts/ci" with the "main" branch
           so that the PR does not override it
         # We should not override those scripts which become part of the image as they will not be
         # changed in the image built - we should only override those that are executed to build
@@ -218,7 +213,7 @@ jobs:
           mv -v "main-airflow/dev" "."
       - uses: actions/setup-python@v4
         with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
@@ -235,15 +230,16 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: >
           breeze static-checks --type update-providers-dependencies --all-files
           --show-diff-on-failure --color always || true
-      - name: >
+        if: needs.build-info.outputs.default-branch == 'main'
+      - name: >-
           Build & Push AMD64 CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+          ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: breeze build-image --push-image --tag-as-latest --run-in-parallel
         env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: Push empty CI image ${{ env.PYTHON_MAJOR_MINOR_VERSION }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
         run: breeze build-image --push-image --empty-image --run-in-parallel
@@ -253,7 +249,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: failure() || cancelled()
         run: >
           breeze find-newer-dependencies --max-age 1
-          --python "${{ needs.build-info.outputs.defaultPythonVersion }}"
+          --python "${{ needs.build-info.outputs.default-python-version }}"
       - name: "Fix ownership"
         run: breeze fix-ownership
         if: always()
@@ -262,54 +258,41 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     permissions:
       packages: write
     timeout-minutes: 80
-    name: "Build PROD images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    name: "Build PROD images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, build-ci-images]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
       BACKEND: sqlite
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v3
         with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
-          persist-credentials: false
-          submodules: recursive
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            cut -d "=" -f 3 | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
-      - name: >
-          Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
-          to use ci/scripts from there.
-        uses: actions/checkout@v3
-        with:
-          path: "main-airflow"
-          ref: "${{ needs.build-info.outputs.targetBranch }}"
+          ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
       - name: "Setup python"
         uses: actions/setup-python@v4
         with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
       - name: >
-          Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
+          Checkout "main" branch to 'main-airflow' folder
+          to use ci/scripts from there.
+        uses: actions/checkout@v3
+        with:
+          path: "main-airflow"
+          ref: "main"
+          persist-credentials: false
+          submodules: recursive
+      - name: >
+          Override "scripts/ci" with the "main" branch
           so that the PR does not override it
         # We should not override those scripts which become part of the image as they will not be
         # changed in the image built - we should only override those that are executed to build
@@ -321,7 +304,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           mv -v "main-airflow/dev" "."
       - uses: actions/setup-python@v4
         with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
           cache: 'pip'
           cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
@@ -334,17 +317,19 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           key: "pre-commit-${{steps.host-python-version.outputs.host-python-version}}-\
 ${{ hashFiles('.pre-commit-config.yaml') }}"
           restore-keys: pre-commit-${{steps.host-python-version.outputs.host-python-version}}
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: "Regenerate dependencies in case they was modified manually so that we can build an image"
         run: >
           breeze static-checks --type update-providers-dependencies --all-files
           --show-diff-on-failure --color always || true
+        if: needs.build-info.outputs.default-branch == 'main'
       - name: >
           Pull CI image for PROD build:
-          ${{ needs.build-info.outputs.defaultPythonVersion }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
+          ${{ needs.build-info.outputs.default-python-version }}:${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         run: breeze pull-image --tag-as-latest
         env:
           # Always use default Python version of CI image for preparing packages
-          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          PYTHON_MAJOR_MINOR_VERSION: ${{ needs.build-info.outputs.default-python-version }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
       - name: "Cleanup dist and context file"
         run: rm -fv ./dist/*  ./docker-context-files/*
@@ -358,9 +343,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi dev0
       - name: "Move dist packages to docker-context files"
         run: mv -v ./dist/*.whl ./docker-context-files
-      - name: >
+      - name: >-
           Build & Push PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+          ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: >
           breeze build-prod-image
           --run-in-parallel
@@ -370,10 +355,10 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           --disable-airflow-repo-cache
           --airflow-is-in-context
         env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: Push empty PROD images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
         if: failure() || cancelled()
         run: breeze build-prod-image --cleanup-context --push-image --empty-image --run-in-parallel
@@ -386,15 +371,18 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
 
   build-ci-images-arm:
     timeout-minutes: 120
-    name: "Build ARM CI images ${{ needs.build-info.outputs.allPythonVersionsListAsString }}"
-    runs-on: ${{ fromJson(needs.build-info.outputs.runsOn) }}
+    name: "Build ARM CI images ${{ needs.build-info.outputs.all-python-versions-list-as-string }}"
+    runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs: [build-info, build-prod-images]
     if: |
       needs.build-info.outputs.image-build == 'true' &&
-      needs.build-info.outputs.upgradeToNewerDependencies != 'false' &&
+      needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
       github.event.pull_request.head.repo.full_name != 'apache/airflow'
     env:
-      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runsOn)[0] }}
+      DEFAULT_BRANCH: ${{ needs.build-info.outputs.default-branch }}
+      DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
+      DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
+      RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
       BACKEND: sqlite
       outputs: ${{toJSON(needs.build-info.outputs) }}
     steps:
@@ -402,36 +390,20 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
       - uses: actions/checkout@v2
         with:
-          ref: ${{ needs.build-info.outputs.targetCommitSha }}
+          ref: ${{ needs.build-info.outputs.target-commit-sha }}
           persist-credentials: false
           submodules: recursive
-      - name: "Retrieve DEFAULTS from the _initialization.sh"
-        # We cannot "source" the script here because that would be a security problem (we cannot run
-        # any code that comes from the sources coming from the PR. Therefore, we extract the
-        # DEFAULT_BRANCH and DEFAULT_CONSTRAINTS_BRANCH and DEBIAN_VERSION via custom grep/awk/sed commands
-        id: defaults
-        run: |
-          DEFAULT_BRANCH=$(grep "export DEFAULT_BRANCH" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_BRANCH=${DEFAULT_BRANCH}" >> $GITHUB_ENV
-          DEFAULT_CONSTRAINTS_BRANCH=$(grep "export DEFAULT_CONSTRAINTS_BRANCH" \
-            scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEFAULT_CONSTRAINTS_BRANCH=${DEFAULT_CONSTRAINTS_BRANCH}" >> $GITHUB_ENV
-          DEBIAN_VERSION=$(grep "export DEBIAN_VERSION" scripts/ci/libraries/_initialization.sh | \
-            awk 'BEGIN{FS="="} {print $3}' | sed s'/["}]//g')
-          echo "DEBIAN_VERSION=${DEBIAN_VERSION}" >> $GITHUB_ENV
       - name: >
-          Checkout "${{ needs.build-info.outputs.targetBranch }}" branch to 'main-airflow' folder
+          Checkout "main" branch to 'main-airflow' folder
           to use ci/scripts from there.
         uses: actions/checkout@v2
         with:
           path: "main-airflow"
-          ref: "${{ needs.build-info.outputs.targetBranch }}"
+          ref: "main"
           persist-credentials: false
           submodules: recursive
       - name: >
-          Override "scripts/ci" with the "${{ needs.build-info.outputs.targetBranch }}" branch
+          Override "scripts/ci" with the "main" branch
           so that the PR does not override it
         # We should not override those scripts which become part of the image as they will not be
         # changed in the image built - we should only override those that are executed to build
@@ -444,7 +416,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
-          python-version: ${{ needs.build-info.outputs.defaultPythonVersion }}
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze free-space
@@ -452,15 +424,15 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
       - name: >
           Build ARM CI images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+          ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: >
           breeze build-image --run-in-parallel --parallelism 1
           --builder airflow_cache --platform "linux/arm64"
         env:
-          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgradeToNewerDependencies }}
-          DOCKER_CACHE: ${{ needs.build-info.outputs.cacheDirective }}
+          UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
+          DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
-          PYTHON_VERSIONS: ${{ needs.build-info.outputs.allPythonVersionsListAsString }}
+          PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
         if: always()
