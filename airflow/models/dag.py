@@ -2537,18 +2537,18 @@ class DAG(LoggingMixin):
 
         dag_references = set()
         outlet_references = set()
-        all_datasets = set()
+        outlet_datasets = set()
+        input_datasets = set()
         for dag in dags:
-            this_dag_datasets = set()
             for dataset in dag.schedule_on or []:
                 dag_references.add(InletRef(dag.dag_id, dataset.uri))
-                this_dag_datasets.add(dataset)
+                input_datasets.add(dataset)
             for task in dag.tasks:
                 for obj in getattr(task, '_outlets', []):  # type: Dataset
                     if isinstance(obj, Dataset):
                         outlet_references.add(OutletRef(task.dag_id, task.task_id, obj.uri))
-                        all_datasets.add(obj)
-            all_datasets.update(this_dag_datasets)
+                        outlet_datasets.add(obj)
+        all_datasets = outlet_datasets.union(input_datasets)
 
         # store datasets
         stored_datasets = {}
