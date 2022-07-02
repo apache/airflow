@@ -128,7 +128,7 @@ so coding will always be required.
     :hidden:
     :caption: Content
 
-    Home <self>
+    Overview <self>
     project
     license
     start/index
