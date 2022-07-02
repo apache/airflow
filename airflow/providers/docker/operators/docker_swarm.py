@@ -160,11 +160,12 @@ class DockerSwarmOperator(DockerOperator):
                 self.log.info('Service status before exiting: %s', self._service_status())
                 break
 
+        self.log.info("auto_removeauto_removeauto_removeauto_removeauto_remove : %s", str(self.auto_remove))
         if self.service and self._service_status() != 'complete':
-            if self.auto_remove:
+            if self.auto_remove == "success":
                 self.cli.remove_service(self.service['ID'])
             raise AirflowException('Service did not complete: ' + repr(self.service))
-        elif self.auto_remove:
+        elif self.auto_remove == "success":
             if not self.service:
                 raise Exception("The 'service' should be initialized before!")
             self.cli.remove_service(self.service['ID'])

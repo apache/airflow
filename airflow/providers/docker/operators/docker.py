@@ -20,6 +20,7 @@ import ast
 import io
 import pickle
 import tarfile
+import warnings
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
@@ -125,7 +126,7 @@ class DockerOperator(BaseOperator):
     :param dns_search: Docker custom DNS search domain
     :param auto_remove: Auto-removal of the container on daemon side when the
         container's process exits.
-        The default is False.
+        The default is never.
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
     :param tty: Allocate pseudo-TTY to the container
@@ -175,7 +176,7 @@ class DockerOperator(BaseOperator):
         docker_conn_id: Optional[str] = None,
         dns: Optional[List[str]] = None,
         dns_search: Optional[List[str]] = None,
-        auto_remove: bool = False,
+        auto_remove: str = "never",
         shm_size: Optional[int] = None,
         tty: bool = False,
         privileged: bool = False,
@@ -189,7 +190,20 @@ class DockerOperator(BaseOperator):
     ) -> None:
         super().__init__(**kwargs)
         self.api_version = api_version
-        self.auto_remove = auto_remove
+        if type(auto_remove) == bool:
+            warnings.warn(
+                "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if str(auto_remove) == "False":
+            self.auto_remove = "never"
+        elif str(auto_remove) == "True":
+            self.auto_remove = "success"
+        elif str(auto_remove) in ("never", "success", "force"):
+            self.auto_remove = auto_remove
+        else:
+            raise ValueError("unsupported auto_remove option, use 'never', 'success', or 'force' instead")
         self.command = command
         self.container_name = container_name
         self.cpus = cpus
@@ -334,8 +348,10 @@ class DockerOperator(BaseOperator):
                     return None
             return None
         finally:
-            if self.auto_remove:
+            if self.auto_remove == "success":
                 self.cli.remove_container(self.container['Id'])
+            elif self.auto_remove == "force":
+                self.cli.remove_container(self.container['Id'], force=True)
 
     def _attempt_to_retrieve_result(self):
         """
