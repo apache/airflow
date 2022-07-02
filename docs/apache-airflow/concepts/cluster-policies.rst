@@ -54,6 +54,8 @@ This policy checks if each DAG has at least one tag defined:
 
     To avoid import cycles, if you use ``DAG`` in type annotations in your cluster policy, be sure to import from ``airflow.models`` and not from ``airflow``.
 
+    DAG policies are applied after the DAG has been completely loaded, so overriding the ``default_args`` parameter will have no effect. If you want to override the default operator settings, consider to use task policies.
+
 Task policies
 -------------
 
