@@ -18,11 +18,12 @@
 from urllib.parse import urlparse
 
 from sqlalchemy import Column, Index, Integer, String
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import Base
 from airflow.models.dataset_dag_ref import DatasetDagRef
+from airflow.models.dataset_task_ref import DatasetTaskRef
 from airflow.utils import timezone
-from airflow.utils.session import NEW_SESSION, provide_session
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
 
@@ -51,6 +52,9 @@ class Dataset(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
+    dag_references = relationship(DatasetDagRef, back_populates='dataset')
+    task_references = relationship(DatasetTaskRef, back_populates='dataset')
+
     __tablename__ = "dataset"
     __table_args__ = (
         Index('idx_uri_unique', uri, unique=True),
@@ -78,30 +82,3 @@ class Dataset(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
-
-    @provide_session
-    def get_downstream_dag_ids(self, session=NEW_SESSION):
-        if not self.id:
-            raise RuntimeError("Dataset must be persisted to database before we can look up downstream dags.")
-        return [
-            x.dag_id
-            for x in session.query(DatasetDagRef.dag_id)
-            .filter(
-                DatasetDagRef.dataset_id == self.id,
-            )
-            .all()
-        ]
-
-    @provide_session
-    def get_dataset_id(self, session=NEW_SESSION):
-        if self.id:
-            dataset_id = self.id
-        else:
-            stored = session.query(self.__class__).filter(self.__class__.uri == self.uri).first()
-            if not stored:
-                session.add(self)
-                session.flush()
-                dataset_id = self.id
-            else:
-                dataset_id = stored.id
-        return dataset_id

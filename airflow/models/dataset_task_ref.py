@@ -17,6 +17,7 @@
 # under the License.
 
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, String
+from sqlalchemy.orm import relationship
 
 from airflow.models.base import ID_LEN, Base
 from airflow.utils import timezone
@@ -31,6 +32,8 @@ class DatasetTaskRef(Base):
     task_id = Column(String(ID_LEN), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dataset = relationship("Dataset", back_populates="task_references")
 
     __tablename__ = "dataset_task_ref"
     __table_args__ = (

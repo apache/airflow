@@ -1522,7 +1522,7 @@ class TaskInstance(Base, LoggingMixin):
                     if not dataset:
                         self.log.warning("Dataset %s not found", dataset)
                         continue
-                    downstream_dag_ids = dataset.get_downstream_dag_ids()
+                    downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
                     self.log.debug("downstream dag ids %s", downstream_dag_ids)
                     for dag_id in downstream_dag_ids:
                         session.merge(DatasetDagRunEvent(dataset_id=dataset.id, target_dag_id=dag_id))
