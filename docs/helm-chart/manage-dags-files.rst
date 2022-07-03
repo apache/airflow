@@ -80,13 +80,10 @@ If you are deploying an image with a constant tag, you need to make sure that th
     helm upgrade --install airflow apache-airflow/airflow \
       --set images.airflow.repository=my-company/airflow \
       --set images.airflow.tag=8a0da78 \
-      --set images.airflow.pullPolicy=Always
+      --set images.airflow.pullPolicy=Always \
+      --set airflowPodAnnotations.random=r$(uuidgen)
       
-You need then to refresh pods that use this image. Deleting them as follow will trigger their replacement.
-
-.. code-block:: bash
-
-  "kubectl" delete pod "<airflow-webserver>" "<airflow-scheduler>" "<airflow-worker>"
+The randomly generated pod annotation will ensure that pods are refreshed on helm upgrade.
 
 If you are deploying an image from a private repository, you need to create a secret, e.g. ``gitlab-registry-credentials`` (refer `Pull an Image from a Private Registry <https://kubernetes.io/docs/tasks/configure-pod-container/pull-image-private-registry/>`_ for details), and specify it using ``--set registry.secretName``:
 
