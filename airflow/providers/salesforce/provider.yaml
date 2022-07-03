@@ -39,7 +39,6 @@ versions:
 dependencies:
   - apache-airflow>=2.2.0
   - simple-salesforce>=1.0.0
-  - tableauserverclient
   - pandas>=0.17.1
 
 integrations:
@@ -54,17 +53,8 @@ operators:
   - integration-name: Salesforce
     python-modules:
       - airflow.providers.salesforce.operators.salesforce_apex_rest
-      - airflow.providers.salesforce.operators.tableau_refresh_workbook
-
-sensors:
-  - integration-name: Salesforce
-    python-modules:
-      - airflow.providers.salesforce.sensors.tableau_job_status
 
 hooks:
-  - integration-name: Tableau
-    python-modules:
-      - airflow.providers.salesforce.hooks.tableau
   - integration-name: Salesforce
     python-modules:
       - airflow.providers.salesforce.hooks.salesforce

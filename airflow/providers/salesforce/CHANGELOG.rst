@@ -24,6 +24,17 @@
 Changelog
 ---------
 
+5.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* ``Remove Tableau from Salesforce provider (#23747)``
+
+.. warning:: Due to tableau extra removal, ``pip install apache-airflow-providers-salesforce[tableau]``
+   will not work. You can install Tableau provider directly via ``pip install apache-airflow-providers-tableau``.
+
 4.0.0
 .....
 
