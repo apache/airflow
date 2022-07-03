@@ -55,7 +55,7 @@ Use Airflow to author workflows as directed acyclic graphs (DAGs) of tasks. The 
 - [Support for Python and Kubernetes versions](#support-for-python-and-kubernetes-versions)
 - [Base OS support for reference Airflow images](#base-os-support-for-reference-airflow-images)
 - [Approach to dependencies of Airflow](#approach-to-dependencies-of-airflow)
-- [Support for providers](#support-for-providers)
+- [Release process for Providers](#release-process-for-providers)
 - [Contributing](#contributing)
 - [Who uses Apache Airflow?](#who-uses-apache-airflow)
 - [Who Maintains Apache Airflow?](#who-maintains-apache-airflow)
@@ -396,7 +396,7 @@ Those `extras` and `providers` dependencies are maintained in `setup.py`.
 By default, we should not upper-bound dependencies for providers, however each provider's maintainer
 might decide to add additional limits (and justify them with comment)
 
-## Support for providers
+## Release process for Providers
 
 Providers released by the community (with roughly monthly cadence) have
 limitation of a minimum supported version of Airflow. The minimum version of
@@ -409,6 +409,55 @@ first release for the MINOR version of Airflow.
 For example this means that by default we upgrade the minimum version of Airflow supported by providers
 to 2.3.0 in the first Provider's release after 11th of October 2022 (11th of October 2021 is the date when the
 first `PATCHLEVEL` of 2.2 (2.2.0) has been released.
+
+Providers are often connected with some stakeholders that are vitally interested in maintaining backwards
+compatibilities in their integrations (for example cloud providers, or specific service providers). But,
+we are also bound with the [Apache Software Foundation release policy](https://www.apache.org/legal/release-policy.html)
+which describes who releases, and how to release the ASF software. The provider's governance model is something we name
+"mixed governance" - where we follow the release policies, while the burden of maintaining and testing
+the cherry-picked versions is on those who commit to perform the cherry-picks and make PRs to older
+branches.
+
+The "mixed governance" (optional, per-provider) means that:
+
+* The Airflow Community and release manager decide when to release those providers.
+  This is fully managed by the community and the usual release-management process following the
+  [Apache Software Foundation release policy](https://www.apache.org/legal/release-policy.html)
+* The contributors (who might or might not be direct stakeholders in the provider) will carry the burden
+  of cherry-picking and testing the older versions of providers.
+* There is no "selection" and acceptance process to determine which version of the provider is released.
+  It is determined by the actions of contributors raising the PR with cherry-picked changes and it follows
+  the usual PR review process where maintainer approves (or not) and merges (or not) such PR. Simply
+  speaking - the completed action of cherry-picking and testing the older version of the provider make
+  it eligible to be released. Unless there is someone who volunteers and perform the cherry-picking and
+  testing, the provider is not released.
+* Branches to raise PR against are created when a contributor commits to perform the cherry-picking
+  (as a comment in PR to cherry-pick for example)
+
+Usually, community effort is focused on the most recent version of each provider. The community approach is
+that we should rather aggressively remove deprecations in "major" versions of the providers - whenever
+there is an opportunity to increase major version of a provider, we attempt to remove all deprecations.
+However, sometimes there is a contributor (who might or might not represent stakeholder),
+willing to make their effort on cherry-picking and testing the non-breaking changes to a selected,
+previous major branch of the provider. This results in releasing at most two versions of a
+provider at a time:
+
+* potentially breaking "latest" major version
+* selected past major version with non-breaking changes applied by the contributor
+
+Cherry-picking such changes follows the same process for releasing Airflow
+patch-level releases for a previous minor Airflow version. Usually such cherry-picking is done when
+there is an important bugfix and the latest version contains breaking changes that are not
+coupled with the bugfix. Releasing them together in the latest version of the provider effectively couples
+them, and therefore they're released separately. The cherry-picked changes have to be merged by the committer following the usual rules of the
+community.
+
+There is no obligation to cherry-pick and release older versions of the providers.
+The community continues to release such older versions of the providers for as long as there is an effort
+of the contributors to perform the cherry-picks and carry-on testing of the older provider version.
+
+The availability of stakeholder that can manage "service-oriented" maintenance and agrees to such a
+responsibility, will also drive our willingness to accept future, new providers to become community managed.
 
 ## Contributing
 
