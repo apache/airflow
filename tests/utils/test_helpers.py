@@ -23,6 +23,7 @@ import pytest
 from airflow import AirflowException
 from airflow.utils import helpers, timezone
 from airflow.utils.helpers import (
+    at_most_one,
     build_airflow_url_with_query,
     exactly_one,
     merge_dicts,
@@ -30,6 +31,7 @@ from airflow.utils.helpers import (
     validate_group_key,
     validate_key,
 )
+from airflow.utils.types import NOTSET
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_dags, clear_db_runs
 
@@ -263,6 +265,34 @@ class TestHelpers:
     def test_exactly_one_should_fail(self):
         with pytest.raises(ValueError):
             exactly_one([True, False])
+
+    def test_at_most_one(self):
+        """
+        Checks that when we set ``true_count`` elements to "truthy", and others to "falsy",
+        we get the expected return.
+        We check for both True / False, and truthy / falsy values 'a' and '', and verify that
+        they can safely be used in any combination.
+        NOTSET values should be ignored.
+        """
+
+        def assert_at_most_one(true=0, truthy=0, false=0, falsy=0, notset=0):
+            sample = []
+            for truth_value, num in [
+                (True, true),
+                (False, false),
+                ('a', truthy),
+                ('', falsy),
+                (NOTSET, notset),
+            ]:
+                if num:
+                    sample.extend([truth_value] * num)
+            if sample:
+                expected = True if true + truthy in (0, 1) else False
+                assert at_most_one(*sample) is expected
+
+        for row in product(range(4), range(4), range(4), range(4), range(4)):
+            print(row)
+            assert_at_most_one(*row)
 
     @pytest.mark.parametrize(
         'mode, expected',
