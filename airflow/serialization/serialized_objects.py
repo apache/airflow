@@ -751,6 +751,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
+            elif k in ("_outlets", "_inlets"):
+                v = cls._deserialize(v)
+
             # else use v as it is
 
             setattr(op, k, v)
@@ -1029,6 +1032,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k == "schedule_on":
+                v = cls._deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)
