@@ -27,6 +27,7 @@ from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -55,6 +56,8 @@ from airflow.models import (
     Variable,
     XCom,
 )
+from airflow.models.dataset_dag_run_event import DatasetDagRunEvent
+from airflow.models.dataset_task_ref import DatasetTaskRef
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
@@ -1472,6 +1475,30 @@ class TestTaskInstance:
         assert callback_wrapper.task_state_in_callback == State.SUCCESS
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
+
+    def test_outlet_datasets(self, create_task_instance):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        completes successfully, a DatasetDagRunEvent is logged.
+        """
+        from airflow.example_dags.example_datasets import dag1, dag3
+
+        session = settings.Session()
+        DAG.bulk_write_to_db([dag1, dag3], session)
+        run_id = str(uuid4())
+        dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag1.get_task('upstream_task_1')
+        task.bash_command = None  # make it go faster
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+        assert session.query(DatasetDagRunEvent.target_dag_id).filter(
+            DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
+        ).all() == [('dag3',)]
 
     @staticmethod
     def _test_previous_dates_setup(
