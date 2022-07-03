@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 from datetime import datetime
-from typing import Any, Callable, Collection, Dict, Mapping, TypeVar
+from typing import Any, Callable, Collection, Mapping, TypeVar
 
 from airflow import settings
 from airflow.utils.context import Context, lazy_mapping_from_context
@@ -59,7 +60,7 @@ AIRFLOW_VAR_NAME_FORMAT_MAPPING = {
 }
 
 
-def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> Dict[str, str]:
+def context_to_airflow_vars(context: Mapping[str, Any], in_env_var_format: bool = False) -> dict[str, str]:
     """
     Given a context, this function provides a dictionary of values that can be used to
     externally reconstruct relations between dags, dag_runs, tasks and task_instances.
@@ -147,7 +148,7 @@ class KeywordParameters:
         func: Callable[..., Any],
         args: Collection[Any],
         kwargs: Mapping[str, Any],
-    ) -> "KeywordParameters":
+    ) -> KeywordParameters:
         import inspect
         import itertools
 

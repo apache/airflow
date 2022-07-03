@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.http.operators.http`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.http.operators.http import SimpleHttpOperator  # noqa

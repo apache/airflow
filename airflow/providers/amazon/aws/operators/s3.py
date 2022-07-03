@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """This module contains AWS S3 operators."""
+
+from __future__ import annotations
+
 import subprocess
 import sys
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -57,8 +58,8 @@ class S3CreateBucketOperator(BaseOperator):
         self,
         *,
         bucket_name: str,
-        aws_conn_id: Optional[str] = "aws_default",
-        region_name: Optional[str] = None,
+        aws_conn_id: str | None = "aws_default",
+        region_name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -67,7 +68,7 @@ class S3CreateBucketOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
         if not s3_hook.check_for_bucket(self.bucket_name):
             s3_hook.create_bucket(bucket_name=self.bucket_name, region_name=self.region_name)
@@ -99,7 +100,7 @@ class S3DeleteBucketOperator(BaseOperator):
         self,
         bucket_name: str,
         force_delete: bool = False,
-        aws_conn_id: Optional[str] = "aws_default",
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -107,7 +108,7 @@ class S3DeleteBucketOperator(BaseOperator):
         self.force_delete = force_delete
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
         if s3_hook.check_for_bucket(self.bucket_name):
             s3_hook.delete_bucket(bucket_name=self.bucket_name, force_delete=self.force_delete)
@@ -134,12 +135,12 @@ class S3GetBucketTaggingOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("bucket_name",)
 
-    def __init__(self, bucket_name: str, aws_conn_id: Optional[str] = "aws_default", **kwargs) -> None:
+    def __init__(self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
         if s3_hook.check_for_bucket(self.bucket_name):
@@ -177,10 +178,10 @@ class S3PutBucketTaggingOperator(BaseOperator):
     def __init__(
         self,
         bucket_name: str,
-        key: Optional[str] = None,
-        value: Optional[str] = None,
-        tag_set: Optional[List[Dict[str, str]]] = None,
-        aws_conn_id: Optional[str] = "aws_default",
+        key: str | None = None,
+        value: str | None = None,
+        tag_set: list[dict[str, str]] | None = None,
+        aws_conn_id: str | None = "aws_default",
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -190,7 +191,7 @@ class S3PutBucketTaggingOperator(BaseOperator):
         self.bucket_name = bucket_name
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
         if s3_hook.check_for_bucket(self.bucket_name):
@@ -221,12 +222,12 @@ class S3DeleteBucketTaggingOperator(BaseOperator):
 
     template_fields: Sequence[str] = ("bucket_name",)
 
-    def __init__(self, bucket_name: str, aws_conn_id: Optional[str] = "aws_default", **kwargs) -> None:
+    def __init__(self, bucket_name: str, aws_conn_id: str | None = "aws_default", **kwargs) -> None:
         super().__init__(**kwargs)
         self.bucket_name = bucket_name
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
 
         if s3_hook.check_for_bucket(self.bucket_name):
@@ -291,12 +292,12 @@ class S3CopyObjectOperator(BaseOperator):
         *,
         source_bucket_key: str,
         dest_bucket_key: str,
-        source_bucket_name: Optional[str] = None,
-        dest_bucket_name: Optional[str] = None,
-        source_version_id: Optional[str] = None,
+        source_bucket_name: str | None = None,
+        dest_bucket_name: str | None = None,
+        source_version_id: str | None = None,
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[str, bool]] = None,
-        acl_policy: Optional[str] = None,
+        verify: str | bool | None = None,
+        acl_policy: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -310,7 +311,7 @@ class S3CopyObjectOperator(BaseOperator):
         self.verify = verify
         self.acl_policy = acl_policy
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
         s3_hook.copy_object(
             self.source_bucket_key,
@@ -365,16 +366,16 @@ class S3CreateObjectOperator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_bucket: Optional[str] = None,
+        s3_bucket: str | None = None,
         s3_key: str,
-        data: Union[str, bytes],
+        data: str | bytes,
         replace: bool = False,
         encrypt: bool = False,
-        acl_policy: Optional[str] = None,
-        encoding: Optional[str] = None,
-        compression: Optional[str] = None,
+        acl_policy: str | None = None,
+        encoding: str | None = None,
+        compression: str | None = None,
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[str, bool]] = None,
+        verify: str | bool | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -390,7 +391,7 @@ class S3CreateObjectOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         s3_bucket, s3_key = s3_hook.get_s3_bucket_key(self.s3_bucket, self.s3_key, 'dest_bucket', 'dest_key')
@@ -450,10 +451,10 @@ class S3DeleteObjectsOperator(BaseOperator):
         self,
         *,
         bucket: str,
-        keys: Optional[Union[str, list]] = None,
-        prefix: Optional[str] = None,
+        keys: str | list | None = None,
+        prefix: str | None = None,
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[str, bool]] = None,
+        verify: str | bool | None = None,
         **kwargs,
     ):
 
@@ -467,7 +468,7 @@ class S3DeleteObjectsOperator(BaseOperator):
         if not bool(keys is None) ^ bool(prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         if not bool(self.keys is None) ^ bool(self.prefix is None):
             raise AirflowException("Either keys or prefix should be set.")
 
@@ -534,13 +535,13 @@ class S3FileTransformOperator(BaseOperator):
         *,
         source_s3_key: str,
         dest_s3_key: str,
-        transform_script: Optional[str] = None,
+        transform_script: str | None = None,
         select_expression=None,
-        script_args: Optional[Sequence[str]] = None,
+        script_args: Sequence[str] | None = None,
         source_aws_conn_id: str = 'aws_default',
-        source_verify: Optional[Union[bool, str]] = None,
+        source_verify: bool | str | None = None,
         dest_aws_conn_id: str = 'aws_default',
-        dest_verify: Optional[Union[bool, str]] = None,
+        dest_verify: bool | str | None = None,
         replace: bool = False,
         **kwargs,
     ) -> None:
@@ -558,7 +559,7 @@ class S3FileTransformOperator(BaseOperator):
         self.script_args = script_args or []
         self.output_encoding = sys.getdefaultencoding()
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         if self.transform_script is None and self.select_expression is None:
             raise AirflowException("Either transform_script or select_expression must be specified")
 
@@ -663,7 +664,7 @@ class S3ListOperator(BaseOperator):
         prefix: str = '',
         delimiter: str = '',
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[str, bool]] = None,
+        verify: str | bool | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -673,7 +674,7 @@ class S3ListOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(
@@ -737,7 +738,7 @@ class S3ListPrefixesOperator(BaseOperator):
         prefix: str,
         delimiter: str,
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[str, bool]] = None,
+        verify: str | bool | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -747,7 +748,7 @@ class S3ListPrefixesOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.verify = verify
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = S3Hook(aws_conn_id=self.aws_conn_id, verify=self.verify)
 
         self.log.info(

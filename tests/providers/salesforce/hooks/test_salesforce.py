@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import Mock, patch
@@ -29,6 +29,8 @@ from simple_salesforce import Salesforce, api
 from airflow.models.connection import Connection
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
 from airflow.utils.session import create_session
+
+#
 
 
 class TestSalesforceHook(unittest.TestCase):

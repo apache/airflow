@@ -17,8 +17,9 @@
 # under the License.
 """Celery command"""
 
+from __future__ import annotations
+
 from multiprocessing import Process
-from typing import Optional
 
 import daemon
 import psutil
@@ -79,7 +80,7 @@ def flower(args):
         celery_app.start(options)
 
 
-def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
+def _serve_logs(skip_serve_logs: bool = False) -> Process | None:
     """Starts serve_logs sub-process"""
     if skip_serve_logs is False:
         sub_proc = Process(target=serve_logs)

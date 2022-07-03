@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Example Airflow DAG that shows how to use DisplayVideo.
 """
 import os
 from datetime import datetime
-from typing import Dict
 
 from airflow import models
 from airflow.providers.google.cloud.transfers.gcs_to_bigquery import GCSToBigQueryOperator
@@ -73,13 +75,13 @@ REPORT = {
 
 PARAMETERS = {"dataRange": "LAST_14_DAYS", "timezoneCode": "America/New_York"}
 
-CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: Dict = {
+CREATE_SDF_DOWNLOAD_TASK_BODY_REQUEST: dict = {
     "version": SDF_VERSION,
     "advertiserId": ADVERTISER_ID,
     "inventorySourceFilter": {"inventorySourceIds": []},
 }
 
-DOWNLOAD_LINE_ITEMS_REQUEST: Dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
+DOWNLOAD_LINE_ITEMS_REQUEST: dict = {"filterType": ADVERTISER_ID, "format": "CSV", "fileSpec": "EWF"}
 # [END howto_display_video_env_variables]
 
 START_DATE = datetime(2021, 1, 1)

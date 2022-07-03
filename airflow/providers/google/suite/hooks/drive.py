@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Google Drive service"""
-from typing import IO, Any, Optional, Sequence, Union
+
+from __future__ import annotations
+
+from typing import IO, Any, Optional, Sequence
 
 from googleapiclient.discovery import Resource, build
 from googleapiclient.http import HttpRequest, MediaFileUpload
@@ -49,8 +52,8 @@ class GoogleDriveHook(GoogleBaseHook):
         self,
         api_version: str = "v3",
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -128,7 +131,7 @@ class GoogleDriveHook(GoogleBaseHook):
         request = service.files().get_media(fileId=file_id)
         return request
 
-    def exists(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+    def exists(self, folder_id: str, file_name: str, drive_id: str | None = None):
         """
         Checks to see if a file exists within a Google Drive folder
 
@@ -140,7 +143,7 @@ class GoogleDriveHook(GoogleBaseHook):
         """
         return bool(self.get_file_id(folder_id=folder_id, file_name=file_name, drive_id=drive_id))
 
-    def get_file_id(self, folder_id: str, file_name: str, drive_id: Optional[str] = None):
+    def get_file_id(self, folder_id: str, file_name: str, drive_id: str | None = None):
         """
         Returns the file id of a Google Drive file
 

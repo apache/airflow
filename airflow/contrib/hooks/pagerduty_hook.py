@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.pagerduty.hooks.pagerduty`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.pagerduty.hooks.pagerduty import PagerdutyHook  # noqa

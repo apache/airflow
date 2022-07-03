@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.celery.sensors.celery_queue`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.celery.sensors.celery_queue import CeleryQueueSensor  # noqa

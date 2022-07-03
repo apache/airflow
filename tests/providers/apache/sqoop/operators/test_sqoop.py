@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 import unittest
@@ -25,6 +25,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
 from airflow.providers.apache.sqoop.operators.sqoop import SqoopOperator
+
+#
 
 
 class TestSqoopOperator(unittest.TestCase):

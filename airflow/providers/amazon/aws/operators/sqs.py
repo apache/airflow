@@ -14,10 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Publish message to SQS queue"""
+
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.sqs import SqsHook
@@ -51,7 +53,7 @@ class SqsPublishOperator(BaseOperator):
         *,
         sqs_queue: str,
         message_content: str,
-        message_attributes: Optional[dict] = None,
+        message_attributes: dict | None = None,
         delay_seconds: int = 0,
         aws_conn_id: str = 'aws_default',
         **kwargs,
@@ -63,7 +65,7 @@ class SqsPublishOperator(BaseOperator):
         self.delay_seconds = delay_seconds
         self.message_attributes = message_attributes or {}
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Publish the message to the Amazon SQS queue
 

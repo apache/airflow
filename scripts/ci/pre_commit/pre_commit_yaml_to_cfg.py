@@ -16,7 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Module to convert Airflow configs in config.yml to default_airflow.cfg file
 """
 
@@ -41,7 +44,6 @@ FILE_HEADER = """#
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 
 # This is the template for Airflow's default configuration. When Airflow is
 # imported, it looks for a configuration file at $AIRFLOW_HOME/airflow.cfg. If

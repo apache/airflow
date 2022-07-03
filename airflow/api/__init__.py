@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Authentication backend"""
+
+from __future__ import annotations
+
 import logging
 from importlib import import_module
 

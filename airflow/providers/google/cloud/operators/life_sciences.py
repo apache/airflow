@@ -17,7 +17,9 @@
 # under the License.
 """Operators that interact with Google Cloud Life Sciences service."""
 
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -63,10 +65,10 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         *,
         body: dict,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = "google_cloud_default",
         api_version: str = "v2beta",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -84,7 +86,7 @@ class LifeSciencesRunPipelineOperator(BaseOperator):
         if not self.location:
             raise AirflowException("The required parameter 'location' is missing")
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = LifeSciencesHook(
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,

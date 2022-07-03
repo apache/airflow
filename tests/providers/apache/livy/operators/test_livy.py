@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import logging
 import unittest
@@ -28,6 +28,9 @@ from airflow.models.dag import DAG
 from airflow.providers.apache.livy.hooks.livy import BatchState, LivyHook
 from airflow.providers.apache.livy.operators.livy import LivyOperator
 from airflow.utils import db, timezone
+
+#
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 mock_livy_client = MagicMock()

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import argparse
 import hashlib
@@ -22,7 +23,6 @@ import json
 import os
 import re
 import sys
-from typing import Dict, List, Optional
 
 import requests
 import yaml
@@ -59,7 +59,7 @@ def fetch_and_cache(url: str, output_filename: str):
     # Create cache directory
     os.makedirs(cache_dir, exist_ok=True)
     # Load cache metadata
-    cache_metadata: Dict[str, str] = {}
+    cache_metadata: dict[str, str] = {}
     if os.path.exists(cache_metadata_filepath):
         try:
             with open(cache_metadata_filepath) as cache_file:
@@ -121,7 +121,7 @@ def _get_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def _process_files(validator, file_paths: List[str]):
+def _process_files(validator, file_paths: list[str]):
     exit_code = 0
     for input_path in file_paths:
         print("Processing file: ", input_path)
@@ -146,7 +146,7 @@ def _default_validator(validator, default, instance, schema):
         yield ValidationError(f"{instance} is not equal to the default of {default}")
 
 
-def _load_spec(spec_file: Optional[str], spec_url: Optional[str]):
+def _load_spec(spec_file: str | None, spec_url: str | None):
     if spec_url:
         spec_file = fetch_and_cache(url=spec_url, output_filename=re.sub(r"[^a-zA-Z0-9]", "-", spec_url))
     if not spec_file:

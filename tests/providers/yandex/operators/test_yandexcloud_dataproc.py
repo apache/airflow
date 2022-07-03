@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 from unittest import TestCase
@@ -29,6 +29,9 @@ from airflow.providers.yandex.operators.yandexcloud_dataproc import (
     DataprocCreateSparkJobOperator,
     DataprocDeleteClusterOperator,
 )
+
+#
+
 
 # Airflow connection with type "yandexcloud"
 CONNECTION_ID = 'yandexcloud_default'

@@ -217,7 +217,7 @@ repos:
       - id: pyupgrade
         name: Upgrade Python code automatically
         args: ["--py37-plus"]
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|^airflow/providers/google/cloud/hooks/gcs.py$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:
@@ -362,7 +362,7 @@ repos:
         language: python
         files: ^dev/breeze/src/airflow_breeze/utils/docker_command_utils\.py$|^scripts/ci/docker_compose/local\.yml$
         pass_filenames: false
-        additional_dependencies: ['rich>=12.4.4']
+        additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: update-setup-cfg-file
         name: Update setup.cfg file with all licenses
         entry: ./scripts/ci/pre_commit/pre_commit_setup_cfg_file.sh

@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains Google Workflows links."""
-from typing import TYPE_CHECKING, Optional
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -42,11 +45,11 @@ class WorkflowsWorkflowDetailsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         location_id: str,
         workflow_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -64,9 +67,9 @@ class WorkflowsListOfWorkflowsLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,
@@ -84,12 +87,12 @@ class WorkflowsExecutionLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance: BaseOperator,
         location_id: str,
         workflow_id: str,
         execution_id: str,
-        project_id: Optional[str],
+        project_id: str | None,
     ):
         task_instance.xcom_push(
             context,

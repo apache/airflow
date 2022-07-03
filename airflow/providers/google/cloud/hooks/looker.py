@@ -15,13 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""This module contains a Google Cloud Looker hook."""
+from __future__ import annotations
 
 import json
 import time
 from enum import Enum
-from typing import Dict, Optional
+from typing import Dict
 
 from looker_sdk.rtl import api_settings, auth_session, requests_transport, serialize
 from looker_sdk.sdk.api40 import methods as methods40
@@ -31,6 +30,8 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.version import version
+
+# """This module contains a Google Cloud Looker hook."""
 
 
 class LookerHook(BaseHook):
@@ -49,7 +50,7 @@ class LookerHook(BaseHook):
         self,
         model: str,
         view: str,
-        query_params: Optional[Dict] = None,
+        query_params: dict | None = None,
     ):
         """
         Submits a PDT materialization job to Looker.
@@ -96,7 +97,7 @@ class LookerHook(BaseHook):
     def pdt_build_status(
         self,
         materialization_id: str,
-    ) -> Dict:
+    ) -> dict:
         """
         Gets the PDT materialization job status.
 
@@ -135,7 +136,7 @@ class LookerHook(BaseHook):
         self,
         materialization_id: str,
         wait_time: int = 10,
-        timeout: Optional[int] = None,
+        timeout: int | None = None,
     ) -> None:
         """
         Helper method which polls a PDT materialization job to check if it finishes.

@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
+# flake8: noqa: F401
 """
 Authentication is implemented using flask_login and different environments can
 implement their own login mechanisms by providing an `airflow_login` module
@@ -27,7 +26,7 @@ isort:skip_file
 """
 
 
-# flake8: noqa: F401
+from __future__ import annotations
 
 import sys
 from typing import Callable, Optional
@@ -46,7 +45,7 @@ __path__ = __import__("pkgutil").extend_path(__path__, __name__)  # type: ignore
 
 settings.initialize()
 
-login: Optional[Callable] = None
+login: Callable | None = None
 
 PY36 = sys.version_info >= (3, 6)
 PY37 = sys.version_info >= (3, 7)

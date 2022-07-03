@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 import itertools
@@ -42,6 +42,9 @@ from tests.providers.apache.hive import (
     MockSubProcess,
 )
 from tests.test_utils.asserts import assert_equal_ignore_multiple_spaces
+
+#
+
 
 DEFAULT_DATE = timezone.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

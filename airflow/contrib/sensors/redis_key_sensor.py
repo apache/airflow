@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.redis.sensors.redis_key`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.redis.sensors.redis_key import RedisKeySensor  # noqa

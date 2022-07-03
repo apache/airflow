@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import os
 import unittest
@@ -28,6 +28,9 @@ from airflow.models import DAG, DagRun, TaskInstance
 from airflow.providers.amazon.aws.operators.emr import EmrCreateJobFlowOperator
 from airflow.utils import timezone
 from tests.test_utils import AIRFLOW_MAIN_FOLDER
+
+#
+
 
 TASK_ID = 'test_task'
 

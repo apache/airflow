@@ -16,7 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Module to update db migration information in Airflow
 """
 import os
@@ -88,7 +91,7 @@ def insert_version(old_content, file):
     file.write_text(new_content)
 
 
-def revision_suffix(rev: "Script"):
+def revision_suffix(rev: Script):
     if rev.is_head:
         return ' (head)'
     if rev.is_base:
@@ -100,7 +103,7 @@ def revision_suffix(rev: "Script"):
     return ''
 
 
-def ensure_airflow_version(revisions: Iterable["Script"]):
+def ensure_airflow_version(revisions: Iterable[Script]):
     for rev in revisions:
         file = Path(rev.module.__file__)
         content = file.read_text()
@@ -108,13 +111,13 @@ def ensure_airflow_version(revisions: Iterable["Script"]):
             insert_version(content, file)
 
 
-def get_revisions() -> Iterable["Script"]:
+def get_revisions() -> Iterable[Script]:
     config = _get_alembic_config()
     script = ScriptDirectory.from_config(config)
     yield from script.walk_revisions()
 
 
-def update_docs(revisions: Iterable["Script"]):
+def update_docs(revisions: Iterable[Script]):
     doc_data = []
     for rev in revisions:
         doc_data.append(

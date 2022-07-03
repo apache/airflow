@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 A template called by DataFlowPythonOperator to summarize BatchPrediction.
 
 It accepts a user function to calculate the metric(s) per instance in

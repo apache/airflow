@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 
@@ -29,6 +29,9 @@ from airflow.sensors.weekday import DayOfWeekSensor
 from airflow.utils.timezone import datetime
 from airflow.utils.weekday import WeekDay
 from tests.test_utils import db
+
+#
+
 
 DEFAULT_DATE = datetime(2018, 12, 10)
 WEEKDAY_DATE = datetime(2018, 12, 20)

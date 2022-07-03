@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import itertools
 import json
@@ -48,6 +48,9 @@ from airflow.providers.databricks.hooks.databricks_base import (
     BearerAuth,
 )
 from airflow.utils.session import provide_session
+
+#
+
 
 if sys.version_info < (3, 8):
     from asynctest import mock

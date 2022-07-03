@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any
 
 from azure.mgmt.containerinstance.models import AzureFileVolume, Volume
 
@@ -41,7 +43,7 @@ class AzureContainerVolumeHook(BaseHook):
         self.conn_id = azure_container_volume_conn_id
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget
         from flask_babel import lazy_gettext
@@ -54,7 +56,7 @@ class AzureContainerVolumeHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', "extra"],

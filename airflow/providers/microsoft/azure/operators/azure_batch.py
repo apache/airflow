@@ -16,6 +16,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.operators.batch`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.microsoft.azure.operators.batch import AzureBatchOperator  # noqa

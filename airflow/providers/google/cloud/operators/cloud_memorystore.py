@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Operators for Google Cloud Memorystore service.
 
 .. spelling::
@@ -23,7 +26,7 @@ Operators for Google Cloud Memorystore service.
     FieldMask
     memcache
 """
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -100,13 +103,13 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         *,
         location: str,
         instance_id: str,
-        instance: Union[Dict, Instance],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        instance: dict | Instance,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -120,7 +123,7 @@ class CloudMemorystoreCreateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -180,12 +183,12 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         *,
         location: str,
         instance: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -198,7 +201,7 @@ class CloudMemorystoreDeleteInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -263,13 +266,13 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         *,
         location: str,
         instance: str,
-        output_config: Union[Dict, OutputConfig],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        output_config: dict | OutputConfig,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -283,7 +286,7 @@ class CloudMemorystoreExportInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -348,12 +351,12 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         location: str,
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -367,7 +370,7 @@ class CloudMemorystoreFailoverInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -426,12 +429,12 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         *,
         location: str,
         instance: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -444,7 +447,7 @@ class CloudMemorystoreGetInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -511,13 +514,13 @@ class CloudMemorystoreImportOperator(BaseOperator):
         *,
         location: str,
         instance: str,
-        input_config: Union[Dict, InputConfig],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        input_config: dict | InputConfig,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -531,7 +534,7 @@ class CloudMemorystoreImportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -594,12 +597,12 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         *,
         location: str,
         page_size: int,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -612,7 +615,7 @@ class CloudMemorystoreListInstancesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -687,16 +690,16 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, FieldMask],
-        instance: Union[Dict, Instance],
-        location: Optional[str] = None,
-        instance_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        update_mask: dict | FieldMask,
+        instance: dict | Instance,
+        location: str | None = None,
+        instance_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -711,7 +714,7 @@ class CloudMemorystoreUpdateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -772,14 +775,14 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         self,
         *,
         memory_size_gb: int,
-        location: Optional[str] = None,
-        instance_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        location: str | None = None,
+        instance_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -793,7 +796,7 @@ class CloudMemorystoreScaleInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -875,14 +878,14 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         *,
         location: str,
         instance_id: str,
-        instance: Union[Dict, Instance],
-        input_config: Union[Dict, InputConfig],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        instance: dict | Instance,
+        input_config: dict | InputConfig,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -897,7 +900,7 @@ class CloudMemorystoreCreateInstanceAndImportOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -975,13 +978,13 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         *,
         location: str,
         instance: str,
-        output_config: Union[Dict, OutputConfig],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        output_config: dict | OutputConfig,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -995,7 +998,7 @@ class CloudMemorystoreExportAndDeleteInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = CloudMemorystoreHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1064,11 +1067,11 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
         location: str,
         instance_id: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1083,7 +1086,7 @@ class CloudMemorystoreMemcachedApplyParametersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1148,11 +1151,11 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         self,
         location: str,
         instance_id: str,
-        instance: Union[Dict, cloud_memcache.Instance],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        instance: dict | cloud_memcache.Instance,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs,
@@ -1167,7 +1170,7 @@ class CloudMemorystoreMemcachedCreateInstanceOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(gcp_conn_id=self.gcp_conn_id)
         result = hook.create_instance(
             location=self.location,
@@ -1215,10 +1218,10 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
         self,
         location: str,
         instance: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
         *args,
         **kwargs,
@@ -1232,7 +1235,7 @@ class CloudMemorystoreMemcachedDeleteInstanceOperator(BaseOperator):
         self.metadata = metadata
         self.gcp_conn_id = gcp_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(gcp_conn_id=self.gcp_conn_id)
         hook.delete_instance(
             location=self.location,
@@ -1288,12 +1291,12 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
         *,
         location: str,
         instance: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1306,7 +1309,7 @@ class CloudMemorystoreMemcachedGetInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1365,12 +1368,12 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
         self,
         *,
         location: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1382,7 +1385,7 @@ class CloudMemorystoreMemcachedListInstancesOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1453,16 +1456,16 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, FieldMask],
-        instance: Union[Dict, cloud_memcache.Instance],
-        location: Optional[str] = None,
-        instance_id: Optional[str] = None,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        update_mask: dict | FieldMask,
+        instance: dict | cloud_memcache.Instance,
+        location: str | None = None,
+        instance_id: str | None = None,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1477,7 +1480,7 @@ class CloudMemorystoreMemcachedUpdateInstanceOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )
@@ -1536,16 +1539,16 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
     def __init__(
         self,
         *,
-        update_mask: Union[Dict, FieldMask],
-        parameters: Union[Dict, cloud_memcache.MemcacheParameters],
+        update_mask: dict | FieldMask,
+        parameters: dict | cloud_memcache.MemcacheParameters,
         location: str,
         instance_id: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -1560,7 +1563,7 @@ class CloudMemorystoreMemcachedUpdateParametersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudMemorystoreMemcachedHook(
             gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain
         )

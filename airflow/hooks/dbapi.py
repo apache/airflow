@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from contextlib import closing
 from datetime import datetime
 from typing import Any, Optional
@@ -69,7 +71,7 @@ class DbApiHook(BaseHook):
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
 
-    def __init__(self, *args, schema: Optional[str] = None, **kwargs):
+    def __init__(self, *args, schema: str | None = None, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")

@@ -16,8 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Save Rendered Template Fields"""
+
+from __future__ import annotations
+
 import os
-from typing import Optional
 
 import sqlalchemy_jsonfield
 from sqlalchemy import Column, ForeignKeyConstraint, Integer, and_, not_, text, tuple_
@@ -111,7 +113,7 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> Optional[dict]:
+    def get_templated_fields(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
         Get templated field for a TaskInstance from the RenderedTaskInstanceFields
         table.
@@ -139,7 +141,7 @@ class RenderedTaskInstanceFields(Base):
 
     @classmethod
     @provide_session
-    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> Optional[dict]:
+    def get_k8s_pod_yaml(cls, ti: TaskInstance, session: Session = NEW_SESSION) -> dict | None:
         """
         Get rendered Kubernetes Pod Yaml for a TaskInstance from the RenderedTaskInstanceFields
         table.

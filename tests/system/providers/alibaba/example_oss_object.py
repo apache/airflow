@@ -16,6 +16,8 @@
 # under the License.
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

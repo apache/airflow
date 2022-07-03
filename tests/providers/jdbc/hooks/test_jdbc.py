@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import json
 import unittest
@@ -24,6 +24,9 @@ from unittest.mock import Mock, patch
 from airflow.models import Connection
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook
 from airflow.utils import db
+
+#
+
 
 jdbc_conn_mock = Mock(name="jdbc_conn")
 

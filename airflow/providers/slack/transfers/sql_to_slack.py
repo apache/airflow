@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Iterable, Mapping, Sequence
 
 from pandas import DataFrame
 from tabulate import tabulate
@@ -95,13 +97,13 @@ class SqlToSlackOperator(BaseOperator):
         *,
         sql: str,
         sql_conn_id: str,
-        sql_hook_params: Optional[dict] = None,
-        slack_conn_id: Optional[str] = None,
-        slack_webhook_token: Optional[str] = None,
-        slack_channel: Optional[str] = None,
+        sql_hook_params: dict | None = None,
+        slack_conn_id: str | None = None,
+        slack_webhook_token: str | None = None,
+        slack_channel: str | None = None,
         slack_message: str,
         results_df_name: str = 'results_df',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
+        parameters: Iterable | Mapping | None = None,
         **kwargs,
     ) -> None:
 
@@ -180,7 +182,7 @@ class SqlToSlackOperator(BaseOperator):
         self._do_render_template_fields(self, fields_to_render, context, jinja_env, set())
         self.times_rendered += 1
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         if not isinstance(self.sql, str):
             raise AirflowException("Expected 'sql' parameter should be a string.")
         if self.sql is None or self.sql.strip() == "":

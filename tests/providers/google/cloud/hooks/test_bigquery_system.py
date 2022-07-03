@@ -17,6 +17,8 @@
 # under the License.
 """System tests for Google BigQuery hooks"""
 
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.google.cloud.hooks import bigquery as hook

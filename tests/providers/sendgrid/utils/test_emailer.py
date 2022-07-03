@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import copy
 import os
@@ -24,6 +24,8 @@ import unittest
 from unittest import mock
 
 from airflow.providers.sendgrid.utils.emailer import send_email
+
+#
 
 
 class TestSendEmailSendGrid(unittest.TestCase):

@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Example Airflow DAG that displays interactions with Google Cloud Functions.
 It creates a function and then deletes it.
 
@@ -42,7 +44,7 @@ https://airflow.apache.org/concepts.html#variables
 
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from airflow import models
 from airflow.providers.google.cloud.operators.functions import (
@@ -73,7 +75,7 @@ body = {"name": FUNCTION_NAME, "entryPoint": GCF_ENTRYPOINT, "runtime": GCF_RUNT
 # [END howto_operator_gcf_deploy_body]
 
 # [START howto_operator_gcf_default_args]
-default_args: Dict[str, Any] = {'retries': 3}
+default_args: dict[str, Any] = {'retries': 3}
 # [END howto_operator_gcf_default_args]
 
 # [START howto_operator_gcf_deploy_variants]

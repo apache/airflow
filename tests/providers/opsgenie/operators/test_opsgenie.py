@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -27,6 +27,9 @@ from airflow.providers.opsgenie.operators.opsgenie import (
     OpsgenieDeleteAlertOperator,
 )
 from airflow.utils import timezone
+
+#
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

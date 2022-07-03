@@ -14,9 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from datetime import datetime
 from functools import wraps
-from typing import Any, Callable, Container, Dict, Optional, TypeVar, cast
+from typing import Any, Callable, Container, TypeVar, cast
 
 from pendulum.parsing import ParserError
 from sqlalchemy import text
@@ -69,7 +71,7 @@ def check_limit(value: int) -> int:
 T = TypeVar("T", bound=Callable)
 
 
-def format_parameters(params_formatters: Dict[str, Callable[[Any], Any]]) -> Callable[[T], T]:
+def format_parameters(params_formatters: dict[str, Callable[[Any], Any]]) -> Callable[[T], T]:
     """
     Decorator factory that create decorator that convert parameters using given formatters.
 
@@ -94,8 +96,8 @@ def format_parameters(params_formatters: Dict[str, Callable[[Any], Any]]) -> Cal
 def apply_sorting(
     query: Query,
     order_by: str,
-    to_replace: Optional[Dict[str, str]] = None,
-    allowed_attrs: Optional[Container[str]] = None,
+    to_replace: dict[str, str] | None = None,
+    allowed_attrs: Container[str] | None = None,
 ) -> Query:
     """Apply sorting to query"""
     lstriped_orderby = order_by.lstrip('-')

@@ -16,6 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 '''
 Take normal chart CHANGELOG entries and build ArtifactHub changelog annotations.
@@ -39,7 +40,6 @@ to:
 
 
 import re
-from typing import Dict, List, Optional, Tuple, Union
 
 import yaml
 
@@ -60,7 +60,7 @@ PREFIXES_TO_STRIP = [
 ]
 
 
-def parse_line(line: str) -> Tuple[Optional[str], Optional[int]]:
+def parse_line(line: str) -> tuple[str | None, int | None]:
     match = re.search(r'^- (.*?)(?:\(#(\d+)\)){0,1}$', line)
     if not match:
         return None, None
@@ -68,7 +68,7 @@ def parse_line(line: str) -> Tuple[Optional[str], Optional[int]]:
     return desc.strip(), int(pr_number)
 
 
-def print_entry(section: str, description: str, pr_number: Optional[int]):
+def print_entry(section: str, description: str, pr_number: int | None):
     for unwanted_prefix in PREFIXES_TO_STRIP:
         if description.lower().startswith(unwanted_prefix.lower()):
             description = description[len(unwanted_prefix) :].strip()
@@ -76,7 +76,7 @@ def print_entry(section: str, description: str, pr_number: Optional[int]):
     kind, prefix = TYPE_MAPPING[section]
     if prefix:
         description = f"{prefix}: {description}"
-    entry: Dict[str, Union[str, List]] = {"kind": kind, "description": description}
+    entry: dict[str, str | list] = {"kind": kind, "description": description}
     if pr_number:
         entry["links"] = [
             {"name": f"#{pr_number}", "url": f"https://github.com/apache/airflow/pull/{pr_number}"}

@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import sys
-from typing import Optional, Tuple
 
 import click
 
@@ -140,7 +141,7 @@ def fix_ownership(github_repository: str, verbose: bool, dry_run: bool):
     sys.exit(0)
 
 
-def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -> Tuple[str, ...]:
+def get_changed_files(commit_ref: str | None, dry_run: bool, verbose: bool) -> tuple[str, ...]:
     if commit_ref is None:
         return ()
     cmd = [
@@ -195,7 +196,7 @@ def get_changed_files(commit_ref: Optional[str], dry_run: bool, verbose: bool) -
 @option_verbose
 @option_dry_run
 def selective_check(
-    commit_ref: Optional[str],
+    commit_ref: str | None,
     pr_labels: str,
     default_branch: str,
     github_event_name: str,

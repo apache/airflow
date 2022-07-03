@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Iterator, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Iterator, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models.abstractoperator import AbstractOperator
@@ -64,14 +66,14 @@ class XComArg(DependencyMixin):
     :param key: key value which is used for xcom_pull (key in the XCom table)
     """
 
-    def __init__(self, operator: "Operator", key: str = XCOM_RETURN_KEY):
+    def __init__(self, operator: Operator, key: str = XCOM_RETURN_KEY):
         self.operator = operator
         self.key = key
 
     def __eq__(self, other):
         return self.operator == other.operator and self.key == other.key
 
-    def __getitem__(self, item: str) -> "XComArg":
+    def __getitem__(self, item: str) -> XComArg:
         """Implements xcomresult['some_result_key']"""
         if not isinstance(item, str):
             raise ValueError(f"XComArg only supports str lookup, received {type(item).__name__}")
@@ -114,33 +116,33 @@ class XComArg(DependencyMixin):
         return xcom_pull
 
     @property
-    def roots(self) -> List[DAGNode]:
+    def roots(self) -> list[DAGNode]:
         """Required by TaskMixin"""
         return [self.operator]
 
     @property
-    def leaves(self) -> List[DAGNode]:
+    def leaves(self) -> list[DAGNode]:
         """Required by TaskMixin"""
         return [self.operator]
 
     def set_upstream(
         self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
-        edge_modifier: Optional[EdgeModifier] = None,
+        task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ):
         """Proxy to underlying operator set_upstream method. Required by TaskMixin."""
         self.operator.set_upstream(task_or_task_list, edge_modifier)
 
     def set_downstream(
         self,
-        task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
-        edge_modifier: Optional[EdgeModifier] = None,
+        task_or_task_list: DependencyMixin | Sequence[DependencyMixin],
+        edge_modifier: EdgeModifier | None = None,
     ):
         """Proxy to underlying operator set_downstream method. Required by TaskMixin."""
         self.operator.set_downstream(task_or_task_list, edge_modifier)
 
     @provide_session
-    def resolve(self, context: Context, session: "Session" = NEW_SESSION) -> Any:
+    def resolve(self, context: Context, session: Session = NEW_SESSION) -> Any:
         """
         Pull XCom value for the existing arg. This method is run during ``op.execute()``
         in respectable context.
@@ -156,7 +158,7 @@ class XComArg(DependencyMixin):
         return result
 
     @staticmethod
-    def iter_xcom_args(arg: Any) -> Iterator["XComArg"]:
+    def iter_xcom_args(arg: Any) -> Iterator[XComArg]:
         """Return XComArg instances in an arbitrary value.
 
         This recursively traverse ``arg`` and look for XComArg instances in any
@@ -175,7 +177,7 @@ class XComArg(DependencyMixin):
                 yield from XComArg.iter_xcom_args(elem)
 
     @staticmethod
-    def apply_upstream_relationship(op: "Operator", arg: Any):
+    def apply_upstream_relationship(op: Operator, arg: Any):
         """Set dependency for XComArgs.
 
         This looks for XComArg objects in ``arg`` "deeply" (looking inside

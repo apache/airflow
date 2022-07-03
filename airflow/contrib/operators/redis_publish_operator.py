@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.redis.operators.redis_publish`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.redis.operators.redis_publish import RedisPublishOperator  # noqa

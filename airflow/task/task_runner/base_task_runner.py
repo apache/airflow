@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Base task runner"""
+
+from __future__ import annotations
+
 import os
 import subprocess
 import threading
@@ -25,8 +28,6 @@ from airflow.utils.platform import IS_WINDOWS
 if not IS_WINDOWS:
     # ignored to avoid flake complaining on Linux
     from pwd import getpwnam  # noqa
-
-from typing import Optional
 
 from airflow.configuration import conf
 from airflow.exceptions import AirflowConfigException
@@ -160,7 +161,7 @@ class BaseTaskRunner(LoggingMixin):
         """Start running the task instance in a subprocess."""
         raise NotImplementedError()
 
-    def return_code(self, timeout: int = 0) -> Optional[int]:
+    def return_code(self, timeout: int = 0) -> int | None:
         """
         :return: The return code associated with running the task instance or
             None if the task is not yet done.

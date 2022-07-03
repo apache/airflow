@@ -17,6 +17,8 @@
 # under the License.
 """This package is deprecated. Please use `airflow.utils`."""
 
+from __future__ import annotations
+
 import warnings
 
 warnings.warn("This module is deprecated. Please use `airflow.utils`.", DeprecationWarning, stacklevel=2)

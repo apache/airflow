@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from logging import DEBUG, ERROR, INFO, WARNING
 from unittest import TestCase
@@ -30,6 +30,9 @@ from pytest import raises
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.psrp.hooks.psrp import PsrpHook
+
+#
+
 
 CONNECTION_ID = "conn_id"
 DUMMY_STACKTRACE = [

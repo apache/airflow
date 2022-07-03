@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 This is an example DAG which uses SparkKubernetesOperator and SparkKubernetesSensor.
 In this example, we create two tasks which execute sequentially.
 The first task is to submit sparkApplication on Kubernetes cluster(the example uses spark-pi application).

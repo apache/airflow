@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.segment.hooks.segment`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.segment.hooks.segment import SegmentHook, analytics  # noqa

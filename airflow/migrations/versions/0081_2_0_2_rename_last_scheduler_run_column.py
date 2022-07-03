@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """Rename ``last_scheduler_run`` column in ``DAG`` table to ``last_parsed_time``
 

@@ -15,14 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Airflow System Test DAG that verifies Datastore query operators.
 """
 
 import os
 from datetime import datetime
-from typing import Any, Dict
+from typing import Any
 
 from airflow import models
 from airflow.providers.google.cloud.operators.datastore import (
@@ -43,7 +45,7 @@ KEYS = [
     }
 ]
 
-TRANSACTION_OPTIONS: Dict[str, Any] = {"readWrite": {}}
+TRANSACTION_OPTIONS: dict[str, Any] = {"readWrite": {}}
 
 
 with models.DAG(

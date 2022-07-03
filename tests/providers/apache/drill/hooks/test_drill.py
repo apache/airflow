@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import MagicMock
 
 from airflow.providers.apache.drill.hooks.drill import DrillHook
+
+#
 
 
 class TestDrillHook(unittest.TestCase):

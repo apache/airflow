@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 import argparse
 import multiprocessing
@@ -23,7 +23,7 @@ import os
 import sys
 from collections import defaultdict
 from itertools import filterfalse, tee
-from typing import Callable, Dict, Iterable, List, NamedTuple, Optional, Tuple, TypeVar
+from typing import Callable, Iterable, NamedTuple, TypeVar
 
 from rich.console import Console
 from tabulate import tabulate
@@ -67,7 +67,7 @@ console = Console(force_terminal=True, color_system="standard", width=CONSOLE_WI
 T = TypeVar('T')
 
 
-def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> Tuple[Iterable[T], Iterable[T]]:
+def partition(pred: Callable[[T], bool], iterable: Iterable[T]) -> tuple[Iterable[T], Iterable[T]]:
     """Use a predicate to partition entries into false entries and true entries"""
     iter_1, iter_2 = tee(iterable)
     return filterfalse(pred, iter_1), filter(pred, iter_2)
@@ -177,7 +177,7 @@ class BuildDocsResult(NamedTuple):
 
     package_name: str
     log_file_name: str
-    errors: List[DocBuildError]
+    errors: list[DocBuildError]
 
 
 class SpellCheckResult(NamedTuple):
@@ -185,7 +185,7 @@ class SpellCheckResult(NamedTuple):
 
     package_name: str
     log_file_name: str
-    errors: List[SpellingError]
+    errors: list[SpellingError]
 
 
 def perform_docs_build_for_single_package(build_specification: BuildSpecification) -> BuildDocsResult:
@@ -222,16 +222,16 @@ def perform_spell_check_for_single_package(build_specification: BuildSpecificati
 
 
 def build_docs_for_packages(
-    current_packages: List[str],
+    current_packages: list[str],
     docs_only: bool,
     spellcheck_only: bool,
     for_production: bool,
     jobs: int,
     verbose: bool,
-) -> Tuple[Dict[str, List[DocBuildError]], Dict[str, List[SpellingError]]]:
+) -> tuple[dict[str, list[DocBuildError]], dict[str, list[SpellingError]]]:
     """Builds documentation for all packages and combines errors."""
-    all_build_errors: Dict[str, List[DocBuildError]] = defaultdict(list)
-    all_spelling_errors: Dict[str, List[SpellingError]] = defaultdict(list)
+    all_build_errors: dict[str, list[DocBuildError]] = defaultdict(list)
+    all_spelling_errors: dict[str, list[SpellingError]] = defaultdict(list)
     with with_group("Cleaning documentation files"):
         for package_name in current_packages:
             console.print(f"[info]{package_name:60}:[/] Cleaning files")
@@ -339,14 +339,14 @@ def print_build_output(result: BuildDocsResult):
 
 
 def run_docs_build_in_parallel(
-    all_build_errors: Dict[str, List[DocBuildError]],
+    all_build_errors: dict[str, list[DocBuildError]],
     for_production: bool,
-    current_packages: List[str],
+    current_packages: list[str],
     verbose: bool,
     pool,
 ):
     """Runs documentation building in parallel."""
-    doc_build_specifications: List[BuildSpecification] = []
+    doc_build_specifications: list[BuildSpecification] = []
     with with_group("Scheduling documentation to build"):
         for package_name in current_packages:
             console.print(f"[info]{package_name:60}:[/] Scheduling documentation to build")
@@ -379,14 +379,14 @@ def print_spelling_output(result: SpellCheckResult):
 
 
 def run_spell_check_in_parallel(
-    all_spelling_errors: Dict[str, List[SpellingError]],
+    all_spelling_errors: dict[str, list[SpellingError]],
     for_production: bool,
-    current_packages: List[str],
+    current_packages: list[str],
     verbose: bool,
     pool,
 ):
     """Runs spell check in parallel."""
-    spell_check_specifications: List[BuildSpecification] = []
+    spell_check_specifications: list[BuildSpecification] = []
     with with_group("Scheduling spell checking of documentation"):
         for package_name in current_packages:
             console.print(f"[info]{package_name:60}:[/] Scheduling spellchecking")
@@ -403,7 +403,7 @@ def run_spell_check_in_parallel(
 
 
 def display_packages_summary(
-    build_errors: Dict[str, List[DocBuildError]], spelling_errors: Dict[str, List[SpellingError]]
+    build_errors: dict[str, list[DocBuildError]], spelling_errors: dict[str, list[SpellingError]]
 ):
     """Displays a summary that contains information on the number of errors in each packages"""
     packages_names = {*build_errors.keys(), *spelling_errors.keys()}
@@ -421,8 +421,8 @@ def display_packages_summary(
 
 
 def print_build_errors_and_exit(
-    build_errors: Dict[str, List[DocBuildError]],
-    spelling_errors: Dict[str, List[SpellingError]],
+    build_errors: dict[str, list[DocBuildError]],
+    spelling_errors: dict[str, list[SpellingError]],
 ) -> None:
     """Prints build errors and exists."""
     if build_errors or spelling_errors:
@@ -476,8 +476,8 @@ def main():
         for pkg_no, pkg in enumerate(current_packages, start=1):
             console.print(f"{pkg_no}. {pkg}")
 
-    all_build_errors: Dict[Optional[str], List[DocBuildError]] = {}
-    all_spelling_errors: Dict[Optional[str], List[SpellingError]] = {}
+    all_build_errors: dict[str | None, list[DocBuildError]] = {}
+    all_spelling_errors: dict[str | None, list[SpellingError]] = {}
     if priority_packages:
         # Build priority packages
         package_build_errors, package_spelling_errors = build_docs_for_packages(

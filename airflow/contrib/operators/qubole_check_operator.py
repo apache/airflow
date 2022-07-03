@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.qubole.operators.qubole_check`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.qubole.operators.qubole_check import (  # noqa

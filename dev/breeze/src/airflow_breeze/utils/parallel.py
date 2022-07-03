@@ -14,16 +14,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import sys
 import time
 from multiprocessing.pool import ApplyResult
-from typing import List
 
 from airflow_breeze.utils.console import get_console
 
 
-def print_async_summary(completed_list: List[ApplyResult]) -> None:
+def print_async_summary(completed_list: list[ApplyResult]) -> None:
     """
     Print summary of completed async results.
     :param completed_list: list of completed async results.
@@ -39,12 +39,12 @@ def print_async_summary(completed_list: List[ApplyResult]) -> None:
     get_console().print()
 
 
-def get_completed_result_list(results: List[ApplyResult]) -> List[ApplyResult]:
+def get_completed_result_list(results: list[ApplyResult]) -> list[ApplyResult]:
     """Return completed results from the list."""
     return list(filter(lambda result: result.ready(), results))
 
 
-def check_async_run_results(results: List[ApplyResult], poll_time: float = 0.2):
+def check_async_run_results(results: list[ApplyResult], poll_time: float = 0.2):
     """
     Check if all async results were success. Exits with error if not.
     :param results: results of parallel runs (expected in the form of Tuple: (return_code, info)

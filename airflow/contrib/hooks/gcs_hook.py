@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.google.cloud.hooks.gcs`."""
+
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.google.cloud.hooks.gcs import GCSHook

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 import json
@@ -27,6 +27,9 @@ import pandas as pd
 import airflow.providers.amazon.aws.transfers.hive_to_dynamodb
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.hooks.dynamodb import DynamoDBHook
+
+#
+
 
 DEFAULT_DATE = datetime.datetime(2015, 1, 1)
 DEFAULT_DATE_ISO = DEFAULT_DATE.isoformat()

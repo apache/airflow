@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook
@@ -54,13 +55,13 @@ class DiscordWebhookOperator(SimpleHttpOperator):
     def __init__(
         self,
         *,
-        http_conn_id: Optional[str] = None,
-        webhook_endpoint: Optional[str] = None,
+        http_conn_id: str | None = None,
+        webhook_endpoint: str | None = None,
         message: str = "",
-        username: Optional[str] = None,
-        avatar_url: Optional[str] = None,
+        username: str | None = None,
+        avatar_url: str | None = None,
         tts: bool = False,
-        proxy: Optional[str] = None,
+        proxy: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(endpoint=webhook_endpoint, **kwargs)
@@ -75,9 +76,9 @@ class DiscordWebhookOperator(SimpleHttpOperator):
         self.avatar_url = avatar_url
         self.tts = tts
         self.proxy = proxy
-        self.hook: Optional[DiscordWebhookHook] = None
+        self.hook: DiscordWebhookHook | None = None
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         """Call the DiscordWebhookHook to post message"""
         self.hook = DiscordWebhookHook(
             self.http_conn_id,

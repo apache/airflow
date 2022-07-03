@@ -15,8 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
 """
 This module contains Azure Data Explorer hook.
 
@@ -25,7 +23,9 @@ This module contains Azure Data Explorer hook.
     KustoResponseDataSetV
     kusto
 """
-from typing import Any, Dict, Optional
+from __future__ import annotations
+
+from typing import Any
 
 from azure.kusto.data.exceptions import KustoServiceError
 from azure.kusto.data.request import ClientRequestProperties, KustoClient, KustoConnectionStringBuilder
@@ -75,7 +75,7 @@ class AzureDataExplorerHook(BaseHook):
     hook_name = 'Azure Data Explorer'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3PasswordFieldWidget, BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -97,7 +97,7 @@ class AzureDataExplorerHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'extra'],
@@ -164,7 +164,7 @@ class AzureDataExplorerHook(BaseHook):
 
         return KustoClient(kcsb)
 
-    def run_query(self, query: str, database: str, options: Optional[Dict] = None) -> KustoResponseDataSetV2:
+    def run_query(self, query: str, database: str, options: dict | None = None) -> KustoResponseDataSetV2:
         """
         Run KQL query using provided configuration, and return
         `azure.kusto.data.response.KustoResponseDataSet` instance.

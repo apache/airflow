@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Example Airflow DAG that interacts with Google Data Catalog service
 """
 import os

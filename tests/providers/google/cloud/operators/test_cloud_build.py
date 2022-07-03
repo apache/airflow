@@ -15,11 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 # pylint: disable=R0904, C0111
 """
 This module contains various unit tests for GCP Cloud Build Operators
 """
+from __future__ import annotations
 
 import json
 import tempfile

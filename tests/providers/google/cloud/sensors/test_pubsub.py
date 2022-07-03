@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import unittest
-from typing import Any, Dict, List
+from typing import Any
 from unittest import mock
 
 import pytest
@@ -124,8 +125,8 @@ class TestPubSubPullSensor(unittest.TestCase):
         messages_callback_return_value = 'asdfg'
 
         def messages_callback(
-            pulled_messages: List[ReceivedMessage],
-            context: Dict[str, Any],
+            pulled_messages: list[ReceivedMessage],
+            context: dict[str, Any],
         ):
             assert pulled_messages == generated_messages
 

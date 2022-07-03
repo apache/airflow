@@ -17,6 +17,8 @@
 """
 Useful tools for various Paths used inside Airflow Sources.
 """
+from __future__ import annotations
+
 import hashlib
 import os
 import subprocess
@@ -24,7 +26,6 @@ import sys
 import tempfile
 from functools import lru_cache
 from pathlib import Path
-from typing import Optional
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.confirm import set_forced_answer
@@ -39,7 +40,7 @@ from airflow_breeze.utils.reinstall import (
 AIRFLOW_CFG_FILE = "setup.cfg"
 
 
-def search_upwards_for_airflow_sources_root(start_from: Path) -> Optional[Path]:
+def search_upwards_for_airflow_sources_root(start_from: Path) -> Path | None:
     root = Path(start_from.root)
     d = start_from
     while d != root:
@@ -169,7 +170,7 @@ def print_warning_if_different_sources(airflow_sources: Path) -> bool:
     return False
 
 
-def get_installation_airflow_sources() -> Optional[Path]:
+def get_installation_airflow_sources() -> Path | None:
     """
     Retrieves the Root of the Airflow Sources where Breeze was installed from.
     :return: the Path for Airflow sources.

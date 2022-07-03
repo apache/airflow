@@ -15,12 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import logging
 import math
 import sys
 import textwrap
 from datetime import datetime
-from typing import List, Set
 
 import pendulum
 import rich_click as click
@@ -64,7 +65,7 @@ REACTION_INTERACTION_VALUE = 0.1
 class PrStat:
     def __init__(self, pull_request: PullRequest):
         self.pull_request = pull_request
-        self._users: Set[str] = set()
+        self._users: set[str] = set()
 
     @cached_property
     def label_score(self) -> float:
@@ -138,7 +139,7 @@ def main(github_token: str, date_start: datetime, date_end: datetime, top_number
     repo = g.get_repo("apache/airflow")
     pulls = repo.get_pulls(state="closed", sort="created", direction='desc')
     issue_num = 0
-    selected_prs: List[PrStat] = []
+    selected_prs: list[PrStat] = []
     for pr in pulls:
         issue_num += 1
         if not pr.merged:

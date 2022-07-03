@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import urllib.parse
-from typing import List
 from unittest import mock
 
 import pytest
@@ -199,7 +200,7 @@ def test_calendar(admin_client, dagruns):
 )
 def test_action_has_dag_edit_access(create_task_instance, class_type, no_instances, no_unique_dags):
     unique_dag_ids = [f"test_dag_id_{nr}" for nr in range(no_unique_dags)]
-    tis: List[TaskInstance] = [
+    tis: list[TaskInstance] = [
         create_task_instance(
             task_id=f"test_task_instance_{nr}",
             execution_date=timezone.datetime(2021, 1, 1 + nr),

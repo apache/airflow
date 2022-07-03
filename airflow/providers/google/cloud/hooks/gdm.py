@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
-from typing import Any, Dict, List, Optional, Sequence, Union
+from typing import Any, Dict, List, Sequence
 
 from googleapiclient.discovery import Resource, build
 
@@ -34,8 +34,8 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -55,10 +55,10 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def list_deployments(
         self,
-        project_id: Optional[str] = None,
-        deployment_filter: Optional[str] = None,
-        order_by: Optional[str] = None,
-    ) -> List[Dict[str, Any]]:
+        project_id: str | None = None,
+        deployment_filter: str | None = None,
+        order_by: str | None = None,
+    ) -> list[dict[str, Any]]:
         """
         Lists deployments in a google cloud project.
 
@@ -81,7 +81,7 @@ class GoogleDeploymentManagerHook(GoogleBaseHook):
 
     @GoogleBaseHook.fallback_to_default_project_id
     def delete_deployment(
-        self, project_id: Optional[str], deployment: Optional[str] = None, delete_policy: Optional[str] = None
+        self, project_id: str | None, deployment: str | None = None, delete_policy: str | None = None
     ) -> None:
         """
         Deletes a deployment and all associated resources in a google cloud project.

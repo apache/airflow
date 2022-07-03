@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import csv
 import logging
 import os
 import textwrap
 from collections import defaultdict
 from time import sleep
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 import rich_click as click
 from github import Github, GithubException
@@ -51,7 +53,7 @@ def cli():
 
 def render_template_file(
     template_name: str,
-    context: Dict[str, Any],
+    context: dict[str, Any],
     autoescape: bool = True,
     keep_trailing_newline: bool = False,
 ) -> str:
@@ -79,7 +81,7 @@ def render_template_file(
 
 def render_template_string(
     template_string: str,
-    context: Dict[str, Any],
+    context: dict[str, Any],
     autoescape: bool = True,
     keep_trailing_newline: bool = False,
 ) -> str:
@@ -191,7 +193,7 @@ option_start_from = click.option(
 def prepare_bulk_issues(
     github_token: str,
     verbose: bool,
-    max_issues: Optional[int],
+    max_issues: int | None,
     dry_run: bool,
     template_file: str,
     csv_file: str,
@@ -200,7 +202,7 @@ def prepare_bulk_issues(
     title: str,
     start_from: int,
 ):
-    issues: Dict[str, List[List[str]]] = defaultdict(list)
+    issues: dict[str, list[list[str]]] = defaultdict(list)
     with open(csv_file) as f:
         read_issues = csv.reader(f)
         for index, row in enumerate(read_issues):
@@ -224,7 +226,7 @@ def prepare_bulk_issues(
         console.print()
         console.print(f"Displayed {processed_issues} issue(s).")
     else:
-        labels_list: List[str] = labels.split(",") if labels else []
+        labels_list: list[str] = labels.split(",") if labels else []
         issues_to_create = int(min(total_issues, max_issues if max_issues is not None else total_issues))
         with Progress(console=console) as progress:
             task = progress.add_task(f"Creating {issues_to_create} issue(s)", total=issues_to_create)

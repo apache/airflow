@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import patch
@@ -25,6 +25,9 @@ from google.api_core.gapic_v1.method import DEFAULT
 from airflow.providers.google.cloud.hooks.speech_to_text import CloudSpeechToTextHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from tests.providers.google.cloud.utils.base_gcp_mock import mock_base_gcp_hook_default_project_id
+
+#
+
 
 PROJECT_ID = "project-id"
 CONFIG = {"encryption": "LINEAR16"}

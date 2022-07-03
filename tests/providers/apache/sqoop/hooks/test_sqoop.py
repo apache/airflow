@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import collections
 import json
@@ -30,6 +30,8 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook
 from airflow.utils import db
+
+#
 
 
 class TestSqoopHook(unittest.TestCase):

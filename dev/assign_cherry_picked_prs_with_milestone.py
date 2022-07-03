@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import os
@@ -23,7 +24,7 @@ import subprocess
 import sys
 import textwrap
 from pathlib import Path
-from typing import Any, Dict, List, NamedTuple, Optional, cast
+from typing import Any, NamedTuple, cast
 
 import rich_click as click
 from github import Github, UnknownObjectException
@@ -138,7 +139,7 @@ option_output_folder = click.option(
 
 def render_template(
     template_name: str,
-    context: Dict[str, Any],
+    context: dict[str, Any],
     autoescape: bool = False,
     keep_trailing_newline: bool = False,
 ) -> str:
@@ -165,8 +166,8 @@ def render_template(
 
 
 def get_git_log_command(
-    verbose: bool, from_commit: Optional[str] = None, to_commit: Optional[str] = None
-) -> List[str]:
+    verbose: bool, from_commit: str | None = None, to_commit: str | None = None
+) -> list[str]:
     """
     Get git command to run for the current repo from the current folder (which is the package folder).
     :param verbose: whether to print verbose info while getting the command
@@ -198,7 +199,7 @@ class Change(NamedTuple):
     date: str
     message: str
     message_without_backticks: str
-    pr: Optional[int]
+    pr: int | None
 
 
 def get_change_from_line(line: str) -> Change:
@@ -218,7 +219,7 @@ def get_change_from_line(line: str) -> Change:
     )
 
 
-def get_changes(verbose: bool, previous_release: str, current_release: str) -> List[Change]:
+def get_changes(verbose: bool, previous_release: str, current_release: str) -> list[Change]:
     change_strings = subprocess.check_output(
         get_git_log_command(verbose, from_commit=previous_release, to_commit=current_release),
         cwd=SOURCE_DIR_PATH,
@@ -250,7 +251,7 @@ def assign_prs(
     previous_release: str,
     current_release: str,
     verbose: bool,
-    limit_pr_count: Optional[int],
+    limit_pr_count: int | None,
     dry_run: bool,
     milestone_number: int,
     skip_assigned: bool,
@@ -284,9 +285,9 @@ def assign_prs(
 
     doc_only_label = repo.get_label(TYPE_DOC_ONLY_LABEL)
     changelog_skip_label = repo.get_label(CHANGELOG_SKIP_LABEL)
-    changelog_changes: List[Change] = []
-    doc_only_changes: List[Change] = []
-    excluded_changes: List[Change] = []
+    changelog_changes: list[Change] = []
+    doc_only_changes: list[Change] = []
+    excluded_changes: list[Change] = []
     for i in range(count_prs):
         pr_number = prs[i]
         if pr_number is None:
@@ -378,7 +379,7 @@ def assign_prs(
 
     if output_folder:
 
-        def write_commits(type: str, path: Path, changes_to_write: List[Change]):
+        def write_commits(type: str, path: Path, changes_to_write: list[Change]):
             path.write_text("\n".join(change.short_hash for change in changes_to_write) + "\n")
             console.print(f"\n{type} commits written in {path}")
 

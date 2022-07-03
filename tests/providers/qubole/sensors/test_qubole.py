@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from datetime import datetime
@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import DAG, Connection
 from airflow.providers.qubole.sensors.qubole import QuboleFileSensor, QubolePartitionSensor
 from airflow.utils import db
+
+#
+
 
 DAG_ID = "qubole_test_dag"
 TASK_ID = "test_task"

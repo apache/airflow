@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
-from typing import Dict, Optional, Sequence
+from typing import Sequence
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException, AirflowSkipException
@@ -134,11 +136,11 @@ class BashOperator(BaseOperator):
         self,
         *,
         bash_command: str,
-        env: Optional[Dict[str, str]] = None,
+        env: dict[str, str] | None = None,
         append_env: bool = False,
         output_encoding: str = 'utf-8',
         skip_exit_code: int = 99,
-        cwd: Optional[str] = None,
+        cwd: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

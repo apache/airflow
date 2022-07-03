@@ -14,6 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
+
 def test_incorrect_endpoint_should_return_json(minimal_app_for_api):
     client = minimal_app_for_api.test_client()
 

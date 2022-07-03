@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
+from __future__ import annotations
 
 import datetime
 import warnings
@@ -23,6 +22,8 @@ import warnings
 from airflow.models import DAG
 from airflow.operators.bash import BashOperator
 from airflow.operators.subdag import SubDagOperator
+
+#
 
 
 def create_subdag_opt(main_dag):

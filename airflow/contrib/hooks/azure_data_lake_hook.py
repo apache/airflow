@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.hooks.data_lake`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.microsoft.azure.hooks.data_lake import AzureDataLakeHook  # noqa

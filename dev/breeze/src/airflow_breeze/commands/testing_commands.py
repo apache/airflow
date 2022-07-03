@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import errno
 import os
 import re
@@ -23,7 +25,6 @@ import sys
 import tempfile
 from threading import Event, Thread
 from time import sleep
-from typing import Dict, List, Optional, Tuple
 
 import click
 
@@ -118,8 +119,8 @@ def docker_compose_tests(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
-    extra_pytest_args: Tuple,
+    image_tag: str | None,
+    extra_pytest_args: tuple,
 ):
     """Run docker-compose tests."""
     if image_name is None:
@@ -186,8 +187,8 @@ def escape_ansi(line):
 
 
 def run_with_progress(
-    cmd: List[str],
-    env_variables: Dict[str, str],
+    cmd: list[str],
+    env_variables: dict[str, str],
     test_type: str,
     python: str,
     backend: str,
@@ -262,11 +263,11 @@ def tests(
     mysql_version: str,
     mssql_version: str,
     limit_progress_output: bool,
-    integration: Tuple,
-    extra_pytest_args: Tuple,
+    integration: tuple,
+    extra_pytest_args: tuple,
     test_type: str,
     db_reset: bool,
-    image_tag: Optional[str],
+    image_tag: str | None,
     mount_sources: str,
 ):
     os.environ["RUN_TESTS"] = "true"

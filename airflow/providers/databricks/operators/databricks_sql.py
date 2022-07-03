@@ -15,18 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""This module contains Databricks operators."""
+from __future__ import annotations
 
 import csv
 import json
-from typing import TYPE_CHECKING, Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Iterable, Mapping, Sequence
 
 from databricks.sql.utils import ParamEscaper
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
+
+# """This module contains Databricks operators."""
+
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -71,20 +73,20 @@ class DatabricksSqlOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: Union[str, List[str]],
+        sql: str | list[str],
         databricks_conn_id: str = DatabricksSqlHook.default_conn_name,
-        http_path: Optional[str] = None,
-        sql_endpoint_name: Optional[str] = None,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        http_path: str | None = None,
+        sql_endpoint_name: str | None = None,
+        parameters: Mapping | Iterable | None = None,
         session_configuration=None,
-        http_headers: Optional[List[Tuple[str, str]]] = None,
-        catalog: Optional[str] = None,
-        schema: Optional[str] = None,
+        http_headers: list[tuple[str, str]] | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
         do_xcom_push: bool = False,
-        output_path: Optional[str] = None,
+        output_path: str | None = None,
         output_format: str = 'csv',
-        csv_params: Optional[Dict[str, Any]] = None,
-        client_parameters: Optional[Dict[str, Any]] = None,
+        csv_params: dict[str, Any] | None = None,
+        client_parameters: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSqlOperator``."""
@@ -147,7 +149,7 @@ class DatabricksSqlOperator(BaseOperator):
         else:
             raise AirflowException(f"Unsupported output format: '{self._output_format}'")
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Context) -> Any:
         self.log.info('Executing: %s', self.sql)
         hook = self._get_hook()
         schema, results = hook.run(self.sql, parameters=self.parameters)
@@ -216,23 +218,23 @@ class DatabricksCopyIntoOperator(BaseOperator):
         file_location: str,
         file_format: str,
         databricks_conn_id: str = DatabricksSqlHook.default_conn_name,
-        http_path: Optional[str] = None,
-        sql_endpoint_name: Optional[str] = None,
+        http_path: str | None = None,
+        sql_endpoint_name: str | None = None,
         session_configuration=None,
-        http_headers: Optional[List[Tuple[str, str]]] = None,
-        client_parameters: Optional[Dict[str, Any]] = None,
-        catalog: Optional[str] = None,
-        schema: Optional[str] = None,
-        files: Optional[List[str]] = None,
-        pattern: Optional[str] = None,
-        expression_list: Optional[str] = None,
-        credential: Optional[Dict[str, str]] = None,
-        storage_credential: Optional[str] = None,
-        encryption: Optional[Dict[str, str]] = None,
-        format_options: Optional[Dict[str, str]] = None,
-        force_copy: Optional[bool] = None,
-        copy_options: Optional[Dict[str, str]] = None,
-        validate: Optional[Union[bool, int]] = None,
+        http_headers: list[tuple[str, str]] | None = None,
+        client_parameters: dict[str, Any] | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
+        files: list[str] | None = None,
+        pattern: str | None = None,
+        expression_list: str | None = None,
+        credential: dict[str, str] | None = None,
+        storage_credential: str | None = None,
+        encryption: dict[str, str] | None = None,
+        format_options: dict[str, str] | None = None,
+        force_copy: bool | None = None,
+        copy_options: dict[str, str] | None = None,
+        validate: bool | int | None = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSqlOperator``."""
@@ -284,7 +286,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
     def _generate_options(
         name: str,
         escaper: ParamEscaper,
-        opts: Optional[Dict[str, str]] = None,
+        opts: dict[str, str] | None = None,
         escape_key: bool = True,
     ) -> str:
         formatted_opts = ""
@@ -344,7 +346,7 @@ FILEFORMAT = {self._file_format}
 """
         return sql.strip()
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Context) -> Any:
         sql = self._create_sql_query()
         self.log.info('Executing: %s', sql)
         hook = self._get_hook()

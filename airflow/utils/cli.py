@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""Utilities module for cli"""
+from __future__ import annotations
+
 import functools
 import json
 import logging
@@ -29,7 +29,7 @@ import traceback
 import warnings
 from argparse import Namespace
 from datetime import datetime
-from typing import TYPE_CHECKING, Callable, Optional, TypeVar, cast
+from typing import TYPE_CHECKING, Callable, TypeVar, cast
 
 from airflow import settings
 from airflow.exceptions import AirflowException
@@ -37,6 +37,9 @@ from airflow.utils import cli_action_loggers
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.platform import getuser, is_terminal_support_colors
 from airflow.utils.session import provide_session
+
+# """Utilities module for cli"""
+
 
 T = TypeVar("T", bound=Callable)
 
@@ -162,7 +165,7 @@ def _build_metrics(func_name, args, kwargs):
     return metrics
 
 
-def process_subdir(subdir: Optional[str]):
+def process_subdir(subdir: str | None):
     """Expands path to absolute by replacing 'DAGS_FOLDER', '~', '.', etc."""
     if subdir:
         if not settings.DAGS_FOLDER:
@@ -186,7 +189,7 @@ def get_dag_by_file_location(dag_id: str):
     return dagbag.dags[dag_id]
 
 
-def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
+def get_dag(subdir: str | None, dag_id: str) -> DAG:
     """Returns DAG of a given dag_id"""
     from airflow.models import DagBag
 
@@ -198,7 +201,7 @@ def get_dag(subdir: Optional[str], dag_id: str) -> "DAG":
     return dagbag.dags[dag_id]
 
 
-def get_dag_by_deserialization(dag_id: str) -> "DAG":
+def get_dag_by_deserialization(dag_id: str) -> DAG:
     from airflow.models.serialized_dag import SerializedDagModel
 
     dag_model = SerializedDagModel.get(dag_id)
@@ -208,7 +211,7 @@ def get_dag_by_deserialization(dag_id: str) -> "DAG":
     return dag_model.dag
 
 
-def get_dags(subdir: Optional[str], dag_id: str, use_regex: bool = False):
+def get_dags(subdir: str | None, dag_id: str, use_regex: bool = False):
     """Returns DAG(s) matching a given regex or dag_id"""
     from airflow.models import DagBag
 

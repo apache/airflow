@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import contextlib
 import multiprocessing as mp
 import os
 import sys
-from typing import List, Optional, Tuple
 
 import click
 
@@ -208,8 +209,8 @@ def start_building(prod_image_params: BuildProdParams, dry_run: bool, verbose: b
 
 
 def run_build_in_parallel(
-    image_params_list: List[BuildProdParams],
-    python_version_list: List[str],
+    image_params_list: list[BuildProdParams],
+    python_version_list: list[str],
     parallelism: int,
     dry_run: bool,
     verbose: bool,
@@ -317,7 +318,7 @@ def build_prod_image(
     run_in_parallel: bool,
     parallelism: int,
     python_versions: str,
-    answer: Optional[str],
+    answer: str | None,
     **kwargs,
 ):
     """
@@ -338,7 +339,7 @@ def build_prod_image(
     fix_group_permissions(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
-        params_list: List[BuildProdParams] = []
+        params_list: list[BuildProdParams] = []
         for python in python_version_list:
             params = BuildProdParams(**parameters_passed)
             params.python = python
@@ -385,7 +386,7 @@ def pull_prod_image(
     wait_for_image: bool,
     tag_as_latest: bool,
     verify_image: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Pull and optionally verify Production images - possibly in parallel for all Python versions."""
     if image_tag == "latest":
@@ -462,10 +463,10 @@ def verify_prod_image(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
+    image_tag: str | None,
     pull_image: bool,
     slim_image: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Verify Production image."""
     perform_environment_checks(verbose=verbose)
@@ -540,7 +541,7 @@ def check_docker_context_files(install_packages_from_context: bool):
 
 def run_build_production_image(
     verbose: bool, dry_run: bool, prod_image_params: BuildProdParams, parallel: bool
-) -> Tuple[int, str]:
+) -> tuple[int, str]:
     """
     Builds PROD image:
 

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from contextlib import closing
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 import pandas as pd
 import pyexasol
@@ -64,9 +65,7 @@ class ExasolHook(DbApiHook):
         conn = pyexasol.connect(**conn_args)
         return conn
 
-    def get_pandas_df(
-        self, sql: Union[str, list], parameters: Optional[dict] = None, **kwargs
-    ) -> pd.DataFrame:
+    def get_pandas_df(self, sql: str | list, parameters: dict | None = None, **kwargs) -> pd.DataFrame:
         """
         Executes the sql and returns a pandas dataframe
 
@@ -79,9 +78,7 @@ class ExasolHook(DbApiHook):
             df = conn.export_to_pandas(sql, query_params=parameters, **kwargs)
             return df
 
-    def get_records(
-        self, sql: Union[str, list], parameters: Optional[dict] = None
-    ) -> List[Union[dict, Tuple[Any, ...]]]:
+    def get_records(self, sql: str | list, parameters: dict | None = None) -> list[dict | tuple[Any, ...]]:
         """
         Executes the sql and returns a set of records.
 
@@ -93,7 +90,7 @@ class ExasolHook(DbApiHook):
             with closing(conn.execute(sql, parameters)) as cur:
                 return cur.fetchall()
 
-    def get_first(self, sql: Union[str, list], parameters: Optional[dict] = None) -> Optional[Any]:
+    def get_first(self, sql: str | list, parameters: dict | None = None) -> Any | None:
         """
         Executes the sql and returns the first resulting row.
 
@@ -109,8 +106,8 @@ class ExasolHook(DbApiHook):
         self,
         filename: str,
         query_or_table: str,
-        query_params: Optional[Dict] = None,
-        export_params: Optional[Dict] = None,
+        query_params: dict | None = None,
+        export_params: dict | None = None,
     ) -> None:
         """
         Exports data to a file.
@@ -133,8 +130,8 @@ class ExasolHook(DbApiHook):
         self.log.info("Data saved to %s", filename)
 
     def run(
-        self, sql: Union[str, list], autocommit: bool = False, parameters: Optional[dict] = None, handler=None
-    ) -> Optional[list]:
+        self, sql: str | list, autocommit: bool = False, parameters: dict | None = None, handler=None
+    ) -> list | None:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, Iterable, List, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Iterable, List, Sequence, cast
 
 from airflow.models.taskinstance import TaskInstance
 from airflow.utils import timezone
@@ -45,7 +46,7 @@ XCOM_SKIPMIXIN_FOLLOWED = "followed"
 class SkipMixin(LoggingMixin):
     """A Mixin to skip Tasks Instances"""
 
-    def _set_state_to_skipped(self, dag_run: "DagRun", tasks: "Iterable[BaseOperator]", session: "Session"):
+    def _set_state_to_skipped(self, dag_run: DagRun, tasks: Iterable[BaseOperator], session: Session):
         """Used internally to set state of task instances to skipped from the same dag run."""
         task_ids = [d.task_id for d in tasks]
         now = timezone.utcnow()
@@ -66,10 +67,10 @@ class SkipMixin(LoggingMixin):
     @provide_session
     def skip(
         self,
-        dag_run: "DagRun",
-        execution_date: "DateTime",
-        tasks: Sequence["BaseOperator"],
-        session: "Session" = NEW_SESSION,
+        dag_run: DagRun,
+        execution_date: DateTime,
+        tasks: Sequence[BaseOperator],
+        session: Session = NEW_SESSION,
     ):
         """
         Sets tasks instances to skipped from the same dag run.
@@ -115,7 +116,7 @@ class SkipMixin(LoggingMixin):
         session.commit()
 
         # SkipMixin may not necessarily have a task_id attribute. Only store to XCom if one is available.
-        task_id: Optional[str] = getattr(self, "task_id", None)
+        task_id: str | None = getattr(self, "task_id", None)
         if task_id is not None:
             from airflow.models.xcom import XCom
 
@@ -128,7 +129,7 @@ class SkipMixin(LoggingMixin):
                 session=session,
             )
 
-    def skip_all_except(self, ti: TaskInstance, branch_task_ids: Union[None, str, Iterable[str]]):
+    def skip_all_except(self, ti: TaskInstance, branch_task_ids: None | str | Iterable[str]):
         """
         This method implements the logic for a branching operator; given a single
         task ID or list of task IDs to follow, this skips all other tasks

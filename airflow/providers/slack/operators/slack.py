@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
-from typing import Any, Dict, List, Optional, Sequence
+from typing import Any, Optional, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.slack.hooks.slack import SlackHook
@@ -40,10 +42,10 @@ class SlackAPIOperator(BaseOperator):
     def __init__(
         self,
         *,
-        slack_conn_id: Optional[str] = None,
-        token: Optional[str] = None,
-        method: Optional[str] = None,
-        api_params: Optional[Dict] = None,
+        slack_conn_id: str | None = None,
+        token: str | None = None,
+        method: str | None = None,
+        api_params: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -118,8 +120,8 @@ class SlackAPIPostOperator(SlackAPIOperator):
         'https://www.youtube.com/watch?v=J---aiyznGQ',
         icon_url: str = 'https://raw.githubusercontent.com/apache/'
         'airflow/main/airflow/www/static/pin_100.png',
-        attachments: Optional[List] = None,
-        blocks: Optional[List] = None,
+        attachments: list | None = None,
+        blocks: list | None = None,
         **kwargs,
     ) -> None:
         self.method = 'chat.postMessage'
@@ -185,9 +187,9 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self,
         channel: str = '#general',
         initial_comment: str = 'No message has been set!',
-        filename: Optional[str] = None,
-        filetype: Optional[str] = None,
-        content: Optional[str] = None,
+        filename: str | None = None,
+        filetype: str | None = None,
+        content: str | None = None,
         **kwargs,
     ) -> None:
         self.method = 'files.upload'
@@ -196,7 +198,7 @@ class SlackAPIFileOperator(SlackAPIOperator):
         self.filename = filename
         self.filetype = filetype
         self.content = content
-        self.file_params: Dict = {}
+        self.file_params: dict = {}
         super().__init__(method=self.method, **kwargs)
 
     def execute(self, **kwargs):

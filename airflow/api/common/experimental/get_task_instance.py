@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task Instance APIs."""
+
+from __future__ import annotations
+
 from datetime import datetime
 
 from deprecated import deprecated

@@ -14,7 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Finds which newer dependencies were used to build that build and prints them for better diagnostics.
 
 This is a common problem that currently `pip` does not produce "perfect" information about the errors,
@@ -30,7 +33,7 @@ https://github.com/apache/airflow/blob/main/dev/TRACKING_BACKTRACKING_ISSUES.md
 """
 import json
 from datetime import timedelta
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 from rich.progress import Progress
 
@@ -48,7 +51,7 @@ def find_newer_dependencies(
         f"https://raw.githubusercontent.com/apache/airflow/{constraints_branch}/constraints-{python}.txt"
     ).text
     package_lines = list(filter(lambda x: not x.startswith("#"), constraints.splitlines()))
-    constrained_packages: Dict[str, Any] = {}
+    constrained_packages: dict[str, Any] = {}
     count_packages = len(package_lines)
     tz = pendulum.timezone(timezone)  # type: ignore[operator]
     if updated_on_or_after:
@@ -96,13 +99,13 @@ def find_newer_dependencies(
     )
 
 
-def get_releases_and_upload_times(package, min_date, current_version, tz) -> List[Tuple[str, Any]]:
+def get_releases_and_upload_times(package, min_date, current_version, tz) -> list[tuple[str, Any]]:
     import requests
     from dateutil.parser import isoparse
     from packaging import version
 
     package_info = json.loads(requests.get(f"https://pypi.python.org/pypi/{package}/json").text)
-    releases: List[Tuple[Any, Any]] = []
+    releases: list[tuple[Any, Any]] = []
     for release_version, release_info in package_info['releases'].items():
         if release_info and not release_info[0]['yanked']:
             parsed_version = version.parse(release_version)

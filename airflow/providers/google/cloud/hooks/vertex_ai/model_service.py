@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Cloud Vertex AI hook.
 
 .. spelling::
@@ -23,8 +22,9 @@
     aiplatform
     camelCase
 """
+from __future__ import annotations
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -41,7 +41,7 @@ from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 class ModelServiceHook(GoogleBaseHook):
     """Hook for Google Cloud Vertex AI Endpoint Service APIs."""
 
-    def get_model_service_client(self, region: Optional[str] = None) -> ModelServiceClient:
+    def get_model_service_client(self, region: str | None = None) -> ModelServiceClient:
         """Returns ModelServiceClient."""
         if region and region != 'global':
             client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
@@ -53,11 +53,11 @@ class ModelServiceHook(GoogleBaseHook):
         )
 
     @staticmethod
-    def extract_model_id(obj: Dict) -> str:
+    def extract_model_id(obj: dict) -> str:
         """Returns unique id of the model."""
         return obj["model"].rpartition("/")[-1]
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -71,9 +71,9 @@ class ModelServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         model: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a Model.
@@ -104,10 +104,10 @@ class ModelServiceHook(GoogleBaseHook):
         project_id: str,
         region: str,
         model: str,
-        output_config: Union[model_service.ExportModelRequest.OutputConfig, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        output_config: model_service.ExportModelRequest.OutputConfig | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Exports a trained, exportable Model to a location specified by the user.
@@ -139,14 +139,14 @@ class ModelServiceHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        filter: Optional[str] = None,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        read_mask: Optional[str] = None,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        read_mask: str | None = None,
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListModelsPager:
         r"""
         Lists Models in a Location.
@@ -198,10 +198,10 @@ class ModelServiceHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        model: Union[Model, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        model: Model | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Uploads a Model artifact into Vertex AI.

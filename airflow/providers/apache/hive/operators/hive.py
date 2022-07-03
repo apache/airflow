@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import re
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.configuration import conf
 from airflow.models import BaseOperator
@@ -78,13 +80,13 @@ class HiveOperator(BaseOperator):
         hql: str,
         hive_cli_conn_id: str = 'hive_cli_default',
         schema: str = 'default',
-        hiveconfs: Optional[Dict[Any, Any]] = None,
+        hiveconfs: dict[Any, Any] | None = None,
         hiveconf_jinja_translate: bool = False,
-        script_begin_tag: Optional[str] = None,
+        script_begin_tag: str | None = None,
         run_as_owner: bool = False,
-        mapred_queue: Optional[str] = None,
-        mapred_queue_priority: Optional[str] = None,
-        mapred_job_name: Optional[str] = None,
+        mapred_queue: str | None = None,
+        mapred_queue_priority: str | None = None,
+        mapred_job_name: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -114,7 +116,7 @@ class HiveOperator(BaseOperator):
         # `None` initial value, later it will be populated by the execute method.
         # This also makes `on_kill` implementation consistent since it assumes `self.hook`
         # is defined.
-        self.hook: Optional[HiveCliHook] = None
+        self.hook: HiveCliHook | None = None
 
     def get_hook(self) -> HiveCliHook:
         """Get Hive cli hook"""
@@ -132,7 +134,7 @@ class HiveOperator(BaseOperator):
         if self.script_begin_tag and self.script_begin_tag in self.hql:
             self.hql = "\n".join(self.hql.split(self.script_begin_tag)[1:])
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         self.log.info('Executing: %s', self.hql)
         self.hook = self.get_hook()
 

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import sys
 
@@ -26,6 +26,9 @@ from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.triggers.base import TriggerEvent
 from airflow.utils.session import provide_session
+
+#
+
 
 if sys.version_info < (3, 8):
     from asynctest import mock

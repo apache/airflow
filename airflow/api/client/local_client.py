@@ -17,6 +17,8 @@
 # under the License.
 """Local client API"""
 
+from __future__ import annotations
+
 from airflow.api.client import api_client
 from airflow.api.common import delete_dag, trigger_dag
 from airflow.api.common.experimental.get_lineage import get_lineage as get_lineage_api

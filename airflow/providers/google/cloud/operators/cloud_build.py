@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Operators that integrates with Google Cloud Build service."""
+
+from __future__ import annotations
 
 import json
 import re
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence, Tuple, Union
+from typing import TYPE_CHECKING, Any, Sequence
 from urllib.parse import unquote, urlparse
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -75,12 +76,12 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         self,
         *,
         id_: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -92,7 +93,7 @@ class CloudBuildCancelBuildOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.cancel_build(
             id_=self.id_,
@@ -140,14 +141,14 @@ class CloudBuildCreateBuildOperator(BaseOperator):
     def __init__(
         self,
         *,
-        build: Union[Dict, Build],
-        project_id: Optional[str] = None,
+        build: dict | Build,
+        project_id: str | None = None,
         wait: bool = True,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -172,7 +173,7 @@ class CloudBuildCreateBuildOperator(BaseOperator):
             if self.build_raw.endswith('.json'):
                 self.build = json.loads(file.read())
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
 
         build = BuildProcessor(build=self.build).process_body()
@@ -223,13 +224,13 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
     def __init__(
         self,
         *,
-        trigger: Union[dict, BuildTrigger],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        trigger: dict | BuildTrigger,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -241,7 +242,7 @@ class CloudBuildCreateBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.create_build_trigger(
             trigger=self.trigger,
@@ -286,12 +287,12 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         self,
         *,
         trigger_id: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -303,7 +304,7 @@ class CloudBuildDeleteBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         hook.delete_build_trigger(
             trigger_id=self.trigger_id,
@@ -349,12 +350,12 @@ class CloudBuildGetBuildOperator(BaseOperator):
         self,
         *,
         id_: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -366,7 +367,7 @@ class CloudBuildGetBuildOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build(
             id_=self.id_,
@@ -413,12 +414,12 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         self,
         *,
         trigger_id: str,
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -430,7 +431,7 @@ class CloudBuildGetBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.get_build_trigger(
             trigger_id=self.trigger_id,
@@ -479,14 +480,14 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         self,
         *,
         location: str,
-        project_id: Optional[str] = None,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -500,7 +501,7 @@ class CloudBuildListBuildTriggersOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_build_triggers(
             project_id=self.project_id,
@@ -551,14 +552,14 @@ class CloudBuildListBuildsOperator(BaseOperator):
         self,
         *,
         location: str,
-        project_id: Optional[str] = None,
-        page_size: Optional[int] = None,
-        filter_: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        project_id: str | None = None,
+        page_size: int | None = None,
+        filter_: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -572,7 +573,7 @@ class CloudBuildListBuildsOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         results = hook.list_builds(
             project_id=self.project_id,
@@ -623,13 +624,13 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         self,
         *,
         id_: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         wait: bool = True,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -642,7 +643,7 @@ class CloudBuildRetryBuildOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.retry_build(
             id_=self.id_,
@@ -693,14 +694,14 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         self,
         *,
         trigger_id: str,
-        source: Union[dict, RepoSource],
-        project_id: Optional[str] = None,
+        source: dict | RepoSource,
+        project_id: str | None = None,
         wait: bool = True,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -714,7 +715,7 @@ class CloudBuildRunBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.run_build_trigger(
             trigger_id=self.trigger_id,
@@ -765,13 +766,13 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         self,
         *,
         trigger_id: str,
-        trigger: Union[dict, BuildTrigger],
-        project_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        trigger: dict | BuildTrigger,
+        project_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -784,7 +785,7 @@ class CloudBuildUpdateBuildTriggerOperator(BaseOperator):
         self.gcp_conn_id = gcp_conn_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudBuildHook(gcp_conn_id=self.gcp_conn_id, impersonation_chain=self.impersonation_chain)
         result = hook.update_build_trigger(
             trigger_id=self.trigger_id,
@@ -808,7 +809,7 @@ class BuildProcessor:
         See: https://cloud.google.com/cloud-build/docs/api/reference/rest/Shared.Types/Build
     """
 
-    def __init__(self, build: Union[Dict, Build]) -> None:
+    def __init__(self, build: dict | Build) -> None:
         self.build = deepcopy(build)
 
     def _verify_source(self) -> None:
@@ -857,7 +858,7 @@ class BuildProcessor:
         return Build(self.build)
 
     @staticmethod
-    def _convert_repo_url_to_dict(source: str) -> Dict[str, Any]:
+    def _convert_repo_url_to_dict(source: str) -> dict[str, Any]:
         """
         Convert url to repository in Google Cloud Source to a format supported by the API
 
@@ -891,7 +892,7 @@ class BuildProcessor:
         return source_dict
 
     @staticmethod
-    def _convert_storage_url_to_dict(storage_url: str) -> Dict[str, Any]:
+    def _convert_storage_url_to_dict(storage_url: str) -> dict[str, Any]:
         """
         Convert url to object in Google Cloud Storage to a format supported by the API
 
@@ -910,7 +911,7 @@ class BuildProcessor:
                 "gs://bucket-name/object-name.tar.gz#24565443"
             )
 
-        source_dict: Dict[str, Any] = {
+        source_dict: dict[str, Any] = {
             "bucket": url_parts.hostname,
             "object_": url_parts.path[1:],
         }

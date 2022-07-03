@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """Validator for body fields sent via Google Cloud API.
 
 The validator performs validation of the body (being dictionary of fields) that
@@ -131,7 +133,7 @@ Here are the guidelines that you should follow to make validation forward-compat
 """
 
 import re
-from typing import Callable, Dict, Sequence
+from typing import Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -187,7 +189,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     """
 
-    def __init__(self, validation_specs: Sequence[Dict], api_version: str) -> None:
+    def __init__(self, validation_specs: Sequence[dict], api_version: str) -> None:
         super().__init__()
         self._validation_specs = validation_specs
         self._api_version = api_version
@@ -200,7 +202,7 @@ class GcpBodyFieldValidator(LoggingMixin):
 
     @staticmethod
     def _sanity_checks(
-        children_validation_specs: Dict,
+        children_validation_specs: dict,
         field_type: str,
         full_field_path: str,
         regexp: str,
@@ -251,7 +253,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 f"The body field '{full_field_path}' can't be empty. Please provide a value."
             )
 
-    def _validate_dict(self, children_validation_specs: Dict, full_field_path: str, value: Dict) -> None:
+    def _validate_dict(self, children_validation_specs: dict, full_field_path: str, value: dict) -> None:
         for child_validation_spec in children_validation_specs:
             self._validate_field(
                 validation_spec=child_validation_spec, dictionary_to_validate=value, parent=full_field_path
@@ -271,7 +273,7 @@ class GcpBodyFieldValidator(LoggingMixin):
                 )
 
     def _validate_union(
-        self, children_validation_specs: Dict, full_field_path: str, dictionary_to_validate: Dict
+        self, children_validation_specs: dict, full_field_path: str, dictionary_to_validate: dict
     ) -> None:
         field_found = False
         found_field_name = None

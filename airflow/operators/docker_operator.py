@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.docker.operators.docker`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.docker.operators.docker import DockerOperator  # noqa

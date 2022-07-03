@@ -17,9 +17,11 @@
 # under the License.
 """Airflow logging settings"""
 
+from __future__ import annotations
+
 import os
 from pathlib import Path
-from typing import Any, Dict, Optional, Union
+from typing import Any
 from urllib.parse import urlparse
 
 from airflow.configuration import conf
@@ -59,7 +61,7 @@ FILENAME_TEMPLATE: str = conf.get_mandatory_value('logging', 'LOG_FILENAME_TEMPL
 
 PROCESSOR_FILENAME_TEMPLATE: str = conf.get_mandatory_value('logging', 'LOG_PROCESSOR_FILENAME_TEMPLATE')
 
-DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
+DEFAULT_LOGGING_CONFIG: dict[str, Any] = {
     'version': 1,
     'disable_existing_loggers': False,
     'formatters': {
@@ -123,7 +125,7 @@ DEFAULT_LOGGING_CONFIG: Dict[str, Any] = {
     },
 }
 
-EXTRA_LOGGER_NAMES: Optional[str] = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=None)
+EXTRA_LOGGER_NAMES: str | None = conf.get('logging', 'EXTRA_LOGGER_NAMES', fallback=None)
 if EXTRA_LOGGER_NAMES:
     new_loggers = {
         logger_name.strip(): {
@@ -135,7 +137,7 @@ if EXTRA_LOGGER_NAMES:
     }
     DEFAULT_LOGGING_CONFIG['loggers'].update(new_loggers)
 
-DEFAULT_DAG_PARSING_LOGGING_CONFIG: Dict[str, Dict[str, Dict[str, Any]]] = {
+DEFAULT_DAG_PARSING_LOGGING_CONFIG: dict[str, dict[str, dict[str, Any]]] = {
     'handlers': {
         'processor_manager': {
             'class': 'logging.handlers.RotatingFileHandler',
@@ -164,7 +166,7 @@ if os.environ.get('CONFIG_PROCESSOR_MANAGER_LOGGER') == 'True':
 
     # Manually create log directory for processor_manager handler as RotatingFileHandler
     # will only create file but not the directory.
-    processor_manager_handler_config: Dict[str, Any] = DEFAULT_DAG_PARSING_LOGGING_CONFIG['handlers'][
+    processor_manager_handler_config: dict[str, Any] = DEFAULT_DAG_PARSING_LOGGING_CONFIG['handlers'][
         'processor_manager'
     ]
     directory: str = os.path.dirname(processor_manager_handler_config['filename'])
@@ -178,7 +180,7 @@ REMOTE_LOGGING: bool = conf.getboolean('logging', 'remote_logging')
 
 if REMOTE_LOGGING:
 
-    ELASTICSEARCH_HOST: Optional[str] = conf.get('elasticsearch', 'HOST')
+    ELASTICSEARCH_HOST: str | None = conf.get('elasticsearch', 'HOST')
 
     # Storage bucket URL for remote logging
     # S3 buckets should start with "s3://"
@@ -189,7 +191,7 @@ if REMOTE_LOGGING:
     REMOTE_BASE_LOG_FOLDER: str = conf.get_mandatory_value('logging', 'REMOTE_BASE_LOG_FOLDER')
 
     if REMOTE_BASE_LOG_FOLDER.startswith('s3://'):
-        S3_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        S3_REMOTE_HANDLERS: dict[str, dict[str, str]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler',
                 'formatter': 'airflow',
@@ -202,7 +204,7 @@ if REMOTE_LOGGING:
         DEFAULT_LOGGING_CONFIG['handlers'].update(S3_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('cloudwatch://'):
         url_parts = urlparse(REMOTE_BASE_LOG_FOLDER)
-        CLOUDWATCH_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        CLOUDWATCH_REMOTE_HANDLERS: dict[str, dict[str, str]] = {
             'task': {
                 'class': 'airflow.providers.amazon.aws.log.cloudwatch_task_handler.CloudwatchTaskHandler',
                 'formatter': 'airflow',
@@ -215,7 +217,7 @@ if REMOTE_LOGGING:
         DEFAULT_LOGGING_CONFIG['handlers'].update(CLOUDWATCH_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('gs://'):
         key_path = conf.get_mandatory_value('logging', 'GOOGLE_KEY_PATH', fallback=None)
-        GCS_REMOTE_HANDLERS: Dict[str, Dict[str, str]] = {
+        GCS_REMOTE_HANDLERS: dict[str, dict[str, str]] = {
             'task': {
                 'class': 'airflow.providers.google.cloud.log.gcs_task_handler.GCSTaskHandler',
                 'formatter': 'airflow',
@@ -228,7 +230,7 @@ if REMOTE_LOGGING:
 
         DEFAULT_LOGGING_CONFIG['handlers'].update(GCS_REMOTE_HANDLERS)
     elif REMOTE_BASE_LOG_FOLDER.startswith('wasb'):
-        WASB_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
+        WASB_REMOTE_HANDLERS: dict[str, dict[str, str | bool]] = {
             'task': {
                 'class': 'airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler',
                 'formatter': 'airflow',
@@ -276,7 +278,7 @@ if REMOTE_LOGGING:
         ELASTICSEARCH_HOST_FIELD: str = conf.get_mandatory_value('elasticsearch', 'HOST_FIELD')
         ELASTICSEARCH_OFFSET_FIELD: str = conf.get_mandatory_value('elasticsearch', 'OFFSET_FIELD')
 
-        ELASTIC_REMOTE_HANDLERS: Dict[str, Dict[str, Union[str, bool]]] = {
+        ELASTIC_REMOTE_HANDLERS: dict[str, dict[str, str | bool]] = {
             'task': {
                 'class': 'airflow.providers.elasticsearch.log.es_task_handler.ElasticsearchTaskHandler',
                 'formatter': 'airflow',

@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import argparse
-from typing import Any, List, Optional
+from typing import Any
 
 from pyspark.sql import SparkSession
 
@@ -121,7 +122,7 @@ def spark_read_from_jdbc(
     reader.load().write.saveAsTable(metastore_table, format=save_format, mode=save_mode)
 
 
-def _parse_arguments(args: Optional[List[str]] = None) -> Any:
+def _parse_arguments(args: list[str] | None = None) -> Any:
     parser = argparse.ArgumentParser(description='Spark-JDBC')
     parser.add_argument('-cmdType', dest='cmd_type', action='store')
     parser.add_argument('-url', dest='url', action='store')

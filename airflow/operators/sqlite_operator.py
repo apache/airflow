@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.sqlite.operators.sqlite`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.sqlite.operators.sqlite import SqliteOperator  # noqa

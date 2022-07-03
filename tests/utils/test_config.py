@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 from contextlib import contextmanager
 from pathlib import Path
-from typing import Dict, Set, Tuple
 
 from airflow.configuration import conf
 
@@ -35,7 +35,7 @@ def remove_all_configurations():
     return old_sections, old_proxies
 
 
-def restore_all_configurations(sections: Dict, proxies: Dict):
+def restore_all_configurations(sections: dict, proxies: dict):
     conf._sections = sections  # type: ignore
     conf._proxies = proxies  # type: ignore
 
@@ -54,7 +54,7 @@ def use_config(config: str):
 
 
 @contextmanager
-def set_deprecated_options(deprecated_options: Dict[Tuple[str, str], Tuple[str, str, str]]):
+def set_deprecated_options(deprecated_options: dict[tuple[str, str], tuple[str, str, str]]):
     """
     Temporary replaces deprecated options with the ones provided.
     """
@@ -67,7 +67,7 @@ def set_deprecated_options(deprecated_options: Dict[Tuple[str, str], Tuple[str, 
 
 
 @contextmanager
-def set_sensitive_config_values(sensitive_config_values: Set[Tuple[str, str]]):
+def set_sensitive_config_values(sensitive_config_values: set[tuple[str, str]]):
     """
     Temporary replaces sensitive values with the ones provided.
     """

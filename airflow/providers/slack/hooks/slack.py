@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hook for Slack"""
-from typing import Any, Optional
+
+from __future__ import annotations
+
+from typing import Any
 
 from slack_sdk import WebClient
 from slack_sdk.web.slack_response import SlackResponse
@@ -58,8 +61,8 @@ class SlackHook(BaseHook):
 
     def __init__(
         self,
-        token: Optional[str] = None,
-        slack_conn_id: Optional[str] = None,
+        token: str | None = None,
+        slack_conn_id: str | None = None,
         **client_args: Any,
     ) -> None:
         super().__init__()

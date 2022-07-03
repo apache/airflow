@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 import os
@@ -26,6 +26,8 @@ from moto import mock_s3
 
 from airflow.models.dag import DAG
 from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator
+
+#
 
 
 class TestFileToS3Operator(unittest.TestCase):

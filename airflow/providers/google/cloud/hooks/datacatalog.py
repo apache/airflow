@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -58,15 +59,15 @@ class CloudDataCatalogHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client: Optional[DataCatalogClient] = None
+        self._client: DataCatalogClient | None = None
 
     def get_conn(self) -> DataCatalogClient:
         """Retrieves client library object that allow access to Cloud Data Catalog service."""
@@ -80,11 +81,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: str,
         entry_group: str,
         entry_id: str,
-        entry: Union[dict, Entry],
+        entry: dict | Entry,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Entry:
         """
         Creates an entry.
@@ -122,11 +123,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         self,
         location: str,
         entry_group_id: str,
-        entry_group: Union[Dict, EntryGroup],
+        entry_group: dict | EntryGroup,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> EntryGroup:
         """
         Creates an EntryGroup.
@@ -167,12 +168,12 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: str,
         entry_group: str,
         entry: str,
-        tag: Union[dict, Tag],
+        tag: dict | Tag,
         project_id: str = PROVIDE_PROJECT_ID,
-        template_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        template_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Tag:
         """
         Creates a tag on an entry.
@@ -231,11 +232,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         self,
         location,
         tag_template_id: str,
-        tag_template: Union[dict, TagTemplate],
+        tag_template: dict | TagTemplate,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplate:
         """
         Creates a tag template.
@@ -290,11 +291,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: str,
         tag_template: str,
         tag_template_field_id: str,
-        tag_template_field: Union[dict, TagTemplateField],
+        tag_template_field: dict | TagTemplateField,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplateField:
         r"""
         Creates a field in a tag template.
@@ -344,9 +345,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group: str,
         entry: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes an existing entry.
@@ -374,9 +375,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location,
         entry_group,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes an EntryGroup.
@@ -410,9 +411,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry: str,
         tag: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a tag.
@@ -445,9 +446,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         tag_template,
         force: bool,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a tag template and all tags using the template.
@@ -482,9 +483,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         field: str,
         force: bool,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> None:
         """
         Deletes a field in a tag template and all uses of that field.
@@ -517,9 +518,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry_group: str,
         entry: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Entry:
         """
         Gets an entry.
@@ -552,10 +553,10 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: str,
         entry_group: str,
         project_id: str,
-        read_mask: Optional[FieldMask] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        read_mask: FieldMask | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> EntryGroup:
         """
         Gets an entry group.
@@ -596,9 +597,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         location: str,
         tag_template: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplate:
         """
         Gets a tag template.
@@ -634,9 +635,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry: str,
         project_id: str,
         page_size: int = 100,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists the tags on an Entry.
@@ -679,9 +680,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         entry: str,
         template_name: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Tag:
         """
         Gets for a tag with a specific template for a specific entry.
@@ -712,11 +713,11 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
     def lookup_entry(
         self,
-        linked_resource: Optional[str] = None,
-        sql_resource: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        linked_resource: str | None = None,
+        sql_resource: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Entry:
         r"""
         Get an entry by target resource name.
@@ -770,9 +771,9 @@ class CloudDataCatalogHook(GoogleBaseHook):
         field: str,
         new_tag_template_field_id: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplateField:
         """
         Renames a field in a tag template.
@@ -811,13 +812,13 @@ class CloudDataCatalogHook(GoogleBaseHook):
 
     def search_catalog(
         self,
-        scope: Union[Dict, SearchCatalogRequest.Scope],
+        scope: dict | SearchCatalogRequest.Scope,
         query: str,
         page_size: int = 100,
-        order_by: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        order_by: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         r"""
         Searches Data Catalog for multiple resources like entries, tags that match a query.
@@ -883,15 +884,15 @@ class CloudDataCatalogHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_entry(
         self,
-        entry: Union[Dict, Entry],
-        update_mask: Union[dict, FieldMask],
+        entry: dict | Entry,
+        update_mask: dict | FieldMask,
         project_id: str,
-        location: Optional[str] = None,
-        entry_group: Optional[str] = None,
-        entry_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        location: str | None = None,
+        entry_group: str | None = None,
+        entry_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Entry:
         """
         Updates an existing entry.
@@ -952,16 +953,16 @@ class CloudDataCatalogHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_tag(
         self,
-        tag: Union[Dict, Tag],
-        update_mask: Union[Dict, FieldMask],
+        tag: dict | Tag,
+        update_mask: dict | FieldMask,
         project_id: str,
-        location: Optional[str] = None,
-        entry_group: Optional[str] = None,
-        entry: Optional[str] = None,
-        tag_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        location: str | None = None,
+        entry_group: str | None = None,
+        entry: str | None = None,
+        tag_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Tag:
         """
         Updates an existing tag.
@@ -1024,14 +1025,14 @@ class CloudDataCatalogHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_tag_template(
         self,
-        tag_template: Union[dict, TagTemplate],
-        update_mask: Union[dict, FieldMask],
+        tag_template: dict | TagTemplate,
+        update_mask: dict | FieldMask,
         project_id: str,
-        location: Optional[str] = None,
-        tag_template_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        location: str | None = None,
+        tag_template_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> TagTemplate:
         """
         Updates a tag template.
@@ -1096,16 +1097,16 @@ class CloudDataCatalogHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_tag_template_field(
         self,
-        tag_template_field: Union[dict, TagTemplateField],
-        update_mask: Union[dict, FieldMask],
+        tag_template_field: dict | TagTemplateField,
+        update_mask: dict | FieldMask,
         project_id: str,
-        tag_template_field_name: Optional[str] = None,
-        location: Optional[str] = None,
-        tag_template: Optional[str] = None,
-        tag_template_field_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        tag_template_field_name: str | None = None,
+        location: str | None = None,
+        tag_template: str | None = None,
+        tag_template_field_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Updates a field in a tag template. This method cannot be used to update the field type.

@@ -17,6 +17,8 @@
 # under the License.
 """Taskfail tracks the failed run durations of each task instance"""
 
+from __future__ import annotations
+
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, text
 from sqlalchemy.orm import relationship
 

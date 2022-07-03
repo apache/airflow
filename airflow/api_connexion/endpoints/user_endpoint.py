@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from http import HTTPStatus
-from typing import List, Optional
 
 from connexion import NoContent
 from flask import request
@@ -50,7 +51,7 @@ def get_user(*, username: str) -> APIResponse:
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_USER)])
 @format_parameters({"limit": check_limit})
-def get_users(*, limit: int, order_by: str = "id", offset: Optional[str] = None) -> APIResponse:
+def get_users(*, limit: int, order_by: str = "id", offset: str | None = None) -> APIResponse:
     """Get users"""
     appbuilder = get_airflow_app().appbuilder
     session = appbuilder.get_session
@@ -164,7 +165,7 @@ def patch_user(*, username: str, update_mask: UpdateMask = None) -> APIResponse:
             raise BadRequest(detail=detail)
         data = masked_data
 
-    roles_to_update: Optional[List[Role]]
+    roles_to_update: list[Role] | None
     if "roles" in data:
         roles_to_update = []
         missing_role_names = []

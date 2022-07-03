@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.transfers.s3_to_sftp`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.amazon.aws.transfers.s3_to_sftp import S3ToSFTPOperator  # noqa

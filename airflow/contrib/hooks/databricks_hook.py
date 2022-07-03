@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.databricks.hooks.databricks`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.databricks.hooks.databricks import (  # noqa

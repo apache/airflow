@@ -17,7 +17,9 @@
 # under the License.
 """Hook for Azure Container Registry"""
 
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any
 
 from azure.mgmt.containerinstance.models import ImageRegistryCredential
 
@@ -39,7 +41,7 @@ class AzureContainerRegistryHook(BaseHook):
     hook_name = 'Azure Container Registry'
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'extra'],

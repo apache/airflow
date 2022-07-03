@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.ssh.hooks.ssh`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.ssh.hooks.ssh import SSHHook  # noqa

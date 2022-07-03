@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from collections import Counter
 from typing import TYPE_CHECKING
@@ -88,7 +89,7 @@ class TriggerRuleDep(BaseTIDep):
         )
 
     @staticmethod
-    def _count_upstreams(ti: "TaskInstance", *, session: "Session"):
+    def _count_upstreams(ti: TaskInstance, *, session: Session):
         from airflow.models.taskinstance import TaskInstance
 
         # Optimization: Don't need to hit the database if no upstreams are mapped.
@@ -122,7 +123,7 @@ class TriggerRuleDep(BaseTIDep):
         upstream_failed,
         done,
         flag_upstream_failed,
-        session: "Session" = NEW_SESSION,
+        session: Session = NEW_SESSION,
     ):
         """
         Yields a dependency status that indicate whether the given task instance's trigger

@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Example Airflow DAG that execute the following tasks using
 Cloud DLP service in the Google Cloud:
 1) Creating a content inspect template;

@@ -17,6 +17,8 @@
 # under the License.
 """JSON API Client"""
 
+from __future__ import annotations
+
 from urllib.parse import urljoin
 
 from airflow.api.client import api_client

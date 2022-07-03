@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.mongo.sensors.mongo`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.mongo.sensors.mongo import MongoSensor  # noqa

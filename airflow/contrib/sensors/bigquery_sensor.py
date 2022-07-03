@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.google.cloud.sensors.bigquery`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.google.cloud.sensors.bigquery import BigQueryTableExistenceSensor

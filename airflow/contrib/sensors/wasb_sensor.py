@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.sensors.wasb`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.microsoft.azure.sensors.wasb import WasbBlobSensor, WasbPrefixSensor  # noqa

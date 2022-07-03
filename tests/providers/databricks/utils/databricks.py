@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 
@@ -24,6 +24,9 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.databricks.hooks.databricks import RunState
 from airflow.providers.databricks.utils.databricks import deep_string_coerce, validate_trigger_event
+
+#
+
 
 RUN_ID = 1
 RUN_PAGE_URL = 'run-page-url'

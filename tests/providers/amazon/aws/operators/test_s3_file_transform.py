@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import errno
 import io
@@ -32,6 +32,8 @@ from moto import mock_s3
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.operators.s3 import S3FileTransformOperator
+
+#
 
 
 class TestS3FileTransformOperator(unittest.TestCase):

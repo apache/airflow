@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import inspect
 import os
 import pickle
@@ -24,7 +26,7 @@ import types
 import warnings
 from tempfile import TemporaryDirectory
 from textwrap import dedent
-from typing import Any, Callable, Collection, Dict, Iterable, List, Mapping, Optional, Sequence, Union
+from typing import Any, Callable, Collection, Iterable, Mapping, Sequence
 
 import dill
 
@@ -38,7 +40,7 @@ from airflow.utils.process_utils import execute_in_subprocess
 from airflow.utils.python_virtualenv import prepare_virtualenv, write_python_script
 
 
-def task(python_callable: Optional[Callable] = None, multiple_outputs: Optional[bool] = None, **kwargs):
+def task(python_callable: Callable | None = None, multiple_outputs: bool | None = None, **kwargs):
     """
     Deprecated function that calls @task.python and allows users to turn a python function into
     an Airflow task. Please use the following instead:
@@ -139,10 +141,10 @@ class PythonOperator(BaseOperator):
         self,
         *,
         python_callable: Callable,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
-        templates_dict: Optional[Dict[str, Any]] = None,
-        templates_exts: Optional[Sequence[str]] = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        templates_dict: dict[str, Any] | None = None,
+        templates_exts: Sequence[str] | None = None,
         show_return_value_in_logs: bool = True,
         **kwargs,
     ) -> None:
@@ -368,16 +370,16 @@ class PythonVirtualenvOperator(PythonOperator):
         self,
         *,
         python_callable: Callable,
-        requirements: Union[None, Iterable[str], str] = None,
-        python_version: Optional[Union[str, int, float]] = None,
+        requirements: None | Iterable[str] | str = None,
+        python_version: str | int | float | None = None,
         use_dill: bool = False,
         system_site_packages: bool = True,
-        pip_install_options: Optional[List[str]] = None,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
-        string_args: Optional[Iterable[str]] = None,
-        templates_dict: Optional[Dict] = None,
-        templates_exts: Optional[List[str]] = None,
+        pip_install_options: list[str] | None = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
+        string_args: Iterable[str] | None = None,
+        templates_dict: dict | None = None,
+        templates_exts: list[str] | None = None,
         **kwargs,
     ):
         if (
@@ -406,7 +408,7 @@ class PythonVirtualenvOperator(PythonOperator):
             **kwargs,
         )
         if not requirements:
-            self.requirements: Union[List[str], str] = []
+            self.requirements: list[str] | str = []
         elif isinstance(requirements, str):
             self.requirements = requirements
         else:

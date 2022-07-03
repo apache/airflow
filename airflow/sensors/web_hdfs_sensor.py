@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.apache.hdfs.sensors.web_hdfs`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.apache.hdfs.sensors.web_hdfs import WebHdfsSensor  # noqa

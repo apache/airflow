@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -58,7 +59,7 @@ class CloudComposerHook(GoogleBaseHook):
             client_options=self.client_options,
         )
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -80,10 +81,10 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        environment: Union[Environment, Dict],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Create a new environment.
@@ -111,9 +112,9 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Delete an environment.
@@ -138,9 +139,9 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Environment:
         """
         Get an existing environment.
@@ -165,11 +166,11 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListEnvironmentsPager:
         """
         List environments.
@@ -202,11 +203,11 @@ class CloudComposerHook(GoogleBaseHook):
         project_id: str,
         region: str,
         environment_id: str,
-        environment: Union[Environment, Dict],
-        update_mask: Union[Dict, FieldMask],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: Environment | dict,
+        update_mask: dict | FieldMask,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         r"""
         Update an environment.
@@ -242,12 +243,12 @@ class CloudComposerHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
         include_past_releases: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListImageVersionsPager:
         """
         List ImageVersions for provided location.

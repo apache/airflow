@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.grpc.hooks.grpc`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.grpc.hooks.grpc import GrpcHook  # noqa

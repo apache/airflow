@@ -14,7 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook
 from airflow.sensors.base import BaseSensorOperator
@@ -49,9 +51,9 @@ class RedshiftClusterSensor(BaseSensorOperator):
         self.cluster_identifier = cluster_identifier
         self.target_status = target_status
         self.aws_conn_id = aws_conn_id
-        self.hook: Optional[RedshiftHook] = None
+        self.hook: RedshiftHook | None = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         self.log.info('Poking for status : %s\nfor cluster %s', self.target_status, self.cluster_identifier)
         return self.get_hook().cluster_status(self.cluster_identifier) == self.target_status
 

@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.eks import (
@@ -27,6 +27,9 @@ from airflow.providers.amazon.aws.hooks.eks import (
     NodegroupStates,
 )
 from airflow.sensors.base import BaseSensorOperator
+
+# """Tracking the state of Amazon EKS Clusters, Amazon EKS managed node groups, and AWS Fargate profiles."""
+
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -85,7 +88,7 @@ class EksClusterStateSensor(BaseSensorOperator):
         cluster_name: str,
         target_state: ClusterStates = ClusterStates.ACTIVE,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ):
         self.cluster_name = cluster_name
@@ -98,7 +101,7 @@ class EksClusterStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -153,7 +156,7 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
         fargate_profile_name: str,
         target_state: FargateProfileStates = FargateProfileStates.ACTIVE,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ):
         self.cluster_name = cluster_name
@@ -167,7 +170,7 @@ class EksFargateProfileStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,
@@ -224,7 +227,7 @@ class EksNodegroupStateSensor(BaseSensorOperator):
         nodegroup_name: str,
         target_state: NodegroupStates = NodegroupStates.ACTIVE,
         aws_conn_id: str = DEFAULT_CONN_ID,
-        region: Optional[str] = None,
+        region: str | None = None,
         **kwargs,
     ):
         self.cluster_name = cluster_name
@@ -238,7 +241,7 @@ class EksNodegroupStateSensor(BaseSensorOperator):
         self.region = region
         super().__init__(**kwargs)
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         eks_hook = EksHook(
             aws_conn_id=self.aws_conn_id,
             region_name=self.region,

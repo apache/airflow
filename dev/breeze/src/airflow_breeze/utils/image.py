@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import multiprocessing as mp
 import subprocess
 import time
-from typing import List, Tuple, Union
 
 from airflow_breeze.global_constants import (
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
@@ -40,13 +40,13 @@ from airflow_breeze.utils.run_utils import RunCommandResult, run_command
 def run_pull_in_parallel(
     dry_run: bool,
     parallelism: int,
-    image_params_list: Union[List[BuildCiParams], List[BuildProdParams]],
-    python_version_list: List[str],
+    image_params_list: list[BuildCiParams] | list[BuildProdParams],
+    python_version_list: list[str],
     verbose: bool,
     verify_image: bool,
     tag_as_latest: bool,
     wait_for_image: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Run image pull in parallel"""
     get_console().print(
@@ -90,7 +90,7 @@ def run_pull_image(
     tag_as_latest: bool,
     poll_time: float = 10.0,
     parallel: bool = False,
-) -> Tuple[int, str]:
+) -> tuple[int, str]:
     """
     Pull image specified.
     :param image_params: Image parameters.
@@ -187,8 +187,8 @@ def run_pull_and_verify_image(
     wait_for_image: bool,
     tag_as_latest: bool,
     poll_time: float,
-    extra_pytest_args: Tuple,
-) -> Tuple[int, str]:
+    extra_pytest_args: tuple,
+) -> tuple[int, str]:
     return_code, info = run_pull_image(
         image_params, dry_run, verbose, wait_for_image, tag_as_latest, poll_time
     )
@@ -208,7 +208,7 @@ def run_pull_and_verify_image(
 
 def just_pull_ci_image(
     github_repository, python_version: str, dry_run: bool, verbose: bool
-) -> Tuple[ShellParams, RunCommandResult]:
+) -> tuple[ShellParams, RunCommandResult]:
     shell_params = ShellParams(
         verbose=verbose,
         mount_sources=MOUNT_ALL,
@@ -228,7 +228,7 @@ def just_pull_ci_image(
 
 def check_if_ci_image_available(
     github_repository: str, python_version: str, dry_run: bool, verbose: bool
-) -> Tuple[ShellParams, RunCommandResult]:
+) -> tuple[ShellParams, RunCommandResult]:
     shell_params = ShellParams(
         verbose=verbose,
         mount_sources=MOUNT_ALL,

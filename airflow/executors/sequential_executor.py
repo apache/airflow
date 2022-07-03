@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 SequentialExecutor
 
 .. seealso::
@@ -23,7 +26,7 @@ SequentialExecutor
     :ref:`executor:SequentialExecutor`
 """
 import subprocess
-from typing import Any, Optional
+from typing import Any
 
 from airflow.executors.base_executor import BaseExecutor, CommandType
 from airflow.models.taskinstance import TaskInstanceKey
@@ -48,8 +51,8 @@ class SequentialExecutor(BaseExecutor):
         self,
         key: TaskInstanceKey,
         command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
+        queue: str | None = None,
+        executor_config: Any | None = None,
     ) -> None:
         self.validate_command(command)
         self.commands_to_run.append((key, command))

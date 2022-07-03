@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.sensors.sql`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.sensors.sql import SqlSensor  # noqa

@@ -15,13 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 """Various utils to prepare docker and docker compose commands."""
+
+from __future__ import annotations
+
 import os
 import re
 import sys
 from copy import deepcopy
 from random import randint
 from subprocess import DEVNULL, STDOUT, CalledProcessError, CompletedProcess
-from typing import Dict, List, Union
 
 from airflow_breeze.params.build_ci_params import BuildCiParams
 from airflow_breeze.params.build_prod_params import BuildProdParams
@@ -74,6 +76,7 @@ NECESSARY_HOST_VOLUMES = [
     ("MANIFEST.in", "/opt/airflow/MANIFEST.in"),
     ("NOTICE", "/opt/airflow/NOTICE"),
     ("airflow", "/opt/airflow/airflow"),
+    ("generated", "/opt/airflow/generated"),
     ("provider_packages", "/opt/airflow/provider_packages"),
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
@@ -94,7 +97,7 @@ NECESSARY_HOST_VOLUMES = [
 ]
 
 
-def get_extra_docker_flags(mount_sources: str) -> List[str]:
+def get_extra_docker_flags(mount_sources: str) -> list[str]:
     """
     Returns extra docker flags based on the type of mounting we want to do for sources.
 
@@ -299,7 +302,7 @@ Make sure docker-compose you install is first on the PATH variable of yours.
         )
 
 
-def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
+def get_env_variable_value(arg_name: str, params: CommonBuildParams | ShellParams):
     raw_value = getattr(params, arg_name, None)
     value = str(raw_value) if raw_value is not None else ''
     value = "true" if raw_value is True else value
@@ -309,7 +312,7 @@ def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, Shell
     return value
 
 
-def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> List[str]:
+def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) -> list[str]:
     """
     Constructs docker compose command arguments list based on parameters passed. Maps arguments to
     argument values.
@@ -340,7 +343,7 @@ def prepare_arguments_for_docker_build_command(image_params: CommonBuildParams) 
 
 def prepare_docker_build_cache_command(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build_cache command based on the parameters passed.
     :param image_params: parameters of the image
@@ -367,7 +370,7 @@ def prepare_docker_build_cache_command(
     return final_command
 
 
-def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> List[str]:
+def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -> list[str]:
     """
     Prepare build command for docker build. Depending on whether we have buildx plugin installed or not,
     and whether we run cache preparation, there might be different results:
@@ -401,7 +404,7 @@ def prepare_base_build_command(image_params: CommonBuildParams, verbose: bool) -
 def prepare_docker_build_command(
     image_params: CommonBuildParams,
     verbose: bool,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build command based on the parameters passed.
     :param image_params: parameters of the image
@@ -427,7 +430,7 @@ def prepare_docker_build_command(
 
 def construct_docker_push_command(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker push command based on the parameters passed.
     :param image_params: parameters of the image
@@ -438,7 +441,7 @@ def construct_docker_push_command(
 
 def prepare_docker_build_from_input(
     image_params: CommonBuildParams,
-) -> List[str]:
+) -> list[str]:
     """
     Constructs docker build empty image command based on the parameters passed.
     :param image_params: parameters of the image
@@ -450,9 +453,7 @@ def prepare_docker_build_from_input(
 def build_cache(
     image_params: CommonBuildParams, dry_run: bool, verbose: bool, parallel: bool
 ) -> RunCommandResult:
-    build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
-        args=[], returncode=0
-    )
+    build_command_result: CompletedProcess | CalledProcessError = CompletedProcess(args=[], returncode=0)
     cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
     buildx_command_result = run_command(
         cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
@@ -480,7 +481,7 @@ def build_cache(
     return build_command_result
 
 
-def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
+def set_value_to_default_if_not_set(env: dict[str, str], name: str, default: str):
     """
     Set value of name parameter to default (indexed by name) if not set.
     :param env: dictionary where to set the parameter
@@ -492,7 +493,7 @@ def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str
         env[name] = os.environ.get(name, default)
 
 
-def update_expected_environment_variables(env: Dict[str, str]) -> None:
+def update_expected_environment_variables(env: dict[str, str]) -> None:
     """
     Updates default values for unset environment variables.
 
@@ -590,7 +591,7 @@ DOCKER_VARIABLE_CONSTANTS = {
 }
 
 
-def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiParams]) -> Dict[str, str]:
+def get_env_variables_for_docker_commands(params: ShellParams | BuildCiParams) -> dict[str, str]:
     """
     Constructs environment variables needed by the docker-compose command, based on Shell parameters
     passed to it.
@@ -604,7 +605,7 @@ def get_env_variables_for_docker_commands(params: Union[ShellParams, BuildCiPara
     :param params: shell parameters passed.
     :return: dictionary of env variables to set
     """
-    env_variables: Dict[str, str] = os.environ.copy()
+    env_variables: dict[str, str] = os.environ.copy()
     for variable in DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES:
         param_name = DERIVE_ENV_VARIABLES_FROM_ATTRIBUTES[variable]
         param_value = get_env_variable_value(param_name, params=params)

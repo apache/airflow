@@ -16,6 +16,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`kubernetes.client.models.V1Volume`."""
 
+from __future__ import annotations
+
 import warnings
 
 from kubernetes.client import models as k8s

@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, List, Optional, Sequence, SupportsAbs
+from __future__ import annotations
+
+from typing import Any, Sequence, SupportsAbs
 
 from airflow.models import BaseOperator
 from airflow.operators.sql import SQLCheckOperator, SQLIntervalCheckOperator, SQLValueCheckOperator
@@ -85,15 +87,15 @@ class SnowflakeOperator(BaseOperator):
         *,
         sql: Any,
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: dict | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
-        warehouse: Optional[str] = None,
-        database: Optional[str] = None,
-        role: Optional[str] = None,
-        schema: Optional[str] = None,
-        authenticator: Optional[str] = None,
-        session_parameters: Optional[dict] = None,
+        warehouse: str | None = None,
+        database: str | None = None,
+        role: str | None = None,
+        schema: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -108,7 +110,7 @@ class SnowflakeOperator(BaseOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids: List[str] = []
+        self.query_ids: list[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -188,15 +190,15 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         *,
         sql: Any,
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: dict | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
-        warehouse: Optional[str] = None,
-        database: Optional[str] = None,
-        role: Optional[str] = None,
-        schema: Optional[str] = None,
-        authenticator: Optional[str] = None,
-        session_parameters: Optional[dict] = None,
+        warehouse: str | None = None,
+        database: str | None = None,
+        role: str | None = None,
+        schema: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, **kwargs)
@@ -211,7 +213,7 @@ class SnowflakeCheckOperator(SQLCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids: List[str] = []
+        self.query_ids: list[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -257,15 +259,15 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         pass_value: Any,
         tolerance: Any = None,
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: dict | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
-        warehouse: Optional[str] = None,
-        database: Optional[str] = None,
-        role: Optional[str] = None,
-        schema: Optional[str] = None,
-        authenticator: Optional[str] = None,
-        session_parameters: Optional[dict] = None,
+        warehouse: str | None = None,
+        database: str | None = None,
+        role: str | None = None,
+        schema: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(sql=sql, pass_value=pass_value, tolerance=tolerance, **kwargs)
@@ -280,7 +282,7 @@ class SnowflakeValueCheckOperator(SQLValueCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids: List[str] = []
+        self.query_ids: list[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)
@@ -334,15 +336,15 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         date_filter_column: str = 'ds',
         days_back: SupportsAbs[int] = -7,
         snowflake_conn_id: str = 'snowflake_default',
-        parameters: Optional[dict] = None,
+        parameters: dict | None = None,
         autocommit: bool = True,
         do_xcom_push: bool = True,
-        warehouse: Optional[str] = None,
-        database: Optional[str] = None,
-        role: Optional[str] = None,
-        schema: Optional[str] = None,
-        authenticator: Optional[str] = None,
-        session_parameters: Optional[dict] = None,
+        warehouse: str | None = None,
+        database: str | None = None,
+        role: str | None = None,
+        schema: str | None = None,
+        authenticator: str | None = None,
+        session_parameters: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -362,7 +364,7 @@ class SnowflakeIntervalCheckOperator(SQLIntervalCheckOperator):
         self.schema = schema
         self.authenticator = authenticator
         self.session_parameters = session_parameters
-        self.query_ids: List[str] = []
+        self.query_ids: list[str] = []
 
     def get_db_hook(self) -> SnowflakeHook:
         return get_db_hook(self)

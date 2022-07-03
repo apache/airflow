@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Interact with AWS Redshift clusters."""
+
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.amazon.aws.hooks.redshift_cluster import RedshiftHook

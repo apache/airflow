@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.sensors.s3`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.amazon.aws.sensors.s3_prefix import S3PrefixSensor  # noqa

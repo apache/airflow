@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -27,6 +27,9 @@ from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models import Connection
 from airflow.providers.openfaas.hooks.openfaas import OpenFaasHook
+
+#
+
 
 FUNCTION_NAME = "function_name"
 

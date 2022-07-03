@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""This module contains Google Datastore operators."""
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -28,6 +28,9 @@ from airflow.providers.google.cloud.links.datastore import (
     CloudDatastoreImportExportLink,
 )
 from airflow.providers.google.common.links.storage import StorageLink
+
+# """This module contains Google Datastore operators."""
+
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -84,16 +87,16 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         self,
         *,
         bucket: str,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         datastore_conn_id: str = 'google_cloud_default',
         cloud_storage_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        entity_filter: Optional[dict] = None,
-        labels: Optional[dict] = None,
+        delegate_to: str | None = None,
+        entity_filter: dict | None = None,
+        labels: dict | None = None,
         polling_interval_in_seconds: int = 10,
         overwrite_existing: bool = False,
-        project_id: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -109,7 +112,7 @@ class CloudDatastoreExportEntitiesOperator(BaseOperator):
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.log.info('Exporting data to Cloud Storage bucket %s', self.bucket)
 
         if self.overwrite_existing and self.namespace:
@@ -196,14 +199,14 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         *,
         bucket: str,
         file: str,
-        namespace: Optional[str] = None,
-        entity_filter: Optional[dict] = None,
-        labels: Optional[dict] = None,
+        namespace: str | None = None,
+        entity_filter: dict | None = None,
+        labels: dict | None = None,
         datastore_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         polling_interval_in_seconds: float = 10,
-        project_id: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        project_id: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -218,7 +221,7 @@ class CloudDatastoreImportEntitiesOperator(BaseOperator):
         self.project_id = project_id
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Importing data from Cloud Storage bucket %s', self.bucket)
         ds_hook = DatastoreHook(
             self.datastore_conn_id,
@@ -280,11 +283,11 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
     def __init__(
         self,
         *,
-        partial_keys: List,
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        partial_keys: list,
+        project_id: str | None = None,
+        delegate_to: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -295,7 +298,7 @@ class CloudDatastoreAllocateIdsOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> list:
+    def execute(self, context: Context) -> list:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -343,11 +346,11 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
     def __init__(
         self,
         *,
-        transaction_options: Dict[str, Any],
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        transaction_options: dict[str, Any],
+        project_id: str | None = None,
+        delegate_to: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -358,7 +361,7 @@ class CloudDatastoreBeginTransactionOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -406,11 +409,11 @@ class CloudDatastoreCommitOperator(BaseOperator):
     def __init__(
         self,
         *,
-        body: Dict[str, Any],
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        body: dict[str, Any],
+        project_id: str | None = None,
+        delegate_to: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -421,7 +424,7 @@ class CloudDatastoreCommitOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -470,10 +473,10 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         self,
         *,
         transaction: str,
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        project_id: str | None = None,
+        delegate_to: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -484,7 +487,7 @@ class CloudDatastoreRollbackOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -530,11 +533,11 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
     def __init__(
         self,
         *,
-        body: Dict[str, Any],
-        project_id: Optional[str] = None,
-        delegate_to: Optional[str] = None,
+        body: dict[str, Any],
+        project_id: str | None = None,
+        delegate_to: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -545,7 +548,7 @@ class CloudDatastoreRunQueryOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -592,9 +595,9 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         self,
         *,
         name: str,
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -604,7 +607,7 @@ class CloudDatastoreGetOperationOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -648,9 +651,9 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         self,
         *,
         name: str,
-        delegate_to: Optional[str] = None,
+        delegate_to: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -660,7 +663,7 @@ class CloudDatastoreDeleteOperationOperator(BaseOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         hook = DatastoreHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

@@ -14,15 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-#
 """This module contains helper functions for MLEngine operators."""
+from __future__ import annotations
 
 import base64
 import json
 import os
 import re
-from typing import Callable, Dict, Iterable, List, Optional, Tuple, TypeVar
+from typing import Callable, Iterable, TypeVar
 from urllib.parse import urlsplit
 
 import dill
@@ -40,18 +39,18 @@ T = TypeVar("T", bound=Callable)
 def create_evaluate_ops(
     task_prefix: str,
     data_format: str,
-    input_paths: List[str],
+    input_paths: list[str],
     prediction_path: str,
-    metric_fn_and_keys: Tuple[T, Iterable[str]],
+    metric_fn_and_keys: tuple[T, Iterable[str]],
     validate_fn: T,
-    batch_prediction_job_id: Optional[str] = None,
-    region: Optional[str] = None,
-    project_id: Optional[str] = None,
-    dataflow_options: Optional[Dict] = None,
-    model_uri: Optional[str] = None,
-    model_name: Optional[str] = None,
-    version_name: Optional[str] = None,
-    dag: Optional[DAG] = None,
+    batch_prediction_job_id: str | None = None,
+    region: str | None = None,
+    project_id: str | None = None,
+    dataflow_options: dict | None = None,
+    model_uri: str | None = None,
+    model_name: str | None = None,
+    version_name: str | None = None,
+    dag: DAG | None = None,
     py_interpreter="python3",
 ):
     """

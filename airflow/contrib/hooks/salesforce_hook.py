@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.salesforce.hooks.salesforce`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook, pd  # noqa

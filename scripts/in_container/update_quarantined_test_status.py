@@ -15,13 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import re
 import sys
 from datetime import datetime
 from os.path import dirname, join, realpath
-from typing import Dict, List, NamedTuple, Optional
+from typing import NamedTuple
 from urllib.parse import urlsplit
 
 import jinja2
@@ -44,7 +45,7 @@ class TestHistory(NamedTuple):
     test_id: str
     name: str
     url: str
-    states: List[bool]
+    states: list[bool]
     comment: str
 
 
@@ -57,12 +58,12 @@ num_runs = 10
 
 url_pattern = re.compile(r'\[([^]]*)]\(([^)]*)\)')
 
-status_map: Dict[str, bool] = {
+status_map: dict[str, bool] = {
     ":heavy_check_mark:": True,
     ":x:": False,
 }
 
-reverse_status_map: Dict[bool, str] = {status_map[key]: key for key in status_map.keys()}
+reverse_status_map: dict[bool, str] = {status_map[key]: key for key in status_map.keys()}
 
 
 def get_url(result: TestResult) -> str:
@@ -72,16 +73,16 @@ def get_url(result: TestResult) -> str:
     )
 
 
-def parse_state_history(history_string: str) -> List[bool]:
+def parse_state_history(history_string: str) -> list[bool]:
     history_array = history_string.split(' ')
-    status_array: List[bool] = []
+    status_array: list[bool] = []
     for value in history_array:
         if value:
             status_array.append(status_map[value])
     return status_array
 
 
-def parse_test_history(line: str) -> Optional[TestHistory]:
+def parse_test_history(line: str) -> TestHistory | None:
     values = line.split("|")
     match_url = url_pattern.match(values[1].strip())
     if match_url:
@@ -105,9 +106,9 @@ def parse_test_history(line: str) -> Optional[TestHistory]:
     return None
 
 
-def parse_body(body: str) -> Dict[str, TestHistory]:
+def parse_body(body: str) -> dict[str, TestHistory]:
     parse = False
-    test_history_map: Dict[str, TestHistory] = {}
+    test_history_map: dict[str, TestHistory] = {}
     for line in body.splitlines(keepends=False):
         if line.startswith("|-"):
             parse = True
@@ -156,9 +157,9 @@ def get_history_status(history: TestHistory):
     return "Flaky"
 
 
-def get_table(history_map: Dict[str, TestHistory]) -> str:
+def get_table(history_map: dict[str, TestHistory]) -> str:
     headers = ["Test", "Last run", f"Last {num_runs} runs", "Status", "Comment"]
-    the_table: List[List[str]] = []
+    the_table: list[list[str]] = []
     for ordered_key in sorted(history_map.keys()):
         history = history_map[ordered_key]
         the_table.append(
@@ -218,7 +219,7 @@ if __name__ == '__main__':
     print(quarantined_issue.body)
     print("-----")
     parsed_test_map = parse_body(quarantined_issue.body)
-    new_test_map: Dict[str, TestHistory] = {}
+    new_test_map: dict[str, TestHistory] = {}
 
     for test_result in test_results:
         previous_results = parsed_test_map.get(test_result.test_id)

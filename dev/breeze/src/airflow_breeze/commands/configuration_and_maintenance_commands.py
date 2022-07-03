@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import hashlib
 import json
 import os
@@ -21,7 +23,7 @@ import shutil
 import subprocess
 import sys
 from pathlib import Path
-from typing import IO, Any, Dict, Optional
+from typing import IO, Any
 
 import click
 from click import Context
@@ -124,7 +126,7 @@ CONFIGURATION_AND_MAINTENANCE_PARAMETERS = {
 @option_answer
 @option_dry_run
 @option_github_repository
-def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: Optional[str]):
+def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, answer: str | None):
     if all:
         get_console().print(
             "\n[info]Removing cache of parameters, clean up docker cache "
@@ -207,7 +209,7 @@ def cleanup(verbose: bool, dry_run: bool, github_repository: str, all: bool, ans
 )
 def self_upgrade(force: bool, use_current_airflow_sources: bool):
     if use_current_airflow_sources:
-        airflow_sources: Optional[Path] = get_used_airflow_sources()
+        airflow_sources: Path | None = get_used_airflow_sources()
     else:
         airflow_sources = get_installation_airflow_sources()
     if airflow_sources is not None:
@@ -231,7 +233,7 @@ def self_upgrade(force: bool, use_current_airflow_sources: bool):
 )
 @option_answer
 @main.command(name='setup-autocomplete')
-def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: Optional[str]):
+def setup_autocomplete(verbose: bool, dry_run: bool, force: bool, answer: str | None):
     """
     Enables autocompletion of breeze commands.
     """
@@ -383,7 +385,7 @@ def change_config(
     get_console().print()
 
 
-def dict_hash(dictionary: Dict[str, Any]) -> str:
+def dict_hash(dictionary: dict[str, Any]) -> str:
     """MD5 hash of a dictionary. Sorted and dumped via json to account for random sequence)"""
     dhash = hashlib.md5()
     encoded = json.dumps(dictionary, sort_keys=True, default=vars).encode()

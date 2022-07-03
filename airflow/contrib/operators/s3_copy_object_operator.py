@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.s3_copy_object`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.amazon.aws.operators.s3_copy_object import S3CopyObjectOperator  # noqa

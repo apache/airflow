@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Memorystore operators"""
+
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.google.cloud.example_dags.example_cloud_memorystore import BUCKET_NAME

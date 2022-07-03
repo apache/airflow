@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
-from typing import TYPE_CHECKING, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -77,12 +78,12 @@ class S3ToRedshiftOperator(BaseOperator):
         s3_key: str,
         redshift_conn_id: str = 'redshift_default',
         aws_conn_id: str = 'aws_default',
-        verify: Optional[Union[bool, str]] = None,
-        column_list: Optional[List[str]] = None,
-        copy_options: Optional[List] = None,
+        verify: bool | str | None = None,
+        column_list: list[str] | None = None,
+        copy_options: list | None = None,
         autocommit: bool = False,
         method: str = 'APPEND',
-        upsert_keys: Optional[List[str]] = None,
+        upsert_keys: list[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -123,7 +124,7 @@ class S3ToRedshiftOperator(BaseOperator):
                     {copy_options};
         """
 
-    def execute(self, context: 'Context') -> None:
+    def execute(self, context: Context) -> None:
         redshift_hook = RedshiftSQLHook(redshift_conn_id=self.redshift_conn_id)
         conn = S3Hook.get_connection(conn_id=self.aws_conn_id)
 
@@ -140,7 +141,7 @@ class S3ToRedshiftOperator(BaseOperator):
 
         copy_statement = self._build_copy_query(copy_destination, credentials_block, copy_options)
 
-        sql: Union[list, str]
+        sql: list | str
 
         if self.method == 'REPLACE':
             sql = ["BEGIN;", f"DELETE FROM {destination};", copy_statement, "COMMIT"]

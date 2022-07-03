@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
@@ -47,16 +48,16 @@ class BatchSensor(BaseSensorOperator):
         *,
         job_id: str,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.job_id = job_id
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: Optional[BatchClientHook] = None
+        self.hook: BatchClientHook | None = None
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         job_description = self.get_hook().get_job_description(self.job_id)
         state = job_description['status']
 

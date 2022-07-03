@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import Mock, patch
@@ -24,6 +24,9 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.arangodb.sensors.arangodb import AQLSensor
 from airflow.utils import db, timezone
+
+#
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 arangodb_client_mock = Mock(name="arangodb_client_for_test")

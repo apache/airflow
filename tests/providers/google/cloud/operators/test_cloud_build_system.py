@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
+
+from __future__ import annotations
+
 import pytest
 
 from tests.providers.google.cloud.operators.test_cloud_build_system_helper import GCPCloudBuildTestHelper

@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Providers sub-commands"""
+
+from __future__ import annotations
+
 import re
 
 from airflow.cli.simple_table import AirflowConsole

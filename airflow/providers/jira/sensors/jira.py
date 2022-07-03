@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from jira.resources import Issue, Resource
 
@@ -42,8 +44,8 @@ class JiraSensor(BaseSensorOperator):
         *,
         method_name: str,
         jira_conn_id: str = 'jira_default',
-        method_params: Optional[dict] = None,
-        result_processor: Optional[Callable] = None,
+        method_params: dict | None = None,
+        result_processor: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -54,7 +56,7 @@ class JiraSensor(BaseSensorOperator):
         self.method_name = method_name
         self.method_params = method_params
 
-    def poke(self, context: 'Context') -> Any:
+    def poke(self, context: Context) -> Any:
         hook = JiraHook(jira_conn_id=self.jira_conn_id)
         resource = hook.get_conn()
         jira_result = getattr(resource, self.method_name)(**self.method_params)
@@ -80,10 +82,10 @@ class JiraTicketSensor(JiraSensor):
         self,
         *,
         jira_conn_id: str = 'jira_default',
-        ticket_id: Optional[str] = None,
-        field: Optional[str] = None,
-        expected_value: Optional[str] = None,
-        field_checker_func: Optional[Callable] = None,
+        ticket_id: str | None = None,
+        field: str | None = None,
+        expected_value: str | None = None,
+        field_checker_func: Callable | None = None,
         **kwargs,
     ) -> None:
 
@@ -96,14 +98,14 @@ class JiraTicketSensor(JiraSensor):
 
         super().__init__(jira_conn_id=jira_conn_id, result_processor=field_checker_func, **kwargs)
 
-    def poke(self, context: 'Context') -> Any:
+    def poke(self, context: Context) -> Any:
         self.log.info('Jira Sensor checking for change in ticket: %s', self.ticket_id)
 
         self.method_name = "issue"
         self.method_params = {'id': self.ticket_id, 'fields': self.field}
         return JiraSensor.poke(self, context=context)
 
-    def issue_field_checker(self, issue: Issue) -> Optional[bool]:
+    def issue_field_checker(self, issue: Issue) -> bool | None:
         """Check issue using different conditions to prepare to evaluate sensor."""
         result = None
         try:

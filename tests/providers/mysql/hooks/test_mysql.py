@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import json
 import os
@@ -32,6 +32,9 @@ from airflow.models import Connection
 from airflow.models.dag import DAG
 from airflow.providers.mysql.hooks.mysql import MySqlHook
 from airflow.utils import timezone
+
+#
+
 
 SSL_DICT = {'cert': '/tmp/client-cert.pem', 'ca': '/tmp/server-ca.pem', 'key': '/tmp/client-key.pem'}
 

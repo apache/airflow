@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Any, List, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -43,7 +44,7 @@ class SageMakerBaseOperator(BaseOperator):
     template_ext: Sequence[str] = ()
     template_fields_renderers = {'config': 'json'}
     ui_color = '#ededed'
-    integer_fields: List[List[Any]] = []
+    integer_fields: list[list[Any]] = []
 
     def __init__(self, *, config: dict, **kwargs):
         super().__init__(**kwargs)
@@ -91,7 +92,7 @@ class SageMakerBaseOperator(BaseOperator):
             json.dumps(self.config, sort_keys=True, indent=4, separators=(',', ': ')),
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         raise NotImplementedError('Please implement execute() in sub class!')
 
     @cached_property
@@ -135,7 +136,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
         action_if_job_exists: str = 'increment',
         **kwargs,
     ):
@@ -167,7 +168,7 @@ class SageMakerProcessingOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.preprocess_config()
         processing_job_name = self.config['ProcessingJobName']
         if self.hook.find_processing_job_by_name(processing_job_name):
@@ -217,7 +218,7 @@ class SageMakerEndpointConfigOperator(SageMakerBaseOperator):
         self.config = config
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.preprocess_config()
         self.log.info('Creating SageMaker Endpoint Config %s.', self.config['EndpointConfigName'])
         response = self.hook.create_endpoint_config(self.config)
@@ -282,7 +283,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
         operation: str = 'create',
         **kwargs,
     ):
@@ -310,7 +311,7 @@ class SageMakerEndpointOperator(SageMakerBaseOperator):
         if 'ExecutionRoleArn' in config:
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.preprocess_config()
         model_info = self.config.get('Model')
         endpoint_config_info = self.config.get('EndpointConfig')
@@ -401,7 +402,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
         aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
@@ -414,7 +415,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
 
     def create_integer_fields(self) -> None:
         """Set fields which should be casted to integers."""
-        self.integer_fields: List[List[str]] = [
+        self.integer_fields: list[list[str]] = [
             ['Transform', 'TransformResources', 'InstanceCount'],
             ['Transform', 'MaxConcurrentTransforms'],
             ['Transform', 'MaxPayloadInMB'],
@@ -431,7 +432,7 @@ class SageMakerTransformOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             config['ExecutionRoleArn'] = hook.expand_role(config['ExecutionRoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.preprocess_config()
         model_config = self.config.get('Model')
         transform_config = self.config.get('Transform', self.config)
@@ -495,7 +496,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
         aws_conn_id: str = DEFAULT_CONN_ID,
         wait_for_completion: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
         **kwargs,
     ):
         super().__init__(config=config, **kwargs)
@@ -512,7 +513,7 @@ class SageMakerTuningOperator(SageMakerBaseOperator):
                 hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
                 config['RoleArn'] = hook.expand_role(config['RoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.preprocess_config()
         self.log.info(
             'Creating SageMaker Hyper-Parameter Tuning Job %s', self.config['HyperParameterTuningJobName']
@@ -557,7 +558,7 @@ class SageMakerModelOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['ExecutionRoleArn'] = hook.expand_role(self.config['ExecutionRoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.preprocess_config()
         self.log.info('Creating SageMaker Model %s.', self.config['ModelName'])
         response = self.hook.create_model(self.config)
@@ -610,7 +611,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
         wait_for_completion: bool = True,
         print_log: bool = True,
         check_interval: int = CHECK_INTERVAL_SECOND,
-        max_ingestion_time: Optional[int] = None,
+        max_ingestion_time: int | None = None,
         check_if_job_exists: bool = True,
         action_if_job_exists: str = 'increment',
         **kwargs,
@@ -635,7 +636,7 @@ class SageMakerTrainingOperator(SageMakerBaseOperator):
             hook = AwsBaseHook(self.aws_conn_id, client_type='iam')
             self.config['RoleArn'] = hook.expand_role(self.config['RoleArn'])
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: Context) -> dict:
         self.preprocess_config()
         if self.check_if_job_exists:
             self._check_if_job_exists()
@@ -685,7 +686,7 @@ class SageMakerDeleteModelOperator(SageMakerBaseOperator):
         self.config = config
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Context) -> Any:
         sagemaker_hook = SageMakerHook(aws_conn_id=self.aws_conn_id)
         sagemaker_hook.delete_model(model_name=self.config['ModelName'])
         self.log.info("Model %s deleted successfully.", self.config['ModelName'])

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 from unittest.mock import ANY, Mock, patch
@@ -29,6 +29,8 @@ from airflow.utils import timezone
 from airflow.utils.session import create_session
 from airflow.utils.state import State
 from tests.test_utils.config import conf_vars
+
+#
 
 
 class MockJob(BaseJob):

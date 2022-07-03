@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Config sub-commands"""
+
+from __future__ import annotations
+
 import io
 
 import pygments

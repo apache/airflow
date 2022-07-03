@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import os
 import warnings
-from typing import TYPE_CHECKING, Any, Callable, Collection, FrozenSet, Iterable, Optional, Union
+from typing import TYPE_CHECKING, Any, Callable, Collection, Iterable
 
 import attr
 from sqlalchemy import func
@@ -113,12 +114,12 @@ class ExternalTaskSensor(BaseSensorOperator):
         self,
         *,
         external_dag_id: str,
-        external_task_id: Optional[str] = None,
-        external_task_ids: Optional[Collection[str]] = None,
-        allowed_states: Optional[Iterable[str]] = None,
-        failed_states: Optional[Iterable[str]] = None,
-        execution_delta: Optional[datetime.timedelta] = None,
-        execution_date_fn: Optional[Callable] = None,
+        external_task_id: str | None = None,
+        external_task_ids: Collection[str] | None = None,
+        allowed_states: Iterable[str] | None = None,
+        failed_states: Iterable[str] | None = None,
+        execution_delta: datetime.timedelta | None = None,
+        execution_date_fn: Callable | None = None,
         check_existence: bool = False,
         **kwargs,
     ):
@@ -318,7 +319,7 @@ class ExternalTaskMarker(EmptyOperator):
     ui_color = '#19647e'
 
     # The _serialized_fields are lazily loaded when get_serialized_fields() method is called
-    __serialized_fields: Optional[FrozenSet[str]] = None
+    __serialized_fields: frozenset[str] | None = None
 
     @property
     def operator_extra_links(self):
@@ -330,7 +331,7 @@ class ExternalTaskMarker(EmptyOperator):
         *,
         external_dag_id: str,
         external_task_id: str,
-        execution_date: Optional[Union[str, datetime.datetime]] = "{{ logical_date.isoformat() }}",
+        execution_date: str | datetime.datetime | None = "{{ logical_date.isoformat() }}",
         recursion_depth: int = 10,
         **kwargs,
     ):

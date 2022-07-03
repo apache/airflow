@@ -15,8 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """Client for kubernetes communication"""
+
+from __future__ import annotations
+
 import logging
-from typing import Optional
 
 from airflow.configuration import conf
 
@@ -82,8 +84,8 @@ def _enable_tcp_keepalive() -> None:
 
 def get_kube_client(
     in_cluster: bool = conf.getboolean('kubernetes', 'in_cluster'),
-    cluster_context: Optional[str] = None,
-    config_file: Optional[str] = None,
+    cluster_context: str | None = None,
+    config_file: str | None = None,
 ) -> client.CoreV1Api:
     """
     Retrieves Kubernetes client

@@ -17,6 +17,8 @@
 # under the License.
 """Interact with AWS RDS."""
 
+from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsGenericHook

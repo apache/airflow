@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
-from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.transfers.sql_to_s3 import SqlToS3Operator
@@ -43,7 +43,7 @@ class MySQLToS3Operator(SqlToS3Operator):
         self,
         *,
         mysql_conn_id: str = 'mysql_default',
-        pd_csv_kwargs: Optional[dict] = None,
+        pd_csv_kwargs: dict | None = None,
         index: bool = False,
         header: bool = False,
         **kwargs,

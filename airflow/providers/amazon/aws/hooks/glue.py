@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import time
 import warnings
-from typing import Dict, List, Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -44,15 +44,15 @@ class GlueJobHook(AwsBaseHook):
 
     def __init__(
         self,
-        s3_bucket: Optional[str] = None,
-        job_name: Optional[str] = None,
-        desc: Optional[str] = None,
+        s3_bucket: str | None = None,
+        job_name: str | None = None,
+        desc: str | None = None,
         concurrent_run_limit: int = 1,
-        script_location: Optional[str] = None,
+        script_location: str | None = None,
         retry_limit: int = 0,
-        num_of_dpus: Optional[int] = None,
-        iam_role_name: Optional[str] = None,
-        create_job_kwargs: Optional[dict] = None,
+        num_of_dpus: int | None = None,
+        iam_role_name: str | None = None,
+        create_job_kwargs: dict | None = None,
         *args,
         **kwargs,
     ):
@@ -84,12 +84,12 @@ class GlueJobHook(AwsBaseHook):
         kwargs['client_type'] = 'glue'
         super().__init__(*args, **kwargs)
 
-    def list_jobs(self) -> List:
+    def list_jobs(self) -> list:
         """:return: Lists of Jobs"""
         conn = self.get_conn()
         return conn.get_jobs()
 
-    def get_iam_execution_role(self) -> Dict:
+    def get_iam_execution_role(self) -> dict:
         """:return: iam role for job execution"""
         session, endpoint_url = self._get_credentials(region_name=self.region_name)
         iam_client = session.client('iam', endpoint_url=endpoint_url, config=self.config, verify=self.verify)
@@ -104,9 +104,9 @@ class GlueJobHook(AwsBaseHook):
 
     def initialize_job(
         self,
-        script_arguments: Optional[dict] = None,
-        run_kwargs: Optional[dict] = None,
-    ) -> Dict[str, str]:
+        script_arguments: dict | None = None,
+        run_kwargs: dict | None = None,
+    ) -> dict[str, str]:
         """
         Initializes connection with AWS Glue
         to run job
@@ -136,7 +136,7 @@ class GlueJobHook(AwsBaseHook):
         job_run = glue_client.get_job_run(JobName=job_name, RunId=run_id, PredecessorsIncluded=True)
         return job_run['JobRun']['JobRunState']
 
-    def job_completion(self, job_name: str, run_id: str) -> Dict[str, str]:
+    def job_completion(self, job_name: str, run_id: str) -> dict[str, str]:
         """
         Waits until Glue job with job_name completes or
         fails and return final state if finished.

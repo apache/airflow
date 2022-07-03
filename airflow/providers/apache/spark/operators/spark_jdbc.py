@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Any, Dict, Optional
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
 
 from airflow.providers.apache.spark.hooks.spark_jdbc import SparkJDBCHook
 from airflow.providers.apache.spark.operators.spark_submit import SparkSubmitOperator
@@ -98,32 +99,32 @@ class SparkJDBCOperator(SparkSubmitOperator):
         *,
         spark_app_name: str = 'airflow-spark-jdbc',
         spark_conn_id: str = 'spark-default',
-        spark_conf: Optional[Dict[str, Any]] = None,
-        spark_py_files: Optional[str] = None,
-        spark_files: Optional[str] = None,
-        spark_jars: Optional[str] = None,
-        num_executors: Optional[int] = None,
-        executor_cores: Optional[int] = None,
-        executor_memory: Optional[str] = None,
-        driver_memory: Optional[str] = None,
+        spark_conf: dict[str, Any] | None = None,
+        spark_py_files: str | None = None,
+        spark_files: str | None = None,
+        spark_jars: str | None = None,
+        num_executors: int | None = None,
+        executor_cores: int | None = None,
+        executor_memory: str | None = None,
+        driver_memory: str | None = None,
         verbose: bool = False,
-        principal: Optional[str] = None,
-        keytab: Optional[str] = None,
+        principal: str | None = None,
+        keytab: str | None = None,
         cmd_type: str = 'spark_to_jdbc',
-        jdbc_table: Optional[str] = None,
+        jdbc_table: str | None = None,
         jdbc_conn_id: str = 'jdbc-default',
-        jdbc_driver: Optional[str] = None,
-        metastore_table: Optional[str] = None,
+        jdbc_driver: str | None = None,
+        metastore_table: str | None = None,
         jdbc_truncate: bool = False,
-        save_mode: Optional[str] = None,
-        save_format: Optional[str] = None,
-        batch_size: Optional[int] = None,
-        fetch_size: Optional[int] = None,
-        num_partitions: Optional[int] = None,
-        partition_column: Optional[str] = None,
-        lower_bound: Optional[str] = None,
-        upper_bound: Optional[str] = None,
-        create_table_column_types: Optional[str] = None,
+        save_mode: str | None = None,
+        save_format: str | None = None,
+        batch_size: int | None = None,
+        fetch_size: int | None = None,
+        num_partitions: int | None = None,
+        partition_column: str | None = None,
+        lower_bound: str | None = None,
+        upper_bound: str | None = None,
+        create_table_column_types: str | None = None,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -155,9 +156,9 @@ class SparkJDBCOperator(SparkSubmitOperator):
         self._lower_bound = lower_bound
         self._upper_bound = upper_bound
         self._create_table_column_types = create_table_column_types
-        self._hook: Optional[SparkJDBCHook] = None
+        self._hook: SparkJDBCHook | None = None
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Call the SparkSubmitHook to run the provided spark job"""
         if self._hook is None:
             self._hook = self._get_hook()

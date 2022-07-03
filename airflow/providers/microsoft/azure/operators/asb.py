@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
@@ -63,7 +64,7 @@ class AzureServiceBusCreateQueueOperator(BaseOperator):
         self.enable_batched_operations = enable_batched_operations
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Creates Queue in Azure Service Bus namespace, by connecting to Service Bus Admin client in hook"""
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
 
@@ -100,7 +101,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self,
         *,
         queue_name: str,
-        message: Union[str, List[str]],
+        message: str | list[str],
         batch: bool = False,
         azure_service_bus_conn_id: str = 'azure_service_bus_default',
         **kwargs,
@@ -111,7 +112,7 @@ class AzureServiceBusSendMessageOperator(BaseOperator):
         self.message = message
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """
         Sends Message to the specific queue in Service Bus namespace, by
         connecting to Service Bus  client
@@ -156,7 +157,7 @@ class AzureServiceBusReceiveMessageOperator(BaseOperator):
         self.max_message_count = max_message_count
         self.max_wait_time = max_wait_time
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """
         Receive Message in specific queue in Service Bus namespace,
         by connecting to Service Bus client
@@ -197,7 +198,7 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
         self.queue_name = queue_name
         self.azure_service_bus_conn_id = azure_service_bus_conn_id
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Delete Queue in Service Bus namespace, by connecting to Service Bus Admin client"""
         # Create the hook
         hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)

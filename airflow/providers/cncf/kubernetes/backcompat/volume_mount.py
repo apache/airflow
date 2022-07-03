@@ -16,6 +16,8 @@
 # under the License.
 """Classes for interacting with Kubernetes API"""
 
+from __future__ import annotations
+
 import warnings
 
 from kubernetes.client import models as k8s

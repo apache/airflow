@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, List, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from botocore.exceptions import ClientError
 
@@ -34,10 +35,10 @@ class RdsBaseSensor(BaseSensorOperator):
     ui_color = "#ddbb77"
     ui_fgcolor = "#ffffff"
 
-    def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: Optional[dict] = None, **kwargs):
+    def __init__(self, *args, aws_conn_id: str = "aws_conn_id", hook_params: dict | None = None, **kwargs):
         hook_params = hook_params or {}
         self.hook = RdsHook(aws_conn_id=aws_conn_id, **hook_params)
-        self.target_statuses: List[str] = []
+        self.target_statuses: list[str] = []
         super().__init__(*args, **kwargs)
 
     def _describe_item(self, item_type: str, item_name: str) -> list:
@@ -87,7 +88,7 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         *,
         db_type: str,
         db_snapshot_identifier: str,
-        target_statuses: Optional[List[str]] = None,
+        target_statuses: list[str] | None = None,
         aws_conn_id: str = "aws_conn_id",
         **kwargs,
     ):
@@ -96,7 +97,7 @@ class RdsSnapshotExistenceSensor(RdsBaseSensor):
         self.db_snapshot_identifier = db_snapshot_identifier
         self.target_statuses = target_statuses or ['available']
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         self.log.info(
             'Poking for statuses : %s\nfor snapshot %s', self.target_statuses, self.db_snapshot_identifier
         )
@@ -127,7 +128,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
         self,
         *,
         export_task_identifier: str,
-        target_statuses: Optional[List[str]] = None,
+        target_statuses: list[str] | None = None,
         aws_conn_id: str = "aws_default",
         **kwargs,
     ):
@@ -142,7 +143,7 @@ class RdsExportTaskExistenceSensor(RdsBaseSensor):
             'canceled',
         ]
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         self.log.info(
             'Poking for statuses : %s\nfor export task %s', self.target_statuses, self.export_task_identifier
         )

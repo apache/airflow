@@ -14,10 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import atexit
 import os
-from typing import Optional
 
 import rich
 from rich.console import Console
@@ -26,12 +26,12 @@ from airflow_breeze.utils.path_utils import in_autocomplete
 
 output_file_for_recording = os.environ.get('RECORD_BREEZE_OUTPUT_FILE')
 
-help_console: Optional[Console] = None
+help_console: Console | None = None
 
 DEFAULT_COLUMNS = 129
 
 
-def enable_recording_of_help_output(path: str, title: Optional[str], width: Optional[str]):
+def enable_recording_of_help_output(path: str, title: str | None, width: str | None):
     import rich_click as click
 
     if not title:

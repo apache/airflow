@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 This module contains integration with Azure CosmosDB.
 
 AzureCosmosDBHook communicates via the Azure Cosmos library. Make sure that a
@@ -24,7 +27,7 @@ login (=Endpoint uri), password (=secret key) and extra fields database_name and
 the default database and collection to use (see connection `azure_cosmos_default` for an example).
 """
 import uuid
-from typing import Any, Dict, Optional
+from typing import Any
 
 from azure.cosmos.cosmos_client import CosmosClient
 from azure.cosmos.exceptions import CosmosHttpResponseError
@@ -51,7 +54,7 @@ class AzureCosmosDBHook(BaseHook):
     hook_name = 'Azure CosmosDB'
 
     @staticmethod
-    def get_connection_form_widgets() -> Dict[str, Any]:
+    def get_connection_form_widgets() -> dict[str, Any]:
         """Returns connection widgets to add to connection form"""
         from flask_appbuilder.fieldwidgets import BS3TextFieldWidget
         from flask_babel import lazy_gettext
@@ -67,7 +70,7 @@ class AzureCosmosDBHook(BaseHook):
         }
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict[str, Any]:
+    def get_ui_field_behaviour() -> dict[str, Any]:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'host', 'extra'],
@@ -86,7 +89,7 @@ class AzureCosmosDBHook(BaseHook):
     def __init__(self, azure_cosmos_conn_id: str = default_conn_name) -> None:
         super().__init__()
         self.conn_id = azure_cosmos_conn_id
-        self._conn: Optional[CosmosClient] = None
+        self._conn: CosmosClient | None = None
 
         self.default_database_name = None
         self.default_collection_name = None
@@ -110,7 +113,7 @@ class AzureCosmosDBHook(BaseHook):
             self._conn = CosmosClient(endpoint_uri, {'masterKey': master_key})
         return self._conn
 
-    def __get_database_name(self, database_name: Optional[str] = None) -> str:
+    def __get_database_name(self, database_name: str | None = None) -> str:
         self.get_conn()
         db_name = database_name
         if db_name is None:
@@ -121,7 +124,7 @@ class AzureCosmosDBHook(BaseHook):
 
         return db_name
 
-    def __get_collection_name(self, collection_name: Optional[str] = None) -> str:
+    def __get_collection_name(self, collection_name: str | None = None) -> str:
         self.get_conn()
         coll_name = collection_name
         if coll_name is None:
@@ -147,7 +150,7 @@ class AzureCosmosDBHook(BaseHook):
 
         return True
 
-    def create_collection(self, collection_name: str, database_name: Optional[str] = None) -> None:
+    def create_collection(self, collection_name: str, database_name: str | None = None) -> None:
         """Creates a new collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
@@ -211,7 +214,7 @@ class AzureCosmosDBHook(BaseHook):
 
         self.get_conn().delete_database(database_name)
 
-    def delete_collection(self, collection_name: str, database_name: Optional[str] = None) -> None:
+    def delete_collection(self, collection_name: str, database_name: str | None = None) -> None:
         """Deletes an existing collection in the CosmosDB database."""
         if collection_name is None:
             raise AirflowBadRequest("Collection name cannot be None.")
@@ -249,7 +252,7 @@ class AzureCosmosDBHook(BaseHook):
         return created_document
 
     def insert_documents(
-        self, documents, database_name: Optional[str] = None, collection_name: Optional[str] = None
+        self, documents, database_name: str | None = None, collection_name: str | None = None
     ) -> list:
         """Insert a list of new documents into an existing collection in the CosmosDB database."""
         if documents is None:
@@ -267,7 +270,7 @@ class AzureCosmosDBHook(BaseHook):
         return created_documents
 
     def delete_document(
-        self, document_id: str, database_name: Optional[str] = None, collection_name: Optional[str] = None
+        self, document_id: str, database_name: str | None = None, collection_name: str | None = None
     ) -> None:
         """Delete an existing document out of a collection in the CosmosDB database."""
         if document_id is None:
@@ -278,7 +281,7 @@ class AzureCosmosDBHook(BaseHook):
         ).delete_item(document_id)
 
     def get_document(
-        self, document_id: str, database_name: Optional[str] = None, collection_name: Optional[str] = None
+        self, document_id: str, database_name: str | None = None, collection_name: str | None = None
     ):
         """Get a document from an existing collection in the CosmosDB database."""
         if document_id is None:
@@ -297,10 +300,10 @@ class AzureCosmosDBHook(BaseHook):
     def get_documents(
         self,
         sql_string: str,
-        database_name: Optional[str] = None,
-        collection_name: Optional[str] = None,
-        partition_key: Optional[str] = None,
-    ) -> Optional[list]:
+        database_name: str | None = None,
+        collection_name: str | None = None,
+        partition_key: str | None = None,
+    ) -> list | None:
         """Get a list of documents from an existing collection in the CosmosDB database via SQL query."""
         if sql_string is None:
             raise AirflowBadRequest("SQL query string cannot be None")

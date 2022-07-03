@@ -15,27 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import itertools
 import os
 import warnings
 from collections import defaultdict
 from datetime import datetime
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    Callable,
-    Dict,
-    Generator,
-    Iterable,
-    List,
-    NamedTuple,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Union,
-    cast,
-)
+from typing import TYPE_CHECKING, Any, Callable, Generator, Iterable, NamedTuple, Sequence, cast
 
 from sqlalchemy import (
     Boolean,
@@ -84,11 +71,11 @@ if TYPE_CHECKING:
 class TISchedulingDecision(NamedTuple):
     """Type of return for DagRun.task_instance_scheduling_decisions"""
 
-    tis: List[TI]
-    schedulable_tis: List[TI]
+    tis: list[TI]
+    schedulable_tis: list[TI]
     changed_tis: bool
-    unfinished_tis: List[TI]
-    finished_tis: List[TI]
+    unfinished_tis: list[TI]
+    finished_tis: list[TI]
 
 
 class DagRun(Base, LoggingMixin):
@@ -128,9 +115,9 @@ class DagRun(Base, LoggingMixin):
 
     # Remove this `if` after upgrading Sphinx-AutoAPI
     if not TYPE_CHECKING and "BUILDING_AIRFLOW_DOCS" in os.environ:
-        dag: "Optional[DAG]"
+        dag: DAG | None
     else:
-        dag: "Optional[DAG]" = None
+        dag: DAG | None = None
 
     __table_args__ = (
         Index('dag_id_state', dag_id, _state),
@@ -170,18 +157,18 @@ class DagRun(Base, LoggingMixin):
 
     def __init__(
         self,
-        dag_id: Optional[str] = None,
-        run_id: Optional[str] = None,
-        queued_at: Union[datetime, None, ArgNotSet] = NOTSET,
-        execution_date: Optional[datetime] = None,
-        start_date: Optional[datetime] = None,
-        external_trigger: Optional[bool] = None,
-        conf: Optional[Any] = None,
-        state: Optional[DagRunState] = None,
-        run_type: Optional[str] = None,
-        dag_hash: Optional[str] = None,
-        creating_job_id: Optional[int] = None,
-        data_interval: Optional[Tuple[datetime, datetime]] = None,
+        dag_id: str | None = None,
+        run_id: str | None = None,
+        queued_at: datetime | None | ArgNotSet = NOTSET,
+        execution_date: datetime | None = None,
+        start_date: datetime | None = None,
+        external_trigger: bool | None = None,
+        conf: Any | None = None,
+        state: DagRunState | None = None,
+        run_type: str | None = None,
+        dag_hash: str | None = None,
+        creating_job_id: int | None = None,
+        data_interval: tuple[datetime, datetime] | None = None,
     ):
         if data_interval is None:
             # Legacy: Only happen for runs created prior to Airflow 2.2.
@@ -249,7 +236,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def active_runs_of_dags(cls, dag_ids=None, only_running=False, session=None) -> Dict[str, int]:
+    def active_runs_of_dags(cls, dag_ids=None, only_running=False, session=None) -> dict[str, int]:
         """Get the number of active dag runs for each dag."""
         query = session.query(cls.dag_id, func.count('*'))
         if dag_ids is not None:
@@ -268,7 +255,7 @@ class DagRun(Base, LoggingMixin):
         cls,
         state: DagRunState,
         session: Session,
-        max_number: Optional[int] = None,
+        max_number: int | None = None,
     ):
         """
         Return the next DagRuns that the scheduler should attempt to schedule.
@@ -319,17 +306,17 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def find(
         cls,
-        dag_id: Optional[Union[str, List[str]]] = None,
-        run_id: Optional[Iterable[str]] = None,
-        execution_date: Optional[Union[datetime, Iterable[datetime]]] = None,
-        state: Optional[DagRunState] = None,
-        external_trigger: Optional[bool] = None,
+        dag_id: str | list[str] | None = None,
+        run_id: Iterable[str] | None = None,
+        execution_date: datetime | Iterable[datetime] | None = None,
+        state: DagRunState | None = None,
+        external_trigger: bool | None = None,
         no_backfills: bool = False,
-        run_type: Optional[DagRunType] = None,
+        run_type: DagRunType | None = None,
         session: Session = NEW_SESSION,
-        execution_start_date: Optional[datetime] = None,
-        execution_end_date: Optional[datetime] = None,
-    ) -> List["DagRun"]:
+        execution_start_date: datetime | None = None,
+        execution_end_date: datetime | None = None,
+    ) -> list[DagRun]:
         """
         Returns a set of dag runs for the given search criteria.
 
@@ -383,7 +370,7 @@ class DagRun(Base, LoggingMixin):
         run_id: str,
         execution_date: datetime,
         session: Session = NEW_SESSION,
-    ) -> Optional['DagRun']:
+    ) -> DagRun | None:
         """
         Return an existing run for the DAG with a specific run_id or execution_date.
 
@@ -411,9 +398,9 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def get_task_instances(
         self,
-        state: Optional[Iterable[Optional[TaskInstanceState]]] = None,
+        state: Iterable[TaskInstanceState | None] | None = None,
         session: Session = NEW_SESSION,
-    ) -> List[TI]:
+    ) -> list[TI]:
         """Returns the task instances for this dag run"""
         tis = (
             session.query(TI)
@@ -449,7 +436,7 @@ class DagRun(Base, LoggingMixin):
         session: Session = NEW_SESSION,
         *,
         map_index: int = -1,
-    ) -> Optional[TI]:
+    ) -> TI | None:
         """
         Returns the task instance specified by task_id for this dag run
 
@@ -462,7 +449,7 @@ class DagRun(Base, LoggingMixin):
             .one_or_none()
         )
 
-    def get_dag(self) -> "DAG":
+    def get_dag(self) -> DAG:
         """
         Returns the Dag associated with this DagRun.
 
@@ -475,8 +462,8 @@ class DagRun(Base, LoggingMixin):
 
     @provide_session
     def get_previous_dagrun(
-        self, state: Optional[DagRunState] = None, session: Session = NEW_SESSION
-    ) -> Optional['DagRun']:
+        self, state: DagRunState | None = None, session: Session = NEW_SESSION
+    ) -> DagRun | None:
         """The previous DagRun, if there is one"""
         filters = [
             DagRun.dag_id == self.dag_id,
@@ -487,7 +474,7 @@ class DagRun(Base, LoggingMixin):
         return session.query(DagRun).filter(*filters).order_by(DagRun.execution_date.desc()).first()
 
     @provide_session
-    def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> Optional['DagRun']:
+    def get_previous_scheduled_dagrun(self, session: Session = NEW_SESSION) -> DagRun | None:
         """The previous, SCHEDULED DagRun, if there is one"""
         return (
             session.query(DagRun)
@@ -503,7 +490,7 @@ class DagRun(Base, LoggingMixin):
     @provide_session
     def update_state(
         self, session: Session = NEW_SESSION, execute_callbacks: bool = True
-    ) -> Tuple[List[TI], Optional[DagCallbackRequest]]:
+    ) -> tuple[list[TI], DagCallbackRequest | None]:
         """
         Determines the overall state of the DagRun based on the state
         of its TaskInstances.
@@ -515,7 +502,7 @@ class DagRun(Base, LoggingMixin):
             needs to be executed
         """
         # Callback to execute in case of Task Failures
-        callback: Optional[DagCallbackRequest] = None
+        callback: DagCallbackRequest | None = None
 
         start_dttm = timezone.utcnow()
         self.last_scheduling_decision = start_dttm
@@ -638,7 +625,7 @@ class DagRun(Base, LoggingMixin):
         tis = self.get_task_instances(session=session, state=State.task_states)
         self.log.debug("number of tis tasks for %s: %s task(s)", self, len(tis))
 
-        def _filter_tis_and_exclude_removed(dag: "DAG", tis: List[TI]) -> Iterable[TI]:
+        def _filter_tis_and_exclude_removed(dag: DAG, tis: list[TI]) -> Iterable[TI]:
             """Populate ``ti.task`` while excluding those missing one, marking them as REMOVED."""
             for ti in tis:
                 try:
@@ -686,12 +673,12 @@ class DagRun(Base, LoggingMixin):
 
     def _get_ready_tis(
         self,
-        schedulable_tis: List[TI],
-        finished_tis: List[TI],
+        schedulable_tis: list[TI],
+        finished_tis: list[TI],
         session: Session,
-    ) -> Tuple[List[TI], bool, bool]:
+    ) -> tuple[list[TI], bool, bool]:
         old_states = {}
-        ready_tis: List[TI] = []
+        ready_tis: list[TI] = []
         changed_tis = False
 
         if not schedulable_tis:
@@ -699,7 +686,7 @@ class DagRun(Base, LoggingMixin):
 
         # If we expand TIs, we need a new list so that we iterate over them too. (We can't alter
         # `schedulable_tis` in place and have the `for` loop pick them up
-        additional_tis: List[TI] = []
+        additional_tis: list[TI] = []
         dep_context = DepContext(
             flag_upstream_failed=True,
             ignore_unmapped_tasks=True,  # Ignore this Dep, as we will expand it if we can.
@@ -737,8 +724,8 @@ class DagRun(Base, LoggingMixin):
 
     def _are_premature_tis(
         self,
-        unfinished_tis: List[TI],
-        finished_tis: List[TI],
+        unfinished_tis: list[TI],
+        finished_tis: list[TI],
         session: Session,
     ) -> bool:
         # there might be runnable tasks that are up for retry and for some reason(retry delay, etc) are
@@ -756,7 +743,7 @@ class DagRun(Base, LoggingMixin):
                 return True
         return False
 
-    def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: List[TI]) -> None:
+    def _emit_true_scheduling_delay_stats_for_finished_state(self, finished_tis: list[TI]) -> None:
         """
         This is a helper method to emit the true scheduling delay stats, which is defined as
         the time when the first task in DAG starts minus the expected DAG run datetime.
@@ -820,7 +807,7 @@ class DagRun(Base, LoggingMixin):
     def verify_integrity(
         self,
         *,
-        missing_indexes: Optional[Dict["MappedOperator", Sequence[int]]] = None,
+        missing_indexes: dict[MappedOperator, Sequence[int]] | None = None,
         session: Session = NEW_SESSION,
     ):
         """
@@ -836,7 +823,7 @@ class DagRun(Base, LoggingMixin):
         hook_is_noop = getattr(task_instance_mutation_hook, 'is_noop', False)
 
         dag = self.get_dag()
-        task_ids: Set[str] = set()
+        task_ids: set[str] = set()
         if missing_indexes:
             tis = self.get_task_instances(session=session)
             for ti in tis:
@@ -847,14 +834,14 @@ class DagRun(Base, LoggingMixin):
                 dag, task_instance_mutation_hook, session=session
             )
 
-        def task_filter(task: "Operator") -> bool:
+        def task_filter(task: Operator) -> bool:
             return task.task_id not in task_ids and (
                 self.is_backfill
                 or task.start_date <= self.execution_date
                 and (task.end_date is None or self.execution_date <= task.end_date)
             )
 
-        created_counts: Dict[str, int] = defaultdict(int)
+        created_counts: dict[str, int] = defaultdict(int)
 
         # Get task creator function
         task_creator = self._get_task_creator(created_counts, task_instance_mutation_hook, hook_is_noop)
@@ -865,8 +852,8 @@ class DagRun(Base, LoggingMixin):
         self._create_task_instances(dag.dag_id, tasks, created_counts, hook_is_noop, session=session)
 
     def _check_for_removed_or_restored_tasks(
-        self, dag: "DAG", ti_mutation_hook, *, session: Session
-    ) -> Tuple[Set[str], Dict["MappedOperator", Sequence[int]]]:
+        self, dag: DAG, ti_mutation_hook, *, session: Session
+    ) -> tuple[set[str], dict[MappedOperator, Sequence[int]]]:
         """
         Check for removed tasks/restored/missing tasks.
 
@@ -881,8 +868,8 @@ class DagRun(Base, LoggingMixin):
 
         # check for removed or restored tasks
         task_ids = set()
-        existing_indexes: Dict["MappedOperator", List[int]] = defaultdict(list)
-        expected_indexes: Dict["MappedOperator", Sequence[int]] = defaultdict(list)
+        existing_indexes: dict[MappedOperator, list[int]] = defaultdict(list)
+        expected_indexes: dict[MappedOperator, Sequence[int]] = defaultdict(list)
         for ti in tis:
             ti_mutation_hook(ti)
             task_ids.add(ti.task_id)
@@ -951,13 +938,13 @@ class DagRun(Base, LoggingMixin):
                     existing_indexes[task].append(ti.map_index)
                     expected_indexes[task] = range(total_length)
         # Check if we have some missing indexes to create ti for
-        missing_indexes: Dict["MappedOperator", Sequence[int]] = defaultdict(list)
+        missing_indexes: dict[MappedOperator, Sequence[int]] = defaultdict(list)
         for k, v in existing_indexes.items():
             missing_indexes.update({k: list(set(expected_indexes[k]).difference(v))})
         return task_ids, missing_indexes
 
     def _get_task_creator(
-        self, created_counts: Dict[str, int], ti_mutation_hook: Callable, hook_is_noop: bool
+        self, created_counts: dict[str, int], ti_mutation_hook: Callable, hook_is_noop: bool
     ) -> Callable:
         """
         Get the task creator function.
@@ -971,7 +958,7 @@ class DagRun(Base, LoggingMixin):
         """
         if hook_is_noop:
 
-            def create_ti_mapping(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
+            def create_ti_mapping(task: Operator, indexes: tuple[int, ...]) -> Generator:
                 created_counts[task.task_type] += 1
                 for map_index in indexes:
                     yield TI.insert_mapping(self.run_id, task, map_index=map_index)
@@ -980,7 +967,7 @@ class DagRun(Base, LoggingMixin):
 
         else:
 
-            def create_ti(task: "Operator", indexes: Tuple[int, ...]) -> Generator:
+            def create_ti(task: Operator, indexes: tuple[int, ...]) -> Generator:
                 for map_index in indexes:
                     ti = TI(task, run_id=self.run_id, map_index=map_index)
                     ti_mutation_hook(ti)
@@ -992,13 +979,13 @@ class DagRun(Base, LoggingMixin):
 
     def _create_missing_tasks(
         self,
-        dag: "DAG",
+        dag: DAG,
         task_creator: Callable,
         task_filter: Callable,
-        missing_indexes: Optional[Dict["MappedOperator", Sequence[int]]],
+        missing_indexes: dict[MappedOperator, Sequence[int]] | None,
         *,
         session: Session,
-    ) -> Iterable["Operator"]:
+    ) -> Iterable[Operator]:
         """
         Create missing tasks -- and expand any MappedOperator that _only_ have literals as input
 
@@ -1009,8 +996,8 @@ class DagRun(Base, LoggingMixin):
         """
 
         def expand_mapped_literals(
-            task: "Operator", sequence: Union[Sequence[int], None] = None
-        ) -> Tuple["Operator", Sequence[int]]:
+            task: Operator, sequence: Sequence[int] | None = None
+        ) -> tuple[Operator, Sequence[int]]:
             if not task.is_mapped:
                 return (task, (-1,))
             task = cast("MappedOperator", task)
@@ -1037,8 +1024,8 @@ class DagRun(Base, LoggingMixin):
     def _create_task_instances(
         self,
         dag_id: str,
-        tasks: Iterable["Operator"],
-        created_counts: Dict[str, int],
+        tasks: Iterable[Operator],
+        created_counts: dict[str, int],
         hook_is_noop: bool,
         *,
         session: Session,
@@ -1078,7 +1065,7 @@ class DagRun(Base, LoggingMixin):
         tis: Iterable[TI],
         *,
         session: Session,
-    ) -> Dict["MappedOperator", Sequence[int]]:
+    ) -> dict[MappedOperator, Sequence[int]]:
         """Check if the length of the mapped task instances changed at runtime and find the missing indexes.
 
         :param tis: Task instances to check
@@ -1086,8 +1073,8 @@ class DagRun(Base, LoggingMixin):
         """
         from airflow.models.mappedoperator import MappedOperator
 
-        existing_indexes: Dict[MappedOperator, List[int]] = defaultdict(list)
-        new_indexes: Dict[MappedOperator, Sequence[int]] = defaultdict(list)
+        existing_indexes: dict[MappedOperator, list[int]] = defaultdict(list)
+        new_indexes: dict[MappedOperator, Sequence[int]] = defaultdict(list)
         for ti in tis:
             task = ti.task
             if not isinstance(task, MappedOperator):
@@ -1099,13 +1086,13 @@ class DagRun(Base, LoggingMixin):
             task.run_time_mapped_ti_count.cache_clear()  # type: ignore[attr-defined]
             new_length = task.run_time_mapped_ti_count(self.run_id, session=session) or 0
             new_indexes[task] = range(new_length)
-        missing_indexes: Dict[MappedOperator, Sequence[int]] = defaultdict(list)
+        missing_indexes: dict[MappedOperator, Sequence[int]] = defaultdict(list)
         for k, v in existing_indexes.items():
             missing_indexes.update({k: list(set(new_indexes[k]).difference(v))})
         return missing_indexes
 
     @staticmethod
-    def get_run(session: Session, dag_id: str, execution_date: datetime) -> Optional['DagRun']:
+    def get_run(session: Session, dag_id: str, execution_date: datetime) -> DagRun | None:
         """
         Get a single DAG Run
 
@@ -1138,7 +1125,7 @@ class DagRun(Base, LoggingMixin):
 
     @classmethod
     @provide_session
-    def get_latest_runs(cls, session=None) -> List['DagRun']:
+    def get_latest_runs(cls, session=None) -> list[DagRun]:
         """Returns the latest DagRun for each DAG"""
         subquery = (
             session.query(cls.dag_id, func.max(cls.execution_date).label('execution_date'))

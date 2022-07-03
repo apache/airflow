@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from contextlib import contextmanager
 
 from airflow.api_connexion.exceptions import EXCEPTIONS_LINK_MAP

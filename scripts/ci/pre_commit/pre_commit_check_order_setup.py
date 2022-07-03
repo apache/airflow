@@ -16,7 +16,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Test for an order of dependencies in setup.py
 """
 import difflib
@@ -25,7 +28,6 @@ import re
 import sys
 import textwrap
 from os.path import abspath, dirname
-from typing import List
 
 from rich import print
 
@@ -48,7 +50,7 @@ class ConsoleDiff(difflib.Differ):
                 yield f'{tag} {x[i]}'
 
 
-def _check_list_sorted(the_list: List[str], message: str) -> None:
+def _check_list_sorted(the_list: list[str], message: str) -> None:
     sorted_list = sorted(the_list)
     if the_list == sorted_list:
         print(f"{message} is [green]ok[/]")

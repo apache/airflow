@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import sys
@@ -23,7 +24,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import List, Optional, Tuple, Union
+from typing import List, Tuple
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -81,10 +82,10 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         offset_field: str = "offset",
         host: str = "localhost:9200",
         frontend: str = "localhost:5601",
-        es_kwargs: Optional[dict] = conf.getsection("elasticsearch_configs"),
+        es_kwargs: dict | None = conf.getsection("elasticsearch_configs"),
         *,
-        filename_template: Optional[str] = None,
-        log_id_template: Optional[str] = None,
+        filename_template: str | None = None,
+        log_id_template: str | None = None,
     ):
         """
         :param base_log_folder: base folder to store logs locally
@@ -115,7 +116,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         self.context_set = False
 
         self.formatter: logging.Formatter
-        self.handler: Union[logging.FileHandler, logging.StreamHandler]  # type: ignore[assignment]
+        self.handler: logging.FileHandler | logging.StreamHandler  # type: ignore[assignment]
 
     def _render_log_id(self, ti: TaskInstance, try_number: int) -> str:
         with create_session() as session:
@@ -160,7 +161,7 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         )
 
     @staticmethod
-    def _clean_date(value: Optional[datetime]) -> str:
+    def _clean_date(value: datetime | None) -> str:
         """
         Clean up a date value so that it is safe to query in elasticsearch
         by removing reserved characters.
@@ -186,8 +187,8 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
         return True
 
     def _read(
-        self, ti: TaskInstance, try_number: int, metadata: Optional[dict] = None
-    ) -> Tuple[EsLogMsgType, dict]:
+        self, ti: TaskInstance, try_number: int, metadata: dict | None = None
+    ) -> tuple[EsLogMsgType, dict]:
         """
         Endpoint for streaming log.
 
@@ -407,7 +408,7 @@ class _ESJsonLogFmt:
     """Helper class to read ES Logs and re-format it to match settings.LOG_FORMAT"""
 
     # A separate class is needed because 'self.formatter._style.format' uses '.__dict__'
-    def __init__(self, json_fields: List, **kwargs):
+    def __init__(self, json_fields: list, **kwargs):
         for field in json_fields:
             self.__setattr__(field, '')
         self.__dict__.update(kwargs)

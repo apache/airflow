@@ -15,7 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
+
 import airflow.jobs.backfill_job
 import airflow.jobs.base_job
 import airflow.jobs.local_task_job

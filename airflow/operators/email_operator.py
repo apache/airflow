@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.operators.email`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.operators.email import EmailOperator  # noqa

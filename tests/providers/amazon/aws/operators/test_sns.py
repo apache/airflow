@@ -15,12 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
 
 from airflow.providers.amazon.aws.operators.sns import SnsPublishOperator
+
+#
+
 
 TASK_ID = "sns_publish_job"
 AWS_CONN_ID = "custom_aws_conn"

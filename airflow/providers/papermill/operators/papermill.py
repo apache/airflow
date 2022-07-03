@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Dict, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 import attr
 import papermill as pm
@@ -31,8 +33,8 @@ if TYPE_CHECKING:
 class NoteBook(File):
     """Jupyter notebook"""
 
-    type_hint: Optional[str] = "jupyter_notebook"
-    parameters: Optional[Dict] = {}
+    type_hint: str | None = "jupyter_notebook"
+    parameters: dict | None = {}
 
     meta_schema: str = __name__ + '.NoteBook'
 
@@ -55,11 +57,11 @@ class PapermillOperator(BaseOperator):
     def __init__(
         self,
         *,
-        input_nb: Optional[str] = None,
-        output_nb: Optional[str] = None,
-        parameters: Optional[Dict] = None,
-        kernel_name: Optional[str] = None,
-        language_name: Optional[str] = None,
+        input_nb: str | None = None,
+        output_nb: str | None = None,
+        parameters: dict | None = None,
+        kernel_name: str | None = None,
+        language_name: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -74,7 +76,7 @@ class PapermillOperator(BaseOperator):
         if output_nb:
             self.outlets.append(NoteBook(url=output_nb))
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         if not self.inlets or not self.outlets:
             raise ValueError("Input notebook or output notebook is not specified")
 

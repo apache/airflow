@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 from unittest import mock
@@ -24,6 +24,8 @@ import pytest
 
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.transfers.local_to_wasb import LocalFilesystemToWasbOperator
+
+#
 
 
 class TestLocalFilesystemToWasbOperator:

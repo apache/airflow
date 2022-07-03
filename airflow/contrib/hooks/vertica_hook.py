@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.vertica.hooks.vertica`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.vertica.hooks.vertica import VerticaHook  # noqa

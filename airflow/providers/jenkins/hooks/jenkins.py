@@ -15,15 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
-from typing import Optional
+from __future__ import annotations
 
 import jenkins
 
 from airflow import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.utils.strings import to_boolean
+
+#
 
 
 class JenkinsHook(BaseHook):
@@ -50,7 +50,7 @@ class JenkinsHook(BaseHook):
         """Get jenkins server"""
         return self.jenkins_server
 
-    def get_build_building_state(self, job_name: str, build_number: Optional[int]) -> bool:
+    def get_build_building_state(self, job_name: str, build_number: int | None) -> bool:
         """Get build building state"""
         try:
             if not build_number:

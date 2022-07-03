@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.http.hooks.http`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.http.hooks.http import HttpHook  # noqa

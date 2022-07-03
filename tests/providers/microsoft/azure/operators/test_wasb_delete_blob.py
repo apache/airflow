@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import datetime
 import unittest
@@ -23,6 +23,8 @@ from unittest import mock
 
 from airflow.models.dag import DAG
 from airflow.providers.microsoft.azure.operators.wasb_delete_blob import WasbDeleteBlobOperator
+
+#
 
 
 class TestWasbDeleteBlobOperator(unittest.TestCase):

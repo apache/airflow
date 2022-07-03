@@ -16,7 +16,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a Google Bigquery sensor."""
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.google.cloud.hooks.bigquery import BigQueryHook
 from airflow.sensors.base import BaseSensorOperator
@@ -64,8 +67,8 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         dataset_id: str,
         table_id: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -78,7 +81,7 @@ class BigQueryTableExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of table: %s', table_uri)
         hook = BigQueryHook(
@@ -133,8 +136,8 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         table_id: str,
         partition_id: str,
         gcp_conn_id: str = 'google_cloud_default',
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
 
@@ -148,7 +151,7 @@ class BigQueryTablePartitionExistenceSensor(BaseSensorOperator):
         self.delegate_to = delegate_to
         self.impersonation_chain = impersonation_chain
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         table_uri = f'{self.project_id}:{self.dataset_id}.{self.table_id}'
         self.log.info('Sensor checks existence of partition: "%s" in table: %s', self.partition_id, table_uri)
         hook = BigQueryHook(

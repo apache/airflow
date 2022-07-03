@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import signal
 from threading import Timer
-from typing import ContextManager, Optional, Type, Union
+from typing import ContextManager
 
 from airflow.exceptions import AirflowTaskTimeout
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -33,7 +34,7 @@ class TimeoutWindows(_timeout, LoggingMixin):
 
     def __init__(self, seconds=1, error_message='Timeout'):
         super().__init__()
-        self._timer: Optional[Timer] = None
+        self._timer: Timer | None = None
         self.seconds = seconds
         self.error_message = error_message + ', PID: ' + str(os.getpid())
 
@@ -82,6 +83,6 @@ class TimeoutPosix(_timeout, LoggingMixin):
 
 
 if IS_WINDOWS:
-    timeout: Type[Union[TimeoutWindows, TimeoutPosix]] = TimeoutWindows
+    timeout: type[TimeoutWindows | TimeoutPosix] = TimeoutWindows
 else:
     timeout = TimeoutPosix

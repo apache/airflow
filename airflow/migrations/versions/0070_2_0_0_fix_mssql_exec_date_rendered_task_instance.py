@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """fix_mssql_exec_date_rendered_task_instance_fields_for_MSSQL
 

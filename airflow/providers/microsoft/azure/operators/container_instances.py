@@ -15,11 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
 from collections import namedtuple
 from time import sleep
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from azure.mgmt.containerinstance.models import (
     Container,
@@ -49,7 +50,7 @@ Volume = namedtuple(
 )
 
 
-DEFAULT_ENVIRONMENT_VARIABLES: Dict[str, str] = {}
+DEFAULT_ENVIRONMENT_VARIABLES: dict[str, str] = {}
 DEFAULT_SECURED_VARIABLES: Sequence[str] = []
 DEFAULT_VOLUMES: Sequence[Volume] = []
 DEFAULT_MEMORY_IN_GB = 2.0
@@ -123,25 +124,25 @@ class AzureContainerInstancesOperator(BaseOperator):
         self,
         *,
         ci_conn_id: str,
-        registry_conn_id: Optional[str],
+        registry_conn_id: str | None,
         resource_group: str,
         name: str,
         image: str,
         region: str,
-        environment_variables: Optional[dict] = None,
-        secured_variables: Optional[str] = None,
-        volumes: Optional[list] = None,
-        memory_in_gb: Optional[Any] = None,
-        cpu: Optional[Any] = None,
-        gpu: Optional[Any] = None,
-        command: Optional[List[str]] = None,
+        environment_variables: dict | None = None,
+        secured_variables: str | None = None,
+        volumes: list | None = None,
+        memory_in_gb: Any | None = None,
+        cpu: Any | None = None,
+        gpu: Any | None = None,
+        command: list[str] | None = None,
         remove_on_error: bool = True,
         fail_if_exists: bool = True,
-        tags: Optional[Dict[str, str]] = None,
+        tags: dict[str, str] | None = None,
         os_type: str = 'Linux',
         restart_policy: str = 'Never',
-        ip_address: Optional[IpAddress] = None,
-        ports: Optional[List[ContainerPort]] = None,
+        ip_address: IpAddress | None = None,
+        ports: list[ContainerPort] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -180,7 +181,7 @@ class AzureContainerInstancesOperator(BaseOperator):
         self.ip_address = ip_address
         self.ports = ports
 
-    def execute(self, context: "Context") -> int:
+    def execute(self, context: Context) -> int:
         # Check name again in case it was templated.
         self._check_name(self.name)
 
@@ -193,7 +194,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
         if self.registry_conn_id:
             registry_hook = AzureContainerRegistryHook(self.registry_conn_id)
-            image_registry_credentials: Optional[list] = [
+            image_registry_credentials: list | None = [
                 registry_hook.connection,
             ]
         else:
@@ -207,8 +208,8 @@ class AzureContainerInstancesOperator(BaseOperator):
                 e = EnvironmentVariable(name=key, value=value)
             environment_variables.append(e)
 
-        volumes: List[Union[Volume, Volume]] = []
-        volume_mounts: List[Union[VolumeMount, VolumeMount]] = []
+        volumes: list[Volume | Volume] = []
+        volume_mounts: list[VolumeMount | VolumeMount] = []
         for conn_id, account_name, share_name, mount_path, read_only in self.volumes:
             hook = AzureContainerVolumeHook(conn_id)
 
@@ -345,7 +346,7 @@ class AzureContainerInstancesOperator(BaseOperator):
 
             sleep(1)
 
-    def _log_last(self, logs: Optional[list], last_line_logged: Any) -> Optional[Any]:
+    def _log_last(self, logs: list | None, last_line_logged: Any) -> Any | None:
         if logs:
             # determine the last line which was logged before
             last_line_index = 0

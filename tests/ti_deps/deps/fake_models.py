@@ -15,10 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 
 # A collection of fake models used for unit testing
-
-
 class FakeTI:
     def __init__(self, **kwds):
         self.__dict__.update(kwds)

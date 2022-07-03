@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.google.cloud.transfers.mysql_to_gcs`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.google.cloud.transfers.mysql_to_gcs import MySQLToGCSOperator

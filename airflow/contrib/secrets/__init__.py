@@ -16,3 +16,5 @@
 # specific language governing permissions and limitations
 # under the License.
 """This package is deprecated. Please use `airflow.secrets` or `airflow.providers.*.secrets`."""
+
+from __future__ import annotations

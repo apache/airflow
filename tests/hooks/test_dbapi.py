@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import json
 import unittest
@@ -25,6 +25,8 @@ import pytest
 
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+
+#
 
 
 class TestDbApiHook(unittest.TestCase):

@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
@@ -49,7 +51,7 @@ class SparkKubernetesOperator(BaseOperator):
         self,
         *,
         application_file: str,
-        namespace: Optional[str] = None,
+        namespace: str | None = None,
         kubernetes_conn_id: str = 'kubernetes_default',
         api_group: str = 'sparkoperator.k8s.io',
         api_version: str = 'v1beta2',
@@ -63,7 +65,7 @@ class SparkKubernetesOperator(BaseOperator):
         self.api_version = api_version
         self.plural = "sparkapplications"
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = KubernetesHook(conn_id=self.kubernetes_conn_id)
         self.log.info("Creating sparkApplication")
         response = hook.create_custom_object(

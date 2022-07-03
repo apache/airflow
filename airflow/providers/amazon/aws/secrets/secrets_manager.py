@@ -17,11 +17,12 @@
 # under the License.
 """Objects relating to sourcing secrets from AWS Secrets Manager"""
 
+from __future__ import annotations
+
 import ast
 import json
 import re
 import warnings
-from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
@@ -106,10 +107,10 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         connections_prefix: str = 'airflow/connections',
         variables_prefix: str = 'airflow/variables',
         config_prefix: str = 'airflow/config',
-        profile_name: Optional[str] = None,
+        profile_name: str | None = None,
         sep: str = "/",
         full_url_mode: bool = True,
-        extra_conn_words: Optional[dict] = None,
+        extra_conn_words: dict | None = None,
         **kwargs,
     ):
         super().__init__()
@@ -199,7 +200,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return connection
 
-    def get_conn_uri(self, conn_id: str) -> Optional[str]:
+    def get_conn_uri(self, conn_id: str) -> str | None:
         """
         Return URI representation of Connection conn_id.
 
@@ -217,7 +218,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             )
         return self.get_conn_value(conn_id)
 
-    def get_variable(self, key: str) -> Optional[str]:
+    def get_variable(self, key: str) -> str | None:
         """
         Get Airflow Variable from Environment Variable
         :param key: Variable Key
@@ -228,7 +229,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.variables_prefix, key)
 
-    def get_config(self, key: str) -> Optional[str]:
+    def get_config(self, key: str) -> str | None:
         """
         Get Airflow Configuration
         :param key: Configuration Option Key
@@ -239,7 +240,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         return self._get_secret(self.config_prefix, key)
 
-    def _get_secret(self, path_prefix, secret_id: str) -> Optional[str]:
+    def _get_secret(self, path_prefix, secret_id: str) -> str | None:
         """
         Get secret value from Secrets Manager
         :param path_prefix: Prefix for the Path to get Secret

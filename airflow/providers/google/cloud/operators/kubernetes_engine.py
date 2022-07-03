@@ -15,14 +15,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""This module contains Google Kubernetes Engine operators."""
+from __future__ import annotations
 
 import os
 import tempfile
 import warnings
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Dict, Generator, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Generator, Sequence
 
 from google.cloud.container_v1.types import Cluster
 
@@ -32,6 +31,9 @@ from airflow.providers.cncf.kubernetes.operators.kubernetes_pod import Kubernete
 from airflow.providers.google.cloud.hooks.kubernetes_engine import GKEHook
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.process_utils import execute_in_subprocess, patch_environ
+
+# """This module contains Google Kubernetes Engine operators."""
+
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -90,10 +92,10 @@ class GKEDeleteClusterOperator(BaseOperator):
         *,
         name: str,
         location: str,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v2',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -111,7 +113,7 @@ class GKEDeleteClusterOperator(BaseOperator):
             self.log.error('One of (project_id, name, location) is missing or incorrect')
             raise AirflowException('Operator has incorrect or missing input.')
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -185,11 +187,11 @@ class GKECreateClusterOperator(BaseOperator):
         self,
         *,
         location: str,
-        body: Optional[Union[Dict, Cluster]],
-        project_id: Optional[str] = None,
+        body: dict | Cluster | None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v2',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -233,7 +235,7 @@ class GKECreateClusterOperator(BaseOperator):
             self.log.error("Only one of body['initial_node_count']) and body['node_pools'] may be specified")
             raise AirflowException("Operator has incorrect or missing input.")
 
-    def execute(self, context: 'Context') -> str:
+    def execute(self, context: Context) -> str:
         hook = GKEHook(
             gcp_conn_id=self.gcp_conn_id,
             location=self.location,
@@ -299,11 +301,11 @@ class GKEStartPodOperator(KubernetesPodOperator):
         location: str,
         cluster_name: str,
         use_internal_ip: bool = False,
-        project_id: Optional[str] = None,
+        project_id: str | None = None,
         gcp_conn_id: str = 'google_cloud_default',
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
         regional: bool = False,
-        is_delete_operator_pod: Optional[bool] = None,
+        is_delete_operator_pod: bool | None = None,
         **kwargs,
     ) -> None:
         if is_delete_operator_pod is None:
@@ -341,9 +343,9 @@ class GKEStartPodOperator(KubernetesPodOperator):
     @contextmanager
     def get_gke_config_file(
         gcp_conn_id,
-        project_id: Optional[str],
+        project_id: str | None,
         cluster_name: str,
-        impersonation_chain: Optional[Union[str, Sequence[str]]],
+        impersonation_chain: str | Sequence[str] | None,
         regional: bool,
         location: str,
         use_internal_ip: bool,
@@ -407,7 +409,7 @@ class GKEStartPodOperator(KubernetesPodOperator):
             # Tell `KubernetesPodOperator` where the config file is located
             yield os.environ[KUBE_CONFIG_ENV_VAR]
 
-    def execute(self, context: 'Context') -> Optional[str]:
+    def execute(self, context: Context) -> str | None:
 
         with GKEStartPodOperator.get_gke_config_file(
             gcp_conn_id=self.gcp_conn_id,

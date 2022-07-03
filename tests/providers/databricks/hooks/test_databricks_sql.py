@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -25,6 +25,9 @@ import pytest
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.session import provide_session
+
+#
+
 
 TASK_ID = 'databricks-sql-operator'
 DEFAULT_CONN_ID = 'databricks_default'

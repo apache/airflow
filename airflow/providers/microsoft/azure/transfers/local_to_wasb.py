@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-from typing import TYPE_CHECKING, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
@@ -49,7 +50,7 @@ class LocalFilesystemToWasbOperator(BaseOperator):
         blob_name: str,
         wasb_conn_id: str = 'wasb_default',
         create_container: bool = False,
-        load_options: Optional[dict] = None,
+        load_options: dict | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -62,7 +63,7 @@ class LocalFilesystemToWasbOperator(BaseOperator):
         self.create_container = create_container
         self.load_options = load_options
 
-    def execute(self, context: "Context") -> None:
+    def execute(self, context: Context) -> None:
         """Upload a file to Azure Blob Storage."""
         hook = WasbHook(wasb_conn_id=self.wasb_conn_id)
         self.log.info(

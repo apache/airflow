@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from typing import Sequence
@@ -23,6 +23,9 @@ from typing import Sequence
 from airflow.models.dag import DAG
 from airflow.providers.slack.operators.slack_webhook import SlackWebhookOperator
 from airflow.utils import timezone
+
+#
+
 
 DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 

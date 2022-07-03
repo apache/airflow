@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 This module is deprecated. Please use :mod:`airflow.utils.task_group`.
 The module which provides a way to nest your DAGs and so your levels of complexity.
 """
@@ -23,7 +26,6 @@ The module which provides a way to nest your DAGs and so your levels of complexi
 import warnings
 from datetime import datetime
 from enum import Enum
-from typing import Dict, Optional, Tuple
 
 from sqlalchemy.orm.session import Session
 
@@ -69,7 +71,7 @@ class SubDagOperator(BaseSensorOperator):
     ui_color = '#555'
     ui_fgcolor = '#fff'
 
-    subdag: "DAG"
+    subdag: DAG
 
     @provide_session
     def __init__(
@@ -77,8 +79,8 @@ class SubDagOperator(BaseSensorOperator):
         *,
         subdag: DAG,
         session: Session = NEW_SESSION,
-        conf: Optional[Dict] = None,
-        propagate_skipped_state: Optional[SkippedStatePropagationOptions] = None,
+        conf: dict | None = None,
+        propagate_skipped_state: SkippedStatePropagationOptions | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -157,7 +159,7 @@ class SubDagOperator(BaseSensorOperator):
 
         if dag_run is None:
             if context['data_interval_start'] is None or context['data_interval_end'] is None:
-                data_interval: Optional[Tuple[datetime, datetime]] = None
+                data_interval: tuple[datetime, datetime] | None = None
             else:
                 data_interval = (context['data_interval_start'], context['data_interval_end'])
             dag_run = self.subdag.create_dagrun(

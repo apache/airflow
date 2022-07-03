@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from collections import namedtuple
@@ -27,6 +27,8 @@ from azure.mgmt.containerinstance.models import ContainerState, Event
 
 from airflow.exceptions import AirflowException
 from airflow.providers.microsoft.azure.operators.container_instances import AzureContainerInstancesOperator
+
+#
 
 
 def make_mock_cg(container_state, events=None):

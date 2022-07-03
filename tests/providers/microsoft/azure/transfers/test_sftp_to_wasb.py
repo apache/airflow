@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from unittest import mock
 
@@ -23,6 +23,9 @@ import pytest
 
 from airflow import AirflowException
 from airflow.providers.microsoft.azure.transfers.sftp_to_wasb import SftpFile, SFTPToWasbOperator
+
+#
+
 
 TASK_ID = "test-gcs-to-sftp-operator"
 WASB_CONN_ID = "wasb_default"

@@ -15,13 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Optional, Union
+from __future__ import annotations
+
+from typing import Any
 
 from airflow.exceptions import AirflowException
 from airflow.operators.sql import BaseSQLOperator
 
 
-def parse_boolean(val: str) -> Union[str, bool]:
+def parse_boolean(val: str) -> str | bool:
     """Try to parse a string into boolean.
 
     Raises ValueError if the input is not a valid true- or false-like string value.
@@ -93,9 +95,9 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         self,
         *,
         table: str,
-        column_mapping: Dict[str, Dict[str, Any]],
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        column_mapping: dict[str, dict[str, Any]],
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -264,9 +266,9 @@ class SQLTableCheckOperator(BaseSQLOperator):
         self,
         *,
         table: str,
-        checks: Dict[str, Dict[str, Any]],
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        checks: dict[str, dict[str, Any]],
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)

@@ -14,7 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import copy
 import os
@@ -27,6 +27,9 @@ from parameterized import parameterized
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.beam.hooks.beam import BeamCommandRunner, BeamHook, beam_options_to_args
+
+#
+
 
 PY_FILE = 'apache_beam.examples.wordcount'
 JAR_FILE = 'unitest.jar'

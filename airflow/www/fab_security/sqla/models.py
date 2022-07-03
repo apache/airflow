@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 
 # This product contains a modified portion of 'Flask App Builder' developed by Daniel Vaz Gaspar.
 # (https://github.com/dpgaspar/Flask-AppBuilder).
 # Copyright 2013, Daniel Vaz Gaspar
-from typing import TYPE_CHECKING, Set, Tuple
+from typing import TYPE_CHECKING
 
 from flask import current_app, g
 from flask_appbuilder.models.sqla import Model
@@ -194,7 +195,7 @@ class User(Model):
             # the path for every request. Avoid it if we can!
             if current_app:
                 sm = current_app.appbuilder.sm
-                self._perms: Set[Tuple[str, str]] = set(
+                self._perms: set[tuple[str, str]] = set(
                     sm.get_session.query(sm.action_model.name, sm.resource_model.name)
                     .join(sm.permission_model.action)
                     .join(sm.permission_model.resource)

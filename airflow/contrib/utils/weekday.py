@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.utils.weekday`."""
+
+from __future__ import annotations
+
 import warnings
 
 from airflow.utils.weekday import WeekDay  # noqa

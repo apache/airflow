@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.openfaas.hooks.openfaas`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.openfaas.hooks.openfaas import OK_STATUS_CODE, OpenFaasHook, requests  # noqa

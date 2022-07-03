@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """Add ``map_index`` column to TaskInstance to identify task-mapping,
 and a ``task_map`` table to track mapping values from XCom.

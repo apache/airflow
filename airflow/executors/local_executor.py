@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 LocalExecutor
 
 .. seealso::
@@ -29,7 +32,7 @@ from abc import abstractmethod
 from multiprocessing import Manager, Process
 from multiprocessing.managers import SyncManager
 from queue import Empty, Queue
-from typing import Any, List, Optional, Tuple, Union
+from typing import Any, Optional, Tuple
 
 from setproctitle import getproctitle, setproctitle
 
@@ -54,10 +57,10 @@ class LocalWorkerBase(Process, LoggingMixin):
     :param result_queue: the queue to store result state
     """
 
-    def __init__(self, result_queue: 'Queue[TaskInstanceStateType]'):
+    def __init__(self, result_queue: Queue[TaskInstanceStateType]):
         super().__init__(target=self.do_work)
         self.daemon: bool = True
-        self.result_queue: 'Queue[TaskInstanceStateType]' = result_queue
+        self.result_queue: Queue[TaskInstanceStateType] = result_queue
 
     def run(self):
         # We know we've just started a new process, so lets disconnect from the metadata db now
@@ -148,7 +151,7 @@ class LocalWorker(LocalWorkerBase):
     """
 
     def __init__(
-        self, result_queue: 'Queue[TaskInstanceStateType]', key: TaskInstanceKey, command: CommandType
+        self, result_queue: Queue[TaskInstanceStateType], key: TaskInstanceKey, command: CommandType
     ):
         super().__init__(result_queue)
         self.key: TaskInstanceKey = key
@@ -168,7 +171,7 @@ class QueuedLocalWorker(LocalWorkerBase):
     :param result_queue: queue where worker puts results after finishing tasks
     """
 
-    def __init__(self, task_queue: 'Queue[ExecutorWorkType]', result_queue: 'Queue[TaskInstanceStateType]'):
+    def __init__(self, task_queue: Queue[ExecutorWorkType], result_queue: Queue[TaskInstanceStateType]):
         super().__init__(result_queue=result_queue)
         self.task_queue = task_queue
 
@@ -205,14 +208,12 @@ class LocalExecutor(BaseExecutor):
         super().__init__(parallelism=parallelism)
         if self.parallelism < 0:
             raise AirflowException("parallelism must be bigger than or equal to 0")
-        self.manager: Optional[SyncManager] = None
-        self.result_queue: Optional['Queue[TaskInstanceStateType]'] = None
-        self.workers: List[QueuedLocalWorker] = []
+        self.manager: SyncManager | None = None
+        self.result_queue: Queue[TaskInstanceStateType] | None = None
+        self.workers: list[QueuedLocalWorker] = []
         self.workers_used: int = 0
         self.workers_active: int = 0
-        self.impl: Optional[
-            Union['LocalExecutor.UnlimitedParallelism', 'LocalExecutor.LimitedParallelism']
-        ] = None
+        self.impl: None | (LocalExecutor.UnlimitedParallelism | LocalExecutor.LimitedParallelism) = None
 
     class UnlimitedParallelism:
         """
@@ -222,8 +223,8 @@ class LocalExecutor(BaseExecutor):
         :param executor: the executor instance to implement.
         """
 
-        def __init__(self, executor: 'LocalExecutor'):
-            self.executor: 'LocalExecutor' = executor
+        def __init__(self, executor: LocalExecutor):
+            self.executor: LocalExecutor = executor
 
         def start(self) -> None:
             """Starts the executor."""
@@ -234,8 +235,8 @@ class LocalExecutor(BaseExecutor):
             self,
             key: TaskInstanceKey,
             command: CommandType,
-            queue: Optional[str] = None,
-            executor_config: Optional[Any] = None,
+            queue: str | None = None,
+            executor_config: Any | None = None,
         ) -> None:
             """
             Executes task asynchronously.
@@ -278,9 +279,9 @@ class LocalExecutor(BaseExecutor):
         :param executor: the executor instance to implement.
         """
 
-        def __init__(self, executor: 'LocalExecutor'):
-            self.executor: 'LocalExecutor' = executor
-            self.queue: Optional['Queue[ExecutorWorkType]'] = None
+        def __init__(self, executor: LocalExecutor):
+            self.executor: LocalExecutor = executor
+            self.queue: Queue[ExecutorWorkType] | None = None
 
         def start(self) -> None:
             """Starts limited parallelism implementation."""
@@ -303,8 +304,8 @@ class LocalExecutor(BaseExecutor):
             self,
             key: TaskInstanceKey,
             command: CommandType,
-            queue: Optional[str] = None,
-            executor_config: Optional[Any] = None,
+            queue: str | None = None,
+            executor_config: Any | None = None,
         ) -> None:
             """
             Executes task asynchronously.
@@ -361,8 +362,8 @@ class LocalExecutor(BaseExecutor):
         self,
         key: TaskInstanceKey,
         command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
+        queue: str | None = None,
+        executor_config: Any | None = None,
     ) -> None:
         """Execute asynchronously."""
         if not self.impl:

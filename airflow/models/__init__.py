@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Airflow models"""
+
+from __future__ import annotations
+
 from typing import Union
 
 from airflow.models.base import ID_LEN, Base

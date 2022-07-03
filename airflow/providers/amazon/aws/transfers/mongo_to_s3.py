@@ -15,9 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import warnings
-from typing import TYPE_CHECKING, Any, Iterable, Optional, Sequence, Union, cast
+from typing import TYPE_CHECKING, Any, Iterable, Sequence, cast
 
 from bson import json_util
 
@@ -64,18 +66,18 @@ class MongoToS3Operator(BaseOperator):
     def __init__(
         self,
         *,
-        s3_conn_id: Optional[str] = None,
+        s3_conn_id: str | None = None,
         mongo_conn_id: str = 'mongo_default',
         aws_conn_id: str = 'aws_default',
         mongo_collection: str,
-        mongo_query: Union[list, dict],
+        mongo_query: list | dict,
         s3_bucket: str,
         s3_key: str,
-        mongo_db: Optional[str] = None,
-        mongo_projection: Optional[Union[list, dict]] = None,
+        mongo_db: str | None = None,
+        mongo_projection: list | dict | None = None,
         replace: bool = False,
         allow_disk_use: bool = False,
-        compression: Optional[str] = None,
+        compression: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -99,7 +101,7 @@ class MongoToS3Operator(BaseOperator):
         self.allow_disk_use = allow_disk_use
         self.compression = compression
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """Is written to depend on transform method"""
         s3_conn = S3Hook(self.aws_conn_id)
 

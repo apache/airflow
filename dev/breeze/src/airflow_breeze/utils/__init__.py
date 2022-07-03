@@ -15,3 +15,5 @@
 # specific language governing permissions and limitations
 # under the License.
 """Utils used internally by Breeze."""
+
+from __future__ import annotations

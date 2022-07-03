@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """System tests for Google Cloud Build operators"""
+
+from __future__ import annotations
+
 import pytest
 
 from tests.providers.google.cloud.utils.gcp_authenticator import GCP_BIGQUERY_KEY

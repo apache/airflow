@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import collections
 import collections.abc
@@ -22,23 +23,7 @@ import datetime
 import functools
 import operator
 import warnings
-from typing import (
-    TYPE_CHECKING,
-    Any,
-    ClassVar,
-    Collection,
-    Dict,
-    FrozenSet,
-    Iterable,
-    Iterator,
-    List,
-    Optional,
-    Sequence,
-    Set,
-    Tuple,
-    Type,
-    Union,
-)
+from typing import TYPE_CHECKING, Any, ClassVar, Collection, Iterable, Iterator, Sequence, Union
 
 import attr
 import pendulum
@@ -95,13 +80,13 @@ MAPPABLE_LITERAL_TYPES = (dict, list)
 
 # For isinstance() check.
 @cache
-def get_mappable_types() -> Tuple[type, ...]:
+def get_mappable_types() -> tuple[type, ...]:
     from airflow.models.xcom_arg import XComArg
 
     return (XComArg,) + MAPPABLE_LITERAL_TYPES
 
 
-def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, value: Dict[str, Any]) -> None:
+def validate_mapping_kwargs(op: type[BaseOperator], func: ValidationSource, value: dict[str, Any]) -> None:
     # use a dict so order of args is same as code order
     unknown_args = value.copy()
     for klass in op.mro():
@@ -132,7 +117,7 @@ def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, va
     raise TypeError(f"{op.__name__}.{func}() got {error}")
 
 
-def prevent_duplicates(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> None:
+def prevent_duplicates(kwargs1: dict[str, Any], kwargs2: dict[str, Any], *, fail_reason: str) -> None:
     duplicated_keys = set(kwargs1).intersection(kwargs2)
     if not duplicated_keys:
         return
@@ -167,8 +152,8 @@ class OperatorPartial:
     create a ``MappedOperator`` to add into the DAG.
     """
 
-    operator_class: Type["BaseOperator"]
-    kwargs: Dict[str, Any]
+    operator_class: type[BaseOperator]
+    kwargs: dict[str, Any]
 
     _expand_called: bool = False  # Set when expand() is called to ease user debugging.
 
@@ -191,12 +176,12 @@ class OperatorPartial:
                 task_id = f"at {hex(id(self))}"
             warnings.warn(f"Task {task_id} was never mapped!")
 
-    def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+    def expand(self, **mapped_kwargs: Mappable) -> MappedOperator:
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
         return self._expand(**mapped_kwargs)
 
-    def _expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
+    def _expand(self, **mapped_kwargs: Mappable) -> MappedOperator:
         self._expand_called = True
 
         from airflow.operators.empty import EmptyOperator
@@ -249,31 +234,31 @@ class MappedOperator(AbstractOperator):
     # can be used to create an unmapped operator for execution. For an operator
     # recreated from a serialized DAG, however, this holds the serialized data
     # that can be used to unmap this into a SerializedBaseOperator.
-    operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
+    operator_class: type[BaseOperator] | dict[str, Any]
 
-    mapped_kwargs: Dict[str, "Mappable"]
-    partial_kwargs: Dict[str, Any]
+    mapped_kwargs: dict[str, Mappable]
+    partial_kwargs: dict[str, Any]
 
     # Needed for serialization.
     task_id: str
-    params: Optional[dict]
-    deps: FrozenSet[BaseTIDep]
-    operator_extra_links: Collection["BaseOperatorLink"]
+    params: dict | None
+    deps: frozenset[BaseTIDep]
+    operator_extra_links: Collection[BaseOperatorLink]
     template_ext: Sequence[str]
     template_fields: Collection[str]
-    template_fields_renderers: Dict[str, str]
+    template_fields_renderers: dict[str, str]
     ui_color: str
     ui_fgcolor: str
     _is_empty: bool
     _task_module: str
     _task_type: str
 
-    dag: Optional["DAG"]
-    task_group: Optional["TaskGroup"]
-    start_date: Optional[pendulum.DateTime]
-    end_date: Optional[pendulum.DateTime]
-    upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
-    downstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
+    dag: DAG | None
+    task_group: TaskGroup | None
+    start_date: pendulum.DateTime | None
+    end_date: pendulum.DateTime | None
+    upstream_task_ids: set[str] = attr.ib(factory=set, init=False)
+    downstream_task_ids: set[str] = attr.ib(factory=set, init=False)
 
     _expansion_kwargs_attr: str
     """Where to get kwargs to calculate expansion length against.
@@ -284,7 +269,7 @@ class MappedOperator(AbstractOperator):
     is_mapped: ClassVar[bool] = True
     subdag: None = None  # Since we don't support SubDagOperator, this is always None.
 
-    HIDE_ATTRS_FROM_UI: ClassVar[FrozenSet[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
+    HIDE_ATTRS_FROM_UI: ClassVar[frozenset[str]] = AbstractOperator.HIDE_ATTRS_FROM_UI | frozenset(
         (
             'parse_time_mapped_ti_count',
             'operator_class',
@@ -332,7 +317,7 @@ class MappedOperator(AbstractOperator):
 
     @staticmethod
     @cache
-    def deps_for(operator_class: Type["BaseOperator"]) -> FrozenSet[BaseTIDep]:
+    def deps_for(operator_class: type[BaseOperator]) -> frozenset[BaseTIDep]:
         operator_deps = operator_class.deps
         if not isinstance(operator_deps, collections.abc.Set):
             raise UnmappableOperator(
@@ -378,7 +363,7 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("owner", DEFAULT_OWNER)
 
     @property
-    def email(self) -> Union[None, str, Iterable[str]]:
+    def email(self) -> None | str | Iterable[str]:
         return self.partial_kwargs.get("email")
 
     @property
@@ -399,7 +384,7 @@ class MappedOperator(AbstractOperator):
         return bool(self.partial_kwargs.get("wait_for_downstream"))
 
     @property
-    def retries(self) -> Optional[int]:
+    def retries(self) -> int | None:
         return self.partial_kwargs.get("retries", DEFAULT_RETRIES)
 
     @property
@@ -411,15 +396,15 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("pool", Pool.DEFAULT_POOL_NAME)
 
     @property
-    def pool_slots(self) -> Optional[str]:
+    def pool_slots(self) -> str | None:
         return self.partial_kwargs.get("pool_slots", DEFAULT_POOL_SLOTS)
 
     @property
-    def execution_timeout(self) -> Optional[datetime.timedelta]:
+    def execution_timeout(self) -> datetime.timedelta | None:
         return self.partial_kwargs.get("execution_timeout")
 
     @property
-    def max_retry_delay(self) -> Optional[datetime.timedelta]:
+    def max_retry_delay(self) -> datetime.timedelta | None:
         return self.partial_kwargs.get("max_retry_delay")
 
     @property
@@ -439,35 +424,35 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("weight_rule", DEFAULT_WEIGHT_RULE)
 
     @property
-    def sla(self) -> Optional[datetime.timedelta]:
+    def sla(self) -> datetime.timedelta | None:
         return self.partial_kwargs.get("sla")
 
     @property
-    def max_active_tis_per_dag(self) -> Optional[int]:
+    def max_active_tis_per_dag(self) -> int | None:
         return self.partial_kwargs.get("max_active_tis_per_dag")
 
     @property
-    def resources(self) -> Optional[Resources]:
+    def resources(self) -> Resources | None:
         return self.partial_kwargs.get("resources")
 
     @property
-    def on_execute_callback(self) -> Optional[TaskStateChangeCallback]:
+    def on_execute_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_execute_callback")
 
     @property
-    def on_failure_callback(self) -> Optional[TaskStateChangeCallback]:
+    def on_failure_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_failure_callback")
 
     @property
-    def on_retry_callback(self) -> Optional[TaskStateChangeCallback]:
+    def on_retry_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_retry_callback")
 
     @property
-    def on_success_callback(self) -> Optional[TaskStateChangeCallback]:
+    def on_success_callback(self) -> TaskStateChangeCallback | None:
         return self.partial_kwargs.get("on_success_callback")
 
     @property
-    def run_as_user(self) -> Optional[str]:
+    def run_as_user(self) -> str | None:
         return self.partial_kwargs.get("run_as_user")
 
     @property
@@ -475,42 +460,42 @@ class MappedOperator(AbstractOperator):
         return self.partial_kwargs.get("executor_config", {})
 
     @property
-    def inlets(self) -> Optional[Any]:
+    def inlets(self) -> Any | None:
         return self.partial_kwargs.get("inlets", None)
 
     @property
-    def outlets(self) -> Optional[Any]:
+    def outlets(self) -> Any | None:
         return self.partial_kwargs.get("outlets", None)
 
     @property
-    def doc(self) -> Optional[str]:
+    def doc(self) -> str | None:
         return self.partial_kwargs.get("doc")
 
     @property
-    def doc_md(self) -> Optional[str]:
+    def doc_md(self) -> str | None:
         return self.partial_kwargs.get("doc_md")
 
     @property
-    def doc_json(self) -> Optional[str]:
+    def doc_json(self) -> str | None:
         return self.partial_kwargs.get("doc_json")
 
     @property
-    def doc_yaml(self) -> Optional[str]:
+    def doc_yaml(self) -> str | None:
         return self.partial_kwargs.get("doc_yaml")
 
     @property
-    def doc_rst(self) -> Optional[str]:
+    def doc_rst(self) -> str | None:
         return self.partial_kwargs.get("doc_rst")
 
-    def get_dag(self) -> Optional["DAG"]:
+    def get_dag(self) -> DAG | None:
         """Implementing Operator."""
         return self.dag
 
-    def serialize_for_task_group(self) -> Tuple[DagAttributeTypes, Any]:
+    def serialize_for_task_group(self) -> tuple[DagAttributeTypes, Any]:
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _get_unmap_kwargs(self) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self) -> dict[str, Any]:
         return {
             "task_id": self.task_id,
             "dag": self.dag,
@@ -522,7 +507,7 @@ class MappedOperator(AbstractOperator):
             **self.mapped_kwargs,
         }
 
-    def unmap(self, unmap_kwargs: Optional[Dict[str, Any]] = None) -> "BaseOperator":
+    def unmap(self, unmap_kwargs: dict[str, Any] | None = None) -> BaseOperator:
         """
         Get the "normal" Operator after applying the current mapping.
 
@@ -555,11 +540,11 @@ class MappedOperator(AbstractOperator):
         SerializedBaseOperator.populate_operator(op, self.operator_class)
         return op
 
-    def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
+    def _get_expansion_kwargs(self) -> dict[str, Mappable]:
         """The kwargs to calculate expansion length against."""
         return getattr(self, self._expansion_kwargs_attr)
 
-    def _get_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
+    def _get_map_lengths(self, run_id: str, *, session: Session) -> dict[str, int]:
         """Return dict of argument name to map length.
 
         If any arguments are not known right now (upstream task not finished) they will not be present in the
@@ -573,12 +558,12 @@ class MappedOperator(AbstractOperator):
         expansion_kwargs = self._get_expansion_kwargs()
 
         # Populate literal mapped arguments first.
-        map_lengths: Dict[str, int] = collections.defaultdict(int)
+        map_lengths: dict[str, int] = collections.defaultdict(int)
         map_lengths.update((k, len(v)) for k, v in expansion_kwargs.items() if not isinstance(v, XComArg))
 
         # Build a reverse mapping of what arguments each task contributes to.
-        mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
-        non_mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
+        mapped_dep_keys: dict[str, set[str]] = collections.defaultdict(set)
+        non_mapped_dep_keys: dict[str, set[str]] = collections.defaultdict(set)
         for k, v in expansion_kwargs.items():
             if not isinstance(v, XComArg):
                 continue
@@ -620,7 +605,7 @@ class MappedOperator(AbstractOperator):
         return map_lengths
 
     @cache
-    def _resolve_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
+    def _resolve_map_lengths(self, run_id: str, *, session: Session) -> dict[str, int]:
         """Return dict of argument name to map length, or throw if some are not resolvable"""
         expansion_kwargs = self._get_expansion_kwargs()
         map_lengths = self._get_map_lengths(run_id, session=session)
@@ -630,7 +615,7 @@ class MappedOperator(AbstractOperator):
 
         return map_lengths
 
-    def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
+    def expand_mapped_task(self, run_id: str, *, session: Session) -> tuple[Sequence[TaskInstance], int]:
         """Create the mapped task instances for mapped task.
 
         :return: The newly created mapped TaskInstances (if any) in ascending order by map index, and the
@@ -643,8 +628,8 @@ class MappedOperator(AbstractOperator):
             operator.mul, self._resolve_map_lengths(run_id, session=session).values()
         )
 
-        state: Optional[TaskInstanceState] = None
-        unmapped_ti: Optional[TaskInstance] = (
+        state: TaskInstanceState | None = None
+        unmapped_ti: TaskInstance | None = (
             session.query(TaskInstance)
             .filter(
                 TaskInstance.dag_id == self.dag_id,
@@ -656,7 +641,7 @@ class MappedOperator(AbstractOperator):
             .one_or_none()
         )
 
-        all_expanded_tis: List[TaskInstance] = []
+        all_expanded_tis: list[TaskInstance] = []
 
         if unmapped_ti:
             # The unmapped task instance still exists and is unfinished, i.e. we
@@ -712,7 +697,7 @@ class MappedOperator(AbstractOperator):
         session.flush()
         return all_expanded_tis, total_length
 
-    def prepare_for_execution(self) -> "MappedOperator":
+    def prepare_for_execution(self) -> MappedOperator:
         # Since a mapped operator cannot be used for execution, and an unmapped
         # BaseOperator needs to be created later (see render_template_fields),
         # we don't need to create a copy of the MappedOperator here.
@@ -721,8 +706,8 @@ class MappedOperator(AbstractOperator):
     def render_template_fields(
         self,
         context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-    ) -> Optional["BaseOperator"]:
+        jinja_env: jinja2.Environment | None = None,
+    ) -> BaseOperator | None:
         """Template all attributes listed in template_fields.
 
         Different from the BaseOperator implementation, this renders the
@@ -764,7 +749,7 @@ class MappedOperator(AbstractOperator):
         return unmapped_task
 
     def _resolve_expansion_kwargs(
-        self, kwargs: Dict[str, Any], template_fields: Set[str], context: Context, session: Session
+        self, kwargs: dict[str, Any], template_fields: set[str], context: Context, session: Session
     ) -> None:
         """Update mapped fields in place in kwargs dict"""
         from airflow.models.xcom_arg import XComArg
@@ -808,7 +793,7 @@ class MappedOperator(AbstractOperator):
                 return k, v
         raise IndexError(f"index {map_index} is over mapped length")
 
-    def iter_mapped_dependencies(self) -> Iterator["Operator"]:
+    def iter_mapped_dependencies(self) -> Iterator[Operator]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
         from airflow.models.xcom_arg import XComArg
 
@@ -816,7 +801,7 @@ class MappedOperator(AbstractOperator):
             yield ref.operator
 
     @cached_property
-    def parse_time_mapped_ti_count(self) -> Optional[int]:
+    def parse_time_mapped_ti_count(self) -> int | None:
         """
         Number of mapped TaskInstances that can be created at DagRun create time.
 
@@ -836,7 +821,7 @@ class MappedOperator(AbstractOperator):
         return total
 
     @cache
-    def run_time_mapped_ti_count(self, run_id: str, *, session: Session) -> Optional[int]:
+    def run_time_mapped_ti_count(self, run_id: str, *, session: Session) -> int | None:
         """
         Number of mapped TaskInstances that can be created at run time, or None if upstream tasks are not
         complete yet.

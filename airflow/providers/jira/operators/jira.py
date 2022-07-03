@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional, Sequence
+from typing import TYPE_CHECKING, Any, Callable, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -46,9 +47,9 @@ class JiraOperator(BaseOperator):
         *,
         jira_method: str,
         jira_conn_id: str = 'jira_default',
-        jira_method_args: Optional[dict] = None,
-        result_processor: Optional[Callable] = None,
-        get_jira_resource_method: Optional[Callable] = None,
+        jira_method_args: dict | None = None,
+        result_processor: Callable | None = None,
+        get_jira_resource_method: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -58,7 +59,7 @@ class JiraOperator(BaseOperator):
         self.result_processor = result_processor
         self.get_jira_resource_method = get_jira_resource_method
 
-    def execute(self, context: 'Context') -> Any:
+    def execute(self, context: Context) -> Any:
         try:
             if self.get_jira_resource_method is not None:
                 # if get_jira_resource_method is provided, jira_method will be executed on

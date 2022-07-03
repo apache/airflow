@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
+from __future__ import annotations
 
 import json
 from unittest import mock
@@ -29,6 +28,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.wasb import WasbHook
 from airflow.utils import db
+
+#
+
 
 # connection_string has a format
 CONN_STRING = (

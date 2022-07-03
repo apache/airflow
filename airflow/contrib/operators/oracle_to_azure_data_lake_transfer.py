@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 This module is deprecated.
 Please use `airflow.providers.microsoft.azure.transfers.oracle_to_azure_data_lake`.
 """

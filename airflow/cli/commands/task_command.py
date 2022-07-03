@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Task sub-commands"""
+
+from __future__ import annotations
+
 import datetime
 import importlib
 import json
@@ -23,7 +26,7 @@ import logging
 import os
 import textwrap
 from contextlib import contextmanager, redirect_stderr, redirect_stdout
-from typing import Dict, Generator, List, Optional, Tuple, Union
+from typing import Generator, Union
 
 from pendulum.parsing.exceptions import ParserError
 from sqlalchemy.orm.exc import NoResultFound
@@ -78,7 +81,7 @@ def _get_dag_run(
     exec_date_or_run_id: str,
     create_if_necessary: CreateIfNecessary,
     session: Session,
-) -> Tuple[DagRun, bool]:
+) -> tuple[DagRun, bool]:
     """Try to retrieve a DAG run from a string representing either a run ID or logical date.
 
     This checks DAG runs like this:
@@ -97,7 +100,7 @@ def _get_dag_run(
         return dag_run, False
 
     try:
-        execution_date: Optional[datetime.datetime] = timezone.parse(exec_date_or_run_id)
+        execution_date: datetime.datetime | None = timezone.parse(exec_date_or_run_id)
     except (ParserError, TypeError):
         execution_date = None
 
@@ -139,10 +142,10 @@ def _get_ti(
     exec_date_or_run_id: str,
     map_index: int,
     *,
-    pool: Optional[str] = None,
+    pool: str | None = None,
     create_if_necessary: CreateIfNecessary = False,
     session: Session = NEW_SESSION,
-) -> Tuple[TaskInstance, bool]:
+) -> tuple[TaskInstance, bool]:
     """Get the task instance through DagRun.run_id, if that fails, get the TI the old way"""
     if task.is_mapped:
         if map_index < 0:
@@ -263,7 +266,7 @@ def _run_raw_task(args, ti: TaskInstance) -> None:
     )
 
 
-def _extract_external_executor_id(args) -> Optional[str]:
+def _extract_external_executor_id(args) -> str | None:
     if hasattr(args, "external_executor_id"):
         return getattr(args, "external_executor_id")
     return os.environ.get("external_executor_id", None)
@@ -437,7 +440,7 @@ def task_list(args, dag=None):
         print("\n".join(tasks))
 
 
-SUPPORTED_DEBUGGER_MODULES: List[str] = [
+SUPPORTED_DEBUGGER_MODULES: list[str] = [
     "pudb",
     "web_pdb",
     "ipdb",
@@ -494,7 +497,7 @@ def task_states_for_dag_run(args, session=None):
 
     has_mapped_instances = any(ti.map_index >= 0 for ti in dag_run.task_instances)
 
-    def format_task_instance(ti: TaskInstance) -> Dict[str, str]:
+    def format_task_instance(ti: TaskInstance) -> dict[str, str]:
         data = {
             "dag_id": ti.dag_id,
             "execution_date": dag_run.execution_date.isoformat(),

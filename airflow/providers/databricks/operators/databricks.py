@@ -15,18 +15,20 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""This module contains Databricks operators."""
+from __future__ import annotations
 
 import time
 from logging import Logger
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
 from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
 from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
 from airflow.providers.databricks.utils.databricks import deep_string_coerce, validate_trigger_event
+
+# """This module contains Databricks operators."""
+
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
@@ -127,7 +129,7 @@ class DatabricksJobRunLink(BaseOperatorLink):
         operator,
         dttm=None,
         *,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if ti_key is not None:
             run_page_url = XCom.get_value(key=XCOM_RUN_PAGE_URL_KEY, ti_key=ti_key)
@@ -314,28 +316,28 @@ class DatabricksSubmitRunOperator(BaseOperator):
     def __init__(
         self,
         *,
-        json: Optional[Any] = None,
-        tasks: Optional[List[object]] = None,
-        spark_jar_task: Optional[Dict[str, str]] = None,
-        notebook_task: Optional[Dict[str, str]] = None,
-        spark_python_task: Optional[Dict[str, Union[str, List[str]]]] = None,
-        spark_submit_task: Optional[Dict[str, List[str]]] = None,
-        pipeline_task: Optional[Dict[str, str]] = None,
-        new_cluster: Optional[Dict[str, object]] = None,
-        existing_cluster_id: Optional[str] = None,
-        libraries: Optional[List[Dict[str, str]]] = None,
-        run_name: Optional[str] = None,
-        timeout_seconds: Optional[int] = None,
+        json: Any | None = None,
+        tasks: list[object] | None = None,
+        spark_jar_task: dict[str, str] | None = None,
+        notebook_task: dict[str, str] | None = None,
+        spark_python_task: dict[str, str | list[str]] | None = None,
+        spark_submit_task: dict[str, list[str]] | None = None,
+        pipeline_task: dict[str, str] | None = None,
+        new_cluster: dict[str, object] | None = None,
+        existing_cluster_id: str | None = None,
+        libraries: list[dict[str, str]] | None = None,
+        run_name: str | None = None,
+        timeout_seconds: int | None = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
-        databricks_retry_args: Optional[Dict[Any, Any]] = None,
+        databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
-        idempotency_token: Optional[str] = None,
-        access_control_list: Optional[List[Dict[str, str]]] = None,
+        idempotency_token: str | None = None,
+        access_control_list: list[dict[str, str]] | None = None,
         wait_for_termination: bool = True,
-        git_source: Optional[Dict[str, str]] = None,
+        git_source: dict[str, str] | None = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -380,7 +382,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
 
         self.json = deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id: Optional[int] = None
+        self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -391,7 +393,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
             retry_args=self.databricks_retry_args,
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = self._get_hook()
         self.run_id = hook.submit_run(self.json)
         _handle_databricks_operator_execution(self, hook, self.log, context)
@@ -415,7 +417,7 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
         self.run_id = hook.submit_run(self.json)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
-    def execute_complete(self, context: Optional[dict], event: dict):
+    def execute_complete(self, context: dict | None, event: dict):
         _handle_deferrable_databricks_operator_completion(event, self.log)
 
 
@@ -583,20 +585,20 @@ class DatabricksRunNowOperator(BaseOperator):
     def __init__(
         self,
         *,
-        job_id: Optional[str] = None,
-        job_name: Optional[str] = None,
-        json: Optional[Any] = None,
-        notebook_params: Optional[Dict[str, str]] = None,
-        python_params: Optional[List[str]] = None,
-        jar_params: Optional[List[str]] = None,
-        spark_submit_params: Optional[List[str]] = None,
-        python_named_parameters: Optional[Dict[str, str]] = None,
-        idempotency_token: Optional[str] = None,
+        job_id: str | None = None,
+        job_name: str | None = None,
+        json: Any | None = None,
+        notebook_params: dict[str, str] | None = None,
+        python_params: list[str] | None = None,
+        jar_params: list[str] | None = None,
+        spark_submit_params: list[str] | None = None,
+        python_named_parameters: dict[str, str] | None = None,
+        idempotency_token: str | None = None,
         databricks_conn_id: str = 'databricks_default',
         polling_period_seconds: int = 30,
         databricks_retry_limit: int = 3,
         databricks_retry_delay: int = 1,
-        databricks_retry_args: Optional[Dict[Any, Any]] = None,
+        databricks_retry_args: dict[Any, Any] | None = None,
         do_xcom_push: bool = True,
         wait_for_termination: bool = True,
         **kwargs,
@@ -632,7 +634,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
         self.json = deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
-        self.run_id: Optional[int] = None
+        self.run_id: int | None = None
         self.do_xcom_push = do_xcom_push
 
     def _get_hook(self) -> DatabricksHook:
@@ -643,7 +645,7 @@ class DatabricksRunNowOperator(BaseOperator):
             retry_args=self.databricks_retry_args,
         )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = self._get_hook()
         if 'job_name' in self.json:
             job_id = hook.find_job_id_by_name(self.json['job_name'])
@@ -673,5 +675,5 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
         self.run_id = hook.run_now(self.json)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
-    def execute_complete(self, context: Optional[dict], event: dict):
+    def execute_complete(self, context: dict | None, event: dict):
         _handle_deferrable_databricks_operator_completion(event, self.log)

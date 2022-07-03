@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import re
 import sys
 import time
@@ -23,7 +25,7 @@ from collections import deque
 from datetime import datetime, timedelta
 from logging import Logger
 from threading import Event, Thread
-from typing import Dict, Generator, Optional, Sequence
+from typing import Generator, Sequence
 
 from botocore.exceptions import ClientError, ConnectionClosedError
 from botocore.waiter import Waiter
@@ -70,7 +72,7 @@ class EcsProtocol(Protocol):
         - https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html
     """
 
-    def run_task(self, **kwargs) -> Dict:
+    def run_task(self, **kwargs) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.run_task"""  # noqa: E501
         ...
 
@@ -78,19 +80,19 @@ class EcsProtocol(Protocol):
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.get_waiter"""  # noqa: E501
         ...
 
-    def describe_tasks(self, cluster: str, tasks) -> Dict:
+    def describe_tasks(self, cluster: str, tasks) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_tasks"""  # noqa: E501
         ...
 
-    def stop_task(self, cluster, task, reason: str) -> Dict:
+    def stop_task(self, cluster, task, reason: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.stop_task"""  # noqa: E501
         ...
 
-    def describe_task_definition(self, taskDefinition: str) -> Dict:
+    def describe_task_definition(self, taskDefinition: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.describe_task_definition"""  # noqa: E501
         ...
 
-    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> Dict:
+    def list_tasks(self, cluster: str, launchType: str, desiredStatus: str, family: str) -> dict:
         """https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/ecs.html#ECS.Client.list_tasks"""  # noqa: E501
         ...
 
@@ -104,8 +106,8 @@ class EcsTaskLogFetcher(Thread):
     def __init__(
         self,
         *,
-        aws_conn_id: Optional[str] = 'aws_default',
-        region_name: Optional[str] = None,
+        aws_conn_id: str | None = 'aws_default',
+        region_name: str | None = None,
         log_group: str,
         log_stream_name: str,
         fetch_interval: timedelta,
@@ -152,7 +154,7 @@ class EcsTaskLogFetcher(Thread):
     def get_last_log_messages(self, number_messages) -> list:
         return [log['message'] for log in deque(self._get_log_events(), maxlen=number_messages)]
 
-    def get_last_log_message(self) -> Optional[str]:
+    def get_last_log_message(self) -> str | None:
         try:
             return self.get_last_log_messages(1)[0]
         except IndexError:
@@ -235,22 +237,22 @@ class EcsOperator(BaseOperator):
         task_definition: str,
         cluster: str,
         overrides: dict,
-        aws_conn_id: Optional[str] = None,
-        region_name: Optional[str] = None,
+        aws_conn_id: str | None = None,
+        region_name: str | None = None,
         launch_type: str = 'EC2',
-        capacity_provider_strategy: Optional[list] = None,
-        group: Optional[str] = None,
-        placement_constraints: Optional[list] = None,
-        placement_strategy: Optional[list] = None,
-        platform_version: Optional[str] = None,
-        network_configuration: Optional[dict] = None,
-        tags: Optional[dict] = None,
-        awslogs_group: Optional[str] = None,
-        awslogs_region: Optional[str] = None,
-        awslogs_stream_prefix: Optional[str] = None,
+        capacity_provider_strategy: list | None = None,
+        group: str | None = None,
+        placement_constraints: list | None = None,
+        placement_strategy: list | None = None,
+        platform_version: str | None = None,
+        network_configuration: dict | None = None,
+        tags: dict | None = None,
+        awslogs_group: str | None = None,
+        awslogs_region: str | None = None,
+        awslogs_stream_prefix: str | None = None,
         awslogs_fetch_interval: timedelta = timedelta(seconds=30),
-        propagate_tags: Optional[str] = None,
-        quota_retry: Optional[dict] = None,
+        propagate_tags: str | None = None,
+        quota_retry: dict | None = None,
         reattach: bool = False,
         number_logs_exception: int = 10,
         **kwargs,
@@ -282,11 +284,11 @@ class EcsOperator(BaseOperator):
         if self.awslogs_region is None:
             self.awslogs_region = region_name
 
-        self.hook: Optional[AwsBaseHook] = None
-        self.client: Optional[EcsProtocol] = None
-        self.arn: Optional[str] = None
+        self.hook: AwsBaseHook | None = None
+        self.client: EcsProtocol | None = None
+        self.arn: str | None = None
         self.retry_args = quota_retry
-        self.task_log_fetcher: Optional[EcsTaskLogFetcher] = None
+        self.task_log_fetcher: EcsTaskLogFetcher | None = None
 
     @provide_session
     def execute(self, context, session=None):

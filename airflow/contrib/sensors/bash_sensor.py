@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.sensors.bash`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.sensors.bash import STDOUT, BashSensor, Popen, TemporaryDirectory, gettempdir  # noqa

@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.step_function import StepFunctionHook
@@ -60,16 +61,16 @@ class StepFunctionExecutionSensor(BaseSensorOperator):
         *,
         execution_arn: str,
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
         self.execution_arn = execution_arn
         self.aws_conn_id = aws_conn_id
         self.region_name = region_name
-        self.hook: Optional[StepFunctionHook] = None
+        self.hook: StepFunctionHook | None = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         execution_status = self.get_hook().describe_execution(self.execution_arn)
         state = execution_status['status']
         output = json.loads(execution_status['output']) if 'output' in execution_status else None

@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.sensors.filesystem`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.sensors.filesystem import FileSensor  # noqa

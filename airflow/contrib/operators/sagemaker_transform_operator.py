@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.operators.sagemaker_transform`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.amazon.aws.operators.sagemaker_transform import SageMakerTransformOperator  # noqa

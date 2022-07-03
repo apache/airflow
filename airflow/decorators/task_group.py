@@ -15,13 +15,16 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 A TaskGroup is a collection of closely related tasks on the same DAG that should be grouped
 together when the DAG is displayed graphically.
 """
 import functools
 from inspect import signature
-from typing import TYPE_CHECKING, Any, Callable, Dict, Generic, Optional, TypeVar, Union, cast, overload
+from typing import TYPE_CHECKING, Any, Callable, Generic, TypeVar, cast, overload
 
 import attr
 
@@ -41,8 +44,8 @@ task_group_sig = signature(TaskGroup.__init__)
 class TaskGroupDecorator(Generic[R]):
     """:meta private:"""
 
-    function: Callable[..., Optional[R]] = attr.ib(validator=attr.validators.is_callable())
-    kwargs: Dict[str, Any] = attr.ib(factory=dict)
+    function: Callable[..., R | None] = attr.ib(validator=attr.validators.is_callable())
+    kwargs: dict[str, Any] = attr.ib(factory=dict)
     """kwargs for the TaskGroup"""
 
     @function.validator
@@ -60,7 +63,7 @@ class TaskGroupDecorator(Generic[R]):
     def _make_task_group(self, **kwargs) -> TaskGroup:
         return TaskGroup(**kwargs)
 
-    def __call__(self, *args, **kwargs) -> Union[R, TaskGroup]:
+    def __call__(self, *args, **kwargs) -> R | TaskGroup:
         with self._make_task_group(add_suffix_on_collision=True, **self.kwargs) as task_group:
             # Invoke function to run Tasks inside the TaskGroup
             retval = self.function(*args, **kwargs)
@@ -97,10 +100,10 @@ class Group(Generic[F]):
     function: F
 
     # Return value should match F's return type, but that's impossible to declare.
-    def expand(self, **kwargs: "Mappable") -> Any:
+    def expand(self, **kwargs: Mappable) -> Any:
         ...
 
-    def partial(self, **kwargs: Any) -> "Group[F]":
+    def partial(self, **kwargs: Any) -> Group[F]:
         ...
 
 
@@ -113,11 +116,11 @@ class Group(Generic[F]):
 # disastrous if they go out of sync with TaskGroup.
 @overload
 def task_group(
-    group_id: Optional[str] = None,
+    group_id: str | None = None,
     prefix_group_id: bool = True,
-    parent_group: Optional[TaskGroup] = None,
-    dag: Optional["DAG"] = None,
-    default_args: Optional[Dict[str, Any]] = None,
+    parent_group: TaskGroup | None = None,
+    dag: DAG | None = None,
+    default_args: dict[str, Any] | None = None,
     tooltip: str = "",
     ui_color: str = "CornflowerBlue",
     ui_fgcolor: str = "#000",

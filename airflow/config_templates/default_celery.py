@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Default celery configuration."""
+
+from __future__ import annotations
+
 import logging
 import ssl
 

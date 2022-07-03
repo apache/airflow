@@ -17,12 +17,13 @@
 # under the License.
 """PostgreSQL to GCS operator."""
 
+from __future__ import annotations
+
 import datetime
 import json
 import time
 import uuid
 from decimal import Decimal
-from typing import Dict
 
 import pendulum
 
@@ -121,7 +122,7 @@ class PostgresToGCSOperator(BaseSQLToGCSOperator):
             return _PostgresServerSideCursorDecorator(cursor)
         return cursor
 
-    def field_to_bigquery(self, field) -> Dict[str, str]:
+    def field_to_bigquery(self, field) -> dict[str, str]:
         return {
             'name': field[0],
             'type': self.type_map.get(field[1], "STRING"),

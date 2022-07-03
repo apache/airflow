@@ -16,6 +16,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.log.s3_task_handler`."""
+
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.amazon.aws.log.s3_task_handler import S3TaskHandler  # noqa

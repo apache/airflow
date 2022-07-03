@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 from pendulum import DateTime
 
@@ -29,7 +30,7 @@ class _TrivialTimetable(Timetable):
     can_run = False
 
     @classmethod
-    def deserialize(cls, data: Dict[str, Any]) -> "Timetable":
+    def deserialize(cls, data: dict[str, Any]) -> Timetable:
         return cls()
 
     def __eq__(self, other: Any) -> bool:
@@ -41,7 +42,7 @@ class _TrivialTimetable(Timetable):
             return NotImplemented
         return True
 
-    def serialize(self) -> Dict[str, Any]:
+    def serialize(self) -> dict[str, Any]:
         return {}
 
     def infer_manual_data_interval(self, *, run_after: DateTime) -> DataInterval:
@@ -63,9 +64,9 @@ class NullTimetable(_TrivialTimetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_data_interval: Optional[DataInterval],
+        last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
+    ) -> DagRunInfo | None:
         return None
 
 
@@ -84,9 +85,9 @@ class OnceTimetable(_TrivialTimetable):
     def next_dagrun_info(
         self,
         *,
-        last_automated_data_interval: Optional[DataInterval],
+        last_automated_data_interval: DataInterval | None,
         restriction: TimeRestriction,
-    ) -> Optional[DagRunInfo]:
+    ) -> DagRunInfo | None:
         if last_automated_data_interval is not None:
             return None  # Already run, no more scheduling.
         if restriction.earliest is None:  # No start date, won't run.

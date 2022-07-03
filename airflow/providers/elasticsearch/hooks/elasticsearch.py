@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Optional
+from __future__ import annotations
 
 from es.elastic.api import Connection as ESConnection, connect
 
@@ -39,7 +38,7 @@ class ElasticsearchHook(DbApiHook):
     conn_type = 'elasticsearch'
     hook_name = 'Elasticsearch'
 
-    def __init__(self, schema: str = "http", connection: Optional[AirflowConnection] = None, *args, **kwargs):
+    def __init__(self, schema: str = "http", connection: AirflowConnection | None = None, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.schema = schema
         self.connection = connection

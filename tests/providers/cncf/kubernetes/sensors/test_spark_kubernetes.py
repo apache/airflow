@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import json
 import unittest
@@ -29,6 +29,9 @@ from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.sensors.spark_kubernetes import SparkKubernetesSensor
 from airflow.utils import db, timezone
+
+#
+
 
 TEST_COMPLETED_APPLICATION = {
     "apiVersion": "sparkoperator.k8s.io/v1beta2",

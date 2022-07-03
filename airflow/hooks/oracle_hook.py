@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.oracle.hooks.oracle`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.oracle.hooks.oracle import OracleHook  # noqa

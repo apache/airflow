@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """Sanitizer for body fields sent via Google Cloud API.
 
 The sanitizer removes fields specified from the body.
@@ -97,7 +99,6 @@ arrays - the sanitizer iterates through all dictionaries in the array and search
 components in all elements of the array.
 """
 
-from typing import List
 
 from airflow.exceptions import AirflowException
 from airflow.utils.log.logging_mixin import LoggingMixin
@@ -116,7 +117,7 @@ class GcpBodyFieldSanitizer(LoggingMixin):
 
     """
 
-    def __init__(self, sanitize_specs: List[str]) -> None:
+    def __init__(self, sanitize_specs: list[str]) -> None:
         super().__init__()
         self._sanitize_specs = sanitize_specs
 

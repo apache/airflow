@@ -15,6 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+# flake8: noqa: F401
+from __future__ import annotations
+
 import sys
 from pathlib import Path
 
@@ -25,7 +28,6 @@ sys.path.insert(0, str(AIRFLOW_SOURCES_DIR))  # make sure setup is imported from
 sys.path.insert(
     0, str(AIRFLOW_SOURCES_DIR / "dev" / "breeze" / "src")
 )  # make sure setup is imported from Airflow
-# flake8: noqa: F401
 
 from common_precommit_utils import insert_documentation  # isort: skip
 

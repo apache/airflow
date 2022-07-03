@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Add ``run_type`` column in ``dag_run`` table
 
 Revision ID: 3c20cacc0044

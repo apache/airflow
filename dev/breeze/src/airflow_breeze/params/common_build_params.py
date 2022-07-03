@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import sys
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Optional
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.global_constants import DOCKER_DEFAULT_PLATFORM
@@ -43,7 +43,7 @@ class CommonBuildParams:
     additional_runtime_apt_env: str = ""
     airflow_branch: str = AIRFLOW_BRANCH
     airflow_constraints_location: str = ""
-    answer: Optional[str] = None
+    answer: str | None = None
     build_id: int = 0
     builder: str = "default"
     constraints_github_repository: str = "apache/airflow"
@@ -56,11 +56,11 @@ class CommonBuildParams:
     github_repository: str = "apache/airflow"
     github_token: str = os.environ.get('GITHUB_TOKEN', "")
     github_username: str = ""
-    image_tag: Optional[str] = None
+    image_tag: str | None = None
     install_providers_from_sources: bool = False
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
-    python_image: Optional[str] = None
+    python_image: str | None = None
     push_image: bool = False
     python: str = "3.7"
     runtime_apt_command: str = ""
@@ -95,11 +95,11 @@ class CommonBuildParams:
         return image
 
     @property
-    def extra_docker_build_flags(self) -> List[str]:
+    def extra_docker_build_flags(self) -> list[str]:
         raise NotImplementedError()
 
     @property
-    def docker_cache_directive(self) -> List[str]:
+    def docker_cache_directive(self) -> list[str]:
         docker_cache_directive = []
         if self.docker_cache == "registry":
             for platform in self.platforms:
@@ -155,15 +155,15 @@ class CommonBuildParams:
         return self.tag_as_latest or self.airflow_image_name == self.airflow_image_name_with_tag
 
     @property
-    def platforms(self) -> List[str]:
+    def platforms(self) -> list[str]:
         return self.platform.split(",")
 
     @property
-    def required_image_args(self) -> List[str]:
+    def required_image_args(self) -> list[str]:
         raise NotImplementedError()
 
     @property
-    def optional_image_args(self) -> List[str]:
+    def optional_image_args(self) -> list[str]:
         raise NotImplementedError()
 
     def __post_init__(self):

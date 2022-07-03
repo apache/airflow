@@ -15,6 +15,9 @@
 # specific language governing permissions and limitations
 # under the License.
 """Useful tools for running commands."""
+
+from __future__ import annotations
+
 import contextlib
 import os
 import shlex
@@ -25,7 +28,7 @@ from distutils.version import StrictVersion
 from functools import lru_cache
 from pathlib import Path
 from re import match
-from typing import Dict, Generator, List, Mapping, Optional, Union
+from typing import Generator, Mapping, Union
 
 from airflow_breeze.branch_defaults import AIRFLOW_BRANCH
 from airflow_breeze.utils.ci_group import ci_group
@@ -36,16 +39,16 @@ RunCommandResult = Union[subprocess.CompletedProcess, subprocess.CalledProcessEr
 
 
 def run_command(
-    cmd: List[str],
-    title: Optional[str] = None,
+    cmd: list[str],
+    title: str | None = None,
     *,
     check: bool = True,
     verbose: bool = False,
     dry_run: bool = False,
     no_output_dump_on_exception: bool = False,
-    env: Optional[Mapping[str, str]] = None,
-    cwd: Optional[Path] = None,
-    input: Optional[str] = None,
+    env: Mapping[str, str] | None = None,
+    cwd: Path | None = None,
+    input: str | None = None,
     enabled_output_group: bool = False,
     **kwargs,
 ) -> RunCommandResult:
@@ -124,11 +127,11 @@ def run_command(
         return ex
 
 
-def get_environments_to_print(env: Optional[Mapping[str, str]]):
+def get_environments_to_print(env: Mapping[str, str] | None):
     if not env:
         return ""
-    system_env: Dict[str, str] = {}
-    my_env: Dict[str, str] = {}
+    system_env: dict[str, str] = {}
+    my_env: dict[str, str] = {}
     for key, val in env.items():
         if os.environ.get(key) == val:
             system_env[key] = val

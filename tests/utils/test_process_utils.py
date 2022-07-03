@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import logging
 import multiprocessing
@@ -41,6 +41,8 @@ from airflow.utils.process_utils import (
     execute_in_subprocess_with_kwargs,
     set_new_process_group,
 )
+
+#
 
 
 class TestReapProcessGroup(unittest.TestCase):

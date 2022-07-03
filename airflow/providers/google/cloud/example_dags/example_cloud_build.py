@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Example Airflow DAG that displays interactions with Google Cloud Build.
 
 This DAG relies on the following OS environment variables:
@@ -31,7 +33,7 @@ This DAG relies on the following OS environment variables:
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict
+from typing import Any
 
 import yaml
 from future.backports.urllib.parse import urlparse
@@ -101,7 +103,7 @@ create_build_from_storage_body = {
 # [END howto_operator_gcp_create_build_from_storage_body]
 
 # [START howto_operator_create_build_from_repo_body]
-create_build_from_repo_body: Dict[str, Any] = {
+create_build_from_repo_body: dict[str, Any] = {
     "source": {"repo_source": {"repo_name": GCP_SOURCE_REPOSITORY_NAME, "branch_name": "main"}},
     "steps": [
         {

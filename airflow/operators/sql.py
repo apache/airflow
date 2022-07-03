@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, SupportsAbs, Union
+from __future__ import annotations
+
+from typing import Any, Iterable, Mapping, Sequence, SupportsAbs
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -25,7 +27,7 @@ from airflow.models import BaseOperator, SkipMixin
 from airflow.utils.context import Context
 
 
-def parse_boolean(val: str) -> Union[str, bool]:
+def parse_boolean(val: str) -> str | bool:
     """Try to parse a string into boolean.
 
     Raises ValueError if the input is not a valid true- or false-like string value.
@@ -50,9 +52,9 @@ class BaseSQLOperator(BaseOperator):
     def __init__(
         self,
         *,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
-        hook_params: Optional[Dict] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
+        hook_params: dict | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -130,7 +132,7 @@ class SQLCheckOperator(BaseSQLOperator):
     ui_color = "#fff7e6"
 
     def __init__(
-        self, *, sql: str, conn_id: Optional[str] = None, database: Optional[str] = None, **kwargs
+        self, *, sql: str, conn_id: str | None = None, database: str | None = None, **kwargs
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)
         self.sql = sql
@@ -189,8 +191,8 @@ class SQLValueCheckOperator(BaseSQLOperator):
         sql: str,
         pass_value: Any,
         tolerance: Any = None,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -293,13 +295,13 @@ class SQLIntervalCheckOperator(BaseSQLOperator):
         self,
         *,
         table: str,
-        metrics_thresholds: Dict[str, int],
-        date_filter_column: Optional[str] = "ds",
+        metrics_thresholds: dict[str, int],
+        date_filter_column: str | None = "ds",
         days_back: SupportsAbs[int] = -7,
-        ratio_formula: Optional[str] = "max_over_min",
+        ratio_formula: str | None = "max_over_min",
         ignore_zero: bool = True,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -413,8 +415,8 @@ class SQLThresholdCheckOperator(BaseSQLOperator):
         sql: str,
         min_threshold: Any,
         max_threshold: Any,
-        conn_id: Optional[str] = None,
-        database: Optional[str] = None,
+        conn_id: str | None = None,
+        database: str | None = None,
         **kwargs,
     ):
         super().__init__(conn_id=conn_id, database=database, **kwargs)
@@ -492,11 +494,11 @@ class BranchSQLOperator(BaseSQLOperator, SkipMixin):
         self,
         *,
         sql: str,
-        follow_task_ids_if_true: List[str],
-        follow_task_ids_if_false: List[str],
+        follow_task_ids_if_true: list[str],
+        follow_task_ids_if_false: list[str],
         conn_id: str = "default_conn_id",
-        database: Optional[str] = None,
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        database: str | None = None,
+        parameters: Mapping | Iterable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(conn_id=conn_id, database=database, **kwargs)

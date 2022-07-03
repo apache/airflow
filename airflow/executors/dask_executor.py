@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 DaskExecutor
 
 .. seealso::
@@ -23,7 +26,7 @@ DaskExecutor
     :ref:`executor:DaskExecutor`
 """
 import subprocess
-from typing import Any, Dict, Optional
+from typing import Any
 
 from distributed import Client, Future, as_completed
 from distributed.security import Security
@@ -52,8 +55,8 @@ class DaskExecutor(BaseExecutor):
         self.tls_ca = conf.get('dask', 'tls_ca')
         self.tls_key = conf.get('dask', 'tls_key')
         self.tls_cert = conf.get('dask', 'tls_cert')
-        self.client: Optional[Client] = None
-        self.futures: Optional[Dict[Future, TaskInstanceKey]] = None
+        self.client: Client | None = None
+        self.futures: dict[Future, TaskInstanceKey] | None = None
 
     def start(self) -> None:
         if self.tls_ca or self.tls_key or self.tls_cert:
@@ -73,8 +76,8 @@ class DaskExecutor(BaseExecutor):
         self,
         key: TaskInstanceKey,
         command: CommandType,
-        queue: Optional[str] = None,
-        executor_config: Optional[Any] = None,
+        queue: str | None = None,
+        executor_config: Any | None = None,
     ) -> None:
 
         self.validate_command(command)

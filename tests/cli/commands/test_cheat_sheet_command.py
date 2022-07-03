@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import contextlib
 import io
 import unittest
-from typing import List
 from unittest import mock
 
 from airflow.cli import cli_parser
@@ -29,7 +29,7 @@ def noop():
     pass
 
 
-MOCK_COMMANDS: List[CLICommand] = [
+MOCK_COMMANDS: list[CLICommand] = [
     GroupCommand(
         name='cmd_a',
         help='Help text A',

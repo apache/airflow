@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.slack.hooks.slack`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.slack.hooks.slack import SlackHook  # noqa

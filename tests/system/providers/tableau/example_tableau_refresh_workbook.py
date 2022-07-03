@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 This is an example dag that performs two refresh operations on a Tableau Workbook aka Extract. The first one
 waits until it succeeds. The second does not wait since this is an asynchronous operation and we don't know
 when the operation actually finishes. That's why we have another task that checks only that.

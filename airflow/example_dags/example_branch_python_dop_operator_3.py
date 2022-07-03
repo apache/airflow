@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Example DAG demonstrating the usage of BranchPythonOperator with depends_on_past=True, where tasks may be run
 or skipped on alternating runs.
 """

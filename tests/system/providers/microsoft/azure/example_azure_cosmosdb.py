@@ -15,10 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 # Ignore missing args provided by default_args
 # type: ignore[call-arg]
-
 """
 This is only an example DAG to highlight usage of AzureCosmosDocumentSensor to detect
 if a document now exists.
@@ -28,6 +26,8 @@ You can trigger this manually with `airflow dags trigger example_cosmosdb_sensor
 *Note: Make sure that connection `azure_cosmos_default` is properly set before running
 this example.*
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime
 

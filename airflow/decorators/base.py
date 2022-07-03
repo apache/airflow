@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import functools
 import inspect
@@ -27,10 +28,7 @@ from typing import (
     Generic,
     Iterator,
     Mapping,
-    Optional,
     Sequence,
-    Set,
-    Type,
     TypeVar,
     cast,
     overload,
@@ -88,8 +86,8 @@ def validate_python_callable(python_callable: Any) -> None:
 
 def get_unique_task_id(
     task_id: str,
-    dag: Optional[DAG] = None,
-    task_group: Optional[TaskGroup] = None,
+    dag: DAG | None = None,
+    task_group: TaskGroup | None = None,
 ) -> str:
     """
     Generate unique task id given a DAG (or if run in a DAG context)
@@ -156,10 +154,10 @@ class DecoratedOperator(BaseOperator):
         *,
         python_callable: Callable,
         task_id: str,
-        op_args: Optional[Collection[Any]] = None,
-        op_kwargs: Optional[Mapping[str, Any]] = None,
+        op_args: Collection[Any] | None = None,
+        op_kwargs: Mapping[str, Any] | None = None,
         multiple_outputs: bool = False,
-        kwargs_to_upstream: Optional[Dict[str, Any]] = None,
+        kwargs_to_upstream: dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
         task_id = get_unique_task_id(task_id, kwargs.get('dag'), kwargs.get('task_group'))
@@ -235,9 +233,9 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
     """
 
     function: Function = attr.ib()
-    operator_class: Type[OperatorSubclass]
+    operator_class: type[OperatorSubclass]
     multiple_outputs: bool = attr.ib()
-    kwargs: Dict[str, Any] = attr.ib(factory=dict)
+    kwargs: dict[str, Any] = attr.ib(factory=dict)
 
     decorator_name: str = attr.ib(repr=False, default="task")
 
@@ -281,11 +279,11 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         return any(v.kind == inspect.Parameter.VAR_KEYWORD for v in parameters.values())
 
     @cached_property
-    def _mappable_function_argument_names(self) -> Set[str]:
+    def _mappable_function_argument_names(self) -> set[str]:
         """Arguments that can be mapped against."""
         return set(self.function_signature.parameters)
 
-    def _validate_arg_names(self, func: ValidationSource, kwargs: Dict[str, Any]):
+    def _validate_arg_names(self, func: ValidationSource, kwargs: dict[str, Any]):
         # Ensure that context variables are not shadowed.
         context_keys_being_mapped = KNOWN_CONTEXT_KEYS.intersection(kwargs)
         if len(context_keys_being_mapped) == 1:
@@ -311,7 +309,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def expand(self, **map_kwargs: "Mappable") -> XComArg:
+    def expand(self, **map_kwargs: Mappable) -> XComArg:
         if not map_kwargs:
             raise TypeError("no arguments to expand against")
 
@@ -391,7 +389,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         )
         return XComArg(operator=operator)
 
-    def partial(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def partial(self, **kwargs) -> _TaskDecorator[Function, OperatorSubclass]:
         self._validate_arg_names("partial", kwargs)
 
         op_kwargs = self.kwargs.get("op_kwargs", {})
@@ -399,11 +397,11 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
 
         return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": op_kwargs})
 
-    def override(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def override(self, **kwargs) -> _TaskDecorator[Function, OperatorSubclass]:
         return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
 
 
-def _merge_kwargs(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> Dict[str, Any]:
+def _merge_kwargs(kwargs1: dict[str, Any], kwargs2: dict[str, Any], *, fail_reason: str) -> dict[str, Any]:
     duplicated_keys = set(kwargs1).intersection(kwargs2)
     if len(duplicated_keys) == 1:
         raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
@@ -422,7 +420,7 @@ class DecoratedMappedOperator(MappedOperator):
 
     # We can't save these in mapped_kwargs because op_kwargs need to be present
     # in partial_kwargs, and MappedOperator prevents duplication.
-    mapped_op_kwargs: Dict[str, "Mappable"]
+    mapped_op_kwargs: dict[str, Mappable]
 
     def __hash__(self):
         return id(self)
@@ -433,7 +431,7 @@ class DecoratedMappedOperator(MappedOperator):
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
         XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs)
 
-    def _get_unmap_kwargs(self) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self) -> dict[str, Any]:
         partial_kwargs = self.partial_kwargs.copy()
         op_kwargs = _merge_kwargs(
             partial_kwargs.pop("op_kwargs"),
@@ -453,7 +451,7 @@ class DecoratedMappedOperator(MappedOperator):
         }
 
     def _resolve_expansion_kwargs(
-        self, kwargs: Dict[str, Any], template_fields: Set[str], context: Context, session: "Session"
+        self, kwargs: dict[str, Any], template_fields: set[str], context: Context, session: Session
     ) -> None:
         expansion_kwargs = self._get_expansion_kwargs()
 
@@ -470,8 +468,8 @@ class DecoratedMappedOperator(MappedOperator):
         self,
         value: Any,
         context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-        seen_oids: Optional[Set] = None,
+        jinja_env: jinja2.Environment | None = None,
+        seen_oids: set | None = None,
     ) -> Any:
         if hasattr(self, '_combined_op_kwargs') and value is self._combined_op_kwargs:
             # Avoid rendering values that came out of resolved XComArgs
@@ -505,10 +503,10 @@ class Task(Generic[Function]):
     def __wrapped__(self) -> Function:
         ...
 
-    def expand(self, **kwargs: "Mappable") -> XComArg:
+    def expand(self, **kwargs: Mappable) -> XComArg:
         ...
 
-    def partial(self, **kwargs: Any) -> "Task[Function]":
+    def partial(self, **kwargs: Any) -> Task[Function]:
         ...
 
 
@@ -523,17 +521,17 @@ class TaskDecorator(Protocol):
     def __call__(
         self,
         *,
-        multiple_outputs: Optional[bool] = None,
+        multiple_outputs: bool | None = None,
         **kwargs: Any,
     ) -> Callable[[Function], Task[Function]]:
         """For the decorator factory ``@task()`` case."""
 
 
 def task_decorator_factory(
-    python_callable: Optional[Callable] = None,
+    python_callable: Callable | None = None,
     *,
-    multiple_outputs: Optional[bool] = None,
-    decorated_operator_class: Type[BaseOperator],
+    multiple_outputs: bool | None = None,
+    decorated_operator_class: type[BaseOperator],
     **kwargs,
 ) -> TaskDecorator:
     """

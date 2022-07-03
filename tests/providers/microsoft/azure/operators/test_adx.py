@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -27,6 +27,9 @@ from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.providers.microsoft.azure.operators.adx import AzureDataExplorerQueryOperator
 from airflow.utils import timezone
 from airflow.utils.timezone import datetime
+
+#
+
 
 TEST_DAG_ID = 'unit_tests'
 DEFAULT_DATE = datetime(2019, 1, 1)

@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-#
 # Copyright (c) 2013, Michael Komitee
 # All rights reserved.
 #
@@ -44,7 +44,7 @@ import logging
 import os
 from functools import wraps
 from socket import getfqdn
-from typing import Any, Callable, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, TypeVar, cast
 
 import kerberos
 from flask import Response, _request_ctx_stack as stack, g, make_response, request  # type: ignore
@@ -55,7 +55,7 @@ from airflow.configuration import conf
 log = logging.getLogger(__name__)
 
 
-CLIENT_AUTH: Optional[Union[Tuple[str, str], Any]] = HTTPKerberosAuth(service='airflow')
+CLIENT_AUTH: tuple[str, str] | Any | None = HTTPKerberosAuth(service='airflow')
 
 
 class KerberosService:

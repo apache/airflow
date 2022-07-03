@@ -14,8 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import Dict, Tuple
+from __future__ import annotations
 
 import pytest
 
@@ -23,7 +22,7 @@ from airflow_breeze.global_constants import GithubEvents
 from airflow_breeze.utils.selective_checks import SelectiveChecks
 
 
-def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
+def assert_outputs_are_printed(expected_outputs: dict[str, str], output: str):
     for name, value in expected_outputs.items():
         assert f"::set-output name={name}::{value}" in output
 
@@ -193,8 +192,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
     ],
 )
 def test_expected_output_pull_request_main(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -284,10 +283,10 @@ def test_expected_output_pull_request_main(
     ],
 )
 def test_expected_output_full_tests_needed(
-    files: Tuple[str, ...],
-    pr_labels: Tuple[str, ...],
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
     default_branch: str,
-    expected_outputs: Dict[str, str],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -376,8 +375,8 @@ def test_expected_output_full_tests_needed(
     ],
 )
 def test_expected_output_pull_request_v2_3(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -446,8 +445,8 @@ def test_expected_output_pull_request_v2_3(
     ],
 )
 def test_expected_output_pull_request_target(
-    files: Tuple[str, ...],
-    expected_outputs: Dict[str, str],
+    files: tuple[str, ...],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,
@@ -514,10 +513,10 @@ def test_expected_output_pull_request_target(
     ],
 )
 def test_expected_output_push(
-    files: Tuple[str, ...],
-    pr_labels: Tuple[str, ...],
+    files: tuple[str, ...],
+    pr_labels: tuple[str, ...],
     default_branch: str,
-    expected_outputs: Dict[str, str],
+    expected_outputs: dict[str, str],
 ):
     sc = SelectiveChecks(
         files=files,

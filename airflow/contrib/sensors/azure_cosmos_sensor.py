@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.microsoft.azure.sensors.cosmos`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.microsoft.azure.sensors.cosmos import AzureCosmosDocumentSensor  # noqa

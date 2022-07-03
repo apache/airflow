@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Example Airflow DAG that show how to create a Dataproc cluster in Google Kubernetes Engine.
 """
 

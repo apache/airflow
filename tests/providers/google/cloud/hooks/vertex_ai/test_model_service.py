@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 from unittest import TestCase, mock
 
@@ -26,6 +26,9 @@ from tests.providers.google.cloud.utils.base_gcp_mock import (
     mock_base_gcp_hook_default_project_id,
     mock_base_gcp_hook_no_default_project_id,
 )
+
+#
+
 
 TEST_GCP_CONN_ID: str = "test-gcp-conn-id"
 TEST_REGION: str = "test-region"

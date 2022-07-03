@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Dict, Optional, Sequence, Tuple, Union
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Sequence
 
 from google.api_core.exceptions import AlreadyExists
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -50,12 +52,12 @@ class CloudComposerEnvironmentLink(BaseGoogleLink):
 
     @staticmethod
     def persist(
-        operator_instance: Union[
-            "CloudComposerCreateEnvironmentOperator",
-            "CloudComposerUpdateEnvironmentOperator",
-            "CloudComposerGetEnvironmentOperator",
-        ],
-        context: "Context",
+        operator_instance: (
+            CloudComposerCreateEnvironmentOperator
+            | CloudComposerUpdateEnvironmentOperator
+            | CloudComposerGetEnvironmentOperator
+        ),
+        context: Context,
     ) -> None:
         operator_instance.xcom_push(
             context,
@@ -76,7 +78,7 @@ class CloudComposerEnvironmentsLink(BaseGoogleLink):
     format_str = CLOUD_COMPOSER_ENVIRONMENTS_LINK
 
     @staticmethod
-    def persist(operator_instance: "CloudComposerListEnvironmentsOperator", context: "Context") -> None:
+    def persist(operator_instance: CloudComposerListEnvironmentsOperator, context: Context) -> None:
         operator_instance.xcom_push(
             context,
             key=CloudComposerEnvironmentsLink.key,
@@ -130,13 +132,13 @@ class CloudComposerCreateEnvironmentOperator(BaseOperator):
         project_id: str,
         region: str,
         environment_id: str,
-        environment: Union[Environment, Dict],
+        environment: Environment | dict,
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         deferrable: bool = False,
         pooling_period_seconds: int = 30,
         **kwargs,
@@ -155,7 +157,7 @@ class CloudComposerCreateEnvironmentOperator(BaseOperator):
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -205,7 +207,7 @@ class CloudComposerCreateEnvironmentOperator(BaseOperator):
             )
             return Environment.to_dict(environment)
 
-    def execute_complete(self, context: "Context", event: dict):
+    def execute_complete(self, context: Context, event: dict):
         if event["operation_done"]:
             hook = CloudComposerHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -266,12 +268,12 @@ class CloudComposerDeleteEnvironmentOperator(BaseOperator):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         deferrable: bool = False,
         pooling_period_seconds: int = 30,
         **kwargs,
@@ -289,7 +291,7 @@ class CloudComposerDeleteEnvironmentOperator(BaseOperator):
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -319,7 +321,7 @@ class CloudComposerDeleteEnvironmentOperator(BaseOperator):
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
 
-    def execute_complete(self, context: "Context", event: dict):
+    def execute_complete(self, context: Context, event: dict):
         pass
 
 
@@ -362,12 +364,12 @@ class CloudComposerGetEnvironmentOperator(BaseOperator):
         project_id: str,
         region: str,
         environment_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -381,7 +383,7 @@ class CloudComposerGetEnvironmentOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.delegate_to = delegate_to
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -440,14 +442,14 @@ class CloudComposerListEnvironmentsOperator(BaseOperator):
         *,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        page_size: int | None = None,
+        page_token: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -462,7 +464,7 @@ class CloudComposerListEnvironmentsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.delegate_to = delegate_to
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -528,14 +530,14 @@ class CloudComposerUpdateEnvironmentOperator(BaseOperator):
         project_id: str,
         region: str,
         environment_id: str,
-        environment: Union[Dict, Environment],
-        update_mask: Union[Dict, FieldMask],
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        environment: dict | Environment,
+        update_mask: dict | FieldMask,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         deferrable: bool = False,
         pooling_period_seconds: int = 30,
         **kwargs,
@@ -555,7 +557,7 @@ class CloudComposerUpdateEnvironmentOperator(BaseOperator):
         self.deferrable = deferrable
         self.pooling_period_seconds = pooling_period_seconds
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,
@@ -591,7 +593,7 @@ class CloudComposerUpdateEnvironmentOperator(BaseOperator):
                 method_name=GOOGLE_DEFAULT_DEFERRABLE_METHOD_NAME,
             )
 
-    def execute_complete(self, context: "Context", event: dict):
+    def execute_complete(self, context: Context, event: dict):
         if event["operation_done"]:
             hook = CloudComposerHook(
                 gcp_conn_id=self.gcp_conn_id,
@@ -645,15 +647,15 @@ class CloudComposerListImageVersionsOperator(BaseOperator):
         *,
         project_id: str,
         region: str,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
         include_past_releases: bool = False,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
         gcp_conn_id: str = "google_cloud_default",
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
-        delegate_to: Optional[str] = None,
+        impersonation_chain: str | Sequence[str] | None = None,
+        delegate_to: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -669,7 +671,7 @@ class CloudComposerListImageVersionsOperator(BaseOperator):
         self.impersonation_chain = impersonation_chain
         self.delegate_to = delegate_to
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         hook = CloudComposerHook(
             gcp_conn_id=self.gcp_conn_id,
             impersonation_chain=self.impersonation_chain,

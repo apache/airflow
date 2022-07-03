@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import warnings
-from typing import Iterable, Mapping, Optional, Sequence, Union
+from typing import Iterable, Mapping, Sequence
 
 from airflow.providers.slack.transfers.sql_to_slack import SqlToSlackOperator
 
@@ -60,9 +61,9 @@ class PrestoToSlackOperator(SqlToSlackOperator):
         presto_conn_id: str = 'presto_default',
         slack_conn_id: str = 'slack_default',
         results_df_name: str = 'results_df',
-        parameters: Optional[Union[Iterable, Mapping]] = None,
-        slack_token: Optional[str] = None,
-        slack_channel: Optional[str] = None,
+        parameters: Iterable | Mapping | None = None,
+        slack_token: str | None = None,
+        slack_channel: str | None = None,
         **kwargs,
     ) -> None:
         self.presto_conn_id = presto_conn_id

@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.datadog.hooks.datadog`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.datadog.hooks.datadog import DatadogHook  # noqa

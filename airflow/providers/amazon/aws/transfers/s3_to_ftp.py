@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Sequence
@@ -65,7 +66,7 @@ class S3ToFTPOperator(BaseOperator):
         self.aws_conn_id = aws_conn_id
         self.ftp_conn_id = ftp_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         s3_hook = S3Hook(self.aws_conn_id)
         ftp_hook = FTPHook(ftp_conn_id=self.ftp_conn_id)
 

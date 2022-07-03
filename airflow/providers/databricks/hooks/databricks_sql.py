@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
 from contextlib import closing
 from copy import copy
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any
 
 from databricks import sql  # type: ignore[attr-defined]
 from databricks.sql.client import Connection  # type: ignore[attr-defined]
@@ -57,17 +58,17 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
     def __init__(
         self,
         databricks_conn_id: str = BaseDatabricksHook.default_conn_name,
-        http_path: Optional[str] = None,
-        sql_endpoint_name: Optional[str] = None,
-        session_configuration: Optional[Dict[str, str]] = None,
-        http_headers: Optional[List[Tuple[str, str]]] = None,
-        catalog: Optional[str] = None,
-        schema: Optional[str] = None,
+        http_path: str | None = None,
+        sql_endpoint_name: str | None = None,
+        session_configuration: dict[str, str] | None = None,
+        http_headers: list[tuple[str, str]] | None = None,
+        catalog: str | None = None,
+        schema: str | None = None,
         **kwargs,
     ) -> None:
         super().__init__(databricks_conn_id)
         self._sql_conn = None
-        self._token: Optional[str] = None
+        self._token: str | None = None
         self._http_path = http_path
         self._sql_endpoint_name = sql_endpoint_name
         self.supports_autocommit = True
@@ -77,7 +78,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         self.schema = schema
         self.additional_params = kwargs
 
-    def _get_extra_config(self) -> Dict[str, Optional[Any]]:
+    def _get_extra_config(self) -> dict[str, Any | None]:
         extra_params = copy(self.databricks_conn.extra_dejson)
         for arg in ['http_path', 'session_configuration'] + self.extra_parameters:
             if arg in extra_params:
@@ -85,7 +86,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
 
         return extra_params
 
-    def _get_sql_endpoint_by_name(self, endpoint_name) -> Dict[str, Any]:
+    def _get_sql_endpoint_by_name(self, endpoint_name) -> dict[str, Any]:
         result = self._do_api_call(LIST_SQL_ENDPOINTS_ENDPOINT)
         if 'endpoints' not in result:
             raise AirflowException("Can't list Databricks SQL endpoints")
@@ -140,7 +141,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         return self._sql_conn
 
     @staticmethod
-    def maybe_split_sql_string(sql: str) -> List[str]:
+    def maybe_split_sql_string(sql: str) -> list[str]:
         """
         Splits strings consisting of multiple SQL expressions into an
         TODO: do we need something more sophisticated?
@@ -151,7 +152,7 @@ class DatabricksSqlHook(BaseDatabricksHook, DbApiHook):
         splits = [s.strip() for s in re.split(";\\s*\r?\n", sql) if s.strip() != ""]
         return splits
 
-    def run(self, sql: Union[str, List[str]], autocommit=True, parameters=None, handler=None):
+    def run(self, sql: str | list[str], autocommit=True, parameters=None, handler=None):
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute

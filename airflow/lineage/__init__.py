@@ -16,10 +16,13 @@
 # specific language governing permissions and limitations
 # under the License.
 """Provides lineage support functions"""
+
+from __future__ import annotations
+
 import json
 import logging
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, TypeVar, cast
+from typing import Any, Callable, TypeVar, cast
 
 import attr
 import jinja2
@@ -44,10 +47,10 @@ class Metadata:
 
     type_name: str = attr.ib()
     source: str = attr.ib()
-    data: Dict = attr.ib()
+    data: dict = attr.ib()
 
 
-def get_backend() -> Optional[LineageBackend]:
+def get_backend() -> LineageBackend | None:
     """Gets the lineage backend if defined in the configs"""
     clazz = conf.getimport("lineage", "backend", fallback=None)
 
@@ -81,7 +84,7 @@ def _render_object(obj: Any, context) -> Any:
     )
 
 
-def _to_dataset(obj: Any, source: str) -> Optional[Metadata]:
+def _to_dataset(obj: Any, source: str) -> Metadata | None:
     """Create Metadata from attr annotated object"""
     if not attr.has(obj):
         return None

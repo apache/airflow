@@ -15,8 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""Roles sub-commands"""
+from __future__ import annotations
+
 import json
 import os
 
@@ -25,6 +25,8 @@ from airflow.utils import cli as cli_utils
 from airflow.utils.cli import suppress_logs_and_warning
 from airflow.www.app import cached_app
 from airflow.www.security import EXISTING_ROLES
+
+# """Roles sub-commands"""
 
 
 @suppress_logs_and_warning

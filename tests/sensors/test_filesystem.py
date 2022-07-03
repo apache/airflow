@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import os
 import shutil
@@ -28,6 +28,9 @@ from airflow.exceptions import AirflowSensorTimeout
 from airflow.models.dag import DAG
 from airflow.sensors.filesystem import FileSensor
 from airflow.utils.timezone import datetime
+
+#
+
 
 TEST_DAG_ID = 'unit_tests_file_sensor'
 DEFAULT_DATE = datetime(2015, 1, 1)

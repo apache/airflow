@@ -17,6 +17,8 @@
 # under the License.
 """Tests for Google Life Sciences Run Pipeline operator """
 
+from __future__ import annotations
+
 import unittest
 from unittest import mock
 

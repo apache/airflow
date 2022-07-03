@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -25,6 +25,8 @@ import sqlalchemy
 
 from airflow.models import Connection
 from airflow.providers.sqlite.hooks.sqlite import SqliteHook
+
+#
 
 
 class TestSqliteHookConn(unittest.TestCase):

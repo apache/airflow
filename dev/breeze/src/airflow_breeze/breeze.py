@@ -15,12 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from airflow_breeze.configure_rich_click import click  # isort: skip # noqa
+from __future__ import annotations
+
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.utils.path_utils import (
     create_directories_and_files,
     find_airflow_sources_root_to_operate_on,
 )
+
+from airflow_breeze.configure_rich_click import click  # isort: skip # noqa
 
 find_airflow_sources_root_to_operate_on()
 create_directories_and_files()

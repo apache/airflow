@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import warnings
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.providers.amazon.aws.hooks.glue_catalog import GlueCatalogHook
 from airflow.sensors.base import BaseSensorOperator
@@ -59,7 +61,7 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         table_name: str,
         expression: str = "ds='{{ ds }}'",
         aws_conn_id: str = 'aws_default',
-        region_name: Optional[str] = None,
+        region_name: str | None = None,
         database_name: str = 'default',
         poke_interval: int = 60 * 3,
         **kwargs,
@@ -70,9 +72,9 @@ class GlueCatalogPartitionSensor(BaseSensorOperator):
         self.table_name = table_name
         self.expression = expression
         self.database_name = database_name
-        self.hook: Optional[GlueCatalogHook] = None
+        self.hook: GlueCatalogHook | None = None
 
-    def poke(self, context: 'Context'):
+    def poke(self, context: Context):
         """Checks for existence of the partition in the AWS Glue Catalog table"""
         if '.' in self.table_name:
             self.database_name, self.table_name = self.table_name.split('.')

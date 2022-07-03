@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable, Optional
+from typing import TYPE_CHECKING, Any, Callable
 
 from github import GithubException
 
@@ -43,8 +44,8 @@ class GithubSensor(BaseSensorOperator):
         *,
         method_name: str,
         github_conn_id: str = 'github_default',
-        method_params: Optional[dict] = None,
-        result_processor: Optional[Callable] = None,
+        method_params: dict | None = None,
+        result_processor: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -55,7 +56,7 @@ class GithubSensor(BaseSensorOperator):
         self.method_name = method_name
         self.method_params = method_params
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         hook = GithubHook(github_conn_id=self.github_conn_id)
         github_result = getattr(hook.client, self.method_name)(**self.method_params)
 
@@ -77,8 +78,8 @@ class BaseGithubRepositorySensor(GithubSensor):
         self,
         *,
         github_conn_id: str = 'github_default',
-        repository_name: Optional[str] = None,
-        result_processor: Optional[Callable] = None,
+        repository_name: str | None = None,
+        result_processor: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(
@@ -89,7 +90,7 @@ class BaseGithubRepositorySensor(GithubSensor):
             **kwargs,
         )
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         """
         Function that the sensors defined while deriving this class should
         override.
@@ -112,8 +113,8 @@ class GithubTagSensor(BaseGithubRepositorySensor):
         self,
         *,
         github_conn_id: str = 'github_default',
-        tag_name: Optional[str] = None,
-        repository_name: Optional[str] = None,
+        tag_name: str | None = None,
+        repository_name: str | None = None,
         **kwargs,
     ) -> None:
         self.repository_name = repository_name
@@ -125,11 +126,11 @@ class GithubTagSensor(BaseGithubRepositorySensor):
             **kwargs,
         )
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         self.log.info('Poking for tag: %s in repository: %s', self.tag_name, self.repository_name)
         return GithubSensor.poke(self, context=context)
 
-    def tag_checker(self, repo: Any) -> Optional[bool]:
+    def tag_checker(self, repo: Any) -> bool | None:
         """Checking existence of Tag in a Repository"""
         result = None
         try:

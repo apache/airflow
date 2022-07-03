@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module allows to connect to a MySQL database."""
+
+from __future__ import annotations
+
 import json
-from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
+from typing import TYPE_CHECKING, Union
 
 from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
@@ -87,7 +89,7 @@ class MySqlHook(DbApiHook):
         else:
             return conn.get_autocommit()
 
-    def _get_conn_config_mysql_client(self, conn: Connection) -> Dict:
+    def _get_conn_config_mysql_client(self, conn: Connection) -> dict:
         conn_config = {
             "user": conn.login,
             "passwd": conn.password or '',
@@ -130,7 +132,7 @@ class MySqlHook(DbApiHook):
             conn_config["local_infile"] = 1
         return conn_config
 
-    def _get_conn_config_mysql_connector_python(self, conn: Connection) -> Dict:
+    def _get_conn_config_mysql_connector_python(self, conn: Connection) -> dict:
         conn_config = {
             'user': conn.login,
             'password': conn.password or '',
@@ -200,7 +202,7 @@ class MySqlHook(DbApiHook):
         conn.close()
 
     @staticmethod
-    def _serialize_cell(cell: object, conn: Optional[Connection] = None) -> object:
+    def _serialize_cell(cell: object, conn: Connection | None = None) -> object:
         """
         The package MySQLdb converts an argument to a literal
         when passing those separately to execute. Hence, this method does nothing.
@@ -212,7 +214,7 @@ class MySqlHook(DbApiHook):
         """
         return cell
 
-    def get_iam_token(self, conn: Connection) -> Tuple[str, int]:
+    def get_iam_token(self, conn: Connection) -> tuple[str, int]:
         """
         Uses AWSHook to retrieve a temporary password to connect to MySQL
         Port is required. If none is provided, default 3306 is used

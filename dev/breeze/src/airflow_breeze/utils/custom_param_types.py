@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from dataclasses import dataclass
 from re import match
-from typing import Any, Optional, Sequence
+from typing import Any, Sequence
 
 import click
 from click import Context, Parameter
@@ -69,7 +70,7 @@ class NotVerifiedBetterChoice(BetterChoice):
 
     name = "NotVerifiedBetterChoice"
 
-    def convert(self, value: Any, param: Optional[Parameter], ctx: Optional[Context]) -> Any:
+    def convert(self, value: Any, param: Parameter | None, ctx: Context | None) -> Any:
         # Match through normalization and case sensitivity
         # first do token_normalize_func, then lowercase
         normed_value = value

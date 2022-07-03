@@ -14,8 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from airflow_breeze.configure_rich_click import click
+try:
+    # We handle ImportError so that click autocomplete works
+    import rich_click as click
+except ImportError as e:
+    if "No module named 'rich_click'" in e.msg:
+        # just ignore the import error when rich_click is missing
+        import click  # type: ignore[no-redef]
+    else:
+        raise
+
 from airflow_breeze.utils.common_options import (
     option_airflow_extras,
     option_answer,

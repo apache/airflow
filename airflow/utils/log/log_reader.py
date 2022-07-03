@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
-from typing import Dict, Iterator, List, Optional, Tuple
+from typing import Iterator
 
 from sqlalchemy.orm.session import Session
 
@@ -32,8 +33,8 @@ class TaskLogReader:
     """Task log reader"""
 
     def read_log_chunks(
-        self, ti: TaskInstance, try_number: Optional[int], metadata
-    ) -> Tuple[List[Tuple[Tuple[str, str]]], Dict[str, str]]:
+        self, ti: TaskInstance, try_number: int | None, metadata
+    ) -> tuple[list[tuple[tuple[str, str]]], dict[str, str]]:
         """
         Reads chunks of Task Instance logs.
 
@@ -58,7 +59,7 @@ class TaskLogReader:
         metadata = metadatas[0]
         return logs, metadata
 
-    def read_log_stream(self, ti: TaskInstance, try_number: Optional[int], metadata: dict) -> Iterator[str]:
+    def read_log_stream(self, ti: TaskInstance, try_number: int | None, metadata: dict) -> Iterator[str]:
         """
         Used to continuously read log to the end
 
@@ -106,7 +107,7 @@ class TaskLogReader:
     def render_log_filename(
         self,
         ti: TaskInstance,
-        try_number: Optional[int] = None,
+        try_number: int | None = None,
         *,
         session: Session = NEW_SESSION,
     ):

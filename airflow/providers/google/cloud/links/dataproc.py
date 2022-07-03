@@ -17,8 +17,10 @@
 # under the License.
 """This module contains Google Dataproc links."""
 
+from __future__ import annotations
+
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperatorLink, XCom
 
@@ -47,7 +49,7 @@ class DataprocLink(BaseOperatorLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         url: str,
         resource: str,
@@ -66,8 +68,8 @@ class DataprocLink(BaseOperatorLink):
     def get_link(
         self,
         operator,
-        dttm: Optional[datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        dttm: datetime | None = None,
+        ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if ti_key is not None:
             conf = XCom.get_value(key=self.key, ti_key=ti_key)
@@ -93,7 +95,7 @@ class DataprocListLink(BaseOperatorLink):
 
     @staticmethod
     def persist(
-        context: "Context",
+        context: Context,
         task_instance,
         url: str,
     ):
@@ -109,8 +111,8 @@ class DataprocListLink(BaseOperatorLink):
     def get_link(
         self,
         operator,
-        dttm: Optional[datetime] = None,
-        ti_key: Optional["TaskInstanceKey"] = None,
+        dttm: datetime | None = None,
+        ti_key: TaskInstanceKey | None = None,
     ) -> str:
         if ti_key is not None:
             list_conf = XCom.get_value(key=self.key, ti_key=ti_key)

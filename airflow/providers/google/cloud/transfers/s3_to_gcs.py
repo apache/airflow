@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.s3 import S3Hook
@@ -115,7 +117,7 @@ class S3ToGCSOperator(S3ListOperator):
         delegate_to=None,
         replace=False,
         gzip=False,
-        google_impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        google_impersonation_chain: str | Sequence[str] | None = None,
         **kwargs,
     ):
 
@@ -139,7 +141,7 @@ class S3ToGCSOperator(S3ListOperator):
                 'The destination Google Cloud Storage path must end with a slash "/" or be empty.'
             )
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self._check_inputs()
         # use the super method to list all the files in an S3 bucket/key
         files = super().execute(context)
@@ -165,11 +167,11 @@ class S3ToGCSOperator(S3ListOperator):
                     existing_files_prefixed.remove(object_prefix)
 
                 # Remove the object prefix from all object string paths
-                for f in existing_files_prefixed:
-                    if f.startswith(object_prefix):
-                        existing_files.append(f[len(object_prefix) :])
+                for prefixed_file in existing_files_prefixed:
+                    if prefixed_file.startswith(object_prefix):
+                        existing_files.append(prefixed_file[len(object_prefix) :])
                     else:
-                        existing_files.append(f)
+                        existing_files.append(prefixed_file)
 
             files = list(set(files) - set(existing_files))
             if len(files) > 0:
@@ -184,9 +186,9 @@ class S3ToGCSOperator(S3ListOperator):
                 # GCS hook builds its own in-memory file so we have to create
                 # and pass the path
                 file_object = hook.get_key(file, self.bucket)
-                with NamedTemporaryFile(mode='wb', delete=True) as f:
-                    file_object.download_fileobj(f)
-                    f.flush()
+                with NamedTemporaryFile(mode='wb', delete=True) as temp_file:
+                    file_object.download_fileobj(temp_file)
+                    temp_file.flush()
 
                     dest_gcs_bucket, dest_gcs_object_prefix = _parse_gcs_url(self.dest_gcs)
                     # There will always be a '/' before file because it is
@@ -201,7 +203,7 @@ class S3ToGCSOperator(S3ListOperator):
                     #                             dest_gcs_bucket,
                     #                             dest_gcs_object))
 
-                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, f.name, gzip=self.gzip)
+                    gcs_hook.upload(dest_gcs_bucket, dest_gcs_object, temp_file.name, gzip=self.gzip)
 
             self.log.info("All done, uploaded %d files to Google Cloud Storage", len(files))
         else:

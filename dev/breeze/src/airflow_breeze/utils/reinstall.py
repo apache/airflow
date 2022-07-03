@@ -14,11 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import subprocess
 import sys
 from pathlib import Path
-from typing import Optional
 
 from airflow_breeze import NAME
 from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
@@ -42,7 +42,7 @@ def reinstall_breeze(breeze_sources: Path):
     sys.exit(0)
 
 
-def ask_to_reinstall_breeze(breeze_sources: Path, timeout: Optional[int] = STANDARD_TIMEOUT):
+def ask_to_reinstall_breeze(breeze_sources: Path, timeout: int | None = STANDARD_TIMEOUT):
     """
     Ask the user to reinstall Breeze (and do so if confirmed).
     :param breeze_sources: breeze sources to reinstall Breeze from.

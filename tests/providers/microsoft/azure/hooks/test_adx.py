@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import json
 import unittest
@@ -29,6 +29,9 @@ from airflow.models import Connection
 from airflow.providers.microsoft.azure.hooks.adx import AzureDataExplorerHook
 from airflow.utils import db
 from airflow.utils.session import create_session
+
+#
+
 
 ADX_TEST_CONN_ID = 'adx_test_connection_id'
 

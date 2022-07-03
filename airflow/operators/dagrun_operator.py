@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.operators.trigger_dagrun`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.operators.trigger_dagrun import TriggerDagRunLink, TriggerDagRunOperator  # noqa

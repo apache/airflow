@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import MagicMock, patch
@@ -25,6 +25,8 @@ from kylinpy.exceptions import KylinCubeError
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.kylin.hooks.kylin import KylinHook
+
+#
 
 
 class TestKylinHook(unittest.TestCase):

@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import sys
 import unittest
@@ -35,6 +35,9 @@ from airflow.providers.amazon.aws.operators.ecs import (
     should_retry,
     should_retry_eni,
 )
+
+#
+
 
 # fmt: off
 RESPONSE_WITHOUT_FAILURES = {

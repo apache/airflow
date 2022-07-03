@@ -14,6 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import hashlib
 import json
 import os
@@ -21,7 +23,6 @@ import shutil
 import sys
 import tempfile
 from functools import lru_cache
-from typing import Dict
 
 import requests
 from sphinx.builders import html as builders
@@ -64,7 +65,7 @@ def fetch_and_cache(script_url: str, output_filename: str):
     # Create cache directory
     os.makedirs(cache_dir, exist_ok=True)
     # Load cache metadata
-    cache_metadata: Dict[str, str] = {}
+    cache_metadata: dict[str, str] = {}
     if os.path.exists(cache_metadata_filepath):
         try:
             with open(cache_metadata_filepath) as cache_file:

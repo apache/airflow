@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.mysql.hooks.mysql`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.mysql.hooks.mysql import MySqlHook  # noqa

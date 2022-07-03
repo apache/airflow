@@ -14,9 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import SimpleTaskInstance
@@ -30,7 +31,7 @@ class CallbackRequest:
     :param msg: Additional Message that can be used for logging
     """
 
-    def __init__(self, full_filepath: str, msg: Optional[str] = None):
+    def __init__(self, full_filepath: str, msg: str | None = None):
         self.full_filepath = full_filepath
         self.msg = msg
 
@@ -65,9 +66,9 @@ class TaskCallbackRequest(CallbackRequest):
     def __init__(
         self,
         full_filepath: str,
-        simple_task_instance: "SimpleTaskInstance",
-        is_failure_callback: Optional[bool] = True,
-        msg: Optional[str] = None,
+        simple_task_instance: SimpleTaskInstance,
+        is_failure_callback: bool | None = True,
+        msg: str | None = None,
     ):
         super().__init__(full_filepath=full_filepath, msg=msg)
         self.simple_task_instance = simple_task_instance
@@ -103,8 +104,8 @@ class DagCallbackRequest(CallbackRequest):
         full_filepath: str,
         dag_id: str,
         run_id: str,
-        is_failure_callback: Optional[bool] = True,
-        msg: Optional[str] = None,
+        is_failure_callback: bool | None = True,
+        msg: str | None = None,
     ):
         super().__init__(full_filepath=full_filepath, msg=msg)
         self.dag_id = dag_id
@@ -120,6 +121,6 @@ class SlaCallbackRequest(CallbackRequest):
     :param dag_id: DAG ID
     """
 
-    def __init__(self, full_filepath: str, dag_id: str, msg: Optional[str] = None):
+    def __init__(self, full_filepath: str, dag_id: str, msg: str | None = None):
         super().__init__(full_filepath, msg)
         self.dag_id = dag_id

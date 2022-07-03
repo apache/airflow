@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import ast
 import json
@@ -35,7 +36,7 @@ JenkinsRequest = Mapping[str, Any]
 ParamType = Optional[Union[str, Dict, List]]
 
 
-def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> Optional[JenkinsRequest]:
+def jenkins_request_with_headers(jenkins_server: Jenkins, req: Request) -> JenkinsRequest | None:
     """
     We need to get the headers in addition to the body answer
     to get the location from them
@@ -101,7 +102,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         parameters: ParamType = None,
         sleep_time: int = 10,
         max_try_before_job_appears: int = 10,
-        allowed_jenkins_states: Optional[Iterable[str]] = None,
+        allowed_jenkins_states: Iterable[str] | None = None,
         **kwargs,
     ):
         super().__init__(**kwargs)
@@ -112,7 +113,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         self.max_try_before_job_appears = max_try_before_job_appears
         self.allowed_jenkins_states = list(allowed_jenkins_states) if allowed_jenkins_states else ['SUCCESS']
 
-    def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> Optional[JenkinsRequest]:
+    def build_job(self, jenkins_server: Jenkins, params: ParamType = None) -> JenkinsRequest | None:
         """
         This function makes an API call to Jenkins to trigger a build for 'job_name'
         It returned a dict with 2 keys : body and headers.
@@ -186,7 +187,7 @@ class JenkinsJobTriggerOperator(BaseOperator):
         """Instantiate jenkins hook"""
         return JenkinsHook(self.jenkins_connection_id)
 
-    def execute(self, context: Mapping[Any, Any]) -> Optional[str]:
+    def execute(self, context: Mapping[Any, Any]) -> str | None:
         self.log.info(
             'Triggering the job %s on the jenkins : %s with the parameters : %s',
             self.job_name,

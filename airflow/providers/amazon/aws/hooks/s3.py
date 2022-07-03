@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 """Interact with AWS S3, using the boto3 library."""
+
+from __future__ import annotations
+
 import fnmatch
 import gzip as gz
 import io
@@ -30,7 +31,7 @@ from inspect import signature
 from io import BytesIO
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import Any, Callable, Dict, List, Optional, Tuple, TypeVar, Union, cast
+from typing import Any, Callable, List, TypeVar, cast
 from urllib.parse import urlparse
 
 from boto3.s3.transfer import S3Transfer, TransferConfig
@@ -119,9 +120,9 @@ class S3Hook(AwsBaseHook):
 
     def __init__(
         self,
-        aws_conn_id: Optional[str] = AwsBaseHook.default_conn_name,
-        transfer_config_args: Optional[Dict] = None,
-        extra_args: Optional[Dict] = None,
+        aws_conn_id: str | None = AwsBaseHook.default_conn_name,
+        transfer_config_args: dict | None = None,
+        extra_args: dict | None = None,
         *args,
         **kwargs,
     ) -> None:
@@ -144,7 +145,7 @@ class S3Hook(AwsBaseHook):
         return deepcopy(self._extra_args)
 
     @staticmethod
-    def parse_s3_url(s3url: str) -> Tuple[str, str]:
+    def parse_s3_url(s3url: str) -> tuple[str, str]:
         """
         Parses the S3 Url into a bucket name and key.
 
@@ -164,8 +165,8 @@ class S3Hook(AwsBaseHook):
 
     @staticmethod
     def get_s3_bucket_key(
-        bucket: Optional[str], key: str, bucket_param_name: str, key_param_name: str
-    ) -> Tuple[str, str]:
+        bucket: str | None, key: str, bucket_param_name: str, key_param_name: str
+    ) -> tuple[str, str]:
         """
         Get the S3 bucket name and key from either:
             - bucket name and key. Return the info as it is after checking `key` is a relative path
@@ -191,7 +192,7 @@ class S3Hook(AwsBaseHook):
         return bucket, key
 
     @provide_bucket_name
-    def check_for_bucket(self, bucket_name: Optional[str] = None) -> bool:
+    def check_for_bucket(self, bucket_name: str | None = None) -> bool:
         """
         Check if bucket_name exists.
 
@@ -207,7 +208,7 @@ class S3Hook(AwsBaseHook):
             return False
 
     @provide_bucket_name
-    def get_bucket(self, bucket_name: Optional[str] = None) -> object:
+    def get_bucket(self, bucket_name: str | None = None) -> object:
         """
         Returns a boto3.S3.Bucket object
 
@@ -227,7 +228,7 @@ class S3Hook(AwsBaseHook):
         return s3_resource.Bucket(bucket_name)
 
     @provide_bucket_name
-    def create_bucket(self, bucket_name: Optional[str] = None, region_name: Optional[str] = None) -> None:
+    def create_bucket(self, bucket_name: str | None = None, region_name: str | None = None) -> None:
         """
         Creates an Amazon S3 bucket.
 
@@ -244,7 +245,7 @@ class S3Hook(AwsBaseHook):
             )
 
     @provide_bucket_name
-    def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: Optional[str] = None) -> bool:
+    def check_for_prefix(self, prefix: str, delimiter: str, bucket_name: str | None = None) -> bool:
         """
         Checks that a prefix exists in a bucket
 
@@ -263,11 +264,11 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def list_prefixes(
         self,
-        bucket_name: Optional[str] = None,
-        prefix: Optional[str] = None,
-        delimiter: Optional[str] = None,
-        page_size: Optional[int] = None,
-        max_items: Optional[int] = None,
+        bucket_name: str | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
     ) -> list:
         """
         Lists prefixes in a bucket under prefix
@@ -300,7 +301,7 @@ class S3Hook(AwsBaseHook):
         return prefixes
 
     def _list_key_object_filter(
-        self, keys: list, from_datetime: Optional[datetime] = None, to_datetime: Optional[datetime] = None
+        self, keys: list, from_datetime: datetime | None = None, to_datetime: datetime | None = None
     ) -> list:
         def _is_in_period(input_date: datetime) -> bool:
             if from_datetime is not None and input_date <= from_datetime:
@@ -314,15 +315,15 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def list_keys(
         self,
-        bucket_name: Optional[str] = None,
-        prefix: Optional[str] = None,
-        delimiter: Optional[str] = None,
-        page_size: Optional[int] = None,
-        max_items: Optional[int] = None,
-        start_after_key: Optional[str] = None,
-        from_datetime: Optional[datetime] = None,
-        to_datetime: Optional[datetime] = None,
-        object_filter: Optional[Callable[..., list]] = None,
+        bucket_name: str | None = None,
+        prefix: str | None = None,
+        delimiter: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+        start_after_key: str | None = None,
+        from_datetime: datetime | None = None,
+        to_datetime: datetime | None = None,
+        object_filter: Callable[..., list] | None = None,
     ) -> list:
         """
         Lists keys in a bucket under prefix and not containing delimiter
@@ -393,10 +394,10 @@ class S3Hook(AwsBaseHook):
     def get_file_metadata(
         self,
         prefix: str,
-        bucket_name: Optional[str] = None,
-        page_size: Optional[int] = None,
-        max_items: Optional[int] = None,
-    ) -> List:
+        bucket_name: str | None = None,
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> list:
         """
         Lists metadata objects in a bucket under prefix
 
@@ -423,7 +424,7 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def head_object(self, key: str, bucket_name: Optional[str] = None) -> Optional[dict]:
+    def head_object(self, key: str, bucket_name: str | None = None) -> dict | None:
         """
         Retrieves metadata of an object
 
@@ -442,7 +443,7 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def check_for_key(self, key: str, bucket_name: Optional[str] = None) -> bool:
+    def check_for_key(self, key: str, bucket_name: str | None = None) -> bool:
         """
         Checks if a key exists in a bucket
 
@@ -456,14 +457,14 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def get_key(self, key: str, bucket_name: Optional[str] = None) -> S3Transfer:
+    def get_key(self, key: str, bucket_name: str | None = None):
         """
         Returns a boto3.s3.Object
 
         :param key: the path to the key
         :param bucket_name: the name of the bucket
         :return: the key object from the bucket
-        :rtype: boto3.s3.Object
+        :rtype: boto3.s3.connection
         """
         # Buckets have no regions, and we cannot remove the region name from _get_credentials as we would
         # break compatibility, so we set it explicitly to None.
@@ -480,7 +481,7 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def read_key(self, key: str, bucket_name: Optional[str] = None) -> str:
+    def read_key(self, key: str, bucket_name: str | None = None) -> str:
         """
         Reads a key from S3
 
@@ -497,11 +498,11 @@ class S3Hook(AwsBaseHook):
     def select_key(
         self,
         key: str,
-        bucket_name: Optional[str] = None,
-        expression: Optional[str] = None,
-        expression_type: Optional[str] = None,
-        input_serialization: Optional[Dict[str, Any]] = None,
-        output_serialization: Optional[Dict[str, Any]] = None,
+        bucket_name: str | None = None,
+        expression: str | None = None,
+        expression_type: str | None = None,
+        input_serialization: dict[str, Any] | None = None,
+        output_serialization: dict[str, Any] | None = None,
     ) -> str:
         """
         Reads a key with S3 Select.
@@ -543,7 +544,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     @unify_bucket_name_and_key
     def check_for_wildcard_key(
-        self, wildcard_key: str, bucket_name: Optional[str] = None, delimiter: str = ''
+        self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ''
     ) -> bool:
         """
         Checks that a key matching a wildcard expression exists in a bucket
@@ -562,7 +563,7 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     @unify_bucket_name_and_key
     def get_wildcard_key(
-        self, wildcard_key: str, bucket_name: Optional[str] = None, delimiter: str = ''
+        self, wildcard_key: str, bucket_name: str | None = None, delimiter: str = ''
     ) -> S3Transfer:
         """
         Returns a boto3.s3.Object object matching the wildcard expression
@@ -584,13 +585,13 @@ class S3Hook(AwsBaseHook):
     @unify_bucket_name_and_key
     def load_file(
         self,
-        filename: Union[Path, str],
+        filename: Path | str,
         key: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
         replace: bool = False,
         encrypt: bool = False,
         gzip: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
     ) -> None:
         """
         Loads a local file to S3
@@ -632,12 +633,12 @@ class S3Hook(AwsBaseHook):
         self,
         string_data: str,
         key: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
         replace: bool = False,
         encrypt: bool = False,
-        encoding: Optional[str] = None,
-        acl_policy: Optional[str] = None,
-        compression: Optional[str] = None,
+        encoding: str | None = None,
+        acl_policy: str | None = None,
+        compression: str | None = None,
     ) -> None:
         """
         Loads a string to S3
@@ -682,10 +683,10 @@ class S3Hook(AwsBaseHook):
         self,
         bytes_data: bytes,
         key: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
         replace: bool = False,
         encrypt: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
     ) -> None:
         """
         Loads bytes to S3
@@ -713,10 +714,10 @@ class S3Hook(AwsBaseHook):
         self,
         file_obj: BytesIO,
         key: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
         replace: bool = False,
         encrypt: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
     ) -> None:
         """
         Loads a file object to S3
@@ -737,10 +738,10 @@ class S3Hook(AwsBaseHook):
         self,
         file_obj: BytesIO,
         key: str,
-        bucket_name: Optional[str] = None,
+        bucket_name: str | None = None,
         replace: bool = False,
         encrypt: bool = False,
-        acl_policy: Optional[str] = None,
+        acl_policy: str | None = None,
     ) -> None:
         if not replace and self.check_for_key(key, bucket_name):
             raise ValueError(f"The key {key} already exists.")
@@ -764,10 +765,10 @@ class S3Hook(AwsBaseHook):
         self,
         source_bucket_key: str,
         dest_bucket_key: str,
-        source_bucket_name: Optional[str] = None,
-        dest_bucket_name: Optional[str] = None,
-        source_version_id: Optional[str] = None,
-        acl_policy: Optional[str] = None,
+        source_bucket_name: str | None = None,
+        dest_bucket_name: str | None = None,
+        source_version_id: str | None = None,
+        acl_policy: str | None = None,
     ) -> None:
         """
         Creates a copy of an object that is already stored in S3.
@@ -826,7 +827,7 @@ class S3Hook(AwsBaseHook):
                 self.delete_objects(bucket=bucket_name, keys=bucket_keys)
         self.conn.delete_bucket(Bucket=bucket_name)
 
-    def delete_objects(self, bucket: str, keys: Union[str, list]) -> None:
+    def delete_objects(self, bucket: str, keys: str | list) -> None:
         """
         Delete keys from the bucket.
 
@@ -857,9 +858,7 @@ class S3Hook(AwsBaseHook):
 
     @provide_bucket_name
     @unify_bucket_name_and_key
-    def download_file(
-        self, key: str, bucket_name: Optional[str] = None, local_path: Optional[str] = None
-    ) -> str:
+    def download_file(self, key: str, bucket_name: str | None = None, local_path: str | None = None) -> str:
         """
         Downloads a file from the S3 location to the local file system.
 
@@ -894,10 +893,10 @@ class S3Hook(AwsBaseHook):
     def generate_presigned_url(
         self,
         client_method: str,
-        params: Optional[dict] = None,
+        params: dict | None = None,
         expires_in: int = 3600,
-        http_method: Optional[str] = None,
-    ) -> Optional[str]:
+        http_method: str | None = None,
+    ) -> str | None:
         """
         Generate a presigned url given a client, its method, and arguments
 
@@ -921,7 +920,7 @@ class S3Hook(AwsBaseHook):
             return None
 
     @provide_bucket_name
-    def get_bucket_tagging(self, bucket_name: Optional[str] = None) -> Optional[List[Dict[str, str]]]:
+    def get_bucket_tagging(self, bucket_name: str | None = None) -> list[dict[str, str]] | None:
         """
         Gets a List of tags from a bucket.
 
@@ -941,10 +940,10 @@ class S3Hook(AwsBaseHook):
     @provide_bucket_name
     def put_bucket_tagging(
         self,
-        tag_set: Optional[List[Dict[str, str]]] = None,
-        key: Optional[str] = None,
-        value: Optional[str] = None,
-        bucket_name: Optional[str] = None,
+        tag_set: list[dict[str, str]] | None = None,
+        key: str | None = None,
+        value: str | None = None,
+        bucket_name: str | None = None,
     ) -> None:
         """
         Overwrites the existing TagSet with provided tags.  Must provide either a TagSet or a key/value pair.
@@ -974,7 +973,7 @@ class S3Hook(AwsBaseHook):
             raise e
 
     @provide_bucket_name
-    def delete_bucket_tagging(self, bucket_name: Optional[str] = None) -> None:
+    def delete_bucket_tagging(self, bucket_name: str | None = None) -> None:
         """
         Deletes all tags from a bucket.
 

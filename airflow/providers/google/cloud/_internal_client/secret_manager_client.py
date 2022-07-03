@@ -14,9 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import re
-from typing import Optional
 
 import google
 from google.api_core.exceptions import InvalidArgument, NotFound, PermissionDenied
@@ -61,7 +61,7 @@ class _SecretManagerClient(LoggingMixin):
         _client = SecretManagerServiceClient(credentials=self.credentials, client_info=CLIENT_INFO)
         return _client
 
-    def get_secret(self, secret_id: str, project_id: str, secret_version: str = 'latest') -> Optional[str]:
+    def get_secret(self, secret_id: str, project_id: str, secret_version: str = 'latest') -> str | None:
         """
         Get secret value from the Secret Manager.
 

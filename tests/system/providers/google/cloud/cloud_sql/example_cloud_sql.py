@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 Example Airflow DAG that creates, patches and deletes a Cloud SQL instance, and also
 creates, patches and deletes a database inside the instance, in Google Cloud.
 

@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.postgres.operators.postgres`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.postgres.operators.postgres import Mapping, PostgresOperator  # noqa

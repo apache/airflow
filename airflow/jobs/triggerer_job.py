@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import asyncio
 import os
@@ -22,7 +23,7 @@ import sys
 import threading
 import time
 from collections import deque
-from typing import Deque, Dict, Set, Tuple, Type
+from typing import Deque
 
 from sqlalchemy import func
 
@@ -195,22 +196,22 @@ class TriggerRunner(threading.Thread, LoggingMixin):
     """
 
     # Maps trigger IDs to their running tasks and other info
-    triggers: Dict[int, TriggerDetails]
+    triggers: dict[int, TriggerDetails]
 
     # Cache for looking up triggers by classpath
-    trigger_cache: Dict[str, Type[BaseTrigger]]
+    trigger_cache: dict[str, type[BaseTrigger]]
 
     # Inbound queue of new triggers
-    to_create: Deque[Tuple[int, BaseTrigger]]
+    to_create: Deque[tuple[int, BaseTrigger]]
 
     # Inbound queue of deleted triggers
     to_cancel: Deque[int]
 
     # Outbound queue of events
-    events: Deque[Tuple[int, TriggerEvent]]
+    events: Deque[tuple[int, TriggerEvent]]
 
     # Outbound queue of failed triggers
-    failed_triggers: Deque[Tuple[int, BaseException]]
+    failed_triggers: Deque[tuple[int, BaseException]]
 
     # Should-we-stop flag
     stop: bool = False
@@ -370,7 +371,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
 
     # Main-thread sync API
 
-    def update_triggers(self, requested_trigger_ids: Set[int]):
+    def update_triggers(self, requested_trigger_ids: set[int]):
         """
         Called from the main thread to request that we update what
         triggers we're running.
@@ -413,7 +414,7 @@ class TriggerRunner(threading.Thread, LoggingMixin):
         for old_id in cancel_trigger_ids:
             self.to_cancel.append(old_id)
 
-    def get_trigger_by_classpath(self, classpath: str) -> Type[BaseTrigger]:
+    def get_trigger_by_classpath(self, classpath: str) -> type[BaseTrigger]:
         """
         Gets a trigger class by its classpath ("path.to.module.classname")
 

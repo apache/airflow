@@ -15,9 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import json
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.lambda_function import LambdaHook
@@ -54,11 +55,11 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         self,
         *,
         function_name: str,
-        log_type: Optional[str] = None,
-        qualifier: Optional[str] = None,
-        invocation_type: Optional[str] = None,
-        client_context: Optional[str] = None,
-        payload: Optional[str] = None,
+        log_type: str | None = None,
+        qualifier: str | None = None,
+        invocation_type: str | None = None,
+        client_context: str | None = None,
+        payload: str | None = None,
         aws_conn_id: str = 'aws_default',
         **kwargs,
     ):
@@ -71,7 +72,7 @@ class AwsLambdaInvokeFunctionOperator(BaseOperator):
         self.client_context = client_context
         self.aws_conn_id = aws_conn_id
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         """
         Invokes the target AWS Lambda function from Airflow.
 

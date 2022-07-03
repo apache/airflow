@@ -15,7 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 """This module contains a link for GCS Storage assets."""
-from typing import TYPE_CHECKING, Optional
+
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.links.base import BaseGoogleLink
@@ -36,7 +39,7 @@ class StorageLink(BaseGoogleLink):
     format_str = GCS_STORAGE_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance, uri: str, project_id: Optional[str]):
+    def persist(context: Context, task_instance, uri: str, project_id: str | None):
         task_instance.xcom_push(
             context=context,
             key=StorageLink.key,
@@ -52,7 +55,7 @@ class FileDetailsLink(BaseGoogleLink):
     format_str = GCS_FILE_DETAILS_LINK
 
     @staticmethod
-    def persist(context: "Context", task_instance: BaseOperator, uri: str, project_id: Optional[str]):
+    def persist(context: Context, task_instance: BaseOperator, uri: str, project_id: str | None):
         task_instance.xcom_push(
             context=context,
             key=FileDetailsLink.key,

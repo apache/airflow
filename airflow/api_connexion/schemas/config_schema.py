@@ -14,8 +14,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
-from typing import List, NamedTuple
+from typing import NamedTuple
 
 from marshmallow import Schema, fields
 
@@ -45,7 +46,7 @@ class ConfigSection(NamedTuple):
     """List of config options within a section"""
 
     name: str
-    options: List[ConfigOption]
+    options: list[ConfigOption]
 
 
 class ConfigSchema(Schema):
@@ -57,7 +58,7 @@ class ConfigSchema(Schema):
 class Config(NamedTuple):
     """List of config sections with their options"""
 
-    sections: List[ConfigSection]
+    sections: list[ConfigSection]
 
 
 config_schema = ConfigSchema()

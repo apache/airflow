@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import MagicMock, patch
@@ -26,6 +26,8 @@ import requests_mock
 
 from airflow.exceptions import AirflowException
 from airflow.providers.apache.druid.hooks.druid import DruidDbApiHook, DruidHook
+
+#
 
 
 class TestDruidHook(unittest.TestCase):

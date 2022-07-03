@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import patch
@@ -25,6 +25,8 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
 from airflow.providers.microsoft.winrm.hooks.winrm import WinRMHook
+
+#
 
 
 class TestWinRMHook(unittest.TestCase):

@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """jsonschema for validating serialized DAG and operator."""
+
+from __future__ import annotations
 
 import pkgutil
 from typing import Iterable

@@ -15,17 +15,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from os import listdir
 from pathlib import Path
-from typing import List
 
 AIRFLOW_SOURCES_DIR = Path(__file__).parents[3].resolve()
 
 
-def insert_content(file_path: Path, content: List[str], header: str, footer: str, file_name: str):
+def insert_content(file_path: Path, content: list[str], header: str, footer: str, file_name: str):
     text = file_path.read_text().splitlines(keepends=True)
     replacing = False
-    result: List[str] = []
+    result: list[str] = []
     for line in text:
         if line.startswith(f"{header}{file_name}"):
             replacing = True

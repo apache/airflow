@@ -16,7 +16,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
+from __future__ import annotations
 
 # Airflow documentation build configuration file, created by
 # sphinx-quickstart on Thu Oct  9 20:50:01 2014.
@@ -36,7 +36,7 @@ import os
 import sys
 from collections import defaultdict
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 import yaml
 
@@ -54,7 +54,7 @@ FOR_PRODUCTION = os.environ.get('AIRFLOW_FOR_PRODUCTION', 'false') == 'true'
 
 # By default (e.g. on RTD), build docs for `airflow` package
 PACKAGE_NAME = os.environ.get('AIRFLOW_PACKAGE_NAME', 'apache-airflow')
-PACKAGE_DIR: Optional[str]
+PACKAGE_DIR: str | None
 if PACKAGE_NAME == 'apache-airflow':
     PACKAGE_DIR = os.path.join(ROOT_DIR, 'airflow')
     PACKAGE_VERSION = airflow.__version__
@@ -180,7 +180,7 @@ else:
     extensions.append('autoapi.extension')
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
-exclude_patterns: List[str]
+exclude_patterns: list[str]
 if PACKAGE_NAME == 'apache-airflow':
     exclude_patterns = [
         # We only link to selected subpackages.
@@ -324,7 +324,7 @@ html_show_copyright = False
 if PACKAGE_NAME.startswith('apache-airflow-providers-'):
     # Only hide hidden items for providers. For Chart and Airflow we are using the approach where
     # TOC is hidden but sidebar still shows the content (but we are not doing it for providers).
-    html_theme_options: Dict[str, Any] = {'hide_website_buttons': True, 'sidebar_includehidden': False}
+    html_theme_options: dict[str, Any] = {'hide_website_buttons': True, 'sidebar_includehidden': False}
 else:
     html_theme_options = {'hide_website_buttons': True, 'sidebar_includehidden': True}
 if FOR_PRODUCTION:
@@ -373,7 +373,7 @@ html_context = {
 
 # Jinja context
 if PACKAGE_NAME == 'apache-airflow':
-    deprecated_options: Dict[str, Dict[str, Tuple[str, str, str]]] = defaultdict(dict)
+    deprecated_options: dict[str, dict[str, tuple[str, str, str]]] = defaultdict(dict)
     for (section, key), (
         (deprecated_section, deprecated_key, since_version)
     ) in AirflowConfigParser.deprecated_options.items():
@@ -455,7 +455,7 @@ elif PACKAGE_NAME == 'helm-chart':
             return '~'
         return str(value)
 
-    def _format_examples(param_name: str, schema: dict) -> Optional[str]:
+    def _format_examples(param_name: str, schema: dict) -> str | None:
         if not schema.get("examples"):
             return None
 
@@ -467,7 +467,7 @@ elif PACKAGE_NAME == 'helm-chart':
             out += yaml.dump({param_name: ex})
         return out
 
-    def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") -> List[dict]:
+    def _get_params(root_schema: dict, prefix: str = "", default_section: str = "") -> list[dict]:
         """
         Given an jsonschema objects properties dict, return a flattened list of all parameters
         from that object and any nested objects
@@ -498,7 +498,7 @@ elif PACKAGE_NAME == 'helm-chart':
     params = _get_params(chart_schema["properties"])
 
     # Now, split into sections
-    sections: Dict[str, List[Dict[str, str]]] = {}
+    sections: dict[str, list[dict[str, str]]] = {}
     for param in params:
         if param["section"] not in sections:
             sections[param["section"]] = []

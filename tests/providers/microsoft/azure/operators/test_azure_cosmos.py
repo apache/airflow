@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
+from __future__ import annotations
 
 import json
 import unittest
@@ -26,6 +25,8 @@ from unittest import mock
 from airflow.models import Connection
 from airflow.providers.microsoft.azure.operators.cosmos import AzureCosmosInsertDocumentOperator
 from airflow.utils import db
+
+#
 
 
 class TestAzureCosmosDbHook(unittest.TestCase):

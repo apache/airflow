@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.amazon.aws.hooks.base_aws`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook, _parse_s3_config, boto3  # noqa

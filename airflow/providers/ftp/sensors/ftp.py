@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import ftplib
 import re
 from typing import TYPE_CHECKING, Sequence
@@ -66,7 +68,7 @@ class FTPSensor(BaseSensorOperator):
         except ValueError:
             return e
 
-    def poke(self, context: 'Context') -> bool:
+    def poke(self, context: Context) -> bool:
         with self._create_hook() as hook:
             self.log.info('Poking for %s', self.path)
             try:

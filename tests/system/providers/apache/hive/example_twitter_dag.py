@@ -15,18 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-# --------------------------------------------------------------------------------
-# Caveat: This Dag will not run because of missing scripts.
-# The purpose of this is to give you a sample of a real world example DAG!
-# --------------------------------------------------------------------------------
+"""
+This is an example dag for managing twitter data.
+"""
+from __future__ import annotations
 
 # --------------------------------------------------------------------------------
 # Load The Dependencies
 # --------------------------------------------------------------------------------
-"""
-This is an example dag for managing twitter data.
-"""
-
 import os
 from datetime import date, datetime, timedelta
 
@@ -34,6 +30,12 @@ from airflow import DAG
 from airflow.decorators import task
 from airflow.operators.bash import BashOperator
 from airflow.providers.apache.hive.operators.hive import HiveOperator
+
+# --------------------------------------------------------------------------------
+# Caveat: This Dag will not run because of missing scripts.
+# The purpose of this is to give you a sample of a real world example DAG!
+# --------------------------------------------------------------------------------
+
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_twitter_dag"

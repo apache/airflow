@@ -15,12 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-"""This module contains a Google Cloud KMS hook"""
-
+from __future__ import annotations
 
 import base64
-from typing import Optional, Sequence, Tuple, Union
+from typing import Optional, Sequence
 
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
 from google.api_core.retry import Retry
@@ -28,6 +26,8 @@ from google.cloud.kms_v1 import KeyManagementServiceClient
 
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
+
+# """This module contains a Google Cloud KMS hook"""
 
 
 def _b64encode(s: bytes) -> str:
@@ -61,8 +61,8 @@ class CloudKMSHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
@@ -88,10 +88,10 @@ class CloudKMSHook(GoogleBaseHook):
         self,
         key_name: str,
         plaintext: bytes,
-        authenticated_data: Optional[bytes] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        authenticated_data: bytes | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> str:
         """
         Encrypts a plaintext message using Google Cloud KMS.
@@ -128,10 +128,10 @@ class CloudKMSHook(GoogleBaseHook):
         self,
         key_name: str,
         ciphertext: str,
-        authenticated_data: Optional[bytes] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        authenticated_data: bytes | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> bytes:
         """
         Decrypts a ciphertext message using Google Cloud KMS.

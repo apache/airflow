@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -23,6 +23,8 @@ from unittest import mock
 from boto3.session import Session
 
 from airflow.providers.amazon.aws.utils.redshift import build_credentials_block
+
+#
 
 
 class TestS3ToRedshiftTransfer(unittest.TestCase):

@@ -16,3 +16,5 @@
 # specific language governing permissions and limitations
 # under the License.
 """Hooks."""
+
+from __future__ import annotations

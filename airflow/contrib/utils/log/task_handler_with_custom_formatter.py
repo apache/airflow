@@ -16,6 +16,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.utils.log.task_handler_with_custom_formatter`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.utils.log.task_handler_with_custom_formatter import TaskHandlerWithCustomFormatter  # noqa

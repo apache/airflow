@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module contains AWS Glue Catalog Hook"""
+
+from __future__ import annotations
+
 import warnings
-from typing import Dict, List, Optional, Set
 
 from botocore.exceptions import ClientError
 
@@ -45,9 +46,9 @@ class GlueCatalogHook(AwsBaseHook):
         database_name: str,
         table_name: str,
         expression: str = '',
-        page_size: Optional[int] = None,
-        max_items: Optional[int] = None,
-    ) -> Set[tuple]:
+        page_size: int | None = None,
+        max_items: int | None = None,
+    ) -> set[tuple]:
         """
         Retrieves the partition values for a table.
 
@@ -126,7 +127,7 @@ class GlueCatalogHook(AwsBaseHook):
 
         return table['StorageDescriptor']['Location']
 
-    def get_partition(self, database_name: str, table_name: str, partition_values: List[str]) -> Dict:
+    def get_partition(self, database_name: str, table_name: str, partition_values: list[str]) -> dict:
         """
         Gets a Partition
 
@@ -153,7 +154,7 @@ class GlueCatalogHook(AwsBaseHook):
             self.log.error("Client error: %s", e)
             raise AirflowException("AWS request failed, check logs for more info")
 
-    def create_partition(self, database_name: str, table_name: str, partition_input: Dict) -> Dict:
+    def create_partition(self, database_name: str, table_name: str, partition_input: dict) -> dict:
         """
         Creates a new Partition
 

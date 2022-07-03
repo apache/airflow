@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import json
 import os
@@ -32,6 +32,9 @@ from airflow.models import Connection
 from airflow.providers.cncf.kubernetes.hooks.kubernetes import KubernetesHook
 from airflow.utils import db
 from tests.test_utils.db import clear_db_connections
+
+#
+
 
 KUBE_CONFIG_PATH = os.getenv('KUBECONFIG', '~/.kube/config')
 HOOK_MODULE = "airflow.providers.cncf.kubernetes.hooks.kubernetes"

@@ -15,10 +15,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import json
 import os
 import warnings
-from typing import Any, Callable, Iterable, Optional, overload
+from typing import Any, Callable, Iterable, overload
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -147,7 +149,7 @@ class PrestoHook(DbApiHook):
         return sql.strip().rstrip(';')
 
     @overload
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None):
+    def get_records(self, sql: str = "", parameters: dict | None = None):
         """Get a set of records from Presto
 
         :param sql: SQL statement to be executed.
@@ -155,10 +157,10 @@ class PrestoHook(DbApiHook):
         """
 
     @overload
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+    def get_records(self, sql: str = "", parameters: dict | None = None, hql: str = ""):
         """:sphinx-autoapi-skip:"""
 
-    def get_records(self, sql: str = "", parameters: Optional[dict] = None, hql: str = ""):
+    def get_records(self, sql: str = "", parameters: dict | None = None, hql: str = ""):
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -174,7 +176,7 @@ class PrestoHook(DbApiHook):
             raise PrestoException(e)
 
     @overload
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None) -> Any:
+    def get_first(self, sql: str = "", parameters: dict | None = None) -> Any:
         """Returns only the first row, regardless of how many rows the query returns.
 
         :param sql: SQL statement to be executed.
@@ -182,10 +184,10 @@ class PrestoHook(DbApiHook):
         """
 
     @overload
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+    def get_first(self, sql: str = "", parameters: dict | None = None, hql: str = "") -> Any:
         """:sphinx-autoapi-skip:"""
 
-    def get_first(self, sql: str = "", parameters: Optional[dict] = None, hql: str = "") -> Any:
+    def get_first(self, sql: str = "", parameters: dict | None = None, hql: str = "") -> Any:
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -243,8 +245,8 @@ class PrestoHook(DbApiHook):
         self,
         sql: str = "",
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
-        handler: Optional[Callable] = None,
+        parameters: dict | None = None,
+        handler: Callable | None = None,
     ) -> None:
         """Execute the statement against Presto. Can be used to create views."""
 
@@ -253,8 +255,8 @@ class PrestoHook(DbApiHook):
         self,
         sql: str = "",
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
-        handler: Optional[Callable] = None,
+        parameters: dict | None = None,
+        handler: Callable | None = None,
         hql: str = "",
     ) -> None:
         """:sphinx-autoapi-skip:"""
@@ -263,8 +265,8 @@ class PrestoHook(DbApiHook):
         self,
         sql: str = "",
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
-        handler: Optional[Callable] = None,
+        parameters: dict | None = None,
+        handler: Callable | None = None,
         hql: str = "",
     ) -> None:
         """:sphinx-autoapi-skip:"""
@@ -282,7 +284,7 @@ class PrestoHook(DbApiHook):
         self,
         table: str,
         rows: Iterable[tuple],
-        target_fields: Optional[Iterable[str]] = None,
+        target_fields: Iterable[str] | None = None,
         commit_every: int = 0,
         replace: bool = False,
         **kwargs,

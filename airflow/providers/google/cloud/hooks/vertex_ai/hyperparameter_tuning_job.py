@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
 """This module contains a Google Cloud Vertex AI hook.
 
 .. spelling::
@@ -26,8 +25,9 @@
     aiplatform
     myVPC
 """
+from __future__ import annotations
 
-from typing import Dict, List, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core.client_options import ClientOptions
 from google.api_core.gapic_v1.method import DEFAULT, _MethodDefault
@@ -47,17 +47,17 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._hyperparameter_tuning_job: Optional[HyperparameterTuningJob] = None
+        self._hyperparameter_tuning_job: HyperparameterTuningJob | None = None
 
-    def get_job_service_client(self, region: Optional[str] = None) -> JobServiceClient:
+    def get_job_service_client(self, region: str | None = None) -> JobServiceClient:
         """Returns JobServiceClient."""
         if region and region != 'global':
             client_options = ClientOptions(api_endpoint=f'{region}-aiplatform.googleapis.com:443')
@@ -72,17 +72,17 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         self,
         display_name: str,
         custom_job: CustomJob,
-        metric_spec: Dict[str, str],
-        parameter_spec: Dict[str, hyperparameter_tuning._ParameterSpec],
+        metric_spec: dict[str, str],
+        parameter_spec: dict[str, hyperparameter_tuning._ParameterSpec],
         max_trial_count: int,
         parallel_trial_count: int,
         max_failed_trial_count: int = 0,
-        search_algorithm: Optional[str] = None,
-        measurement_selection: Optional[str] = "best",
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        encryption_spec_key_name: Optional[str] = None,
+        search_algorithm: str | None = None,
+        measurement_selection: str | None = "best",
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        encryption_spec_key_name: str | None = None,
     ) -> HyperparameterTuningJob:
         """Returns HyperparameterTuningJob object"""
         return HyperparameterTuningJob(
@@ -105,13 +105,13 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
     def get_custom_job_object(
         self,
         display_name: str,
-        worker_pool_specs: Union[List[Dict], List[gapic.WorkerPoolSpec]],
-        base_output_dir: Optional[str] = None,
-        project: Optional[str] = None,
-        location: Optional[str] = None,
-        labels: Optional[Dict[str, str]] = None,
-        encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        worker_pool_specs: list[dict] | list[gapic.WorkerPoolSpec],
+        base_output_dir: str | None = None,
+        project: str | None = None,
+        location: str | None = None,
+        labels: dict[str, str] | None = None,
+        encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
     ) -> CustomJob:
         """Returns CustomJob object"""
         return CustomJob(
@@ -127,11 +127,11 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         )
 
     @staticmethod
-    def extract_hyperparameter_tuning_job_id(obj: Dict) -> str:
+    def extract_hyperparameter_tuning_job_id(obj: dict) -> str:
         """Returns unique id of the hyperparameter_tuning_job."""
         return obj["name"].rpartition("/")[-1]
 
-    def wait_for_operation(self, operation: Operation, timeout: Optional[float] = None):
+    def wait_for_operation(self, operation: Operation, timeout: float | None = None):
         """Waits for long-lasting operation to complete."""
         try:
             return operation.result(timeout=timeout)
@@ -150,29 +150,29 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         display_name: str,
-        metric_spec: Dict[str, str],
-        parameter_spec: Dict[str, hyperparameter_tuning._ParameterSpec],
+        metric_spec: dict[str, str],
+        parameter_spec: dict[str, hyperparameter_tuning._ParameterSpec],
         max_trial_count: int,
         parallel_trial_count: int,
         # START: CustomJob param
-        worker_pool_specs: Union[List[Dict], List[gapic.WorkerPoolSpec]],
-        base_output_dir: Optional[str] = None,
-        custom_job_labels: Optional[Dict[str, str]] = None,
-        custom_job_encryption_spec_key_name: Optional[str] = None,
-        staging_bucket: Optional[str] = None,
+        worker_pool_specs: list[dict] | list[gapic.WorkerPoolSpec],
+        base_output_dir: str | None = None,
+        custom_job_labels: dict[str, str] | None = None,
+        custom_job_encryption_spec_key_name: str | None = None,
+        staging_bucket: str | None = None,
         # END: CustomJob param
         max_failed_trial_count: int = 0,
-        search_algorithm: Optional[str] = None,
-        measurement_selection: Optional[str] = "best",
-        hyperparameter_tuning_job_labels: Optional[Dict[str, str]] = None,
-        hyperparameter_tuning_job_encryption_spec_key_name: Optional[str] = None,
+        search_algorithm: str | None = None,
+        measurement_selection: str | None = "best",
+        hyperparameter_tuning_job_labels: dict[str, str] | None = None,
+        hyperparameter_tuning_job_encryption_spec_key_name: str | None = None,
         # START: run param
-        service_account: Optional[str] = None,
-        network: Optional[str] = None,
-        timeout: Optional[int] = None,  # seconds
+        service_account: str | None = None,
+        network: str | None = None,
+        timeout: int | None = None,  # seconds
         restart_job_on_worker_restart: bool = False,
         enable_web_access: bool = False,
-        tensorboard: Optional[str] = None,
+        tensorboard: str | None = None,
         sync: bool = True,
         # END: run param
     ) -> HyperparameterTuningJob:
@@ -304,9 +304,9 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         hyperparameter_tuning_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> types.HyperparameterTuningJob:
         """
         Gets a HyperparameterTuningJob
@@ -336,13 +336,13 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         self,
         project_id: str,
         region: str,
-        filter: Optional[str] = None,
-        page_size: Optional[int] = None,
-        page_token: Optional[str] = None,
-        read_mask: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        filter: str | None = None,
+        page_size: int | None = None,
+        page_token: str | None = None,
+        read_mask: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> ListHyperparameterTuningJobsPager:
         """
         Lists HyperparameterTuningJobs in a Location.
@@ -389,9 +389,9 @@ class HyperparameterTuningJobHook(GoogleBaseHook):
         project_id: str,
         region: str,
         hyperparameter_tuning_job: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ) -> Operation:
         """
         Deletes a HyperparameterTuningJob.

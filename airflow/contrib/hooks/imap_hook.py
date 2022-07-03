@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.imap.hooks.imap`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.imap.hooks.imap import ImapHook, Mail, MailPart  # noqa

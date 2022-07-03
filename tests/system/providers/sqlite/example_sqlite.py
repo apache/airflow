@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 This is an example DAG for the use of the SqliteOperator.
 In this example, we create two tasks that execute in sequence.
 The first task calls an sql command, defined in the SQLite operator,

@@ -15,6 +15,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import pytest
 
 from airflow.providers.amazon.aws.example_dags.example_imap_attachment_to_s3 import S3_BUCKET

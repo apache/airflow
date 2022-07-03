@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest.mock import Mock, patch
@@ -23,6 +23,9 @@ from unittest.mock import Mock, patch
 from airflow.models import Connection
 from airflow.providers.github.hooks.github import GithubHook
 from airflow.utils import db
+
+#
+
 
 github_client_mock = Mock(name="github_client_for_test")
 

@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Callable, Optional, Sequence
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Callable, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.arangodb.hooks.arangodb import ArangoDBHook
@@ -48,7 +50,7 @@ class AQLOperator(BaseOperator):
         *,
         query: str,
         arangodb_conn_id: str = 'arangodb_default',
-        result_processor: Optional[Callable] = None,
+        result_processor: Callable | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -56,7 +58,7 @@ class AQLOperator(BaseOperator):
         self.query = query
         self.result_processor = result_processor
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         self.log.info('Executing: %s', self.query)
         hook = ArangoDBHook(arangodb_conn_id=self.arangodb_conn_id)
         result = hook.query(self.query)

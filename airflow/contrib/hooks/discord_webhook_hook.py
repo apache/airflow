@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.discord.hooks.discord_webhook`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.discord.hooks.discord_webhook import DiscordWebhookHook  # noqa

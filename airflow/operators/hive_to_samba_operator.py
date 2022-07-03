@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.apache.hive.transfers.hive_to_samba`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.apache.hive.transfers.hive_to_samba import HiveToSambaOperator  # noqa

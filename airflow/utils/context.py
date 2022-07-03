@@ -15,27 +15,15 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Jinja2 template rendering context helper."""
+
+from __future__ import annotations
 
 import contextlib
 import copy
 import functools
 import warnings
-from typing import (
-    AbstractSet,
-    Any,
-    Container,
-    Dict,
-    ItemsView,
-    Iterator,
-    List,
-    Mapping,
-    MutableMapping,
-    Optional,
-    Tuple,
-    ValuesView,
-)
+from typing import AbstractSet, Any, Container, ItemsView, Iterator, Mapping, MutableMapping, ValuesView
 
 import lazy_object_proxy
 
@@ -140,7 +128,7 @@ class AirflowContextDeprecationWarning(DeprecationWarning):
     """Warn for usage of deprecated context variables in a task."""
 
 
-def _create_deprecation_warning(key: str, replacements: List[str]) -> DeprecationWarning:
+def _create_deprecation_warning(key: str, replacements: list[str]) -> DeprecationWarning:
     message = f"Accessing {key!r} from the template is deprecated and will be removed in a future version."
     if not replacements:
         return AirflowContextDeprecationWarning(message)
@@ -159,7 +147,7 @@ class Context(MutableMapping[str, Any]):
     (and only when) deprecated context keys are accessed.
     """
 
-    _DEPRECATION_REPLACEMENTS: Dict[str, List[str]] = {
+    _DEPRECATION_REPLACEMENTS: dict[str, list[str]] = {
         "execution_date": ["data_interval_start", "logical_date"],
         "next_ds": ["{{ data_interval_end | ds }}"],
         "next_ds_nodash": ["{{ data_interval_end | ds_nodash }}"],
@@ -174,7 +162,7 @@ class Context(MutableMapping[str, Any]):
         "yesterday_ds_nodash": [],
     }
 
-    def __init__(self, context: Optional[MutableMapping[str, Any]] = None, **kwargs: Any) -> None:
+    def __init__(self, context: MutableMapping[str, Any] | None = None, **kwargs: Any) -> None:
         self._context = context or {}
         if kwargs:
             self._context.update(kwargs)
@@ -183,7 +171,7 @@ class Context(MutableMapping[str, Any]):
     def __repr__(self) -> str:
         return repr(self._context)
 
-    def __reduce_ex__(self, protocol: int) -> Tuple[Any, ...]:
+    def __reduce_ex__(self, protocol: int) -> tuple[Any, ...]:
         """Pickle the context as a dict.
 
         We are intentionally going through ``__getitem__`` in this function,
@@ -192,7 +180,7 @@ class Context(MutableMapping[str, Any]):
         items = [(key, self[key]) for key in self._context]
         return dict, (items,)
 
-    def __copy__(self) -> "Context":
+    def __copy__(self) -> Context:
         new = type(self)(copy.copy(self._context))
         new._deprecation_replacements = self._deprecation_replacements.copy()
         return new
@@ -241,7 +229,7 @@ class Context(MutableMapping[str, Any]):
         return ValuesView(self._context)
 
 
-def context_merge(context: "Context", *args: Any, **kwargs: Any) -> None:
+def context_merge(context: Context, *args: Any, **kwargs: Any) -> None:
     """Merge parameters into an existing context.
 
     Like ``dict.update()`` , this take the same parameters, and updates
@@ -256,7 +244,7 @@ def context_merge(context: "Context", *args: Any, **kwargs: Any) -> None:
     context.update(*args, **kwargs)
 
 
-def context_copy_partial(source: "Context", keys: Container[str]) -> "Context":
+def context_copy_partial(source: Context, keys: Container[str]) -> Context:
     """Create a context by copying items under selected keys in ``source``.
 
     This is implemented as a free function because the ``Context`` type is

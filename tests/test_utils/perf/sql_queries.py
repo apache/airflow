@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import statistics
 from time import monotonic, sleep
-from typing import List, NamedTuple, Optional, Tuple
+from typing import NamedTuple
 
 import pandas as pd
 
@@ -131,7 +132,7 @@ def is_query(line: str) -> bool:
     return "@SQLALCHEMY" in line and "|$" in line
 
 
-def make_report() -> List[Query]:
+def make_report() -> list[Query]:
     """
     Returns a list of Query objects that are expected to be run during the performance run.
     """
@@ -157,7 +158,7 @@ def make_report() -> List[Query]:
     return queries
 
 
-def run_test() -> Tuple[List[Query], float]:
+def run_test() -> tuple[list[Query], float]:
     """
     Run the tests inside a scheduler and then return the elapsed time along with
     the queries that will be run.
@@ -172,7 +173,7 @@ def run_test() -> Tuple[List[Query], float]:
     return queries, toc - tic
 
 
-def rows_to_csv(rows: List[dict], name: Optional[str] = None) -> pd.DataFrame:
+def rows_to_csv(rows: list[dict], name: str | None = None) -> pd.DataFrame:
     """
     Write results stats to a file.
     """

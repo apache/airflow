@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.jdbc.hooks.jdbc`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.jdbc.hooks.jdbc import JdbcHook, jaydebeapi  # noqa

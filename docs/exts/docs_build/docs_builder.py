@@ -14,13 +14,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import os
 import re
 import shlex
 import shutil
 from glob import glob
 from subprocess import run
-from typing import List
 
 from rich.console import Console
 
@@ -124,7 +125,7 @@ class AirflowDocsBuilder:
         os.makedirs(api_dir, exist_ok=True)
         os.makedirs(self._build_dir, exist_ok=True)
 
-    def check_spelling(self, verbose: bool) -> List[SpellingError]:
+    def check_spelling(self, verbose: bool) -> list[SpellingError]:
         """
         Checks spelling
 
@@ -201,7 +202,7 @@ class AirflowDocsBuilder:
                 )
         return spelling_errors
 
-    def build_sphinx_docs(self, verbose: bool) -> List[DocBuildError]:
+    def build_sphinx_docs(self, verbose: bool) -> list[DocBuildError]:
         """
         Build Sphinx documentation.
 

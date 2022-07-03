@@ -15,7 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import Any, Dict
+from __future__ import annotations
+
+from typing import Any
 
 import httpx
 import pendulum
@@ -53,7 +55,7 @@ def example_dag_decorator(email: str = 'example@example.com'):
     get_ip = GetRequestOperator(task_id='get_ip', url="http://httpbin.org/get")
 
     @task(multiple_outputs=True)
-    def prepare_email(raw_json: Dict[str, Any]) -> Dict[str, str]:
+    def prepare_email(raw_json: dict[str, Any]) -> dict[str, str]:
         external_ip = raw_json['origin']
         return {
             'subject': f'Server connected from {external_ip}',

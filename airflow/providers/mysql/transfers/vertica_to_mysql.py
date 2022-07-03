@@ -15,10 +15,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 from contextlib import closing
 from tempfile import NamedTemporaryFile
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 import MySQLdb
 import unicodecsv as csv
@@ -72,8 +73,8 @@ class VerticaToMySqlOperator(BaseOperator):
         mysql_table: str,
         vertica_conn_id: str = 'vertica_default',
         mysql_conn_id: str = 'mysql_default',
-        mysql_preoperator: Optional[str] = None,
-        mysql_postoperator: Optional[str] = None,
+        mysql_preoperator: str | None = None,
+        mysql_postoperator: str | None = None,
         bulk_load: bool = False,
         *args,
         **kwargs,
@@ -87,7 +88,7 @@ class VerticaToMySqlOperator(BaseOperator):
         self.vertica_conn_id = vertica_conn_id
         self.bulk_load = bulk_load
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         vertica = VerticaHook(vertica_conn_id=self.vertica_conn_id)
         mysql = MySqlHook(mysql_conn_id=self.mysql_conn_id)
 

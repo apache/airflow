@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.hooks.base`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.hooks.base import BaseHook  # noqa

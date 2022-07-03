@@ -14,6 +14,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import logging
 import os
@@ -23,7 +24,6 @@ import subprocess
 import threading
 import time
 from collections import deque
-from typing import Dict, List
 
 from termcolor import colored
 
@@ -265,7 +265,7 @@ class SubCommand(threading.Thread):
     complex logic that brings doing line buffering.
     """
 
-    def __init__(self, parent, name: str, command: List[str], env: Dict[str, str]):
+    def __init__(self, parent, name: str, command: list[str], env: dict[str, str]):
         super().__init__()
         self.parent = parent
         self.name = name

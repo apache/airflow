@@ -15,8 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
-
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -26,6 +25,9 @@ import pytest
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.batch_client import BatchClientHook
 from airflow.providers.amazon.aws.operators.batch import BatchOperator
+
+#
+
 
 # Use dummy AWS credentials
 AWS_REGION = "eu-west-1"

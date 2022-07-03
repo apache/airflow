@@ -15,8 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 from time import sleep
-from typing import Optional
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
@@ -104,9 +105,9 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
     def wait_for_availability(
         self,
         replication_group_id: str,
-        initial_sleep_time: Optional[float] = None,
-        exponential_back_off_factor: Optional[float] = None,
-        max_retries: Optional[int] = None,
+        initial_sleep_time: float | None = None,
+        exponential_back_off_factor: float | None = None,
+        max_retries: int | None = None,
     ):
         """
         Check if replication group is available or not by performing a describe over it
@@ -159,9 +160,9 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
     def wait_for_deletion(
         self,
         replication_group_id: str,
-        initial_sleep_time: Optional[float] = None,
-        exponential_back_off_factor: Optional[float] = None,
-        max_retries: Optional[int] = None,
+        initial_sleep_time: float | None = None,
+        exponential_back_off_factor: float | None = None,
+        max_retries: int | None = None,
     ):
         """
         Helper for deleting a replication group ensuring it is either deleted or can't be deleted
@@ -235,9 +236,9 @@ class ElastiCacheReplicationGroupHook(AwsBaseHook):
     def ensure_delete_replication_group(
         self,
         replication_group_id: str,
-        initial_sleep_time: Optional[float] = None,
-        exponential_back_off_factor: Optional[float] = None,
-        max_retries: Optional[int] = None,
+        initial_sleep_time: float | None = None,
+        exponential_back_off_factor: float | None = None,
+        max_retries: int | None = None,
     ):
         """
         Delete a replication group ensuring it is either deleted or can't be deleted

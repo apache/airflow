@@ -15,12 +15,14 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 This module contains a hook (AwsLogsHook) with some very basic
 functionality for interacting with AWS CloudWatch.
 """
-from typing import Dict, Generator, Optional
+from typing import Generator
 
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 
@@ -68,7 +70,7 @@ class AwsLogsHook(AwsBaseHook):
         next_token = None
         while True:
             if next_token is not None:
-                token_arg: Optional[Dict[str, str]] = {'nextToken': next_token}
+                token_arg: dict[str, str] | None = {'nextToken': next_token}
             else:
                 token_arg = {}
 

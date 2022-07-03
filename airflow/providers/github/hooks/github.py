@@ -15,9 +15,9 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """This module allows to connect to a Github."""
-from typing import Dict, Optional
+
+from __future__ import annotations
 
 from github import Github as GithubClient
 
@@ -41,7 +41,7 @@ class GithubHook(BaseHook):
     def __init__(self, github_conn_id: str = default_conn_name, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
         self.github_conn_id = github_conn_id
-        self.client: Optional[GithubClient] = None
+        self.client: GithubClient | None = None
         self.get_conn()
 
     def get_conn(self) -> GithubClient:
@@ -64,7 +64,7 @@ class GithubHook(BaseHook):
         return self.client
 
     @staticmethod
-    def get_ui_field_behaviour() -> Dict:
+    def get_ui_field_behaviour() -> dict:
         """Returns custom field behaviour"""
         return {
             "hidden_fields": ['schema', 'port', 'login', 'extra'],

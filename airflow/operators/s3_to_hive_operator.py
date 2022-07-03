@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.apache.hive.transfers.s3_to_hive`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.apache.hive.transfers.s3_to_hive import S3ToHiveOperator

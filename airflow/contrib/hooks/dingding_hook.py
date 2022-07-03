@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.dingding.hooks.dingding`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.dingding.hooks.dingding import DingdingHook, requests  # noqa

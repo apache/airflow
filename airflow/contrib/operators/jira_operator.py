@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.jira.operators.jira`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.jira.operators.jira import JiraOperator  # noqa

@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 A client for AWS Batch services
 
 .. seealso::
@@ -27,7 +30,6 @@ A client for AWS Batch services
 import warnings
 from random import uniform
 from time import sleep
-from typing import Dict, List, Optional, Union
 
 import botocore.client
 import botocore.exceptions
@@ -51,7 +53,7 @@ class BatchProtocol(Protocol):
         - http://boto3.readthedocs.io/en/latest/reference/services/batch.html
     """
 
-    def describe_jobs(self, jobs: List[str]) -> Dict:
+    def describe_jobs(self, jobs: list[str]) -> dict:
         """
         Get job descriptions from AWS Batch
 
@@ -94,11 +96,11 @@ class BatchProtocol(Protocol):
         jobName: str,
         jobQueue: str,
         jobDefinition: str,
-        arrayProperties: Dict,
-        parameters: Dict,
-        containerOverrides: Dict,
-        tags: Dict,
-    ) -> Dict:
+        arrayProperties: dict,
+        parameters: dict,
+        containerOverrides: dict,
+        tags: dict,
+    ) -> dict:
         """
         Submit a Batch job
 
@@ -121,7 +123,7 @@ class BatchProtocol(Protocol):
         """
         ...
 
-    def terminate_job(self, jobId: str, reason: str) -> Dict:
+    def terminate_job(self, jobId: str, reason: str) -> dict:
         """
         Terminate a Batch job
 
@@ -193,7 +195,7 @@ class BatchClientHook(AwsBaseHook):
     )
 
     def __init__(
-        self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
+        self, *args, max_retries: int | None = None, status_retries: int | None = None, **kwargs
     ) -> None:
         # https://github.com/python/mypy/issues/6799 hence type: ignore
         super().__init__(client_type='batch', *args, **kwargs)  # type: ignore
@@ -201,7 +203,7 @@ class BatchClientHook(AwsBaseHook):
         self.status_retries = status_retries or self.STATUS_RETRIES
 
     @property
-    def client(self) -> Union[BatchProtocol, botocore.client.BaseClient]:
+    def client(self) -> BatchProtocol | botocore.client.BaseClient:
         """
         An AWS API client for Batch services.
 
@@ -210,7 +212,7 @@ class BatchClientHook(AwsBaseHook):
         """
         return self.conn
 
-    def terminate_job(self, job_id: str, reason: str) -> Dict:
+    def terminate_job(self, job_id: str, reason: str) -> dict:
         """
         Terminate a Batch job
 
@@ -251,7 +253,7 @@ class BatchClientHook(AwsBaseHook):
 
         raise AirflowException(f"AWS Batch job ({job_id}) has unknown status: {job}")
 
-    def wait_for_job(self, job_id: str, delay: Union[int, float, None] = None) -> None:
+    def wait_for_job(self, job_id: str, delay: int | float | None = None) -> None:
         """
         Wait for Batch job to complete
 
@@ -266,7 +268,7 @@ class BatchClientHook(AwsBaseHook):
         self.poll_for_job_complete(job_id, delay)
         self.log.info("AWS Batch job (%s) has completed", job_id)
 
-    def poll_for_job_running(self, job_id: str, delay: Union[int, float, None] = None) -> None:
+    def poll_for_job_running(self, job_id: str, delay: int | float | None = None) -> None:
         """
         Poll for job running. The status that indicates a job is running or
         already complete are: 'RUNNING'|'SUCCEEDED'|'FAILED'.
@@ -288,7 +290,7 @@ class BatchClientHook(AwsBaseHook):
         running_status = [self.RUNNING_STATE, self.SUCCESS_STATE, self.FAILURE_STATE]
         self.poll_job_status(job_id, running_status)
 
-    def poll_for_job_complete(self, job_id: str, delay: Union[int, float, None] = None) -> None:
+    def poll_for_job_complete(self, job_id: str, delay: int | float | None = None) -> None:
         """
         Poll for job completion. The status that indicates job completion
         are: 'SUCCEEDED'|'FAILED'.
@@ -306,7 +308,7 @@ class BatchClientHook(AwsBaseHook):
         complete_status = [self.SUCCESS_STATE, self.FAILURE_STATE]
         self.poll_job_status(job_id, complete_status)
 
-    def poll_job_status(self, job_id: str, match_status: List[str]) -> bool:
+    def poll_job_status(self, job_id: str, match_status: list[str]) -> bool:
         """
         Poll for job status using an exponential back-off strategy (with max_retries).
 
@@ -348,7 +350,7 @@ class BatchClientHook(AwsBaseHook):
             )
             self.delay(pause)
 
-    def get_job_description(self, job_id: str) -> Dict:
+    def get_job_description(self, job_id: str) -> dict:
         """
         Get job description (using status_retries).
 
@@ -390,7 +392,7 @@ class BatchClientHook(AwsBaseHook):
             self.delay(pause)
 
     @staticmethod
-    def parse_job_description(job_id: str, response: Dict) -> Dict:
+    def parse_job_description(job_id: str, response: dict) -> dict:
         """
         Parse job description to extract description for job_id
 
@@ -410,7 +412,7 @@ class BatchClientHook(AwsBaseHook):
 
         return matching_jobs[0]
 
-    def get_job_awslogs_info(self, job_id: str) -> Optional[Dict[str, str]]:
+    def get_job_awslogs_info(self, job_id: str) -> dict[str, str] | None:
         """
         Parse job description to extract AWS CloudWatch information.
 
@@ -450,9 +452,7 @@ class BatchClientHook(AwsBaseHook):
         }
 
     @staticmethod
-    def add_jitter(
-        delay: Union[int, float], width: Union[int, float] = 1, minima: Union[int, float] = 0
-    ) -> float:
+    def add_jitter(delay: int | float, width: int | float = 1, minima: int | float = 0) -> float:
         """
         Use delay +/- width for random jitter
 
@@ -481,7 +481,7 @@ class BatchClientHook(AwsBaseHook):
         return uniform(lower, upper)
 
     @staticmethod
-    def delay(delay: Union[int, float, None] = None) -> None:
+    def delay(delay: int | float | None = None) -> None:
         """
         Pause execution for ``delay`` seconds.
 

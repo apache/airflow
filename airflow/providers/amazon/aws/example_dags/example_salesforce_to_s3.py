@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
 This is a basic example DAG for using `SalesforceToS3Operator` to retrieve Salesforce account
 data and upload it to an Amazon S3 bucket.
 """

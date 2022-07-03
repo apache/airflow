@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 import tempfile
-from typing import TYPE_CHECKING, Optional, Sequence
+from typing import TYPE_CHECKING, Sequence
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.gcs import GCSHook
@@ -68,7 +69,7 @@ class SalesforceToGcsOperator(BaseOperator):
         object_name: str,
         salesforce_conn_id: str,
         include_deleted: bool = False,
-        query_params: Optional[dict] = None,
+        query_params: dict | None = None,
         export_format: str = "csv",
         coerce_to_timestamp: bool = False,
         record_time_added: bool = False,
@@ -89,7 +90,7 @@ class SalesforceToGcsOperator(BaseOperator):
         self.include_deleted = include_deleted
         self.query_params = query_params
 
-    def execute(self, context: 'Context'):
+    def execute(self, context: Context):
         salesforce = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         response = salesforce.make_query(
             query=self.query, include_deleted=self.include_deleted, query_params=self.query_params

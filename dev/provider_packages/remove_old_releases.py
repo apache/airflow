@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Removes older releases of provider packages from the folder using svn rm.
 
 It iterates over the folder specified as first parameter and removes all but latest releases of
@@ -28,7 +31,7 @@ import operator
 import os
 import subprocess
 from collections import defaultdict
-from typing import Dict, List, NamedTuple
+from typing import NamedTuple
 
 from packaging.version import Version
 
@@ -54,7 +57,7 @@ def split_version_and_suffix(file_name: str, suffix: str) -> VersionedFile:
 
 
 def process_all_files(directory: str, suffix: str, execute: bool):
-    package_types_dicts: Dict[str, List[VersionedFile]] = defaultdict(list)
+    package_types_dicts: dict[str, list[VersionedFile]] = defaultdict(list)
     os.chdir(directory)
 
     for file in glob.glob("*" + suffix):

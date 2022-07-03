@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import os
 from functools import lru_cache
-from typing import Iterable, Optional, Set
+from typing import Iterable
 
 import jinja2
 import rich_click as click
@@ -87,7 +88,7 @@ def _prepare_resource_index(package_data, resource_type):
     }
 
 
-def _prepare_operators_data(tags: Optional[Set[str]]):
+def _prepare_operators_data(tags: set[str] | None):
     package_data = load_package_data()
     all_integrations = _prepare_resource_index(package_data, "integrations")
     if tags is None:
@@ -124,7 +125,7 @@ def _prepare_operators_data(tags: Optional[Set[str]]):
     return sorted(results, key=lambda d: d["integration"]["integration-name"].lower())
 
 
-def _render_operator_content(*, tags: Optional[Set[str]], header_separator: str):
+def _render_operator_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_operators_data(tags)
 
     return _render_template(
@@ -132,7 +133,7 @@ def _render_operator_content(*, tags: Optional[Set[str]], header_separator: str)
     )
 
 
-def _prepare_transfer_data(tags: Optional[Set[str]]):
+def _prepare_transfer_data(tags: set[str] | None):
     package_data = load_package_data()
     all_operators_by_integration = _prepare_resource_index(package_data, "integrations")
     # Add edge case
@@ -165,7 +166,7 @@ def _prepare_transfer_data(tags: Optional[Set[str]]):
     return to_display_transfers
 
 
-def _render_transfer_content(*, tags: Optional[Set[str]], header_separator: str):
+def _render_transfer_content(*, tags: set[str] | None, header_separator: str):
     tabular_data = _prepare_transfer_data(tags)
 
     return _render_template(
@@ -296,7 +297,7 @@ class BaseJinjaReferenceDirective(Directive):
 
         return node.children
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         """Return content in RST format"""
         raise NotImplementedError("Tou need to override render_content method.")
 
@@ -304,7 +305,7 @@ class BaseJinjaReferenceDirective(Directive):
 class OperatorsHooksReferenceDirective(BaseJinjaReferenceDirective):
     """Generates a list of operators, sensors, hooks"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_operator_content(
             tags=tags,
             header_separator=header_separator,
@@ -314,7 +315,7 @@ class OperatorsHooksReferenceDirective(BaseJinjaReferenceDirective):
 class TransfersReferenceDirective(BaseJinjaReferenceDirective):
     """Generate a list of transfer operators"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_transfer_content(
             tags=tags,
             header_separator=header_separator,
@@ -324,7 +325,7 @@ class TransfersReferenceDirective(BaseJinjaReferenceDirective):
 class LoggingDirective(BaseJinjaReferenceDirective):
     """Generate list of logging handlers"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_logging_content(
             header_separator=header_separator,
         )
@@ -333,7 +334,7 @@ class LoggingDirective(BaseJinjaReferenceDirective):
 class AuthBackendDirective(BaseJinjaReferenceDirective):
     """Generate list of auth backend handlers"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_auth_backend_content(
             header_separator=header_separator,
         )
@@ -342,7 +343,7 @@ class AuthBackendDirective(BaseJinjaReferenceDirective):
 class SecretsBackendDirective(BaseJinjaReferenceDirective):
     """Generate list of secret backend handlers"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_secrets_backend_content(
             header_separator=header_separator,
         )
@@ -351,7 +352,7 @@ class SecretsBackendDirective(BaseJinjaReferenceDirective):
 class ConnectionsDirective(BaseJinjaReferenceDirective):
     """Generate list of connections"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_connections_content(
             header_separator=header_separator,
         )
@@ -360,7 +361,7 @@ class ConnectionsDirective(BaseJinjaReferenceDirective):
 class ExtraLinksDirective(BaseJinjaReferenceDirective):
     """Generate list of extra links"""
 
-    def render_content(self, *, tags: Optional[Set[str]], header_separator: str = DEFAULT_HEADER_SEPARATOR):
+    def render_content(self, *, tags: set[str] | None, header_separator: str = DEFAULT_HEADER_SEPARATOR):
         return _render_extra_links_content(
             header_separator=header_separator,
         )

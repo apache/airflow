@@ -14,11 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 import multiprocessing as mp
 import os
 import sys
 from pathlib import Path
-from typing import List, Optional, Tuple, Union
 
 import click
 
@@ -205,8 +206,8 @@ def check_if_image_building_is_needed(ci_image_params: BuildCiParams, dry_run: b
 
 
 def run_build_in_parallel(
-    image_params_list: List[BuildCiParams],
-    python_version_list: List[str],
+    image_params_list: list[BuildCiParams],
+    python_version_list: list[str],
     parallelism: int,
     dry_run: bool,
     verbose: bool,
@@ -290,7 +291,7 @@ def build_image(
     fix_group_permissions(verbose=verbose)
     if run_in_parallel:
         python_version_list = get_python_version_list(python_versions)
-        params_list: List[BuildCiParams] = []
+        params_list: list[BuildCiParams] = []
         for python in python_version_list:
             params = BuildCiParams(**parameters_passed)
             params.python = python
@@ -337,7 +338,7 @@ def pull_ci_image(
     wait_for_image: bool,
     tag_as_latest: bool,
     verify_image: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Pull and optionally verify CI images - possibly in parallel for all Python versions."""
     if image_tag == "latest":
@@ -407,9 +408,9 @@ def verify_ci_image(
     python: str,
     github_repository: str,
     image_name: str,
-    image_tag: Optional[str],
+    image_tag: str | None,
     pull_image: bool,
-    extra_pytest_args: Tuple,
+    extra_pytest_args: tuple,
 ):
     """Verify CI image."""
     perform_environment_checks(verbose=verbose)
@@ -495,7 +496,7 @@ def should_we_run_the_build(build_ci_params: BuildCiParams) -> bool:
 
 def run_build_ci_image(
     verbose: bool, dry_run: bool, ci_image_params: BuildCiParams, parallel: bool
-) -> Tuple[int, str]:
+) -> tuple[int, str]:
     """
     Builds CI image:
 
@@ -576,7 +577,7 @@ def run_build_ci_image(
 
 
 def rebuild_or_pull_ci_image_if_needed(
-    command_params: Union[ShellParams, BuildCiParams], dry_run: bool, verbose: bool
+    command_params: ShellParams | BuildCiParams, dry_run: bool, verbose: bool
 ) -> None:
     """
     Rebuilds CI image if needed and user confirms it.

@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import datetime
 import io
@@ -27,7 +28,6 @@ from contextlib import redirect_stdout
 from datetime import timedelta
 from pathlib import Path
 from tempfile import NamedTemporaryFile
-from typing import List, Optional
 from unittest import mock
 from unittest.mock import patch
 
@@ -1582,7 +1582,7 @@ class TestDag(unittest.TestCase):
         [(state, State.NONE) for state in State.task_states if state != State.RUNNING]
         + [(State.RUNNING, State.RESTARTING)]  # type: ignore
     )
-    def test_clear_dag(self, ti_state_begin, ti_state_end: Optional[str]):
+    def test_clear_dag(self, ti_state_begin, ti_state_end: str | None):
         dag_id = 'test_clear_dag'
         self._clean_up(dag_id)
         task_id = 't1'
@@ -1790,7 +1790,7 @@ class TestDag(unittest.TestCase):
             catchup=True,
         )
 
-        def _check_logs(records: List[logging.LogRecord], data_interval: DataInterval) -> None:
+        def _check_logs(records: list[logging.LogRecord], data_interval: DataInterval) -> None:
             assert len(records) == 1
             record = records[0]
             assert record.exc_info is not None, "Should contain exception"

@@ -15,7 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
+
 """
+
 Hooks for Cloud Memorystore service.
 
 .. spelling::
@@ -25,7 +28,7 @@ Hooks for Cloud Memorystore service.
     pb
     memcache
 """
-from typing import Dict, Optional, Sequence, Tuple, Union
+from typing import Sequence
 
 from google.api_core import path_template
 from google.api_core.exceptions import NotFound
@@ -71,15 +74,15 @@ class CloudMemorystoreHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client: Optional[CloudRedisClient] = None
+        self._client: CloudRedisClient | None = None
 
     def get_conn(self) -> CloudRedisClient:
         """Retrieves client library object that allow access to Cloud Memorystore service."""
@@ -110,11 +113,11 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self,
         location: str,
         instance_id: str,
-        instance: Union[Dict, Instance],
+        instance: dict | Instance,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Creates a Redis instance based on the specified tier and memory size.
@@ -181,9 +184,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
         location: str,
         instance: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Deletes a specific Redis instance.  Instance stops serving and data is deleted.
@@ -226,11 +229,11 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self,
         location: str,
         instance: str,
-        output_config: Union[Dict, OutputConfig],
+        output_config: dict | OutputConfig,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Export Redis instance data into a Redis RDB format file in Cloud Storage.
@@ -270,9 +273,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
         instance: str,
         data_protection_mode: FailoverInstanceRequest.DataProtectionMode,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Initiates a failover of the primary node to current replica node for a specific STANDARD tier Cloud
@@ -310,9 +313,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
         location: str,
         instance: str,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Gets the details of a specific Redis instance.
@@ -343,11 +346,11 @@ class CloudMemorystoreHook(GoogleBaseHook):
         self,
         location: str,
         instance: str,
-        input_config: Union[Dict, InputConfig],
+        input_config: dict | InputConfig,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Import a Redis RDB snapshot file from Cloud Storage into a Redis instance.
@@ -387,9 +390,9 @@ class CloudMemorystoreHook(GoogleBaseHook):
         location: str,
         page_size: int,
         project_id: str = PROVIDE_PROJECT_ID,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists all Redis instances owned by a project in either the specified location (region) or all
@@ -424,14 +427,14 @@ class CloudMemorystoreHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_instance(
         self,
-        update_mask: Union[Dict, FieldMask],
-        instance: Union[Dict, Instance],
+        update_mask: dict | FieldMask,
+        instance: dict | Instance,
         project_id: str = PROVIDE_PROJECT_ID,
-        location: Optional[str] = None,
-        instance_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        location: str | None = None,
+        instance_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Updates the metadata and configuration of a specific Redis instance.
@@ -506,15 +509,15 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     def __init__(
         self,
         gcp_conn_id: str = "google_cloud_default",
-        delegate_to: Optional[str] = None,
-        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        delegate_to: str | None = None,
+        impersonation_chain: str | Sequence[str] | None = None,
     ) -> None:
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
             impersonation_chain=impersonation_chain,
         )
-        self._client: Optional[CloudMemcacheClient] = None
+        self._client: CloudMemcacheClient | None = None
 
     def get_conn(
         self,
@@ -550,9 +553,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         project_id: str,
         location: str,
         instance_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Will update current set of Parameters to the set of specified nodes of the Memcached Instance.
@@ -592,11 +595,11 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         self,
         location: str,
         instance_id: str,
-        instance: Union[Dict, cloud_memcache.Instance],
+        instance: dict | cloud_memcache.Instance,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Creates a Memcached instance based on the specified tier and memory size.
@@ -670,9 +673,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         location: str,
         instance: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Deletes a specific Memcached instance.  Instance stops serving and data is deleted.
@@ -717,9 +720,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         location: str,
         instance: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Gets the details of a specific Memcached instance.
@@ -746,9 +749,9 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
         self,
         location: str,
         project_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Lists all Memcached instances owned by a project in either the specified location (region) or all
@@ -783,14 +786,14 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_instance(
         self,
-        update_mask: Union[Dict, FieldMask],
-        instance: Union[Dict, cloud_memcache.Instance],
+        update_mask: dict | FieldMask,
+        instance: dict | cloud_memcache.Instance,
         project_id: str,
-        location: Optional[str] = None,
-        instance_id: Optional[str] = None,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        location: str | None = None,
+        instance_id: str | None = None,
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Updates the metadata and configuration of a specific Memcached instance.
@@ -839,14 +842,14 @@ class CloudMemorystoreMemcachedHook(GoogleBaseHook):
     @GoogleBaseHook.fallback_to_default_project_id
     def update_parameters(
         self,
-        update_mask: Union[Dict, FieldMask],
-        parameters: Union[Dict, cloud_memcache.MemcacheParameters],
+        update_mask: dict | FieldMask,
+        parameters: dict | cloud_memcache.MemcacheParameters,
         project_id: str,
         location: str,
         instance_id: str,
-        retry: Union[Retry, _MethodDefault] = DEFAULT,
-        timeout: Optional[float] = None,
-        metadata: Sequence[Tuple[str, str]] = (),
+        retry: Retry | _MethodDefault = DEFAULT,
+        timeout: float | None = None,
+        metadata: Sequence[tuple[str, str]] = (),
     ):
         """
         Updates the defined Memcached Parameters for an existing Instance. This method only stages the

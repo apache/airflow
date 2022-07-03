@@ -15,8 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
 """Smart sensor DAGs managing all smart sensor tasks."""
+
+from __future__ import annotations
+
 from datetime import datetime, timedelta
 
 from airflow.configuration import conf

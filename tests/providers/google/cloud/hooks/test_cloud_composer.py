@@ -15,7 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-#
+from __future__ import annotations
 
 import unittest
 from unittest import mock
@@ -23,6 +23,9 @@ from unittest import mock
 from google.api_core.gapic_v1.method import DEFAULT
 
 from airflow.providers.google.cloud.hooks.cloud_composer import CloudComposerHook
+
+#
+
 
 TEST_GCP_REGION = "global"
 TEST_GCP_PROJECT = "test-project"

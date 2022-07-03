@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.apache.hive.operators.hive_stats`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.apache.hive.operators.hive_stats import HiveStatsCollectionOperator  # noqa

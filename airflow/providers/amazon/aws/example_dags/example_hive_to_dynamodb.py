@@ -14,8 +14,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 """
+
    This DAG will not work unless you create an Amazon EMR cluster running
    Apache Hive and copy data into it following steps 1-4 (inclusive) here:
    https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/EMRforDynamoDB.Tutorial.html

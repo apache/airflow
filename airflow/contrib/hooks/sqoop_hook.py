@@ -17,6 +17,8 @@
 # under the License.
 """This module is deprecated. Please use :mod:`airflow.providers.apache.sqoop.hooks.sqoop`."""
 
+from __future__ import annotations
+
 import warnings
 
 from airflow.providers.apache.sqoop.hooks.sqoop import SqoopHook  # noqa

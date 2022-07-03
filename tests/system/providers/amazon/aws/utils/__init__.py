@@ -14,12 +14,12 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+from __future__ import annotations
 
 import inspect
 import json
 import os
 from os.path import basename, splitext
-from typing import Optional
 from uuid import uuid4
 
 import boto3
@@ -102,7 +102,7 @@ def _fetch_from_ssm(key: str) -> str:
     return value
 
 
-def fetch_variable(key: str, default_value: Optional[str] = None) -> str:
+def fetch_variable(key: str, default_value: str | None = None) -> str:
     """
     Given a Parameter name: first check for an existing Environment Variable,
     then check SSM for a value. If neither are available, fall back on the
@@ -113,7 +113,7 @@ def fetch_variable(key: str, default_value: Optional[str] = None) -> str:
     :return: The value of the parameter.
     """
 
-    value: Optional[str] = os.getenv(key, _fetch_from_ssm(key)) or default_value
+    value: str | None = os.getenv(key, _fetch_from_ssm(key)) or default_value
     if not value:
         raise ValueError(NO_VALUE_MSG.format(key=key))
     return value
