@@ -826,6 +826,7 @@ class TestDag(unittest.TestCase):
         """
         Ensure that datasets referenced in a dag are correctly loaded into the database.
         """
+        # todo: clear db
         dag_id1 = 'test_dataset_dag1'
         dag_id2 = 'test_dataset_dag2'
         task_id = 'test_dataset_task'
@@ -849,7 +850,9 @@ class TestDag(unittest.TestCase):
         assert [x.dag_id for x in d1.dag_references] == [dag_id1]
         assert [(x.task_id, x.dag_id) for x in d1.task_references] == [(task_id, dag_id2)]
         assert set(
-            session.query(DatasetTaskRef.task_id, DatasetTaskRef.dag_id, DatasetTaskRef.dataset_id).all()
+            session.query(DatasetTaskRef.task_id, DatasetTaskRef.dag_id, DatasetTaskRef.dataset_id)
+            .filter(DatasetTaskRef.dag_id.in_((dag_id1, dag_id2)))
+            .all()
         ) == {
             (task_id, dag_id1, d2.id),
             (task_id, dag_id1, d3.id),
