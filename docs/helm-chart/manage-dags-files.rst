@@ -71,7 +71,7 @@ Finally, update the Airflow pods with that image:
 
 If you are deploying an image with a constant tag, you need to make sure that the image is pulled every time.
 
-Warning :warning:
+.. warning::
 
 *Using constant tag should be used only for testing/development purpose. It is a bad practice to use the same tag as you'll lose the history of your code.*
 
