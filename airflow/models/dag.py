@@ -424,6 +424,8 @@ class DAG(LoggingMixin):
         if not at_most_one(*scheduling_args):
             raise ValueError(f"At most one allowed for args {scheduling_args}")
 
+        self.timetable: Timetable
+        self.schedule_interval: ScheduleInterval
         self.schedule_on = schedule_on
         if schedule_on:
             if not isinstance(schedule_on, list):
@@ -436,7 +438,7 @@ class DAG(LoggingMixin):
         else:
             if isinstance(schedule_interval, ArgNotSet):
                 schedule_interval = DEFAULT_SCHEDULE_INTERVAL
-            self.schedule_interval: ScheduleInterval = schedule_interval
+            self.schedule_interval = schedule_interval
             self.timetable = create_timetable(schedule_interval, self.timezone)
 
         if isinstance(template_searchpath, str):

@@ -635,7 +635,7 @@ class DagRun(Base, LoggingMixin):
         from airflow.models.dataset_task_ref import DatasetTaskRef
 
         dependent_dag_ids = []
-        if self.dag.schedule_on:
+        if self.dag and self.dag.schedule_on:
             dependent_dag_ids = [
                 x.dag_id
                 for x in session.query(DatasetDagRef.dag_id)
@@ -671,6 +671,8 @@ class DagRun(Base, LoggingMixin):
         if dag_ids_to_trigger:
             for dag_id in dag_ids_to_trigger:
                 row = SerializedDagModel.get(dag_id, session)
+                if not row:
+                    continue
                 dag = row.dag
                 if dag.schedule_on:
                     dag.create_dagrun(
