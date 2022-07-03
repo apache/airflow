@@ -2344,6 +2344,7 @@ class TestRunRawTaskQueriesCount:
         db.clear_db_dags()
         db.clear_db_sla_miss()
         db.clear_db_import_errors()
+        db.clear_db_datasets()
 
     def setup_method(self) -> None:
         self._clean()
