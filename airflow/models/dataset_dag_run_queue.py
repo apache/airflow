@@ -23,25 +23,25 @@ from airflow.utils import timezone
 from airflow.utils.sqlalchemy import UtcDateTime
 
 
-class DatasetDagRunEvent(Base):
+class DatasetDagRunQueue(Base):
     """Model for storing dataset events that need processing."""
 
     dataset_id = Column(Integer, primary_key=True, nullable=False)
     target_dag_id = Column(StringID(), primary_key=True, nullable=False)
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
-    __tablename__ = "dataset_dag_run_event"
+    __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='ddre_dataset_fkey',
+            name='ddrq_dataset_fkey',
             ondelete="CASCADE",
         ),
         ForeignKeyConstraint(
             (target_dag_id,),
             ["dag.dag_id"],
-            name='ddre_dag_fkey',
+            name='ddrq_dag_fkey',
             ondelete="CASCADE",
         ),
     )

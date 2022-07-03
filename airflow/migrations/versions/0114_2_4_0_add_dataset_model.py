@@ -97,22 +97,22 @@ def _create_dataset_task_ref_table():
     )
 
 
-def _create_dataset_dag_run_event_table():
+def _create_dataset_dag_run_queue_table():
     op.create_table(
-        'dataset_dag_run_event',
+        'dataset_dag_run_queue',
         sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
         sa.Column('target_dag_id', StringID(), primary_key=True, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.ForeignKeyConstraint(
             ('dataset_id',),
             ['dataset.id'],
-            name="ddre_dataset_fkey",
+            name="ddrq_dataset_fkey",
             ondelete="CASCADE",
         ),
         sa.ForeignKeyConstraint(
             ('target_dag_id',),
             ['dag.dag_id'],
-            name="ddre_dag_fkey",
+            name="ddrq_dag_fkey",
             ondelete="CASCADE",
         ),
     )
@@ -123,12 +123,12 @@ def upgrade():
     _create_dataset_table()
     _create_dataset_dag_ref_table()
     _create_dataset_task_ref_table()
-    _create_dataset_dag_run_event_table()
+    _create_dataset_dag_run_queue_table()
 
 
 def downgrade():
     """Unapply Add Dataset model"""
     op.drop_table('dataset_dag_ref')
     op.drop_table('dataset_task_ref')
-    op.drop_table('dataset_dag_run_event')
+    op.drop_table('dataset_dag_run_queue')
     op.drop_table('dataset')

@@ -56,7 +56,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.dataset_dag_run_event import DatasetDagRunEvent
+from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue
 from airflow.models.dataset_task_ref import DatasetTaskRef
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
@@ -1479,7 +1479,7 @@ class TestTaskInstance:
     def test_outlet_datasets(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
-        completes successfully, a DatasetDagRunEvent is logged.
+        completes successfully, a DatasetDagRunQueue is logged.
         """
         from airflow.example_dags.example_datasets import dag1, dag3
 
@@ -1496,7 +1496,7 @@ class TestTaskInstance:
         ti._run_raw_task()
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
-        assert session.query(DatasetDagRunEvent.target_dag_id).filter(
+        assert session.query(DatasetDagRunQueue.target_dag_id).filter(
             DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
         ).all() == [('dag3',)]
 

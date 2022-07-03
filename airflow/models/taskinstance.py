@@ -95,7 +95,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.dataset_dag_run_event import DatasetDagRunEvent
+from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -1525,7 +1525,7 @@ class TaskInstance(Base, LoggingMixin):
                     downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
                     self.log.debug("downstream dag ids %s", downstream_dag_ids)
                     for dag_id in downstream_dag_ids:
-                        session.merge(DatasetDagRunEvent(dataset_id=dataset.id, target_dag_id=dag_id))
+                        session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
             session.commit()
 
     def _execute_task_with_callbacks(self, context, test_mode=False):

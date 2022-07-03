@@ -644,7 +644,7 @@ class DagRun(Base, LoggingMixin):
                 .all()
             ]
 
-        from airflow.models.dataset_dag_run_event import DatasetDagRunEvent as DDRE
+        from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue as DDRQ
         from airflow.models.serialized_dag import SerializedDagModel
 
         dag_ids_to_trigger = None
@@ -655,16 +655,16 @@ class DagRun(Base, LoggingMixin):
                     DatasetDagRef.dag_id,
                 )
                 .join(
-                    DDRE,
+                    DDRQ,
                     and_(
-                        DDRE.dataset_id == DatasetDagRef.dataset_id,
-                        DDRE.target_dag_id == DatasetDagRef.dag_id,
+                        DDRQ.dataset_id == DatasetDagRef.dataset_id,
+                        DDRQ.target_dag_id == DatasetDagRef.dag_id,
                     ),
                     isouter=True,
                 )
                 .filter(DatasetDagRef.dag_id.in_(dependent_dag_ids))
                 .group_by(DatasetDagRef.dag_id)
-                .having(func.count() == func.sum(case((DDRE.target_dag_id.is_not(None), 1), else_=0)))
+                .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
                 .all()
             ]
 
@@ -682,7 +682,7 @@ class DagRun(Base, LoggingMixin):
                         external_trigger=True,
                         session=session,
                     )
-                session.query(DDRE).filter(DDRE.target_dag_id.in_(dag_ids_to_trigger)).delete()
+                session.query(DDRQ).filter(DDRQ.target_dag_id.in_(dag_ids_to_trigger)).delete()
 
         return schedulable_tis, callback
 

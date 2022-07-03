@@ -265,7 +265,7 @@ class TestDBCleanup:
             'slot_pool',  # leave alone
             'dataset_dag_ref',  # leave alone for now
             'dataset_task_ref',  # leave alone for now
-            'dataset_dag_run_event',  # self-managed
+            'dataset_dag_run_queue',  # self-managed
         }
 
         from airflow.utils.db_cleanup import config_dict
