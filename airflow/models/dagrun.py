@@ -634,13 +634,15 @@ class DagRun(Base, LoggingMixin):
         from airflow.models.dataset_dag_ref import DatasetDagRef
         from airflow.models.dataset_task_ref import DatasetTaskRef
 
-        dependent_dag_ids = [
-            x.dag_id
-            for x in session.query(DatasetDagRef.dag_id)
-            .join(DatasetTaskRef, DatasetDagRef.dataset_id == DatasetTaskRef.dataset_id)
-            .filter(DatasetTaskRef.dag_id == self.dag_id)
-            .all()
-        ]
+        dependent_dag_ids = []
+        if self.dag.schedule_on:
+            dependent_dag_ids = [
+                x.dag_id
+                for x in session.query(DatasetDagRef.dag_id)
+                .join(DatasetTaskRef, DatasetDagRef.dataset_id == DatasetTaskRef.dataset_id)
+                .filter(DatasetTaskRef.dag_id == self.dag_id)
+                .all()
+            ]
 
         from airflow.models.dataset_dag_run_event import DatasetDagRunEvent as DDRE
         from airflow.models.serialized_dag import SerializedDagModel
