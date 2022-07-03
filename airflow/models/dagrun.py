@@ -631,15 +631,24 @@ class DagRun(Base, LoggingMixin):
         session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
 
+        from airflow.models import Dataset
         from airflow.models.dataset_dag_ref import DatasetDagRef
         from airflow.models.dataset_task_ref import DatasetTaskRef
 
+        has_dataset_outlets = False
+        if self.dag:
+            for _, task in self.dag.task_dict.items():
+                if has_dataset_outlets is True:
+                    break
+                for obj in getattr(task, '_outlets', []):
+                    if isinstance(obj, Dataset):
+                        has_dataset_outlets = True
+                        break
         dependent_dag_ids = []
-        if self.dag and self.dag.schedule_on:
+        if self.dag and has_dataset_outlets:
             dependent_dag_ids = [
                 x.dag_id
                 for x in session.query(DatasetDagRef.dag_id)
-                .join(DatasetTaskRef, DatasetDagRef.dataset_id == DatasetTaskRef.dataset_id)
                 .filter(DatasetTaskRef.dag_id == self.dag_id)
                 .all()
             ]

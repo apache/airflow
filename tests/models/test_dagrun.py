@@ -20,6 +20,7 @@ import datetime
 from typing import Mapping, Optional
 from unittest import mock
 from unittest.mock import call
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -28,8 +29,18 @@ from sqlalchemy.orm.session import Session
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
 from airflow.decorators import task
-from airflow.models import DAG, DagBag, DagModel, DagRun, TaskInstance as TI, clear_task_instances
+from airflow.models import (
+    DAG,
+    DagBag,
+    DagModel,
+    DagRun,
+    TaskInstance,
+    TaskInstance as TI,
+    clear_task_instances,
+)
 from airflow.models.baseoperator import BaseOperator
+from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue
+from airflow.models.dataset_task_ref import DatasetTaskRef
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator
@@ -1289,6 +1300,40 @@ def test_mapped_task_upstream_failed(dag_maker, session):
     tis, _ = dr.update_state(execute_callbacks=False, session=session)
     assert tis == []
     assert dr.state == DagRunState.FAILED
+
+
+def test_dataset_dagruns_triggered(session):
+    from airflow.example_dags import example_datasets
+    from airflow.example_dags.example_datasets import dag1, dag3
+
+    session = settings.Session()
+    DAG.bulk_write_to_db([dag1, dag3], session)
+    dagbag = DagBag(dag_folder=example_datasets.__file__)
+    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+    dagbag.sync_to_db(session=session)
+    run_id = str(uuid4())
+    dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
+    dr.dag = dag1
+    session.add(dr)
+    session.commit()
+    # dr = session.query(DagRun).filter(DagRun.run_id == run_id, DagRun)
+    assert dr.id is not None
+    task = dag1.get_task('upstream_task_1')
+    task.bash_command = 'echo 1'  # make it go faster
+    ti = TaskInstance(task, run_id=run_id)
+    session.merge(ti)
+    session.commit()
+    ti._run_raw_task()
+    ti.refresh_from_db()
+    assert ti.state == State.SUCCESS
+    assert session.query(DatasetDagRunQueue.target_dag_id).filter(
+        DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
+    ).all() == [('dag3',), ('dag4',), ('dag5',)]
+    session.commit()
+    session.expunge_all()
+    tis = dr.update_state(session=session)
+    session.commit()
+    assert session.query(DagRun).filter(DagRun.dag_id == 'dag3').one() is not None
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):

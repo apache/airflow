@@ -1489,7 +1489,7 @@ class TestTaskInstance:
         dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
         session.merge(dr)
         task = dag1.get_task('upstream_task_1')
-        task.bash_command = None  # make it go faster
+        task.bash_command = 'echo 1'  # make it go faster
         ti = TaskInstance(task, run_id=run_id)
         session.merge(ti)
         session.commit()
