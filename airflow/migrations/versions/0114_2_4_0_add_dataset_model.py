@@ -66,9 +66,8 @@ def _create_dataset_table():
 def _create_dataset_dag_ref_table():
     op.create_table(
         'dataset_dag_ref',
-        sa.Column('id', Integer, primary_key=True, autoincrement=True),
-        sa.Column('dataset_id', Integer, nullable=False),
-        sa.Column('dag_id', String(250), nullable=False),
+        sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
+        sa.Column('dag_id', String(250), primary_key=True, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
         sa.ForeignKeyConstraint(
@@ -79,16 +78,14 @@ def _create_dataset_dag_ref_table():
         ),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
-    op.create_index('idx_ddr_pk', 'dataset_dag_ref', ['dataset_id', 'dag_id'], unique=True)
 
 
 def _create_dataset_task_ref_table():
     op.create_table(
         'dataset_task_ref',
-        sa.Column('id', Integer, primary_key=True, autoincrement=True),
-        sa.Column('dataset_id', Integer, nullable=False),
-        sa.Column('dag_id', String(250), nullable=False),
-        sa.Column('task_id', String(250), nullable=False),
+        sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
+        sa.Column('dag_id', String(250), primary_key=True, nullable=False),
+        sa.Column('task_id', String(250), primary_key=True, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
         sa.ForeignKeyConstraint(
@@ -97,17 +94,6 @@ def _create_dataset_task_ref_table():
             name="dataset_task_ref_dataset_fkey",
             ondelete="CASCADE",
         ),
-        sqlite_autoincrement=True,  # ensures PK values not reused
-    )
-    op.create_index(
-        'idx_dtr_pk',
-        'dataset_task_ref',
-        [
-            'dataset_id',
-            'dag_id',
-            'task_id',
-        ],
-        unique=True,
     )
 
 
