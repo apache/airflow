@@ -101,7 +101,7 @@ def _create_dataset_dag_run_event_table():
     op.create_table(
         'dataset_dag_run_event',
         sa.Column('dataset_id', Integer, primary_key=True, nullable=False),
-        sa.Column('target_dag_id', StringID(), primary_key=True, nullable=True),
+        sa.Column('target_dag_id', StringID(), primary_key=True, nullable=False),
         sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
         sa.ForeignKeyConstraint(
             ('dataset_id',),
