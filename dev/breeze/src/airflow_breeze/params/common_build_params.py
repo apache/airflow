@@ -45,6 +45,7 @@ class CommonBuildParams:
     airflow_constraints_location: str = ""
     answer: Optional[str] = None
     build_id: int = 0
+    builder: str = "default"
     constraints_github_repository: str = "apache/airflow"
     debian_version: str = "bullseye"
     dev_apt_command: str = ""

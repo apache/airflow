@@ -859,6 +859,7 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+geq
 getattr
 getfqdn
 getframe
@@ -1016,6 +1017,7 @@ latencies
 latin
 ldap
 ldaps
+leq
 leveldb
 libs
 libz

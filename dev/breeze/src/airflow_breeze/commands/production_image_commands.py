@@ -37,6 +37,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_prod,
     option_airflow_constraints_reference_build,
     option_answer,
+    option_builder,
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -75,6 +76,7 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
     prepare_docker_build_command,
     prepare_docker_build_from_input,
+    warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.parallel import check_async_run_results
@@ -213,6 +215,7 @@ def run_build_in_parallel(
     dry_run: bool,
     verbose: bool,
 ) -> None:
+    warm_up_docker_builder(image_params_list[0], verbose=verbose, dry_run=dry_run)
     get_console().print(
         f"\n[info]Building with parallelism = {parallelism} for the images: {python_version_list}:"
     )
@@ -303,6 +306,7 @@ def run_build_in_parallel(
 @option_additional_dev_apt_env
 @option_additional_runtime_apt_env
 @option_additional_runtime_apt_command
+@option_builder
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_python_image

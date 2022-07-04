@@ -33,6 +33,8 @@ versions:
   - 1.0.1
   - 1.0.0
 
+dependencies: []
+
 integrations:
   - integration-name: SQLite
     external-doc-url: https://www.sqlite.org/index.html
@@ -51,9 +53,6 @@ hooks:
   - integration-name: SQLite
     python-modules:
       - airflow.providers.sqlite.hooks.sqlite
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.sqlite.hooks.sqlite.SqliteHook
 
 connection-types:
   - hook-class-name: airflow.providers.sqlite.hooks.sqlite.SqliteHook

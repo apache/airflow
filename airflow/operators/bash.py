@@ -148,8 +148,6 @@ class BashOperator(BaseOperator):
         self.skip_exit_code = skip_exit_code
         self.cwd = cwd
         self.append_env = append_env
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     @cached_property
     def subprocess_hook(self):
