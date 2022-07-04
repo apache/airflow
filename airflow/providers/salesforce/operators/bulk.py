@@ -71,7 +71,7 @@ class SalesforceBulkOperator(BaseOperator):
         if self.operation not in available_operations:
             raise ValueError(f"Operation not found! Available operations are {available_operations}.")
 
-    def execute(self, context: 'Context') -> dict:
+    def execute(self, context: 'Context'):
         """
         Makes an HTTP request to Salesforce Bulk API.
 
