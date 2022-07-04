@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,20 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import pytest
-
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_DATACATALOG_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
-
-
-@pytest.mark.credential_file(GCP_DATACATALOG_KEY)
-class CloudDataCatalogExampleDagsSystemTest(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
-
-    @provide_gcp_context(GCP_DATACATALOG_KEY)
-    def test_run_example_gcp_dataflow_native_java(self):
-        self.run_dag('example_gcp_datacatalog', CLOUD_DAG_FOLDER)
-
-    def tearDown(self):
-        super().tearDown()
