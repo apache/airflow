@@ -234,7 +234,7 @@ class SelectiveChecks:
 
     @cached_property
     def _full_tests_needed(self) -> bool:
-        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE]:
+        if self._github_event in [GithubEvents.PUSH, GithubEvents.SCHEDULE, GithubEvents.WORKFLOW_DISPATCH]:
             get_console().print(f"[warning]Full tests needed because event is {self._github_event}[/]")
             return True
         if FULL_TESTS_NEEDED_LABEL in self._pr_labels:
@@ -498,3 +498,7 @@ class SelectiveChecks:
     @cached_property
     def skip_pre_commits(self) -> str:
         return "identity" if self._default_branch == "main" else "identity,check-airflow-2-2-compatibility"
+
+    @cached_property
+    def cache_directive(self) -> str:
+        return "disabled" if self._github_event == GithubEvents.SCHEDULE else "registry"
