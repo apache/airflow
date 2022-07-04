@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-03T17:29:03Z
+# This constraints file was automatically generated on 2022-07-04T12:30:26Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -479,11 +479,11 @@ thrift==0.16.0
 toml==0.10.2
 tomli==2.0.1
 toolz==0.11.2
-tornado==6.1
+tornado==6.2
 towncrier==21.9.0
 tqdm==4.64.0
 traitlets==5.3.0
-trino==0.313.0
+trino==0.314.0
 twine==4.0.1
 typed-ast==1.4.3
 types-Deprecated==1.2.9
@@ -496,7 +496,7 @@ types-croniter==1.3.0
 types-cryptography==3.3.21
 types-docutils==0.18.3
 types-freezegun==1.1.10
-types-paramiko==2.11.1
+types-paramiko==2.11.2
 types-protobuf==3.19.22
 types-python-dateutil==2.8.18
 types-python-slugify==6.1.0
@@ -504,7 +504,7 @@ types-pytz==2022.1.1
 types-redis==4.3.3
 types-requests==2.28.0
 types-setuptools==57.4.18
-types-six==1.16.16
+types-six==1.16.17
 types-tabulate==0.8.11
 types-termcolor==1.1.5
 types-toml==0.10.7
