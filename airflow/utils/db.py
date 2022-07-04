@@ -1507,6 +1507,10 @@ def upgradedb(
 
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
+        if not to_revision and not _get_current_revision(session=session):
+            # New DB; initialize and exit
+            initdb(session=session)
+            return
         command.upgrade(config, revision=to_revision or 'heads')
     reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
