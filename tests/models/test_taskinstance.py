@@ -48,6 +48,7 @@ from airflow.exceptions import (
 from airflow.models import (
     DAG,
     Connection,
+    DagBag,
     DagRun,
     Pool,
     RenderedTaskInstanceFields,
@@ -1481,10 +1482,13 @@ class TestTaskInstance:
         Verify that when we have an outlet dataset on a task, and the task
         completes successfully, a DatasetDagRunQueue is logged.
         """
-        from airflow.example_dags.example_datasets import dag1, dag3
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag1
 
         session = settings.Session()
-        DAG.bulk_write_to_db([dag1, dag3], session)
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
         run_id = str(uuid4())
         dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
         session.merge(dr)
@@ -1498,7 +1502,7 @@ class TestTaskInstance:
         assert ti.state == State.SUCCESS
         assert session.query(DatasetDagRunQueue.target_dag_id).filter(
             DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
-        ).all() == [('dag3',)]
+        ).all() == [('dag3',), ('dag4',), ('dag5',)]
 
     @staticmethod
     def _test_previous_dates_setup(

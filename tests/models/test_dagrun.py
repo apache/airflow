@@ -1312,10 +1312,9 @@ def test_mapped_task_upstream_failed(dag_maker, session):
 
 def test_dataset_dagruns_triggered(session):
     from airflow.example_dags import example_datasets
-    from airflow.example_dags.example_datasets import dag1, dag3
+    from airflow.example_dags.example_datasets import dag1
 
     session = settings.Session()
-    DAG.bulk_write_to_db([dag1, dag3], session)
     dagbag = DagBag(dag_folder=example_datasets.__file__)
     dagbag.collect_dags(only_if_updated=False, safe_mode=False)
     dagbag.sync_to_db(session=session)
@@ -1324,7 +1323,6 @@ def test_dataset_dagruns_triggered(session):
     dr.dag = dag1
     session.add(dr)
     session.commit()
-    # dr = session.query(DagRun).filter(DagRun.run_id == run_id, DagRun)
     assert dr.id is not None
     task = dag1.get_task('upstream_task_1')
     task.bash_command = 'echo 1'  # make it go faster
@@ -1339,7 +1337,7 @@ def test_dataset_dagruns_triggered(session):
     ).all() == [('dag3',), ('dag4',), ('dag5',)]
     session.commit()
     session.expunge_all()
-    tis = dr.update_state(session=session)
+    dr.update_state(session=session)
     session.commit()
     assert session.query(DagRun).filter(DagRun.dag_id == 'dag3').one() is not None
 
