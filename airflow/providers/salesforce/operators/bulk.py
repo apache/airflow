@@ -108,6 +108,6 @@ class SalesforceBulkOperator(BaseOperator):
             )
 
         if not self.do_xcom_push:
-            result = {}
+            result = None
 
         return result
