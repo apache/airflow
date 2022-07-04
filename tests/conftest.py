@@ -198,7 +198,7 @@ def initial_db_init():
 
     db.resetdb()
     db.bootstrap_dagbag()
-    create_app(config={'UPDATE_FAB_PERMS': True})
+    create_app(config={'UPDATE_FAB_PERMS': False})
 
 
 @pytest.fixture(autouse=True, scope="session")

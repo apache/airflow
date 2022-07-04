@@ -672,7 +672,7 @@ def initdb(session: Session = NEW_SESSION):
     from airflow.www.fab_security.sqla.models import Model
     from airflow.www.session import AirflowDatabaseSessionInterface
 
-    def _create_flask_session_tb():
+    def _create_flask_session_tbl():
         flask_app = Flask(__name__)
         flask_app.config['SQLALCHEMY_DATABASE_URI'] = conf.get('database', 'SQL_ALCHEMY_CONN')
         db = SQLAlchemy(flask_app)
@@ -681,7 +681,7 @@ def initdb(session: Session = NEW_SESSION):
 
     Base.metadata.create_all(settings.engine)
     Model.metadata.create_all(settings.engine)
-    _create_flask_session_tb()
+    _create_flask_session_tbl()
     # stamp the migration head
     config = _get_alembic_config()
     command.stamp(config, "head")
