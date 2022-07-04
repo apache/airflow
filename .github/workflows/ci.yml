@@ -1677,7 +1677,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
   push-buildx-cache-to-github-registry:
     permissions:
       packages: write
-    timeout-minutes: 120
+    timeout-minutes: 50
     name: "Push Image Cache"
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs:
@@ -1688,7 +1688,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     strategy:
       fail-fast: false
       matrix:
-        python-version: ${{ fromJson(needs.build-info.outputs.python-versions) }}
         platform: ["linux/amd64", "linux/arm64"]
     env:
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on) }}
@@ -1738,6 +1737,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           breeze build-image
           --builder airflow_cache
           --prepare-buildx-cache
+          --run-in-parallel
           --force-build
           --platform ${{ matrix.platform }}
         env:
@@ -1763,9 +1763,9 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
         if: always()
 
   build-ci-arm-images:
-    timeout-minutes: 120
+    timeout-minutes: 50
     name: >
-      ${{needs.build-info.outputs.build-job-description}} CI ARM images
+      Build CI ARM images
       ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs:
@@ -1782,45 +1782,42 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       DEFAULT_CONSTRAINTS_BRANCH: ${{ needs.build-info.outputs.default-constraints-branch }}
       DEBIAN_VERSION: ${{ needs.build-info.outputs.debian-version }}
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
-    if: needs.build-info.outputs.upgrade-to-newer-dependencies != 'false'
+    if: >
+      needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
+      needs.build-info.outputs.in-workflow-build == 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - uses: actions/checkout@v2
         with:
           ref: ${{ needs.build-info.outputs.targetCommitSha }}
           persist-credentials: false
           submodules: recursive
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Setup python"
         uses: actions/setup-python@v2
         with:
           python-version: ${{ needs.build-info.outputs.default-python-version }}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - run: ./scripts/ci/install_breeze.sh
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Free space"
         run: breeze free-space
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Start ARM instance"
         run: ./scripts/ci/images/ci_start_arm_instance_and_connect_to_docker.sh
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: >
           Build CI ARM images ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
         run: >
-          breeze build-image --run-in-parallel --parallelism 1
-          --builder airflow_cache --platform "linux/arm64"
+          breeze build-image
+          --run-in-parallel
+          --builder airflow_cache
+          --platform "linux/arm64"
         env:
           UPGRADE_TO_NEWER_DEPENDENCIES: ${{ needs.build-info.outputs.upgrade-to-newer-dependencies }}
           DOCKER_CACHE: ${{ needs.build-info.outputs.cache-directive }}
           IMAGE_TAG: ${{ env.IMAGE_TAG_FOR_THE_BUILD }}
           PYTHON_VERSIONS: ${{ needs.build-info.outputs.all-python-versions-list-as-string }}
-        if: needs.build-info.outputs.in-workflow-build == 'true'
       - name: "Stop ARM instance"
         run: ./scripts/ci/images/ci_stop_arm_instance.sh
-        if: always() && needs.build-info.outputs.in-workflow-build == 'true'
+        if: always()
       - name: "Fix ownership"
         run: breeze fix-ownership
-        if: always() && needs.build-info.outputs.in-workflow-build == 'true'
+        if: always()
