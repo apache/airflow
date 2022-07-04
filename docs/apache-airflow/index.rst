@@ -24,13 +24,6 @@ connecting with virtually any technology. A web interface helps manage the state
 deployable in many ways, varying from a single process on your laptop to a distributed setup to support even
 the biggest workflows.
 
-Airflow was started in October 2014 by Maxime Beauchemin at Airbnb. It was open source from the very first
-commit and hosted under Airbnb's GitHub in June 2015. The project joined the `Apache Software Foundation
-Incubator program <https://incubator.apache.org/>`_ in March 2016 and the Foundation announced Apache Airflow
-as a Top-Level Project in January 2019. Ever since Airflow's inception, many companies and developers have
-used Airflow to manage their workflows. Airflow has grown to become one of the most-used open source workflow
-orchestration tools and has a very active developer community.
-
 Workflows as code
 =========================================
 The main characteristic of Airflow workflows is that all workflows are defined in Python code. "Workflows as
