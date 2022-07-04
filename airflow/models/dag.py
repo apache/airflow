@@ -341,7 +341,7 @@ class DAG(LoggingMixin):
         jinja_environment_kwargs: Optional[Dict] = None,
         render_template_as_native_obj: bool = False,
         tags: Optional[List[str]] = None,
-        schedule_on: Optional[List["Dataset"]] = None,
+        schedule_on: Optional[Sequence["Dataset"]] = None,
     ):
         from airflow.utils.task_group import TaskGroup
 
@@ -422,14 +422,16 @@ class DAG(LoggingMixin):
         # sort out DAG's scheduling behavior
         scheduling_args = [schedule_interval, timetable, schedule_on]
         if not at_most_one(*scheduling_args):
-            raise ValueError(f"At most one allowed for args {scheduling_args}")
+            raise ValueError(
+                f"At most one allowed for args 'schedule_interval', 'timetable', and 'schedule_on'."
+            )
 
         self.timetable: Timetable
         self.schedule_interval: ScheduleInterval
-        self.schedule_on = schedule_on
+        self.schedule_on: Optional[List["Dataset"]] = list(schedule_on) if schedule_on else None
         if schedule_on:
-            if not isinstance(schedule_on, list):
-                raise ValueError("Param `schedule_on` must be List[Dataset]")
+            if not isinstance(schedule_on, Sequence):
+                raise ValueError("Param `schedule_on` must be Sequence[Dataset]")
             self.schedule_interval = None
             self.timetable = NullTimetable()
         elif timetable:
