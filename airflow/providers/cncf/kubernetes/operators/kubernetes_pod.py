@@ -213,8 +213,6 @@ class KubernetesPodOperator(BaseOperator):
         resources: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
 
         if isinstance(resources, k8s.V1ResourceRequirements):
             warnings.warn(

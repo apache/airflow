@@ -91,8 +91,6 @@ class SimpleHttpOperator(BaseOperator):
         self.extra_options = extra_options or {}
         self.log_response = log_response
         self.auth_type = auth_type
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
     def execute(self, context: 'Context') -> Any:
         from airflow.utils.operator_helpers import determine_kwargs
