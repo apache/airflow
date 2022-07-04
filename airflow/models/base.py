@@ -36,9 +36,14 @@ naming_convention = {
     "pk": "%(table_name)s_pkey",
 }
 
-if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
-    SQL_ALCHEMY_SCHEMA = None
-metadata = MetaData(schema=SQL_ALCHEMY_SCHEMA, naming_convention=naming_convention)
+
+def _get_schema():
+    if not SQL_ALCHEMY_SCHEMA or SQL_ALCHEMY_SCHEMA.isspace():
+        return None
+    return SQL_ALCHEMY_SCHEMA
+
+
+metadata = MetaData(schema=_get_schema(), naming_convention=naming_convention)
 
 Base: Any = declarative_base(metadata=metadata)
 
