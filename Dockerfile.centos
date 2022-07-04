@@ -1,0 +1,469 @@
+# syntax=docker/dockerfile:1.4
+
+##############################################################################################
+# This is the script image where we keep all inlined bash scripts needed in other segments
+##############################################################################################
+FROM scratch as scripts
+
+##############################################################################################
+# Please DO NOT modify the inlined scripts manually. The content of those files will be
+# replaced by pre-commit automatically from the "scripts/docker/" folder.
+# This is done in order to avoid problems with caching and file permissions and in order to
+# make the PROD Dockerfile standalone
+##############################################################################################
+
+# The content below is automatically copied from scripts/docker/determine_debian_version_specific_variables.sh
+# The content below is automatically copied from scripts/docker/airflow-scheduler-autorestart.sh
+COPY <<"EOF" /airflow-scheduler-autorestart.sh
+#!/usr/bin/env bash
+
+while echo "Running"; do
+    airflow scheduler -n 5
+    return_code=$?
+    if (( return_code != 0 )); then
+        echo "Scheduler crashed with exit code $return_code. Respawning.." >&2
+        date >> /tmp/airflow_scheduler_errors.txt
+    fi
+
+    sleep 1
+done
+EOF
+
+# The content below is automatically copied from scripts/docker/clean-logs.sh
+COPY <<"EOF" /clean-logs.sh
+#!/usr/bin/env bash
+
+
+set -euo pipefail
+
+readonly DIRECTORY="${AIRFLOW_HOME:-/usr/local/airflow}"
+readonly RETENTION="${AIRFLOW__LOG_RETENTION_DAYS:-15}"
+
+trap "exit" INT TERM
+
+readonly EVERY=$((15*60))
+
+echo "Cleaning logs every $EVERY seconds"
+
+while true; do
+  echo "Trimming airflow logs to ${RETENTION} days."
+  find "${DIRECTORY}"/logs \
+    -type d -name 'lost+found' -prune -o \
+    -type f -mtime +"${RETENTION}" -name '*.log' -print0 | \
+    xargs -0 rm -f
+
+  seconds=$(( $(date -u +%s) % EVERY))
+  (( seconds < 1 )) || sleep $((EVERY - seconds))
+done
+EOF
+
+
+
+# The content below is automatically copied from scripts/docker/entrypoint_prod.sh
+COPY <<"EOF" /entrypoint_prod.sh
+#!/usr/bin/env bash
+AIRFLOW_COMMAND="${1:-}"
+
+set -euo pipefail
+
+LD_PRELOAD="/usr/lib/$(uname -m)-linux-gnu/libstdc++.so.6"
+export LD_PRELOAD
+
+function run_check_with_retries {
+    local cmd
+    cmd="${1}"
+    local countdown
+    countdown="${CONNECTION_CHECK_MAX_COUNT}"
+
+    while true
+    do
+        set +e
+        local last_check_result
+        local res
+        last_check_result=$(eval "${cmd} 2>&1")
+        res=$?
+        set -e
+        if [[ ${res} == 0 ]]; then
+            echo
+            break
+        else
+            echo -n "."
+            countdown=$((countdown-1))
+        fi
+        if [[ ${countdown} == 0 ]]; then
+            echo
+            echo "ERROR! Maximum number of retries (${CONNECTION_CHECK_MAX_COUNT}) reached."
+            echo
+            echo "Last check result:"
+            echo "$ ${cmd}"
+            echo "${last_check_result}"
+            echo
+            exit 1
+        else
+            sleep "${CONNECTION_CHECK_SLEEP_TIME}"
+        fi
+    done
+}
+
+function run_nc() {
+    # Checks if it is possible to connect to the host using netcat.
+    #
+    # We want to avoid misleading messages and perform only forward lookup of the service IP address.
+    # Netcat when run without -n performs both forward and reverse lookup and fails if the reverse
+    # lookup name does not match the original name even if the host is reachable via IP. This happens
+    # randomly with docker-compose in GitHub Actions.
+    # Since we are not using reverse lookup elsewhere, we can perform forward lookup in python
+    # And use the IP in NC and add '-n' switch to disable any DNS use.
+    # Even if this message might be harmless, it might hide the real reason for the problem
+    # Which is the long time needed to start some services, seeing this message might be totally misleading
+    # when you try to analyse the problem, that's why it's best to avoid it,
+    local host="${1}"
+    local port="${2}"
+    local ip
+    ip=$(python -c "import socket; print(socket.gethostbyname('${host}'))")
+    nc -zvvn "${ip}" "${port}"
+}
+
+
+function wait_for_connection {
+    # Waits for Connection to the backend specified via URL passed as first parameter
+    # Detects backend type depending on the URL schema and assigns
+    # default port numbers if not specified in the URL.
+    # Then it loops until connection to the host/port specified can be established
+    # It tries `CONNECTION_CHECK_MAX_COUNT` times and sleeps `CONNECTION_CHECK_SLEEP_TIME` between checks
+    local connection_url
+    connection_url="${1}"
+    local detected_backend
+    detected_backend=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).scheme)" "${connection_url}")
+    local detected_host
+    detected_host=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).hostname or '')" "${connection_url}")
+    local detected_port
+    detected_port=$(python -c "from urllib.parse import urlsplit; import sys; print(urlsplit(sys.argv[1]).port or '')" "${connection_url}")
+
+    echo BACKEND="${BACKEND:=${detected_backend}}"
+    readonly BACKEND
+
+    if [[ -z "${detected_port=}" ]]; then
+        if [[ ${BACKEND} == "postgres"* ]]; then
+            detected_port=5432
+        elif [[ ${BACKEND} == "mysql"* ]]; then
+            detected_port=3306
+        elif [[ ${BACKEND} == "mssql"* ]]; then
+            detected_port=1433
+        elif [[ ${BACKEND} == "redis"* ]]; then
+            detected_port=6379
+        elif [[ ${BACKEND} == "amqp"* ]]; then
+            detected_port=5672
+        fi
+    fi
+
+    detected_host=${detected_host:="localhost"}
+
+    # Allow the DB parameters to be overridden by environment variable
+    echo DB_HOST="${DB_HOST:=${detected_host}}"
+    readonly DB_HOST
+
+    echo DB_PORT="${DB_PORT:=${detected_port}}"
+    readonly DB_PORT
+    if [[ -n "${DB_HOST=}" ]] && [[ -n "${DB_PORT=}" ]]; then
+        run_check_with_retries "run_nc ${DB_HOST@Q} ${DB_PORT@Q}"
+    else
+        >&2 echo "The connection details to the broker could not be determined. Connectivity checks were skipped."
+    fi
+}
+
+function create_www_user() {
+    local local_password=""
+    # Warning: command environment variables (*_CMD) have priority over usual configuration variables
+    # for configuration parameters that require sensitive information. This is the case for the SQL database
+    # and the broker backend in this entrypoint script.
+    if [[ -n "${_AIRFLOW_WWW_USER_PASSWORD_CMD=}" ]]; then
+        local_password=$(eval "${_AIRFLOW_WWW_USER_PASSWORD_CMD}")
+        unset _AIRFLOW_WWW_USER_PASSWORD_CMD
+    elif [[ -n "${_AIRFLOW_WWW_USER_PASSWORD=}" ]]; then
+        local_password="${_AIRFLOW_WWW_USER_PASSWORD}"
+        unset _AIRFLOW_WWW_USER_PASSWORD
+    fi
+    if [[ -z ${local_password} ]]; then
+        echo
+        echo "ERROR! Airflow Admin password not set via _AIRFLOW_WWW_USER_PASSWORD or _AIRFLOW_WWW_USER_PASSWORD_CMD variables!"
+        echo
+        exit 1
+    fi
+
+    airflow users create \
+       --username "${_AIRFLOW_WWW_USER_USERNAME="admin"}" \
+       --firstname "${_AIRFLOW_WWW_USER_FIRSTNAME="Airflow"}" \
+       --lastname "${_AIRFLOW_WWW_USER_LASTNAME="Admin"}" \
+       --email "${_AIRFLOW_WWW_USER_EMAIL="airflowadmin@example.com"}" \
+       --role "${_AIRFLOW_WWW_USER_ROLE="Admin"}" \
+       --password "${local_password}" || true
+}
+
+function create_system_user_if_missing() {
+    # This is needed in case of OpenShift-compatible container execution. In case of OpenShift random
+    # User id is used when starting the image, however group 0 is kept as the user group. Our production
+    # Image is OpenShift compatible, so all permissions on all folders are set so that 0 group can exercise
+    # the same privileges as the default "airflow" user, this code checks if the user is already
+    # present in /etc/passwd and will create the system user dynamically, including setting its
+    # HOME directory to the /home/airflow so that (for example) the ${HOME}/.local folder where airflow is
+    # Installed can be automatically added to PYTHONPATH
+    if ! whoami &> /dev/null; then
+      if [[ -w /etc/passwd ]]; then
+        echo "${USER_NAME:-default}:x:$(id -u):0:${USER_NAME:-default} user:${AIRFLOW_USER_HOME_DIR}:/sbin/nologin" \
+            >> /etc/passwd
+      fi
+      export HOME="${AIRFLOW_USER_HOME_DIR}"
+    fi
+}
+
+function set_pythonpath_for_root_user() {
+    # Airflow is installed as a local user application which means that if the container is running as root
+    # the application is not available. because Python then only load system-wide applications.
+    # Now also adds applications installed as local user "airflow".
+    if [[ $UID == "0" ]]; then
+        local python_major_minor
+        python_major_minor="$(python --version | cut -d " " -f 2 | cut -d "." -f 1-2)"
+        export PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python${python_major_minor}/site-packages:${PYTHONPATH:-}"
+        >&2 echo "The container is run as root user. For security, consider using a regular user account."
+    fi
+}
+
+function wait_for_airflow_db() {
+    # Wait for the command to run successfully to validate the database connection.
+    run_check_with_retries "airflow db check"
+}
+
+function upgrade_db() {
+    # Runs airflow db upgrade
+    airflow db upgrade || true
+}
+
+function wait_for_celery_broker() {
+    # Verifies connection to Celery Broker
+    local executor
+    executor="$(airflow config get-value core executor)"
+    if [[ "${executor}" == "CeleryExecutor" ]]; then
+        local connection_url
+        connection_url="$(airflow config get-value celery broker_url)"
+        wait_for_connection "${connection_url}"
+    fi
+}
+
+function exec_to_bash_or_python_command_if_specified() {
+    # If one of the commands: 'bash', 'python' is used, either run appropriate
+    # command with exec
+    if [[ ${AIRFLOW_COMMAND} == "bash" ]]; then
+       shift
+       exec "/bin/bash" "${@}"
+    elif [[ ${AIRFLOW_COMMAND} == "python" ]]; then
+       shift
+       exec "python" "${@}"
+    fi
+}
+
+function check_uid_gid() {
+    if [[ $(id -g) == "0" ]]; then
+        return
+    fi
+    if [[ $(id -u) == "50000" ]]; then
+        >&2 echo
+        >&2 echo "WARNING! You should run the image with GID (Group ID) set to 0"
+        >&2 echo "         even if you use 'airflow' user (UID=50000)"
+        >&2 echo
+        >&2 echo " You started the image with UID=$(id -u) and GID=$(id -g)"
+        >&2 echo
+        >&2 echo " This is to make sure you can run the image with an arbitrary UID in the future."
+        >&2 echo
+        >&2 echo " See more about it in the Airflow's docker image documentation"
+        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        >&2 echo
+        # We still allow the image to run with `airflow` user.
+        return
+    else
+        >&2 echo
+        >&2 echo "ERROR! You should run the image with GID=0"
+        >&2 echo
+        >&2 echo " You started the image with UID=$(id -u) and GID=$(id -g)"
+        >&2 echo
+        >&2 echo "The image should always be run with GID (Group ID) set to 0 regardless of the UID used."
+        >&2 echo " This is to make sure you can run the image with an arbitrary UID."
+        >&2 echo
+        >&2 echo " See more about it in the Airflow's docker image documentation"
+        >&2 echo "     http://airflow.apache.org/docs/docker-stack/entrypoint"
+        # This will not work so we fail hard
+        exit 1
+    fi
+}
+
+unset PIP_USER
+
+check_uid_gid
+
+umask 0002
+
+CONNECTION_CHECK_MAX_COUNT=${CONNECTION_CHECK_MAX_COUNT:=20}
+readonly CONNECTION_CHECK_MAX_COUNT
+
+CONNECTION_CHECK_SLEEP_TIME=${CONNECTION_CHECK_SLEEP_TIME:=3}
+readonly CONNECTION_CHECK_SLEEP_TIME
+
+create_system_user_if_missing
+set_pythonpath_for_root_user
+if [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+    wait_for_airflow_db
+fi
+
+if [[ -n "${_AIRFLOW_DB_UPGRADE=}" ]] ; then
+    upgrade_db
+fi
+
+if [[ -n "${_AIRFLOW_WWW_USER_CREATE=}" ]] ; then
+    create_www_user
+fi
+
+if [[ -n "${_PIP_ADDITIONAL_REQUIREMENTS=}" ]] ; then
+    >&2 echo
+    >&2 echo "!!!!!  Installing additional requirements: '${_PIP_ADDITIONAL_REQUIREMENTS}' !!!!!!!!!!!!"
+    >&2 echo
+    >&2 echo "WARNING: This is a development/test feature only. NEVER use it in production!"
+    >&2 echo "         Instead, build a custom image as described in"
+    >&2 echo
+    >&2 echo "         https://airflow.apache.org/docs/docker-stack/build.html"
+    >&2 echo
+    >&2 echo "         Adding requirements at container startup is fragile and is done every time"
+    >&2 echo "         the container starts, so it is onlny useful for testing and trying out"
+    >&2 echo "         of adding dependencies."
+    >&2 echo
+    pip install --root-user-action ignore --no-cache-dir ${_PIP_ADDITIONAL_REQUIREMENTS}
+fi
+
+
+exec_to_bash_or_python_command_if_specified "${@}"
+
+if [[ ${AIRFLOW_COMMAND} == "airflow" ]]; then
+   AIRFLOW_COMMAND="${2:-}"
+   shift
+fi
+
+if [[ ${AIRFLOW_COMMAND} =~ ^(scheduler|celery)$ ]] \
+    && [[ "${CONNECTION_CHECK_MAX_COUNT}" -gt "0" ]]; then
+    wait_for_celery_broker
+fi
+
+exec "airflow" "${@}"
+EOF
+
+
+# The content below is automatically copied from scripts/docker/pip
+COPY <<"EOF" /pip
+#!/usr/bin/env bash
+COLOR_RED=$'\e[31m'
+COLOR_RESET=$'\e[0m'
+COLOR_YELLOW=$'\e[33m'
+
+if [[ $(id -u) == "0" ]]; then
+    echo
+    echo "${COLOR_RED}You are running pip as root. Please use 'airflow' user to run pip!${COLOR_RESET}"
+    echo
+    echo "${COLOR_YELLOW}See: https://airflow.apache.org/docs/docker-stack/build.html#adding-a-new-pypi-package${COLOR_RESET}"
+    echo
+    exit 1
+fi
+exec "${HOME}"/.local/bin/pip "${@}"
+EOF
+
+
+##############################################################################################
+# This is the build image where we build all dependencies
+##############################################################################################
+
+
+FROM centos/python-38-centos7:20210726-fad62e9
+
+ENV LC_ALL=en_US.utf-8 \
+    LANG=en_US.utf-8 \
+    LD_LIBRARY_PATH=/usr/local/lib:$LD_LIBRARY_PATH \
+    AIRFLOW_USER_HOME_DIR=/home/airflow
+
+ARG AIRFLOW_EXTRAS="amazon,async,celery,cncf.kubernetes,dask,docker,elasticsearch,ftp,google,google_auth,grpc,hashicorp,http,ldap,microsoft.azure,odbc,pandas,postgres,redis,sendgrid,sftp,slack,ssh,statsd,virtualenv"
+
+ARG AIRFLOW_REPO=apache/airflow
+
+ARG AIRFLOW_BRANCH=main
+
+ARG AIRFLOW_UID="50000"
+
+ARG AIRFLOW_HOME=/opt/airflow
+
+ARG AIRFLOW_USER_HOME_DIR=/home/airflow
+
+USER root
+
+SHELL ["/bin/bash", "-o", "pipefail", "-o", "errexit", "-o", "nounset", "-o", "nolog", "-c"]
+
+EXPOSE 8080
+
+ENV PATH=$PATH:~/.local/bin:/opt/rh/rh-python38/root/usr/local/bin/:/opt/rh/rh-python38/root/usr/bin \
+    PYTHONPATH="${AIRFLOW_USER_HOME_DIR}/.local/lib/python3.8/site-packages:${PYTHONPATH:-}"
+
+# hadolint ignore=DL3003
+RUN rm -f /etc/yum.repos.d/amzn-main.repo /etc/yum.repos.d/amzn-updates.repo \
+    && yum install -y https://dl.fedoraproject.org/pub/epel/epel-release-latest-7.noarch.rpm \
+    && yum install -y devtoolset-7-gcc-7.1.1-2.1.el7.x86_64 \
+    && yum install -y wget-1.14-18.el7_6.1 gcc-4.8.5-44.el7 tar-2:1.26-35.el7 gzip-1.5-11.el7_9 make-1:3.82-24.el7 expect-5.45-14.el7_1 gcc-c++-4.8.5-44.el7 rh-python38-python-devel.x86_64-3.8.11-2.el7 \
+    && yum install -y kernel-devel-3.10.0-1160.71.1.el7 --skip-broken \
+    && yum -y install openldap-devel-2.4.44-25.el7_9 python3-devel-3.6.8-18.el7 unixODBC-devel-2.3.1-14.el7 \
+    && yum -y install kernel-headers-3.10.0-1160.71.1.el7 --disableexcludes=all \
+    && yum install -y sysvinit-tools-2.88-14.dsf.el7 \
+    && yum install -y postgresql-libs.x86_64-9.2.24-8.el7_9 postgresql.x86_64-9.2.24-8.el7_9 \
+    && yum install -y freetds-1.3.3-1.el7 freetds-devel-1.3.3-1.el7 krb5-server-1.15.1-54.el7_9 krb5-libs-1.15.1-54.el7_9 libffi-devel-3.0.13-19.el7 cyrus-sasl-2.1.26-24.el7_9 cyrus-sasl-lib-2.1.26-24.el7_9 openssl-devel-1:1.0.2k-25.el7_9 glibc-common-2.17-326.el7_9 redhat-lsb-core-4.1-27.el7.centos.1 cyrus-sasl-devel-2.1.26-24.el7_9 unixODBC-2.3.1-14.el7 bash-4.2.46-35.el7_9 which-2.20-7.el7 \
+    && wget --progress=dot:giga -O /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 \
+    && echo "e874b55f3279ca41415d290c512a7ba9d08f98041b28ae7c2acb19a545f1c4df  /usr/bin/dumb-init" | sha256sum -c - \
+    && chmod 755 /usr/bin/dumb-init \
+    && wget --progress=dot:giga --no-check-certificate https://www.sqlite.org/src/tarball/sqlite.tar.gz \
+    && tar xzf sqlite.tar.gz \
+    && cd sqlite/ \
+    && export CFLAGS="-DSQLITE_ENABLE_FTS3 \
+    -DSQLITE_ENABLE_FTS3_PARENTHESIS \
+    -DSQLITE_ENABLE_FTS4 \
+    -DSQLITE_ENABLE_FTS5 \
+    -DSQLITE_ENABLE_JSON1 \
+    -DSQLITE_ENABLE_LOAD_EXTENSION \
+    -DSQLITE_ENABLE_RTREE \
+    -DSQLITE_ENABLE_STAT4 \
+    -DSQLITE_ENABLE_UPDATE_DELETE_LIMIT \
+    -DSQLITE_SOUNDEX \
+    -DSQLITE_TEMP_STORE=3 \
+    -DSQLITE_USE_URI \
+    -O2 \
+    -fPIC" \
+    && export PREFIX="/usr/local" \
+    && LIBS="-lm" ./configure --disable-tcl --enable-shared --enable-tempstore=always --prefix="$PREFIX" \
+    && make \
+    && make install \
+    && rm -rf sqlite.tar.gz sqlite \
+    && yum clean all
+
+RUN pip install --no-cache-dir "apache-airflow[${AIRFLOW_EXTRAS}]==2.2.4" --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-2.2.4/constraints-3.8.txt" \
+    && pip install --no-cache-dir python-statsd \
+    && pip install --no-cache-dir --force-reinstall setuptools==59.6.0
+
+COPY --from=scripts entrypoint_prod.sh /opt/airflow/entrypoint
+
+COPY --from=scripts clean-logs.sh /opt/airflow/clean-logs
+
+COPY --from=scripts airflow-scheduler-autorestart.sh /opt/airflow/airflow-scheduler-autorestart
+
+COPY --from=scripts pip /usr/local/bin/pip
+
+RUN useradd --uid "50000" --gid "0" --home "${AIRFLOW_USER_HOME_DIR}" --create-home airflow && \
+    chown -R "airflow:0" "${AIRFLOW_USER_HOME_DIR}" ${AIRFLOW_HOME}
+
+RUN yum list installed > my_list.txt
+
+USER ${AIRFLOW_UID}
+
+ENTRYPOINT ["/opt/airflow/entrypoint"]
+
+CMD []
