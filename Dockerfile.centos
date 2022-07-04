@@ -414,9 +414,9 @@ RUN rm -f /etc/yum.repos.d/amzn-main.repo /etc/yum.repos.d/amzn-updates.repo \
     && yum install -y wget-1.14-18.el7_6.1 gcc-4.8.5-44.el7 tar-2:1.26-35.el7 gzip-1.5-11.el7_9 make-1:3.82-24.el7 expect-5.45-14.el7_1 gcc-c++-4.8.5-44.el7 rh-python38-python-devel.x86_64-3.8.11-2.el7 \
     && yum install -y kernel-devel-3.10.0-1160.71.1.el7 --skip-broken \
     && yum -y install openldap-devel-2.4.44-25.el7_9 python3-devel-3.6.8-18.el7 unixODBC-devel-2.3.1-14.el7 \
-    && yum -y install kernel-headers-3.10.0-1160.71.1.el7 --disableexcludes=all \
+    && yum -y install kernel-headers-3.10.0-1160.71.1.el7.x86_64 --disableexcludes=all \
     && yum install -y sysvinit-tools-2.88-14.dsf.el7 \
-    && yum install -y postgresql-libs.x86_64-9.2.24-8.el7_9 postgresql.x86_64-9.2.24-8.el7_9 \
+    && yum install -y postgresql-libs-9.2.24-8.el7_9.x86_64 postgresql-9.2.24-8.el7_9.x86_64 \
     && yum install -y freetds-1.3.3-1.el7 freetds-devel-1.3.3-1.el7 krb5-server-1.15.1-54.el7_9 krb5-libs-1.15.1-54.el7_9 libffi-devel-3.0.13-19.el7 cyrus-sasl-2.1.26-24.el7_9 cyrus-sasl-lib-2.1.26-24.el7_9 openssl-devel-1:1.0.2k-25.el7_9 glibc-common-2.17-326.el7_9 redhat-lsb-core-4.1-27.el7.centos.1 cyrus-sasl-devel-2.1.26-24.el7_9 unixODBC-2.3.1-14.el7 bash-4.2.46-35.el7_9 which-2.20-7.el7 \
     && wget --progress=dot:giga -O /usr/bin/dumb-init https://github.com/Yelp/dumb-init/releases/download/v1.2.5/dumb-init_1.2.5_x86_64 \
     && echo "e874b55f3279ca41415d290c512a7ba9d08f98041b28ae7c2acb19a545f1c4df  /usr/bin/dumb-init" | sha256sum -c - \
