@@ -53,7 +53,9 @@ class TestGceInstanceStart:
         op = ComputeEngineStartInstanceOperator(
             project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=RESOURCE_ID, task_id='id'
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
+
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -92,7 +94,8 @@ class TestGceInstanceStart:
             op = ComputeEngineStartInstanceOperator(
                 project_id="", zone=GCE_ZONE, resource_id=RESOURCE_ID, task_id='id'
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -100,7 +103,8 @@ class TestGceInstanceStart:
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_start_should_not_throw_ex_when_project_id_none(self, _):
         op = ComputeEngineStartInstanceOperator(zone=GCE_ZONE, resource_id=RESOURCE_ID, task_id='id')
-        op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
 
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_start_should_throw_ex_when_missing_zone(self, mock_hook):
@@ -108,7 +112,8 @@ class TestGceInstanceStart:
             op = ComputeEngineStartInstanceOperator(
                 project_id=GCP_PROJECT_ID, zone="", resource_id=RESOURCE_ID, task_id='id'
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'zone' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -119,7 +124,8 @@ class TestGceInstanceStart:
             op = ComputeEngineStartInstanceOperator(
                 project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id="", task_id='id'
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'resource_id' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -131,7 +137,8 @@ class TestGceInstanceStop:
         op = ComputeEngineStopInstanceOperator(
             project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=RESOURCE_ID, task_id='id'
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -169,7 +176,8 @@ class TestGceInstanceStop:
             op = ComputeEngineStopInstanceOperator(
                 project_id="", zone=GCE_ZONE, resource_id=RESOURCE_ID, task_id='id'
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -177,7 +185,8 @@ class TestGceInstanceStop:
     @mock.patch('airflow.providers.google.cloud.operators.compute.ComputeEngineHook')
     def test_stop_should_not_throw_ex_when_project_id_none(self, mock_hook):
         op = ComputeEngineStopInstanceOperator(zone=GCE_ZONE, resource_id=RESOURCE_ID, task_id='id')
-        op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -193,7 +202,8 @@ class TestGceInstanceStop:
             op = ComputeEngineStopInstanceOperator(
                 project_id=GCP_PROJECT_ID, zone="", resource_id=RESOURCE_ID, task_id='id'
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'zone' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -204,7 +214,8 @@ class TestGceInstanceStop:
             op = ComputeEngineStopInstanceOperator(
                 project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id="", task_id='id'
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'resource_id' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -221,7 +232,8 @@ class TestGceInstanceSetMachineType:
             body=SET_MACHINE_TYPE_BODY,
             task_id='id',
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -264,7 +276,8 @@ class TestGceInstanceSetMachineType:
                 body=SET_MACHINE_TYPE_BODY,
                 task_id='id',
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'project_id' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -274,7 +287,8 @@ class TestGceInstanceSetMachineType:
         op = ComputeEngineSetMachineTypeOperator(
             zone=GCE_ZONE, resource_id=RESOURCE_ID, body=SET_MACHINE_TYPE_BODY, task_id='id'
         )
-        op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -294,7 +308,8 @@ class TestGceInstanceSetMachineType:
                 body=SET_MACHINE_TYPE_BODY,
                 task_id='id',
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'zone' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -309,7 +324,8 @@ class TestGceInstanceSetMachineType:
                 body=SET_MACHINE_TYPE_BODY,
                 task_id='id',
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required parameter 'resource_id' is missing" in str(err)
         mock_hook.assert_not_called()
@@ -320,7 +336,8 @@ class TestGceInstanceSetMachineType:
             op = ComputeEngineSetMachineTypeOperator(
                 project_id=GCP_PROJECT_ID, zone=GCE_ZONE, resource_id=RESOURCE_ID, body={}, task_id='id'
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         assert "The required body field 'machineType' is missing. Please add it." in str(err)
         mock_hook.assert_called_once_with(
@@ -373,7 +390,8 @@ class TestGceInstanceSetMachineType:
                 body=SET_MACHINE_TYPE_BODY,
                 task_id='id',
             )
-            op.execute(None)
+            context = mock.MagicMock()
+            result = op.execute(context=context)
         err = ctx.value
         _check_zone_operation_status.assert_called_once_with(
             {}, "test-operation", GCP_PROJECT_ID, GCE_ZONE, mock.ANY
@@ -480,7 +498,8 @@ class TestGceInstanceTemplateCopy:
             task_id='id',
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -503,7 +522,8 @@ class TestGceInstanceTemplateCopy:
             task_id='id',
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -523,7 +543,8 @@ class TestGceInstanceTemplateCopy:
             task_id='id',
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -546,7 +567,8 @@ class TestGceInstanceTemplateCopy:
             task_id='id',
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME},
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -573,7 +595,8 @@ class TestGceInstanceTemplateCopy:
             task_id='id',
             body_patch={"name": GCE_INSTANCE_TEMPLATE_NEW_NAME, "description": "New description"},
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -606,7 +629,8 @@ class TestGceInstanceTemplateCopy:
                 "properties": {"some_other_wrong_field": "test"},
             },
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -640,7 +664,8 @@ class TestGceInstanceTemplateCopy:
                 },
             },
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -678,7 +703,8 @@ class TestGceInstanceTemplateCopy:
                 },
             },
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -730,7 +756,8 @@ class TestGceInstanceTemplateCopy:
                 },
             },
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='v1',
             gcp_conn_id='google_cloud_default',
@@ -879,7 +906,8 @@ class TestGceInstanceGroupManagerUpdate:
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='beta',
             gcp_conn_id='google_cloud_default',
@@ -906,7 +934,8 @@ class TestGceInstanceGroupManagerUpdate:
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='beta',
             gcp_conn_id='google_cloud_default',
@@ -934,7 +963,8 @@ class TestGceInstanceGroupManagerUpdate:
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='beta',
             gcp_conn_id='google_cloud_default',
@@ -964,7 +994,8 @@ class TestGceInstanceGroupManagerUpdate:
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='beta',
             gcp_conn_id='google_cloud_default',
@@ -995,7 +1026,8 @@ class TestGceInstanceGroupManagerUpdate:
             source_template=GCE_INSTANCE_TEMPLATE_SOURCE_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='beta',
             gcp_conn_id='google_cloud_default',
@@ -1026,7 +1058,8 @@ class TestGceInstanceGroupManagerUpdate:
             request_id=GCE_INSTANCE_GROUP_MANAGER_REQUEST_ID,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='beta',
             gcp_conn_id='google_cloud_default',
@@ -1069,7 +1102,8 @@ class TestGceInstanceGroupManagerUpdate:
             source_template=GCE_INSTANCE_TEMPLATE_NON_EXISTING_URL,
             destination_template=GCE_INSTANCE_TEMPLATE_DESTINATION_URL,
         )
-        result = op.execute(None)
+        context = mock.MagicMock()
+        result = op.execute(context=context)
         mock_hook.assert_called_once_with(
             api_version='beta',
             gcp_conn_id='google_cloud_default',
