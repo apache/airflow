@@ -26,6 +26,7 @@ This module contains Base AWS Hook.
 
 import configparser
 import datetime
+import json
 import logging
 import warnings
 from functools import wraps
@@ -409,9 +410,6 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         self.region_name = region_name
         self.config = config
 
-        if not (self.client_type or self.resource_type):
-            raise AirflowException('Either client_type or resource_type must be provided.')
-
     def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
 
         if not self.aws_conn_id:
@@ -510,13 +508,15 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
         :return: boto3.client or boto3.resource
         :rtype: Union[boto3.client, boto3.resource]
         """
-        if self.client_type:
+        if not ((not self.client_type) ^ (not self.resource_type)):
+            raise ValueError(
+                f"Either client_type={self.client_type!r} or "
+                f"resource_type={self.resource_type!r} must be provided, not both."
+            )
+        elif self.client_type:
             return self.get_client_type(region_name=self.region_name)
-        elif self.resource_type:
-            return self.get_resource_type(region_name=self.region_name)
         else:
-            # Rare possibility - subclasses have not specified a client_type or resource_type
-            raise NotImplementedError('Could not get boto3 connection!')
+            return self.get_resource_type(region_name=self.region_name)
 
     @cached_property
     def conn_client_meta(self) -> ClientMeta:
@@ -610,6 +610,29 @@ class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
             return decorator_f
 
         return retry_decorator
+
+    def test_connection(self):
+        """
+        Tests the AWS connection by call AWS STS (Security Token Service) GetCallerIdentity API.
+
+        .. seealso::
+            https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html
+        """
+        orig_client_type, self.client_type = self.client_type, 'sts'
+        try:
+            res = self.get_client_type().get_caller_identity()
+            metadata = res.pop("ResponseMetadata", {})
+            if metadata.get("HTTPStatusCode") == 200:
+                return True, json.dumps(res)
+            else:
+                try:
+                    return False, json.dumps(metadata)
+                except TypeError:
+                    return False, str(metadata)
+        except Exception as e:
+            return False, str(e)
+        finally:
+            self.client_type = orig_client_type
 
 
 class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):

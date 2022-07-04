@@ -701,6 +701,29 @@ class TestAwsBaseHook:
 
             assert hook.conn_partition == expected_partition
 
+    @pytest.mark.parametrize(
+        "client_type,resource_type",
+        [
+            ("s3", "dynamodb"),
+            (None, None),
+            ("", ""),
+        ],
+    )
+    def test_connection_client_resource_types_check(self, client_type, resource_type):
+        # Should not raise any error during Hook initialisation.
+        hook = AwsBaseHook(aws_conn_id=None, client_type=client_type, resource_type=resource_type)
+
+        with pytest.raises(ValueError, match="Either client_type=.* or resource_type=.* must be provided"):
+            hook.get_conn()
+
+    @unittest.skipIf(mock_sts is None, 'mock_sts package not present')
+    @mock_sts
+    def test_hook_connection_test(self):
+        hook = AwsBaseHook(client_type="s3")
+        result, message = hook.test_connection()
+        assert result
+        assert hook.client_type == "s3"  # Same client_type which defined during initialisation
+
 
 class ThrowErrorUntilCount:
     """Holds counter state for invoking a method several times in a row."""
