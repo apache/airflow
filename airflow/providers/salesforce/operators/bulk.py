@@ -77,7 +77,6 @@ class SalesforceBulkOperator(BaseOperator):
 
         :param context: The task context during execution.
         :return: API response if do_xcom_push is True
-        :rtype: dict
         """
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
