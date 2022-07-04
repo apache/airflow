@@ -57,12 +57,7 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.taskfail import TaskFail
-from airflow.models.taskinstance import (
-    TaskInstance,
-    _executor_config_comparator,
-    load_error_file,
-    set_error_file,
-)
+from airflow.models.taskinstance import TaskInstance, load_error_file, set_error_file
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
 from airflow.operators.bash import BashOperator
@@ -3124,22 +3119,3 @@ def test_expand_non_templated_field(dag_maker, session):
 
     echo_task = dag.get_task("echo")
     assert "get_extra_env" in echo_task.upstream_task_ids
-
-
-def test_executor_config_comparator():
-    """
-    When comparison raises AttributeError, return False.
-    This can happen when executor config contains kubernetes objects pickled
-    under older kubernetes library version.
-    """
-
-    class MockAttrError:
-        def __eq__(self, other):
-            raise AttributeError('hello')
-
-    a = MockAttrError()
-    with pytest.raises(AttributeError):
-        # just verify for ourselves that this throws
-        assert a == a
-    assert _executor_config_comparator(a, a) is False
-    assert _executor_config_comparator('a', 'a') is True
