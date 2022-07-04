@@ -51,8 +51,8 @@ class Dataset(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dag_references = relationship(DatasetDagRef, back_populates='dataset')
-    task_references = relationship(DatasetTaskRef, back_populates='dataset')
+    dag_references = relationship("DatasetDagRef", back_populates="dataset")
+    task_references = relationship("DatasetTaskRef", back_populates="dataset")
 
     __tablename__ = "dataset"
     __table_args__ = (
@@ -110,11 +110,11 @@ class DatasetDagRef(Base):
             return NotImplemented
 
     def __hash__(self):
-        return hash((self.uri, self.extra))
+        return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
         args = []
-        for attr in ('dataset_id', 'dag_id'):
+        for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
 
@@ -151,12 +151,11 @@ class DatasetTaskRef(Base):
             return NotImplemented
 
     def __hash__(self):
-        return hash((self.uri, self.extra))
+        return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
         args = []
-
-        for attr in ('dataset_id', 'dag_id', 'task_id'):
+        for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
 
@@ -191,10 +190,10 @@ class DatasetDagRunQueue(Base):
             return NotImplemented
 
     def __hash__(self):
-        return hash((self.dataset_id, self.target_dag_id))
+        return hash(self.__mapper__.primary_key)
 
     def __repr__(self):
         args = []
-        for attr in ('dataset_id', 'target_dag_id'):
+        for attr in [x.name for x in self.__mapper__.primary_key]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
