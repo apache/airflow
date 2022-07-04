@@ -17,19 +17,28 @@
 # under the License.
 #
 import datetime
+import pickle
 import unittest
+from copy import copy
 from unittest import mock
+from unittest.mock import MagicMock
 
 import pytest
+from kubernetes.client import models as k8s
 from parameterized import parameterized
+from pytest import param
 from sqlalchemy.exc import StatementError
 
 from airflow import settings
 from airflow.models import DAG
+from airflow.serialization.enums import Encoding
+from airflow.serialization.serialized_objects import BaseSerialization
 from airflow.settings import Session
-from airflow.utils.sqlalchemy import nowait, prohibit_commit, skip_locked, with_row_locks
+from airflow.utils.sqlalchemy import ExecutorConfigType, nowait, prohibit_commit, skip_locked, with_row_locks
 from airflow.utils.state import State
 from airflow.utils.timezone import utcnow
+
+TEST_POD = k8s.V1Pod(spec=k8s.V1PodSpec(containers=[k8s.V1Container(name="base")]))
 
 
 class TestSqlAlchemyUtils(unittest.TestCase):
@@ -226,3 +235,82 @@ class TestSqlAlchemyUtils(unittest.TestCase):
     def tearDown(self):
         self.session.close()
         settings.engine.dispose()
+
+
+class TestExecutorConfigType:
+    @pytest.mark.parametrize(
+        'input',
+        ['anything', {'pod_override': TEST_POD}],
+    )
+    def test_bind_processor(self, input):
+        """
+        The returned bind processor should pickle the object as is, unless it is a dictionary with
+        a pod_override node, in which case it should run it through BaseSerialization.
+        """
+        config_type = ExecutorConfigType()
+        mock_dialect = MagicMock()
+        mock_dialect.dbapi = None
+        process = config_type.bind_processor(mock_dialect)
+        expected = copy(input)
+        if 'pod_override' in input:
+            expected['pod_override'] = BaseSerialization()._serialize(input['pod_override'])
+        assert pickle.loads(process(input)) == expected
+
+    @pytest.mark.parametrize(
+        'input',
+        [
+            param(
+                pickle.dumps('anything'),
+                id='anything',
+            ),
+            param(
+                pickle.dumps({'pod_override': BaseSerialization()._serialize(TEST_POD)}),
+                id='serialized_pod',
+            ),
+            param(
+                pickle.dumps({'pod_override': TEST_POD}),
+                id='old_pickled_raw_pod',
+            ),
+            param(
+                pickle.dumps({'pod_override': {"name": "hi"}}),
+                id='arbitrary_dict',
+            ),
+        ],
+    )
+    def test_result_processor(self, input):
+        """
+        The returned bind processor should pickle the object as is, unless it is a dictionary with
+        a pod_override node whose value was serialized with BaseSerialization.
+        """
+        config_type = ExecutorConfigType()
+        mock_dialect = MagicMock()
+        mock_dialect.dbapi = None
+        process = config_type.result_processor(mock_dialect, None)
+        result = process(input)
+        expected = pickle.loads(input)
+        pod_override = isinstance(expected, dict) and expected.get('pod_override')
+        if pod_override and isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+            # We should only deserialize a pod_override with BaseSerialization if
+            # it was serialized with BaseSerialization (which is the behavior added in #24356
+            expected['pod_override'] = BaseSerialization()._deserialize(expected['pod_override'])
+        assert result == expected
+
+    def test_compare_values(self):
+        """
+        When comparison raises AttributeError, return False.
+        This can happen when executor config contains kubernetes objects pickled
+        under older kubernetes library version.
+        """
+
+        class MockAttrError:
+            def __eq__(self, other):
+                raise AttributeError('hello')
+
+        a = MockAttrError()
+        with pytest.raises(AttributeError):
+            # just verify for ourselves that comparing directly will throw AttributeError
+            assert a == a
+
+        instance = ExecutorConfigType()
+        assert instance.compare_values(a, a) is False
+        assert instance.compare_values('a', 'a') is True
