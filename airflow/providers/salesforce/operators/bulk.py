@@ -81,7 +81,7 @@ class SalesforceBulkOperator(BaseOperator):
         sf_hook = SalesforceHook(salesforce_conn_id=self.salesforce_conn_id)
         conn = sf_hook.get_conn()
 
-        result: dict = {}
+        result = []
         if self.operation == 'insert':
             result = conn.bulk.__getattr__(self.object_name).insert(
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
