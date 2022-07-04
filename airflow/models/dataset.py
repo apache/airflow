@@ -17,12 +17,11 @@
 # under the License.
 from urllib.parse import urlparse
 
-from sqlalchemy import Column, Index, Integer, String
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String
 from sqlalchemy.orm import relationship
 
-from airflow.models.base import Base
-from airflow.models.dataset_dag_ref import DatasetDagRef
-from airflow.models.dataset_task_ref import DatasetTaskRef
+from airflow.models import ID_LEN, Base
+from airflow.models.base import Base, StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
@@ -82,3 +81,120 @@ class Dataset(Base):
 
     def __repr__(self):
         return f"{self.__class__.__name__}(uri={self.uri!r}, extra={self.extra!r})"
+
+
+class DatasetDagRef(Base):
+    """References from a DAG to an upstream dataset."""
+
+    dataset_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dataset = relationship('Dataset')
+
+    __tablename__ = "dataset_dag_ref"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (dataset_id,),
+            ["dataset.id"],
+            name='dataset_event_dataset_fkey',
+            ondelete="CASCADE",
+        ),
+    )
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.dataset_id == other.dataset_id and self.dag_id == other.dag_id
+        else:
+            return NotImplemented
+
+    def __hash__(self):
+        return hash((self.uri, self.extra))
+
+    def __repr__(self):
+        args = []
+        for attr in ('dataset_id', 'dag_id'):
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class DatasetTaskRef(Base):
+    """References from a task to a downstream dataset."""
+
+    dataset_id = Column(Integer, primary_key=True, nullable=False)
+    dag_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    task_id = Column(String(ID_LEN), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+    updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
+
+    dataset = relationship("Dataset", back_populates="task_references")
+
+    __tablename__ = "dataset_task_ref"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (dataset_id,),
+            ["dataset.id"],
+            name='dataset_event_dataset_fkey',
+            ondelete="CASCADE",
+        ),
+    )
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return (
+                self.dataset_id == other.dataset_id
+                and self.dag_id == other.dag_id
+                and self.task_id == other.task_id
+            )
+        else:
+            return NotImplemented
+
+    def __hash__(self):
+        return hash((self.uri, self.extra))
+
+    def __repr__(self):
+        args = []
+
+        for attr in ('dataset_id', 'dag_id', 'task_id'):
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class DatasetDagRunQueue(Base):
+    """Model for storing dataset events that need processing."""
+
+    dataset_id = Column(Integer, primary_key=True, nullable=False)
+    target_dag_id = Column(StringID(), primary_key=True, nullable=False)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "dataset_dag_run_queue"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (dataset_id,),
+            ["dataset.id"],
+            name='ddrq_dataset_fkey',
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (target_dag_id,),
+            ["dag.dag_id"],
+            name='ddrq_dag_fkey',
+            ondelete="CASCADE",
+        ),
+    )
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.dataset_id == other.dataset_id and self.target_dag_id == other.target_dag_id
+        else:
+            return NotImplemented
+
+    def __hash__(self):
+        return hash((self.dataset_id, self.target_dag_id))
+
+    def __repr__(self):
+        args = []
+        for attr in ('dataset_id', 'target_dag_id'):
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"

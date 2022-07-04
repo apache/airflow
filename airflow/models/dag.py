@@ -2524,9 +2524,7 @@ class DAG(LoggingMixin):
 
         DagCode.bulk_sync_to_db(filelocs, session=session)
 
-        from airflow.models.dataset import Dataset
-        from airflow.models.dataset_dag_ref import DatasetDagRef
-        from airflow.models.dataset_task_ref import DatasetTaskRef
+        from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
 
         class OutletRef(NamedTuple):
             dag_id: str

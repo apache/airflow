@@ -39,8 +39,7 @@ from airflow.models import (
     clear_task_instances,
 )
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue
-from airflow.models.dataset_task_ref import DatasetTaskRef
+from airflow.models.dataset import DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
 from airflow.operators.empty import EmptyOperator

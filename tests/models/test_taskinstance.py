@@ -57,8 +57,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
-from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue
-from airflow.models.dataset_task_ref import DatasetTaskRef
+from airflow.models.dataset import DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance

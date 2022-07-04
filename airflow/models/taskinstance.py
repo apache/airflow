@@ -95,7 +95,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue
+from airflow.models.dataset import DatasetDagRunQueue
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail

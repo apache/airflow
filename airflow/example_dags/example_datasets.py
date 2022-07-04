@@ -50,10 +50,6 @@ with DAG(
 ) as dag1:
     BashOperator(
         outlets=[dag1_dataset],
-        inlets=[
-            Dataset('s3://some-dataset/dataset1.txt'),
-            Dataset('s3://some-dataset/dataset2.txt'),
-        ],
         task_id='upstream_task_1',
         bash_command="sleep 5",
     )
@@ -67,10 +63,7 @@ with DAG(
 ) as dag2:
     BashOperator(
         outlets=[dag2_dataset],
-        inlets=[
-            Dataset('s3://abc/dataset2.txt'),
-        ],
-        task_id='upstream_task_1',
+        task_id='upstream_task_2',
         bash_command="sleep 5",
     )
 
@@ -115,7 +108,7 @@ with DAG(
 ) as dag5:
     BashOperator(
         outlets=[Dataset('s3://downstream_2_task/dataset_other_unknown.txt')],
-        task_id='downstream_2',
+        task_id='downstream_3',
         bash_command="sleep 5",
     )
 

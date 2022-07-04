@@ -631,9 +631,7 @@ class DagRun(Base, LoggingMixin):
         session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
 
-        from airflow.models import Dataset
-        from airflow.models.dataset_dag_ref import DatasetDagRef
-        from airflow.models.dataset_task_ref import DatasetTaskRef
+        from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
 
         has_dataset_outlets = False
         if self.dag:
@@ -653,7 +651,7 @@ class DagRun(Base, LoggingMixin):
                 .all()
             ]
 
-        from airflow.models.dataset_dag_run_queue import DatasetDagRunQueue as DDRQ
+        from airflow.models.dataset import DatasetDagRunQueue as DDRQ
         from airflow.models.serialized_dag import SerializedDagModel
 
         dag_ids_to_trigger = None

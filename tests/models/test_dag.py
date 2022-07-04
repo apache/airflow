@@ -46,7 +46,7 @@ from airflow.exceptions import AirflowException, DuplicateTaskIdFound, ParamVali
 from airflow.models import DAG, DagModel, DagRun, DagTag, Dataset, TaskFail, TaskInstance as TI
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import dag as dag_decorator
-from airflow.models.dataset_task_ref import DatasetTaskRef
+from airflow.models.dataset import DatasetTaskRef
 from airflow.models.param import DagParam, Param, ParamsDict
 from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
