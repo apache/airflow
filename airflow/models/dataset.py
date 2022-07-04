@@ -17,7 +17,7 @@
 # under the License.
 from urllib.parse import urlparse
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, String
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String
 from sqlalchemy.orm import relationship
 
 from airflow.models import ID_LEN, Base
@@ -95,6 +95,7 @@ class DatasetDagRef(Base):
 
     __tablename__ = "dataset_dag_ref"
     __table_args__ = (
+        PrimaryKeyConstraint(dataset_id, dag_id, name="datasetdagref_pkey", mssql_clustered=True),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
@@ -138,6 +139,7 @@ class DatasetTaskRef(Base):
             name='dataset_event_dataset_fkey',
             ondelete="CASCADE",
         ),
+        PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="datasettaskref_pkey", mssql_clustered=True),
     )
 
     def __eq__(self, other):
@@ -169,6 +171,7 @@ class DatasetDagRunQueue(Base):
 
     __tablename__ = "dataset_dag_run_queue"
     __table_args__ = (
+        PrimaryKeyConstraint(dataset_id, target_dag_id, name="datasetdagrunqueue_pkey", mssql_clustered=True),
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
