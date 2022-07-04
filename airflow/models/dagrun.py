@@ -631,6 +631,15 @@ class DagRun(Base, LoggingMixin):
         session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
 
+        self._process_dataset_dagrun_events(session=session)
+
+        return schedulable_tis, callback
+
+    def _process_dataset_dagrun_events(self, *, session=NEW_SESSION):
+        """
+        Looks at all outlet datasets that have been updated by this dag,
+        and creates DAG runs that have all dataset deps fulfilled.
+        """
         from airflow.models.dataset import Dataset, DatasetDagRef, DatasetTaskRef
 
         has_dataset_outlets = False
@@ -690,8 +699,6 @@ class DagRun(Base, LoggingMixin):
                         session=session,
                     )
                 session.query(DDRQ).filter(DDRQ.target_dag_id.in_(dag_ids_to_trigger)).delete()
-
-        return schedulable_tis, callback
 
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
