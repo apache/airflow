@@ -27,7 +27,8 @@ After dag1 runs, dag3 should be triggered immediately because its only
 dataset dependency is managed by dag1.
 
 No other dags should be triggered.  Note that even though dag4 depends on
-the dataset in dag1, it will not be triggered until dag2 runs.
+the dataset in dag1, it will not be triggered until dag2 runs (and dag2 is
+left with no schedule so that we can trigger it manually).
 
 Next, trigger dag2.  After dag2 finishes, dag4 should run.
 
@@ -72,7 +73,6 @@ with DAG(
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[dag1_dataset],
-    schedule_interval=None,
     tags=['downstream'],
 ) as dag3:
     BashOperator(
@@ -86,7 +86,6 @@ with DAG(
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[dag1_dataset, dag2_dataset],
-    schedule_interval=None,
     tags=['downstream'],
 ) as dag4:
     BashOperator(
@@ -103,7 +102,6 @@ with DAG(
         dag1_dataset,
         Dataset('s3://this-dataset-doesnt-get-triggered'),
     ],
-    schedule_interval=None,
     tags=['downstream'],
 ) as dag5:
     BashOperator(
@@ -120,7 +118,6 @@ with DAG(
         Dataset('s3://unrelated/dataset3.txt'),
         Dataset('s3://unrelated/dataset_other_unknown.txt'),
     ],
-    schedule_interval=None,
     tags=['unrelated'],
 ) as dag6:
     BashOperator(
