@@ -107,7 +107,7 @@ class SalesforceBulkOperator(BaseOperator):
                 data=self.payload, batch_size=self.batch_size, use_serial=self.use_serial
             )
 
-        if not self.do_xcom_push:
-            result = None
+        if self.do_xcom_push and result:
+            return result
 
-        return result
+        return None
