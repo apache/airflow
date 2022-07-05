@@ -20,13 +20,6 @@
 Example Airflow DAG that starts, stops and sets the machine type of a Google Compute
 Engine instance.
 
-This DAG relies on the following OS environment variables
-
-* PROJECT_ID - Google Cloud project where the Compute Engine instance exists.
-* GCE_ZONE - Google Cloud zone where the instance exists.
-* LOCATION - Name of the Compute Engine instance.
-* SHORT_MACHINE_TYPE_NAME - Machine type resource name to set, e.g. 'n1-standard-1'.
-    See https://cloud.google.com/compute/docs/machine-types
 """
 
 import os
@@ -41,22 +34,16 @@ from airflow.providers.google.cloud.operators.compute import (
 )
 from airflow.utils.trigger_rule import TriggerRule
 
-# [START howto_operator_gce_args_common]
-# GCP_PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
-# GCE_ZONE = os.environ.get('GCE_ZONE', 'europe-west1-b')
-# GCE_INSTANCE = os.environ.get('GCE_INSTANCE', 'testinstance')
-# [END howto_operator_gce_args_common]
 
 # [START howto_operator_gce_args_common]
 ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
 PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
 
-GCE_INSTANCE = 'testinstance'
+GCE_INSTANCE = 'instance-1'
 SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
 
 DAG_ID = 'cloud_compute'
 LOCATION = 'europe-west1-b'
-WORKFLOW_ID = f'workflow-{DAG_ID}-{ENV_ID}'
 # [END howto_operator_gce_args_common]
 
 
@@ -75,9 +62,6 @@ with models.DAG(
         task_id='gcp_compute_start_task'
     )
     # [END howto_operator_gce_start]
-    # gce_instance_start = ComputeEngineStartInstanceOperator(
-    #     project_id=PROJECT_ID, zone=LOCATION, resource_id=GCE_INSTANCE, task_id='gcp_compute_start_task'
-    # )
 
     # Duplicate start for idempotence testing
     # [START howto_operator_gce_start_no_project_id]
@@ -106,7 +90,7 @@ with models.DAG(
         resource_id=GCE_INSTANCE,
     )
     # [END howto_operator_gce_stop_no_project_id]
-    gce_instance_stop.trigger_rule = TriggerRule.ALL_DONE
+    gce_instance_stop2.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gce_set_machine_type]
     gce_set_machine_type = ComputeEngineSetMachineTypeOperator(
