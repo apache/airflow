@@ -693,12 +693,11 @@ class DagRun(Base, LoggingMixin):
                 if dag.schedule_on:
                     dag.create_dagrun(
                         run_type=DagRunType.MANUAL,
-                        run_id=self.generate_run_id(DagRunType.MANUAL, execution_date=timezone.utcnow()),
+                        run_id=self.generate_run_id(DagRunType.DATASE, execution_date=timezone.utcnow()),
                         state=DagRunState.QUEUED,
-                        external_trigger=True,
                         session=session,
                     )
-                session.query(DDRQ).filter(DDRQ.target_dag_id.in_(dag_ids_to_trigger)).delete()
+            session.query(DDRQ).filter(DDRQ.target_dag_id.in_(dag_ids_to_trigger)).delete()
 
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
