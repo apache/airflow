@@ -23,7 +23,7 @@ from typing import Any, Dict, Iterable, Tuple
 
 import pendulum
 from dateutil import relativedelta
-from sqlalchemy import TIMESTAMP, and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy import TIMESTAMP, PickleType, and_, event, false, nullsfirst, or_, tuple_
 from sqlalchemy.dialects import mssql, mysql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
@@ -33,6 +33,7 @@ from sqlalchemy.types import JSON, Text, TypeDecorator, TypeEngine, UnicodeText
 
 from airflow import settings
 from airflow.configuration import conf
+from airflow.serialization.enums import Encoding
 
 log = logging.getLogger(__name__)
 
@@ -144,6 +145,66 @@ class ExtendedJSON(TypeDecorator):
             value = json.loads(value)
 
         return BaseSerialization._deserialize(value)
+
+
+class ExecutorConfigType(PickleType):
+    """
+    Adds special handling for K8s executor config. If we unpickle a k8s object that was
+    pickled under an earlier k8s library version, then the unpickled object may throw an error
+    when to_dict is called.  To be more tolerant of version changes we convert to JSON using
+    Airflow's serializer before pickling.
+    """
+
+    def bind_processor(self, dialect):
+
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        super_process = super().bind_processor(dialect)
+
+        def process(value):
+            if isinstance(value, dict) and 'pod_override' in value:
+                value['pod_override'] = BaseSerialization()._serialize(value['pod_override'])
+            return super_process(value)
+
+        return process
+
+    def result_processor(self, dialect, coltype):
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        super_process = super().result_processor(dialect, coltype)
+
+        def process(value):
+            value = super_process(value)  # unpickle
+
+            if isinstance(value, dict) and 'pod_override' in value:
+                pod_override = value['pod_override']
+
+                # If pod_override was serialized with Airflow's BaseSerialization, deserialize it
+                if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+                    value['pod_override'] = BaseSerialization()._deserialize(pod_override)
+            return value
+
+        return process
+
+    def compare_values(self, x, y):
+        """
+        The TaskInstance.executor_config attribute is a pickled object that may contain
+        kubernetes objects.  If the installed library version has changed since the
+        object was originally pickled, due to the underlying ``__eq__`` method on these
+        objects (which converts them to JSON), we may encounter attribute errors. In this
+        case we should replace the stored object.
+
+        From https://github.com/apache/airflow/pull/24356 we use our serializer to store
+        k8s objects, but there could still be raw pickled k8s objects in the database,
+        stored from earlier version, so we still compare them defensively here.
+        """
+        if self.comparator:
+            return self.comparator(x, y)
+        else:
+            try:
+                return x == y
+            except AttributeError:
+                return False
 
 
 class Interval(TypeDecorator):

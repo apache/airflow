@@ -1,3 +1,4 @@
+#!/usr/bin/env bash
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,14 +16,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import warnings
+# We are mounting /var/lib/docker and /tmp as tmpfs in order
+# to gain speed when building the images The docker storage
+# is ephemeral anyway and will be removed when instance stops
 
-from airflow.providers.tableau.operators.tableau_refresh_workbook import (  # noqa
-    TableauRefreshWorkbookOperator,
-)
+sudo service docker stop || true
 
-warnings.warn(
-    "This module is deprecated. Please use `airflow.providers.tableau.operators.tableau_refresh_workbook`.",
-    DeprecationWarning,
-    stacklevel=2,
-)
+sudo mount -t tmpfs -o size=3% tmpfs /tmp
+sudo mount -t tmpfs -o size=85% tmpfs /var/lib/docker
+
+sudo service docker start
+
+# This instance will run for maximum 40 minutes and
+# It will terminate itself after that (it can also
+# be terminated immediately when the job finishes)
+echo "sudo shutdown -h now" | at now +40 min

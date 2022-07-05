@@ -1176,7 +1176,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: the project used to perform the request
         """
         self.get_client(project_id=project_id).delete_table(
-            table=Table.from_string(table_id),
+            table=table_id,
             not_found_ok=not_found_ok,
         )
         self.log.info('Deleted table %s', table_id)

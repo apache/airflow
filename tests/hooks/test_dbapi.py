@@ -44,6 +44,7 @@ class TestDbApiHook(unittest.TestCase):
                 return conn
 
         self.db_hook = UnitTestDbApiHook()
+        self.db_hook_no_log_sql = UnitTestDbApiHook(log_sql=False)
         self.db_hook_schema_override = UnitTestDbApiHook(schema='schema-override')
 
     def test_get_records(self):
@@ -345,6 +346,11 @@ class TestDbApiHook(unittest.TestCase):
         statement = 'SQL'
         self.db_hook.run(statement)
         assert self.db_hook.log.info.call_count == 2
+
+    def test_run_no_log(self):
+        statement = 'SQL'
+        self.db_hook_no_log_sql.run(statement)
+        assert self.db_hook_no_log_sql.log.info.call_count == 1
 
     def test_run_with_handler(self):
         sql = 'SQL'
