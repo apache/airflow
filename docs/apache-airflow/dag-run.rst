@@ -118,12 +118,12 @@ DAG run fails.
 Catchup
 -------
 
-An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a
+An Airflow DAG with a ``start_date``, possibly an ``end_date``, and a ``schedule_interval`` defines a
 series of intervals which the scheduler turns into individual DAG Runs and executes. The scheduler, by default, will
 kick off a DAG Run for any data interval that has not been run since the last data interval (or has been cleared). This concept is called Catchup.
 
 If your DAG is not written to handle its catchup (i.e., not limited to the interval, but instead to ``Now`` for instance.),
-then you will want to turn catchup off. This can be done by setting ``catchup = False`` in DAG  or ``catchup_by_default = False``
+then you will want to turn catchup off. This can be done by setting ``catchup=False`` in DAG  or ``catchup_by_default=False``
 in the configuration file. When turned off, the scheduler creates a DAG run only for the latest interval.
 
 .. code-block:: python
@@ -157,7 +157,7 @@ with a data between 2016-01-01 and 2016-01-02, and the next one will be created
 just after midnight on the morning of 2016-01-03 with a data interval between
 2016-01-02 and 2016-01-03.
 
-If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
+If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02,
 as that interval hasn’t completed) and the scheduler will execute them sequentially.
 
@@ -223,17 +223,17 @@ For more options, you can check the help of the `clear command <cli-ref.html#cle
 External Triggers
 '''''''''''''''''
 
-Note that DAG Runs can also be created manually through the CLI. Just run the command -
+Note that DAG Runs can also be created manually through the CLI. Just run the command -
 
 .. code-block:: bash
 
     airflow dags trigger --exec-date logical_date run_id
 
-The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
-in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
+The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
+in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
 The default is the current date in the UTC timezone.
 
-In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
+In addition, you can also manually trigger a DAG Run using the web UI (tab **DAGs** -> column **Links** -> button **Trigger Dag**)
 
 .. _dagrun:parameters:
 
