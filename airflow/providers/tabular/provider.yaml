@@ -22,7 +22,7 @@ description: |
     `Tabular <https://tabular.io/>`__
 
 versions:
-  - 0.0.1
+  - 1.0.0
 
 dependencies:
   - apache-airflow>=2.2.0
