@@ -28,20 +28,24 @@ if __name__ not in ("__main__", "__mp_main__"):
         f"To run this script, run the ./{__file__} command [FILE] ..."
     )
 
-
 console = Console(color_system="standard", width=200)
 
 errors: List[str] = []
 
+SKIP_COMP_CHECK = "# ignore airflow compat check"
 TRY_NUM_MATCHER = re.compile(r".*context.*\[[\"']try_number[\"']].*")
 GET_MANDATORY_MATCHER = re.compile(r".*conf\.get_mandatory_value")
 GET_AIRFLOW_APP_MATCHER = re.compile(r".*get_airflow_app\(\)")
+HOOK_PARAMS_MATCHER = re.compile(r".*get_hook\(hook_params")
 
 
 def _check_file(_file: Path):
     lines = _file.read_text().splitlines()
 
     for index, line in enumerate(lines):
+        if SKIP_COMP_CHECK in line:
+            continue
+
         if "XCom.get_value(" in line:
             if "if ti_key is not None:" not in lines[index - 1]:
                 errors.append(
@@ -79,6 +83,15 @@ def _check_file(_file: Path):
                 f"{lines[index]}\n\n"
                 "[yellow]You should not use conf.get_mandatory_value in providers "
                 "as it is only available in Airflow 2.3+[/]"
+            )
+
+        if HOOK_PARAMS_MATCHER.match(line):
+            errors.append(
+                f"[red]In {_file}:{index} there is a forbidden construct "
+                "(Airflow 2.3+ only):[/]\n\n"
+                f"{lines[index]}\n\n"
+                "[yellow]You should not use 'hook_params' in get_hook as it has been added in providers "
+                "as it is not available in Airflow 2.3+. Use get_hook() instead.[/]"
             )
 
         if GET_AIRFLOW_APP_MATCHER.match(line):

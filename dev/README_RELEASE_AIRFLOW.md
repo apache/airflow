@@ -828,7 +828,7 @@ Hello,
 
 Apache Airflow 2.0.2 (based on RC3) has been accepted.
 
-4 “+1” binding votes received:
+4 "+1" binding votes received:
 - Kaxil Naik
 - Bolke de Bruin
 - Ash Berlin-Taylor
@@ -1103,12 +1103,12 @@ Post this in the #announce channel:
 
 ```shell
 cat <<EOF
-We’ve just released Apache Airflow $VERSION 🎉
+We've just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/
 🛠 Release Notes: https://airflow.apache.org/docs/apache-airflow/$VERSION/release_notes.html
-🐳 Docker Image: “docker pull apache/airflow:$VERSION"
+🐳 Docker Image: "docker pull apache/airflow:$VERSION"
 🚏 Constraints: https://github.com/apache/airflow/tree/constraints-$VERSION
 
 Thanks to all the contributors who made this possible.
@@ -1121,7 +1121,7 @@ Tweet about the release:
 
 ```shell
 cat <<EOF
-We’ve just released Apache Airflow $VERSION 🎉
+We've just released Apache Airflow $VERSION 🎉
 
 📦 PyPI: https://pypi.org/project/apache-airflow/$VERSION/
 📚 Docs: https://airflow.apache.org/docs/apache-airflow/$VERSION/

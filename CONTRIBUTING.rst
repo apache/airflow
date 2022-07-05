@@ -134,7 +134,7 @@ and guidelines.
 Committers/Maintainers
 ----------------------
 
-Committers are community members that have write access to the project’s repositories, i.e., they can modify the code,
+Committers are community members that have write access to the project's repositories, i.e., they can modify the code,
 documentation, and website by themselves and also accept other contributions.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
@@ -277,7 +277,7 @@ For effective collaboration, make sure to join the following Airflow groups:
 
 - Mailing lists:
 
-  - Developer’s mailing list `<dev-subscribe@airflow.apache.org>`_
+  - Developer's mailing list `<dev-subscribe@airflow.apache.org>`_
     (quite substantial traffic on this list)
 
   - All commits mailing list: `<commits-subscribe@airflow.apache.org>`_
@@ -358,33 +358,6 @@ Step 4: Prepare PR
    for the committer reviewing it to understand why you are proposing a change. Make sure to follow other
    PR guidelines described in `pull request guidelines <#pull-request-guidelines>`_.
    Create Pull Request! Make yourself ready for the discussion!
-
-5. Depending on "scope" of your changes, your Pull Request might go through one of few paths after approval.
-   We run some non-standard workflow with high degree of automation that allows us to optimize the usage
-   of queue slots in GitHub Actions. Our automated workflows determine the "scope" of changes in your PR
-   and send it through the right path:
-
-   * In case of a "no-code" change, approval will generate a comment that the PR can be merged and no
-     tests are needed. This is usually when the change modifies some non-documentation related RST
-     files (such as this file). No python tests are run and no CI images are built for such PR. Usually
-     it can be approved and merged few minutes after it is submitted (unless there is a big queue of jobs).
-
-   * In case of change involving python code changes or documentation changes, a subset of full test matrix
-     will be executed. This subset of tests perform relevant tests for single combination of python, backend
-     version and only builds one CI image and one PROD image. Here the scope of tests depends on the
-     scope of your changes:
-
-     * when your change does not change "core" of Airflow (Providers, CLI, WWW, Helm Chart) you will get the
-       comment that PR is likely ok to be merged without running "full matrix" of tests. However decision
-       for that is left to committer who approves your change. The committer might set a "full tests needed"
-       label for your PR and ask you to rebase your request or re-run all jobs. PRs with "full tests needed"
-       run full matrix of tests.
-
-     * when your change changes the "core" of Airflow you will get the comment that PR needs full tests and
-       the "full tests needed" label is set for your PR. Additional check is set that prevents from
-       accidental merging of the request until full matrix of tests succeeds for the PR.
-
-   More details about the PR workflow be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
 
 
 Step 5: Pass PR Review
@@ -647,7 +620,7 @@ This is the full list of those extras:
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
 apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
-celery, cgroups, cloudant, cncf.kubernetes, crypto, dask, databricks, datadog, dbt.cloud,
+celery, cgroups, cloudant, cncf.kubernetes, core.sql, crypto, dask, databricks, datadog, dbt.cloud,
 deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid,
 elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth,
 grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
@@ -664,7 +637,23 @@ Provider packages
 Airflow 2.0 is split into core and providers. They are delivered as separate packages:
 
 * ``apache-airflow`` - core of Apache Airflow
-* ``apache-airflow-providers-*`` - More than 50 provider packages to communicate with external services
+* ``apache-airflow-providers-*`` - More than 70 provider packages to communicate with external services
+
+The information/meta-data about the providers is kept in ``provider.yaml`` file in the right sub-directory
+of ``airflow\providers``. This file contains:
+
+* package name (``apache-airflow-provider-*``)
+* user-facing name of the provider package
+* description of the package that is available in the documentation
+* list of versions of package that have been released so far
+* list of dependencies of the provider package
+* list of additional-extras that the provider package provides (together with dependencies of those extras)
+* list of integrations, operators, hooks, sensors, transfers provided by the provider (useful for documentation generation)
+* list of connection types, extra-links, secret backends, auth backends, and logging handlers (useful to both
+  register them as they are needed by Airflow and to include them in documentation automatically).
+
+If you want to add dependencies to the provider, you should add them to the corresponding ``provider.yaml``
+and Airflow pre-commits and package generation commands will use them when preparing package information.
 
 In Airflow 1.10 all those providers were installed together within one single package and when you installed
 airflow locally, from sources, they were also installed. In Airflow 2.0, providers are separated out,
@@ -683,7 +672,7 @@ in this airflow folder - the providers package is importable.
 Some of the packages have cross-dependencies with other providers packages. This typically happens for
 transfer operators where operators use hooks from the other providers in case they are transferring
 data between the providers. The list of dependencies is maintained (automatically with pre-commits)
-in the ``airflow/providers/dependencies.json``. Pre-commits are also used to generate dependencies.
+in the ``generated/provider_dependencies.json``. Pre-commits are also used to generate dependencies.
 The dependency list is automatically used during PyPI packages generation.
 
 Cross-dependencies between provider packages are converted into extras - if you need functionality from
@@ -693,49 +682,8 @@ the other provider package you can install it adding [extra] after the
 transfer operators from Amazon ECS.
 
 If you add a new dependency between different providers packages, it will be detected automatically during
-pre-commit phase and pre-commit will fail - and add entry in dependencies.json so that the package extra
-dependencies are properly added when package is installed.
-
-You can regenerate the whole list of provider dependencies by running this command (you need to have
-``pre-commits`` installed).
-
-.. code-block:: bash
-
-  pre-commit run build-providers-dependencies
-
-
-Here is the list of packages and their extras:
-
-
-  .. START PACKAGE DEPENDENCIES HERE
-
-========================== ===========================
-Package                    Extras
-========================== ===========================
-airbyte                    http
-amazon                     apache.hive,cncf.kubernetes,exasol,ftp,google,imap,mongo,salesforce,ssh
-apache.beam                google
-apache.druid               apache.hive
-apache.hive                amazon,microsoft.mssql,mysql,presto,samba,vertica
-apache.livy                http
-dbt.cloud                  http
-dingding                   http
-discord                    http
-google                     amazon,apache.beam,apache.cassandra,cncf.kubernetes,facebook,microsoft.azure,microsoft.mssql,mysql,oracle,postgres,presto,salesforce,sftp,ssh,trino
-hashicorp                  google
-microsoft.azure            google,oracle,sftp
-mysql                      amazon,presto,trino,vertica
-postgres                   amazon
-presto                     google,slack
-salesforce                 tableau
-sftp                       ssh
-slack                      http
-snowflake                  slack
-trino                      google
-========================== ===========================
-
-  .. END PACKAGE DEPENDENCIES HERE
-
+and pre-commit will generate new entry in ``generated/provider_dependencies.json`` so that
+the package extra dependencies are properly handled when package is installed.
 
 Developing community managed provider packages
 ----------------------------------------------
@@ -1524,14 +1472,14 @@ Here are a few rules that are important to keep in mind when you enter our commu
 * There is a #newbie-questions channel in slack as a safe place to ask questions
 * You can ask one of the committers to be a mentor for you, committers can guide within the community
 * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
-* It’s your responsibility as an author to take your PR from start-to-end including leading communication
+* It's your responsibility as an author to take your PR from start-to-end including leading communication
   in the PR
-* It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
-  it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
+* It's your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
+  it's OK to be slightly annoying with your change - it is also a sign for committers that you care
 * Be considerate to the high code quality/test coverage requirements for Apache Airflow
 * If in doubt - ask the community for their opinion or propose to vote at the devlist
 * Discussions should concern subject matters - judge or criticise the merit but never criticise people
-* It’s OK to express your own emotions while communicating - it helps other people to understand you
+* It's OK to express your own emotions while communicating - it helps other people to understand you
 * Be considerate for feelings of others. Tell about how you feel not what you think of others
 
 Commit Policy
@@ -1547,6 +1495,6 @@ and slightly modified and consensus reached in October 2020:
 
 Resources & Links
 =================
-- `Airflow’s official documentation <https://airflow.apache.org/>`__
+- `Airflow's official documentation <https://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__
