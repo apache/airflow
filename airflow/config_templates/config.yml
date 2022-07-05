@@ -459,7 +459,7 @@
         Check connection at the start of each connection pool checkout.
         Typically, this is a simple statement like "SELECT 1".
         More information here:
-        https://docs.sqlalchemy.org/en/13/core/pooling.html#disconnect-handling-pessimistic
+        https://docs.sqlalchemy.org/en/14/core/pooling.html#disconnect-handling-pessimistic
       version_added: 2.3.0
       type: string
       example: ~
@@ -477,7 +477,7 @@
         Import path for connect args in SqlAlchemy. Defaults to an empty dict.
         This is useful when you want to configure db engine args that SqlAlchemy won't parse
         in connection string.
-        See https://docs.sqlalchemy.org/en/13/core/engines.html#sqlalchemy.create_engine.params.connect_args
+        See https://docs.sqlalchemy.org/en/14/core/engines.html#sqlalchemy.create_engine.params.connect_args
       version_added: 2.3.0
       type: string
       example: ~

@@ -89,7 +89,11 @@ def run_command(
         command_to_print = ' '.join(shlex.quote(c) for c in cmd)
         env_to_print = get_environments_to_print(env)
         with ci_group(title=f"Running {title}"):
-            get_console().print(f"\n[info]Working directory {workdir} [/]\n")
+            get_console().print(f"\n[info]Working directory {workdir}\n")
+            if input:
+                get_console().print("[info]Input:")
+                get_console().print(input)
+                get_console().print()
             # Soft wrap allows to copy&paste and run resulting output as it has no hard EOL
             get_console().print(f"\n[info]{env_to_print}{command_to_print}[/]\n", soft_wrap=True)
         if dry_run:

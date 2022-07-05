@@ -150,9 +150,7 @@ Here is an example of what you might have in your webserver_config.py:
 
     AUTH_TYPE = AUTH_OAUTH
     AUTH_ROLES_SYNC_AT_LOGIN = True  # Checks roles on every login
-    AUTH_USER_REGISTRATION = (
-        True  # allow users who are not already in the FAB DB to register
-    )
+    AUTH_USER_REGISTRATION = True  # allow users who are not already in the FAB DB to register
     # Make sure to replace this with the path to your security manager class
     FAB_SECURITY_MANAGER_CLASS = "your_module.your_security_manager_class"
     AUTH_ROLES_MAPPING = {
@@ -219,9 +217,7 @@ webserver_config.py itself if you wish.
         # In this example, the oauth provider == 'github'.
         # If you ever want to support other providers, see how it is done here:
         # https://github.com/dpgaspar/Flask-AppBuilder/blob/master/flask_appbuilder/security/manager.py#L550
-        def get_oauth_user_info(
-            self, provider: str, resp: Any
-        ) -> Dict[str, Union[str, List[str]]]:
+        def get_oauth_user_info(self, provider: str, resp: Any) -> Dict[str, Union[str, List[str]]]:
 
             # Creates the user info payload from Github.
             # The user previously allowed your app to act on their behalf,
