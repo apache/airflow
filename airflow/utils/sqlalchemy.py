@@ -58,6 +58,8 @@ class UtcDateTime(TypeDecorator):
 
     impl = DateTime(timezone=True)
 
+    cache_ok = True
+
     def process_bind_param(self, value, dialect):
         if value is not None:
             if not isinstance(value, datetime.datetime):
@@ -101,6 +103,8 @@ class ExtendedJSON(TypeDecorator):
 
     impl = Text
 
+    cache_ok = True
+
     def db_supports_json(self):
         """Checks if the database supports JSON (i.e. is NOT MSSQL)"""
         return not conf.get("database", "sql_alchemy_conn").startswith("mssql")
@@ -142,6 +146,8 @@ class Interval(TypeDecorator):
     """Base class representing a time interval."""
 
     impl = Text
+
+    cache_ok = True
 
     attr_keys = {
         datetime.timedelta: ('days', 'seconds', 'microseconds'),
