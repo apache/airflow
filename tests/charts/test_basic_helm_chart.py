@@ -114,7 +114,7 @@ class TestBaseChartTest(unittest.TestCase):
             ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
-    def test_basic_deployment_with_standalone_scheduler(self, version):
+    def test_basic_deployment_with_standalone_dag_processor(self, version):
         # Dag Processor creates two extra objects compared to the basic deployment
         object_count_in_basic_deployment = self._get_object_count(version)
         expected_object_count_with_standalone_scheduler = object_count_in_basic_deployment + 2
