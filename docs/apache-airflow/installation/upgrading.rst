@@ -118,3 +118,47 @@ Deleting a table:
 .. code-block:: sql
 
    DROP TABLE <table>;
+   
+Troubleshooting MySQL Exceptions at upgrade
+===========================================
+
+The question is how to handle exceptions during MySQL database migration steps.
+
+Grep the wright error message from log. (for example in kubernetes with migration job ``kubectl logs run-airflow-migrations--1-ktjxc``) can be look like the following code snippet. 
+
+ .. code-block:: python
+    
+    # other loglines ...
+    
+    [2022-07-01 13:26:19,473[] {db.py:1448} INFO - Creating tables
+    INFO  [alembic.runtime.migration[] Context impl MySQLImpl.
+    INFO  [alembic.runtime.migration[] Will assume non-transactional DDL.
+    INFO  [alembic.runtime.migration[] Running upgrade f9da662e7089 -> e655c0453f75, Add ``map_index`` column to TaskInstance to identify task-mapping,
+    and a ``task_map`` table to track mapping values from XCom.
+
+    MySQLdb._exceptions.OperationalError: (1091, "Can't DROP 'task_reschedule_ti_fkey'; check that column/key exists")
+
+    # other loglines ...
+
+      File "/home/airflow/.local/lib/python3.8/site-packages/airflow/migrations/versions/0100_2_3_0_add_taskmap_and_map_id_on_taskinstance.py", line 49, in upgrade
+        batch_op.drop_index("idx_task_reschedule_dag_task_run")
+
+    # other loglines ...
+
+    sqlalchemy.exc.OperationalError: (MySQLdb._exceptions.OperationalError) (1091, "Can't DROP 'task_reschedule_ti_fkey'; check that column/key exists")
+    [SQL: ALTER TABLE task_reschedule DROP FOREIGN KEY task_reschedule_ti_fkey[]
+    (Background on this error at: http://sqlalche.me/e/14/e3q8)
+
+As you can see the `airflow db upgrade` command tries to do necessary sql stuff to **identify task-mapping** and **track mapping values from XCom**.  
+The `airflow db upgrade` command choose depending on **version_num** (col) in the **alembic_version** (table) which migration steps/scripts are required.
+
+**Can't DROP 'task_reschedule_ti_fkey** - statement which is executed and produces the error. 
+**airflow/migrations/versions/0100_2_3_0_add_taskmap_and_map_id_on_taskinstance.py** - here you can find the script in which the command is executed within the airflow project.
+
+With this information you can make use of **dry run** by ``airflow db upgrade -s --from-version <VERSION> --to-version <VERSION>`` (see: Offline SQL migration scripts) to produce sql statements for manual troubleshoot session.
+
+View on my migration issue case:  
+The error example is not the first error produced by migration. But my first entrypoint when documented the the debug session.
+The migration process stopped at some point due differences in charset and collation between old and new Version. So I had had to change a few things manually.
+
+
