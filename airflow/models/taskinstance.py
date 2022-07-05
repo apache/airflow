@@ -1843,7 +1843,14 @@ class TaskInstance(Base, LoggingMixin):
         return tb or error.__traceback__
 
     @provide_session
-    def handle_failure(self, error, test_mode=None, context=None, force_fail=False, session=None) -> None:
+    def handle_failure(
+        self,
+        error: Any,
+        test_mode: Optional[bool] = None,
+        context: Optional[Context] = None,
+        force_fail: bool = False,
+        session: Session = NEW_SESSION,
+    ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:
             test_mode = self.test_mode
@@ -1887,11 +1894,11 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        task = None
+        task: Optional[BaseOperator] = None
         try:
-            task = self.task.unmap()
+            task = self.task.unmap((context, session))
         except Exception:
-            self.log.error("Unable to unmap task, can't determine if we need to send an alert email or not")
+            self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
@@ -2123,7 +2130,7 @@ class TaskInstance(Base, LoggingMixin):
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
-            self.task = self.task.unmap()
+            self.task = self.task.unmap(None)
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
             return

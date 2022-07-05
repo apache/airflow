@@ -25,11 +25,13 @@ from typing import (
     Collection,
     Dict,
     Generic,
+    Iterable,
     Iterator,
     Mapping,
     Optional,
     Sequence,
     Set,
+    Tuple,
     Type,
     TypeVar,
     cast,
@@ -38,6 +40,7 @@ from typing import (
 
 import attr
 import typing_extensions
+from sqlalchemy.orm import Session
 
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
@@ -50,7 +53,10 @@ from airflow.models.baseoperator import (
     parse_retries,
 )
 from airflow.models.dag import DAG, DagContext
+from airflow.models.mappedkwargs import MAPPED_KWARGS_UNUSED
 from airflow.models.mappedoperator import (
+    DictOfListsMappedKwargs,
+    MappedKwargs,
     MappedOperator,
     ValidationSource,
     ensure_xcomarg_return_value,
@@ -67,7 +73,6 @@ from airflow.utils.types import NOTSET
 
 if TYPE_CHECKING:
     import jinja2  # Slow import.
-    from sqlalchemy.orm import Session
 
     from airflow.models.mappedoperator import Mappable
 
@@ -363,7 +368,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         _MappedOperator = cast(Any, DecoratedMappedOperator)
         operator = _MappedOperator(
             operator_class=self.operator_class,
-            mapped_kwargs={},
+            mapped_kwargs=MAPPED_KWARGS_UNUSED,  # Don't use this; mapped values go to mapped_op_kwargs.
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=params,
@@ -383,7 +388,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
-            mapped_op_kwargs=map_kwargs,
+            mapped_op_kwargs=DictOfListsMappedKwargs(map_kwargs),
             # Different from classic operators, kwargs passed to a taskflow
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
@@ -422,7 +427,7 @@ class DecoratedMappedOperator(MappedOperator):
 
     # We can't save these in mapped_kwargs because op_kwargs need to be present
     # in partial_kwargs, and MappedOperator prevents duplication.
-    mapped_op_kwargs: Dict[str, "Mappable"]
+    mapped_op_kwargs: MappedKwargs
 
     def __hash__(self):
         return id(self)
@@ -431,40 +436,39 @@ class DecoratedMappedOperator(MappedOperator):
         # The magic super() doesn't work here, so we use the explicit form.
         # Not using super(..., self) to work around pyupgrade bug.
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
-        XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs)
+        XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs.value)
 
-    def _get_unmap_kwargs(self) -> Dict[str, Any]:
-        partial_kwargs = self.partial_kwargs.copy()
-        op_kwargs = _merge_kwargs(
-            partial_kwargs.pop("op_kwargs"),
-            self.mapped_op_kwargs,
+    def _get_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+        # We only use mapped_op_kwargs so this must always be empty.
+        assert self.mapped_kwargs is MAPPED_KWARGS_UNUSED
+        return {"op_kwargs": super()._get_mapped_kwargs(resolve)}
+
+    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        self._combined_op_kwargs = op_kwargs = _merge_kwargs(
+            self.partial_kwargs["op_kwargs"],
+            mapped_kwargs["op_kwargs"],
             fail_reason="mapping already partial",
         )
-        self._combined_op_kwargs = op_kwargs
-        return {
-            "dag": self.dag,
-            "task_group": self.task_group,
-            "task_id": self.task_id,
-            "op_kwargs": op_kwargs,
+        if isinstance(self.mapped_op_kwargs, DictOfListsMappedKwargs):
+            self._already_resolved_op_kwargs = {
+                k for k, v in self.mapped_op_kwargs.value.items() if isinstance(v, XComArg)
+            }
+        else:
+            # The entire kwargs is resolved from XCOm for the list-of-dicts case.
+            self._already_resolved_op_kwargs = set(mapped_kwargs["op_kwargs"])
+        kwargs = {
             "multiple_outputs": self.multiple_outputs,
             "python_callable": self.python_callable,
-            **partial_kwargs,
-            **self.mapped_kwargs,
+            "op_kwargs": op_kwargs,
         }
+        return super()._get_unmap_kwargs(kwargs)
 
-    def _resolve_expansion_kwargs(
-        self, kwargs: Dict[str, Any], template_fields: Set[str], context: Context, session: "Session"
-    ) -> None:
-        expansion_kwargs = self._get_expansion_kwargs()
-
-        self._already_resolved_op_kwargs = set()
-        for k, v in expansion_kwargs.items():
-            if isinstance(v, XComArg):
-                self._already_resolved_op_kwargs.add(k)
-                v = v.resolve(context, session=session)
-            v = self._expand_mapped_field(k, v, context, session=session)
-            kwargs['op_kwargs'][k] = v
-            template_fields.discard(k)
+    def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
+        # Different from a regular MappedOperator, we still want to render
+        # some fields in op_kwargs (those that are NOT passed as XComArg from
+        # upstream). Already-rendered op_kwargs keys in a different way.
+        assert list(expanded) == ["op_kwargs"]
+        return self.template_fields
 
     def render_template(
         self,
@@ -473,17 +477,20 @@ class DecoratedMappedOperator(MappedOperator):
         jinja_env: Optional["jinja2.Environment"] = None,
         seen_oids: Optional[Set] = None,
     ) -> Any:
-        if hasattr(self, '_combined_op_kwargs') and value is self._combined_op_kwargs:
-            # Avoid rendering values that came out of resolved XComArgs
-            return {
-                k: v
-                if k in self._already_resolved_op_kwargs
-                else super(DecoratedMappedOperator, DecoratedMappedOperator).render_template(
-                    self, v, context, jinja_env=jinja_env, seen_oids=seen_oids
-                )
-                for k, v in value.items()
-            }
-        return super().render_template(value, context, jinja_env=jinja_env, seen_oids=seen_oids)
+        if value is not getattr(self, "_combined_op_kwargs", object()):
+            return super().render_template(value, context, jinja_env=jinja_env, seen_oids=seen_oids)
+
+        def _render_if_not_already_resolved(key: str, value: Any):
+            if key in self._already_resolved_op_kwargs:
+                return value
+            # The magic super() doesn't work here, so we use the explicit form.
+            # Not using super(..., self) to work around pyupgrade bug.
+            return super(DecoratedMappedOperator, DecoratedMappedOperator).render_template(
+                self, value, context=context, jinja_env=jinja_env, seen_oids=seen_oids
+            )
+
+        # Avoid rendering values that came out of resolved XComArgs.
+        return {k: _render_if_not_already_resolved(k, v) for k, v in value.items()}
 
 
 class Task(Generic[Function]):

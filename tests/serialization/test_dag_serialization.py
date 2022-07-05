@@ -39,6 +39,7 @@ from airflow.hooks.base import BaseHook
 from airflow.kubernetes.pod_generator import PodGenerator
 from airflow.models import DAG, Connection, DagBag
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
+from airflow.models.mappedkwargs import DictOfListsMappedKwargs
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.param import Param, ParamsDict
 from airflow.models.xcom import XCOM_RETURN_KEY, XCom
@@ -1689,8 +1690,11 @@ def test_mapped_operator_serde():
         '_task_type': 'BashOperator',
         'downstream_task_ids': [],
         'mapped_kwargs': {
-            "__type": "dict",
-            "__var": {'bash_command': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+            "type": "dict-of-lists",
+            "value": {
+                "__type": "dict",
+                "__var": {'bash_command': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+            },
         },
         'partial_kwargs': {
             'executor_config': {
@@ -1722,7 +1726,7 @@ def test_mapped_operator_serde():
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
     }
-    assert op.mapped_kwargs['bash_command'] == literal
+    assert op.mapped_kwargs.value['bash_command'] == literal
     assert op.partial_kwargs['executor_config'] == {'dict': {'sub': 'value'}}
 
 
@@ -1741,8 +1745,11 @@ def test_mapped_operator_xcomarg_serde():
         '_task_type': 'MockOperator',
         'downstream_task_ids': [],
         'mapped_kwargs': {
-            "__type": "dict",
-            "__var": {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
+            "type": "dict-of-lists",
+            "value": {
+                "__type": "dict",
+                "__var": {'arg2': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}}},
+            },
         },
         'partial_kwargs': {},
         'task_id': 'task_2',
@@ -1758,13 +1765,13 @@ def test_mapped_operator_xcomarg_serde():
     op = SerializedBaseOperator.deserialize_operator(serialized)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
 
-    arg = op.mapped_kwargs['arg2']
+    arg = op.mapped_kwargs.value['arg2']
     assert arg.task_id == 'op1'
     assert arg.key == XCOM_RETURN_KEY
 
     serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
 
-    xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs['arg2']
+    xcom_arg = serialized_dag.task_dict['task_2'].mapped_kwargs.value['arg2']
     assert isinstance(xcom_arg, XComArg)
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
 
@@ -1776,7 +1783,7 @@ def test_mapped_operator_deserialized_unmap():
 
     serialize = SerializedBaseOperator._serialize
     deserialize = SerializedBaseOperator.deserialize_operator
-    assert deserialize(serialize(mapped)).unmap() == deserialize(serialize(normal))
+    assert deserialize(serialize(mapped)).unmap(None) == deserialize(serialize(normal))
 
 
 def test_task_resources_serde():
@@ -1831,10 +1838,13 @@ def test_mapped_decorator_serde():
             'retry_delay': {'__type': 'timedelta', '__var': 30.0},
         },
         'mapped_op_kwargs': {
-            "__type": "dict",
-            "__var": {
-                'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
-                'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
+            "type": "dict-of-lists",
+            "value": {
+                "__type": "dict",
+                "__var": {
+                    'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
+                    'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
+                },
             },
         },
         'operator_extra_links': [],
@@ -1853,10 +1863,12 @@ def test_mapped_decorator_serde():
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
 
-    assert deserialized.mapped_op_kwargs == {
-        "arg2": {"a": 1, "b": 2},
-        "arg3": _XComRef("op1", XCOM_RETURN_KEY),
-    }
+    assert deserialized.mapped_op_kwargs == DictOfListsMappedKwargs(
+        {
+            "arg2": {"a": 1, "b": 2},
+            "arg3": _XComRef("op1", XCOM_RETURN_KEY),
+        },
+    )
     assert deserialized.partial_kwargs == {
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
@@ -1868,10 +1880,12 @@ def test_mapped_decorator_serde():
     # here so we don't need to duplicate tests between pickled and non-pickled
     # DAGs everywhere else.
     pickled = pickle.loads(pickle.dumps(deserialized))
-    assert pickled.mapped_op_kwargs == {
-        "arg2": {"a": 1, "b": 2},
-        "arg3": _XComRef("op1", XCOM_RETURN_KEY),
-    }
+    assert pickled.mapped_op_kwargs == DictOfListsMappedKwargs(
+        {
+            "arg2": {"a": 1, "b": 2},
+            "arg3": _XComRef("op1", XCOM_RETURN_KEY),
+        }
+    )
     assert pickled.partial_kwargs == {
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},

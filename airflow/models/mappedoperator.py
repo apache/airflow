@@ -19,8 +19,6 @@
 import collections
 import collections.abc
 import datetime
-import functools
-import operator
 import warnings
 from typing import (
     TYPE_CHECKING,
@@ -61,6 +59,13 @@ from airflow.models.abstractoperator import (
     AbstractOperator,
     TaskStateChangeCallback,
 )
+from airflow.models.mappedkwargs import (
+    MAPPABLE_LITERAL_TYPES,
+    DictOfListsMappedKwargs,
+    ListOfDictsMappedKwargs,
+    MappedKwargs,
+    NotFullyPopulated,
+)
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
 from airflow.ti_deps.deps.base_ti_dep import BaseTIDep
@@ -78,19 +83,13 @@ if TYPE_CHECKING:
 
     from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
     from airflow.models.dag import DAG
+    from airflow.models.mappedkwargs import Mappable
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
     from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
-    # BaseOperator.expand() can be called on an XComArg, sequence, or dict (not
-    # any mapping since we need the value to be ordered).
-    Mappable = Union[XComArg, Sequence, dict]
-
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
-
-
-MAPPABLE_LITERAL_TYPES = (dict, list)
 
 
 # For isinstance() check.
@@ -194,16 +193,25 @@ class OperatorPartial:
     def expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         if not mapped_kwargs:
             raise TypeError("no arguments to expand against")
-        return self._expand(**mapped_kwargs)
-
-    def _expand(self, **mapped_kwargs: "Mappable") -> "MappedOperator":
         self._expand_called = True
-
-        from airflow.operators.empty import EmptyOperator
-
         validate_mapping_kwargs(self.operator_class, "expand", mapped_kwargs)
         prevent_duplicates(self.kwargs, mapped_kwargs, fail_reason="unmappable or already specified")
-        ensure_xcomarg_return_value(mapped_kwargs)
+        return self._expand(DictOfListsMappedKwargs(mapped_kwargs))
+
+    def expand_kwargs(self, mapped_kwargs: "XComArg") -> "MappedOperator":
+        from airflow.models.xcom_arg import XComArg
+
+        self._expand_called = True
+
+        # We need to validate each dict literal in the list.
+        if not isinstance(mapped_kwargs, XComArg):
+            raise TypeError(f"expected XComArg object, not {type(mapped_kwargs).__name__}")
+        return self._expand(ListOfDictsMappedKwargs(mapped_kwargs))
+
+    def _expand(self, mapped_kwargs: MappedKwargs) -> "MappedOperator":
+        from airflow.operators.empty import EmptyOperator
+
+        ensure_xcomarg_return_value(mapped_kwargs.value)
 
         partial_kwargs = self.kwargs.copy()
         task_id = partial_kwargs.pop("task_id")
@@ -261,7 +269,7 @@ class MappedOperator(AbstractOperator):
     # that can be used to unmap this into a SerializedBaseOperator.
     operator_class: Union[Type["BaseOperator"], Dict[str, Any]]
 
-    mapped_kwargs: Dict[str, "Mappable"]
+    mapped_kwargs: MappedKwargs
     partial_kwargs: Dict[str, Any]
 
     # Needed for serialization.
@@ -315,8 +323,7 @@ class MappedOperator(AbstractOperator):
             self.task_group.add(self)
         if self.dag:
             self.dag.add_task(self)
-        for k, v in self.mapped_kwargs.items():
-            XComArg.apply_upstream_relationship(self, v)
+        XComArg.apply_upstream_relationship(self, self.mapped_kwargs.value)
         for k, v in self.partial_kwargs.items():
             if k in self.template_fields:
                 XComArg.apply_upstream_relationship(self, v)
@@ -361,7 +368,8 @@ class MappedOperator(AbstractOperator):
         """
         if not isinstance(self.operator_class, type):
             return  # No need to validate deserialized operator.
-        self.operator_class.validate_mapped_arguments(**self._get_unmap_kwargs())
+        kwargs = self._get_unmap_kwargs(self._get_mapped_kwargs(None))
+        self.operator_class.validate_mapped_arguments(**kwargs)
 
     @property
     def task_type(self) -> str:
@@ -520,7 +528,23 @@ class MappedOperator(AbstractOperator):
         """Implementing DAGNode."""
         return DagAttributeTypes.OP, self.task_id
 
-    def _get_unmap_kwargs(self) -> Dict[str, Any]:
+    def _get_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+        kwargs = self._get_expansion_kwargs()
+        if resolve is not None:
+            return kwargs.resolve(*resolve)
+        if isinstance(kwargs, DictOfListsMappedKwargs):
+            return kwargs.value
+        return {}
+
+    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+        """Get init kwargs to unmap the underlying operator class.
+
+        This also optionally resolve the mapped arguments, depending on what is
+        passed as the argument.
+        """
+        # Ordering is significant; we want a chance for mapped kwargs to
+        # override others. This is important for e.g. @task since it needs to
+        # "partially map" against op_kwargs.
         return {
             "task_id": self.task_id,
             "dag": self.dag,
@@ -529,29 +553,34 @@ class MappedOperator(AbstractOperator):
             "start_date": self.start_date,
             "end_date": self.end_date,
             **self.partial_kwargs,
-            **self.mapped_kwargs,
+            **mapped_kwargs,
         }
 
-    def unmap(self, unmap_kwargs: Optional[Dict[str, Any]] = None) -> "BaseOperator":
-        """
-        Get the "normal" Operator after applying the current mapping.
+    def unmap(self, resolve: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
+        """Get the "normal" Operator after applying the current mapping.
 
-        If ``operator_class`` is not a class (i.e. this DAG has been deserialized) then this will return a
-        SerializedBaseOperator that aims to "look like" the real operator.
+        If ``operator_class`` is not a class (i.e. this DAG has been
+        deserialized), this returns a SerializedBaseOperator that aims to
+        "look like" the real operator.
 
-        :param unmap_kwargs: Override the args to pass to the Operator constructor. Only used when
-            ``operator_class`` is still an actual class.
+        :param resolve: Only used if ``operator_class`` is a real class. If this
+            is a two-tuple (context, session), the information is used to
+            resolve the mapped arguments into init arguments. If this is a
+            mapping, no resolving happens, the mapping directly provides those
+            init arguments resolved from mapped kwargs.
 
         :meta private:
         """
         if isinstance(self.operator_class, type):
-            # We can't simply specify task_id here because BaseOperator further
+            if isinstance(resolve, collections.abc.Mapping):
+                mapped_kwargs = resolve
+            else:
+                mapped_kwargs = self._get_mapped_kwargs(resolve)
+            op = self.operator_class(**self._get_unmap_kwargs(mapped_kwargs), _airflow_from_mapped=True)
+            # We need to overwrite task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
-            # is prepended, and '__N' appended to deduplicate). Instead of
-            # recreating the whole logic here, we just overwrite task_id later.
-            if unmap_kwargs is None:
-                unmap_kwargs = self._get_unmap_kwargs()
-            op = self.operator_class(**unmap_kwargs, _airflow_from_mapped=True)
+            # is prepended, and '__N' appended to deduplicate). This is hacky,
+            # but better than duplicating the whole mangling logic.
             op.task_id = self.task_id
             return op
 
@@ -565,80 +594,9 @@ class MappedOperator(AbstractOperator):
         SerializedBaseOperator.populate_operator(op, self.operator_class)
         return op
 
-    def _get_expansion_kwargs(self) -> Dict[str, "Mappable"]:
+    def _get_expansion_kwargs(self) -> MappedKwargs:
         """The kwargs to calculate expansion length against."""
         return getattr(self, self._expansion_kwargs_attr)
-
-    def _get_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
-        """Return dict of argument name to map length.
-
-        If any arguments are not known right now (upstream task not finished) they will not be present in the
-        dict.
-        """
-        # TODO: Find a way to cache this.
-        from airflow.models.taskmap import TaskMap
-        from airflow.models.xcom import XCom
-        from airflow.models.xcom_arg import XComArg
-
-        expansion_kwargs = self._get_expansion_kwargs()
-
-        # Populate literal mapped arguments first.
-        map_lengths: Dict[str, int] = collections.defaultdict(int)
-        map_lengths.update((k, len(v)) for k, v in expansion_kwargs.items() if not isinstance(v, XComArg))
-
-        # Build a reverse mapping of what arguments each task contributes to.
-        mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
-        non_mapped_dep_keys: Dict[str, Set[str]] = collections.defaultdict(set)
-        for k, v in expansion_kwargs.items():
-            if not isinstance(v, XComArg):
-                continue
-            if v.operator.is_mapped:
-                mapped_dep_keys[v.operator.task_id].add(k)
-            else:
-                non_mapped_dep_keys[v.operator.task_id].add(k)
-            # TODO: It's not possible now, but in the future (AIP-42 Phase 2)
-            # we will add support for depending on one single mapped task
-            # instance. When that happens, we need to further analyze the mapped
-            # case to contain only tasks we depend on "as a whole", and put
-            # those we only depend on individually to the non-mapped lookup.
-
-        # Collect lengths from unmapped upstreams.
-        taskmap_query = session.query(TaskMap.task_id, TaskMap.length).filter(
-            TaskMap.dag_id == self.dag_id,
-            TaskMap.run_id == run_id,
-            TaskMap.task_id.in_(non_mapped_dep_keys),
-            TaskMap.map_index < 0,
-        )
-        for task_id, length in taskmap_query:
-            for mapped_arg_name in non_mapped_dep_keys[task_id]:
-                map_lengths[mapped_arg_name] += length
-
-        # Collect lengths from mapped upstreams.
-        xcom_query = (
-            session.query(XCom.task_id, func.count(XCom.map_index))
-            .group_by(XCom.task_id)
-            .filter(
-                XCom.dag_id == self.dag_id,
-                XCom.run_id == run_id,
-                XCom.task_id.in_(mapped_dep_keys),
-                XCom.map_index >= 0,
-            )
-        )
-        for task_id, length in xcom_query:
-            for mapped_arg_name in mapped_dep_keys[task_id]:
-                map_lengths[mapped_arg_name] += length
-        return map_lengths
-
-    @cache
-    def _resolve_map_lengths(self, run_id: str, *, session: Session) -> Dict[str, int]:
-        """Return dict of argument name to map length, or throw if some are not resolvable"""
-        expansion_kwargs = self._get_expansion_kwargs()
-        map_lengths = self._get_map_lengths(run_id, session=session)
-        if len(map_lengths) < len(expansion_kwargs):
-            keys = ", ".join(repr(k) for k in sorted(set(expansion_kwargs).difference(map_lengths)))
-            raise RuntimeError(f"Failed to populate all mapping metadata; missing: {keys}")
-
-        return map_lengths
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
         """Create the mapped task instances for mapped task.
@@ -649,9 +607,7 @@ class MappedOperator(AbstractOperator):
         from airflow.models.taskinstance import TaskInstance
         from airflow.settings import task_instance_mutation_hook
 
-        total_length = functools.reduce(
-            operator.mul, self._resolve_map_lengths(run_id, session=session).values()
-        )
+        total_length = self._get_expansion_kwargs().get_total_map_length(run_id, session=session)
 
         state: Optional[TaskInstanceState] = None
         unmapped_ti: Optional[TaskInstance] = (
@@ -728,96 +684,6 @@ class MappedOperator(AbstractOperator):
         # we don't need to create a copy of the MappedOperator here.
         return self
 
-    def render_template_fields(
-        self,
-        context: Context,
-        jinja_env: Optional["jinja2.Environment"] = None,
-    ) -> Optional["BaseOperator"]:
-        """Template all attributes listed in template_fields.
-
-        Different from the BaseOperator implementation, this renders the
-        template fields on the *unmapped* BaseOperator.
-
-        :param context: Dict with values to apply on content
-        :param jinja_env: Jinja environment
-        :return: The unmapped, populated BaseOperator
-        """
-        if not jinja_env:
-            jinja_env = self.get_template_env()
-        # Before we unmap we have to resolve the mapped arguments, otherwise the real operator constructor
-        # could be called with an XComArg, rather than the value it resolves to.
-        #
-        # We also need to resolve _all_ mapped arguments, even if they aren't marked as templated
-        kwargs = self._get_unmap_kwargs()
-
-        template_fields = set(self.template_fields)
-
-        # Ideally we'd like to pass in session as an argument to this function, but since operators _could_
-        # override this we can't easily change this function signature.
-        # We can't use @provide_session, as that closes and expunges everything, which we don't want to do
-        # when we are so "deep" in the weeds here.
-        #
-        # Nor do we want to close the session -- that would expunge all the things from the internal cache
-        # which we don't want to do either
-        session = settings.Session()
-        self._resolve_expansion_kwargs(kwargs, template_fields, context, session)
-
-        unmapped_task = self.unmap(unmap_kwargs=kwargs)
-        self._do_render_template_fields(
-            parent=unmapped_task,
-            template_fields=template_fields,
-            context=context,
-            jinja_env=jinja_env,
-            seen_oids=set(),
-            session=session,
-        )
-        return unmapped_task
-
-    def _resolve_expansion_kwargs(
-        self, kwargs: Dict[str, Any], template_fields: Set[str], context: Context, session: Session
-    ) -> None:
-        """Update mapped fields in place in kwargs dict"""
-        from airflow.models.xcom_arg import XComArg
-
-        expansion_kwargs = self._get_expansion_kwargs()
-
-        for k, v in expansion_kwargs.items():
-            if isinstance(v, XComArg):
-                v = v.resolve(context, session=session)
-            v = self._expand_mapped_field(k, v, context, session=session)
-            template_fields.discard(k)
-            kwargs[k] = v
-
-    def _expand_mapped_field(self, key: str, value: Any, context: Context, *, session: Session) -> Any:
-        map_index = context["ti"].map_index
-        if map_index < 0:
-            return value
-        expansion_kwargs = self._get_expansion_kwargs()
-        all_lengths = self._resolve_map_lengths(context["run_id"], session=session)
-
-        def _find_index_for_this_field(index: int) -> int:
-            # Need to use self.mapped_kwargs for the original argument order.
-            for mapped_key in reversed(list(expansion_kwargs)):
-                mapped_length = all_lengths[mapped_key]
-                if mapped_length < 1:
-                    raise RuntimeError(f"cannot expand field mapped to length {mapped_length!r}")
-                if mapped_key == key:
-                    return index % mapped_length
-                index //= mapped_length
-            return -1
-
-        found_index = _find_index_for_this_field(map_index)
-        if found_index < 0:
-            return value
-        if isinstance(value, collections.abc.Sequence):
-            return value[found_index]
-        if not isinstance(value, dict):
-            raise TypeError(f"can't map over value of type {type(value)}")
-        for i, (k, v) in enumerate(value.items()):
-            if i == found_index:
-                return k, v
-        raise IndexError(f"index {map_index} is over mapped length")
-
     def iter_mapped_dependencies(self) -> Iterator["Operator"]:
         """Upstream dependencies that provide XComs used by this task for task mapping."""
         from airflow.models.xcom_arg import XComArg
@@ -827,44 +693,54 @@ class MappedOperator(AbstractOperator):
 
     @cached_property
     def parse_time_mapped_ti_count(self) -> Optional[int]:
-        """
-        Number of mapped TaskInstances that can be created at DagRun create time.
+        """Number of mapped TaskInstances that can be created at DagRun create time.
 
-        :return: None if non-literal mapped arg encountered, or else total number of mapped TIs this task
-            should have
+        :return: None if non-literal mapped arg encountered, or the total
+            number of mapped TIs this task should have.
         """
-        total = 0
-
-        for value in self._get_expansion_kwargs().values():
-            if not isinstance(value, MAPPABLE_LITERAL_TYPES):
-                # None literal type encountered, so give up
-                return None
-            if total == 0:
-                total = len(value)
-            else:
-                total *= len(value)
-        return total
+        return self._get_expansion_kwargs().get_parse_time_mapped_ti_count()
 
     @cache
     def run_time_mapped_ti_count(self, run_id: str, *, session: Session) -> Optional[int]:
-        """
-        Number of mapped TaskInstances that can be created at run time, or None if upstream tasks are not
-        complete yet.
+        """Number of mapped TaskInstances that can be created at run time.
 
-        :return: None if upstream tasks are not complete yet, or else total number of mapped TIs this task
-            should have
+        :return: None if upstream tasks are not complete yet, or the total
+            number of mapped TIs this task should have.
         """
-        lengths = self._get_map_lengths(run_id, session=session)
-        expansion_kwargs = self._get_expansion_kwargs()
-
-        if not lengths or not expansion_kwargs:
+        try:
+            return self._get_expansion_kwargs().get_total_map_length(run_id, session=session)
+        except NotFullyPopulated:
             return None
 
-        total = 1
-        for name in expansion_kwargs:
-            val = lengths.get(name)
-            if val is None:
-                return None
-            total *= val
+    def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
+        # Since the mapped kwargs are already resolved during unmapping,
+        # they must be removed from the list of templated fields to avoid
+        # be rendered again (which breaks escaping).
+        return set(self.template_fields).difference(expanded)
 
-        return total
+    def render_template_fields(
+        self,
+        context: Context,
+        jinja_env: Optional["jinja2.Environment"] = None,
+    ) -> Optional["BaseOperator"]:
+        if not jinja_env:
+            jinja_env = self.get_template_env()
+
+        # Ideally we'd like to pass in session as an argument to this function,
+        # but we can't easily change this function signature since operators
+        # could override this. We can't use @provide_session since it closes and
+        # expunges everything, which we don't want to do when we are so "deep"
+        # in the weeds here. We don't close this session for the same reason.
+        session = settings.Session()
+
+        mapped_kwargs = self._get_mapped_kwargs((context, session))
+        unmapped_task = self.unmap(mapped_kwargs)
+        self._do_render_template_fields(
+            parent=unmapped_task,
+            template_fields=self._get_template_fields_to_render(mapped_kwargs),
+            context=context,
+            jinja_env=jinja_env,
+            seen_oids=set(),
+            session=session,
+        )
+        return unmapped_task

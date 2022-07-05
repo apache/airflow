@@ -274,5 +274,5 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     assert isinstance(op, MyOperator)
 
     assert op.value == "{{ ds }}", "Should not be templated!"
-    assert op.arg1 == "{{ ds }}"
+    assert op.arg1 == "{{ ds }}", "Should not be templated!"
     assert op.arg2 == "a"

@@ -37,6 +37,7 @@ from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
+from airflow.models.mappedkwargs import MAPPED_KWARGS_UNUSED, create_mapped_kwargs, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
@@ -99,7 +100,7 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     don't need to store them.
     """
     # Use the private _expand() method to avoid the empty kwargs check.
-    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand().partial_kwargs
+    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand(MAPPED_KWARGS_UNUSED).partial_kwargs
     return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 
@@ -202,6 +203,9 @@ class _XComRef(NamedTuple):
 
     task_id: str
     key: str
+
+    def deref(self, dag: DAG) -> XComArg:
+        return XComArg(operator=dag.get_task(self.task_id), key=self.key)
 
 
 class BaseSerialization:
@@ -599,7 +603,11 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
         serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
 
         # Handle mapped_kwargs and mapped_op_kwargs.
-        serialized_op[op._expansion_kwargs_attr] = cls._serialize(op._get_expansion_kwargs())
+        expansion_kwargs = op._get_expansion_kwargs()
+        serialized_op[op._expansion_kwargs_attr] = {
+            "type": get_map_type_key(expansion_kwargs),
+            "value": cls._serialize(expansion_kwargs.value),
+        }
 
         # Simplify partial_kwargs by comparing it to the most barebone object.
         # Remove all entries that are simply default values.
@@ -747,6 +755,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k in {"mapped_kwargs", "mapped_op_kwargs"}:
+                v = create_mapped_kwargs(v["type"], cls._deserialize(v["value"]))
             elif k == "partial_kwargs":
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
@@ -781,7 +791,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
             op = MappedOperator(
                 operator_class=op_data,
-                mapped_kwargs={},
+                mapped_kwargs=MAPPED_KWARGS_UNUSED,
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
                 params={},
@@ -1078,13 +1088,21 @@ class SerializedDAG(DAG, BaseSerialization):
             if task.subdag is not None:
                 setattr(task.subdag, 'parent_dag', dag)
 
+            # Dereference XComArg in mapped_kwargs and mapped_op_kwargs. Note
+            # that the deserialization process intentionally breaks type hints
+            # and assigns _XComRef where XComArg is the correct type, so we need
+            # some tricks to convince the type checker.
             if isinstance(task, MappedOperator):
                 expansion_kwargs = task._get_expansion_kwargs()
-                for k, v in expansion_kwargs.items():
-                    if not isinstance(v, _XComRef):
-                        continue
-
-                    expansion_kwargs[k] = XComArg(operator=dag.get_task(v.task_id), key=v.key)
+                if isinstance(expansion_kwargs.value, _XComRef):
+                    setattr(task, task._expansion_kwargs_attr, expansion_kwargs.value.deref(dag))
+                else:
+                    expansion_kwargs_value: dict = expansion_kwargs.value  # type: ignore[assignment]
+                    expansion_kwargs_value.update(
+                        (k, v.deref(dag))
+                        for k, v in expansion_kwargs_value.items()
+                        if isinstance(v, _XComRef)
+                    )
 
             for task_id in task.downstream_task_ids:
                 # Bypass set_upstream etc here - it does more than we want

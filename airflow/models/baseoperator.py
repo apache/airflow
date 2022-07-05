@@ -1511,7 +1511,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
         if cls.mapped_arguments_validated_by_init:
             cls(**kwargs, _airflow_from_mapped=True)
 
-    def unmap(self) -> "BaseOperator":
+    def unmap(self, ctx: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """:meta private:"""
         return self
 
