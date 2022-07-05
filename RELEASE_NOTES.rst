@@ -64,6 +64,7 @@ Here is the list of breaking changes in dependencies that comes together with FA
 Bug Fixes
 ^^^^^^^^^
 
+- Fix exception in mini task scheduler (#24865)
 - Fix cycle bug with attaching label to task group (#24847)
 - Fix timestamp defaults for ``sensorinstance`` (#24638)
 - Move fallible ``ti.task.dag`` assignment back inside ``try/except`` block (#24533) (#24592)
