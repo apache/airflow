@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-05T10:43:10Z
+# This constraints file was automatically generated on 2022-07-05T19:19:13Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version for 'apache-airflow' but installs
 # the providers from PIP-released packages at the moment of the constraint generation.
@@ -42,7 +42,7 @@ SQLAlchemy-JSONField==1.0.0
 SQLAlchemy-Utils==0.38.2
 SQLAlchemy==1.4.27
 SecretStorage==3.3.2
-Sphinx==4.5.0
+Sphinx==5.0.2
 Unidecode==1.3.4
 WTForms==2.3.3
 Werkzeug==2.1.2
@@ -522,7 +522,7 @@ sphinx-airflow-theme==0.0.9
 sphinx-argparse==0.3.1
 sphinx-autoapi==1.8.4
 sphinx-copybutton==0.5.0
-sphinx-jinja==2.0.1
+sphinx-jinja==2.0.2
 sphinx-rtd-theme==1.0.0
 sphinxcontrib-applehelp==1.0.2
 sphinxcontrib-devhelp==1.0.2
