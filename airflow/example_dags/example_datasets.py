@@ -40,20 +40,22 @@ from datetime import datetime
 from airflow.models import DAG, Dataset
 from airflow.operators.bash import BashOperator
 
+# [START dataset_def]
 dag1_dataset = Dataset('s3://dag1/output_1.txt', extra={'hi': 'bye'})
+# [END dataset_def]
 dag2_dataset = Dataset('s3://dag2/output_1.txt', extra={'hi': 'bye'})
-with DAG(
+
+dag1 = DAG(
     dag_id='dag1',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_interval='@daily',
     tags=['upstream'],
-) as dag1:
-    BashOperator(
-        outlets=[dag1_dataset],
-        task_id='upstream_task_1',
-        bash_command="sleep 5",
-    )
+)
+
+# [START task_outlet]
+BashOperator(outlets=[dag1_dataset], task_id='upstream_task_1', bash_command="sleep 5", dag=dag1)
+# [END task_outlet]
 
 with DAG(
     dag_id='dag2',
@@ -68,18 +70,22 @@ with DAG(
         bash_command="sleep 5",
     )
 
-with DAG(
+# [START dag_dep]
+dag3 = DAG(
     dag_id='dag3',
     catchup=False,
     start_date=datetime(2020, 1, 1),
     schedule_on=[dag1_dataset],
     tags=['downstream'],
-) as dag3:
-    BashOperator(
-        outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
-        task_id='downstream_1',
-        bash_command="sleep 5",
-    )
+)
+# [END dag_dep]
+
+BashOperator(
+    outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
+    task_id='downstream_1',
+    bash_command="sleep 5",
+    dag3=dag3,
+)
 
 with DAG(
     dag_id='dag4',
