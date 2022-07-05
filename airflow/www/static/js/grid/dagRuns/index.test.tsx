@@ -106,7 +106,7 @@ describe('Test DagRuns', () => {
   test('Show 1 date tick when there are less than 14 runs', () => {
     const data = {
       groups: {},
-      dagRuns: generateRuns(8),
+      dagRuns: generateRuns(11),
     };
     const spy = jest.spyOn(useGridDataModule, 'default').mockImplementation(() => ({
       data,
