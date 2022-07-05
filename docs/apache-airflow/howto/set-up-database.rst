@@ -20,7 +20,7 @@
 Set up a Database Backend
 =========================
 
-Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/13/>`__.
+Airflow was built to interact with its metadata using `SqlAlchemy <https://docs.sqlalchemy.org/en/14/>`__.
 
 The document below describes the database engine configurations, the necessary changes to their configuration to be used with Airflow, as well as changes to the Airflow configurations to connect to these databases.
 
@@ -40,12 +40,21 @@ Airflow supports the following database engine versions, so make sure which vers
 If you plan on running more than one scheduler, you have to meet additional requirements.
 For details, see :ref:`Scheduler HA Database Requirements <scheduler:ha:db_requirements>`.
 
+.. warning::
+
+  Despite big similarities between MariaDB and MySQL, we DO NOT support MariaDB as a backend for Airflow.
+  There are known problems (for example index handling) between MariaDB and MySQL and we do not test
+  our migration scripts nor application execution on Maria DB. We know there were people who used
+  MariaDB for Airflow and that cause a lot of operational headache for them so we strongly discourage
+  attempts of using MariaDB as a backend and users cannot expect any community support for it
+  because the number of users who tried to use MariaDB for Airflow is very small.
+
 Database URI
 ------------
 
 Airflow uses SQLAlchemy to connect to the database, which requires you to configure the Database URL.
 You can do this in option ``sql_alchemy_conn`` in section ``[database]``. It is also common to configure
-this option with ``AIRFLOW__DATABE__SQL_ALCHEMY_CONN`` environment variable.
+this option with ``AIRFLOW__DATABASE__SQL_ALCHEMY_CONN`` environment variable.
 
 .. note::
     For more information on setting the configuration, see :doc:`/howto/set-config`.
@@ -86,7 +95,7 @@ You can make sure which version is used by the interpreter by running this check
 .. code-block:: bash
 
     root@b8a8e73caa2c:/opt/airflow# python
-    Python 3.6.12 (default, Nov 25 2020, 03:59:00)
+    Python 3.8.10 (default, Mar 15 2022, 12:22:08)
     [GCC 8.3.0] on linux
     Type "help", "copyright", "credits" or "license" for more information.
     >>> import sqlite3

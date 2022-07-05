@@ -15,6 +15,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from http import HTTPStatus
+
 from flask import Response, request
 
 from airflow.api_connexion import security
@@ -72,7 +74,7 @@ def get_config() -> Response:
     }
     return_type = request.accept_mimetypes.best_match(serializer.keys())
     if return_type not in serializer:
-        return Response(status=406)
+        return Response(status=HTTPStatus.NOT_ACCEPTABLE)
     elif conf.getboolean("webserver", "expose_config"):
         conf_dict = conf.as_dict(display_source=False, display_sensitive=True)
         config = _conf_dict_to_config(conf_dict)

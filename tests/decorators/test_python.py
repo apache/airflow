@@ -738,3 +738,20 @@ def test_mapped_render_template_fields(dag_maker, session):
 
     assert op.op_kwargs['arg1'] == "{{ ds }}"
     assert op.op_kwargs['arg2'] == "fn"
+
+
+def test_task_decorator_has_wrapped_attr():
+    """
+    Test  @task original underlying function is accessible
+    through the __wrapped__ attribute.
+    """
+
+    def org_test_func():
+        pass
+
+    decorated_test_func = task_decorator(org_test_func)
+
+    assert hasattr(
+        decorated_test_func, '__wrapped__'
+    ), "decorated function does not have __wrapped__ attribute"
+    assert decorated_test_func.__wrapped__ is org_test_func, "__wrapped__ attr is not the original function"

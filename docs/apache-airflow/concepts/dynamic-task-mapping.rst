@@ -62,6 +62,8 @@ The grid view also provides visibility into your mapped tasks in the details pan
 
 .. image:: /img/mapping-simple-grid.png
 
+.. note:: Only keyword arguments are allowed to be passed to ``expand()``.
+
 .. note:: Values passed from the mapped task is a lazy proxy
 
     In the above example, ``values`` received by ``sum_it`` is an aggregation of all values returned by each mapped instance of ``add_one``. However, since it is impossible to know how many instances of ``add_one`` we will have in advance, ``values`` is not a normal list, but a "lazy sequence" that retrieves each individual value only when asked. Therefore, if you run ``print(values)`` directly, you would get something like this::
@@ -155,7 +157,7 @@ Up until now the examples we've shown could all be achieved with a ``for`` loop 
 
     @task
     def consumer(arg):
-        print(list(arg))
+        print(arg)
 
 
     with DAG(dag_id="dynamic-map", start_date=datetime(2022, 4, 2)) as dag:
@@ -171,9 +173,9 @@ It is possible to use ``partial`` and ``expand`` with classic style operators as
 
 .. code-block:: python
 
-    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(
-        bash_command=["echo 1", "echo 2"]
-    )
+    BashOperator.partial(task_id="bash", do_xcom_push=False).expand(bash_command=["echo 1", "echo 2"])
+
+.. note:: Only keyword arguments are allowed to be passed to ``partial()``.
 
 Mapping over result of classic operators
 ----------------------------------------
@@ -220,9 +222,7 @@ In this example you have a regular data delivery to an S3 bucket and want to app
         def total(lines):
             return sum(lines)
 
-        counts = count_lines.partial(aws_conn_id="aws_default", bucket=files.bucket).expand(
-            file=XComArg(files)
-        )
+        counts = count_lines.partial(aws_conn_id="aws_default", bucket=files.bucket).expand(file=XComArg(files))
         total(lines=counts)
 
 What data types can be expanded?
@@ -295,9 +295,7 @@ There are two limits that you can place on a task:
           return x + 1
 
 
-      BashOperator.partial(task_id="my_task", max_active_tis_per_dag=16).expand(
-          bash_command=commands
-      )
+      BashOperator.partial(task_id="my_task", max_active_tis_per_dag=16).expand(bash_command=commands)
 
 Automatically skipping zero-length maps
 =======================================

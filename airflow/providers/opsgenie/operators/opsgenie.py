@@ -206,5 +206,58 @@ class OpsgenieCloseAlertOperator(BaseOperator):
             identifier=self.identifier,
             identifier_type=self.identifier_type,
             payload=self._build_opsgenie_close_alert_payload(),
-            kwargs=self.close_alert_kwargs,
+            **(self.close_alert_kwargs or {}),
+        )
+
+
+class OpsgenieDeleteAlertOperator(BaseOperator):
+    """
+    This operator allows you to delete alerts in Opsgenie.
+    Accepts a connection that has an Opsgenie API key as the connection's password.
+    This operator sets the domain to conn_id.host, and if not set will default
+    to ``https://api.opsgenie.com``.
+
+    Each Opsgenie API key can be pre-configured to a team integration.
+    You can override these defaults in this operator.
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:OpsgenieDeleteAlertOperator`
+
+    :param opsgenie_conn_id: The name of the Opsgenie connection to use
+    :param identifier: Identifier of alert which could be alert id, tiny id or alert alias
+    :param identifier_type: Type of the identifier that is provided as an in-line parameter.
+        Possible values are 'id', 'alias' or 'tiny'
+    :param user: Display name of the request owner
+    :param source: Display name of the request source
+    """
+
+    template_fields: Sequence[str] = ('identifier',)
+
+    def __init__(
+        self,
+        *,
+        identifier: str,
+        opsgenie_conn_id: str = 'opsgenie_default',
+        identifier_type: Optional[str] = None,
+        user: Optional[str] = None,
+        source: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+
+        self.opsgenie_conn_id = opsgenie_conn_id
+        self.identifier = identifier
+        self.identifier_type = identifier_type
+        self.user = user
+        self.source = source
+
+    def execute(self, context: 'Context') -> None:
+        """Call the OpsgenieAlertHook to delete alert"""
+        hook = OpsgenieAlertHook(self.opsgenie_conn_id)
+        hook.delete_alert(
+            identifier=self.identifier,
+            identifier_type=self.identifier_type,
+            user=self.user,
+            source=self.source,
         )

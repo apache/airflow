@@ -74,9 +74,9 @@ ASCIIART = """
 """
 CHEATSHEET = f"""
 
-                       [bold][bright_blue]Airflow Breeze Cheatsheet[/][/]
+                       [bold][info]Airflow Breeze Cheatsheet[/][/]
 
-    [bright_blue]* Port forwarding:[/]
+    [info]* Port forwarding:[/]
 
         Ports are forwarded to the running docker containers for webserver and database
           * {SSH_PORT} -> forwarded to Airflow ssh server -> airflow:22
@@ -98,7 +98,7 @@ CHEATSHEET = f"""
                        Airflow123
           * Redis:     redis://127.0.0.1:{REDIS_HOST_PORT}/0
 
-    [bright_blue]* How can I add my stuff in Breeze:[/]
+    [info]* How can I add my stuff in Breeze:[/]
 
         * Your dags for webserver and scheduler are read from `/files/dags` directory
           which is mounted from folder in Airflow sources:
@@ -115,7 +115,7 @@ CHEATSHEET = f"""
           `{AIRFLOW_SOURCES_ROOT}/files` folder
           and they will be visible in `/files/` folder inside the container
 
-        [bright_blue]* Other options[/]
+        [info]* Other options[/]
 
         Check out `--help` for ./breeze commands. It will show you other options, such as running
         integration or starting complete Airflow using `start-airflow` command as well as ways

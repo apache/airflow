@@ -15,7 +15,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """
-This is a basic example dag for using `GoogleApiToS3Transfer` to retrieve Google Sheets data
+This is a basic example dag for using `GoogleApiToS3Operator` to retrieve Google Sheets data
 You need to set all env variables to request the data.
 """
 

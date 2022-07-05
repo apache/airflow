@@ -34,6 +34,7 @@ HOOK_GET_CONNECTION = 'airflow.providers.trino.hooks.trino.TrinoHook.get_connect
 BASIC_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.BasicAuthentication'
 KERBEROS_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.KerberosAuthentication'
 TRINO_DBAPI_CONNECT = 'airflow.providers.trino.hooks.trino.trino.dbapi.connect'
+JWT_AUTHENTICATION = 'airflow.providers.trino.hooks.trino.trino.auth.JWTAuthentication'
 
 
 class TestTrinoHookConn:
@@ -93,6 +94,21 @@ class TestTrinoHookConn:
             AirflowException, match=re.escape("Kerberos authorization doesn't support password.")
         ):
             TrinoHook().get_conn()
+
+    @patch(JWT_AUTHENTICATION)
+    @patch(TRINO_DBAPI_CONNECT)
+    @patch(HOOK_GET_CONNECTION)
+    def test_get_conn_jwt_auth(self, mock_get_connection, mock_connect, mock_jwt_auth):
+        extras = {
+            'auth': 'jwt',
+            'jwt__token': 'TEST_JWT_TOKEN',
+        }
+        self.set_get_connection_return_value(
+            mock_get_connection,
+            extra=json.dumps(extras),
+        )
+        TrinoHook().get_conn()
+        self.assert_connection_called_with(mock_connect, auth=mock_jwt_auth)
 
     @patch(KERBEROS_AUTHENTICATION)
     @patch(TRINO_DBAPI_CONNECT)
@@ -224,14 +240,27 @@ class TestTrinoHook(unittest.TestCase):
 
         self.cur.execute.assert_called_once_with(statement, None)
 
-    @patch('airflow.hooks.dbapi.DbApiHook.run')
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.run')
     def test_run(self, mock_run):
-        hql = "SELECT 1"
+        sql = "SELECT 1"
         autocommit = False
-        parameters = {"hello": "world"}
-        handler = str
-        self.db_hook.run(hql, autocommit, parameters, handler)
-        mock_run.assert_called_once_with(sql=hql, autocommit=False, parameters=parameters, handler=str)
+        parameters = ("hello", "world")
+        handler = list
+        self.db_hook.run(sql, autocommit, parameters, list)
+        mock_run.assert_called_once_with(sql, autocommit, parameters, handler)
+
+    def test_connection_success(self):
+        status, msg = self.db_hook.test_connection()
+        assert status is True
+        assert msg == 'Connection successfully tested'
+
+    @patch('airflow.providers.trino.hooks.trino.TrinoHook.get_conn')
+    def test_connection_failure(self, mock_conn):
+        mock_conn.side_effect = Exception('Test')
+        self.db_hook.get_conn = mock_conn
+        status, msg = self.db_hook.test_connection()
+        assert status is False
+        assert msg == 'Test'
 
 
 class TestTrinoHookIntegration(unittest.TestCase):

@@ -168,19 +168,34 @@ to breeze.
 
 .. code-block:: bash
 
-     ./breeze-legacy tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset -- --log-cli-level=DEBUG
+     breeze tests tests/providers/http/hooks/test_http.py tests/core/test_core.py --db-reset --log-cli-level=DEBUG
 
 You can run the whole test suite without adding the test target:
 
 .. code-block:: bash
 
-    ./breeze-legacy tests --db-reset
+    breeze tests --db-reset
 
 You can also specify individual tests or a group of tests:
 
 .. code-block:: bash
 
-    ./breeze-legacy tests --db-reset tests/core/test_core.py::TestCore
+    breeze tests --db-reset tests/core/test_core.py::TestCore
+
+You can also limit the tests to execute to specific group of tests
+
+.. code-block:: bash
+
+    breeze tests --test-type Core
+
+
+You can also write tests in "limited progress" mode (useful in the future to run CI). In this mode each
+test just prints "percentage" summary of the run as single line and only dumps full output of the test
+after it completes.
+
+.. code-block:: bash
+
+    breeze tests --test-type Core --limit-progress-output
 
 
 Running Tests of a specified type from the Host
@@ -471,8 +486,6 @@ This is done for three reasons:
 
 1. in order to selectively run only subset of the test types for some PRs
 2. in order to allow parallel execution of the tests on Self-Hosted runners
-
-For case 1. see `Pull Request Workflow <PULL_REQUEST_WORKFLOW.rst#selective-ci-checks>`_  for details.
 
 For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
 test in parallel. This way we can decrease the time of running all tests in self-hosted runners from
@@ -1157,7 +1170,7 @@ Breeze session. They are usually expensive to run.
 .. code-block:: bash
 
     breeze stop
-    breeze --python 3.6 --db-reset --forward-credentials
+    breeze --python 3.7 --db-reset --forward-credentials
 
 2. Run create action in helper (to create slowly created resources):
 

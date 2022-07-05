@@ -22,6 +22,8 @@ description: |
     `Snowflake <https://www.snowflake.com/>`__
 
 versions:
+  - 3.0.0
+  - 2.7.0
   - 2.6.0
   - 2.5.2
   - 2.5.1
@@ -39,8 +41,10 @@ versions:
   - 1.1.0
   - 1.0.0
 
-additional-dependencies:
-  - apache-airflow>=2.1.0
+dependencies:
+  - apache-airflow>=2.2.0
+  - snowflake-connector-python>=2.4.1
+  - snowflake-sqlalchemy>=1.1.0
 
 integrations:
   - integration-name: Snowflake
@@ -69,9 +73,6 @@ transfers:
     target-integration-name: Slack
     python-module: airflow.providers.snowflake.transfers.snowflake_to_slack
     how-to-guide: /docs/apache-airflow-providers-snowflake/operators/snowflake_to_slack.rst
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.snowflake.hooks.snowflake.SnowflakeHook
 
 connection-types:
   - hook-class-name: airflow.providers.snowflake.hooks.snowflake.SnowflakeHook

@@ -56,6 +56,7 @@ class DbApiHook(BaseHook):
     :param schema: Optional DB schema that overrides the schema specified in the connection. Make sure that
         if you change the schema parameter value in the constructor of the derived Hook, such change
         should be done before calling the ``DBApiHook.__init__()``.
+    :param log_sql: Whether to log SQL query when it's executed. Defaults to *True*.
     """
 
     # Override to provide the connection name.
@@ -69,7 +70,7 @@ class DbApiHook(BaseHook):
     # Override with db-specific query to check connection
     _test_connection_sql = "select 1"
 
-    def __init__(self, *args, schema: Optional[str] = None, **kwargs):
+    def __init__(self, *args, schema: Optional[str] = None, log_sql: bool = True, **kwargs):
         super().__init__()
         if not self.conn_name_attr:
             raise AirflowException("conn_name_attr is not defined")
@@ -84,6 +85,7 @@ class DbApiHook(BaseHook):
         # from kwargs and store it on its own. We do not run "pop" here as we want to give the
         # Hook deriving from the DBApiHook to still have access to the field in it's constructor
         self.__schema = schema
+        self.log_sql = log_sql
 
     def get_conn(self):
         """Returns a connection object"""
@@ -127,6 +129,24 @@ class DbApiHook(BaseHook):
 
         with closing(self.get_conn()) as conn:
             return psql.read_sql(sql, con=conn, params=parameters, **kwargs)
+
+    def get_pandas_df_by_chunks(self, sql, parameters=None, *, chunksize, **kwargs):
+        """
+        Executes the sql and returns a generator
+
+        :param sql: the sql statement to be executed (str) or a list of
+            sql statements to execute
+        :param parameters: The parameters to render the SQL query with
+        :param chunksize: number of rows to include in  each chunk
+        :param kwargs: (optional) passed into pandas.io.sql.read_sql method
+        """
+        try:
+            from pandas.io import sql as psql
+        except ImportError:
+            raise Exception("pandas library not installed, run: pip install 'apache-airflow[pandas]'.")
+
+        with closing(self.get_conn()) as conn:
+            yield from psql.read_sql(sql, con=conn, params=parameters, chunksize=chunksize, **kwargs)
 
     def get_records(self, sql, parameters=None):
         """
@@ -178,6 +198,11 @@ class DbApiHook(BaseHook):
         if scalar:
             sql = [sql]
 
+        if sql:
+            self.log.debug("Executing %d statements", len(sql))
+        else:
+            raise ValueError("List of SQL statements is empty")
+
         with closing(self.get_conn()) as conn:
             if self.supports_autocommit:
                 self.set_autocommit(conn, autocommit)
@@ -205,7 +230,9 @@ class DbApiHook(BaseHook):
 
     def _run_command(self, cur, sql_statement, parameters):
         """Runs a statement using an already open cursor."""
-        self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+        if self.log_sql:
+            self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
+
         if parameters:
             cur.execute(sql_statement, parameters)
         else:

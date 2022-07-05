@@ -139,7 +139,7 @@ class DagRunEditForm(DynamicForm):
     conf = TextAreaField(lazy_gettext('Conf'), widget=BS3TextAreaROWidget())
 
     def populate_obj(self, item):
-        """Populates the attributes of the passed obj with data from the form’s fields."""
+        """Populates the attributes of the passed obj with data from the form's fields."""
         super().populate_obj(item)
         item.run_type = DagRunType.from_run_id(item.run_id)
         if item.conf:

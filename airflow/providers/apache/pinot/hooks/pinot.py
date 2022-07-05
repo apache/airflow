@@ -203,9 +203,7 @@ class PinotAdminHook(BaseHook):
         :param cmd: List of command going to be run by pinot-admin.sh script
         :param verbose:
         """
-        command = [self.cmd_path]
-        command.extend(cmd)
-
+        command = [self.cmd_path, *cmd]
         env = None
         if self.pinot_admin_system_exit:
             env = os.environ.copy()
@@ -273,7 +271,7 @@ class PinotDbApiHook(DbApiHook):
         host = conn.host
         if conn.port is not None:
             host += f':{conn.port}'
-        conn_type = 'http' if not conn.conn_type else conn.conn_type
+        conn_type = conn.conn_type or 'http'
         endpoint = conn.extra_dejson.get('endpoint', 'query/sql')
         return f'{conn_type}://{host}/{endpoint}'
 

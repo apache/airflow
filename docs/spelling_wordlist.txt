@@ -17,6 +17,7 @@ Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
+Appflow
 ArangoDB
 Arg
 Args
@@ -25,6 +26,7 @@ Async
 AsyncResult
 Atlassian
 Auth
+Authlib
 AutoMlClient
 Autoscale
 Avro
@@ -193,6 +195,7 @@ Hou
 Http
 HttpError
 HttpRequest
+IGM
 IdP
 ImageAnnotatorClient
 Imap
@@ -281,6 +284,7 @@ OSS
 Oauth
 Oauthlib
 Okta
+OnFailure
 Oozie
 Opsgenie
 Optimise
@@ -344,6 +348,7 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+SFTPClient
 SIGTERM
 SSHClient
 SSHTunnelForwarder
@@ -352,6 +357,7 @@ Sagemaker
 Sasl
 SearchResultGenerator
 SecretManagerClient
+SecurityManager
 Seedlist
 Sendgrid
 SerializedDAG
@@ -500,6 +506,7 @@ asciiart
 asctime
 asia
 assertEqualIgnoreMultipleSpaces
+assigment
 ast
 async
 athena
@@ -632,6 +639,7 @@ configfile
 configmap
 configmaps
 configs
+configurability
 conftest
 conn
 connectTimeoutMS
@@ -659,6 +667,7 @@ csv
 ctor
 cubeName
 customDataImportUids
+customizability
 customizable
 customizations
 cx
@@ -791,6 +800,7 @@ evals
 eventlet
 evo
 exasol
+executables
 execvp
 exitcode
 explicit
@@ -816,11 +826,14 @@ filehandle
 fileloc
 filelocs
 filepath
+fileshare
 filesize
 filesystem
 filesystems
 filetype
+finalizers
 findall
+firestore
 firstname
 fluentd
 fmt
@@ -846,6 +859,7 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+geq
 getattr
 getfqdn
 getframe
@@ -869,6 +883,7 @@ greenlet
 groupId
 grpc
 gz
+gzipped
 hadoop
 hadoopcmd
 hardcoded
@@ -887,6 +902,7 @@ hiveconfs
 hivemeta
 hiveserver
 hmsclient
+hoc
 homebrew
 honoured
 hookable
@@ -905,12 +921,14 @@ https
 httpx
 hvac
 hyperparameter
+hyperparameters
 iPython
 iTerm
 iam
 idempotence
 idempotency
 ie
+iframe
 ignorable
 ignoreUnknownValues
 imageORfile
@@ -922,10 +940,12 @@ imgcat
 impyla
 incompliancies
 inexhaustive
+inferral
 infile
 influxdb
 infoType
 infoTypes
+ingestions
 ini
 init
 initcontainer
@@ -997,6 +1017,7 @@ latencies
 latin
 ldap
 ldaps
+leq
 leveldb
 libs
 libz
@@ -1038,6 +1059,7 @@ metarouter
 metastore
 mget
 microservice
+microservices
 microsoft
 middleware
 midnights
@@ -1045,6 +1067,7 @@ milton
 minicluster
 minikube
 misconfigured
+mixin
 mixup
 mkdir
 mkdirs
@@ -1112,6 +1135,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm
@@ -1137,6 +1161,7 @@ passwd
 pathType
 pem
 performant
+permalinks
 personalizations
 pformat
 picklable
@@ -1176,6 +1201,7 @@ preloading
 prepend
 prepended
 preprocess
+preprocessing
 presign
 presigned
 prestocmd
@@ -1230,6 +1256,7 @@ readme
 readthedocs
 realtime
 rebase
+recurse
 recurses
 redbubble
 redis
@@ -1243,6 +1270,7 @@ reinit
 reinitialization
 relativedelta
 remoting
+renderers
 renewer
 replicaSet
 repo
@@ -1253,6 +1281,7 @@ reqs
 reserialize
 reserialized
 resetdb
+resizable
 resourceVersion
 resultset
 resumable
@@ -1330,6 +1359,7 @@ sourceRepository
 sourceUploadUrl
 sparkApplication
 sparkcmd
+sparkr
 sparksql
 spegno
 spotahome
@@ -1460,7 +1490,9 @@ tsql
 tsv
 ttl
 tunables
+twitterHandle
 txt
+typeahead
 tz
 tzinfo
 ui

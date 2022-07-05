@@ -19,6 +19,7 @@
 
 import re
 import unittest
+from datetime import datetime
 from unittest import mock
 
 import pytest
@@ -33,9 +34,9 @@ from airflow.providers.google.cloud.hooks.bigquery import (
     BigQueryHook,
     _api_resource_configs_duplication_check,
     _cleanse_time_partitioning,
-    _split_tablename,
     _validate_src_fmt_configs,
     _validate_value,
+    split_tablename,
 )
 
 PROJECT_ID = "bq-project"
@@ -81,25 +82,6 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             num_retries=self.hook.num_retries,
         )
         assert mock_bigquery_connection.return_value == result
-
-    @mock.patch("airflow.providers.google.common.hooks.base_google.GoogleBaseHook.__init__")
-    def test_bigquery_bigquery_conn_id_deprecation_warning(
-        self,
-        mock_base_hook_init,
-    ):
-        bigquery_conn_id = "bigquery conn id"
-        warning_message = (
-            "The bigquery_conn_id parameter has been deprecated. "
-            "You should pass the gcp_conn_id parameter."
-        )
-        with pytest.warns(DeprecationWarning) as warnings:
-            BigQueryHook(bigquery_conn_id=bigquery_conn_id)
-            mock_base_hook_init.assert_called_once_with(
-                delegate_to=None,
-                gcp_conn_id='bigquery conn id',
-                impersonation_chain=None,
-            )
-        assert warning_message == str(warnings[0].message)
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.get_service")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.insert_job")
@@ -492,14 +474,12 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
             start_index=5,
         )
 
-    @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Table")
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.Client")
-    def test_run_table_delete(self, mock_client, mock_table):
-        source_project_dataset_table = f"{PROJECT_ID}.{DATASET_ID}.{TABLE_ID}"
-        self.hook.run_table_delete(source_project_dataset_table, ignore_if_missing=False)
-        mock_table.from_string.assert_called_once_with(source_project_dataset_table)
+    def test_run_table_delete(self, mock_client):
+        source_dataset_table = f"{DATASET_ID}.{TABLE_ID}"
+        self.hook.run_table_delete(source_dataset_table, ignore_if_missing=False)
         mock_client.return_value.delete_table.assert_called_once_with(
-            table=mock_table.from_string.return_value, not_found_ok=False
+            table=source_dataset_table, not_found_ok=False
         )
 
     @mock.patch("airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_table")
@@ -937,21 +917,36 @@ class TestBigQueryHookMethods(_BigQueryBaseTestClass):
     def test_dbapi_get_uri(self):
         assert self.hook.get_uri().startswith('bigquery://')
 
-    def test_dbapi_get_sqlalchemy_engine_failed(self):
-        with pytest.raises(
-            AirflowException,
-            match="For now, we only support instantiating SQLAlchemy engine by"
-            " using ADC"
-            ", extra__google_cloud_platform__key_path"
-            "and extra__google_cloud_platform__keyfile_dict",
-        ):
-            self.hook.get_sqlalchemy_engine()
+    @mock.patch('airflow.providers.google.cloud.hooks.bigquery.hashlib.md5')
+    @pytest.mark.parametrize(
+        "test_dag_id, expected_job_id",
+        [("test-dag-id-1.1", "airflow_test_dag_id_1_1_test_job_id_2020_01_23T00_00_00_hash")],
+        ids=["test-dag-id-1.1"],
+    )
+    def test_job_id_validity(self, mock_md5, test_dag_id, expected_job_id):
+        hash_ = "hash"
+        mock_md5.return_value.hexdigest.return_value = hash_
+        configuration = {
+            "query": {
+                "query": "SELECT * FROM any",
+                "useLegacySql": False,
+            }
+        }
+
+        job_id = self.hook.generate_job_id(
+            job_id=None,
+            dag_id=test_dag_id,
+            task_id="test_job_id",
+            logical_date=datetime(2020, 1, 23),
+            configuration=configuration,
+        )
+        assert job_id == expected_job_id
 
 
 class TestBigQueryTableSplitter(unittest.TestCase):
     def test_internal_need_default_project(self):
         with pytest.raises(Exception, match="INTERNAL: No default project is specified"):
-            _split_tablename("dataset.table", None)
+            split_tablename("dataset.table", None)
 
     @parameterized.expand(
         [
@@ -964,7 +959,7 @@ class TestBigQueryTableSplitter(unittest.TestCase):
     )
     def test_split_tablename(self, project_expected, dataset_expected, table_expected, table_input):
         default_project_id = "project"
-        project, dataset, table = _split_tablename(table_input, default_project_id)
+        project, dataset, table = split_tablename(table_input, default_project_id)
         assert project_expected == project
         assert dataset_expected == dataset
         assert table_expected == table
@@ -998,7 +993,7 @@ class TestBigQueryTableSplitter(unittest.TestCase):
     def test_invalid_syntax(self, table_input, var_name, exception_message):
         default_project_id = "project"
         with pytest.raises(Exception, match=exception_message.format(table_input)):
-            _split_tablename(table_input, default_project_id, var_name)
+            split_tablename(table_input, default_project_id, var_name)
 
 
 class TestTableOperations(_BigQueryBaseTestClass):

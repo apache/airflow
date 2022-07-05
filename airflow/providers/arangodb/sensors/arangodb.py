@@ -47,8 +47,8 @@ class AQLSensor(BaseSensorOperator):
         self.query = query
 
     def poke(self, context: 'Context') -> bool:
-        self.log.info(f"Sensor running following query: {self.query}")
+        self.log.info("Sensor running the following query: %s", self.query)
         hook = ArangoDBHook(self.arangodb_conn_id)
         records = hook.query(self.query, count=True).count()
-        self.log.info(f"Total Records found: {records}")
+        self.log.info("Total records found: %d", records)
         return 0 != records

@@ -781,6 +781,43 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/clear:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+
+    post:
+      summary: Clear a DAG run
+      description: |
+        Clear a DAG run.
+
+        *New in version 2.4.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: clear_dag_run
+      tags: [DAGRun]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ClearDagRun'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DAGRun'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /eventLogs:
     get:
       summary: List log entries
@@ -1428,6 +1465,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+
   /dags/{dag_id}/details:
     parameters:
       - $ref: '#/components/parameters/DAGID'
@@ -1535,6 +1573,41 @@ paths:
           $ref: '#/components/responses/NotFound'
         '406':
           $ref: '#/components/responses/NotAcceptable'
+
+  /dagWarnings:
+    get:
+      summary: List dag warnings
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_warning_endpoint
+      operationId: get_dag_warnings
+      tags: [DagWarning]
+      parameters:
+        - name: dag_id
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If set, only return DAG warnings with this dag_id.
+        - name: warning_type
+          in: query
+          schema:
+            type: string
+          required: false
+          description: If set, only return DAG warnings with this type.
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/OrderBy'
+
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DagWarningCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
 
   /config:
     get:
@@ -2392,6 +2465,28 @@ components:
           format: date-time
           readOnly: true
           nullable: true
+        data_interval_start:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        data_interval_end:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        last_scheduling_decision:
+          type: string
+          format: date-time
+          readOnly: true
+          nullable: true
+        run_type:
+          type: string
+          readOnly: true
+          enum:
+            - backfill
+            - manual
+            - scheduled
         state:
           $ref: '#/components/schemas/DagState'
           readOnly: true
@@ -2420,6 +2515,7 @@ components:
           enum:
             - success
             - failed
+            - queued
 
     DAGRunCollection:
       type: object
@@ -2434,6 +2530,41 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/DAGRun'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    DagWarning:
+      type: object
+      properties:
+        dag_id:
+          type: string
+          readOnly: true
+          description: The dag_id.
+        warning_type:
+          type: string
+          readOnly: true
+          description: The warning type for the dag warning.
+        message:
+          type: string
+          readOnly: true
+          description: The message for the dag warning.
+        timestamp:
+          type: string
+          format: datetime
+          readOnly: true
+          description: The time when this warning was logged.
+
+    DagWarningCollection:
+      type: object
+      description: |
+        Collection of DAG warnings.
+
+      allOf:
+        - type: object
+          properties:
+            import_errors:
+              type: array
+              items:
+                $ref: '#/components/schemas/DagWarning'
         - $ref: '#/components/schemas/CollectionInfo'
 
     EventLog:
@@ -3013,6 +3144,9 @@ components:
         depends_on_past:
           type: boolean
           readOnly: true
+        is_mapped:
+          type: boolean
+          readOnly: true
         wait_for_downstream:
           type: boolean
           readOnly: true
@@ -3285,6 +3419,16 @@ components:
           nullable: true
 
     # Form
+    ClearDagRun:
+      type: object
+      properties:
+        dry_run:
+          description: |
+            If set, don't actually run this operation. The response will contain a list of task instances
+            planned to be cleaned, but not modified in any way.
+          type: boolean
+          default: true
+
     ClearTaskInstance:
       type: object
       properties:
@@ -3561,6 +3705,7 @@ components:
       description: |
         Schedule interval. Defines how often DAG runs, this object gets added to your latest task instance's
         execution_date to figure out the next schedule.
+      nullable: true
       readOnly: true
       anyOf:
         - $ref: '#/components/schemas/TimeDelta'

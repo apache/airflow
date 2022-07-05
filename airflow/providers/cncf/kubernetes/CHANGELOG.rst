@@ -16,8 +16,88 @@
     under the License.
 
 
+.. NOTE TO CONTRIBUTORS:
+   Please, only add notes to the Changelog just below the "Changelog" header when there are some breaking changes
+   and you want to add an explanation to the users on how they are supposed to deal with them.
+   The changelog is updated and maintained semi-automatically by release manager.
+
 Changelog
 ---------
+
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* Previously, KubernetesPodOperator relied on core Airflow configuration (namely setting for kubernetes
+  executor) for certain settings used in client generation.  Now KubernetesPodOperator
+  uses KubernetesHook, and the consideration of core k8s settings is officially deprecated.
+
+* If you are using the Airflow configuration settings (e.g. as opposed to operator params) to
+  configure the kubernetes client, then prior to the next major release you will need to
+  add an Airflow connection and set your KPO tasks to use that connection.
+
+* ``Use KubernetesHook to create api client in KubernetesPodOperator (#20578)``
+* ``[FEATURE] KPO use K8S hook (#22086)``
+* ``Add param docs to KubernetesHook and KubernetesPodOperator (#23955) (#24054)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Use "remote" pod when patching KPO pod as "checked" (#23676)``
+* ``Don't use the root logger in KPO _suppress function (#23835)``
+* ``Fix await_container_completion condition (#23883)``
+
+Misc
+~~~~
+
+* ``Migrate Cncf.Kubernetes example DAGs to new design #22441 (#24132)``
+* ``Clean up f-strings in logging calls (#23597)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``pydocstyle D202 added (#24221)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
+4.0.2
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix: Exception when parsing log #20966 (#23301)``
+* ``Fixed Kubernetes Operator large xcom content Defect  (#23490)``
+* ``Clarify 'reattach_on_restart' behavior (#23377)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add YANKED to yanked releases of the cncf.kubernetes (#23378)``
+
+   * ``Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)``
+   * ``Revert "Fix k8s pod.execute randomly stuck indefinitely by logs consumption (#23497) (#23618)" (#23656)``
+
+4.0.1
+.....
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Add k8s container's error message in airflow exception (#22871)``
+* ``KubernetesHook should try incluster first when not otherwise configured (#23126)``
+* ``KubernetesPodOperator should patch "already checked" always (#22734)``
+* ``Delete old Spark Application in SparkKubernetesOperator (#21092)``
+* ``Cleanup dup code now that k8s provider requires 2.3.0+ (#22845)``
+* ``Fix ''KubernetesPodOperator'' with 'KubernetesExecutor'' on 2.3.0 (#23371)``
+* ``Fix KPO to have hyphen instead of period (#22982)``
+* ``Fix new MyPy errors in main (#22884)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Use new Breese for building, pulling and verifying the images. (#23104)``
+   * ``Prepare documentation for cncf.kubernetes 4.0.1 release (#23374)``
 
 4.0.0
 .....
@@ -47,8 +127,8 @@ Bug Fixes
 
 * ``Stop crashing when empty logs are received from kubernetes client (#22566)``
 
-3.1.2
-.....
+3.1.2 (YANKED)
+..............
 
 Bug Fixes
 ~~~~~~~~~
@@ -61,16 +141,16 @@ Misc
 
 * ``Remove RefreshConfiguration workaround for K8s token refreshing (#20759)``
 
-3.1.1
-.....
+3.1.1 (YANKED)
+..............
 
 Misc
 ~~~~~
 
 * ``Add Trove classifiers in PyPI (Framework :: Apache Airflow :: Provider)``
 
-3.1.0
-.....
+3.1.0 (YANKED)
+..............
 
 Features
 ~~~~~~~~
@@ -89,8 +169,8 @@ Misc
    appropriate section above if needed. Do not delete the lines(!):
    * ``Add pre-commit check for docstring param types (#21398)``
 
-3.0.2
-.....
+3.0.2 (YANKED)
+..............
 
 Bug Fixes
 ~~~~~~~~~
@@ -105,8 +185,8 @@ Bug Fixes
    * ``Add optional features in providers. (#21074)``
    * ``Add documentation for January 2021 providers release (#21257)``
 
-3.0.1
-.....
+3.0.1 (YANKED)
+..............
 
 
 Misc

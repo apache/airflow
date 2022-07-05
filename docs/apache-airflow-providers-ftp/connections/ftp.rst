@@ -52,7 +52,7 @@ Extra (optional)
     Specify the extra parameters (as json dictionary) that can be used in ftp connection.
     The following parameters are all optional:
 
-    * ``passive``: Enable “passive” mode if val is true, otherwise disable passive mode.
+    * ``passive``: Enable "passive" mode if val is true, otherwise disable passive mode.
       Passive mode is on by default.
 
 When specifying the connection in environment variable you should specify

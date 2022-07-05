@@ -310,7 +310,8 @@ class SageMakerHook(AwsBaseHook):
         max_ingestion_time: Optional[int] = None,
     ):
         """
-        Create a training job
+        Starts a model training job. After training completes, Amazon SageMaker saves
+        the resulting model artifacts to an Amazon S3 location that you specify.
 
         :param config: the config for training
         :param wait_for_completion: if the program should keep running until job finishes
@@ -357,7 +358,11 @@ class SageMakerHook(AwsBaseHook):
         max_ingestion_time: Optional[int] = None,
     ):
         """
-        Create a tuning job
+        Starts a hyperparameter tuning job. A hyperparameter tuning job finds the
+        best version of a model by running many training jobs on your dataset using
+        the algorithm you choose and values for hyperparameters within ranges that
+        you specify. It then chooses the hyperparameter values that result in a model
+        that performs the best, as measured by an objective metric that you choose.
 
         :param config: the config for tuning
         :param wait_for_completion: if the program should keep running until job finishes
@@ -389,7 +394,8 @@ class SageMakerHook(AwsBaseHook):
         max_ingestion_time: Optional[int] = None,
     ):
         """
-        Create a transform job
+        Starts a transform job. A transform job uses a trained model to get inferences
+        on a dataset and saves these results to an Amazon S3 location that you specify.
 
         :param config: the config for transform job
         :param wait_for_completion: if the program should keep running until job finishes
@@ -422,7 +428,10 @@ class SageMakerHook(AwsBaseHook):
         max_ingestion_time: Optional[int] = None,
     ):
         """
-        Create a processing job
+        Use Amazon SageMaker Processing to analyze data and evaluate machine learning
+        models on Amazon SageMaker. With Processing, you can use a simplified, managed
+        experience on SageMaker to run your data processing workloads, such as feature
+        engineering, data validation, model evaluation, and model interpretation.
 
         :param config: the config for processing job
         :param wait_for_completion: if the program should keep running until job finishes
@@ -446,7 +455,10 @@ class SageMakerHook(AwsBaseHook):
 
     def create_model(self, config: dict):
         """
-        Create a model job
+        Creates a model in Amazon SageMaker. In the request, you name the model and
+        describe a primary container. For the primary container, you specify the Docker
+        image that contains inference code, artifacts (from prior training), and a custom
+        environment map that the inference code uses when you deploy the model for predictions.
 
         :param config: the config for model
         :return: A response to model creation
@@ -455,7 +467,14 @@ class SageMakerHook(AwsBaseHook):
 
     def create_endpoint_config(self, config: dict):
         """
-        Create an endpoint config
+        Creates an endpoint configuration that Amazon SageMaker hosting
+        services uses to deploy models. In the configuration, you identify
+        one or more models, created using the CreateModel API, to deploy and
+        the resources that you want Amazon SageMaker to provision.
+
+        .. seealso::
+             :class:`~airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.create_model`
+             :class:`~airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.create_endpoint`
 
         :param config: the config for endpoint-config
         :return: A response to endpoint config creation
@@ -470,7 +489,15 @@ class SageMakerHook(AwsBaseHook):
         max_ingestion_time: Optional[int] = None,
     ):
         """
-        Create an endpoint
+        When you create a serverless endpoint, SageMaker provisions and manages
+        the compute resources for you. Then, you can make inference requests to
+        the endpoint and receive model predictions in response. SageMaker scales
+        the compute resources up and down as needed to handle your request traffic.
+
+        Requires an Endpoint Config.
+         .. seealso::
+             :class:`~airflow.providers.amazon.aws.hooks.sagemaker.SageMakerHook.create_endpoint_config`
+
 
         :param config: the config for endpoint
         :param wait_for_completion: if the program should keep running until job finishes
@@ -501,7 +528,9 @@ class SageMakerHook(AwsBaseHook):
         max_ingestion_time: Optional[int] = None,
     ):
         """
-        Update an endpoint
+        Deploys the new EndpointConfig specified in the request, switches to using
+        newly created endpoint, and then deletes resources provisioned for the
+        endpoint using the previous EndpointConfig (there is no availability loss).
 
         :param config: the config for endpoint
         :param wait_for_completion: if the program should keep running until job finishes

@@ -37,12 +37,11 @@ from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
 from airflow.stats import Stats
 from airflow.utils import timezone
-from airflow.utils.dates import days_ago
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from airflow.utils.types import DagRunType
 from tests.models import DEFAULT_DATE as _DEFAULT_DATE
-from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs
+from tests.test_utils.db import clear_db_dags, clear_db_pools, clear_db_runs, clear_db_variables
 from tests.test_utils.mock_operators import MockOperator
 
 DEFAULT_DATE = pendulum.instance(_DEFAULT_DATE)
@@ -55,11 +54,13 @@ class TestDagRun:
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
+        clear_db_variables()
 
     def teardown_method(self) -> None:
         clear_db_runs()
         clear_db_pools()
         clear_db_dags()
+        clear_db_variables()
 
     def create_dag_run(
         self,
@@ -191,6 +192,29 @@ class TestDagRun:
             'test_short_circuit_false': TaskInstanceState.SUCCESS,
             'test_state_skipped1': TaskInstanceState.SKIPPED,
             'test_state_skipped2': TaskInstanceState.SKIPPED,
+        }
+
+        dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
+        dag_run.update_state()
+        assert DagRunState.SUCCESS == dag_run.state
+
+    def test_dagrun_not_stuck_in_running_when_all_tasks_instances_are_removed(self, session):
+        """
+        Tests that a DAG run succeeds when all tasks are removed
+        """
+        dag = DAG(dag_id='test_dagrun_success_when_all_skipped', start_date=timezone.datetime(2017, 1, 1))
+        dag_task1 = ShortCircuitOperator(
+            task_id='test_short_circuit_false', dag=dag, python_callable=lambda: False
+        )
+        dag_task2 = EmptyOperator(task_id='test_state_skipped1', dag=dag)
+        dag_task3 = EmptyOperator(task_id='test_state_skipped2', dag=dag)
+        dag_task1.set_downstream(dag_task2)
+        dag_task2.set_downstream(dag_task3)
+
+        initial_task_states = {
+            'test_short_circuit_false': TaskInstanceState.REMOVED,
+            'test_state_skipped1': TaskInstanceState.REMOVED,
+            'test_state_skipped2': TaskInstanceState.REMOVED,
         }
 
         dag_run = self.create_dag_run(dag=dag, task_states=initial_task_states, session=session)
@@ -785,7 +809,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is not called if the dagrun is not a scheduled run.
         This case is manual run. Simple test for coherence check.
         """
-        dag = DAG(dag_id='test_dagrun_stats', start_date=days_ago(1))
+        dag = DAG(dag_id='test_dagrun_stats', start_date=DEFAULT_DATE)
         dag_task = EmptyOperator(task_id='dummy', dag=dag)
 
         initial_task_states = {
@@ -809,7 +833,7 @@ class TestDagRun:
         Tests that dag scheduling delay stat is set properly once running scheduled dag.
         dag_run.update_state() invokes the _emit_true_scheduling_delay_stats_for_finished_state method.
         """
-        dag = DAG(dag_id='test_emit_dag_stats', start_date=days_ago(1), schedule_interval=schedule_interval)
+        dag = DAG(dag_id='test_emit_dag_stats', start_date=DEFAULT_DATE, schedule_interval=schedule_interval)
         dag_task = EmptyOperator(task_id='dummy', dag=dag, owner='airflow')
 
         try:
@@ -860,7 +884,7 @@ class TestDagRun:
         """
         Tests that adding State.failed_states and State.success_states work as expected.
         """
-        dag = DAG(dag_id='test_dagrun_states', start_date=days_ago(1))
+        dag = DAG(dag_id='test_dagrun_states', start_date=DEFAULT_DATE)
         dag_task_success = EmptyOperator(task_id='dummy', dag=dag)
         dag_task_failed = EmptyOperator(task_id='dummy2', dag=dag)
 
@@ -900,7 +924,7 @@ def test_verify_integrity_task_start_and_end_date(Stats_incr, session, run_type,
 
     session.add(dag_run)
     session.flush()
-    dag_run.verify_integrity(session)
+    dag_run.verify_integrity(session=session)
 
     tis = dag_run.task_instances
     assert len(tis) == expected_tis
@@ -1025,6 +1049,161 @@ def test_mapped_literal_to_xcom_arg_verify_integrity(dag_maker, session):
         (1, TaskInstanceState.REMOVED),
         (2, TaskInstanceState.REMOVED),
         (3, TaskInstanceState.REMOVED),
+    ]
+
+
+def test_mapped_literal_length_increase_adds_additional_ti(dag_maker, session):
+    """Test that when the length of mapped literal increases, additional ti is added"""
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=[1, 2, 3, 4])
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+        (3, State.NONE),
+    ]
+
+    # Now "increase" the length of literal
+    dag._remove_task('task_2')
+
+    with dag:
+        task_2.expand(arg2=[1, 2, 3, 4, 5]).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+    # Since we change the literal on the dag file itself, the dag_hash will
+    # change which will have the scheduler verify the dr integrity
+    dr.verify_integrity()
+
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+        (3, State.NONE),
+        (4, State.NONE),
+    ]
+
+
+def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
+    """Test that when the length of mapped literal reduces, removed state is added"""
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=[1, 2, 3, 4])
+
+    dr = dag_maker.create_dagrun()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+        (3, State.NONE),
+    ]
+
+    # Now "reduce" the length of literal
+    dag._remove_task('task_2')
+
+    with dag:
+        task_2.expand(arg2=[1, 2]).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+    # Since we change the literal on the dag file itself, the dag_hash will
+    # change which will have the scheduler verify the dr integrity
+    dr.verify_integrity()
+
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.REMOVED),
+        (3, State.REMOVED),
+    ]
+
+
+def test_mapped_literal_length_increase_at_runtime_adds_additional_tis(dag_maker, session):
+    """Test that when the length of mapped literal increases at runtime, additional ti is added"""
+    from airflow.models import Variable
+
+    Variable.set(key='arg1', value=[1, 2, 3])
+
+    @task
+    def task_1():
+        return Variable.get('arg1', deserialize_json=True)
+
+    with dag_maker(session=session) as dag:
+
+        @task
+        def task_2(arg2):
+            ...
+
+        task_2.expand(arg2=task_1())
+
+    dr = dag_maker.create_dagrun()
+    ti = dr.get_task_instance(task_id='task_1')
+    ti.run()
+    dr.task_instance_scheduling_decisions()
+    tis = dr.get_task_instances()
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+    ]
+
+    # Now "clear" and "increase" the length of literal
+    dag.clear()
+    Variable.set(key='arg1', value=[1, 2, 3, 4])
+
+    with dag:
+        task_2.expand(arg2=task_1()).operator
+
+    # At this point, we need to test that the change works on the serialized
+    # DAG (which is what the scheduler operates on)
+    serialized_dag = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    dr.dag = serialized_dag
+
+    # Run the first task again to get the new lengths
+    ti = dr.get_task_instance(task_id='task_1')
+    task1 = dag.get_task('task_1')
+    ti.refresh_from_task(task1)
+    ti.run()
+
+    # this would be called by the localtask job
+    dr.task_instance_scheduling_decisions()
+    tis = dr.get_task_instances()
+
+    indices = [(ti.map_index, ti.state) for ti in tis if ti.map_index >= 0]
+    assert sorted(indices) == [
+        (0, State.NONE),
+        (1, State.NONE),
+        (2, State.NONE),
+        (3, State.NONE),
     ]
 
 

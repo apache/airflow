@@ -1,178 +1,284 @@
-<svg width="1720.0" height="1550" viewBox="0 0 1720.0 1550"
-     xmlns="http://www.w3.org/2000/svg">
+<svg class="rich-terminal" viewBox="0 0 1482 1416.3999999999999" xmlns="http://www.w3.org/2000/svg">
+    <!-- Generated with Rich https://www.textualize.io -->
     <style>
-        @font-face {
-            font-family: "Fira Code";
-            src: local("FiraCode-Regular"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
-            font-style: normal;
-            font-weight: 400;
-        }
-        @font-face {
-            font-family: "Fira Code";
-            src: local("FiraCode-Bold"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
-                 url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
-            font-style: bold;
-            font-weight: 700;
-        }
-        span {
-            display: inline-block;
-            white-space: pre;
-            vertical-align: top;
-            font-size: 18px;
-            font-family:'Fira Code','Cascadia Code',Monaco,Menlo,'DejaVu Sans Mono',consolas,'Courier New',monospace;
-        }
-        a {
-            text-decoration: none;
-            color: inherit;
-        }
-        .blink {
-           animation: blinker 1s infinite;
-        }
-        @keyframes blinker {
-            from { opacity: 1.0; }
-            50% { opacity: 0.3; }
-            to { opacity: 1.0; }
-        }
-        #wrapper {
-            padding: 140px;
-            padding-top: 100px;
-        }
-        #terminal {
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            background-color: #0c0c0c;
-            border-radius: 14px;
-            outline: 1px solid #484848;
-        }
-        #terminal:after {
-            position: absolute;
-            width: 100%;
-            height: 100%;
-            content: '';
-            border-radius: 14px;
-            background: rgb(71,77,102);
-            background: linear-gradient(90deg, #804D69 0%, #4E4B89 100%);
-            transform: rotate(-4.5deg);
-            z-index: -1;
-        }
-        #terminal-header {
-            position: relative;
-            width: 100%;
-            background-color: #2e2e2e;
-            margin-bottom: 12px;
-            font-weight: bold;
-            border-radius: 14px 14px 0 0;
-            color: #f2f2f2;
-            font-size: 18px;
-            box-shadow: inset 0px -1px 0px 0px #4e4e4e,
-                        inset 0px -4px 8px 0px #1a1a1a;
-        }
-        #terminal-title-tab {
-            display: inline-block;
-            margin-top: 14px;
-            margin-left: 124px;
-            font-family: sans-serif;
-            padding: 14px 28px;
-            border-radius: 6px 6px 0 0;
-            background-color: #0c0c0c;
-            box-shadow: inset 0px 1px 0px 0px #4e4e4e,
-                        0px -4px 4px 0px #1e1e1e,
-                        inset 1px 0px 0px 0px #4e4e4e,
-                        inset -1px 0px 0px 0px #4e4e4e;
-        }
-        #terminal-traffic-lights {
-            position: absolute;
-            top: 24px;
-            left: 20px;
-        }
-        #terminal-body {
-            line-height: 22px;
-            padding: 14px;
-        }
-        .r1 {color: #f2f2f2; text-decoration-color: #f2f2f2;background-color: #0c0c0c;}
-.r2 {font-weight: bold;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.r3 {color: #e5e510; text-decoration-color: #e5e510; font-weight: bold;background-color: #0c0c0c;}
-.r4 {color: #7f7f7f; text-decoration-color: #7f7f7f;color: #f2f2f2; text-decoration-color: #f2f2f2;;background-color: #0c0c0c;}
-.r5 {color: #11a8cd; text-decoration-color: #11a8cd; font-weight: bold;background-color: #0c0c0c;}
-.r6 {color: #0dbc79; text-decoration-color: #0dbc79; font-weight: bold;background-color: #0c0c0c;}
-.r7 {color: #78780e; text-decoration-color: #78780e;background-color: #0c0c0c;}
+
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Regular"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Regular.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Regular.woff") format("woff");
+        font-style: normal;
+        font-weight: 400;
+    }
+    @font-face {
+        font-family: "Fira Code";
+        src: local("FiraCode-Bold"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff2/FiraCode-Bold.woff2") format("woff2"),
+                url("https://cdnjs.cloudflare.com/ajax/libs/firacode/6.2.0/woff/FiraCode-Bold.woff") format("woff");
+        font-style: bold;
+        font-weight: 700;
+    }
+
+    .terminal-3189088113-matrix {
+        font-family: Fira Code, monospace;
+        font-size: 20px;
+        line-height: 24.4px;
+        font-variant-east-asian: full-width;
+    }
+
+    .terminal-3189088113-title {
+        font-size: 18px;
+        font-weight: bold;
+        font-family: arial;
+    }
+
+    .terminal-3189088113-r1 { fill: #c5c8c6;font-weight: bold }
+.terminal-3189088113-r2 { fill: #c5c8c6 }
+.terminal-3189088113-r3 { fill: #d0b344;font-weight: bold }
+.terminal-3189088113-r4 { fill: #868887 }
+.terminal-3189088113-r5 { fill: #68a0b3;font-weight: bold }
+.terminal-3189088113-r6 { fill: #98a84b;font-weight: bold }
+.terminal-3189088113-r7 { fill: #8d7b39 }
     </style>
-    <foreignObject x="0" y="0" width="100%" height="100%">
-        <body xmlns="http://www.w3.org/1999/xhtml">
-            <div id="wrapper">
-                <div id="terminal">
-                    <div id='terminal-header'>
-                        <svg id="terminal-traffic-lights" width="90" height="21" viewBox="0 0 90 21" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="14" cy="8" r="8" fill="#ff6159"/>
-                            <circle cx="38" cy="8" r="8" fill="#ffbd2e"/>
-                            <circle cx="62" cy="8" r="8" fill="#28c941"/>
-                        </svg>
-                        <div id="terminal-title-tab">Command: build-docs</div>
-                    </div>
-                    <div id='terminal-body'>
-                        <div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r2"> </span><span class="r3">Usage: </span><span class="r2">breeze build-docs [OPTIONS]                                                                                     </span></div>
-<div><span class="r2">                                                                                                                        </span></div>
-<div><span class="r1"> </span><span class="r1">Build documentation in the container.                                                                                 </span><span class="r1"> </span></div>
-<div><span class="r1">                                                                                                                        </span></div>
-<div><span class="r4">╭─ Doc flags ──────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--docs-only</span><span class="r1">        </span><span class="r6">-d</span><span class="r1">  </span><span class="r1">Only build documentation.                                                                  </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--spellcheck-only</span><span class="r1">  </span><span class="r6">-s</span><span class="r1">  </span><span class="r1">Only run spell checking.                                                                   </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--package-filter</span><span class="r1">   </span><span class="r6">-p</span><span class="r1">  </span><span class="r1">List of packages to consider.                                                              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">(apache-airflow | apache-airflow-providers | apache-airflow-providers-airbyte |            </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-alibaba | apache-airflow-providers-amazon |                       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-apache-beam | apache-airflow-providers-apache-cassandra |         </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-apache-drill | apache-airflow-providers-apache-druid |            </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-apache-hdfs | apache-airflow-providers-apache-hive |              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-apache-kylin | apache-airflow-providers-apache-livy |             </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-apache-pig | apache-airflow-providers-apache-pinot |              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-apache-spark | apache-airflow-providers-apache-sqoop |            </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-arangodb | apache-airflow-providers-asana |                       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-celery | apache-airflow-providers-cloudant |                      </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-cncf-kubernetes | apache-airflow-providers-databricks |           </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-datadog | apache-airflow-providers-dbt-cloud |                    </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-dingding | apache-airflow-providers-discord |                     </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-docker | apache-airflow-providers-elasticsearch |                 </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-exasol | apache-airflow-providers-facebook |                      </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-ftp | apache-airflow-providers-github |                           </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-google | apache-airflow-providers-grpc |                          </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-hashicorp | apache-airflow-providers-http |                       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-imap | apache-airflow-providers-influxdb |                        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-jdbc | apache-airflow-providers-jenkins |                         </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-jira | apache-airflow-providers-microsoft-azure |                 </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-microsoft-mssql | apache-airflow-providers-microsoft-psrp |       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-microsoft-winrm | apache-airflow-providers-mongo |                </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-mysql | apache-airflow-providers-neo4j |                          </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-odbc | apache-airflow-providers-openfaas |                        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-opsgenie | apache-airflow-providers-oracle |                      </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-pagerduty | apache-airflow-providers-papermill |                  </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-plexus | apache-airflow-providers-postgres |                      </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-presto | apache-airflow-providers-qubole |                        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-redis | apache-airflow-providers-salesforce |                     </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-samba | apache-airflow-providers-segment |                        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-sendgrid | apache-airflow-providers-sftp |                        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-singularity | apache-airflow-providers-slack |                    </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-snowflake | apache-airflow-providers-sqlite |                     </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-ssh | apache-airflow-providers-tableau |                          </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-telegram | apache-airflow-providers-trino |                       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-vertica | apache-airflow-providers-yandex |                       </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">                         </span><span class="r7">apache-airflow-providers-zendesk | docker-stack | helm-chart)                              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r4">╭─ Options ────────────────────────────────────────────────────────────────────────────────────────────────────────────╮</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--verbose</span><span class="r1">            </span><span class="r6">-v</span><span class="r1">  </span><span class="r1">Print verbose information about performed steps.                                         </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--dry-run</span><span class="r1">            </span><span class="r6">-D</span><span class="r1">  </span><span class="r1">If dry-run is set, commands are only printed, not executed.                              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--github-repository</span><span class="r1">  </span><span class="r6">-g</span><span class="r1">  </span><span class="r1">GitHub repository used to pull, push run images.</span><span class="r1"> </span><span class="r7">(TEXT)</span><span class="r1"> </span><span class="r4">[default: apache/airflow]</span><span class="r1">        </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">│</span><span class="r1">  </span><span class="r5">--help</span><span class="r1">               </span><span class="r6">-h</span><span class="r1">  </span><span class="r1">Show this message and exit.                                                              </span><span class="r1">  </span><span class="r4">│</span></div>
-<div><span class="r4">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</span></div>
-<div><span class="r1"></span><span class="r1">                                                                                                                        </span></div>
-                    </div>
-                </div>
-            </div>
-        </body>
-    </foreignObject>
+
+    <defs>
+    <clipPath id="terminal-3189088113-clip-terminal">
+      <rect x="0" y="0" width="1463.0" height="1365.3999999999999" />
+    </clipPath>
+    <clipPath id="terminal-3189088113-line-0">
+    <rect x="0" y="1.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-1">
+    <rect x="0" y="25.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-2">
+    <rect x="0" y="50.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-3">
+    <rect x="0" y="74.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-4">
+    <rect x="0" y="99.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-5">
+    <rect x="0" y="123.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-6">
+    <rect x="0" y="147.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-7">
+    <rect x="0" y="172.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-8">
+    <rect x="0" y="196.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-9">
+    <rect x="0" y="221.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-10">
+    <rect x="0" y="245.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-11">
+    <rect x="0" y="269.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-12">
+    <rect x="0" y="294.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-13">
+    <rect x="0" y="318.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-14">
+    <rect x="0" y="343.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-15">
+    <rect x="0" y="367.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-16">
+    <rect x="0" y="391.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-17">
+    <rect x="0" y="416.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-18">
+    <rect x="0" y="440.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-19">
+    <rect x="0" y="465.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-20">
+    <rect x="0" y="489.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-21">
+    <rect x="0" y="513.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-22">
+    <rect x="0" y="538.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-23">
+    <rect x="0" y="562.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-24">
+    <rect x="0" y="587.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-25">
+    <rect x="0" y="611.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-26">
+    <rect x="0" y="635.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-27">
+    <rect x="0" y="660.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-28">
+    <rect x="0" y="684.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-29">
+    <rect x="0" y="709.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-30">
+    <rect x="0" y="733.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-31">
+    <rect x="0" y="757.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-32">
+    <rect x="0" y="782.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-33">
+    <rect x="0" y="806.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-34">
+    <rect x="0" y="831.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-35">
+    <rect x="0" y="855.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-36">
+    <rect x="0" y="879.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-37">
+    <rect x="0" y="904.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-38">
+    <rect x="0" y="928.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-39">
+    <rect x="0" y="953.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-40">
+    <rect x="0" y="977.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-41">
+    <rect x="0" y="1001.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-42">
+    <rect x="0" y="1026.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-43">
+    <rect x="0" y="1050.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-44">
+    <rect x="0" y="1075.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-45">
+    <rect x="0" y="1099.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-46">
+    <rect x="0" y="1123.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-47">
+    <rect x="0" y="1148.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-48">
+    <rect x="0" y="1172.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-49">
+    <rect x="0" y="1197.1" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-50">
+    <rect x="0" y="1221.5" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-51">
+    <rect x="0" y="1245.9" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-52">
+    <rect x="0" y="1270.3" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-53">
+    <rect x="0" y="1294.7" width="1464" height="24.65"/>
+            </clipPath>
+<clipPath id="terminal-3189088113-line-54">
+    <rect x="0" y="1319.1" width="1464" height="24.65"/>
+            </clipPath>
+    </defs>
+
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="1414.4" rx="8"/><text class="terminal-3189088113-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;build-docs</text>
+            <g transform="translate(26,22)">
+            <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
+            <circle cx="22" cy="0" r="7" fill="#febc2e"/>
+            <circle cx="44" cy="0" r="7" fill="#28c840"/>
+            </g>
+        
+    <g transform="translate(9, 41)" clip-path="url(#terminal-3189088113-clip-terminal)">
+    
+    <g class="terminal-3189088113-matrix">
+    <text class="terminal-3189088113-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-3189088113-line-0)">
+</text><text class="terminal-3189088113-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#terminal-3189088113-line-1)">Usage:&#160;</text><text class="terminal-3189088113-r1" x="97.6" y="44.4" textLength="329.4" clip-path="url(#terminal-3189088113-line-1)">breeze&#160;build-docs&#160;[OPTIONS]</text><text class="terminal-3189088113-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-1)">
+</text><text class="terminal-3189088113-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-2)">
+</text><text class="terminal-3189088113-r2" x="12.2" y="93.2" textLength="451.4" clip-path="url(#terminal-3189088113-line-3)">Build&#160;documentation&#160;in&#160;the&#160;container.</text><text class="terminal-3189088113-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-3)">
+</text><text class="terminal-3189088113-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-4)">
+</text><text class="terminal-3189088113-r4" x="0" y="142" textLength="24.4" clip-path="url(#terminal-3189088113-line-5)">╭─</text><text class="terminal-3189088113-r4" x="24.4" y="142" textLength="1415.2" clip-path="url(#terminal-3189088113-line-5)">&#160;Doc&#160;flags&#160;─────────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-3189088113-r4" x="1439.6" y="142" textLength="24.4" clip-path="url(#terminal-3189088113-line-5)">─╮</text><text class="terminal-3189088113-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-3189088113-line-5)">
+</text><text class="terminal-3189088113-r4" x="0" y="166.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-6)">│</text><text class="terminal-3189088113-r5" x="24.4" y="166.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-6)">-</text><text class="terminal-3189088113-r5" x="36.6" y="166.4" textLength="61" clip-path="url(#terminal-3189088113-line-6)">-docs</text><text class="terminal-3189088113-r5" x="97.6" y="166.4" textLength="61" clip-path="url(#terminal-3189088113-line-6)">-only</text><text class="terminal-3189088113-r6" x="256.2" y="166.4" textLength="24.4" clip-path="url(#terminal-3189088113-line-6)">-d</text><text class="terminal-3189088113-r2" x="305" y="166.4" textLength="305" clip-path="url(#terminal-3189088113-line-6)">Only&#160;build&#160;documentation.</text><text class="terminal-3189088113-r4" x="1451.8" y="166.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-6)">│</text><text class="terminal-3189088113-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-6)">
+</text><text class="terminal-3189088113-r4" x="0" y="190.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-7)">│</text><text class="terminal-3189088113-r5" x="24.4" y="190.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-7)">-</text><text class="terminal-3189088113-r5" x="36.6" y="190.8" textLength="134.2" clip-path="url(#terminal-3189088113-line-7)">-spellcheck</text><text class="terminal-3189088113-r5" x="170.8" y="190.8" textLength="61" clip-path="url(#terminal-3189088113-line-7)">-only</text><text class="terminal-3189088113-r6" x="256.2" y="190.8" textLength="24.4" clip-path="url(#terminal-3189088113-line-7)">-s</text><text class="terminal-3189088113-r2" x="305" y="190.8" textLength="292.8" clip-path="url(#terminal-3189088113-line-7)">Only&#160;run&#160;spell&#160;checking.</text><text class="terminal-3189088113-r4" x="1451.8" y="190.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-7)">│</text><text class="terminal-3189088113-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-7)">
+</text><text class="terminal-3189088113-r4" x="0" y="215.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-8)">│</text><text class="terminal-3189088113-r5" x="24.4" y="215.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-8)">-</text><text class="terminal-3189088113-r5" x="36.6" y="215.2" textLength="48.8" clip-path="url(#terminal-3189088113-line-8)">-for</text><text class="terminal-3189088113-r5" x="85.4" y="215.2" textLength="134.2" clip-path="url(#terminal-3189088113-line-8)">-production</text><text class="terminal-3189088113-r6" x="256.2" y="215.2" textLength="24.4" clip-path="url(#terminal-3189088113-line-8)">-p</text><text class="terminal-3189088113-r2" x="305" y="215.2" textLength="988.2" clip-path="url(#terminal-3189088113-line-8)">Builds&#160;documentation&#160;for&#160;official&#160;release&#160;i.e.&#160;all&#160;links&#160;point&#160;to&#160;stable&#160;version.</text><text class="terminal-3189088113-r4" x="1451.8" y="215.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-8)">│</text><text class="terminal-3189088113-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-8)">
+</text><text class="terminal-3189088113-r4" x="0" y="239.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-9)">│</text><text class="terminal-3189088113-r5" x="24.4" y="239.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-9)">-</text><text class="terminal-3189088113-r5" x="36.6" y="239.6" textLength="97.6" clip-path="url(#terminal-3189088113-line-9)">-package</text><text class="terminal-3189088113-r5" x="134.2" y="239.6" textLength="85.4" clip-path="url(#terminal-3189088113-line-9)">-filter</text><text class="terminal-3189088113-r6" x="256.2" y="239.6" textLength="24.4" clip-path="url(#terminal-3189088113-line-9)">-p</text><text class="terminal-3189088113-r2" x="305" y="239.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-9)">List&#160;of&#160;packages&#160;to&#160;consider.&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="239.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-9)">│</text><text class="terminal-3189088113-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-9)">
+</text><text class="terminal-3189088113-r4" x="0" y="264" textLength="12.2" clip-path="url(#terminal-3189088113-line-10)">│</text><text class="terminal-3189088113-r7" x="305" y="264" textLength="1134.6" clip-path="url(#terminal-3189088113-line-10)">(apache-airflow&#160;|&#160;apache-airflow-providers&#160;|&#160;apache-airflow-providers-airbyte&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="264" textLength="12.2" clip-path="url(#terminal-3189088113-line-10)">│</text><text class="terminal-3189088113-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-3189088113-line-10)">
+</text><text class="terminal-3189088113-r4" x="0" y="288.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-11)">│</text><text class="terminal-3189088113-r7" x="305" y="288.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-11)">apache-airflow-providers-alibaba&#160;|&#160;apache-airflow-providers-amazon&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="288.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-11)">│</text><text class="terminal-3189088113-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-11)">
+</text><text class="terminal-3189088113-r4" x="0" y="312.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-12)">│</text><text class="terminal-3189088113-r7" x="305" y="312.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-12)">apache-airflow-providers-apache-beam&#160;|&#160;apache-airflow-providers-apache-cassandra&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="312.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-12)">│</text><text class="terminal-3189088113-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-12)">
+</text><text class="terminal-3189088113-r4" x="0" y="337.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-13)">│</text><text class="terminal-3189088113-r7" x="305" y="337.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-13)">apache-airflow-providers-apache-drill&#160;|&#160;apache-airflow-providers-apache-druid&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="337.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-13)">│</text><text class="terminal-3189088113-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-13)">
+</text><text class="terminal-3189088113-r4" x="0" y="361.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-14)">│</text><text class="terminal-3189088113-r7" x="305" y="361.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-14)">apache-airflow-providers-apache-hdfs&#160;|&#160;apache-airflow-providers-apache-hive&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="361.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-14)">│</text><text class="terminal-3189088113-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-14)">
+</text><text class="terminal-3189088113-r4" x="0" y="386" textLength="12.2" clip-path="url(#terminal-3189088113-line-15)">│</text><text class="terminal-3189088113-r7" x="305" y="386" textLength="1134.6" clip-path="url(#terminal-3189088113-line-15)">apache-airflow-providers-apache-kylin&#160;|&#160;apache-airflow-providers-apache-livy&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="386" textLength="12.2" clip-path="url(#terminal-3189088113-line-15)">│</text><text class="terminal-3189088113-r2" x="1464" y="386" textLength="12.2" clip-path="url(#terminal-3189088113-line-15)">
+</text><text class="terminal-3189088113-r4" x="0" y="410.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-16)">│</text><text class="terminal-3189088113-r7" x="305" y="410.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-16)">apache-airflow-providers-apache-pig&#160;|&#160;apache-airflow-providers-apache-pinot&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="410.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-16)">│</text><text class="terminal-3189088113-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-16)">
+</text><text class="terminal-3189088113-r4" x="0" y="434.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-17)">│</text><text class="terminal-3189088113-r7" x="305" y="434.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-17)">apache-airflow-providers-apache-spark&#160;|&#160;apache-airflow-providers-apache-sqoop&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="434.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-17)">│</text><text class="terminal-3189088113-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-17)">
+</text><text class="terminal-3189088113-r4" x="0" y="459.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-18)">│</text><text class="terminal-3189088113-r7" x="305" y="459.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-18)">apache-airflow-providers-arangodb&#160;|&#160;apache-airflow-providers-asana&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="459.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-18)">│</text><text class="terminal-3189088113-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-18)">
+</text><text class="terminal-3189088113-r4" x="0" y="483.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-19)">│</text><text class="terminal-3189088113-r7" x="305" y="483.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-19)">apache-airflow-providers-celery&#160;|&#160;apache-airflow-providers-cloudant&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="483.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-19)">│</text><text class="terminal-3189088113-r2" x="1464" y="483.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-19)">
+</text><text class="terminal-3189088113-r4" x="0" y="508" textLength="12.2" clip-path="url(#terminal-3189088113-line-20)">│</text><text class="terminal-3189088113-r7" x="305" y="508" textLength="1134.6" clip-path="url(#terminal-3189088113-line-20)">apache-airflow-providers-cncf-kubernetes&#160;|&#160;apache-airflow-providers-core-sql&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="508" textLength="12.2" clip-path="url(#terminal-3189088113-line-20)">│</text><text class="terminal-3189088113-r2" x="1464" y="508" textLength="12.2" clip-path="url(#terminal-3189088113-line-20)">
+</text><text class="terminal-3189088113-r4" x="0" y="532.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-21)">│</text><text class="terminal-3189088113-r7" x="305" y="532.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-21)">apache-airflow-providers-databricks&#160;|&#160;apache-airflow-providers-datadog&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="532.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-21)">│</text><text class="terminal-3189088113-r2" x="1464" y="532.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-21)">
+</text><text class="terminal-3189088113-r4" x="0" y="556.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-22)">│</text><text class="terminal-3189088113-r7" x="305" y="556.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-22)">apache-airflow-providers-dbt-cloud&#160;|&#160;apache-airflow-providers-dingding&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="556.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-22)">│</text><text class="terminal-3189088113-r2" x="1464" y="556.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-22)">
+</text><text class="terminal-3189088113-r4" x="0" y="581.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-23)">│</text><text class="terminal-3189088113-r7" x="305" y="581.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-23)">apache-airflow-providers-discord&#160;|&#160;apache-airflow-providers-docker&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="581.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-23)">│</text><text class="terminal-3189088113-r2" x="1464" y="581.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-23)">
+</text><text class="terminal-3189088113-r4" x="0" y="605.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-24)">│</text><text class="terminal-3189088113-r7" x="305" y="605.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-24)">apache-airflow-providers-elasticsearch&#160;|&#160;apache-airflow-providers-exasol&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="605.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-24)">│</text><text class="terminal-3189088113-r2" x="1464" y="605.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-24)">
+</text><text class="terminal-3189088113-r4" x="0" y="630" textLength="12.2" clip-path="url(#terminal-3189088113-line-25)">│</text><text class="terminal-3189088113-r7" x="305" y="630" textLength="1134.6" clip-path="url(#terminal-3189088113-line-25)">apache-airflow-providers-facebook&#160;|&#160;apache-airflow-providers-ftp&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="630" textLength="12.2" clip-path="url(#terminal-3189088113-line-25)">│</text><text class="terminal-3189088113-r2" x="1464" y="630" textLength="12.2" clip-path="url(#terminal-3189088113-line-25)">
+</text><text class="terminal-3189088113-r4" x="0" y="654.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-26)">│</text><text class="terminal-3189088113-r7" x="305" y="654.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-26)">apache-airflow-providers-github&#160;|&#160;apache-airflow-providers-google&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="654.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-26)">│</text><text class="terminal-3189088113-r2" x="1464" y="654.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-26)">
+</text><text class="terminal-3189088113-r4" x="0" y="678.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-27)">│</text><text class="terminal-3189088113-r7" x="305" y="678.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-27)">apache-airflow-providers-grpc&#160;|&#160;apache-airflow-providers-hashicorp&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="678.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-27)">│</text><text class="terminal-3189088113-r2" x="1464" y="678.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-27)">
+</text><text class="terminal-3189088113-r4" x="0" y="703.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-28)">│</text><text class="terminal-3189088113-r7" x="305" y="703.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-28)">apache-airflow-providers-http&#160;|&#160;apache-airflow-providers-imap&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="703.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-28)">│</text><text class="terminal-3189088113-r2" x="1464" y="703.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-28)">
+</text><text class="terminal-3189088113-r4" x="0" y="727.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-29)">│</text><text class="terminal-3189088113-r7" x="305" y="727.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-29)">apache-airflow-providers-influxdb&#160;|&#160;apache-airflow-providers-jdbc&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="727.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-29)">│</text><text class="terminal-3189088113-r2" x="1464" y="727.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-29)">
+</text><text class="terminal-3189088113-r4" x="0" y="752" textLength="12.2" clip-path="url(#terminal-3189088113-line-30)">│</text><text class="terminal-3189088113-r7" x="305" y="752" textLength="1134.6" clip-path="url(#terminal-3189088113-line-30)">apache-airflow-providers-jenkins&#160;|&#160;apache-airflow-providers-jira&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="752" textLength="12.2" clip-path="url(#terminal-3189088113-line-30)">│</text><text class="terminal-3189088113-r2" x="1464" y="752" textLength="12.2" clip-path="url(#terminal-3189088113-line-30)">
+</text><text class="terminal-3189088113-r4" x="0" y="776.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-31)">│</text><text class="terminal-3189088113-r7" x="305" y="776.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-31)">apache-airflow-providers-microsoft-azure&#160;|&#160;apache-airflow-providers-microsoft-mssql&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="776.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-31)">│</text><text class="terminal-3189088113-r2" x="1464" y="776.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-31)">
+</text><text class="terminal-3189088113-r4" x="0" y="800.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-32)">│</text><text class="terminal-3189088113-r7" x="305" y="800.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-32)">apache-airflow-providers-microsoft-psrp&#160;|&#160;apache-airflow-providers-microsoft-winrm&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="800.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-32)">│</text><text class="terminal-3189088113-r2" x="1464" y="800.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-32)">
+</text><text class="terminal-3189088113-r4" x="0" y="825.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-33)">│</text><text class="terminal-3189088113-r7" x="305" y="825.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-33)">apache-airflow-providers-mongo&#160;|&#160;apache-airflow-providers-mysql&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="825.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-33)">│</text><text class="terminal-3189088113-r2" x="1464" y="825.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-33)">
+</text><text class="terminal-3189088113-r4" x="0" y="849.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-34)">│</text><text class="terminal-3189088113-r7" x="305" y="849.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-34)">apache-airflow-providers-neo4j&#160;|&#160;apache-airflow-providers-odbc&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="849.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-34)">│</text><text class="terminal-3189088113-r2" x="1464" y="849.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-34)">
+</text><text class="terminal-3189088113-r4" x="0" y="874" textLength="12.2" clip-path="url(#terminal-3189088113-line-35)">│</text><text class="terminal-3189088113-r7" x="305" y="874" textLength="1134.6" clip-path="url(#terminal-3189088113-line-35)">apache-airflow-providers-openfaas&#160;|&#160;apache-airflow-providers-opsgenie&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="874" textLength="12.2" clip-path="url(#terminal-3189088113-line-35)">│</text><text class="terminal-3189088113-r2" x="1464" y="874" textLength="12.2" clip-path="url(#terminal-3189088113-line-35)">
+</text><text class="terminal-3189088113-r4" x="0" y="898.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-36)">│</text><text class="terminal-3189088113-r7" x="305" y="898.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-36)">apache-airflow-providers-oracle&#160;|&#160;apache-airflow-providers-pagerduty&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="898.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-36)">│</text><text class="terminal-3189088113-r2" x="1464" y="898.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-36)">
+</text><text class="terminal-3189088113-r4" x="0" y="922.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-37)">│</text><text class="terminal-3189088113-r7" x="305" y="922.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-37)">apache-airflow-providers-papermill&#160;|&#160;apache-airflow-providers-plexus&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="922.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-37)">│</text><text class="terminal-3189088113-r2" x="1464" y="922.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-37)">
+</text><text class="terminal-3189088113-r4" x="0" y="947.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-38)">│</text><text class="terminal-3189088113-r7" x="305" y="947.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-38)">apache-airflow-providers-postgres&#160;|&#160;apache-airflow-providers-presto&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="947.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-38)">│</text><text class="terminal-3189088113-r2" x="1464" y="947.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-38)">
+</text><text class="terminal-3189088113-r4" x="0" y="971.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-39)">│</text><text class="terminal-3189088113-r7" x="305" y="971.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-39)">apache-airflow-providers-qubole&#160;|&#160;apache-airflow-providers-redis&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="971.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-39)">│</text><text class="terminal-3189088113-r2" x="1464" y="971.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-39)">
+</text><text class="terminal-3189088113-r4" x="0" y="996" textLength="12.2" clip-path="url(#terminal-3189088113-line-40)">│</text><text class="terminal-3189088113-r7" x="305" y="996" textLength="1134.6" clip-path="url(#terminal-3189088113-line-40)">apache-airflow-providers-salesforce&#160;|&#160;apache-airflow-providers-samba&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="996" textLength="12.2" clip-path="url(#terminal-3189088113-line-40)">│</text><text class="terminal-3189088113-r2" x="1464" y="996" textLength="12.2" clip-path="url(#terminal-3189088113-line-40)">
+</text><text class="terminal-3189088113-r4" x="0" y="1020.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-41)">│</text><text class="terminal-3189088113-r7" x="305" y="1020.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-41)">apache-airflow-providers-segment&#160;|&#160;apache-airflow-providers-sendgrid&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1020.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-41)">│</text><text class="terminal-3189088113-r2" x="1464" y="1020.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-41)">
+</text><text class="terminal-3189088113-r4" x="0" y="1044.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-42)">│</text><text class="terminal-3189088113-r7" x="305" y="1044.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-42)">apache-airflow-providers-sftp&#160;|&#160;apache-airflow-providers-singularity&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1044.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-42)">│</text><text class="terminal-3189088113-r2" x="1464" y="1044.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-42)">
+</text><text class="terminal-3189088113-r4" x="0" y="1069.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-43)">│</text><text class="terminal-3189088113-r7" x="305" y="1069.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-43)">apache-airflow-providers-slack&#160;|&#160;apache-airflow-providers-snowflake&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1069.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-43)">│</text><text class="terminal-3189088113-r2" x="1464" y="1069.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-43)">
+</text><text class="terminal-3189088113-r4" x="0" y="1093.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-44)">│</text><text class="terminal-3189088113-r7" x="305" y="1093.6" textLength="1134.6" clip-path="url(#terminal-3189088113-line-44)">apache-airflow-providers-sqlite&#160;|&#160;apache-airflow-providers-ssh&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1093.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-44)">│</text><text class="terminal-3189088113-r2" x="1464" y="1093.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-44)">
+</text><text class="terminal-3189088113-r4" x="0" y="1118" textLength="12.2" clip-path="url(#terminal-3189088113-line-45)">│</text><text class="terminal-3189088113-r7" x="305" y="1118" textLength="1134.6" clip-path="url(#terminal-3189088113-line-45)">apache-airflow-providers-tableau&#160;|&#160;apache-airflow-providers-telegram&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1118" textLength="12.2" clip-path="url(#terminal-3189088113-line-45)">│</text><text class="terminal-3189088113-r2" x="1464" y="1118" textLength="12.2" clip-path="url(#terminal-3189088113-line-45)">
+</text><text class="terminal-3189088113-r4" x="0" y="1142.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-46)">│</text><text class="terminal-3189088113-r7" x="305" y="1142.4" textLength="1134.6" clip-path="url(#terminal-3189088113-line-46)">apache-airflow-providers-trino&#160;|&#160;apache-airflow-providers-vertica&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1142.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-46)">│</text><text class="terminal-3189088113-r2" x="1464" y="1142.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-46)">
+</text><text class="terminal-3189088113-r4" x="0" y="1166.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-47)">│</text><text class="terminal-3189088113-r7" x="305" y="1166.8" textLength="1134.6" clip-path="url(#terminal-3189088113-line-47)">apache-airflow-providers-yandex&#160;|&#160;apache-airflow-providers-zendesk&#160;|&#160;docker-stack&#160;|&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1166.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-47)">│</text><text class="terminal-3189088113-r2" x="1464" y="1166.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-47)">
+</text><text class="terminal-3189088113-r4" x="0" y="1191.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-48)">│</text><text class="terminal-3189088113-r7" x="305" y="1191.2" textLength="1134.6" clip-path="url(#terminal-3189088113-line-48)">helm-chart)&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;</text><text class="terminal-3189088113-r4" x="1451.8" y="1191.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-48)">│</text><text class="terminal-3189088113-r2" x="1464" y="1191.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-48)">
+</text><text class="terminal-3189088113-r4" x="0" y="1215.6" textLength="1464" clip-path="url(#terminal-3189088113-line-49)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3189088113-r2" x="1464" y="1215.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-49)">
+</text><text class="terminal-3189088113-r4" x="0" y="1240" textLength="24.4" clip-path="url(#terminal-3189088113-line-50)">╭─</text><text class="terminal-3189088113-r4" x="24.4" y="1240" textLength="1415.2" clip-path="url(#terminal-3189088113-line-50)">&#160;Options&#160;───────────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-3189088113-r4" x="1439.6" y="1240" textLength="24.4" clip-path="url(#terminal-3189088113-line-50)">─╮</text><text class="terminal-3189088113-r2" x="1464" y="1240" textLength="12.2" clip-path="url(#terminal-3189088113-line-50)">
+</text><text class="terminal-3189088113-r4" x="0" y="1264.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-51)">│</text><text class="terminal-3189088113-r5" x="24.4" y="1264.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-51)">-</text><text class="terminal-3189088113-r5" x="36.6" y="1264.4" textLength="97.6" clip-path="url(#terminal-3189088113-line-51)">-verbose</text><text class="terminal-3189088113-r6" x="280.6" y="1264.4" textLength="24.4" clip-path="url(#terminal-3189088113-line-51)">-v</text><text class="terminal-3189088113-r2" x="329.4" y="1264.4" textLength="585.6" clip-path="url(#terminal-3189088113-line-51)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="terminal-3189088113-r4" x="1451.8" y="1264.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-51)">│</text><text class="terminal-3189088113-r2" x="1464" y="1264.4" textLength="12.2" clip-path="url(#terminal-3189088113-line-51)">
+</text><text class="terminal-3189088113-r4" x="0" y="1288.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-52)">│</text><text class="terminal-3189088113-r5" x="24.4" y="1288.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-52)">-</text><text class="terminal-3189088113-r5" x="36.6" y="1288.8" textLength="48.8" clip-path="url(#terminal-3189088113-line-52)">-dry</text><text class="terminal-3189088113-r5" x="85.4" y="1288.8" textLength="48.8" clip-path="url(#terminal-3189088113-line-52)">-run</text><text class="terminal-3189088113-r6" x="280.6" y="1288.8" textLength="24.4" clip-path="url(#terminal-3189088113-line-52)">-D</text><text class="terminal-3189088113-r2" x="329.4" y="1288.8" textLength="719.8" clip-path="url(#terminal-3189088113-line-52)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="terminal-3189088113-r4" x="1451.8" y="1288.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-52)">│</text><text class="terminal-3189088113-r2" x="1464" y="1288.8" textLength="12.2" clip-path="url(#terminal-3189088113-line-52)">
+</text><text class="terminal-3189088113-r4" x="0" y="1313.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-53)">│</text><text class="terminal-3189088113-r5" x="24.4" y="1313.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-53)">-</text><text class="terminal-3189088113-r5" x="36.6" y="1313.2" textLength="85.4" clip-path="url(#terminal-3189088113-line-53)">-github</text><text class="terminal-3189088113-r5" x="122" y="1313.2" textLength="134.2" clip-path="url(#terminal-3189088113-line-53)">-repository</text><text class="terminal-3189088113-r6" x="280.6" y="1313.2" textLength="24.4" clip-path="url(#terminal-3189088113-line-53)">-g</text><text class="terminal-3189088113-r2" x="329.4" y="1313.2" textLength="585.6" clip-path="url(#terminal-3189088113-line-53)">GitHub&#160;repository&#160;used&#160;to&#160;pull,&#160;push&#160;run&#160;images.</text><text class="terminal-3189088113-r7" x="927.2" y="1313.2" textLength="73.2" clip-path="url(#terminal-3189088113-line-53)">(TEXT)</text><text class="terminal-3189088113-r4" x="1012.6" y="1313.2" textLength="305" clip-path="url(#terminal-3189088113-line-53)">[default:&#160;apache/airflow]</text><text class="terminal-3189088113-r4" x="1451.8" y="1313.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-53)">│</text><text class="terminal-3189088113-r2" x="1464" y="1313.2" textLength="12.2" clip-path="url(#terminal-3189088113-line-53)">
+</text><text class="terminal-3189088113-r4" x="0" y="1337.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-54)">│</text><text class="terminal-3189088113-r5" x="24.4" y="1337.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-54)">-</text><text class="terminal-3189088113-r5" x="36.6" y="1337.6" textLength="61" clip-path="url(#terminal-3189088113-line-54)">-help</text><text class="terminal-3189088113-r6" x="280.6" y="1337.6" textLength="24.4" clip-path="url(#terminal-3189088113-line-54)">-h</text><text class="terminal-3189088113-r2" x="329.4" y="1337.6" textLength="329.4" clip-path="url(#terminal-3189088113-line-54)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="terminal-3189088113-r4" x="1451.8" y="1337.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-54)">│</text><text class="terminal-3189088113-r2" x="1464" y="1337.6" textLength="12.2" clip-path="url(#terminal-3189088113-line-54)">
+</text><text class="terminal-3189088113-r4" x="0" y="1362" textLength="1464" clip-path="url(#terminal-3189088113-line-55)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3189088113-r2" x="1464" y="1362" textLength="12.2" clip-path="url(#terminal-3189088113-line-55)">
+</text>
+    </g>
+    </g>
 </svg>

@@ -28,7 +28,7 @@ from airflow.exceptions import AirflowException
 
 try:
     from docker import APIClient
-    from docker.types import Mount
+    from docker.types import DeviceRequest, Mount
 
     from airflow.providers.docker.hooks.docker import DockerHook
     from airflow.providers.docker.operators.docker import DockerOperator
@@ -88,6 +88,7 @@ class TestDockerOperator(unittest.TestCase):
             host_tmp_dir='/host/airflow',
             container_name='test_container',
             tty=True,
+            device_requests=[DeviceRequest(count=-1, capabilities=[['gpu']])],
         )
         operator.execute(None)
 
@@ -121,14 +122,12 @@ class TestDockerOperator(unittest.TestCase):
             cap_add=None,
             extra_hosts=None,
             privileged=False,
+            device_requests=[DeviceRequest(count=-1, capabilities=[['gpu']])],
         )
         self.tempdir_mock.assert_called_once_with(dir='/host/airflow', prefix='airflowtmp')
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
         self.client_mock.attach.assert_called_once_with(
             container='some_id', stdout=True, stderr=True, stream=True
-        )
-        self.client_mock.logs.assert_called_once_with(
-            container='some_id', stdout=True, stderr=True, stream=True, tail=1
         )
         self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with('some_id')
@@ -186,14 +185,12 @@ class TestDockerOperator(unittest.TestCase):
             cap_add=None,
             extra_hosts=None,
             privileged=False,
+            device_requests=None,
         )
         self.tempdir_mock.assert_not_called()
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
         self.client_mock.attach.assert_called_once_with(
             container='some_id', stdout=True, stderr=True, stream=True
-        )
-        self.client_mock.logs.assert_called_once_with(
-            container='some_id', stdout=True, stderr=True, stream=True, tail=1
         )
         self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with('some_id')
@@ -276,6 +273,7 @@ class TestDockerOperator(unittest.TestCase):
                     cap_add=None,
                     extra_hosts=None,
                     privileged=False,
+                    device_requests=None,
                 ),
                 call(
                     mounts=[
@@ -291,6 +289,7 @@ class TestDockerOperator(unittest.TestCase):
                     cap_add=None,
                     extra_hosts=None,
                     privileged=False,
+                    device_requests=None,
                 ),
             ]
         )
@@ -298,9 +297,6 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.images.assert_called_once_with(name='ubuntu:latest')
         self.client_mock.attach.assert_called_once_with(
             container='some_id', stdout=True, stderr=True, stream=True
-        )
-        self.client_mock.logs.assert_called_once_with(
-            container='some_id', stdout=True, stderr=True, stream=True, tail=1
         )
         self.client_mock.pull.assert_called_once_with('ubuntu:latest', stream=True, decode=True)
         self.client_mock.wait.assert_called_once_with('some_id')
@@ -466,7 +462,7 @@ class TestDockerOperator(unittest.TestCase):
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']
         self.client_mock.attach.return_value = iter([b'container log 1 ', b'container log 2'])
         # Make sure the logs side effect is updated after the change
-        self.client_mock.logs.side_effect = (
+        self.client_mock.attach.side_effect = (
             lambda **kwargs: iter(self.log_messages[-kwargs['tail'] :])
             if 'tail' in kwargs
             else iter(self.log_messages)
@@ -506,8 +502,6 @@ class TestDockerOperator(unittest.TestCase):
         self.log_messages = []
         self.client_mock.pull.return_value = [b'{"status":"pull log"}']
         self.client_mock.attach.return_value = iter([])
-        # Make sure the logs side effect is updated after the change
-        self.client_mock.logs.side_effect = iter([])
 
         kwargs = {
             'api_version': '1.19',

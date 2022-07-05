@@ -20,13 +20,14 @@ import ast
 import io
 import pickle
 import tarfile
+import warnings
 from tempfile import TemporaryDirectory
 from typing import TYPE_CHECKING, Dict, Iterable, List, Optional, Sequence, Union
 
 from docker import APIClient, tls  # type: ignore[attr-defined]
 from docker.constants import DEFAULT_TIMEOUT_SECONDS  # type: ignore[attr-defined]
 from docker.errors import APIError  # type: ignore[attr-defined]
-from docker.types import Mount  # type: ignore[attr-defined]
+from docker.types import DeviceRequest, Mount  # type: ignore[attr-defined]
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
@@ -125,7 +126,7 @@ class DockerOperator(BaseOperator):
     :param dns_search: Docker custom DNS search domain
     :param auto_remove: Auto-removal of the container on daemon side when the
         container's process exits.
-        The default is False.
+        The default is never.
     :param shm_size: Size of ``/dev/shm`` in bytes. The size must be
         greater than 0. If omitted uses system default.
     :param tty: Allocate pseudo-TTY to the container
@@ -136,6 +137,7 @@ class DockerOperator(BaseOperator):
         file before manually shutting down the image. Useful for cases where users want a pickle serialized
         output that is not posted to logs
     :param retrieve_output_path: path for output file that will be retrieved and passed to xcom
+    :param device_requests: Expose host resources such as GPUs to the container.
     """
 
     template_fields: Sequence[str] = ('image', 'command', 'environment', 'container_name')
@@ -174,7 +176,7 @@ class DockerOperator(BaseOperator):
         docker_conn_id: Optional[str] = None,
         dns: Optional[List[str]] = None,
         dns_search: Optional[List[str]] = None,
-        auto_remove: bool = False,
+        auto_remove: str = "never",
         shm_size: Optional[int] = None,
         tty: bool = False,
         privileged: bool = False,
@@ -183,11 +185,25 @@ class DockerOperator(BaseOperator):
         retrieve_output: bool = False,
         retrieve_output_path: Optional[str] = None,
         timeout: int = DEFAULT_TIMEOUT_SECONDS,
+        device_requests: Optional[List[DeviceRequest]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
         self.api_version = api_version
-        self.auto_remove = auto_remove
+        if type(auto_remove) == bool:
+            warnings.warn(
+                "bool value for auto_remove is deprecated, please use 'never', 'success', or 'force' instead",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+        if str(auto_remove) == "False":
+            self.auto_remove = "never"
+        elif str(auto_remove) == "True":
+            self.auto_remove = "success"
+        elif str(auto_remove) in ("never", "success", "force"):
+            self.auto_remove = auto_remove
+        else:
+            raise ValueError("unsupported auto_remove option, use 'never', 'success', or 'force' instead")
         self.command = command
         self.container_name = container_name
         self.cpus = cpus
@@ -219,14 +235,13 @@ class DockerOperator(BaseOperator):
         self.privileged = privileged
         self.cap_add = cap_add
         self.extra_hosts = extra_hosts
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'BaseOperator.do_xcom_push' instead")
 
         self.cli = None
         self.container = None
         self.retrieve_output = retrieve_output
         self.retrieve_output_path = retrieve_output_path
         self.timeout = timeout
+        self.device_requests = device_requests
 
     def get_hook(self) -> DockerHook:
         """
@@ -290,6 +305,7 @@ class DockerOperator(BaseOperator):
                 cap_add=self.cap_add,
                 extra_hosts=self.extra_hosts,
                 privileged=self.privileged,
+                device_requests=self.device_requests,
             ),
             image=self.image,
             user=self.user,
@@ -315,25 +331,22 @@ class DockerOperator(BaseOperator):
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                log_parameters = {
-                    'container': self.container['Id'],
-                    'stdout': True,
-                    'stderr': True,
-                    'stream': True,
-                }
+                if len(log_lines) == 0:
+                    return None
                 try:
                     if self.xcom_all:
-                        return [stringify(line).strip() for line in self.cli.logs(**log_parameters)]
+                        return log_lines
                     else:
-                        lines = [stringify(line).strip() for line in self.cli.logs(**log_parameters, tail=1)]
-                        return lines[-1] if lines else None
+                        return log_lines[-1]
                 except StopIteration:
                     # handle the case when there is not a single line to iterate on
                     return None
             return None
         finally:
-            if self.auto_remove:
+            if self.auto_remove == "success":
                 self.cli.remove_container(self.container['Id'])
+            elif self.auto_remove == "force":
+                self.cli.remove_container(self.container['Id'], force=True)
 
     def _attempt_to_retrieve_result(self):
         """

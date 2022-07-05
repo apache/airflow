@@ -172,12 +172,8 @@ Here is an example of a task with both features:
         tags=["example3"],
     ) as dag:
         executor_config_template = {
-            "pod_template_file": os.path.join(
-                AIRFLOW_HOME, "pod_templates/basic_template.yaml"
-            ),
-            "pod_override": k8s.V1Pod(
-                metadata=k8s.V1ObjectMeta(labels={"release": "stable"})
-            ),
+            "pod_template_file": os.path.join(AIRFLOW_HOME, "pod_templates/basic_template.yaml"),
+            "pod_override": k8s.V1Pod(metadata=k8s.V1ObjectMeta(labels={"release": "stable"})),
         }
 
         @task(executor_config=executor_config_template)
@@ -214,7 +210,10 @@ To get task logs out of the workers, you can:
 Comparison with CeleryExecutor
 ------------------------------
 
-In contrast to CeleryExecutor, KubernetesExecutor does not require additional components such as Redis and Flower, but does require access to Kubernetes cluster.
+In contrast to CeleryExecutor, KubernetesExecutor does not require additional components such as Redis,
+but does require access to Kubernetes cluster.
+
+Also monitoring the Pods can be done with the built-in Kubernetes monitoring.
 
 With KubernetesExecutor, each task runs in its own pod. The pod is created when the task is queued, and terminates when the task completes.
 Historically, in scenarios such as burstable workloads, this presented a resource utilization advantage over CeleryExecutor, where you needed

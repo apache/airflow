@@ -23,7 +23,9 @@ implementation for BigQuery.
 import hashlib
 import json
 import logging
+import re
 import time
+import uuid
 import warnings
 from copy import deepcopy
 from datetime import datetime, timedelta
@@ -69,7 +71,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
     :param delegate_to: This performs a task on one host with reference to other hosts.
     :param use_legacy_sql: This specifies whether to use legacy SQL dialect.
     :param location: The location of the BigQuery resource.
-    :param bigquery_conn_id: The Airflow connection used for BigQuery credentials.
     :param api_resource_configs: This contains params configuration applied for Google BigQuery jobs.
     :param impersonation_chain: This is the optional service account to impersonate using short term
         credentials.
@@ -87,21 +88,10 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         delegate_to: Optional[str] = None,
         use_legacy_sql: bool = True,
         location: Optional[str] = None,
-        bigquery_conn_id: Optional[str] = None,
         api_resource_configs: Optional[Dict] = None,
         impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
         labels: Optional[Dict] = None,
     ) -> None:
-        # To preserve backward compatibility
-        # TODO: remove one day
-        if bigquery_conn_id:
-            warnings.warn(
-                "The bigquery_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=2,
-            )
-            gcp_conn_id = bigquery_conn_id
         super().__init__(
             gcp_conn_id=gcp_conn_id,
             delegate_to=delegate_to,
@@ -373,7 +363,6 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param exists_ok: If ``True``, ignore "already exists" errors when creating the table.
         :return: Created table
         """
-
         _table_resource: Dict[str, Any] = {}
 
         if self.location:
@@ -420,7 +409,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         location: Optional[str] = None,
         dataset_reference: Optional[Dict[str, Any]] = None,
         exists_ok: bool = True,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Create a new empty dataset:
         https://cloud.google.com/bigquery/docs/reference/rest/v2/datasets/insert
@@ -464,8 +453,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         dataset: Dataset = Dataset.from_api_repr(dataset_reference)
         self.log.info('Creating dataset: %s in project: %s ', dataset.dataset_id, dataset.project)
-        self.get_client(location=location).create_dataset(dataset=dataset, exists_ok=exists_ok)
+        dataset_object = self.get_client(location=location).create_dataset(
+            dataset=dataset, exists_ok=exists_ok
+        )
         self.log.info('Dataset created successfully.')
+        return dataset_object.to_api_repr()
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_dataset_tables(
@@ -545,7 +537,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         encryption_configuration: Optional[Dict] = None,
         location: Optional[str] = None,
         project_id: Optional[str] = None,
-    ) -> None:
+    ) -> Table:
         """
         Creates a new external table in the dataset with the data from Google
         Cloud Storage. See here:
@@ -671,10 +663,11 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
             table.encryption_configuration = EncryptionConfiguration.from_api_repr(encryption_configuration)
 
         self.log.info('Creating external table: %s', external_project_dataset_table)
-        self.create_empty_table(
+        table_object = self.create_empty_table(
             table_resource=table.to_api_repr(), project_id=project_id, location=location, exists_ok=True
         )
         self.log.info('External table created successfully: %s', external_project_dataset_table)
+        return table_object
 
     @GoogleBaseHook.fallback_to_default_project_id
     def update_table(
@@ -1183,7 +1176,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param project_id: the project used to perform the request
         """
         self.get_client(project_id=project_id).delete_table(
-            table=Table.from_string(table_id),
+            table=table_id,
             not_found_ok=not_found_ok,
         )
         self.log.info('Deleted table %s', table_id)
@@ -1299,7 +1292,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         dataset_id: str,
         table_id: str,
         project_id: Optional[str] = None,
-    ) -> None:
+    ) -> Dict[str, Any]:
         """
         Update fields within a schema for a given dataset and table. Note that
         some fields in schemas are immutable and trying to change them will cause
@@ -1373,13 +1366,14 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not include_policy_tags:
             _remove_policy_tags(new_schema)
 
-        self.update_table(
+        table = self.update_table(
             table_resource={"schema": {"fields": new_schema}},
             fields=["schema"],
             project_id=project_id,
             dataset_id=dataset_id,
             table_id=table_id,
         )
+        return table
 
     @GoogleBaseHook.fallback_to_default_project_id
     def poll_job_complete(
@@ -1706,7 +1700,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 f"Please only use one or more of the following options: {allowed_schema_update_options}"
             )
 
-        destination_project, destination_dataset, destination_table = _split_tablename(
+        destination_project, destination_dataset, destination_table = self.split_tablename(
             table_input=destination_project_dataset_table,
             default_project_id=self.project_id,
             var_name='destination_project_dataset_table',
@@ -1858,7 +1852,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         source_project_dataset_tables_fixup = []
         for source_project_dataset_table in source_project_dataset_tables:
-            source_project, source_dataset, source_table = _split_tablename(
+            source_project, source_dataset, source_table = self.split_tablename(
                 table_input=source_project_dataset_table,
                 default_project_id=self.project_id,
                 var_name='source_project_dataset_table',
@@ -1867,7 +1861,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 {'projectId': source_project, 'datasetId': source_dataset, 'tableId': source_table}
             )
 
-        destination_project, destination_dataset, destination_table = _split_tablename(
+        destination_project, destination_dataset, destination_table = self.split_tablename(
             table_input=destination_project_dataset_table, default_project_id=self.project_id
         )
         configuration = {
@@ -1902,7 +1896,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         field_delimiter: str = ',',
         print_header: bool = True,
         labels: Optional[Dict] = None,
-    ) -> str:
+        return_full_job: bool = False,
+    ) -> Union[str, BigQueryJob]:
         """
         Executes a BigQuery extract command to copy data from BigQuery to
         Google Cloud Storage. See here:
@@ -1923,6 +1918,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         :param print_header: Whether to print a header for a CSV file extract.
         :param labels: a dictionary containing labels for the job/query,
             passed to BigQuery
+        :param return_full_job: return full job instead of job id only
         """
         warnings.warn(
             "This method is deprecated. Please use `BigQueryHook.insert_job` method.", DeprecationWarning
@@ -1930,7 +1926,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         if not self.project_id:
             raise ValueError("The project_id should be set")
 
-        source_project, source_dataset, source_table = _split_tablename(
+        source_project, source_dataset, source_table = self.split_tablename(
             table_input=source_project_dataset_table,
             default_project_id=self.project_id,
             var_name='source_project_dataset_table',
@@ -1961,6 +1957,8 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
 
         job = self.insert_job(configuration=configuration, project_id=self.project_id)
         self.running_job_id = job.job_id
+        if return_full_job:
+            return job
         return job.job_id
 
     def run_query(
@@ -2096,7 +2094,7 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
                 )
 
         if destination_dataset_table:
-            destination_project, destination_dataset, destination_table = _split_tablename(
+            destination_project, destination_dataset, destination_table = self.split_tablename(
                 table_input=destination_dataset_table, default_project_id=self.project_id
             )
 
@@ -2184,6 +2182,83 @@ class BigQueryHook(GoogleBaseHook, DbApiHook):
         self.running_job_id = job.job_id
         return job.job_id
 
+    def generate_job_id(self, job_id, dag_id, task_id, logical_date, configuration, force_rerun=False):
+        if force_rerun:
+            hash_base = str(uuid.uuid4())
+        else:
+            hash_base = json.dumps(configuration, sort_keys=True)
+
+        uniqueness_suffix = hashlib.md5(hash_base.encode()).hexdigest()
+
+        if job_id:
+            return f"{job_id}_{uniqueness_suffix}"
+
+        exec_date = logical_date.isoformat()
+        job_id = f"airflow_{dag_id}_{task_id}_{exec_date}_{uniqueness_suffix}"
+        return re.sub(r"[:\-+.]", "_", job_id)
+
+    def split_tablename(
+        self, table_input: str, default_project_id: str, var_name: Optional[str] = None
+    ) -> Tuple[str, str, str]:
+
+        if '.' not in table_input:
+            raise ValueError(f'Expected table name in the format of <dataset>.<table>. Got: {table_input}')
+
+        if not default_project_id:
+            raise ValueError("INTERNAL: No default project is specified")
+
+        def var_print(var_name):
+            if var_name is None:
+                return ""
+            else:
+                return f"Format exception for {var_name}: "
+
+        if table_input.count('.') + table_input.count(':') > 3:
+            raise Exception(f'{var_print(var_name)}Use either : or . to specify project got {table_input}')
+        cmpt = table_input.rsplit(':', 1)
+        project_id = None
+        rest = table_input
+        if len(cmpt) == 1:
+            project_id = None
+            rest = cmpt[0]
+        elif len(cmpt) == 2 and cmpt[0].count(':') <= 1:
+            if cmpt[-1].count('.') != 2:
+                project_id = cmpt[0]
+                rest = cmpt[1]
+        else:
+            raise Exception(
+                f'{var_print(var_name)}Expect format of (<project:)<dataset>.<table>, got {table_input}'
+            )
+
+        cmpt = rest.split('.')
+        if len(cmpt) == 3:
+            if project_id:
+                raise ValueError(f"{var_print(var_name)}Use either : or . to specify project")
+            project_id = cmpt[0]
+            dataset_id = cmpt[1]
+            table_id = cmpt[2]
+
+        elif len(cmpt) == 2:
+            dataset_id = cmpt[0]
+            table_id = cmpt[1]
+        else:
+            raise Exception(
+                f'{var_print(var_name)} Expect format of (<project.|<project:)<dataset>.<table>, '
+                f'got {table_input}'
+            )
+
+        if project_id is None:
+            if var_name is not None:
+                self.log.info(
+                    'Project not included in %s: %s; using project "%s"',
+                    var_name,
+                    table_input,
+                    default_project_id,
+                )
+            project_id = default_project_id
+
+        return project_id, dataset_id, table_id
+
 
 class BigQueryConnection:
     """
@@ -2256,7 +2331,7 @@ class BigQueryBaseCursor(LoggingMixin):
         )
         return self.hook.create_empty_table(*args, **kwargs)
 
-    def create_empty_dataset(self, *args, **kwargs) -> None:
+    def create_empty_dataset(self, *args, **kwargs) -> Dict[str, Any]:
         """
         This method is deprecated.
         Please use `airflow.providers.google.cloud.hooks.bigquery.BigQueryHook.create_empty_dataset`
@@ -2775,7 +2850,7 @@ def _bq_cast(string_field: str, bq_type: str) -> Union[None, int, float, bool, s
         return string_field
 
 
-def _split_tablename(
+def split_tablename(
     table_input: str, default_project_id: str, var_name: Optional[str] = None
 ) -> Tuple[str, str, str]:
 

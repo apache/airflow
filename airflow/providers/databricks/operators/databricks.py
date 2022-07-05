@@ -19,49 +19,22 @@
 """This module contains Databricks operators."""
 
 import time
+from logging import Logger
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator, BaseOperatorLink, XCom
-from airflow.providers.databricks.hooks.databricks import DatabricksHook
+from airflow.providers.databricks.hooks.databricks import DatabricksHook, RunState
+from airflow.providers.databricks.triggers.databricks import DatabricksExecutionTrigger
+from airflow.providers.databricks.utils.databricks import deep_string_coerce, validate_trigger_event
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstanceKey
     from airflow.utils.context import Context
 
+DEFER_METHOD_NAME = 'execute_complete'
 XCOM_RUN_ID_KEY = 'run_id'
 XCOM_RUN_PAGE_URL_KEY = 'run_page_url'
-
-
-def _deep_string_coerce(content, json_path: str = 'json') -> Union[str, list, dict]:
-    """
-    Coerces content or all values of content if it is a dict to a string. The
-    function will throw if content contains non-string or non-numeric types.
-
-    The reason why we have this function is because the ``self.json`` field must be a
-    dict with only string values. This is because ``render_template`` will fail
-    for numerical values.
-    """
-    coerce = _deep_string_coerce
-    if isinstance(content, str):
-        return content
-    elif isinstance(
-        content,
-        (
-            int,
-            float,
-        ),
-    ):
-        # Databricks can tolerate either numeric or string types in the API backend.
-        return str(content)
-    elif isinstance(content, (list, tuple)):
-        return [coerce(e, f'{json_path}[{i}]') for i, e in enumerate(content)]
-    elif isinstance(content, dict):
-        return {k: coerce(v, f'{json_path}[{k}]') for k, v in list(content.items())}
-    else:
-        param_type = type(content)
-        msg = f'Type {param_type} used for parameter {json_path} is not a number or a string'
-        raise AirflowException(msg)
 
 
 def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
@@ -101,6 +74,47 @@ def _handle_databricks_operator_execution(operator, hook, log, context) -> None:
                 time.sleep(operator.polling_period_seconds)
     else:
         log.info('View run status, Spark UI, and logs at %s', run_page_url)
+
+
+def _handle_deferrable_databricks_operator_execution(operator, hook, log, context) -> None:
+    """
+    Handles the Airflow + Databricks lifecycle logic for deferrable Databricks operators
+
+    :param operator: Databricks async operator being handled
+    :param context: Airflow context
+    """
+    if operator.do_xcom_push and context is not None:
+        context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
+    log.info(f'Run submitted with run_id: {operator.run_id}')
+
+    run_page_url = hook.get_run_page_url(operator.run_id)
+    if operator.do_xcom_push and context is not None:
+        context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
+    log.info(f'View run status, Spark UI, and logs at {run_page_url}')
+
+    if operator.wait_for_termination:
+        operator.defer(
+            trigger=DatabricksExecutionTrigger(
+                run_id=operator.run_id,
+                databricks_conn_id=operator.databricks_conn_id,
+                polling_period_seconds=operator.polling_period_seconds,
+            ),
+            method_name=DEFER_METHOD_NAME,
+        )
+
+
+def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) -> None:
+    validate_trigger_event(event)
+    run_state = RunState.from_json(event['run_state'])
+    run_page_url = event['run_page_url']
+    log.info(f'View run status, Spark UI, and logs at {run_page_url}')
+
+    if run_state.is_successful:
+        log.info('Job run completed successfully.')
+        return
+    else:
+        error_message = f'Job run failed with terminal state: {run_state}'
+        raise AirflowException(error_message)
 
 
 class DatabricksJobRunLink(BaseOperatorLink):
@@ -282,11 +296,16 @@ class DatabricksSubmitRunOperator(BaseOperator):
             might be a floating point number).
     :param databricks_retry_args: An optional dictionary with arguments passed to ``tenacity.Retrying`` class.
     :param do_xcom_push: Whether we should push run_id and run_page_url to xcom.
+    :param git_source: Optional specification of a remote git repository from which
+        supported task types are retrieved.
+
+        .. seealso::
+            https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit
     """
 
     # Used in airflow.models.BaseOperator
     template_fields: Sequence[str] = ('json',)
-    template_ext: Sequence[str] = ('.json',)
+    template_ext: Sequence[str] = ('.json-tpl',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
@@ -316,6 +335,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
         idempotency_token: Optional[str] = None,
         access_control_list: Optional[List[Dict[str, str]]] = None,
         wait_for_termination: bool = True,
+        git_source: Optional[Dict[str, str]] = None,
         **kwargs,
     ) -> None:
         """Creates a new ``DatabricksSubmitRunOperator``."""
@@ -355,8 +375,10 @@ class DatabricksSubmitRunOperator(BaseOperator):
             self.json['idempotency_token'] = idempotency_token
         if access_control_list is not None:
             self.json['access_control_list'] = access_control_list
+        if git_source is not None:
+            self.json['git_source'] = git_source
 
-        self.json = _deep_string_coerce(self.json)
+        self.json = deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
@@ -383,6 +405,18 @@ class DatabricksSubmitRunOperator(BaseOperator):
             )
         else:
             self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)
+
+
+class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
+    """Deferrable version of ``DatabricksSubmitRunOperator``"""
+
+    def execute(self, context):
+        hook = self._get_hook()
+        self.run_id = hook.submit_run(self.json)
+        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
+
+    def execute_complete(self, context: Optional[dict], event: dict):
+        _handle_deferrable_databricks_operator_completion(event, self.log)
 
 
 class DatabricksRunNowOperator(BaseOperator):
@@ -474,7 +508,7 @@ class DatabricksRunNowOperator(BaseOperator):
         The map is passed to the notebook and will be accessible through the
         dbutils.widgets.get function. See Widgets for more information.
         If not specified upon run-now, the triggered run will use the
-        job’s base parameters. notebook_params cannot be
+        job's base parameters. notebook_params cannot be
         specified in conjunction with jar_params. The json representation
         of this field (i.e. {"notebook_params":{"name":"john doe","age":"35"}})
         cannot exceed 10,000 bytes.
@@ -540,7 +574,7 @@ class DatabricksRunNowOperator(BaseOperator):
 
     # Used in airflow.models.BaseOperator
     template_fields: Sequence[str] = ('json',)
-    template_ext: Sequence[str] = ('.json',)
+    template_ext: Sequence[str] = ('.json-tpl',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
     ui_fgcolor = '#fff'
@@ -596,7 +630,7 @@ class DatabricksRunNowOperator(BaseOperator):
         if idempotency_token is not None:
             self.json['idempotency_token'] = idempotency_token
 
-        self.json = _deep_string_coerce(self.json)
+        self.json = deep_string_coerce(self.json)
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
@@ -629,3 +663,15 @@ class DatabricksRunNowOperator(BaseOperator):
             )
         else:
             self.log.error('Error: Task: %s with invalid run_id was requested to be cancelled.', self.task_id)
+
+
+class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
+    """Deferrable version of ``DatabricksRunNowOperator``"""
+
+    def execute(self, context):
+        hook = self._get_hook()
+        self.run_id = hook.run_now(self.json)
+        _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
+
+    def execute_complete(self, context: Optional[dict], event: dict):
+        _handle_deferrable_databricks_operator_completion(event, self.log)

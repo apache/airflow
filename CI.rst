@@ -66,7 +66,7 @@ we are utilising ``pull_request_target`` feature of GitHub Actions.
 
 This feature allows to run a separate, independent workflow, when the main workflow is run -
 this separate workflow is different than the main one, because by default it runs using ``main`` version
-of the sources but also - and most of all - that it has WRITE access to the Github Container Image registry.
+of the sources but also - and most of all - that it has WRITE access to the GitHub Container Image registry.
 
 This is especially important in our case where Pull Requests to Airflow might come from any repository,
 and it would be a huge security issue if anyone from outside could
@@ -96,7 +96,7 @@ You can read more about Breeze in `BREEZE.rst <BREEZE.rst>`_ but in essence it i
 you to re-create CI environment in your local development instance and interact with it. In its basic
 form, when you do development you can run all the same tests that will be run in CI - but locally,
 before you submit them as PR. Another use case where Breeze is useful is when tests fail on CI. You can
-take the full ``COMMIT_SHA`` of the failed build pass it as ``--github-image-id`` parameter of Breeze and it will
+take the full ``COMMIT_SHA`` of the failed build pass it as ``--image-tag`` parameter of Breeze and it will
 download the very same version of image that was used in CI and run it locally. This way, you can very
 easily reproduce any failed test that happens in CI - even if you do not check out the sources
 connected with the run.
@@ -275,7 +275,7 @@ You can use those variables when you try to reproduce the build locally.
 |                                         |             |              |            | should set it to false, especially              |
 |                                         |             |              |            | in case our local sources are not the           |
 |                                         |             |              |            | ones we intend to use (for example              |
-|                                         |             |              |            | when ``--github-image-id`` is used              |
+|                                         |             |              |            | when ``--image-tag`` is used              |
 |                                         |             |              |            | in Breeze.                                      |
 |                                         |             |              |            |                                                 |
 |                                         |             |              |            | In CI jobs it is set to true                    |
@@ -426,12 +426,6 @@ CI, Production Images as well as base Python images that are also cached in the 
 Also for those builds we only execute Python tests if important files changed (so for example if it is
 "no-code" change, no tests will be executed.
 
-The workflow involved in Pull Requests review and approval is a bit more complex than simple workflows
-in most of other projects because we've implemented some optimizations related to efficient use
-of queue slots we share with other Apache Software Foundation projects. More details about it
-can be found in `PULL_REQUEST_WORKFLOW.rst <PULL_REQUEST_WORKFLOW.rst>`_.
-
-
 Direct Push/Merge Run
 ---------------------
 
@@ -495,7 +489,7 @@ until the images are built by the ``Build Images`` workflow before running.
 Those "Build Image" steps are skipped in case Pull Requests do not come from "forks" (i.e. those
 are internal PRs for Apache Airflow repository. This is because in case of PRs coming from
 Apache Airflow (only committers can create those) the "pull_request" workflows have enough
-permission to push images to Github Registry.
+permission to push images to GitHub Registry.
 
 This workflow is not triggered on normal pushes to our "main" branches, i.e. after a
 pull request is merged and whenever ``scheduled`` run is triggered. Again in this case the "CI" workflow
@@ -661,19 +655,18 @@ For example knowing that the CI job was for commit ``cd27124534b46c9688a1d89e75f
 
 .. code-block:: bash
 
-  docker pull ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker pull ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
-  docker run -it ghcr.io/apache/airflow/main/ci/python3.6:cd27124534b46c9688a1d89e75fcd137ab5137e3
+  docker run -it ghcr.io/apache/airflow/main/ci/python3.7:cd27124534b46c9688a1d89e75fcd137ab5137e3
 
 
 But you usually need to pass more variables and complex setup if you want to connect to a database or
 enable some integrations. Therefore it is easiest to use `Breeze <BREEZE.rst>`_ for that. For example if
-you need to reproduce a MySQL environment with kerberos integration enabled for commit
-cd27124534b46c9688a1d89e75fcd137ab5137e3, in python 3.8 environment you can run:
+you need to reproduce a MySQL environment in python 3.8 environment you can run:
 
 .. code-block:: bash
 
-  ./breeze-legacy --github-image-id cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8
+  breeze --image-tag cd27124534b46c9688a1d89e75fcd137ab5137e3 --python 3.8 --backend mysql
 
 You will be dropped into a shell with the exact version that was used during the CI run and you will
 be able to run pytest tests manually, easily reproducing the environment that was used in CI. Note that in

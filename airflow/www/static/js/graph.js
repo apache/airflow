@@ -246,7 +246,7 @@ function setUpZoomSupport() {
   const graphWidth = g.graph().width;
   const graphHeight = g.graph().height;
   // Get SVG dimensions
-  const padding = 20;
+  const padding = 80;
   const svgBb = svg.node().getBoundingClientRect();
   const width = svgBb.width - padding * 2;
   const height = svgBb.height - padding; // we are not centering the dag vertically

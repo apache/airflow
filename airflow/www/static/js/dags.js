@@ -17,7 +17,8 @@
  * under the License.
  */
 
-/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl */
+/* global document, window, $, d3, STATE_COLOR, isoDateToTimeEl, autoRefreshInterval,
+ localStorage */
 
 import { getMetaValue } from './utils';
 import tiTooltip from './task_instances';
@@ -37,6 +38,10 @@ const lastDagRunsUrl = getMetaValue('last_dag_runs_url');
 const dagStatsUrl = getMetaValue('dag_stats_url');
 const taskStatsUrl = getMetaValue('task_stats_url');
 const gridUrl = getMetaValue('grid_url');
+
+// auto refresh interval in milliseconds
+// (x2 the interval in tree/graph view since this page can take longer to refresh )
+const refreshIntervalMs = 2000;
 
 $('#tags_filter').select2({
   placeholder: 'Filter DAGs by tag',
@@ -108,21 +113,26 @@ $.each($('[id^=toggle]'), function toggleId() {
 
 $('.typeahead').typeahead({
   source(query, callback) {
-    return $.ajax(autocompleteUrl,
+    return $.ajax(
+      autocompleteUrl,
       {
         data: {
           query: encodeURIComponent(query),
           status: statusFilter,
         },
         success: callback,
-      });
+      },
+    );
   },
   autoSelect: false,
   afterSelect(value) {
-    const dagId = value.trim();
-    if (dagId) {
-      const query = new URLSearchParams(window.location.search);
-      window.location = `${gridUrl.replace('__DAG_ID__', dagId)}?${query}`;
+    const query = new URLSearchParams(window.location.search);
+    query.set('search', value.name);
+    if (value.type === 'owner') {
+      window.location = `${DAGS_INDEX}?${query}`;
+    }
+    if (value.type === 'dag') {
+      window.location = `${gridUrl.replace('__DAG_ID__', value.name)}?${query}`;
     }
   },
 });
@@ -160,6 +170,7 @@ function lastDagRunsHandler(error, json) {
     // Show last run as a link to the graph view
     g.selectAll('a')
       .attr('href', `${graphUrl}?dag_id=${encodeURIComponent(dagId)}&execution_date=${encodeURIComponent(executionDate)}`)
+      .html('')
       .insert(isoDateToTimeEl.bind(null, executionDate, { title: false }));
 
     // Only show the tooltip when we have a last run and add the json to a custom data- attribute
@@ -297,6 +308,7 @@ function drawTaskStatsForDag(dagId, states) {
     .duration(300)
     .delay((d, i) => i * 50)
     .style('opacity', 1);
+
   d3.select('.js-loading-task-stats').remove();
 
   g.append('text')
@@ -351,7 +363,118 @@ function hideSvgTooltip() {
   $('#svg-tooltip').css('display', 'none');
 }
 
+function refreshDagRunsAndTasks(selector, dagId, states) {
+  d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
+    .selectAll('circle')
+    .data(states)
+    .attr('stroke-width', (d) => {
+      if (d.count > 0) return strokeWidth;
+      return 1;
+    })
+    .attr('stroke', (d) => {
+      if (d.count > 0) return STATE_COLOR[d.state];
+
+      return 'gainsboro';
+    })
+    .attr('fill', '#fff')
+    .attr('r', diameter / 2)
+    .attr('title', (d) => d.state)
+    .on('mouseover', (d) => {
+      if (d.count > 0) {
+        d3.select(this).transition().duration(400)
+          .attr('fill', '#e2e2e2')
+          .style('stroke-width', strokeWidthHover);
+      }
+    });
+  d3.select(`svg#${selector}-${dagId.replace(/\./g, '__dot__')}`)
+    .selectAll('text')
+    .data(states)
+    .text((d) => {
+      if (d.count > 0) {
+        return d.count;
+      }
+      return '';
+    });
+}
+
+function refreshTaskStateHandler(error, ts) {
+  Object.keys(ts).forEach((dagId) => {
+    const states = ts[dagId];
+    refreshDagRunsAndTasks('task-run', dagId, states);
+  });
+}
+
+let refreshInterval;
+
+function checkActiveRuns(json) {
+  // filter latest dag runs and check if there are still running dags
+  const activeRuns = Object.keys(json).filter((dagId) => {
+    const dagRuns = json[dagId].filter((s) => s.state === 'running').filter((r) => r.count > 0);
+    return (dagRuns.length > 0);
+  });
+  if (activeRuns.length === 0) {
+    // in case there are no active runs increase the interval for auto refresh
+    $('#auto_refresh').prop('checked', false);
+    clearInterval(refreshInterval);
+  }
+}
+
+function refreshDagRuns(error, json) {
+  checkActiveRuns(json);
+  Object.keys(json).forEach((dagId) => {
+    const states = json[dagId];
+    drawDagStatsForDag(dagId, states);
+    refreshDagRunsAndTasks('dag-run', dagId, states);
+  });
+}
+
+function handleRefresh() {
+  $('#loading-dots').css('display', 'inline-block');
+  d3.json(lastDagRunsUrl)
+    .header('X-CSRFToken', csrfToken)
+    .post(encodedDagIds, lastDagRunsHandler);
+  d3.json(dagStatsUrl)
+    .header('X-CSRFToken', csrfToken)
+    .post(encodedDagIds, refreshDagRuns);
+  d3.json(taskStatsUrl)
+    .header('X-CSRFToken', csrfToken)
+    .post(encodedDagIds, refreshTaskStateHandler);
+  setTimeout(() => {
+    $('#loading-dots').css('display', 'none');
+  }, refreshIntervalMs);
+}
+
+function startOrStopRefresh() {
+  if ($('#auto_refresh').is(':checked')) {
+    refreshInterval = setInterval(() => {
+      handleRefresh();
+    }, autoRefreshInterval * refreshIntervalMs);
+  } else {
+    clearInterval(refreshInterval);
+  }
+}
+
+function initAutoRefresh() {
+  const isDisabled = localStorage.getItem('dagsDisableAutoRefresh');
+  $('#auto_refresh').prop('checked', !(isDisabled));
+  startOrStopRefresh();
+  d3.select('#refresh_button').on('click', () => handleRefresh());
+}
+
+// pause autorefresh when the page is not active
+const handleVisibilityChange = () => {
+  if (document.hidden) {
+    clearInterval(refreshInterval);
+  } else {
+    initAutoRefresh();
+  }
+};
+
+document.addEventListener('visibilitychange', handleVisibilityChange);
+
 $(window).on('load', () => {
+  initAutoRefresh();
+
   $('body').on('mouseover', '.has-svg-tooltip', (e) => {
     const elem = e.target;
     const text = elem.getAttribute('title');
@@ -378,4 +501,16 @@ $('.js-next-run-tooltip').each((i, run) => {
       return newTitle;
     });
   });
+});
+
+$('#auto_refresh').change(() => {
+  if ($('#auto_refresh').is(':checked')) {
+    // Run an initial refresh before starting interval if manually turned on
+    handleRefresh();
+    localStorage.removeItem('dagsDisableAutoRefresh');
+  } else {
+    localStorage.setItem('dagsDisableAutoRefresh', 'true');
+    $('#loading-dots').css('display', 'none');
+  }
+  startOrStopRefresh();
 });

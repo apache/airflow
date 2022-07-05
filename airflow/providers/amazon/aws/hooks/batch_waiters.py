@@ -71,16 +71,12 @@ class BatchWaitersHook(BatchClientHook):
         # and the details of the config on that waiter can be further modified without any
         # accidental impact on the generation of new waiters from the defined waiter_model, e.g.
         waiters.get_waiter("JobExists").config.delay  # -> 5
-        waiter = waiters.get_waiter(
-            "JobExists"
-        )  # -> botocore.waiter.Batch.Waiter.JobExists object
+        waiter = waiters.get_waiter("JobExists")  # -> botocore.waiter.Batch.Waiter.JobExists object
         waiter.config.delay = 10
         waiters.get_waiter("JobExists").config.delay  # -> 5 as defined by waiter_model
 
         # To use a specific waiter, update the config and call the `wait()` method for jobId, e.g.
-        waiter = waiters.get_waiter(
-            "JobExists"
-        )  # -> botocore.waiter.Batch.Waiter.JobExists object
+        waiter = waiters.get_waiter("JobExists")  # -> botocore.waiter.Batch.Waiter.JobExists object
         waiter.config.delay = random.uniform(1, 10)  # seconds
         waiter.config.max_attempts = 10
         waiter.wait(jobs=[jobId])
@@ -120,7 +116,7 @@ class BatchWaitersHook(BatchClientHook):
         :rtype: Dict
         """
         if self._default_config is None:
-            config_path = Path(__file__).with_name("batch_waiters.json").absolute()
+            config_path = Path(__file__).with_name("batch_waiters.json").resolve()
             with open(config_path) as config_file:
                 self._default_config = json.load(config_file)
         return deepcopy(self._default_config)  # avoid accidental mutation

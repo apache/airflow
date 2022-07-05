@@ -66,7 +66,7 @@ class GlueJobOperator(BaseOperator):
         *,
         job_name: str = 'aws_glue_default_job',
         job_desc: str = 'AWS Glue Job with Airflow',
-        script_location: str,
+        script_location: Optional[str] = None,
         concurrent_run_limit: Optional[int] = None,
         script_args: Optional[dict] = None,
         retry_limit: int = 0,
@@ -104,7 +104,9 @@ class GlueJobOperator(BaseOperator):
 
         :return: the id of the current glue job.
         """
-        if not self.script_location.startswith(self.s3_protocol):
+        if self.script_location is None:
+            s3_script_location = None
+        elif not self.script_location.startswith(self.s3_protocol):
             s3_hook = S3Hook(aws_conn_id=self.aws_conn_id)
             script_name = os.path.basename(self.script_location)
             s3_hook.load_file(

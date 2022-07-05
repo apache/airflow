@@ -30,6 +30,8 @@ from airflow.providers.amazon.aws.operators.s3 import (
     S3DeleteObjectsOperator,
     S3FileTransformOperator,
     S3GetBucketTaggingOperator,
+    S3ListOperator,
+    S3ListPrefixesOperator,
     S3PutBucketTaggingOperator,
 )
 from airflow.providers.amazon.aws.sensors.s3 import S3KeySensor, S3KeysUnchangedSensor
@@ -41,6 +43,7 @@ KEY_2 = os.environ.get('KEY_2', 'key2')
 # Empty string prefix refers to the bucket root
 # See what prefix is here https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-prefixes.html
 PREFIX = os.environ.get('PREFIX', '')
+DELIMITER = os.environ.get('DELIMITER', '/')
 TAG_KEY = os.environ.get('TAG_KEY', 'test-s3-bucket-tagging-key')
 TAG_VALUE = os.environ.get('TAG_VALUE', 'test-s3-bucket-tagging-value')
 DATA = os.environ.get(
@@ -62,12 +65,9 @@ with DAG(
     # [START howto_sensor_s3_key_function_definition]
     def check_fn(files: List) -> bool:
         """
-        Example of custom check: check if all files are bigger than 1kB
+        Example of custom check: check if all files are bigger than ``1kB``
 
         :param files: List of S3 object attributes.
-        Format: [{
-            'Size': int
-        }]
         :return: true if the criteria is met
         :rtype: bool
         """
@@ -106,7 +106,7 @@ with DAG(
     # [END howto_operator_s3_delete_bucket_tagging]
 
     # [START howto_operator_s3_create_object]
-    s3_create_object = S3CreateObjectOperator(
+    create_object = S3CreateObjectOperator(
         task_id="s3_create_object",
         s3_bucket=BUCKET_NAME,
         s3_key=KEY,
@@ -115,9 +115,26 @@ with DAG(
     )
     # [END howto_operator_s3_create_object]
 
+    # [START howto_operator_s3_list_prefixes]
+    list_prefixes = S3ListPrefixesOperator(
+        task_id="s3_list_prefix_operator",
+        bucket=BUCKET_NAME,
+        prefix=PREFIX,
+        delimiter=DELIMITER,
+    )
+    # [END howto_operator_s3_list_prefixes]
+
+    # [START howto_operator_s3_list]
+    list_keys = S3ListOperator(
+        task_id="s3_list_operator",
+        bucket=BUCKET_NAME,
+        prefix=PREFIX,
+    )
+    # [END howto_operator_s3_list]
+
     # [START howto_sensor_s3_key_single_key]
     # Check if a file exists
-    s3_sensor_one_key = S3KeySensor(
+    sensor_one_key = S3KeySensor(
         task_id="s3_sensor_one_key",
         bucket_name=BUCKET_NAME,
         bucket_key=KEY,
@@ -126,7 +143,7 @@ with DAG(
 
     # [START howto_sensor_s3_key_multiple_keys]
     # Check if both files exist
-    s3_sensor_two_keys = S3KeySensor(
+    sensor_two_keys = S3KeySensor(
         task_id="s3_sensor_two_keys",
         bucket_name=BUCKET_NAME,
         bucket_key=[KEY, KEY_2],
@@ -135,7 +152,7 @@ with DAG(
 
     # [START howto_sensor_s3_key_function]
     # Check if a file exists and match a certain pattern defined in check_fn
-    s3_sensor_key_function = S3KeySensor(
+    sensor_key_with_function = S3KeySensor(
         task_id="s3_sensor_key_function",
         bucket_name=BUCKET_NAME,
         bucket_key=KEY,
@@ -144,7 +161,7 @@ with DAG(
     # [END howto_sensor_s3_key_function]
 
     # [START howto_sensor_s3_keys_unchanged]
-    s3_sensor_keys_unchanged = S3KeysUnchangedSensor(
+    sensor_keys_unchanged = S3KeysUnchangedSensor(
         task_id="s3_sensor_one_key_size",
         bucket_name=BUCKET_NAME_2,
         prefix=PREFIX,
@@ -153,7 +170,7 @@ with DAG(
     # [END howto_sensor_s3_keys_unchanged]
 
     # [START howto_operator_s3_copy_object]
-    s3_copy_object = S3CopyObjectOperator(
+    copy_object = S3CopyObjectOperator(
         task_id="s3_copy_object",
         source_bucket_name=BUCKET_NAME,
         dest_bucket_name=BUCKET_NAME_2,
@@ -163,7 +180,7 @@ with DAG(
     # [END howto_operator_s3_copy_object]
 
     # [START howto_operator_s3_file_transform]
-    s3_file_transform = S3FileTransformOperator(
+    transforms_file = S3FileTransformOperator(
         task_id="s3_file_transform",
         source_s3_key=f's3://{BUCKET_NAME}/{KEY}',
         dest_s3_key=f's3://{BUCKET_NAME_2}/{KEY_2}',
@@ -174,7 +191,7 @@ with DAG(
     # [END howto_operator_s3_file_transform]
 
     # [START howto_operator_s3_delete_objects]
-    s3_delete_objects = S3DeleteObjectsOperator(
+    delete_objects = S3DeleteObjectsOperator(
         task_id="s3_delete_objects",
         bucket=BUCKET_NAME_2,
         keys=KEY_2,
@@ -192,10 +209,13 @@ with DAG(
         put_tagging,
         get_tagging,
         delete_tagging,
-        s3_create_object,
-        [s3_sensor_one_key, s3_sensor_two_keys, s3_sensor_key_function],
-        s3_copy_object,
-        s3_sensor_keys_unchanged,
-        s3_delete_objects,
+        create_object,
+        list_prefixes,
+        list_keys,
+        [sensor_one_key, sensor_two_keys, sensor_key_with_function],
+        copy_object,
+        transforms_file,
+        sensor_keys_unchanged,
+        delete_objects,
         delete_bucket,
     )

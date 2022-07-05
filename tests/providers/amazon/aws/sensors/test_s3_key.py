@@ -62,7 +62,7 @@ class TestS3KeySensor(unittest.TestCase):
         op = S3KeySensor(
             task_id='s3_key_sensor', bucket_key="s3://test_bucket/file", bucket_name='test_bucket'
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError):
             op.poke(None)
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
@@ -78,7 +78,7 @@ class TestS3KeySensor(unittest.TestCase):
             bucket_key=["test_bucket", "s3://test_bucket/file"],
             bucket_name='test_bucket',
         )
-        with pytest.raises(AirflowException):
+        with pytest.raises(TypeError):
             op.poke(None)
 
     @parameterized.expand(
@@ -160,25 +160,31 @@ class TestS3KeySensor(unittest.TestCase):
         assert op.poke(None) is False
         mock_get_file_metadata.assert_called_once_with("file", "test_bucket")
 
-        mock_get_file_metadata.return_value = [{'Size': 0}]
+        mock_get_file_metadata.return_value = [{'Key': 'dummyFile', 'Size': 0}]
+        assert op.poke(None) is False
+
+        mock_get_file_metadata.return_value = [{'Key': 'file1', 'Size': 0}]
         assert op.poke(None) is True
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.get_file_metadata')
     def test_poke_wildcard_multiple_files(self, mock_get_file_metadata):
         op = S3KeySensor(
             task_id='s3_key_sensor',
-            bucket_key=['s3://test_bucket/file1*', 's3://test_bucket/file2*'],
+            bucket_key=['s3://test_bucket/file*', 's3://test_bucket/*.zip'],
             wildcard_match=True,
         )
 
-        mock_get_file_metadata.side_effect = [[{'Size': 0}], []]
+        mock_get_file_metadata.side_effect = [[{'Key': 'file1', 'Size': 0}], []]
         assert op.poke(None) is False
 
-        mock_get_file_metadata.side_effect = [[{'Size': 0}], [{'Size': 0}]]
+        mock_get_file_metadata.side_effect = [[{'Key': 'file1', 'Size': 0}], [{'Key': 'file2', 'Size': 0}]]
+        assert op.poke(None) is False
+
+        mock_get_file_metadata.side_effect = [[{'Key': 'file1', 'Size': 0}], [{'Key': 'test.zip', 'Size': 0}]]
         assert op.poke(None) is True
 
-        mock_get_file_metadata.assert_any_call("file1", "test_bucket")
-        mock_get_file_metadata.assert_any_call("file2", "test_bucket")
+        mock_get_file_metadata.assert_any_call("file", "test_bucket")
+        mock_get_file_metadata.assert_any_call("", "test_bucket")
 
     @mock.patch('airflow.providers.amazon.aws.sensors.s3.S3Hook.head_object')
     def test_poke_with_check_function(self, mock_head_object):

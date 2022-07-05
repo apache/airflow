@@ -17,8 +17,11 @@
 """
 Global constants that are used by all other Breeze components.
 """
-import os
-from typing import List
+from __future__ import annotations
+
+import platform
+from enum import Enum
+from functools import lru_cache
 
 from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 
@@ -35,6 +38,7 @@ SKIP_CHECK_REMOTE_IMAGE = False
 ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 DEFAULT_PYTHON_MAJOR_MINOR_VERSION = ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS[0]
 ALLOWED_BACKENDS = ['sqlite', 'mysql', 'postgres', 'mssql']
+ALLOWED_PROD_BACKENDS = ['mysql', 'postgres', 'mssql']
 DEFAULT_BACKEND = ALLOWED_BACKENDS[0]
 ALLOWED_INTEGRATIONS = [
     'cassandra',
@@ -49,41 +53,62 @@ ALLOWED_INTEGRATIONS = [
     'all',
 ]
 ALLOWED_KUBERNETES_MODES = ['image']
-ALLOWED_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
-ALLOWED_KIND_VERSIONS = ['v0.12.0']
+ALLOWED_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
+ALLOWED_KIND_VERSIONS = ['v0.14.0']
 ALLOWED_HELM_VERSIONS = ['v3.6.3']
 ALLOWED_EXECUTORS = ['KubernetesExecutor', 'CeleryExecutor', 'LocalExecutor', 'CeleryKubernetesExecutor']
 ALLOWED_KIND_OPERATIONS = ['start', 'stop', 'restart', 'status', 'deploy', 'test', 'shell', 'k9s']
-ALLOWED_GENERATE_CONSTRAINTS_MODES = ['source-providers', 'pypi-providers', 'no-providers']
+ALLOWED_CONSTRAINTS_MODES_CI = ['constraints-source-providers', 'constraints', 'constraints-no-providers']
+ALLOWED_CONSTRAINTS_MODES_PROD = ['constraints', 'constraints-no-providers', 'constraints-source-providers']
 
 MOUNT_SELECTED = "selected"
 MOUNT_ALL = "all"
-MOUNT_NONE = "none"
+MOUNT_SKIP = "skip"
+MOUNT_REMOVE = "remove"
 
-ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_NONE]
-ALLOWED_POSTGRES_VERSIONS = ['10', '11', '12', '13']
+ALLOWED_MOUNT_OPTIONS = [MOUNT_SELECTED, MOUNT_ALL, MOUNT_SKIP, MOUNT_REMOVE]
+ALLOWED_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
 ALLOWED_MYSQL_VERSIONS = ['5.7', '8']
 ALLOWED_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
-ALLOWED_TEST_TYPES = [
-    'All',
-    'Always',
-    'Core',
-    'Providers',
-    'API',
-    'CLI',
-    'Integration',
-    'Other',
-    'WWW',
-    'Postgres',
-    'MySQL',
-    'Helm',
-    'Quarantined',
+
+
+@lru_cache(maxsize=None)
+def all_selective_test_types() -> tuple[str, ...]:
+    return tuple(sorted(e.value for e in SelectiveUnitTestTypes))
+
+
+class SelectiveUnitTestTypes(Enum):
+    ALWAYS = 'Always'
+    API = 'API'
+    CLI = 'CLI'
+    CORE = 'Core'
+    OTHER = 'Other'
+    INTEGRATION = 'Integration'
+    PROVIDERS = 'Providers'
+    WWW = 'WWW'
+
+
+ALLOWED_TEST_TYPE_CHOICES = [
+    "All",
+    "Always",
+    *all_selective_test_types(),
+    "Helm",
+    "Postgres",
+    "MySQL",
+    "Integration",
+    "Other",
+    "Quarantine",
 ]
+
 ALLOWED_PACKAGE_FORMATS = ['wheel', 'sdist', 'both']
+ALLOWED_INSTALLATION_PACKAGE_FORMATS = ['wheel', 'sdist']
 ALLOWED_INSTALLATION_METHODS = ['.', 'apache-airflow']
 ALLOWED_DEBIAN_VERSIONS = ['bullseye', 'buster']
-ALLOWED_BUILD_CACHE = ["pulled", "local", "disabled"]
-ALLOWED_PLATFORMS = ["linux/amd64", "linux/arm64", "linux/amd64,linux/arm64"]
+ALLOWED_BUILD_CACHE = ["registry", "local", "disabled"]
+MULTI_PLATFORM = "linux/amd64,linux/arm64"
+SINGLE_PLATFORMS = ["linux/amd64", "linux/arm64"]
+ALLOWED_PLATFORMS = [*SINGLE_PLATFORMS, MULTI_PLATFORM]
+ALLOWED_USE_AIRFLOW_VERSIONS = ['none', 'wheel', 'sdist']
 
 PARAM_NAME_DESCRIPTION = {
     "BACKEND": "backend",
@@ -97,18 +122,6 @@ PARAM_NAME_DESCRIPTION = {
     "MSSQL_VERSION": "MSSql version",
 }
 
-PARAM_NAME_FLAG = {
-    "BACKEND": "--backend",
-    "MYSQL_VERSION": "--mysql-version",
-    "KUBERNETES_MODE": "--kubernetes-mode",
-    "KUBERNETES_VERSION": "--kubernetes-version",
-    "KIND_VERSION": "--kind-version",
-    "HELM_VERSION": "--helm-version",
-    "EXECUTOR": "--executor",
-    "POSTGRES_VERSION": "--postgres-version",
-    "MSSQL_VERSION": "--mssql-version",
-}
-
 EXCLUDE_DOCS_PACKAGE_FOLDER = [
     'exts',
     'integration-logos',
@@ -119,7 +132,7 @@ EXCLUDE_DOCS_PACKAGE_FOLDER = [
 ]
 
 
-def get_available_packages(short_version=False) -> List[str]:
+def get_available_packages(short_version=False) -> list[str]:
     docs_path_content = (AIRFLOW_SOURCES_ROOT / 'docs').glob('*/')
     available_packages = [x.name for x in docs_path_content if x.is_dir()]
     package_list = list(set(available_packages) - set(EXCLUDE_DOCS_PACKAGE_FOLDER))
@@ -132,8 +145,15 @@ def get_available_packages(short_version=False) -> List[str]:
     return package_list
 
 
+def get_default_platform_machine() -> str:
+    machine = platform.uname().machine
+    # Some additional conversion for various platforms...
+    machine = {"AMD64": "x86_64"}.get(machine, machine)
+    return machine
+
+
 # Initialise base variables
-DOCKER_DEFAULT_PLATFORM = f"linux/{os.uname().machine}"
+DOCKER_DEFAULT_PLATFORM = f"linux/{get_default_platform_machine()}"
 DOCKER_BUILDKIT = 1
 
 SSH_PORT = "12322"
@@ -150,12 +170,13 @@ PYTHONDONTWRITEBYTECODE = True
 PRODUCTION_IMAGE = False
 ALL_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
 CURRENT_PYTHON_MAJOR_MINOR_VERSIONS = ['3.7', '3.8', '3.9', '3.10']
-CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13']
+CURRENT_POSTGRES_VERSIONS = ['10', '11', '12', '13', '14']
+DEFAULT_POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
 CURRENT_MYSQL_VERSIONS = ['5.7', '8']
+DEFAULT_MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
 CURRENT_MSSQL_VERSIONS = ['2017-latest', '2019-latest']
-POSTGRES_VERSION = CURRENT_POSTGRES_VERSIONS[0]
-MYSQL_VERSION = CURRENT_MYSQL_VERSIONS[0]
-MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
+DEFAULT_MSSQL_VERSION = CURRENT_MSSQL_VERSIONS[0]
+
 DB_RESET = False
 START_AIRFLOW = "false"
 LOAD_EXAMPLES = False
@@ -221,19 +242,19 @@ FILES_FOR_REBUILD_CHECK = [
 ENABLED_SYSTEMS = ""
 
 CURRENT_KUBERNETES_MODES = ['image']
-CURRENT_KUBERNETES_VERSIONS = ['v1.23.4', 'v1.22.7', 'v1.21.10', 'v1.20.15']
-CURRENT_KIND_VERSIONS = ['v0.12.0']
+CURRENT_KUBERNETES_VERSIONS = ['v1.24.0', 'v1.23.6', 'v1.22.9', 'v1.21.12', 'v1.20.15']
+CURRENT_KIND_VERSIONS = ['v0.14.0']
 CURRENT_HELM_VERSIONS = ['v3.6.3']
 CURRENT_EXECUTORS = ['KubernetesExecutor']
 
-DEFAULT_KUBERNETES_MODES = CURRENT_KUBERNETES_MODES[0]
-DEFAULT_KUBERNETES_VERSIONS = CURRENT_KUBERNETES_VERSIONS[0]
-DEFAULT_KIND_VERSIONS = CURRENT_KIND_VERSIONS[0]
-DEFAULT_HELM_VERSIONS = CURRENT_HELM_VERSIONS[0]
+DEFAULT_KUBERNETES_MODE = CURRENT_KUBERNETES_MODES[0]
+DEFAULT_KUBERNETES_VERSION = CURRENT_KUBERNETES_VERSIONS[0]
+DEFAULT_KIND_VERSION = CURRENT_KIND_VERSIONS[0]
+DEFAULT_HELM_VERSION = CURRENT_HELM_VERSIONS[0]
 DEFAULT_EXECUTOR = CURRENT_EXECUTORS[0]
 
 # Initialize image build variables - Have to check if this has to go to ci dataclass
-USE_AIRFLOW_VERSION = ""
+USE_AIRFLOW_VERSION = None
 GITHUB_ACTIONS = ""
 
 ISSUE_ID = ""
@@ -277,3 +298,19 @@ DEFAULT_EXTRAS = [
     "virtualenv",
     # END OF EXTRAS LIST UPDATED BY PRE COMMIT
 ]
+
+
+class GithubEvents(Enum):
+    PULL_REQUEST = "pull_request"
+    PULL_REQUEST_REVIEW = "pull_request_review"
+    PULL_REQUEST_TARGET = "pull_request_target"
+    PULL_REQUEST_WORKFLOW = "pull_request_workflow"
+    PUSH = "push"
+    SCHEDULE = "schedule"
+    WORKFLOW_DISPATCH = "workflow_dispatch"
+    WORKFLOW_RUN = "workflow_run"
+
+
+@lru_cache(maxsize=None)
+def github_events() -> list[str]:
+    return [e.value for e in GithubEvents]

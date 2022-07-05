@@ -20,6 +20,8 @@
 import unittest
 from unittest import mock
 
+import pytest
+
 from airflow.models import Connection
 from airflow.providers.databricks.hooks.databricks_sql import DatabricksSqlHook
 from airflow.utils.session import provide_session
@@ -82,3 +84,9 @@ class TestDatabricksSqlHookQueryByName(unittest.TestCase):
 
         cur.execute.assert_has_calls([mock.call(q) for q in [query]])
         cur.close.assert_called()
+
+    def test_no_query(self):
+        for empty_statement in ([], '', '\n'):
+            with pytest.raises(ValueError) as err:
+                self.hook.run(sql=empty_statement)
+            assert err.value.args[0] == "List of SQL statements is empty"

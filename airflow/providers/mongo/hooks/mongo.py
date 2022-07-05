@@ -60,13 +60,9 @@ class MongoHook(BaseHook):
         srv = self.extras.pop('srv', False)
         scheme = 'mongodb+srv' if srv else 'mongodb'
 
-        self.uri = '{scheme}://{creds}{host}{port}/{database}'.format(
-            scheme=scheme,
-            creds=f'{self.connection.login}:{self.connection.password}@' if self.connection.login else '',
-            host=self.connection.host,
-            port='' if self.connection.port is None else f':{self.connection.port}',
-            database=self.connection.schema,
-        )
+        creds = f'{self.connection.login}:{self.connection.password}@' if self.connection.login else ''
+        port = '' if self.connection.port is None else f':{self.connection.port}'
+        self.uri = f'{scheme}://{creds}{self.connection.host}{port}/{self.connection.schema}'
 
     def __enter__(self):
         return self
@@ -270,7 +266,7 @@ class MongoHook(BaseHook):
         :param mongo_collection: The name of the collection to update.
         :param docs: The new documents.
         :param filter_docs: A list of queries that match the documents to replace.
-            Can be omitted; then the _id fields from docs will be used.
+            Can be omitted; then the _id fields from airflow.docs will be used.
         :param mongo_db: The name of the database to use.
             Can be omitted; then the database from the connection string is used.
         :param upsert: If ``True``, perform an insert if no documents

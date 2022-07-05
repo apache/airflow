@@ -28,14 +28,29 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+3.0.0
+.....
+
+Latest change: 2022-06-07
+
+=================================================================================================  ===========  ==================================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================================
+`717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
+`aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
+`e656e1de55 <https://github.com/apache/airflow/commit/e656e1de55094e8369cab80b9b1669b1d1225f54>`_  2022-06-06   ``Adding fnmatch type regex to SFTPSensor (#24084)``
+`027b707d21 <https://github.com/apache/airflow/commit/027b707d215a9ff1151717439790effd44bab508>`_  2022-06-05   ``Add explanatory note for contributors about updating Changelog (#24229)``
+=================================================================================================  ===========  ==================================================================================
+
 2.6.0
 .....
 
-Latest change: 2022-03-29
+Latest change: 2022-04-07
 
 =================================================================================================  ===========  =============================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  =============================================================
+`56ab82ed7a <https://github.com/apache/airflow/commit/56ab82ed7a5c179d024722ccc697b740b2b93b6a>`_  2022-04-07   ``Prepare mid-April provider documentation. (#22819)``
 `a6609d5268 <https://github.com/apache/airflow/commit/a6609d5268ebe55bcb150a828d249153582aa936>`_  2022-03-29   ``add newer_than parameter to SFTP sensor (#21655) (#22377)``
 =================================================================================================  ===========  =============================================================
 

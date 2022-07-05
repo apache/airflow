@@ -41,7 +41,7 @@ Use the
 :class:`~airflow.providers.google.cloud.transfers.gcs_to_bigquery.GCSToBigQueryOperator`
 to execute a BigQuery load job.
 
-.. exampleinclude:: /../../tests/system/providers/google/gcs/example_gcs_to_bigquery.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_to_bigquery.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_to_bigquery]
@@ -60,7 +60,7 @@ The time span is defined by the time span's start and end timestamps. If a DAG
 does not have a *next* DAG instance scheduled, the time span end infinite, meaning the operator
 processes all files older than ``data_interval_start``.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs_timespan_file_transform.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_transform_timespan.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_timespan_file_transform_operator_Task]
@@ -80,7 +80,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_acl.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_bucket_create_acl_entry_task]
@@ -114,7 +114,7 @@ For parameter definition, take a look at
 Using the operator
 """"""""""""""""""
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_acl.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_object_create_acl_entry_task]
@@ -145,7 +145,7 @@ Deleting Bucket allows you to remove bucket object from the Google Cloud Storage
 It is performed through the
 :class:`~airflow.providers.google.cloud.operators.gcs.GCSDeleteBucketOperator` operator.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_upload_download.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_gcs_delete_bucket]
@@ -174,7 +174,7 @@ GCSObjectExistenceSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectExistenceSensor` to wait (poll) for the existence of a file in Google Cloud Storage.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_exists_task]
@@ -187,7 +187,7 @@ GCSObjectsWithPrefixExistenceSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectsWithPrefixExistenceSensor` to wait (poll) for the existence of a file with a specified prefix in Google Cloud Storage.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_with_prefix_exists_task]
@@ -200,7 +200,7 @@ GCSUploadSessionCompleteSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSUploadSessionCompleteSensor` to check for a change in the number of files with a specified prefix in Google Cloud Storage.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_gcs_upload_session_complete_task]
@@ -213,7 +213,7 @@ GCSObjectUpdateSensor
 
 Use the :class:`~airflow.providers.google.cloud.sensors.gcs.GCSObjectUpdateSensor` to check if an object is updated in Google Cloud Storage.
 
-.. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_gcs.py
+.. exampleinclude:: /../../tests/system/providers/google/cloud/gcs/example_gcs_sensor.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_object_update_exists_task]

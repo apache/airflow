@@ -44,7 +44,7 @@ class TestCloudSql(unittest.TestCase):
             audio=AUDIO,
             task_id="id",
             impersonation_chain=IMPERSONATION_CHAIN,
-        ).execute(context={"task_instance": Mock()})
+        ).execute(context=MagicMock())
 
         mock_hook.assert_called_once_with(
             gcp_conn_id=GCP_CONN_ID,

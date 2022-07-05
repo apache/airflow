@@ -18,8 +18,11 @@
 import json
 import os
 import warnings
-from typing import Any, Callable, Iterable, Optional, overload
+from contextlib import closing
+from itertools import chain
+from typing import Any, Callable, Iterable, Optional, Tuple, overload
 
+import sqlparse
 import trino
 from trino.exceptions import DatabaseError
 from trino.transaction import IsolationLevel
@@ -90,16 +93,20 @@ class TrinoHook(DbApiHook):
     default_conn_name = 'trino_default'
     conn_type = 'trino'
     hook_name = 'Trino'
+    query_id = ''
 
     def get_conn(self) -> Connection:
         """Returns a connection object"""
         db = self.get_connection(self.trino_conn_id)  # type: ignore[attr-defined]
         extra = db.extra_dejson
         auth = None
+        user = db.login
         if db.password and extra.get('auth') == 'kerberos':
             raise AirflowException("Kerberos authorization doesn't support password.")
         elif db.password:
             auth = trino.auth.BasicAuthentication(db.login, db.password)  # type: ignore[attr-defined]
+        elif extra.get('auth') == 'jwt':
+            auth = trino.auth.JWTAuthentication(token=extra.get('jwt__token'))
         elif extra.get('auth') == 'kerberos':
             auth = trino.auth.KerberosAuthentication(  # type: ignore[attr-defined]
                 config=extra.get('kerberos__config', os.environ.get('KRB5_CONFIG')),
@@ -115,18 +122,23 @@ class TrinoHook(DbApiHook):
                 ca_bundle=extra.get('kerberos__ca_bundle'),
             )
 
+        if _boolify(extra.get('impersonate_as_owner', False)):
+            user = os.getenv('AIRFLOW_CTX_DAG_OWNER', None)
+            if user is None:
+                user = db.login
         http_headers = {"X-Trino-Client-Info": generate_trino_client_info()}
         trino_conn = trino.dbapi.connect(
             host=db.host,
             port=db.port,
-            user=db.login,
+            user=user,
             source=extra.get('source', 'airflow'),
             http_scheme=extra.get('protocol', 'http'),
             http_headers=http_headers,
             catalog=extra.get('catalog', 'hive'),
             schema=db.schema,
             auth=auth,
-            isolation_level=self.get_isolation_level(),  # type: ignore[func-returns-value]
+            # type: ignore[func-returns-value]
+            isolation_level=self.get_isolation_level(),
             verify=_boolify(extra.get('verify', True)),
         )
 
@@ -243,9 +255,9 @@ class TrinoHook(DbApiHook):
     @overload
     def run(
         self,
-        sql: str = "",
+        sql,
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Tuple] = None,
         handler: Optional[Callable] = None,
     ) -> None:
         """Execute the statement against Trino. Can be used to create views."""
@@ -253,9 +265,9 @@ class TrinoHook(DbApiHook):
     @overload
     def run(
         self,
-        sql: str = "",
+        sql,
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Tuple] = None,
         handler: Optional[Callable] = None,
         hql: str = "",
     ) -> None:
@@ -263,12 +275,12 @@ class TrinoHook(DbApiHook):
 
     def run(
         self,
-        sql: str = "",
+        sql,
         autocommit: bool = False,
-        parameters: Optional[dict] = None,
+        parameters: Optional[Tuple] = None,
         handler: Optional[Callable] = None,
         hql: str = "",
-    ) -> None:
+    ):
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(
@@ -277,10 +289,38 @@ class TrinoHook(DbApiHook):
                 stacklevel=2,
             )
             sql = hql
+        scalar = isinstance(sql, str)
 
-        return super().run(
-            sql=self._strip_sql(sql), autocommit=autocommit, parameters=parameters, handler=handler
-        )
+        with closing(self.get_conn()) as conn:
+            if self.supports_autocommit:
+                self.set_autocommit(conn, autocommit)
+
+            if scalar:
+                sql = sqlparse.split(sql)
+
+            with closing(conn.cursor()) as cur:
+                results = []
+                for sql_statement in sql:
+                    self._run_command(cur, self._strip_sql(sql_statement), parameters)
+                    self.query_id = cur.stats["queryId"]
+                    if handler is not None:
+                        result = handler(cur)
+                        results.append(result)
+
+            # If autocommit was set to False for db that supports autocommit,
+            # or if db does not supports autocommit, we do a manual commit.
+            if not self.get_autocommit(conn):
+                conn.commit()
+
+        self.log.info("Query Execution Result: %s", str(list(chain.from_iterable(results))))
+
+        if handler is None:
+            return None
+
+        if scalar:
+            return results[0]
+
+        return results
 
     def insert_rows(
         self,
@@ -310,3 +350,19 @@ class TrinoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every, replace)
+
+    def test_connection(self):
+        """Tests the connection from UI using Trino specific query"""
+        status, message = False, ''
+        try:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.execute("select 1")
+                    if cur.fetchone():
+                        status = True
+                        message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

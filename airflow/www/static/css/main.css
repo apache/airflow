@@ -422,7 +422,7 @@ label[for="timezone-other"],
 }
 
 .refresh-actions > .switch-label {
-  margin: 0 10px 0 20px;
+  margin: 0 10px;
 }
 
 .loading-dots.refresh-loading {
@@ -463,6 +463,10 @@ label[for="timezone-other"],
 .tooltip.in,
 .tooltip.d3-tip {
   z-index: 1070;
+}
+
+details summary {
+  display: list-item;
 }
 
 .menu-scroll {

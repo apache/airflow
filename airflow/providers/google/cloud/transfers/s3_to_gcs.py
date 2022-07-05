@@ -15,7 +15,6 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Optional, Sequence, Union
 
@@ -57,8 +56,6 @@ class S3ToGCSOperator(S3ListOperator):
                  You can specify this argument if you want to use a different
                  CA cert bundle than the one used by botocore.
     :param gcp_conn_id: (Optional) The connection ID used to connect to Google Cloud.
-    :param dest_gcs_conn_id: (Deprecated) The connection ID used to connect to Google Cloud.
-        This parameter has been deprecated. You should pass the gcp_conn_id parameter instead.
     :param dest_gcs: The destination Google Cloud Storage bucket and prefix
         where you want to store the files. (templated)
     :param delegate_to: Google account to impersonate using domain-wide delegation of authority,
@@ -85,11 +82,11 @@ class S3ToGCSOperator(S3ListOperator):
            task_id="s3_to_gcs_example",
            bucket="my-s3-bucket",
            prefix="data/customers-201804",
-           dest_gcs_conn_id="google_cloud_default",
+           gcp_conn_id="google_cloud_default",
            dest_gcs="gs://my.gcs.bucket/some/customers/",
            replace=False,
            gzip=True,
-           dag=my - dag,
+           dag=my_dag,
        )
 
     Note that ``bucket``, ``prefix``, ``delimiter`` and ``dest_gcs`` are
@@ -114,7 +111,6 @@ class S3ToGCSOperator(S3ListOperator):
         aws_conn_id='aws_default',
         verify=None,
         gcp_conn_id='google_cloud_default',
-        dest_gcs_conn_id=None,
         dest_gcs=None,
         delegate_to=None,
         replace=False,
@@ -124,16 +120,6 @@ class S3ToGCSOperator(S3ListOperator):
     ):
 
         super().__init__(bucket=bucket, prefix=prefix, delimiter=delimiter, aws_conn_id=aws_conn_id, **kwargs)
-
-        if dest_gcs_conn_id:
-            warnings.warn(
-                "The dest_gcs_conn_id parameter has been deprecated. You should pass "
-                "the gcp_conn_id parameter.",
-                DeprecationWarning,
-                stacklevel=3,
-            )
-            gcp_conn_id = dest_gcs_conn_id
-
         self.gcp_conn_id = gcp_conn_id
         self.dest_gcs = dest_gcs
         self.delegate_to = delegate_to

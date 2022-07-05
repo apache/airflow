@@ -23,6 +23,8 @@ from airflow import DAG
 from airflow.exceptions import AirflowDagCycleException
 from airflow.operators.empty import EmptyOperator
 from airflow.utils.dag_cycle_tester import check_cycle
+from airflow.utils.edgemodifier import Label
+from airflow.utils.task_group import TaskGroup
 from tests.models import DEFAULT_DATE
 
 
@@ -150,3 +152,17 @@ class TestCycleTester(unittest.TestCase):
 
         with pytest.raises(AirflowDagCycleException):
             assert not check_cycle(dag)
+
+    def test_cycle_task_group_with_edge_labels(self):
+        # Test a cycle is not detected when Labels are used between tasks in Task Groups.
+
+        dag = DAG('dag', start_date=DEFAULT_DATE, default_args={'owner': 'owner1'})
+
+        with dag:
+            with TaskGroup(group_id="group"):
+                op1 = EmptyOperator(task_id='A')
+                op2 = EmptyOperator(task_id='B')
+
+                op1 >> Label("label") >> op2
+
+        assert not check_cycle(dag)

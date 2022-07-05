@@ -17,7 +17,7 @@
 # specific language governing permissions and limitations
 # under the License.
 """Renderer DAG (tasks and dependencies) to the graphviz object."""
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Union
 
 import graphviz
 
@@ -25,6 +25,7 @@ from airflow import AirflowException
 from airflow.models import TaskInstance
 from airflow.models.baseoperator import BaseOperator
 from airflow.models.dag import DAG
+from airflow.models.mappedoperator import MappedOperator
 from airflow.models.taskmixin import DependencyMixin
 from airflow.serialization.serialized_objects import DagDependency
 from airflow.utils.state import State
@@ -49,7 +50,9 @@ def _refine_color(color: str):
 
 
 def _draw_task(
-    task: BaseOperator, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[Any, Any]]
+    task: Union[MappedOperator, BaseOperator],
+    parent_graph: graphviz.Digraph,
+    states_by_task_id: Optional[Dict[Any, Any]],
 ) -> None:
     """Draw a single task on the given parent_graph"""
     if states_by_task_id:
@@ -114,7 +117,7 @@ def _draw_nodes(
     node: DependencyMixin, parent_graph: graphviz.Digraph, states_by_task_id: Optional[Dict[str, str]]
 ) -> None:
     """Draw the node and its children on the given parent_graph recursively."""
-    if isinstance(node, BaseOperator):
+    if isinstance(node, BaseOperator) or isinstance(node, MappedOperator):
         _draw_task(node, parent_graph, states_by_task_id)
     else:
         if not isinstance(node, TaskGroup):

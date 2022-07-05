@@ -34,6 +34,8 @@ Airflow 1.10 was the last release series to support Python 2. Airflow 2.0.0
 requires Python 3.6+ and has been tested with Python versions 3.6, 3.7 and 3.8.
 Python 3.9 support was added from Airflow 2.1.2.
 
+Airflow 2.3.0 dropped support for Python 3.6. It's tested with Python 3.7, 3.8, 3.9 and 3.10.
+
 If you have a specific task that still requires Python 2 then you can use the :class:`~airflow.operators.python.PythonVirtualenvOperator` or the ``KubernetesPodOperator`` for this.
 
 For a list of breaking changes between Python 2 and Python 3, please refer to this
@@ -180,9 +182,7 @@ Whereas previously a user would import each individual class to build the pod as
 
     volume_config = {"persistentVolumeClaim": {"claimName": "test-volume"}}
     volume = Volume(name="test-volume", configs=volume_config)
-    volume_mount = VolumeMount(
-        "test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True
-    )
+    volume_mount = VolumeMount("test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True)
 
     port = Port("http", 80)
     secret_file = Secret("volume", "/etc/sql_conn", "airflow-secrets", "sql_alchemy_conn")
@@ -222,9 +222,7 @@ Now the user can use the ``kubernetes.client.models`` class as a single point of
 
     volume = k8s.V1Volume(
         name="test-volume",
-        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
-            claim_name="test-volume"
-        ),
+        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name="test-volume"),
     )
 
     port = k8s.V1ContainerPort(name="http", container_port=80)
@@ -600,9 +598,7 @@ Before:
 
     from airflow.kubernetes.volume_mount import VolumeMount
 
-    volume_mount = VolumeMount(
-        "test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True
-    )
+    volume_mount = VolumeMount("test-volume", mount_path="/root/mount_file", sub_path=None, read_only=True)
     k = KubernetesPodOperator(
         namespace="default",
         image="ubuntu:16.04",
@@ -658,9 +654,7 @@ After:
 
     volume = k8s.V1Volume(
         name="test-volume",
-        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(
-            claim_name="test-volume"
-        ),
+        persistent_volume_claim=k8s.V1PersistentVolumeClaimVolumeSource(claim_name="test-volume"),
     )
     k = KubernetesPodOperator(
         namespace="default",
@@ -735,9 +729,7 @@ After:
     env_vars = [
         k8s.V1EnvVar(
             name="ENV3",
-            value_from=k8s.V1EnvVarSource(
-                field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")
-            ),
+            value_from=k8s.V1EnvVarSource(field_ref=k8s.V1ObjectFieldSelector(field_path="status.podIP")),
         )
     ]
 
@@ -775,9 +767,7 @@ After:
     from kubernetes.client import models as k8s
 
     configmap = "test-configmap"
-    env_from = [
-        k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap))
-    ]
+    env_from = [k8s.V1EnvFromSource(config_map_ref=k8s.V1ConfigMapEnvSource(name=configmap))]
 
     k = KubernetesPodOperator(
         namespace="default",
@@ -1147,9 +1137,7 @@ non-RBAC UI (``flask-admin`` based UI), update it to use ``flask_appbuilder_view
 
     v = TestView(category="Test Plugin", name="Test View")
 
-    ml = MenuLink(
-        category="Test Plugin", name="Test Menu Link", url="https://airflow.apache.org/"
-    )
+    ml = MenuLink(category="Test Plugin", name="Test Menu Link", url="https://airflow.apache.org/")
 
 
     class AirflowTestPlugin(AirflowPlugin):

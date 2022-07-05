@@ -15,21 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
-Amazon Redshift to Amazon S3 Transfer Operator
-==============================================
+============================
+Amazon Redshift to Amazon S3
+============================
 
-Use the RedshiftToS3Operator transfer to copy the data from an Amazon Redshift table into an Amazon Simple Storage
+Use the ``RedshiftToS3Operator`` transfer to copy the data from an Amazon Redshift table into an Amazon Simple Storage
 Service (S3) file.
 
 Prerequisite Tasks
-^^^^^^^^^^^^^^^^^^
+------------------
 
 .. include:: ../_partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:RedshiftToS3Operator:
 
-Amazon Redshift To Amazon S3
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Amazon Redshift To Amazon S3 transfer operator
+==============================================
 
 This operator loads data from an Amazon Redshift table to an existing Amazon S3 bucket.
 
@@ -48,8 +52,8 @@ You can find more information to the ``UNLOAD`` command used
 `here <https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html>`__.
 
 Reference
-^^^^^^^^^
+---------
 
-* `AWS UNLOAD from Amazon Redshift Documentation <https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html>`__
-* `AWS boto3 Library Documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__
-* `AWS boto3 Library Documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
+* `AWS UNLOAD from Amazon Redshift documentation <https://docs.aws.amazon.com/redshift/latest/dg/r_UNLOAD.html>`__
+* `AWS boto3 library documentation for Amazon Redshift <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/redshift.html>`__
+* `AWS boto3 library documentation for Amazon S3 <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/s3.html>`__
