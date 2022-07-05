@@ -534,21 +534,53 @@ class SchedulerTest(unittest.TestCase):
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
 
-    def test_no_dags_mount_or_volume_or_gitsync_sidecar_expected(self):
+    @parameterized.expand(
+        [
+            (True, "LocalExecutor", False),
+            (True, "CeleryExecutor", True),
+            (True, "KubernetesExecutor", True),
+            (True, "LocalKubernetesExecutor", False),
+            (False, "LocalExecutor", False),
+            (False, "CeleryExecutor", False),
+            (False, "KubernetesExecutor", False),
+            (False, "LocalKubernetesExecutor", False),
+        ]
+    )
+    def test_dags_mount_and_gitsync_expected_with_dag_processor(
+        self, dag_processor, executor, skip_dags_mount
+    ):
+        """
+        DAG Processor can move gitsync and DAGs mount from the scheduler to the DAG Processor only.
+        The only exception is when we have a Local executor.
+        In these cases, the scheduler does the worker role and needs access to DAGs anyway.
+        """
         docs = render_chart(
             values={
-                "dagProcessor": {"enabled": True},
+                "dagProcessor": {"enabled": dag_processor},
+                "executor": executor,
                 "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
                 "scheduler": {"logGroomerSidecar": {"enabled": False}},
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
 
-        assert "dags" not in [
-            vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
-        ]
-        assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
-        assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        if skip_dags_mount:
+            assert "dags" not in [
+                vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            ]
+            assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        else:
+            assert "dags" in [
+                vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            ]
+            assert "dags" in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert "git-sync" in [
+                c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+            ]
+            assert "git-sync-init" in [
+                c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            ]
 
     def test_log_groomer_resources(self):
         docs = render_chart(
