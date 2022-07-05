@@ -64,8 +64,22 @@ Here is the list of breaking changes in dependencies that comes together with FA
 Bug Fixes
 ^^^^^^^^^
 
+- Fix cycle bug with attaching label to task group (#24847)
+- Fix timestamp defaults for ``sensorinstance`` (#24638)
+- Move fallible ``ti.task.dag`` assignment back inside ``try/except`` block (#24533) (#24592)
+- Add missing types to ``FSHook`` (#24470)
+- Mask secrets in ``stdout`` for ``airflow tasks test`` (#24362)
+- ``DebugExecutor`` use ``ti.run()`` instead of ``ti._run_raw_task`` (#24357)
+- Fix bugs in ``URI`` constructor for ``MySQL`` connection (#24320)
+- Missing ``scheduleinterval`` nullable true added in ``openapi`` (#24253)
+- Unify ``return_code`` interface for task runner (#24093)
+- Handle occasional deadlocks in trigger with retries (#24071)
+- Remove special serde logic for mapped ``op_kwargs`` (#23860)
+- ``ExternalTaskSensor`` respects ``soft_fail`` if the external task enters a ``failed_state`` (#23647)
+- Fix ``StatD`` timing metric units (#21106)
+- Add ``cache_ok`` flag to sqlalchemy TypeDecorators. (#24499)
 - Allow for ``LOGGING_LEVEL=DEBUG`` (#23360)
-- Fix grid date ticks (#24738)
+- Fix grid date ticks (#24738, #24849)
 - Debounce status highlighting in Grid view (#24710)
 - Fix Grid vertical scrolling (#24684)
 - don't try to render child rows for closed groups (#24637)
@@ -107,6 +121,7 @@ Bug Fixes
 Doc only changes
 ^^^^^^^^^^^^^^^^
 
+- Fix doc description of ``[core]`` parallelism config setting (#23768)
 - Update templates doc to mention ``extras`` and format Airflow ``Vars`` / ``Conns`` (#24735)
 - Document built in Timetables (#23099)
 - Alphabetizes two tables (#23923)
@@ -121,6 +136,9 @@ Doc only changes
 Misc/Internal
 ^^^^^^^^^^^^^
 
+- Do not support ``MSSQL`` less than ``v2017`` in code (#24095)
+- Drop Python ``3.6`` compatibility objects/modules (#24048)
+- Remove upper-binding for SQLAlchemy (#24819)
 - Remove internet explorer support (#24495)
 - Removing magic status code numbers from ``api_connexion`` (#24050)
 - Upgrade FAB to ``4.1.2`` (#24619)

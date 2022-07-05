@@ -1319,6 +1319,7 @@ seealso
 seedlist
 segmentGranularity
 sendgrid
+serde
 serialise
 serializable
 serverless
