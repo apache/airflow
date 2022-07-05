@@ -199,6 +199,7 @@ spec:
                 - name: Host
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
 {{- end }}
+              scheme: {{ .Values.webserver.livenessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.webserver.livenessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.livenessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.livenessProbe.failureThreshold | default 20 }}
@@ -212,6 +213,7 @@ spec:
                 - name: Host
                   value: {{ regexReplaceAll ":\\d+$" (urlParse (tpl .Values.config.webserver.base_url .)).host  "" }}
 {{- end }}
+              scheme: {{ .Values.webserver.readinessProbe.scheme | default "http" }}
             initialDelaySeconds: {{ .Values.webserver.readinessProbe.initialDelaySeconds | default 15 }}
             timeoutSeconds: {{ .Values.webserver.readinessProbe.timeoutSeconds | default 30 }}
             failureThreshold: {{ .Values.webserver.readinessProbe.failureThreshold | default 20 }}

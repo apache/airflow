@@ -1135,6 +1135,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm

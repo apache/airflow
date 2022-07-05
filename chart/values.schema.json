@@ -2547,6 +2547,11 @@
                             "description": "Webserver Liveness probe period seconds.",
                             "type": "integer",
                             "default": 5
+                        },
+                        "scheme": {
+                            "description": "Webserver Liveness probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
                         }
                     }
                 },
@@ -2574,6 +2579,11 @@
                             "description": "Webserver Readiness probe period seconds.",
                             "type": "integer",
                             "default": 5
+                        },
+                        "scheme": {
+                            "description": "Webserver Readiness probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
                         }
                     }
                 },
