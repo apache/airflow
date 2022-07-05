@@ -36,7 +36,7 @@ T = TypeVar("T", bound=Callable)
 logger = logging.getLogger(__name__)
 
 
-def action_logging(func=None, event=None):
+def action_logging(func: Optional[T]=None, event: Optional[str]=None) -> T:
     """Decorator to log user actions"""
 
     def log_action(f: T) -> T:
