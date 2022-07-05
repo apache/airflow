@@ -17,7 +17,7 @@
 # under the License.
 from typing import TYPE_CHECKING, Any, Sequence
 
-from airflow.sensors.sql import SqlSensor
+from airflow.providers.common.sql.sensors.sql import SqlSensor
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

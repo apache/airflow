@@ -15,11 +15,11 @@
     specific language governing permissions and limitations
     under the License.
 
-Package apache-airflow-providers-core-sql
-------------------------------------------
+Package apache-airflow-providers-common-sql
+-------------------------------------------
 
-`Core SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
+`Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
-This is detailed commit list of changes for versions provider package: ``core.sql``.
+This is detailed commit list of changes for versions provider package: ``common.sql``.
 For high-level changelog, see :doc:`package information including changelog <index>`.

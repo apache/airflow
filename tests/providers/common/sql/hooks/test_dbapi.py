@@ -23,8 +23,8 @@ from unittest import mock
 
 import pytest
 
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class TestDbApiHook(unittest.TestCase):
