@@ -22,21 +22,21 @@ Time Zones
 
 Support for time zones is enabled by default. Airflow stores datetime information in UTC internally and in the database.
 It allows you to run your DAGs with time zone dependent schedules. At the moment, Airflow does not convert them to the
-end user’s time zone in the user interface. It will always be displayed in UTC there. Also, templates used in Operators
+end user's time zone in the user interface. It will always be displayed in UTC there. Also, templates used in Operators
 are not converted. Time zone information is exposed and it is up to the writer of DAG to decide what do with it.
 
 This is handy if your users live in more than one time zone and you want to display datetime information according to
-each user’s wall clock.
+each user's wall clock.
 
 Even if you are running Airflow in only one time zone, it is still good practice to store data in UTC in your database
 (also before Airflow became time zone aware this was also the recommended or even required setup). The main reason is
 that many countries use Daylight Saving Time (DST), where clocks are moved forward in spring and backward
-in autumn. If you’re working in local time, you’re likely to encounter errors twice a year, when the transitions
-happen. (The pendulum and pytz documentation discuss these issues in greater detail.) This probably doesn’t matter
-for a simple DAG, but it’s a problem if you are in, for example, financial services where you have end of day
+in autumn. If you're working in local time, you're likely to encounter errors twice a year, when the transitions
+happen. (The pendulum and pytz documentation discuss these issues in greater detail.) This probably doesn't matter
+for a simple DAG, but it's a problem if you are in, for example, financial services where you have end of day
 deadlines to meet.
 
-The time zone is set in ``airflow.cfg``. By default it is set to UTC, but you change it to use the system’s settings or
+The time zone is set in ``airflow.cfg``. By default it is set to UTC, but you change it to use the system's settings or
 an arbitrary IANA time zone, e.g. ``Europe/Amsterdam``. It is dependent on ``pendulum``, which is more accurate than ``pytz``.
 Pendulum is installed when you install Airflow.
 
@@ -63,9 +63,9 @@ Concepts
 Naive and aware datetime objects
 ''''''''''''''''''''''''''''''''
 
-Python’s datetime.datetime objects have a tzinfo attribute that can be used to store time zone information,
+Python's datetime.datetime objects have a tzinfo attribute that can be used to store time zone information,
 represented as an instance of a subclass of datetime.tzinfo. When this attribute is set and describes an offset,
-a datetime object is aware. Otherwise, it’s naive.
+a datetime object is aware. Otherwise, it's naive.
 
 You can use ``timezone.is_localized()`` and ``timezone.is_naive()`` to determine whether datetimes are aware or naive.
 
@@ -99,12 +99,12 @@ words if you have a default time zone setting of ``Europe/Amsterdam`` and create
     op = BashOperator(task_id="dummy", bash_command="Hello World!", dag=dag)
     print(op.retries)  # 3
 
-Unfortunately, during DST transitions, some datetimes don’t exist or are ambiguous.
-In such situations, pendulum raises an exception. That’s why you should always create aware
+Unfortunately, during DST transitions, some datetimes don't exist or are ambiguous.
+In such situations, pendulum raises an exception. That's why you should always create aware
 datetime objects when time zone support is enabled.
 
 In practice, this is rarely an issue. Airflow gives you time zone aware datetime objects in the models and DAGs, and most often,
-new datetime objects are created from existing ones through timedelta arithmetic. The only datetime that’s often
+new datetime objects are created from existing ones through timedelta arithmetic. The only datetime that's often
 created in application code is the current time, and ``timezone.utcnow()`` automatically does the right thing.
 
 

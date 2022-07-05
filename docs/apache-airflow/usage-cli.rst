@@ -52,7 +52,7 @@ For one-time activation of argcomplete for airflow only, use:
 
 .. image:: img/cli_completion.gif
 
-If you’re using ``zsh``, add the following to your ``.zshrc``:
+If you're using ``zsh``, add the following to your ``.zshrc``:
 
 .. code-block:: bash
 

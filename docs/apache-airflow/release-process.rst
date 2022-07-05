@@ -25,7 +25,7 @@ Since Airflow 2.0.0 and provider packages 1.0.0 we aim to follow SemVer, meaning
 - X is the major version number.
 - Y is the minor version number, also called the *feature release* version number.
 - Z is the patch number, which is incremented for bugfix and security releases.
-  Before every new release, we’ll make a release candidate available, and often alpha or beta release too.
+  Before every new release, we'll make a release candidate available, and often alpha or beta release too.
   These are of the form X.Y.Z alpha/beta/rc N, which means the Nth alpha/beta/release candidate of version X.Y.Z
 
 In git, each minor version will have its own branch, called ``vX-Y-stable`` where bugfix/security releases will be issued from.
@@ -61,7 +61,7 @@ That is all SemVer is -- it's a statement of our intent as package authors, and 
       These releases will be 100% compatible with the associated feature release.
       So the answer to "should I upgrade to the latest patch release?" will always be "yes."
 
-      The only exception to the above with respect to 100% backwards compatibility is when a security or data loss issue can’t be fixed without breaking backwards-compatibility.
+      The only exception to the above with respect to 100% backwards compatibility is when a security or data loss issue can't be fixed without breaking backwards-compatibility.
       If this happens, the release notes will provide detailed upgrade instructions.
       **No new features will be added in patch releases**
 

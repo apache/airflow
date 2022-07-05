@@ -333,7 +333,7 @@ class PubSubHook(GoogleBaseHook):
             in which they are received by the Pub/Sub system. Otherwise, they may be
             delivered in any order.
         :param expiration_policy: A policy that specifies the conditions for this
-            subscription’s expiration. A subscription is considered active as long as any
+            subscription's expiration. A subscription is considered active as long as any
             connected subscriber is successfully consuming messages from the subscription or
             is issuing operations on the subscription. If expiration_policy is not set,
             a default policy with ttl of 31 days will be used. The minimum allowed value for

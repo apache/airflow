@@ -153,7 +153,7 @@ class TableauHook(BaseHook):
         .. see also:: https://tableau.github.io/server-client-python/docs/api-ref#jobs
 
         :param job_id: The id of the job to check.
-        :return: An Enum that describe the Tableau job’s return code
+        :return: An Enum that describe the Tableau job's return code
         :rtype: TableauJobFinishCode
         """
         return TableauJobFinishCode(int(self.server.jobs.get_by_id(job_id).finish_code))
@@ -164,7 +164,7 @@ class TableauHook(BaseHook):
         to target_state or different from PENDING.
 
         :param job_id: The id of the job to check.
-        :param target_state: Enum that describe the Tableau job’s target state
+        :param target_state: Enum that describe the Tableau job's target state
         :param check_interval: time in seconds that the job should wait in
             between each instance state checks until operation is completed
         :return: return True if the job is equal to the target_status, False otherwise.

@@ -93,7 +93,7 @@ Creating model versions
 A model version is a subset of the model container where the code runs. A new version of the model can be created
 through the :class:`~airflow.providers.google.cloud.operators.mlengine.MLEngineCreateVersionOperator`.
 The model must be specified by ``model_name``, and the ``version`` parameter should contain a dictionary of
-all the information about the version. Within the ``version`` parameter’s dictionary, the ``name`` field is
+all the information about the version. Within the ``version`` parameter's dictionary, the ``name`` field is
 required.
 
 .. exampleinclude:: /../../airflow/providers/google/cloud/example_dags/example_mlengine.py
@@ -199,7 +199,7 @@ prediction result, then returns a tuple of metrics.
     :start-after: [START howto_operator_gcp_mlengine_get_metric]
     :end-before: [END howto_operator_gcp_mlengine_get_metric]
 
-To evaluate a prediction and model, it’s useful to have a function to validate the summary result.
+To evaluate a prediction and model, it's useful to have a function to validate the summary result.
 This function receives a dictionary of the averaged metrics the function above generated. It then
 raises an exception if a task fails or should not proceed.
 

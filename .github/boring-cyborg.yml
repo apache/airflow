@@ -216,7 +216,7 @@ firstPRWelcomeComment: >
   Consider adding an example DAG that shows how users should use it.
 
   - Consider using [Breeze environment](https://github.com/apache/airflow/blob/main/BREEZE.rst) for testing
-  locally, it’s a heavy docker but it ships with a working Airflow and a lot of integrations.
+  locally, it's a heavy docker but it ships with a working Airflow and a lot of integrations.
 
   - Be patient and persistent. It might take some time to get a review or get the final approval from
   Committers.

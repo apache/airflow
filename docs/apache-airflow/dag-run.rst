@@ -159,7 +159,7 @@ just after midnight on the morning of 2016-01-03 with a data interval between
 
 If the ``dag.catchup`` value had been ``True`` instead, the scheduler would have created a DAG Run
 for each completed interval between 2015-12-01 and 2016-01-02 (but not yet one for 2016-01-02,
-as that interval hasn’t completed) and the scheduler will execute them sequentially.
+as that interval hasn't completed) and the scheduler will execute them sequentially.
 
 Catchup is also triggered when you turn off a DAG for a specified period and then re-enable it.
 
@@ -229,7 +229,7 @@ Note that DAG Runs can also be created manually through the CLI. Just run the co
 
     airflow dags trigger --exec-date logical_date run_id
 
-The DAG Runs created externally to the scheduler get associated with the trigger’s timestamp and are displayed
+The DAG Runs created externally to the scheduler get associated with the trigger's timestamp and are displayed
 in the UI alongside scheduled DAG runs. The logical date passed inside the DAG can be specified using the ``-e`` argument.
 The default is the current date in the UTC timezone.
 

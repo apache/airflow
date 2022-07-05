@@ -42,9 +42,6 @@ repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.2.0
     hooks:
-      - id: forbid-tabs
-        name: Fail if tabs are used in the project
-        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -303,6 +300,13 @@ repos:
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
+      - id: replace-bad-characters
+        name: Replace bad characters
+        entry: ./scripts/ci/pre_commit/pre_commit_replace_bad_characters.py
+        language: python
+        types: [file, text]
+        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
+        additional_dependencies: ['rich>=12.4.4']
       - id: static-check-autoflake
         name: Remove all unused code
         entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
@@ -353,7 +357,7 @@ repos:
         name: Update output of breeze commands in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$
+        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file

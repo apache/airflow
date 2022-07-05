@@ -382,7 +382,7 @@ The following build arguments (``--build-arg`` in docker build command) can be u
 | ``HOME``                                 | ``/root``                                | Home directory of the root user (CI      |
 |                                          |                                          | image has root user as default)          |
 +------------------------------------------+------------------------------------------+------------------------------------------+
-| ``AIRFLOW_HOME``                         | ``/root/airflow``                        | Airflow’s HOME (that’s where logs and    |
+| ``AIRFLOW_HOME``                         | ``/root/airflow``                        | Airflow's HOME (that's where logs and    |
 |                                          |                                          | sqlite databases are stored)             |
 +------------------------------------------+------------------------------------------+------------------------------------------+
 | ``AIRFLOW_SOURCES``                      | ``/opt/airflow``                         | Mounted sources of Airflow               |

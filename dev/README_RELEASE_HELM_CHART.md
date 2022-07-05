@@ -717,7 +717,7 @@ Post this in the #announce channel:
 
 ```shell
 cat <<EOF
-We’ve just released Apache Airflow Helm Chart ${VERSION} 🎉
+We've just released Apache Airflow Helm Chart ${VERSION} 🎉
 
 📦 ArtifactHub: https://artifacthub.io/packages/helm/apache-airflow/airflow
 📚 Docs: https://airflow.apache.org/docs/helm-chart/$VERSION/

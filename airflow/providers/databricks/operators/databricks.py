@@ -508,7 +508,7 @@ class DatabricksRunNowOperator(BaseOperator):
         The map is passed to the notebook and will be accessible through the
         dbutils.widgets.get function. See Widgets for more information.
         If not specified upon run-now, the triggered run will use the
-        job’s base parameters. notebook_params cannot be
+        job's base parameters. notebook_params cannot be
         specified in conjunction with jar_params. The json representation
         of this field (i.e. {"notebook_params":{"name":"john doe","age":"35"}})
         cannot exceed 10,000 bytes.

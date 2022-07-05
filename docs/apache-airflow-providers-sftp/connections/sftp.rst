@@ -72,7 +72,7 @@ Extra (optional)
     * ``disabled_algorithms`` - A dictionary mapping algorithm type to an iterable of algorithm identifiers, which will be disabled for the lifetime of the transport.
     * ``ciphers`` - A list of ciphers to use in order of preference.
 
-Example “extras” field using ``host_key``:
+Example "extras" field using ``host_key``:
 
 .. code-block:: json
 
@@ -82,7 +82,7 @@ Example “extras” field using ``host_key``:
        "host_key": "AAAHD...YDWwq=="
     }
 
-Example “extras” field using ``key_file`` or ``private_key``:
+Example "extras" field using ``key_file`` or ``private_key``:
 
 .. code-block:: json
 

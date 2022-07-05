@@ -44,7 +44,7 @@ Your DAGs will start executing once the scheduler is running successfully.
 .. note::
 
     The first DAG Run is created based on the minimum ``start_date`` for the tasks in your DAG.
-    Subsequent DAG Runs are created by the scheduler process, based on your DAG’s ``schedule_interval``,
+    Subsequent DAG Runs are created by the scheduler process, based on your DAG's ``schedule_interval``,
     sequentially.
 
 
@@ -56,7 +56,7 @@ In the UI, it appears as if Airflow is running your tasks a day **late**
 
     If you run a DAG on a ``schedule_interval`` of one day, the run with data interval starting on ``2019-11-21`` triggers after ``2019-11-21T23:59``.
 
-    **Let’s Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the interval.
+    **Let's Repeat That**, the scheduler runs your job one ``schedule_interval`` AFTER the start date, at the END of the interval.
 
     You should refer to :doc:`/dag-run` for details on scheduling a DAG.
 
@@ -382,6 +382,6 @@ However you can also look at other non-performance-related scheduler configurati
   renamed in the future with deprecation of the current name.
 
 - :ref:`config:scheduler__schedule_after_task_execution`
-  Should the Task supervisor process perform a “mini scheduler” to attempt to schedule more tasks of
+  Should the Task supervisor process perform a "mini scheduler" to attempt to schedule more tasks of
   the same DAG. Leaving this on will mean tasks in the same DAG execute quicker,
   but might starve out other DAGs in some circumstances.

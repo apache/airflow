@@ -671,13 +671,13 @@ ARG_UMASK = Arg(
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
     default=False,
-    help="Don’t synchronize with other workers at start-up",
+    help="Don't synchronize with other workers at start-up",
     action="store_true",
 )
 ARG_WITHOUT_GOSSIP = Arg(
     ("--without-gossip",),
     default=False,
-    help="Don’t subscribe to other workers events",
+    help="Don't subscribe to other workers events",
     action="store_true",
 )
 

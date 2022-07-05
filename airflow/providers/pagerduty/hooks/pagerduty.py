@@ -121,7 +121,7 @@ class PagerdutyHook(BaseHook):
         :param custom_details: Free-form details from the event. Can be a dictionary or a string.
             If a dictionary is passed it will show up in PagerDuty as a table.
         :param group: A cluster or grouping of sources. For example, sources
-            “prod-datapipe-02” and “prod-datapipe-03” might both be part of “prod-datapipe”
+            "prod-datapipe-02" and "prod-datapipe-03" might both be part of "prod-datapipe"
         :param component: The part or component of the affected system that is broken.
         :param class_type: The class/type of the event.
         :param images: List of images to include. Each dictionary in the list accepts the following keys:

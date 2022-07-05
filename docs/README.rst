@@ -77,7 +77,7 @@ You need to have Python installed to run the command:
 
 
 Then, view your docs at ``localhost:8000``, if you are using a virtual machine e.g WSL2,
-you need to find the WSL2 machine IP address and in your browser replace “0.0.0.0” with it
+you need to find the WSL2 machine IP address and in your browser replace "0.0.0.0" with it
 ``http://n.n.n.n:8000``, where n.n.n.n will be the IP of the WSL2.
 
 Troubleshooting

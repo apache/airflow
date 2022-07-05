@@ -69,7 +69,7 @@ Extra (optional)
     The following parameters are all optional:
 
     * ``site_id``: This corresponds to the contentUrl attribute in the Tableau REST API. The ``site_id`` is the portion of
-      the URL that follows the /site/ in the URL. For example, “MarketingTeam” is the ``site_id`` in the following URL
+      the URL that follows the /site/ in the URL. For example, "MarketingTeam" is the ``site_id`` in the following URL
       MyServer/#/site/MarketingTeam/projects. To specify the default site on Tableau Server, you can use an empty string
       '' (single quotes, no space). For Tableau Online, you must provide a value for the ``site_id.``
       This is used for both token and password Authentication.
@@ -77,8 +77,8 @@ Extra (optional)
       This is used with token authentication.
     * ``personal_access_token``: The personal access token value.
       This is used with token authentication.
-    * ``verify``: Either a boolean, in which case it controls whether we verify the server’s TLS certificate, or a string, in which case it must be a path to a CA bundle to use. Defaults to True.
-    * ``cert``: if String, path to ssl client cert file (.pem). If Tuple, (‘cert’, ‘key’) pair.
+    * ``verify``: Either a boolean, in which case it controls whether we verify the server's TLS certificate, or a string, in which case it must be a path to a CA bundle to use. Defaults to True.
+    * ``cert``: if String, path to ssl client cert file (.pem). If Tuple, ('cert', 'key') pair.
 
 
 When specifying the connection in environment variable you should specify
