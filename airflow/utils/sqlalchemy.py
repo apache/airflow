@@ -24,6 +24,7 @@ from typing import Any, Dict, Iterable, Tuple
 import pendulum
 from dateutil import relativedelta
 from sqlalchemy import and_, event, false, nullsfirst, or_, tuple_
+from sqlalchemy.dialects import mssql
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql import ColumnElement
@@ -93,6 +94,11 @@ class UtcDateTime(TypeDecorator):
                 value = value.astimezone(utc)
 
         return value
+
+    def load_dialect_impl(self, dialect):
+        if dialect.name == 'mssql':
+            return mssql.DATETIME2(precision=6)
+        return super().load_dialect_impl(dialect)
 
 
 class ExtendedJSON(TypeDecorator):
