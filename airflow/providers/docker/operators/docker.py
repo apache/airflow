@@ -331,18 +331,13 @@ class DockerOperator(BaseOperator):
             if self.retrieve_output:
                 return self._attempt_to_retrieve_result()
             elif self.do_xcom_push:
-                log_parameters = {
-                    'container': self.container['Id'],
-                    'stdout': True,
-                    'stderr': True,
-                    'stream': True,
-                }
+                if len(log_lines) == 0:
+                    return None
                 try:
                     if self.xcom_all:
-                        return [stringify(line).strip() for line in self.cli.logs(**log_parameters)]
+                        return log_lines
                     else:
-                        lines = [stringify(line).strip() for line in self.cli.logs(**log_parameters, tail=1)]
-                        return lines[-1] if lines else None
+                        return log_lines[-1]
                 except StopIteration:
                     # handle the case when there is not a single line to iterate on
                     return None
