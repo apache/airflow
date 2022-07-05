@@ -46,13 +46,13 @@ you access to Airflow ``CLI`` :doc:`/usage-cli` and the database.
 
 Offline SQL migration scripts
 =============================
-If you want to run the upgrade script offline, you can use the ``-r`` or ``--revision-range`` flag
+If you want to run the upgrade script offline, you can use the ``-s`` or ``--show-sql-only`` flag
 to get the SQL statements that would be executed. This feature is supported in Postgres and MySQL
 from Airflow 2.0.0 onward and in MSSQL from Airflow 2.2.0 onward.
 
 Sample usage:
-   ``airflow db upgrade -r "2.0.0:2.2.0"``
-   ``airflow db upgrade --revision-range "e959f08ac86c:142555e44c17"``
+   - ``airflow db upgrade -s --from-version 2.2.3 --to-version 2.3.2``  
+   - ``airflow db upgrade -s --from-revision be2bfac3da23 --to-revision 3c94c427fdf6``
 
 
 Migration best practices
