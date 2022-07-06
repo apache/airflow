@@ -30,7 +30,7 @@ shell:ab7955da71048b3a695485c152d06786
 start-airflow:30caa077555bef44e5bdf76dfeca092c
 static-checks:69bbef8c50c452faf58403d7a06f34b6
 stop:8ebd8a42f1003495d37b884de5ac7ce6
-tests:ae8d62b505ff8f79bddc202fe9d575e3
+tests:e39111ecbd33a65ababb3cbfbac2b069
 verify-image:a6b3c70957aea96a5d4d261f23359a2d
 verify-prod-image:bf3cf39200e010e3015ef071fd387c6f
 verify-provider-packages:ce22b3617436bbe7f48597b2964b9c32
