@@ -23,7 +23,7 @@ from typing import List, Optional, Union
 from qds_sdk.commands import Command
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.qubole.hooks.qubole import QuboleHook
 
 log = logging.getLogger(__name__)

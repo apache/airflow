@@ -33,7 +33,8 @@ versions:
   - 1.0.1
   - 1.0.0
 
-dependencies: []
+dependencies:
+  - apache-airflow-providers-common-sql
 
 integrations:
   - integration-name: SQLite

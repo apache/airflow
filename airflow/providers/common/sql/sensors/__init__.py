@@ -14,28 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-core-sql
-name: Core SQL
-description: |
-    `Core SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
-
-versions:
-  - 1.0.0
-
-dependencies:
-  - apache-airflow>=2.2.0
-
-integrations:
-  - integration-name: Core SQL
-    external-doc-url: https://en.wikipedia.org/wiki/SQL
-    how-to-guide:
-      - /docs/apache-airflow-providers-core-sql/operators.rst
-    logo: /integration-logos/core/sql/sql.png
-    tags: [software]
-
-operators:
-  - integration-name: Core SQL
-    python-modules:
-      - airflow.providers.core.sql.operators.sql

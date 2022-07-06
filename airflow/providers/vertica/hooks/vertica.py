@@ -19,7 +19,7 @@
 
 from vertica_python import connect
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class VerticaHook(DbApiHook):

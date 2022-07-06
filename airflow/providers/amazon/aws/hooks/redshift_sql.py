@@ -23,7 +23,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.engine.url import URL
 
 from airflow.compat.functools import cached_property
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class RedshiftSQLHook(DbApiHook):

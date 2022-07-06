@@ -16,7 +16,7 @@
     under the License.
 
 SQL Operators
-===================
+=============
 
 These operators perform various queries against a SQL database, including
 column- and table-level data quality checks.
@@ -26,7 +26,7 @@ column- and table-level data quality checks.
 Check SQL Table Columns
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Use the :class:`~airflow.providers.core.sql.operators.sql.SQLColumnCheckOperator` to run data quality
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLColumnCheckOperator` to run data quality
 checks against columns of a given table. As well as a connection ID and table, a column_mapping
 describing the relationship between columns and tests to run must be supplied. An example column
 mapping is a set of three nested dictionaries and looks like:
@@ -71,7 +71,7 @@ be out of bounds but still considered successful.
 
 The below example demonstrates how to instantiate the SQLColumnCheckOperator task.
 
-.. exampleinclude:: /../../airflow/providers/core/sql/example_dags/example_sql_column_table_check.py
+.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_column_check]
@@ -82,7 +82,7 @@ The below example demonstrates how to instantiate the SQLColumnCheckOperator tas
 Check SQL Table Values
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-Use the :class:`~airflow.providers.core.sql.operators.sql.SQLTableCheckOperator` to run data quality
+Use the :class:`~airflow.providers.common.sql.operators.sql.SQLTableCheckOperator` to run data quality
 checks against a given table. As well as a connection ID and table, a checks dictionary
 describing the relationship between the table and tests to run must be supplied. An example
 checks argument is a set of two nested dictionaries and looks like:
@@ -105,7 +105,7 @@ airflow.operators.sql.parse_boolean).
 
 The below example demonstrates how to instantiate the SQLTableCheckOperator task.
 
-.. exampleinclude:: /../../airflow/providers/core/sql/example_dags/example_sql_column_table_check.py
+.. exampleinclude:: /../../tests/system/providers/common/sql/example_sql_column_table_check.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_sql_table_check]

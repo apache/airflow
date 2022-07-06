@@ -29,8 +29,8 @@ from trino.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
 try:

@@ -65,7 +65,7 @@ Extra (optional)
         * key-value pairs under ``connect_kwargs`` will be passed onto ``pyodbc.connect`` as kwargs
     - ``sqlalchemy_scheme``
         * This is only used when ``get_uri`` is invoked in
-          :py:meth:`~airflow.hooks.dbapi.DbApiHook.get_sqlalchemy_engine`.  By default, the hook uses
+          :py:meth:`~airflow.providers.common.sql.hooks.sql.DbApiHook.get_sqlalchemy_engine`.  By default, the hook uses
           scheme ``mssql+pyodbc``.  You may pass a string value here to override.
 
     .. note::

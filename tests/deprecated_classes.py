@@ -20,10 +20,6 @@ HOOKS = [
         "airflow.hooks.base_hook.BaseHook",
     ),
     (
-        "airflow.hooks.dbapi.DbApiHook",
-        "airflow.hooks.dbapi_hook.DbApiHook",
-    ),
-    (
         "airflow.providers.apache.cassandra.hooks.cassandra.CassandraHook",
         "airflow.contrib.hooks.cassandra_hook.CassandraHook",
     ),

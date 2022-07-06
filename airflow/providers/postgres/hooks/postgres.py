@@ -26,8 +26,8 @@ import psycopg2.extras
 from psycopg2.extensions import connection
 from psycopg2.extras import DictCursor, NamedTupleCursor, RealDictCursor
 
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models.connection import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 CursorType = Union[DictCursor, RealDictCursor, NamedTupleCursor]
 

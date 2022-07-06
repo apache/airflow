@@ -23,7 +23,7 @@ import pandas as pd
 import pyexasol
 from pyexasol import ExaConnection
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class ExasolHook(DbApiHook):

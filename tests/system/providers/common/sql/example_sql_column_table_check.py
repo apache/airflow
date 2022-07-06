@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 from airflow import DAG
-from airflow.providers.core.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
+from airflow.providers.common.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
 from airflow.utils.dates import datetime
 
 AIRFLOW_DB_METADATA_TABLE = "ab_role"
@@ -75,3 +75,9 @@ with DAG(
     # [END howto_operator_sql_table_check]
 
     column_check >> row_count_check
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)

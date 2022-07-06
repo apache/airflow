@@ -23,4 +23,5 @@ Changelog
 .....
 
 Initial version of the provider.
-Adds SQLColumnCheckOperator and SQLTableCheckOperator.
+Adds ``SQLColumnCheckOperator`` and ``SQLTableCheckOperator``.
+Moves ``DBApiHook``, ``SQLSensor`` and ``ConnectorProtocol`` to the provider.

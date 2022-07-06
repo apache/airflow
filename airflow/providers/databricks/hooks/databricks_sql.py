@@ -25,7 +25,7 @@ from databricks.sql.client import Connection  # type: ignore[attr-defined]
 
 from airflow import __version__
 from airflow.exceptions import AirflowException
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.databricks.hooks.databricks_base import BaseDatabricksHook
 
 LIST_SQL_ENDPOINTS_ENDPOINT = ('GET', 'api/2.0/sql/endpoints')

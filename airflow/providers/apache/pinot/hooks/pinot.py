@@ -24,8 +24,8 @@ from pinotdb import connect
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class PinotAdminHook(BaseHook):

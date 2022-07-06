@@ -121,7 +121,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             if not records:
                 raise AirflowException(f"The following query returned zero rows: {self.sql}")
 
-            self.log.info(f"Record: {records}")
+            self.log.info("Record: %s", records)
 
             for idx, result in enumerate(records):
                 tolerance = self.column_mapping[column][checks[idx]].get("tolerance")
@@ -298,7 +298,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         if not records:
             raise AirflowException(f"The following query returned zero rows: {self.sql}")
 
-        self.log.info(f"Record: {records}")
+        self.log.info("Record: %s", records)
 
         for check in self.checks.keys():
             for result in records:

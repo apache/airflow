@@ -28,7 +28,7 @@ try:
 except ImportError:
     numpy = None  # type: ignore
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 PARAM_TYPES = {bool, float, int, str}
 

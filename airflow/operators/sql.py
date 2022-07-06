@@ -20,8 +20,8 @@ from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Suppo
 from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator, SkipMixin
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.context import Context
 
 

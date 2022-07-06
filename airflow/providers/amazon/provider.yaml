@@ -43,6 +43,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
   - boto3>=1.15.0
   # watchtower 3 has been released end Jan and introduced breaking change across the board that might
   # change logging behaviour:

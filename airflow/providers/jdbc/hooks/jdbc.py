@@ -20,8 +20,8 @@ from typing import Any, Dict, Optional
 
 import jaydebeapi
 
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models.connection import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class JdbcHook(DbApiHook):

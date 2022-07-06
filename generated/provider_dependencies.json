@@ -17,6 +17,7 @@
   },
   "amazon": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "boto3>=1.15.0",
       "jsonpath_ng>=1.5.3",
@@ -31,6 +32,7 @@
     "cross-providers-deps": [
       "apache.hive",
       "cncf.kubernetes",
+      "common.sql",
       "exasol",
       "ftp",
       "google",
@@ -58,19 +60,24 @@
   },
   "apache.drill": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "sqlalchemy-drill>=1.1.0",
       "sqlparse>=0.4.1"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "apache.druid": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "pydruid>=0.4.1"
     ],
     "cross-providers-deps": [
-      "apache.hive"
+      "apache.hive",
+      "common.sql"
     ]
   },
   "apache.hdfs": {
@@ -83,6 +90,7 @@
   },
   "apache.hive": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "hmsclient>=0.1.0",
       "pandas>=0.17.1",
@@ -92,6 +100,7 @@
     ],
     "cross-providers-deps": [
       "amazon",
+      "common.sql",
       "microsoft.mssql",
       "mysql",
       "presto",
@@ -123,10 +132,13 @@
   },
   "apache.pinot": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "pinotdb>0.1.2"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "apache.spark": {
     "deps": [
@@ -178,20 +190,21 @@
     ],
     "cross-providers-deps": []
   },
-  "core.sql": {
-    "deps": [
-      "apache-airflow>=2.2.0"
-    ],
+  "common.sql": {
+    "deps": [],
     "cross-providers-deps": []
   },
   "databricks": {
     "deps": [
       "aiohttp>=3.6.3, <4",
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "databricks-sql-connector>=2.0.0, <3.0.0",
       "requests>=2.27,<3"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "datadog": {
     "deps": [
@@ -236,20 +249,26 @@
   },
   "elasticsearch": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "elasticsearch-dbapi",
       "elasticsearch-dsl>=5.0.0",
       "elasticsearch>7"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "exasol": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "pandas>=0.17.1",
       "pyexasol>=0.5.1"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "facebook": {
     "deps": [
@@ -272,6 +291,7 @@
   "google": {
     "deps": [
       "PyOpenSSL",
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "google-ads>=15.1.1",
       "google-api-core>=2.7.0,<3.0.0",
@@ -322,6 +342,7 @@
       "apache.beam",
       "apache.cassandra",
       "cncf.kubernetes",
+      "common.sql",
       "facebook",
       "microsoft.azure",
       "microsoft.mssql",
@@ -373,10 +394,13 @@
   },
   "jdbc": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "jaydebeapi>=1.1.1"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "jenkins": {
     "deps": [
@@ -418,10 +442,13 @@
   },
   "microsoft.mssql": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "pymssql>=2.1.5; platform_machine != \"aarch64\""
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "microsoft.psrp": {
     "deps": [
@@ -446,12 +473,14 @@
   },
   "mysql": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "mysql-connector-python>=8.0.11; platform_machine != \"aarch64\"",
       "mysqlclient>=1.3.6; platform_machine != \"aarch64\""
     ],
     "cross-providers-deps": [
       "amazon",
+      "common.sql",
       "presto",
       "trino",
       "vertica"
@@ -466,10 +495,13 @@
   },
   "odbc": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "pyodbc"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "openfaas": {
     "deps": [
@@ -486,10 +518,13 @@
   },
   "oracle": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "oracledb>=1.0.0"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "pagerduty": {
     "deps": [
@@ -515,30 +550,37 @@
   },
   "postgres": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "psycopg2-binary>=2.7.4"
     ],
     "cross-providers-deps": [
-      "amazon"
+      "amazon",
+      "common.sql"
     ]
   },
   "presto": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "pandas>=0.17.1",
       "presto-python-client>=0.8.2"
     ],
     "cross-providers-deps": [
+      "common.sql",
       "google",
       "slack"
     ]
   },
   "qubole": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "qds-sdk>=1.10.4"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "redis": {
     "deps": [
@@ -594,27 +636,35 @@
   },
   "slack": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow-providers-http",
       "apache-airflow>=2.2.0",
       "slack_sdk>=3.0.0"
     ],
     "cross-providers-deps": [
+      "common.sql",
       "http"
     ]
   },
   "snowflake": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "snowflake-connector-python>=2.4.1",
       "snowflake-sqlalchemy>=1.1.0"
     ],
     "cross-providers-deps": [
+      "common.sql",
       "slack"
     ]
   },
   "sqlite": {
-    "deps": [],
-    "cross-providers-deps": []
+    "deps": [
+      "apache-airflow-providers-common-sql"
+    ],
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "ssh": {
     "deps": [
@@ -646,20 +696,25 @@
   },
   "trino": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "pandas>=0.17.1",
       "trino>=0.301.0"
     ],
     "cross-providers-deps": [
+      "common.sql",
       "google"
     ]
   },
   "vertica": {
     "deps": [
+      "apache-airflow-providers-common-sql",
       "apache-airflow>=2.2.0",
       "vertica-python>=0.5.1"
     ],
-    "cross-providers-deps": []
+    "cross-providers-deps": [
+      "common.sql"
+    ]
   },
   "yandex": {
     "deps": [

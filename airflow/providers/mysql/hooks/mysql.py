@@ -20,8 +20,8 @@
 import json
 from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
 
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from mysql.connector.abstracts import MySQLConnectionAbstract

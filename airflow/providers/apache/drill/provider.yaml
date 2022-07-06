@@ -31,6 +31,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
   - sqlalchemy-drill>=1.1.0
   - sqlparse>=0.4.1
 
