@@ -190,6 +190,9 @@ labelPRBasedOnFilePath:
     - docs/docker-stack/**/*
     - docker_tests/**/*
 
+  area:system-tests:
+    - tests/system/**/*
+
 # Various Flags to control behaviour of the "Labeler"
 labelerFlags:
   # If this flag is changed to 'false', labels would only be added when the PR is first created
