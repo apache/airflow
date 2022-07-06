@@ -17,10 +17,12 @@
 
 .. _howto/connection:tabular:
 
-Tabular Connection
-==================
+Connecting to Tabular
+=====================
 
 The Tabular connection type enables connection to Tabular to request a short lived token to access the Apache Iceberg tables. This token can be injected as an environment variable, to be used with Trino, Spark, Flink or your favorite query engine that supports Apache Iceberg.
+
+After installing the Tabular provider in your Airflow environment, the corresponding connection type of ``tabular`` will be made available.
 
 Default Connection IDs
 ----------------------
@@ -29,6 +31,7 @@ Tabular Hook uses the parameter ``tabular_conn_id`` for Connection IDs and the v
 
 Configuring the Connection
 --------------------------
+
 Client ID
     The Client ID from Tabular
 
