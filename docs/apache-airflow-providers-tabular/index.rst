@@ -32,7 +32,7 @@ Content
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/tabular/example_dags>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-tabular/1.0.0/tests/system/providers/tabular>
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-tabular/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/tabular/index>
