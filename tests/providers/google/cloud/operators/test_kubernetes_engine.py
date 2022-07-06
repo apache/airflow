@@ -77,7 +77,7 @@ class TestGoogleCloudPlatformContainerOperator(unittest.TestCase):
             project_id=TEST_GCP_PROJECT_ID, location=PROJECT_LOCATION, body=body, task_id=PROJECT_TASK_ID
         )
 
-        operator.execute(None)
+        operator.execute(context=mock.MagicMock())
         mock_hook.return_value.create_cluster.assert_called_once_with(
             cluster=body, project_id=TEST_GCP_PROJECT_ID
         )
@@ -191,6 +191,10 @@ class TestGKEPodOperator(unittest.TestCase):
             namespace=NAMESPACE,
             image=IMAGE,
         )
+        self.gke_op.pod = mock.MagicMock(
+            name=TASK_NAME,
+            namespace=NAMESPACE,
+        )
 
     def test_template_fields(self):
         assert set(KubernetesPodOperator.template_fields).issubset(GKEStartPodOperator.template_fields)
@@ -215,7 +219,7 @@ class TestGKEPodOperator(unittest.TestCase):
             side_effect=[FILE_NAME, '/path/to/new-file']
         )
 
-        self.gke_op.execute(None)
+        self.gke_op.execute(context=mock.MagicMock())
 
         mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
 
@@ -258,7 +262,7 @@ class TestGKEPodOperator(unittest.TestCase):
             side_effect=[FILE_NAME, '/path/to/new-file']
         )
 
-        self.gke_op.execute(None)
+        self.gke_op.execute(context=mock.MagicMock())
 
         mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
 
@@ -314,7 +318,7 @@ class TestGKEPodOperator(unittest.TestCase):
             side_effect=[FILE_NAME, '/path/to/new-file']
         )
 
-        self.gke_op.execute(None)
+        self.gke_op.execute(context=mock.MagicMock())
 
         mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
 
@@ -357,7 +361,7 @@ class TestGKEPodOperator(unittest.TestCase):
             side_effect=[FILE_NAME, '/path/to/new-file']
         )
         self.gke_op.impersonation_chain = "test_account@example.com"
-        self.gke_op.execute(None)
+        self.gke_op.execute(context=mock.MagicMock())
 
         mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
 
@@ -401,7 +405,7 @@ class TestGKEPodOperator(unittest.TestCase):
             side_effect=[FILE_NAME, '/path/to/new-file']
         )
         self.gke_op.impersonation_chain = ["test_account@example.com"]
-        self.gke_op.execute(None)
+        self.gke_op.execute(context=mock.MagicMock())
 
         mock_gcp_hook.return_value.provide_authorized_gcloud.assert_called_once()
 
