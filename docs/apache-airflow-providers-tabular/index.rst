@@ -60,7 +60,7 @@ Package apache-airflow-providers-tabular
 `Tabular <https://tabular.io/>`__
 
 
-Release: 0.0.1
+Release: 1.0.0
 
 Provider package
 ----------------
@@ -71,7 +71,7 @@ are in ``airflow.providers.tabular`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.1+ installation via
+You can install this package on top of an existing Airflow 2.2+ installation via
 ``pip install apache-airflow-providers-tabular``
 
 .. include:: ../../airflow/providers/tabular/CHANGELOG.rst

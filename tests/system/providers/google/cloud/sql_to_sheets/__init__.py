@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,28 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from datetime import datetime
-
-from airflow import models
-from airflow.providers.google.suite.transfers.sql_to_sheets import SQLToGoogleSheetsOperator
-
-SQL = "select 1 as my_col"
-NEW_SPREADSHEET_ID = "123"
-
-with models.DAG(
-    "example_sql_to_sheets",
-    start_date=datetime(2021, 1, 1),
-    schedule_interval=None,  # Override to match your needs
-    catchup=False,
-    tags=["example"],
-) as dag:
-
-    # [START upload_sql_to_sheets]
-    upload_gcs_to_sheet = SQLToGoogleSheetsOperator(
-        task_id="upload_sql_to_sheet",
-        sql=SQL,
-        sql_conn_id="database_conn_id",
-        spreadsheet_id=NEW_SPREADSHEET_ID,
-    )
-    # [END upload_sql_to_sheets]
