@@ -678,12 +678,6 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
-      - name: "Setup python"
-        uses: actions/setup-python@v4
-        with:
-          python-version: ${{ needs.build-info.outputs.default-python-version }}
-          cache: 'pip'
-          cache-dependency-path: ./dev/breeze/setup*
       - name: Cache pre-commit envs
         uses: actions/cache@v3
         with:
@@ -697,6 +691,12 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
           ref: ${{ github.sha }}
           fetch-depth: 2
           persist-credentials: false
+      - name: "Setup python"
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ needs.build-info.outputs.default-python-version }}
+          cache: 'pip'
+          cache-dependency-path: ./dev/breeze/setup*
       - run: ./scripts/ci/install_breeze.sh
       - name: "Free space"
         run: breeze free-space
