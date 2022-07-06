@@ -23,16 +23,11 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.providers.amazon.aws.transfers.local_to_s3 import LocalFilesystemToS3Operator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import set_env_id
+from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
-ENV_ID = set_env_id()
+sys_test_context_task = SystemTestContextBuilder().build()
+
 DAG_ID = 'example_local_to_s3'
-
-S3_BUCKET_NAME = f'{ENV_ID}-bucket'
-S3_KEY = f'{ENV_ID}/files/my-temp-file.txt'
-TEMP_FILE_PATH = '/tmp/sample-txt.txt'
-SAMPLE_TEXT = 'This is some sample text.'
-
 
 @task
 def create_temp_file():
@@ -47,11 +42,20 @@ def delete_temp_file():
 
 
 with DAG(
-    "example_local_to_s3",
+    dag_id=DAG_ID,
     schedule_interval='@once',
     start_date=datetime(2021, 1, 1),  # Override to match your needs
+    tags=['example'],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+    ENV_ID = test_context['ENV_ID']
+
+    S3_BUCKET_NAME = f'{ENV_ID}-bucket'
+    S3_KEY = f'{ENV_ID}/files/my-temp-file.txt'
+    TEMP_FILE_PATH = '/tmp/sample-txt.txt'
+    SAMPLE_TEXT = 'This is some sample text.'
+
     # [START howto_operator_s3_create_bucket]
     create_s3_bucket = S3CreateBucketOperator(
         task_id='create-s3-bucket', bucket_name=S3_BUCKET_NAME, region_name='us-east-1'
@@ -75,6 +79,7 @@ with DAG(
     # [END howto_operator_s3_delete_bucket]
 
     chain(
+        test_context,
         create_temp_file(),
         create_s3_bucket,
         create_local_to_s3_job,
