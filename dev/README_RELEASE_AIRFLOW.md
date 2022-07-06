@@ -184,7 +184,7 @@ git log apache/v2-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp
 
 ## Update the milestone
 
-Before cutting an RC, we should look at the milestone and merge anything ready, or if we aren't going to include it in the release we should update the milestone for those issues (and we should do that before cutting the RC - so the milestone gives us an accurate view of what is going to be in the release as soon as we know what it will be)
+Before cutting an RC, we should look at the milestone and merge anything ready, or if we aren't going to include it in the release we should update the milestone for those issues. We should do that before cutting the RC so the milestone gives us an accurate view of what is going to be in the release as soon as we know what it will be.
 
 ## Build RC artifacts
 
