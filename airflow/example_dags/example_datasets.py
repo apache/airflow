@@ -84,7 +84,7 @@ BashOperator(
     outlets=[Dataset('s3://downstream_1_task/dataset_other.txt')],
     task_id='downstream_1',
     bash_command="sleep 5",
-    dag3=dag3,
+    dag=dag3,
 )
 
 with DAG(
