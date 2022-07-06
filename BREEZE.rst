@@ -500,9 +500,6 @@ Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testi
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-Development tasks
------------------
-
 Those are commands mostly used by contributors:
 
 * Execute arbitrary command in the test environment with ``breeze shell`` command
@@ -512,6 +509,7 @@ Those are commands mostly used by contributors:
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``breeze tests`` command
+* Run docker-compose tests with ``breeze docker-compose-tests`` command.
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
 
@@ -524,8 +522,53 @@ Additional management tasks:
 Tests
 -----
 
-* Run docker-compose tests with ``breeze docker-compose-tests`` command.
-* Run test specified with ``breeze tests`` command.
+You can regular unit tests with ``breeze`` in two different ways, either interactively run tests with
+the default ``shell`` command or via the ``tests`` command.
+
+Iterate on tests interactively
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can simply enter the ``breeze`` container and run ``pytest`` command there. You can enter the
+container via just ``breeze`` command or ``breeze shell`` command (the latter has more options
+useful when you run integration or system tests). This is the best way if you want to interactively
+run selected tests and iterate with the tests. Once you enter ``breeze`` environment it is ready
+out-of-the-box to run your tests by running the right ``pytest`` command (autocomplete should help
+you with autocompleting test name if you start typing ``pytest tests<TAB>``).
+
+Here are few examples:
+
+Running single test:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore::test_check_operators
+
+To run the whole test class:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore
+
+You can re-run the tests interactively, add extra parameters to pytest and modify the files before
+re-running the test to iterate over the tests. You can also add more flags when starting the
+``breeze shell`` command when you run integration tests or system tests. Read more details about it
+in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
+on how to run them.
+
+Running group of tests
+~~~~~~~~~~~~~~~~~~~~~~
+
+You can also run tests via built-in ``breeze tests`` command - similarly as iterative ``pytest`` command
+allows to run test individually, or by class or in any other way pytest allows to test them, but it
+also allows to run the tests in the same test "types" that are used to run the tests in CI: Core, Always
+API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
+replicate this behaviour.
+
+Another interesting use of the ``breeze tests`` command is that you can easily specify sub-set of the
+tests for Providers. ``breeze tests --test-type "Providers[airbyte,http]`` for example will only run
+tests for airbyte and http providers.
+
+Here is the detailed set of options for the ``breeze tests`` command.
 
 .. image:: ./images/breeze/output-tests.svg
   :width: 100%

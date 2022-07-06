@@ -363,13 +363,18 @@ else
             ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
+        SELECTED_TESTS=()
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            SELECTED_TESTS+=("tests/providers/${provider//./\/}")
+        done
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
-
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS

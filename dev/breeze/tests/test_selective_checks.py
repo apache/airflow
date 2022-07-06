@@ -77,14 +77,15 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                     "run-tests": "true",
                     "docs-build": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "API Always Providers",
+                    "test-types": "API Always Providers[amazon,apache.beam,google,hashicorp,"
+                    "microsoft.azure,presto,trino]",
                 },
                 id="API and providers tests and docs should run",
             )
         ),
         (
             pytest.param(
-                ("tests/providers/google/file.py",),
+                ("tests/providers/apache/beam/file.py",),
                 {
                     "all-python-versions": "['3.7']",
                     "all-python-versions-list-as-string": "3.7",
@@ -94,9 +95,9 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                     "docs-build": "false",
                     "run-kubernetes-tests": "false",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers",
+                    "test-types": "Always Providers[apache.beam,google]",
                 },
-                id="Providers and docs should run",
+                id="Selected Providers and docs should run",
             )
         ),
         (
@@ -131,7 +132,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                     "docs-build": "true",
                     "run-kubernetes-tests": "true",
                     "upgrade-to-newer-dependencies": "false",
-                    "test-types": "Always Providers",
+                    "test-types": "Always Providers[amazon,apache.beam,google,"
+                    "hashicorp,microsoft.azure,presto,trino]",
                 },
                 id="Helm tests, providers, kubernetes tests and docs should run",
             )
@@ -141,7 +143,52 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                 (
                     "INTHEWILD.md",
                     "chart/aaaa.txt",
-                    "tests/providers/google/file.py",
+                    "tests/providers/http/file.py",
+                ),
+                {
+                    "all-python-versions": "['3.7']",
+                    "all-python-versions-list-as-string": "3.7",
+                    "image-build": "true",
+                    "needs-helm-tests": "true",
+                    "run-tests": "true",
+                    "docs-build": "true",
+                    "run-kubernetes-tests": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "test-types": "Always Providers[airbyte,apache.livy,"
+                    "dbt.cloud,dingding,discord,http,slack]",
+                },
+                id="Helm tests, http and all relevant providers, kubernetes tests and "
+                "docs should run even if unimportant files were added",
+            )
+        ),
+        (
+            pytest.param(
+                (
+                    "INTHEWILD.md",
+                    "chart/aaaa.txt",
+                    "tests/system/providers/airbyte/file.py",
+                ),
+                {
+                    "all-python-versions": "['3.7']",
+                    "all-python-versions-list-as-string": "3.7",
+                    "image-build": "true",
+                    "needs-helm-tests": "true",
+                    "run-tests": "true",
+                    "docs-build": "true",
+                    "run-kubernetes-tests": "true",
+                    "upgrade-to-newer-dependencies": "false",
+                    "test-types": "Always Providers[airbyte]",
+                },
+                id="Helm tests, airbyte providers, kubernetes tests and "
+                "docs should run even if unimportant files were added",
+            )
+        ),
+        (
+            pytest.param(
+                (
+                    "INTHEWILD.md",
+                    "chart/aaaa.txt",
+                    "tests/system/utils/file.py",
                 ),
                 {
                     "all-python-versions": "['3.7']",
@@ -154,8 +201,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "Always Providers",
                 },
-                id="Helm tests, providers, kubernetes tests and docs should run even if "
-                "unimportant files were added",
+                id="Helm tests, all providers as common util system file changed, kubernetes tests and "
+                "docs should run even if unimportant files were added",
             )
         ),
         (
@@ -171,7 +218,8 @@ def assert_outputs_are_printed(expected_outputs: Dict[str, str], output: str):
                     "upgrade-to-newer-dependencies": "true",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
-                id="Everything should run and upgrading to newer requirements as setup.py changed",
+                id="Everything should run - including all providers and upgrading to "
+                "newer requirements as setup.py changed",
             )
         ),
         (
@@ -223,7 +271,7 @@ def test_expected_output_pull_request_main(
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
-                id="Everything should run when full tests are needed",
+                id="Everything should run including all providers when full tests are needed",
             )
         ),
         (
@@ -243,7 +291,8 @@ def test_expected_output_pull_request_main(
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
-                id="Everything should run when full tests are needed even with different label set as well",
+                id="Everything should run including full providers when full "
+                "tests are needed even with different label set as well",
             )
         ),
         (
@@ -260,7 +309,8 @@ def test_expected_output_pull_request_main(
                     "upgrade-to-newer-dependencies": "false",
                     "test-types": "API Always CLI Core Integration Other Providers WWW",
                 },
-                id="Everything should run when full tests are needed even if no files are changed",
+                id="Everything should run including full providers when"
+                "full tests are needed even if no files are changed",
             )
         ),
         (
