@@ -13,6 +13,7 @@
         "Webserver",
         "Workers",
         "Triggerer",
+        "DagProcessor",
         "Flower",
         "Redis",
         "StatsD",
@@ -2110,6 +2111,264 @@
                 },
                 "securityContext": {
                     "description": "Security context for the triggerer pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                }
+            }
+        },
+        "dagProcessor": {
+            "description": "Airflow dag processor settings.",
+            "type": "object",
+            "x-docsSection": "DagProcessor",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
+                    "type": "boolean",
+                    "default": false
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for dag processor.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "replicas": {
+                    "description": "Number of dag processors to run.",
+                    "type": "integer",
+                    "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow dag processor (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow dag processor (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow dag-processor"
+                    ]
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.apps.v1.DeploymentStrategy",
+                    "default": {
+                        "rollingUpdate": {
+                            "maxSurge": "100%",
+                            "maxUnavailable": "50%"
+                        }
+                    }
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the dag processor Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "resources": {
+                    "description": "Resources for dag processor pods.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "safeToEvict": {
+                    "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                    }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for dag processor pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for dag processor pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for dag processor pods.",
+                    "type": "object",
+                    "default": "See values.yaml",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for dag processor pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for dag processor pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 60
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the dag processor pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "securityContext": {
+                    "description": "Security context for the dag processor pod. If not set, the values from `securityContext` will be used.",
                     "type": "object",
                     "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
                     "default": {},

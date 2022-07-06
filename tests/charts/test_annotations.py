@@ -206,6 +206,22 @@ class TestServiceAccountAnnotations:
                     "example": "triggerer",
                 },
             ),
+            (
+                {
+                    "dagProcessor": {
+                        "enabled": True,
+                        "serviceAccount": {
+                            "annotations": {
+                                "example": "dag-processor",
+                            },
+                        },
+                    },
+                },
+                "templates/dag-processor/dag-processor-serviceaccount.yaml",
+                {
+                    "example": "dag-processor",
+                },
+            ),
         ],
     )
     def test_annotations_are_added(self, values, show_only, expected_annotations):
@@ -293,6 +309,20 @@ class TestServiceAccountAnnotations:
             "templates/triggerer/triggerer-deployment.yaml",
             {
                 "example": "triggerer",
+            },
+        ),
+        (
+            {
+                "dagProcessor": {
+                    "enabled": True,
+                    "podAnnotations": {
+                        "example": "dag-processor",
+                    },
+                },
+            },
+            "templates/dag-processor/dag-processor-deployment.yaml",
+            {
+                "example": "dag-processor",
             },
         ),
         (
