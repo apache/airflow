@@ -608,6 +608,14 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
     merge_conn(
         Connection(
+            conn_id="tabular_default",
+            conn_type="tabular",
+            host="https://api.tabulardata.io/ws/v1",
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
             conn_id="trino_default",
             conn_type="trino",
             host="localhost",
