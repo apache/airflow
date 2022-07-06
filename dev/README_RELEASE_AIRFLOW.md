@@ -83,7 +83,7 @@ if you do this, update the milestone in the issue to the "next" minor release.
 Many issues will be marked with the target release as their Milestone; this is a good shortlist
 to start with for what to cherry-pick.
 
-For a minor release, find out other bug fixes that are not marked with the target release as their Milestone
+For a patch release, find out other bug fixes that are not marked with the target release as their Milestone
 and mark those as well. You can accomplish this by running the following command:
 
 ```
