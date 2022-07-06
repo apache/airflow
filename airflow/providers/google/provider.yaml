@@ -975,6 +975,8 @@ extra-links:
   - airflow.providers.google.cloud.links.spanner.SpannerInstanceLink
   - airflow.providers.google.cloud.links.stackdriver.StackdriverNotificationsLink
   - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 
