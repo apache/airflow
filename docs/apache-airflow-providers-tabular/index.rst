@@ -29,6 +29,12 @@ Content
     Connection types <connections>
 
 .. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/tabular/index>
+
+.. toctree::
     :maxdepth: 1
     :caption: Resources
 
@@ -36,11 +42,6 @@ Content
     PyPI Repository <https://pypi.org/project/apache-airflow-providers-tabular/>
     Installing from sources <installing-providers-from-sources>
     Python API <_api/airflow/providers/tabular/index>
-
-.. toctree::
-    :hidden:
-    :caption: System tests
-    System Tests <_api/tests/system/providers/tabular/index>
 
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
