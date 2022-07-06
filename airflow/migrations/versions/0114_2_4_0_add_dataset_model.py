@@ -73,7 +73,7 @@ def _create_dataset_dag_ref_table():
         sa.ForeignKeyConstraint(
             ('dataset_id',),
             ['dataset.id'],
-            name="dataset_ref_dataset_fkey",
+            name="datasetdagref_dataset_fkey",
             ondelete="CASCADE",
         ),
         sqlite_autoincrement=True,  # ensures PK values not reused
@@ -91,7 +91,7 @@ def _create_dataset_task_ref_table():
         sa.ForeignKeyConstraint(
             ('dataset_id',),
             ['dataset.id'],
-            name="dataset_task_ref_dataset_fkey",
+            name="datasettaskref_dataset_fkey",
             ondelete="CASCADE",
         ),
     )

@@ -99,7 +99,7 @@ class DatasetDagRef(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='dataset_event_dataset_fkey',
+            name='datasetdagref_dataset_fkey',
             ondelete="CASCADE",
         ),
     )
@@ -136,7 +136,7 @@ class DatasetTaskRef(Base):
         ForeignKeyConstraint(
             (dataset_id,),
             ["dataset.id"],
-            name='dataset_event_dataset_fkey',
+            name='datasettaskref_dataset_fkey',
             ondelete="CASCADE",
         ),
         PrimaryKeyConstraint(dataset_id, dag_id, task_id, name="datasettaskref_pkey", mssql_clustered=True),
