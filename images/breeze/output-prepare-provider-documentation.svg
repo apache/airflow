@@ -19,149 +19,149 @@
         font-weight: 700;
     }
 
-    .terminal-3621068628-matrix {
+    .terminal-1998463419-matrix {
         font-family: Fira Code, monospace;
         font-size: 20px;
         line-height: 24.4px;
         font-variant-east-asian: full-width;
     }
 
-    .terminal-3621068628-title {
+    .terminal-1998463419-title {
         font-size: 18px;
         font-weight: bold;
         font-family: arial;
     }
 
-    .terminal-3621068628-r1 { fill: #c5c8c6;font-weight: bold }
-.terminal-3621068628-r2 { fill: #c5c8c6 }
-.terminal-3621068628-r3 { fill: #d0b344;font-weight: bold }
-.terminal-3621068628-r4 { fill: #868887 }
-.terminal-3621068628-r5 { fill: #68a0b3;font-weight: bold }
-.terminal-3621068628-r6 { fill: #98a84b;font-weight: bold }
-.terminal-3621068628-r7 { fill: #8d7b39 }
+    .terminal-1998463419-r1 { fill: #c5c8c6;font-weight: bold }
+.terminal-1998463419-r2 { fill: #c5c8c6 }
+.terminal-1998463419-r3 { fill: #d0b344;font-weight: bold }
+.terminal-1998463419-r4 { fill: #868887 }
+.terminal-1998463419-r5 { fill: #68a0b3;font-weight: bold }
+.terminal-1998463419-r6 { fill: #98a84b;font-weight: bold }
+.terminal-1998463419-r7 { fill: #8d7b39 }
     </style>
 
     <defs>
-    <clipPath id="terminal-3621068628-clip-terminal">
+    <clipPath id="terminal-1998463419-clip-terminal">
       <rect x="0" y="0" width="1463.0" height="657.8" />
     </clipPath>
-    <clipPath id="terminal-3621068628-line-0">
+    <clipPath id="terminal-1998463419-line-0">
     <rect x="0" y="1.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-1">
+<clipPath id="terminal-1998463419-line-1">
     <rect x="0" y="25.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-2">
+<clipPath id="terminal-1998463419-line-2">
     <rect x="0" y="50.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-3">
+<clipPath id="terminal-1998463419-line-3">
     <rect x="0" y="74.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-4">
+<clipPath id="terminal-1998463419-line-4">
     <rect x="0" y="99.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-5">
+<clipPath id="terminal-1998463419-line-5">
     <rect x="0" y="123.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-6">
+<clipPath id="terminal-1998463419-line-6">
     <rect x="0" y="147.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-7">
+<clipPath id="terminal-1998463419-line-7">
     <rect x="0" y="172.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-8">
+<clipPath id="terminal-1998463419-line-8">
     <rect x="0" y="196.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-9">
+<clipPath id="terminal-1998463419-line-9">
     <rect x="0" y="221.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-10">
+<clipPath id="terminal-1998463419-line-10">
     <rect x="0" y="245.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-11">
+<clipPath id="terminal-1998463419-line-11">
     <rect x="0" y="269.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-12">
+<clipPath id="terminal-1998463419-line-12">
     <rect x="0" y="294.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-13">
+<clipPath id="terminal-1998463419-line-13">
     <rect x="0" y="318.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-14">
+<clipPath id="terminal-1998463419-line-14">
     <rect x="0" y="343.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-15">
+<clipPath id="terminal-1998463419-line-15">
     <rect x="0" y="367.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-16">
+<clipPath id="terminal-1998463419-line-16">
     <rect x="0" y="391.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-17">
+<clipPath id="terminal-1998463419-line-17">
     <rect x="0" y="416.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-18">
+<clipPath id="terminal-1998463419-line-18">
     <rect x="0" y="440.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-19">
+<clipPath id="terminal-1998463419-line-19">
     <rect x="0" y="465.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-20">
+<clipPath id="terminal-1998463419-line-20">
     <rect x="0" y="489.5" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-21">
+<clipPath id="terminal-1998463419-line-21">
     <rect x="0" y="513.9" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-22">
+<clipPath id="terminal-1998463419-line-22">
     <rect x="0" y="538.3" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-23">
+<clipPath id="terminal-1998463419-line-23">
     <rect x="0" y="562.7" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-24">
+<clipPath id="terminal-1998463419-line-24">
     <rect x="0" y="587.1" width="1464" height="24.65"/>
             </clipPath>
-<clipPath id="terminal-3621068628-line-25">
+<clipPath id="terminal-1998463419-line-25">
     <rect x="0" y="611.5" width="1464" height="24.65"/>
             </clipPath>
     </defs>
 
-    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="706.8" rx="8"/><text class="terminal-3621068628-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;prepare-provider-documentation</text>
+    <rect fill="#292929" stroke="rgba(255,255,255,0.35)" stroke-width="1" x="1" y="1" width="1480" height="706.8" rx="8"/><text class="terminal-1998463419-title" fill="#c5c8c6" text-anchor="middle" x="740" y="27">Command:&#160;prepare-provider-documentation</text>
             <g transform="translate(26,22)">
             <circle cx="0" cy="0" r="7" fill="#ff5f57"/>
             <circle cx="22" cy="0" r="7" fill="#febc2e"/>
             <circle cx="44" cy="0" r="7" fill="#28c840"/>
             </g>
         
-    <g transform="translate(9, 41)" clip-path="url(#terminal-3621068628-clip-terminal)">
+    <g transform="translate(9, 41)" clip-path="url(#terminal-1998463419-clip-terminal)">
     
-    <g class="terminal-3621068628-matrix">
-    <text class="terminal-3621068628-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-3621068628-line-0)">
-</text><text class="terminal-3621068628-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#terminal-3621068628-line-1)">Usage:&#160;</text><text class="terminal-3621068628-r1" x="97.6" y="44.4" textLength="1342" clip-path="url(#terminal-3621068628-line-1)">breeze&#160;prepare-provider-documentation&#160;[OPTIONS]&#160;[airbyte&#160;|&#160;alibaba&#160;|&#160;amazon&#160;|&#160;apache.beam&#160;|&#160;apache.cassandra&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-1)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="68.8" textLength="1427.4" clip-path="url(#terminal-3621068628-line-2)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;apache.drill&#160;|&#160;apache.druid&#160;|&#160;apache.hdfs&#160;|&#160;apache.hive&#160;|&#160;apache.kylin&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-2)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="93.2" textLength="1415.2" clip-path="url(#terminal-3621068628-line-3)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;apache.livy&#160;|&#160;apache.pig&#160;|&#160;apache.pinot&#160;|&#160;apache.spark&#160;|&#160;apache.sqoop&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-3)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="117.6" textLength="1366.4" clip-path="url(#terminal-3621068628-line-4)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;arangodb&#160;|&#160;asana&#160;|&#160;celery&#160;|&#160;cloudant&#160;|&#160;cncf.kubernetes&#160;|&#160;core.sql&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-4)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="142" textLength="1329.8" clip-path="url(#terminal-3621068628-line-5)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;databricks&#160;|&#160;datadog&#160;|&#160;dbt.cloud&#160;|&#160;dingding&#160;|&#160;discord&#160;|&#160;docker&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-3621068628-line-5)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="166.4" textLength="1354.2" clip-path="url(#terminal-3621068628-line-6)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;elasticsearch&#160;|&#160;exasol&#160;|&#160;facebook&#160;|&#160;ftp&#160;|&#160;github&#160;|&#160;google&#160;|&#160;grpc&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-6)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="190.8" textLength="1281" clip-path="url(#terminal-3621068628-line-7)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;hashicorp&#160;|&#160;http&#160;|&#160;imap&#160;|&#160;influxdb&#160;|&#160;jdbc&#160;|&#160;jenkins&#160;|&#160;jira&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-7)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="215.2" textLength="1403" clip-path="url(#terminal-3621068628-line-8)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;microsoft.azure&#160;|&#160;microsoft.mssql&#160;|&#160;microsoft.psrp&#160;|&#160;microsoft.winrm&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-8)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="239.6" textLength="1439.6" clip-path="url(#terminal-3621068628-line-9)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;mongo&#160;|&#160;mysql&#160;|&#160;neo4j&#160;|&#160;odbc&#160;|&#160;openfaas&#160;|&#160;opsgenie&#160;|&#160;oracle&#160;|&#160;pagerduty&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-9)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="264" textLength="1403" clip-path="url(#terminal-3621068628-line-10)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;papermill&#160;|&#160;plexus&#160;|&#160;postgres&#160;|&#160;presto&#160;|&#160;qubole&#160;|&#160;redis&#160;|&#160;salesforce&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-3621068628-line-10)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="288.4" textLength="1390.8" clip-path="url(#terminal-3621068628-line-11)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;samba&#160;|&#160;segment&#160;|&#160;sendgrid&#160;|&#160;sftp&#160;|&#160;singularity&#160;|&#160;slack&#160;|&#160;snowflake&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-11)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="312.8" textLength="1305.4" clip-path="url(#terminal-3621068628-line-12)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;sqlite&#160;|&#160;ssh&#160;|&#160;tableau&#160;|&#160;telegram&#160;|&#160;trino&#160;|&#160;vertica&#160;|&#160;yandex&#160;|</text><text class="terminal-3621068628-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-12)">
-</text><text class="terminal-3621068628-r1" x="12.2" y="337.2" textLength="683.2" clip-path="url(#terminal-3621068628-line-13)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;zendesk]...</text><text class="terminal-3621068628-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-13)">
-</text><text class="terminal-3621068628-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-14)">
-</text><text class="terminal-3621068628-r2" x="12.2" y="386" textLength="780.8" clip-path="url(#terminal-3621068628-line-15)">Prepare&#160;CHANGELOG,&#160;README&#160;and&#160;COMMITS&#160;information&#160;for&#160;providers.</text><text class="terminal-3621068628-r2" x="1464" y="386" textLength="12.2" clip-path="url(#terminal-3621068628-line-15)">
-</text><text class="terminal-3621068628-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-16)">
-</text><text class="terminal-3621068628-r4" x="0" y="434.8" textLength="24.4" clip-path="url(#terminal-3621068628-line-17)">╭─</text><text class="terminal-3621068628-r4" x="24.4" y="434.8" textLength="1415.2" clip-path="url(#terminal-3621068628-line-17)">&#160;Provider&#160;documentation&#160;preparation&#160;flags&#160;──────────────────────────────────────────────────────────────────────────</text><text class="terminal-3621068628-r4" x="1439.6" y="434.8" textLength="24.4" clip-path="url(#terminal-3621068628-line-17)">─╮</text><text class="terminal-3621068628-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-17)">
-</text><text class="terminal-3621068628-r4" x="0" y="459.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-18)">│</text><text class="terminal-3621068628-r5" x="24.4" y="459.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-18)">-</text><text class="terminal-3621068628-r5" x="36.6" y="459.2" textLength="73.2" clip-path="url(#terminal-3621068628-line-18)">-debug</text><text class="terminal-3621068628-r2" x="158.6" y="459.2" textLength="878.4" clip-path="url(#terminal-3621068628-line-18)">Drop&#160;user&#160;in&#160;shell&#160;instead&#160;of&#160;running&#160;the&#160;command.&#160;Useful&#160;for&#160;debugging.</text><text class="terminal-3621068628-r4" x="1451.8" y="459.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-18)">│</text><text class="terminal-3621068628-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-18)">
-</text><text class="terminal-3621068628-r4" x="0" y="483.6" textLength="1464" clip-path="url(#terminal-3621068628-line-19)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3621068628-r2" x="1464" y="483.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-19)">
-</text><text class="terminal-3621068628-r4" x="0" y="508" textLength="24.4" clip-path="url(#terminal-3621068628-line-20)">╭─</text><text class="terminal-3621068628-r4" x="24.4" y="508" textLength="1415.2" clip-path="url(#terminal-3621068628-line-20)">&#160;Options&#160;───────────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-3621068628-r4" x="1439.6" y="508" textLength="24.4" clip-path="url(#terminal-3621068628-line-20)">─╮</text><text class="terminal-3621068628-r2" x="1464" y="508" textLength="12.2" clip-path="url(#terminal-3621068628-line-20)">
-</text><text class="terminal-3621068628-r4" x="0" y="532.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-21)">│</text><text class="terminal-3621068628-r5" x="24.4" y="532.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-21)">-</text><text class="terminal-3621068628-r5" x="36.6" y="532.4" textLength="97.6" clip-path="url(#terminal-3621068628-line-21)">-verbose</text><text class="terminal-3621068628-r6" x="280.6" y="532.4" textLength="24.4" clip-path="url(#terminal-3621068628-line-21)">-v</text><text class="terminal-3621068628-r2" x="329.4" y="532.4" textLength="585.6" clip-path="url(#terminal-3621068628-line-21)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="terminal-3621068628-r4" x="1451.8" y="532.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-21)">│</text><text class="terminal-3621068628-r2" x="1464" y="532.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-21)">
-</text><text class="terminal-3621068628-r4" x="0" y="556.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-22)">│</text><text class="terminal-3621068628-r5" x="24.4" y="556.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-22)">-</text><text class="terminal-3621068628-r5" x="36.6" y="556.8" textLength="48.8" clip-path="url(#terminal-3621068628-line-22)">-dry</text><text class="terminal-3621068628-r5" x="85.4" y="556.8" textLength="48.8" clip-path="url(#terminal-3621068628-line-22)">-run</text><text class="terminal-3621068628-r6" x="280.6" y="556.8" textLength="24.4" clip-path="url(#terminal-3621068628-line-22)">-D</text><text class="terminal-3621068628-r2" x="329.4" y="556.8" textLength="719.8" clip-path="url(#terminal-3621068628-line-22)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="terminal-3621068628-r4" x="1451.8" y="556.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-22)">│</text><text class="terminal-3621068628-r2" x="1464" y="556.8" textLength="12.2" clip-path="url(#terminal-3621068628-line-22)">
-</text><text class="terminal-3621068628-r4" x="0" y="581.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-23)">│</text><text class="terminal-3621068628-r5" x="24.4" y="581.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-23)">-</text><text class="terminal-3621068628-r5" x="36.6" y="581.2" textLength="85.4" clip-path="url(#terminal-3621068628-line-23)">-github</text><text class="terminal-3621068628-r5" x="122" y="581.2" textLength="134.2" clip-path="url(#terminal-3621068628-line-23)">-repository</text><text class="terminal-3621068628-r6" x="280.6" y="581.2" textLength="24.4" clip-path="url(#terminal-3621068628-line-23)">-g</text><text class="terminal-3621068628-r2" x="329.4" y="581.2" textLength="585.6" clip-path="url(#terminal-3621068628-line-23)">GitHub&#160;repository&#160;used&#160;to&#160;pull,&#160;push&#160;run&#160;images.</text><text class="terminal-3621068628-r7" x="927.2" y="581.2" textLength="73.2" clip-path="url(#terminal-3621068628-line-23)">(TEXT)</text><text class="terminal-3621068628-r4" x="1012.6" y="581.2" textLength="305" clip-path="url(#terminal-3621068628-line-23)">[default:&#160;apache/airflow]</text><text class="terminal-3621068628-r4" x="1451.8" y="581.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-23)">│</text><text class="terminal-3621068628-r2" x="1464" y="581.2" textLength="12.2" clip-path="url(#terminal-3621068628-line-23)">
-</text><text class="terminal-3621068628-r4" x="0" y="605.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-24)">│</text><text class="terminal-3621068628-r5" x="24.4" y="605.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-24)">-</text><text class="terminal-3621068628-r5" x="36.6" y="605.6" textLength="85.4" clip-path="url(#terminal-3621068628-line-24)">-answer</text><text class="terminal-3621068628-r6" x="280.6" y="605.6" textLength="24.4" clip-path="url(#terminal-3621068628-line-24)">-a</text><text class="terminal-3621068628-r2" x="329.4" y="605.6" textLength="317.2" clip-path="url(#terminal-3621068628-line-24)">Force&#160;answer&#160;to&#160;questions.</text><text class="terminal-3621068628-r7" x="658.8" y="605.6" textLength="353.8" clip-path="url(#terminal-3621068628-line-24)">(y&#160;|&#160;n&#160;|&#160;q&#160;|&#160;yes&#160;|&#160;no&#160;|&#160;quit)</text><text class="terminal-3621068628-r4" x="1451.8" y="605.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-24)">│</text><text class="terminal-3621068628-r2" x="1464" y="605.6" textLength="12.2" clip-path="url(#terminal-3621068628-line-24)">
-</text><text class="terminal-3621068628-r4" x="0" y="630" textLength="12.2" clip-path="url(#terminal-3621068628-line-25)">│</text><text class="terminal-3621068628-r5" x="24.4" y="630" textLength="12.2" clip-path="url(#terminal-3621068628-line-25)">-</text><text class="terminal-3621068628-r5" x="36.6" y="630" textLength="61" clip-path="url(#terminal-3621068628-line-25)">-help</text><text class="terminal-3621068628-r6" x="280.6" y="630" textLength="24.4" clip-path="url(#terminal-3621068628-line-25)">-h</text><text class="terminal-3621068628-r2" x="329.4" y="630" textLength="329.4" clip-path="url(#terminal-3621068628-line-25)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="terminal-3621068628-r4" x="1451.8" y="630" textLength="12.2" clip-path="url(#terminal-3621068628-line-25)">│</text><text class="terminal-3621068628-r2" x="1464" y="630" textLength="12.2" clip-path="url(#terminal-3621068628-line-25)">
-</text><text class="terminal-3621068628-r4" x="0" y="654.4" textLength="1464" clip-path="url(#terminal-3621068628-line-26)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-3621068628-r2" x="1464" y="654.4" textLength="12.2" clip-path="url(#terminal-3621068628-line-26)">
+    <g class="terminal-1998463419-matrix">
+    <text class="terminal-1998463419-r2" x="1464" y="20" textLength="12.2" clip-path="url(#terminal-1998463419-line-0)">
+</text><text class="terminal-1998463419-r3" x="12.2" y="44.4" textLength="85.4" clip-path="url(#terminal-1998463419-line-1)">Usage:&#160;</text><text class="terminal-1998463419-r1" x="97.6" y="44.4" textLength="1342" clip-path="url(#terminal-1998463419-line-1)">breeze&#160;prepare-provider-documentation&#160;[OPTIONS]&#160;[airbyte&#160;|&#160;alibaba&#160;|&#160;amazon&#160;|&#160;apache.beam&#160;|&#160;apache.cassandra&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="44.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-1)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="68.8" textLength="1427.4" clip-path="url(#terminal-1998463419-line-2)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;apache.drill&#160;|&#160;apache.druid&#160;|&#160;apache.hdfs&#160;|&#160;apache.hive&#160;|&#160;apache.kylin&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="68.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-2)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="93.2" textLength="1415.2" clip-path="url(#terminal-1998463419-line-3)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;apache.livy&#160;|&#160;apache.pig&#160;|&#160;apache.pinot&#160;|&#160;apache.spark&#160;|&#160;apache.sqoop&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="93.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-3)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="117.6" textLength="1366.4" clip-path="url(#terminal-1998463419-line-4)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;arangodb&#160;|&#160;asana&#160;|&#160;celery&#160;|&#160;cloudant&#160;|&#160;cncf.kubernetes&#160;|&#160;core.sql&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="117.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-4)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="142" textLength="1329.8" clip-path="url(#terminal-1998463419-line-5)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;databricks&#160;|&#160;datadog&#160;|&#160;dbt.cloud&#160;|&#160;dingding&#160;|&#160;discord&#160;|&#160;docker&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="142" textLength="12.2" clip-path="url(#terminal-1998463419-line-5)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="166.4" textLength="1354.2" clip-path="url(#terminal-1998463419-line-6)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;elasticsearch&#160;|&#160;exasol&#160;|&#160;facebook&#160;|&#160;ftp&#160;|&#160;github&#160;|&#160;google&#160;|&#160;grpc&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="166.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-6)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="190.8" textLength="1281" clip-path="url(#terminal-1998463419-line-7)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;hashicorp&#160;|&#160;http&#160;|&#160;imap&#160;|&#160;influxdb&#160;|&#160;jdbc&#160;|&#160;jenkins&#160;|&#160;jira&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="190.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-7)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="215.2" textLength="1403" clip-path="url(#terminal-1998463419-line-8)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;microsoft.azure&#160;|&#160;microsoft.mssql&#160;|&#160;microsoft.psrp&#160;|&#160;microsoft.winrm&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="215.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-8)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="239.6" textLength="1439.6" clip-path="url(#terminal-1998463419-line-9)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;mongo&#160;|&#160;mysql&#160;|&#160;neo4j&#160;|&#160;odbc&#160;|&#160;openfaas&#160;|&#160;opsgenie&#160;|&#160;oracle&#160;|&#160;pagerduty&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="239.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-9)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="264" textLength="1403" clip-path="url(#terminal-1998463419-line-10)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;papermill&#160;|&#160;plexus&#160;|&#160;postgres&#160;|&#160;presto&#160;|&#160;qubole&#160;|&#160;redis&#160;|&#160;salesforce&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="264" textLength="12.2" clip-path="url(#terminal-1998463419-line-10)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="288.4" textLength="1390.8" clip-path="url(#terminal-1998463419-line-11)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;samba&#160;|&#160;segment&#160;|&#160;sendgrid&#160;|&#160;sftp&#160;|&#160;singularity&#160;|&#160;slack&#160;|&#160;snowflake&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="288.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-11)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="312.8" textLength="1427.4" clip-path="url(#terminal-1998463419-line-12)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;sqlite&#160;|&#160;ssh&#160;|&#160;tableau&#160;|&#160;tabular&#160;|&#160;telegram&#160;|&#160;trino&#160;|&#160;vertica&#160;|&#160;yandex&#160;|</text><text class="terminal-1998463419-r2" x="1464" y="312.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-12)">
+</text><text class="terminal-1998463419-r1" x="12.2" y="337.2" textLength="683.2" clip-path="url(#terminal-1998463419-line-13)">&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;&#160;zendesk]...</text><text class="terminal-1998463419-r2" x="1464" y="337.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-13)">
+</text><text class="terminal-1998463419-r2" x="1464" y="361.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-14)">
+</text><text class="terminal-1998463419-r2" x="12.2" y="386" textLength="780.8" clip-path="url(#terminal-1998463419-line-15)">Prepare&#160;CHANGELOG,&#160;README&#160;and&#160;COMMITS&#160;information&#160;for&#160;providers.</text><text class="terminal-1998463419-r2" x="1464" y="386" textLength="12.2" clip-path="url(#terminal-1998463419-line-15)">
+</text><text class="terminal-1998463419-r2" x="1464" y="410.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-16)">
+</text><text class="terminal-1998463419-r4" x="0" y="434.8" textLength="24.4" clip-path="url(#terminal-1998463419-line-17)">╭─</text><text class="terminal-1998463419-r4" x="24.4" y="434.8" textLength="1415.2" clip-path="url(#terminal-1998463419-line-17)">&#160;Provider&#160;documentation&#160;preparation&#160;flags&#160;──────────────────────────────────────────────────────────────────────────</text><text class="terminal-1998463419-r4" x="1439.6" y="434.8" textLength="24.4" clip-path="url(#terminal-1998463419-line-17)">─╮</text><text class="terminal-1998463419-r2" x="1464" y="434.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-17)">
+</text><text class="terminal-1998463419-r4" x="0" y="459.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-18)">│</text><text class="terminal-1998463419-r5" x="24.4" y="459.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-18)">-</text><text class="terminal-1998463419-r5" x="36.6" y="459.2" textLength="73.2" clip-path="url(#terminal-1998463419-line-18)">-debug</text><text class="terminal-1998463419-r2" x="158.6" y="459.2" textLength="878.4" clip-path="url(#terminal-1998463419-line-18)">Drop&#160;user&#160;in&#160;shell&#160;instead&#160;of&#160;running&#160;the&#160;command.&#160;Useful&#160;for&#160;debugging.</text><text class="terminal-1998463419-r4" x="1451.8" y="459.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-18)">│</text><text class="terminal-1998463419-r2" x="1464" y="459.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-18)">
+</text><text class="terminal-1998463419-r4" x="0" y="483.6" textLength="1464" clip-path="url(#terminal-1998463419-line-19)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-1998463419-r2" x="1464" y="483.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-19)">
+</text><text class="terminal-1998463419-r4" x="0" y="508" textLength="24.4" clip-path="url(#terminal-1998463419-line-20)">╭─</text><text class="terminal-1998463419-r4" x="24.4" y="508" textLength="1415.2" clip-path="url(#terminal-1998463419-line-20)">&#160;Options&#160;───────────────────────────────────────────────────────────────────────────────────────────────────────────</text><text class="terminal-1998463419-r4" x="1439.6" y="508" textLength="24.4" clip-path="url(#terminal-1998463419-line-20)">─╮</text><text class="terminal-1998463419-r2" x="1464" y="508" textLength="12.2" clip-path="url(#terminal-1998463419-line-20)">
+</text><text class="terminal-1998463419-r4" x="0" y="532.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-21)">│</text><text class="terminal-1998463419-r5" x="24.4" y="532.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-21)">-</text><text class="terminal-1998463419-r5" x="36.6" y="532.4" textLength="97.6" clip-path="url(#terminal-1998463419-line-21)">-verbose</text><text class="terminal-1998463419-r6" x="280.6" y="532.4" textLength="24.4" clip-path="url(#terminal-1998463419-line-21)">-v</text><text class="terminal-1998463419-r2" x="329.4" y="532.4" textLength="585.6" clip-path="url(#terminal-1998463419-line-21)">Print&#160;verbose&#160;information&#160;about&#160;performed&#160;steps.</text><text class="terminal-1998463419-r4" x="1451.8" y="532.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-21)">│</text><text class="terminal-1998463419-r2" x="1464" y="532.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-21)">
+</text><text class="terminal-1998463419-r4" x="0" y="556.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-22)">│</text><text class="terminal-1998463419-r5" x="24.4" y="556.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-22)">-</text><text class="terminal-1998463419-r5" x="36.6" y="556.8" textLength="48.8" clip-path="url(#terminal-1998463419-line-22)">-dry</text><text class="terminal-1998463419-r5" x="85.4" y="556.8" textLength="48.8" clip-path="url(#terminal-1998463419-line-22)">-run</text><text class="terminal-1998463419-r6" x="280.6" y="556.8" textLength="24.4" clip-path="url(#terminal-1998463419-line-22)">-D</text><text class="terminal-1998463419-r2" x="329.4" y="556.8" textLength="719.8" clip-path="url(#terminal-1998463419-line-22)">If&#160;dry-run&#160;is&#160;set,&#160;commands&#160;are&#160;only&#160;printed,&#160;not&#160;executed.</text><text class="terminal-1998463419-r4" x="1451.8" y="556.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-22)">│</text><text class="terminal-1998463419-r2" x="1464" y="556.8" textLength="12.2" clip-path="url(#terminal-1998463419-line-22)">
+</text><text class="terminal-1998463419-r4" x="0" y="581.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-23)">│</text><text class="terminal-1998463419-r5" x="24.4" y="581.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-23)">-</text><text class="terminal-1998463419-r5" x="36.6" y="581.2" textLength="85.4" clip-path="url(#terminal-1998463419-line-23)">-github</text><text class="terminal-1998463419-r5" x="122" y="581.2" textLength="134.2" clip-path="url(#terminal-1998463419-line-23)">-repository</text><text class="terminal-1998463419-r6" x="280.6" y="581.2" textLength="24.4" clip-path="url(#terminal-1998463419-line-23)">-g</text><text class="terminal-1998463419-r2" x="329.4" y="581.2" textLength="585.6" clip-path="url(#terminal-1998463419-line-23)">GitHub&#160;repository&#160;used&#160;to&#160;pull,&#160;push&#160;run&#160;images.</text><text class="terminal-1998463419-r7" x="927.2" y="581.2" textLength="73.2" clip-path="url(#terminal-1998463419-line-23)">(TEXT)</text><text class="terminal-1998463419-r4" x="1012.6" y="581.2" textLength="305" clip-path="url(#terminal-1998463419-line-23)">[default:&#160;apache/airflow]</text><text class="terminal-1998463419-r4" x="1451.8" y="581.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-23)">│</text><text class="terminal-1998463419-r2" x="1464" y="581.2" textLength="12.2" clip-path="url(#terminal-1998463419-line-23)">
+</text><text class="terminal-1998463419-r4" x="0" y="605.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-24)">│</text><text class="terminal-1998463419-r5" x="24.4" y="605.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-24)">-</text><text class="terminal-1998463419-r5" x="36.6" y="605.6" textLength="85.4" clip-path="url(#terminal-1998463419-line-24)">-answer</text><text class="terminal-1998463419-r6" x="280.6" y="605.6" textLength="24.4" clip-path="url(#terminal-1998463419-line-24)">-a</text><text class="terminal-1998463419-r2" x="329.4" y="605.6" textLength="317.2" clip-path="url(#terminal-1998463419-line-24)">Force&#160;answer&#160;to&#160;questions.</text><text class="terminal-1998463419-r7" x="658.8" y="605.6" textLength="353.8" clip-path="url(#terminal-1998463419-line-24)">(y&#160;|&#160;n&#160;|&#160;q&#160;|&#160;yes&#160;|&#160;no&#160;|&#160;quit)</text><text class="terminal-1998463419-r4" x="1451.8" y="605.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-24)">│</text><text class="terminal-1998463419-r2" x="1464" y="605.6" textLength="12.2" clip-path="url(#terminal-1998463419-line-24)">
+</text><text class="terminal-1998463419-r4" x="0" y="630" textLength="12.2" clip-path="url(#terminal-1998463419-line-25)">│</text><text class="terminal-1998463419-r5" x="24.4" y="630" textLength="12.2" clip-path="url(#terminal-1998463419-line-25)">-</text><text class="terminal-1998463419-r5" x="36.6" y="630" textLength="61" clip-path="url(#terminal-1998463419-line-25)">-help</text><text class="terminal-1998463419-r6" x="280.6" y="630" textLength="24.4" clip-path="url(#terminal-1998463419-line-25)">-h</text><text class="terminal-1998463419-r2" x="329.4" y="630" textLength="329.4" clip-path="url(#terminal-1998463419-line-25)">Show&#160;this&#160;message&#160;and&#160;exit.</text><text class="terminal-1998463419-r4" x="1451.8" y="630" textLength="12.2" clip-path="url(#terminal-1998463419-line-25)">│</text><text class="terminal-1998463419-r2" x="1464" y="630" textLength="12.2" clip-path="url(#terminal-1998463419-line-25)">
+</text><text class="terminal-1998463419-r4" x="0" y="654.4" textLength="1464" clip-path="url(#terminal-1998463419-line-26)">╰──────────────────────────────────────────────────────────────────────────────────────────────────────────────────────╯</text><text class="terminal-1998463419-r2" x="1464" y="654.4" textLength="12.2" clip-path="url(#terminal-1998463419-line-26)">
 </text>
     </g>
     </g>
