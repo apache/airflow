@@ -414,7 +414,8 @@ class TestPodGenerator:
                         name='', resources=k8s.V1ResourceRequirements(limits={'cpu': '1m', 'memory': '1G'})
                     )
                 ]
-            )
+            ),
+            metadata=k8s.V1ObjectMeta(namespace='overridden_namespace'),
         )
 
         result = PodGenerator.construct_pod(
@@ -435,7 +436,7 @@ class TestPodGenerator:
         expected.metadata.labels['app'] = 'myapp'
         expected.metadata.annotations = self.annotations
         expected.metadata.name = 'pod_id-' + self.static_uuid.hex
-        expected.metadata.namespace = 'test_namespace'
+        expected.metadata.namespace = 'overridden_namespace'
         expected.spec.containers[0].args = ['command']
         expected.spec.containers[0].image = expected_image
         expected.spec.containers[0].resources = {'limits': {'cpu': '1m', 'memory': '1G'}}
