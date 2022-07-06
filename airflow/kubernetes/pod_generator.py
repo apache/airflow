@@ -335,10 +335,6 @@ class PodGenerator:
             - airflow.cfg
             - executor_config
             - dynamic arguments
-
-        If a user provides a `pod_override_object`, that pod should only be able to
-        override the image and namespace, and not arbitrary labels / annotations of
-        the dynamic_pod.
         """
         try:
             image = pod_override_object.spec.containers[0].image  # type: ignore
@@ -346,12 +342,6 @@ class PodGenerator:
                 image = kube_image
         except Exception:
             image = kube_image
-        try:
-            final_namespace = pod_override_object.metadata.namespace  # type: ignore
-            if not final_namespace:
-                final_namespace = namespace
-        except Exception:
-            final_namespace = namespace
 
         annotations = {
             'dag_id': dag_id,
@@ -378,7 +368,7 @@ class PodGenerator:
 
         dynamic_pod = k8s.V1Pod(
             metadata=k8s.V1ObjectMeta(
-                namespace=final_namespace,
+                namespace=namespace,
                 annotations=annotations,
                 name=PodGenerator.make_unique_pod_id(pod_id),
                 labels=labels,
@@ -396,7 +386,7 @@ class PodGenerator:
         )
 
         # Reconcile the pods starting with the first chronologically,
-        # Pod from the pod_template_file -> Pod from executor_config arg -> Pod from dynamic arguments
+        # Pod from the pod_template_File -> Pod from executor_config arg -> Pod from the K8s executor
         pod_list = [base_worker_pod, pod_override_object, dynamic_pod]
 
         try:
