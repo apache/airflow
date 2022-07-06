@@ -16,13 +16,12 @@
     specific language governing permissions and limitations
     under the License.
 
-Operators and Hooks Reference
-=============================
 
-Here is a list of operators and hooks that are released independently of the Airflow core. A list of core operators is available in the documentation for ``apache-airflow``: :doc:`Core Operators and Hooks Reference <apache-airflow:operators-and-hooks-ref>`.
+Package apache-airflow-providers-tabular
+------------------------------------------------------
 
-.. toctree::
-    :maxdepth: 3
-    :glob:
+`Tabular <https://tabular.io/>`__
 
-    *
+
+This is detailed commit list of changes for versions provider package: ``tabular``.
+For high-level changelog, see :doc:`package information including changelog <index>`.

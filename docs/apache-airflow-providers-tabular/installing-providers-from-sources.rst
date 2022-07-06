@@ -1,4 +1,3 @@
-
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -16,13 +15,4 @@
     specific language governing permissions and limitations
     under the License.
 
-Operators and Hooks Reference
-=============================
-
-Here is a list of operators and hooks that are released independently of the Airflow core. A list of core operators is available in the documentation for ``apache-airflow``: :doc:`Core Operators and Hooks Reference <apache-airflow:operators-and-hooks-ref>`.
-
-.. toctree::
-    :maxdepth: 3
-    :glob:
-
-    *
+.. include:: ../installing-providers-from-sources.rst
