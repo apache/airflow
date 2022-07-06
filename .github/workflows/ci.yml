@@ -1605,6 +1605,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
     runs-on: ${{ fromJson(needs.build-info.outputs.runs-on) }}
     needs:
       - build-info
+      - docs
       - wait-for-ci-images
       - wait-for-prod-images
       - static-checks
