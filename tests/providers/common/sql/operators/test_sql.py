@@ -19,7 +19,7 @@
 import pytest
 
 from airflow.exceptions import AirflowException
-from airflow.providers.core.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
+from airflow.providers.common.sql.operators.sql import SQLColumnCheckOperator, SQLTableCheckOperator
 
 
 class MockHook:

@@ -15,8 +15,8 @@
     specific language governing permissions and limitations
     under the License.
 
-``apache-airflow-providers-core-sql``
-============================================
+``apache-airflow-providers-common-sql``
+=======================================
 
 Content
 -------
@@ -32,14 +32,20 @@ Content
     :maxdepth: 1
     :caption: References
 
-    Python API <_api/airflow/providers/core/sql/index>
+    Python API <_api/airflow/providers/common/sql/index>
+
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/common/sql/index>
 
 .. toctree::
     :maxdepth: 1
     :caption: Resources
 
-    Example DAGs <https://github.com/apache/airflow/tree/main/airflow/providers/core/sql/example_dags>
-    PyPI Repository <https://pypi.org/project/apache-airflow-providers-core-sql/>
+    Example DAGs <https://github.com/apache/airflow/tree/providers-common-sql/1.0.0/tests/system/providers/common/sql>
+    PyPI Repository <https://pypi.org/project/apache-airflow-providers-common-sql/>
     Installing from sources <installing-providers-from-sources>
 
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
@@ -50,5 +56,5 @@ Content
     Detailed list of commits <commits>
 
 
-Package apache-airflow-providers-core-sql
-------------------------------------------------------
+Package apache-airflow-providers-common-sql
+-------------------------------------------

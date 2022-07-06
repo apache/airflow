@@ -23,7 +23,8 @@ import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.models.dag import DAG
-from airflow.sensors.sql import DbApiHook, SqlSensor
+from airflow.providers.common.sql.hooks.sql import DbApiHook
+from airflow.providers.common.sql.sensors.sql import SqlSensor
 from airflow.utils.timezone import datetime
 from tests.providers.apache.hive import TestHiveEnvironment
 
@@ -86,7 +87,7 @@ class TestSqlSensor(TestHiveEnvironment):
         )
         op2.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check',
@@ -118,7 +119,7 @@ class TestSqlSensor(TestHiveEnvironment):
         mock_get_records.return_value = [['1']]
         assert op.poke(None)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke_fail_on_empty(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check', conn_id='postgres_default', sql="SELECT 1", fail_on_empty=True
@@ -131,7 +132,7 @@ class TestSqlSensor(TestHiveEnvironment):
         with pytest.raises(AirflowException):
             op.poke(None)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke_success(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check', conn_id='postgres_default', sql="SELECT 1", success=lambda x: x in [1]
@@ -149,7 +150,7 @@ class TestSqlSensor(TestHiveEnvironment):
         mock_get_records.return_value = [['1']]
         assert not op.poke(None)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke_failure(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check', conn_id='postgres_default', sql="SELECT 1", failure=lambda x: x in [1]
@@ -165,7 +166,7 @@ class TestSqlSensor(TestHiveEnvironment):
         with pytest.raises(AirflowException):
             op.poke(None)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke_failure_success(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check',
@@ -188,7 +189,7 @@ class TestSqlSensor(TestHiveEnvironment):
         mock_get_records.return_value = [[2]]
         assert op.poke(None)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke_failure_success_same(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check',
@@ -208,7 +209,7 @@ class TestSqlSensor(TestHiveEnvironment):
         with pytest.raises(AirflowException):
             op.poke(None)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke_invalid_failure(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check',
@@ -225,7 +226,7 @@ class TestSqlSensor(TestHiveEnvironment):
             op.poke(None)
         assert "self.failure is present, but not callable -> [1]" == str(ctx.value)
 
-    @mock.patch('airflow.sensors.sql.BaseHook')
+    @mock.patch('airflow.providers.common.sql.sensors.sql.BaseHook')
     def test_sql_sensor_postgres_poke_invalid_success(self, mock_hook):
         op = SqlSensor(
             task_id='sql_sensor_check',
