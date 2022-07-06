@@ -341,6 +341,24 @@ class TestGoogleBaseHook(unittest.TestCase):
         )
         assert ('CREDENTIALS', 'PROJECT_ID') == result
 
+    @mock.patch('requests.post')
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
+    def test_connection_success(self, mock_get_creds_and_proj_id, requests_post):
+        requests_post.return_value.status_code = 200
+        credentials = mock.MagicMock()
+        type(credentials).token = mock.PropertyMock(return_value="TOKEN")
+        mock_get_creds_and_proj_id.return_value = (credentials, "PROJECT_ID")
+        self.instance.extras = {}
+        result = self.instance.test_connection()
+        assert result == (True, 'Connection successfully tested')
+
+    @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
+    def test_connection_failure(self, mock_get_creds_and_proj_id):
+        mock_get_creds_and_proj_id.side_effect = AirflowException('Invalid key JSON.')
+        self.instance.extras = {}
+        result = self.instance.test_connection()
+        assert result == (False, 'Invalid key JSON.')
+
     @mock.patch(MODULE_NAME + '.get_credentials_and_project_id')
     def test_get_credentials_and_project_id_with_service_account_file(self, mock_get_creds_and_proj_id):
         mock_credentials = mock.MagicMock()

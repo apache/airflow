@@ -31,6 +31,7 @@ import google.auth
 import google.auth.credentials
 import google.oauth2.service_account
 import google_auth_httplib2
+import requests
 import tenacity
 from google.api_core.exceptions import Forbidden, ResourceExhausted, TooManyRequests
 from google.api_core.gapic_v1.client_info import ClientInfo
@@ -270,7 +271,12 @@ class GoogleBaseHook(BaseHook):
 
     def _get_access_token(self) -> str:
         """Returns a valid access token from Google API Credentials"""
-        return self._get_credentials().token
+        credentials = self._get_credentials()
+        auth_req = google.auth.transport.requests.Request()
+        # credentials.token is None
+        # Need to refresh credentials to populate the token
+        credentials.refresh(auth_req)
+        return credentials.token
 
     @functools.lru_cache(maxsize=None)
     def _get_credentials_email(self) -> str:
@@ -580,3 +586,19 @@ class GoogleBaseHook(BaseHook):
         while done is False:
             _, done = downloader.next_chunk()
         file_handle.flush()
+
+    def test_connection(self):
+        """Test the Google cloud connectivity from UI"""
+        status, message = False, ''
+        try:
+            token = self._get_access_token()
+            url = f"https://www.googleapis.com/oauth2/v3/tokeninfo?access_token={token}"
+            response = requests.post(url)
+            if response.status_code == 200:
+                status = True
+                message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message
