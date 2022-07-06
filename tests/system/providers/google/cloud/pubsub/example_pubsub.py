@@ -36,7 +36,7 @@ from airflow.providers.google.cloud.sensors.pubsub import PubSubPullSensor
 from airflow.utils.trigger_rule import TriggerRule
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
-PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT", "your-project-id")
 
 DAG_ID = "pubsub"
 
@@ -121,9 +121,7 @@ with models.DAG(
     unsubscribe_task.trigger_rule = TriggerRule.ALL_DONE
 
     # [START howto_operator_gcp_pubsub_delete_topic]
-    delete_topic = PubSubDeleteTopicOperator(
-        task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID
-    )
+    delete_topic = PubSubDeleteTopicOperator(task_id="delete_topic", topic=TOPIC_ID, project_id=PROJECT_ID)
     # [END howto_operator_gcp_pubsub_delete_topic]
     delete_topic.trigger_rule = TriggerRule.ALL_DONE
 
