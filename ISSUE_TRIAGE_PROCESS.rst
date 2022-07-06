@@ -44,16 +44,16 @@ to indicate the following elements:
 
 **Kind**
 
-The “kind” labels indicate “what kind of issue it is”. The most
-commonly used “kind” labels are: bug, feature, documentation, or task.
+The "kind" labels indicate "what kind of issue it is". The most
+commonly used "kind" labels are: bug, feature, documentation, or task.
 
 Therefore, when reporting an issue, the label of ``kind:bug`` is to
 indicate a problem with the functionality, whereas the label of
 ``kind:feature`` is a desire to extend the functionality.
 
 There has been discussion within the project about whether to separate
-the desire for “new features” from “enhancements to existing features”,
-but in practice most “feature requests” are actually enhancement requests,
+the desire for "new features" from "enhancements to existing features",
+but in practice most "feature requests" are actually enhancement requests,
 so we decided to combine them both into ``kind:feature``.
 
 The ``kind:task`` is used to categorize issues which are
@@ -67,7 +67,7 @@ made to the documentation within the project.
 
 **Area**
 
-The “area” set of labels should indicate the component of the code
+The "area" set of labels should indicate the component of the code
 referenced by the issue. At a high level, the biggest areas of the project
 are: Airflow Core and Airflow Providers, which are referenced by ``area:core``
 and ``area:providers``. This is especially important since these are now
@@ -75,7 +75,7 @@ being released and versioned independently.
 
 There are more detailed areas of the Core Airflow project such as Scheduler, Webserver,
 API, UI, Logging, and Kubernetes, which are all conceptually under the
-“Airflow Core” area of the project.
+"Airflow Core" area of the project.
 
 Similarly within Airflow Providers, the larger providers such as Apache, AWS, Azure,
 and Google who have many hooks and operators within them, have labels directly
@@ -116,7 +116,7 @@ Therefore, the priority labels used are:
 
 It's important to use priority labels effectively so we can triage incoming issues
 appropriately and make sure that when we release a new version of Airflow,
-we can ship a release confident that there are no “production blocker” issues in it.
+we can ship a release confident that there are no "production blocker" issues in it.
 
 This applies to both Core Airflow as well as the Airflow Providers. With the separation
 of the Providers release from Core Airflow, a ``priority:critical`` bug in a single
@@ -175,13 +175,13 @@ Ideally, these issues only require one or two files to be changed. The intention
 here is that incremental changes to existing files are a lot easier for a new
 contributor as compared to adding something completely new.
 
-Another possibility here is to add “how to fix” in the comments of such issues, so
+Another possibility here is to add "how to fix" in the comments of such issues, so
 that new contributors have a running start when then pick up these issues.
 
 
 **Timeliness**
 
-For the sake of quick responses, the general “soft" rule within the Airflow project
+For the sake of quick responses, the general "soft" rule within the Airflow project
 is that if there is no assignee, anyone can take an issue to solve.
 
 However, this depends on timely resolution of the issue by the assignee. The
@@ -203,6 +203,6 @@ At times issues are marked as invalid and later closed because of one of the
 following situations:
 
 * The issue is a duplicate of an already reported issue. In such cases, the latter issue is marked as ``duplicate``.
-* Despite attempts to reproduce the issue to resolve it, the issue cannot be reproduced by the Airflow team based on the given information. In such cases, the issue is marked as ``Can’t Reproduce``.
+* Despite attempts to reproduce the issue to resolve it, the issue cannot be reproduced by the Airflow team based on the given information. In such cases, the issue is marked as ``Can't Reproduce``.
 * In some cases, the original creator realizes that the issue was incorrectly reported and then marks it as ``invalid``. Also, a committer could mark it as ``invalid`` if the issue being reported is for an unsupported operation or environment.
 * In some cases, the issue may be legitimate, but may not be addressed in the short to medium term based on current project priorities or because this will be irrelevant because of an upcoming change. The committer could mark this as ``wontfix`` to set expectations that it won't be directly addressed in the near term.

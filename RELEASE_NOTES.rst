@@ -157,7 +157,7 @@ Continuing the effort to bind TaskInstance to a DagRun, XCom entries are now als
 Task log templates are now read from the metadata database instead of ``airflow.cfg`` (#20165)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-Previously, a task’s log is dynamically rendered from the ``[core] log_filename_template`` and ``[elasticsearch] log_id_template`` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
+Previously, a task's log is dynamically rendered from the ``[core] log_filename_template`` and ``[elasticsearch] log_id_template`` config values at runtime. This resulted in unfortunate characteristics, e.g. it is impractical to modify the config value after an Airflow instance is running for a while, since all existing task logs have be saved under the previous format and cannot be found with the new config value.
 
 A new ``log_template`` table is introduced to solve this problem. This table is synchronized with the aforementioned config values every time Airflow starts, and a new field ``log_template_id`` is added to every DAG run to point to the format used by tasks (``NULL`` indicates the first ever entry for compatibility).
 
@@ -174,9 +174,9 @@ No change in behavior is expected.  This was necessary in order to take advantag
 XCom now defined by ``run_id`` instead of ``execution_date`` (#20975)
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-As a continuation to the TaskInstance-DagRun relation change started in Airflow 2.2, the ``execution_date`` columns on XCom has been removed from the database, and replaced by an `association proxy <https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html>`_ field at the ORM level. If you access Airflow’s metadata database directly, you should rewrite the implementation to use the ``run_id`` column instead.
+As a continuation to the TaskInstance-DagRun relation change started in Airflow 2.2, the ``execution_date`` columns on XCom has been removed from the database, and replaced by an `association proxy <https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html>`_ field at the ORM level. If you access Airflow's metadata database directly, you should rewrite the implementation to use the ``run_id`` column instead.
 
-Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
+Note that Airflow's metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
 
 Non-JSON-serializable params deprecated (#21135).
 """""""""""""""""""""""""""""""""""""""""""""""""
@@ -224,7 +224,7 @@ This setting is also used for the deprecated experimental API, which only uses t
 ``airflow.models.base.Operator`` is removed (#21505)
 """"""""""""""""""""""""""""""""""""""""""""""""""""
 
-Previously, there was an empty class ``airflow.models.base.Operator`` for “type hinting”. This class was never really useful for anything (everything it did could be done better with ``airflow.models.baseoperator.BaseOperator``), and has been removed. If you are relying on the class’s existence, use ``BaseOperator`` (for concrete operators), ``airflow.models.abstractoperator.AbstractOperator`` (the base class of both ``BaseOperator`` and the AIP-42 ``MappedOperator``), or ``airflow.models.operator.Operator`` (a union type ``BaseOperator | MappedOperator`` for type annotation).
+Previously, there was an empty class ``airflow.models.base.Operator`` for "type hinting". This class was never really useful for anything (everything it did could be done better with ``airflow.models.baseoperator.BaseOperator``), and has been removed. If you are relying on the class's existence, use ``BaseOperator`` (for concrete operators), ``airflow.models.abstractoperator.AbstractOperator`` (the base class of both ``BaseOperator`` and the AIP-42 ``MappedOperator``), or ``airflow.models.operator.Operator`` (a union type ``BaseOperator | MappedOperator`` for type annotation).
 
 Zip files in the DAGs folder can no longer have a ``.py`` extension (#21538)
 """"""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
@@ -1235,9 +1235,9 @@ As part of this change the ``clean_tis_without_dagrun_interval`` config option u
 TaskInstance and TaskReschedule now define ``run_id`` instead of ``execution_date``
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-As a part of the TaskInstance-DagRun relation change, the ``execution_date`` columns on TaskInstance and TaskReschedule have been removed from the database, and replaced by `association proxy <https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html>`_ fields at the ORM level. If you access Airflow’s metadatabase directly, you should rewrite the implementation to use the ``run_id`` columns instead.
+As a part of the TaskInstance-DagRun relation change, the ``execution_date`` columns on TaskInstance and TaskReschedule have been removed from the database, and replaced by `association proxy <https://docs.sqlalchemy.org/en/13/orm/extensions/associationproxy.html>`_ fields at the ORM level. If you access Airflow's metadatabase directly, you should rewrite the implementation to use the ``run_id`` columns instead.
 
-Note that Airflow’s metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
+Note that Airflow's metadatabase definition on both the database and ORM levels are considered implementation detail without strict backward compatibility guarantees.
 
 DaskExecutor - Dask Worker Resources and queues
 """""""""""""""""""""""""""""""""""""""""""""""
@@ -1247,9 +1247,9 @@ If dask workers are not started with complementary resources to match the specif
 Logical date of a DAG run triggered from the web UI now have its sub-second component set to zero
 """""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""""
 
-Due to a change in how the logical date (``execution_date``) is generated for a manual DAG run, a manual DAG run’s logical date may not match its time-of-trigger, but have its sub-second part zero-ed out. For example, a DAG run triggered on ``2021-10-11T12:34:56.78901`` would have its logical date set to ``2021-10-11T12:34:56.00000``.
+Due to a change in how the logical date (``execution_date``) is generated for a manual DAG run, a manual DAG run's logical date may not match its time-of-trigger, but have its sub-second part zero-ed out. For example, a DAG run triggered on ``2021-10-11T12:34:56.78901`` would have its logical date set to ``2021-10-11T12:34:56.00000``.
 
-This may affect some logic that expects on this quirk to detect whether a run is triggered manually or not. Note that ``dag_run.run_type`` is a more authoritative value for this purpose. Also, if you need this distinction between automated and manually-triggered run for “next execution date” calculation, please also consider using the new data interval variables instead, which provide a more consistent behavior between the two run types.
+This may affect some logic that expects on this quirk to detect whether a run is triggered manually or not. Note that ``dag_run.run_type`` is a more authoritative value for this purpose. Also, if you need this distinction between automated and manually-triggered run for "next execution date" calculation, please also consider using the new data interval variables instead, which provide a more consistent behavior between the two run types.
 
 New Features
 ^^^^^^^^^^^^
@@ -8755,14 +8755,14 @@ A logger is the entry point into the logging system. Each logger is a named buck
 
 Each message that is written to the logger is a Log Record. Each log record contains a log level indicating the severity of that specific message. A log record can also contain useful metadata that describes the event that is being logged. This can include details such as a stack trace or an error code.
 
-When a message is given to the logger, the log level of the message is compared to the log level of the logger. If the log level of the message meets or exceeds the log level of the logger itself, the message will undergo further processing. If it doesn’t, the message will be ignored.
+When a message is given to the logger, the log level of the message is compared to the log level of the logger. If the log level of the message meets or exceeds the log level of the logger itself, the message will undergo further processing. If it doesn't, the message will be ignored.
 
 Once a logger has determined that a message needs to be processed, it is passed to a Handler. This configuration is now more flexible and can be easily be maintained in a single file.
 
 Changes in Airflow Logging
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-Airflow's logging mechanism has been refactored to use Python’s built-in ``logging`` module to perform logging of the application. By extending classes with the existing ``LoggingMixin``\ , all the logging will go through a central logger. Also the ``BaseHook`` and ``BaseOperator`` already extend this class, so it is easily available to do logging.
+Airflow's logging mechanism has been refactored to use Python's built-in ``logging`` module to perform logging of the application. By extending classes with the existing ``LoggingMixin``\ , all the logging will go through a central logger. Also the ``BaseHook`` and ``BaseOperator`` already extend this class, so it is easily available to do logging.
 
 The main benefit is easier configuration of the logging by setting a single centralized python file. Disclaimer; there is still some inline configuration, but this will be removed eventually. The new logging class is defined by setting the dotted classpath in your ``~/airflow/airflow.cfg`` file:
 
