@@ -1508,6 +1508,8 @@ def upgradedb(
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
         if not to_revision and not _get_current_revision(session=session):
+            # Don't load default connections
+            os.environ['AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS'] = 'False'
             # New DB; initialize and exit
             initdb(session=session)
             return
