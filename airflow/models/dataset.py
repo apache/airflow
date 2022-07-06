@@ -17,7 +17,7 @@
 # under the License.
 from urllib.parse import urlparse
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import ID_LEN, Base, StringID
@@ -197,5 +197,56 @@ class DatasetDagRunQueue(Base):
     def __repr__(self):
         args = []
         for attr in [x.name for x in self.__mapper__.primary_key]:
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class DatasetEvent(Base):
+    """
+    A table to store datasets events.
+
+    :param dataset_id: reference to Dataset record
+    :param extra: JSON field for arbitrary extra info
+    :param source_task_id: the task_id of the TI which updated the dataset
+    :param source_dag_id: the dag_id of the TI which updated the dataset
+    :param source_run_id: the run_id of the TI which updated the dataset
+    :param source_map_index: the map_index of the TI which updated the dataset
+    """
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dataset_id = Column(Integer, nullable=False)
+    extra = Column(ExtendedJSON, nullable=True)
+    source_task_id = Column(StringID(), nullable=True)
+    source_dag_id = Column(StringID(), nullable=True)
+    source_run_id = Column(StringID(), nullable=True)
+    source_map_index = Column(Integer, nullable=True, server_default=text("-1"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "dataset_event"
+    __table_args__ = (
+        ForeignKeyConstraint((dataset_id,), ["dataset.id"], name='datasetevent_dataset_fkey'),
+        Index('idx_dataset_id_created_at', dataset_id, created_at, mssql_clustered=True),
+        {'sqlite_autoincrement': True},  # ensures PK values not reused
+    )
+
+    def __eq__(self, other):
+        if isinstance(other, self.__class__):
+            return self.dataset_id == other.dataset_id and self.created_at == other.created_at
+        else:
+            return NotImplemented
+
+    def __hash__(self):
+        return hash((self.dataset_id, self.created_at))
+
+    def __repr__(self):
+        args = []
+        for attr in [
+            'dataset_id',
+            'extra',
+            'source_task_id',
+            'source_dag_id',
+            'source_run_id',
+            'source_map_index',
+        ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
