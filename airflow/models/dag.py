@@ -423,7 +423,7 @@ class DAG(LoggingMixin):
         scheduling_args = [schedule_interval, timetable, schedule_on]
         if not at_most_one(*scheduling_args):
             raise ValueError(
-                f"At most one allowed for args 'schedule_interval', 'timetable', and 'schedule_on'."
+                "At most one allowed for args 'schedule_interval', 'timetable', and 'schedule_on'."
             )
 
         self.timetable: Timetable

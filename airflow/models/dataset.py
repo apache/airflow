@@ -20,8 +20,7 @@ from urllib.parse import urlparse
 from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String
 from sqlalchemy.orm import relationship
 
-from airflow.models import ID_LEN, Base
-from airflow.models.base import Base, StringID
+from airflow.models.base import ID_LEN, Base, StringID
 from airflow.utils import timezone
 from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime
 
