@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import logging
 import uuid
 from datetime import date, datetime, timedelta
@@ -994,3 +995,15 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     assert op.value == "{{ ds }}", "Should not be templated!"
     assert op.arg1 == "{{ ds }}"
     assert op.arg2 == "a"
+
+
+def test_deepcopy():
+    # Test bug when copying an operator attached to a DAG
+    with DAG("dag0", start_date=DEFAULT_DATE) as dag:
+
+        @dag.task
+        def task0():
+            pass
+
+        MockOperator(task_id="task1", arg1=task0())
+    copy.deepcopy(dag)
