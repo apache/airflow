@@ -117,7 +117,7 @@ class TestExternalTaskSensor(unittest.TestCase):
             )
         assert (
             str(ctx.value) == "Values for `external_task_group_id` and `external_task_id` or "
-                              "`external_task_ids` can't be set at the same time"
+            "`external_task_ids` can't be set at the same time"
         )
 
     # by default i.e. check_existence=False, if task_group doesn't exist, the sensor will run till timeout,
@@ -158,8 +158,10 @@ class TestExternalTaskSensor(unittest.TestCase):
             failed_states=[State.FAILED],
             dag=self.dag,
         )
-        with pytest.raises(AirflowException, match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG "
-                                                   f"'{TEST_DAG_ID}' failed."):
+        with pytest.raises(
+            AirflowException,
+            match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG '{TEST_DAG_ID}' failed.",
+        ):
             op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_catch_overlap_allowed_failed_state(self):
