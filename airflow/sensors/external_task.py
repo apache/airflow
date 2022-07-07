@@ -153,18 +153,19 @@ class ExternalTaskSensor(BaseSensorOperator):
                 "can't be set at the same time"
             )
 
-        if external_task_ids:
+        if external_task_ids or external_task_group_id:
             if not total_states <= set(State.task_states):
                 raise ValueError(
                     f'Valid values for `allowed_states` and `failed_states` '
-                    f'when `external_task_id` or `external_task_ids` is not `None`: {State.task_states}'
+                    f'when `external_task_id` or `external_task_ids` or `external_task_group_id` '
+                    f'is not `None`: {State.task_states}'
                 )
-            if len(external_task_ids) > len(set(external_task_ids)):
+            if external_task_ids and len(external_task_ids) > len(set(external_task_ids)):
                 raise ValueError('Duplicate task_ids passed in external_task_ids parameter')
         elif not total_states <= set(State.dag_states):
             raise ValueError(
                 f'Valid values for `allowed_states` and `failed_states` '
-                f'when `external_task_id` is `None`: {State.dag_states}'
+                f'when `external_task_id` and `external_task_group_id` is `None`: {State.dag_states}'
             )
 
         if execution_delta is not None and execution_date_fn is not None:
