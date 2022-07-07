@@ -16,6 +16,7 @@
 # under the License.
 
 """Serve logs process"""
+import collections
 import logging
 import os
 
@@ -108,6 +109,9 @@ def create_app():
     return flask_app
 
 
+GunicornOption = collections.namedtuple("GunicornOption", ["key", "value"])
+
+
 class StandaloneGunicornApplication(gunicorn.app.base.BaseApplication):
     """
     Standalone Gunicorn application/serve for usage with any WSGI-application.
@@ -120,13 +124,13 @@ class StandaloneGunicornApplication(gunicorn.app.base.BaseApplication):
     """
 
     def __init__(self, app, options=None):
-        self.options = options or {}
+        self.options = options or []
         self.application = app
         super().__init__()
 
     def load_config(self):
-        for key, value in self.options.items():
-            self.cfg.set(key.lower(), value)
+        for option in self.options:
+            self.cfg.set(option.key.lower(), option.value)
 
     def load(self):
         return self.application
@@ -138,10 +142,14 @@ def serve_logs():
     wsgi_app = create_app()
 
     worker_log_server_port = conf.getint('logging', 'WORKER_LOG_SERVER_PORT')
-    options = {
-        'bind': f"0.0.0.0:{worker_log_server_port}",
-        'workers': 2,
-    }
+
+    # Make sure to have both an IPv4 and an IPv6 interface.
+    # Gunicorn can bind multiple addresses, see https://docs.gunicorn.org/en/stable/settings.html#bind.
+    options = [
+        GunicornOption("bind", f"0.0.0.0:{worker_log_server_port}"),
+        GunicornOption("bind", f"[::]:{worker_log_server_port}"),
+        GunicornOption("workers", 2),
+    ]
     StandaloneGunicornApplication(wsgi_app, options).run()
 
 
