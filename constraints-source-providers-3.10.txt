@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-07T12:21:25Z
+# This constraints file was automatically generated on 2022-07-07T17:05:05Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -200,7 +200,7 @@ google-cloud-kms==2.11.2
 google-cloud-language==1.3.2
 google-cloud-logging==3.1.2
 google-cloud-memcache==1.4.0
-google-cloud-monitoring==2.9.2
+google-cloud-monitoring==2.10.0
 google-cloud-orchestration-airflow==1.3.2
 google-cloud-os-login==2.6.2
 google-cloud-pubsub==2.13.0
@@ -263,7 +263,7 @@ jsonpointer==2.3
 jsonschema==3.2.0
 junit-xml==1.9
 jupyter-client==7.3.4
-jupyter-core==4.10.0
+jupyter-core==4.11.0
 keyring==23.6.0
 kombu==5.2.4
 krb5==0.3.0
@@ -285,7 +285,7 @@ matplotlib-inline==0.1.3
 mccabe==0.6.1
 mdit-py-plugins==0.3.0
 mdurl==0.1.1
-mongomock==4.0.0
+mongomock==4.1.2
 monotonic==1.6
 more-itertools==8.13.0
 moreorless==0.4.0
@@ -517,7 +517,7 @@ uamqp==1.5.3
 uc-micro-py==1.0.1
 unicodecsv==0.14.1
 uritemplate==3.0.1
-urllib3==1.26.9
+urllib3==1.26.10
 userpath==1.8.0
 vertica-python==1.1.0
 vine==5.0.0
