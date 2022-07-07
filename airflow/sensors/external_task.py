@@ -237,12 +237,12 @@ class ExternalTaskSensor(BaseSensorOperator):
             elif self.external_task_group_id:
                 if self.soft_fail:
                     raise AirflowSkipException(
-                        f"The external task_group '{self.external_task_group_id}'"
+                        f"The external task_group '{self.external_task_group_id}' "
                         f"in DAG '{self.external_dag_id}' failed. Skipping due to soft_fail."
                     )
                 raise AirflowException(
-                    f"The external task_group '{self.external_task_group_id}'"
-                    f"in DAG '{self.external_dag_id}' failed.'"
+                    f"The external task_group '{self.external_task_group_id}' "
+                    f"in DAG '{self.external_dag_id}' failed."
                 )
 
             else:
