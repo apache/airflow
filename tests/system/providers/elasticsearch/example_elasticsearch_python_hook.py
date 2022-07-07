@@ -23,7 +23,7 @@ from datetime import datetime
 
 from airflow import models
 from airflow.operators.python import PythonOperator
-from airflow.providers.elasticsearch.hooks.elasticsearch_python import ElasticsearchPythonHook
+from airflow.providers.elasticsearch.hooks.elasticsearch import ElasticsearchPythonHook
 
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = 'elasticsearch_python_dag'
@@ -40,8 +40,6 @@ def use_elasticsearch_hook():
     result = es_hook.search(query=query)
     print(result)
     return True
-
-
 # [END howto_elasticsearch_python_hook]
 
 

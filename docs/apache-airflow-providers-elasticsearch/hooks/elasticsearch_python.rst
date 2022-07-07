@@ -16,7 +16,7 @@ specific language governing permissions and limitations
 under the License.
 
 
-ElasticSearchPythonHook Hook
+ElasticsearchPythonHook
 ========================
 
 Elasticsearch Hook that is using the native Python client to communicate with Elasticsearch
@@ -29,3 +29,18 @@ Usage Example
     :dedent: 4
     :start-after: [START howto_elasticsearch_python_hook]
     :end-before: [END howto_elasticsearch_python_hook]
+
+ElasticsearchSQLHook
+========================
+
+Elasticsearch Hook that interact with Elasticsearch through the elasticsearch-dbapi
+
+Usage Example
+---------------------
+
+.. exampleinclude:: /../../tests/system/providers/elasticsearch/example_elasticsearch_query.py
+    :language: python
+    :dedent: 4
+    :start-after: [START howto_elasticsearch_query]
+    :end-before: [END howto_elasticsearch_query]
+
