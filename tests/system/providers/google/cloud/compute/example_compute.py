@@ -39,6 +39,7 @@ from airflow.utils.trigger_rule import TriggerRule
 ENV_ID = os.environ.get('SYSTEM_TESTS_ENV_ID')
 PROJECT_ID = os.environ.get('SYSTEM_TESTS_GCP_PROJECT')
 
+# todo: add operator create instance and template
 GCE_INSTANCE = 'instance-1'
 SHORT_MACHINE_TYPE_NAME = 'n1-standard-1'
 

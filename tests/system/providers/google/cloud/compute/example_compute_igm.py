@@ -21,21 +21,6 @@ Example Airflow DAG that:
 * creates a copy of existing Instance Template
 * updates existing template in Instance Group Manager
 
-# todo: rewrite this variables
-This DAG relies on the following OS environment variables
-
-* GCP_PROJECT_ID - the Google Cloud project where the Compute Engine instance exists
-* GCE_ZONE - the zone where the Compute Engine instance exists
-
-Variables for copy template operator:
-* GCE_TEMPLATE_NAME - name of the template to copy
-* GCE_NEW_TEMPLATE_NAME - name of the new template
-* GCE_NEW_DESCRIPTION - description added to the template
-
-Variables for update template in Group Manager:
-* GCE_INSTANCE_GROUP_MANAGER_NAME - name of the Instance Group Manager
-* SOURCE_TEMPLATE_URL - url of the template to replace in the Instance Group Manager
-* DESTINATION_TEMPLATE_URL - url of the new template to set in the Instance Group Manager
 """
 
 import os
@@ -55,7 +40,7 @@ LOCATION = 'europe-west1-b'
 DAG_ID = 'cloud_compute_igm'
 
 # [START howto_operator_compute_template_copy_args]
-# todo: create template template_name - done
+# todo: add operator create template
 TEMPLATE_NAME = 'instance-template-compute-igm-test'
 NEW_TEMPLATE_NAME = 'instance-template-test-new'
 
@@ -68,10 +53,9 @@ INSTANCE_TEMPLATE_BODY_UPDATE = {
 # [END howto_operator_compute_template_copy_args]
 
 # [START howto_operator_compute_igm_update_template_args]
-# todo: create group instance. What type is this group? managed or unmanaged? stateful or stateless?
+# todo: requires operator to create instance group manager
 INSTANCE_GROUP_MANAGER_NAME = 'instance-group-test'
 
-# todo: rewrite this url since it requires credentials
 SOURCE_TEMPLATE_URL = os.environ.get(
     'SOURCE_TEMPLATE_URL',
     "https://www.googleapis.com/compute/beta/projects/"
@@ -80,7 +64,6 @@ SOURCE_TEMPLATE_URL = os.environ.get(
     + TEMPLATE_NAME,
     )
 
-# todo: rewrite this url since it requires credentials
 DESTINATION_TEMPLATE_URL = os.environ.get(
     'DESTINATION_TEMPLATE_URL',
     "https://www.googleapis.com/compute/beta/projects/"
@@ -105,31 +88,25 @@ with models.DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
-    # todo: why this operator doesn't match its description? if it's a copy, why changes?
-    # todo: works well
-    # # [START howto_operator_gce_igm_copy_template]
-    # gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(
-    #     task_id='gcp_compute_igm_copy_template_task',
-    #     project_id=PROJECT_ID,
-    #     resource_id=TEMPLATE_NAME,
-    #     body_patch=INSTANCE_TEMPLATE_BODY_UPDATE,
-    # )
-    # # [END howto_operator_gce_igm_copy_template]
+    # [START howto_operator_gce_igm_copy_template]
+    gce_instance_template_copy = ComputeEngineCopyInstanceTemplateOperator(
+        task_id='gcp_compute_igm_copy_template_task',
+        project_id=PROJECT_ID,
+        resource_id=TEMPLATE_NAME,
+        body_patch=INSTANCE_TEMPLATE_BODY_UPDATE,
+    )
+    # [END howto_operator_gce_igm_copy_template]
 
-    # # Added to check for idempotence
-    # # todo: after changing its body, can we change it back to apply those changes once again in this operator?
-    # # todo: it doesn't change back templates once changed nor i can change it by myself in gcloud. no sense in this operator?
-    # todo: works well
-    # # [START howto_operator_gce_igm_copy_template_no_project_id]
-    # gce_instance_template_copy2 = ComputeEngineCopyInstanceTemplateOperator(
-    #     task_id='gcp_compute_igm_copy_template_task_2',
-    #     resource_id=TEMPLATE_NAME,
-    #     body_patch=INSTANCE_TEMPLATE_BODY_UPDATE,
-    # )
-    # # [END howto_operator_gce_igm_copy_template_no_project_id]
+    # Added to check for idempotence
+    # [START howto_operator_gce_igm_copy_template_no_project_id]
+    gce_instance_template_copy2 = ComputeEngineCopyInstanceTemplateOperator(
+        task_id='gcp_compute_igm_copy_template_task_2',
+        resource_id=TEMPLATE_NAME,
+        body_patch=INSTANCE_TEMPLATE_BODY_UPDATE,
+    )
+    # [END howto_operator_gce_igm_copy_template_no_project_id]
 
     # [START howto_operator_gce_igm_update_template]
-    # todo: it changes url to map to another template or creates just another template?
     gce_instance_group_manager_update_template = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
         task_id='gcp_compute_igm_group_manager_update_template',
         project_id=PROJECT_ID,
@@ -141,22 +118,22 @@ with models.DAG(
     )
     # [END howto_operator_gce_igm_update_template]
 
-    # # Added to check for idempotence (and without UPDATE_POLICY)
-    # # [START howto_operator_gce_igm_update_template_no_project_id]
-    # gce_instance_group_manager_update_template2 = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
-    #     task_id='gcp_compute_igm_group_manager_update_template_2',
-    #     resource_id=INSTANCE_GROUP_MANAGER_NAME,
-    #     zone=LOCATION,
-    #     source_template=SOURCE_TEMPLATE_URL,
-    #     destination_template=DESTINATION_TEMPLATE_URL,
-    # )
-    # # [END howto_operator_gce_igm_update_template_no_project_id]
+    # Added to check for idempotence (and without UPDATE_POLICY)
+    # [START howto_operator_gce_igm_update_template_no_project_id]
+    gce_instance_group_manager_update_template2 = ComputeEngineInstanceGroupUpdateManagerTemplateOperator(
+        task_id='gcp_compute_igm_group_manager_update_template_2',
+        resource_id=INSTANCE_GROUP_MANAGER_NAME,
+        zone=LOCATION,
+        source_template=SOURCE_TEMPLATE_URL,
+        destination_template=DESTINATION_TEMPLATE_URL,
+    )
+    # [END howto_operator_gce_igm_update_template_no_project_id]
 
     chain(
-        # gce_instance_template_copy,
-        # gce_instance_template_copy2,
+        gce_instance_template_copy,
+        gce_instance_template_copy2,
         gce_instance_group_manager_update_template,
-        # gce_instance_group_manager_update_template2,
+        gce_instance_group_manager_update_template2,
     )
 
     # ### Everything below this line is not part of example ###

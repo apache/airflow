@@ -29,6 +29,10 @@ from airflow.providers.google.cloud.hooks.compute import ComputeEngineHook
 from airflow.providers.google.cloud.utils.field_sanitizer import GcpBodyFieldSanitizer
 from airflow.providers.google.cloud.utils.field_validator import GcpBodyFieldValidator
 
+from airflow.providers.google.cloud.links.compute import (ComputeInstanceDetailsLink,
+                                                          ComputeInstanceTemplateDetailsLink,
+                                                          ComputeInstanceGroupManagerDetailsLink)
+
 if TYPE_CHECKING:
     from airflow.utils.context import Context
 
@@ -95,6 +99,8 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    operator_extra_links = (ComputeInstanceDetailsLink(),)
+
     # [START gce_instance_start_template_fields]
     template_fields: Sequence[str] = (
         'project_id',
@@ -111,6 +117,11 @@ class ComputeEngineStartInstanceOperator(ComputeEngineBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        ComputeInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
         )
         return hook.start_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
 
@@ -142,6 +153,8 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    operator_extra_links = (ComputeInstanceDetailsLink(),)
+
     # [START gce_instance_stop_template_fields]
     template_fields: Sequence[str] = (
         'project_id',
@@ -158,6 +171,11 @@ class ComputeEngineStopInstanceOperator(ComputeEngineBaseOperator):
             gcp_conn_id=self.gcp_conn_id,
             api_version=self.api_version,
             impersonation_chain=self.impersonation_chain,
+        )
+        ComputeInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
         )
         hook.stop_instance(zone=self.zone, resource_id=self.resource_id, project_id=self.project_id)
 
@@ -198,6 +216,8 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    operator_extra_links = (ComputeInstanceDetailsLink(),)
 
     # [START gce_instance_set_machine_type_template_fields]
     template_fields: Sequence[str] = (
@@ -251,6 +271,11 @@ class ComputeEngineSetMachineTypeOperator(ComputeEngineBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self._validate_all_body_fields()
+        ComputeInstanceDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            project_id=self.project_id or hook.project_id,
+        )
         return hook.set_machine_type(
             zone=self.zone, resource_id=self.resource_id, body=self.body, project_id=self.project_id
         )
@@ -354,6 +379,8 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         account from the list granting this role to the originating account (templated).
     """
 
+    operator_extra_links = (ComputeInstanceTemplateDetailsLink(),)
+
     # [START gce_instance_template_copy_operator_template_fields]
     template_fields: Sequence[str] = (
         'project_id',
@@ -416,7 +443,7 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
             # Idempotence check (sort of) - we want to check if the new template
             # is already created and if is, then we assume it was created by previous run
             # of CopyTemplate operator - we do not check if content of the template
-            # is as expected. Templates are immutable so we cannot update it anyway
+            # is as expected. Templates are immutable, so we cannot update it anyway
             # and deleting/recreating is not worth the hassle especially
             # that we cannot delete template if it is already used in some Instance
             # Group Manager. We assume success if the template is simply present
@@ -427,6 +454,12 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
                 "The %s template already existed. It was likely created by previous run of the operator. "
                 "Assuming success.",
                 existing_template,
+            )
+            ComputeInstanceTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                resource_id=self.body_patch['name'],
+                project_id=self.project_id or hook.project_id,
             )
             return existing_template
         except HttpError as e:
@@ -477,6 +510,8 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
     """
+
+    operator_extra_links = (ComputeInstanceGroupManagerDetailsLink(),)
 
     # [START gce_igm_update_template_operator_template_fields]
     template_fields: Sequence[str] = (
@@ -556,6 +591,13 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
                 self._possibly_replace_template(version)
         if self._change_performed or self.update_policy:
             self.log.info("Calling patch instance template with updated body: %s", patch_body)
+            ComputeInstanceGroupManagerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location_id=self.zone,
+                resource_id=self.resource_id,
+                project_id=self.project_id or hook.project_id,
+            )
             return hook.patch_instance_group_manager(
                 zone=self.zone,
                 resource_id=self.resource_id,
@@ -565,4 +607,11 @@ class ComputeEngineInstanceGroupUpdateManagerTemplateOperator(ComputeEngineBaseO
             )
         else:
             # Idempotence achieved
+            ComputeInstanceGroupManagerDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                location_id=self.zone,
+                resource_id=self.resource_id,
+                project_id=self.project_id or hook.project_id,
+            )
             return True

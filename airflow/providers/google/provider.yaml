@@ -938,6 +938,9 @@ extra-links:
   - airflow.providers.google.cloud.links.bigquery.BigQueryDatasetLink
   - airflow.providers.google.cloud.links.bigquery.BigQueryTableLink
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceDetailsLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceTemplateDetailsLink
+  - airflow.providers.google.cloud.links.compute.ComputeInstanceGroupManagerDetailsLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
