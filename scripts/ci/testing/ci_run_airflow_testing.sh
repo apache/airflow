@@ -107,7 +107,8 @@ function run_all_test_types_in_parallel() {
             # Those tests will run in `main` anyway.
             if [[ ${test_types_to_run} == *"Providers"* ]]; then
                 echo "${COLOR_YELLOW}Remove Providers from tests_types_to_run and skip running them altogether (mysql/mssql case).${COLOR_RESET}"
-                test_types_to_run="${test_types_to_run//Providers/}"
+                # shellcheck disable=SC2001
+                test_types_to_run=$(echo "${test_types_to_run}" | sed 's/Providers[^ ]* *//')
             fi
         fi
     fi
