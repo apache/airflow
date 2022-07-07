@@ -14,7 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import os
+import platform
+import subprocess
 import sys
+from pathlib import Path
 from typing import Optional, Tuple
 
 import click
@@ -49,6 +53,7 @@ from airflow_breeze.utils.docker_command_utils import (
 )
 from airflow_breeze.utils.find_newer_dependencies import find_newer_dependencies
 from airflow_breeze.utils.image import find_available_ci_image
+from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
 from airflow_breeze.utils.run_utils import run_command
 
 CI_COMMANDS = {
@@ -63,6 +68,14 @@ CI_COMMANDS = {
 }
 
 CI_PARAMETERS = {
+    "breeze fix-ownership": [
+        {
+            "name": "Fix ownership flags",
+            "options": [
+                "--use-sudo",
+            ],
+        }
+    ],
     "breeze selective-check": [
         {
             "name": "Selective check flags",
@@ -114,11 +127,68 @@ def resource_check(verbose: bool, dry_run: bool):
     check_docker_resources(shell_params.airflow_image_name, verbose=verbose, dry_run=dry_run)
 
 
+HOME_DIR = Path(os.path.expanduser('~')).resolve()
+
+DIRECTORIES_TO_FIX = [
+    AIRFLOW_SOURCES_ROOT,
+    HOME_DIR / ".aws",
+    HOME_DIR / ".azure",
+    HOME_DIR / ".config/gcloud",
+    HOME_DIR / ".docker",
+    AIRFLOW_SOURCES_ROOT,
+]
+
+
+def fix_ownership_for_file(file: Path, dry_run: bool, verbose: bool):
+    get_console().print(f"[info]Fixing ownership of {file}")
+    result = run_command(
+        ["sudo", "chown", f"{os.getuid}:{os.getgid()}", str(file.resolve())],
+        check=False,
+        stderr=subprocess.STDOUT,
+        dry_run=dry_run,
+        verbose=verbose,
+    )
+    if result.returncode != 0:
+        get_console().print(f"[warning]Could not fix ownership for {file}: {result.stdout}")
+
+
+def fix_ownership_for_path(path: Path, dry_run: bool, verbose: bool):
+    if path.is_dir():
+        for p in Path(path).rglob('*'):
+            if p.owner == 'root':
+                fix_ownership_for_file(p, dry_run=dry_run, verbose=verbose)
+    else:
+        if path.owner == 'root':
+            fix_ownership_for_file(path, dry_run=dry_run, verbose=verbose)
+
+
+def fix_ownership_without_docker(dry_run: bool, verbose: bool):
+    for directory_to_fix in DIRECTORIES_TO_FIX:
+        fix_ownership_for_path(directory_to_fix, dry_run=dry_run, verbose=verbose)
+
+
 @main.command(name="fix-ownership", help="Fix ownership of source files to be same as host user.")
+@click.option(
+    '--use-sudo',
+    is_flag=True,
+    help="Use sudo instead of docker image to fix the ownership. You need to be a `sudoer` to run it",
+    envvar='USE_SUDO',
+)
 @option_github_repository
 @option_verbose
 @option_dry_run
-def fix_ownership(github_repository: str, verbose: bool, dry_run: bool):
+def fix_ownership(github_repository: str, use_sudo: bool, verbose: bool, dry_run: bool):
+    system = platform.system().lower()
+    if system != 'linux':
+        get_console().print(
+            f"[warning]You should only need to run fix-ownership on Linux and your system is {system}"
+        )
+        sys.exit(0)
+    if use_sudo:
+        get_console().print("[info]Fixing ownership using sudo.")
+        fix_ownership_without_docker(dry_run=dry_run, verbose=verbose)
+        sys.exit(0)
+    get_console().print("[info]Fixing ownership using docker.")
     perform_environment_checks(verbose=verbose)
     shell_params = find_available_ci_image(github_repository, dry_run, verbose)
     extra_docker_flags = get_extra_docker_flags(MOUNT_ALL)

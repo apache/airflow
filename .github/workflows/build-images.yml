@@ -40,6 +40,7 @@ env:
   # This token is WRITE one - pull_request_target type of events always have the WRITE token
   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
   IMAGE_TAG_FOR_THE_BUILD: "${{ github.event.pull_request.head.sha || github.sha }}"
+  USE_SUDO: "true"
 
 concurrency:
   group: build-${{ github.event.pull_request.number || github.ref }}
