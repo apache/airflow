@@ -24,6 +24,7 @@ import importlib.util
 import json
 import multiprocessing
 import os
+import pickle
 from datetime import datetime, timedelta
 from glob import glob
 from unittest import mock
@@ -1857,6 +1858,21 @@ def test_mapped_decorator_serde():
         "arg3": _XComRef("op1", XCOM_RETURN_KEY),
     }
     assert deserialized.partial_kwargs == {
+        "op_args": [],
+        "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
+        "retry_delay": timedelta(seconds=30),
+    }
+
+    # Ensure the serialized operator can also be correctly pickled, to ensure
+    # correct interaction between DAG pickling and serialization. This is done
+    # here so we don't need to duplicate tests between pickled and non-pickled
+    # DAGs everywhere else.
+    pickled = pickle.loads(pickle.dumps(deserialized))
+    assert pickled.mapped_op_kwargs == {
+        "arg2": {"a": 1, "b": 2},
+        "arg3": _XComRef("op1", XCOM_RETURN_KEY),
+    }
+    assert pickled.partial_kwargs == {
         "op_args": [],
         "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
         "retry_delay": timedelta(seconds=30),

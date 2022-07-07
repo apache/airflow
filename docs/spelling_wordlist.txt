@@ -397,6 +397,7 @@ TCP
 TLS
 TTY
 TZ
+Tabular
 TaskDecorator
 TaskFlow
 TaskGroup
@@ -1135,6 +1136,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm

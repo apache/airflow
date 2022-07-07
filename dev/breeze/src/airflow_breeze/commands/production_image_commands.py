@@ -76,6 +76,7 @@ from airflow_breeze.utils.docker_command_utils import (
     perform_environment_checks,
     prepare_docker_build_command,
     prepare_docker_build_from_input,
+    warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.parallel import check_async_run_results
@@ -214,6 +215,7 @@ def run_build_in_parallel(
     dry_run: bool,
     verbose: bool,
 ) -> None:
+    warm_up_docker_builder(image_params_list[0], verbose=verbose, dry_run=dry_run)
     get_console().print(
         f"\n[info]Building with parallelism = {parallelism} for the images: {python_version_list}:"
     )

@@ -31,7 +31,7 @@ system data. HDFS is now an Apache Hadoop sub project.
 Prerequisite
 ------------
 
-To use operators, you must configure a :doc:`HDFS Connection <connections>`.
+To use operators, you must configure a :doc:`HDFS Connection </connections>`.
 
 .. _howto/operator:HdfsFolderSensor:
 

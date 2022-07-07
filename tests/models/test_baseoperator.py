@@ -15,6 +15,7 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import copy
 import logging
 import uuid
 from datetime import date, datetime, timedelta
@@ -765,3 +766,15 @@ def test_task_level_retry_delay(dag_maker):
         task1 = BaseOperator(task_id='test_no_explicit_retry_delay', retry_delay=timedelta(seconds=200))
 
         assert task1.retry_delay == timedelta(seconds=200)
+
+
+def test_deepcopy():
+    # Test bug when copying an operator attached to a DAG
+    with DAG("dag0", start_date=DEFAULT_DATE) as dag:
+
+        @dag.task
+        def task0():
+            pass
+
+        MockOperator(task_id="task1", arg1=task0())
+    copy.deepcopy(dag)

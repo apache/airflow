@@ -195,6 +195,10 @@ if __name__ == '__main__':
         console.print()
         sys.exit(1)
     DEPENDENCIES_JSON_FILE_PATH.write_text(json.dumps(unique_sorted_dependencies, indent=2) + "\n")
+    console.print(
+        f"[yellow]If you see changes to the {DEPENDENCIES_JSON_FILE_PATH} file - "
+        f"do not modify the file manually. Let pre-commit do the job!"
+    )
     console.print()
     console.print("[green]Verification complete! Success!\n")
     console.print(f"Written {DEPENDENCIES_JSON_FILE_PATH}")

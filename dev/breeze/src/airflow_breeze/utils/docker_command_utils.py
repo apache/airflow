@@ -60,7 +60,14 @@ from airflow_breeze.utils.run_utils import (
     run_command,
 )
 
-NECESSARY_HOST_VOLUMES = [
+# Those are volumes that are mounted when MOUNT_SELECTED is chosen (which is the default when
+# entering Breeze. MOUNT_SELECTED prevents to mount the files that you can have accidentally added
+# in your sources (or they were added automatically by setup.py etc.) to be mounted to container.
+# This is important to get a "clean" environment for different python versions and to avoid
+# unnecessary slow-downs when you are mounting files on MacOS (which has very slow filesystem)
+# Any time you add a top-level folder in airflow that should also be added to container you should
+# add it here.
+VOLUMES_FOR_SELECTED_MOUNTS = [
     (".bash_aliases", "/root/.bash_aliases"),
     (".bash_history", "/root/.bash_history"),
     (".coveragerc", "/opt/airflow/.coveragerc"),
@@ -78,6 +85,7 @@ NECESSARY_HOST_VOLUMES = [
     ("dags", "/opt/airflow/dags"),
     ("dev", "/opt/airflow/dev"),
     ("docs", "/opt/airflow/docs"),
+    ("generated", "/opt/airflow/generated"),
     ("hooks", "/opt/airflow/hooks"),
     ("logs", "/root/airflow/logs"),
     ("pyproject.toml", "/opt/airflow/pyproject.toml"),
@@ -105,7 +113,7 @@ def get_extra_docker_flags(mount_sources: str) -> List[str]:
     if mount_sources == MOUNT_ALL:
         extra_docker_flags.extend(["--mount", f"type=bind,src={AIRFLOW_SOURCES_ROOT},dst=/opt/airflow/"])
     elif mount_sources == MOUNT_SELECTED:
-        for (src, dst) in NECESSARY_HOST_VOLUMES:
+        for (src, dst) in VOLUMES_FOR_SELECTED_MOUNTS:
             if (AIRFLOW_SOURCES_ROOT / src).exists():
                 extra_docker_flags.extend(
                     ["--mount", f'type=bind,src={AIRFLOW_SOURCES_ROOT / src},dst={dst}']
@@ -297,6 +305,41 @@ Make sure docker-compose you install is first on the PATH variable of yours.
 [warning]If Breeze fails upgrade to latest available docker-compose version.[/]
 """
         )
+
+
+def check_docker_context(verbose: bool):
+    """
+    Checks whether Docker is using the expected context
+    :param verbose: print commands when running
+    """
+    expected_docker_context = "default"
+    response = run_command(
+        ["docker", "info", "--format", "{{json .ClientInfo.Context}}"],
+        verbose=verbose,
+        no_output_dump_on_exception=False,
+        text=True,
+        capture_output=True,
+    )
+    if response.returncode != 0:
+        get_console().print(
+            '[warning]Could not check for Docker context.[/]\n'
+            '[warning]Please make sure that Docker is using the right context by running "docker info" and '
+            'checking the active Context.[/]'
+        )
+        return
+
+    used_docker_context = response.stdout.strip().replace('"', '')
+
+    if used_docker_context == expected_docker_context:
+        get_console().print(f'[success]Good Docker context used: {used_docker_context}.[/]')
+    else:
+        get_console().print(
+            f'[error]Docker is not using the default context, used context is: {used_docker_context}[/]\n'
+            f'[warning]Please make sure Docker is using the {expected_docker_context} context.[/]\n'
+            f'[warning]You can try switching contexts by running: "docker context use '
+            f'{expected_docker_context}"[/]'
+        )
+        sys.exit(1)
 
 
 def get_env_variable_value(arg_name: str, params: Union[CommonBuildParams, ShellParams]):
@@ -622,3 +665,45 @@ def perform_environment_checks(verbose: bool):
     check_docker_is_running(verbose=verbose)
     check_docker_version(verbose=verbose)
     check_docker_compose_version(verbose=verbose)
+    check_docker_context(verbose=verbose)
+
+
+def get_docker_syntax_version() -> str:
+    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+
+    return (AIRFLOW_SOURCES_ROOT / "Dockerfile").read_text().splitlines()[0]
+
+
+def warm_up_docker_builder(image_params: CommonBuildParams, verbose: bool, dry_run: bool):
+    from airflow_breeze.utils.path_utils import AIRFLOW_SOURCES_ROOT
+
+    if image_params.builder == "default":
+        return
+    docker_syntax = get_docker_syntax_version()
+    get_console().print(f"[info]Warming up the {image_params.builder} builder for syntax: {docker_syntax}")
+    warm_up_image_param = deepcopy(image_params)
+    warm_up_image_param.image_tag = "warmup"
+    warm_up_image_param.push_image = False
+    build_command = prepare_base_build_command(image_params=warm_up_image_param, verbose=verbose)
+    warm_up_command = []
+    warm_up_command.extend(["docker"])
+    warm_up_command.extend(build_command)
+    warm_up_command.extend(["--platform", image_params.platform, "-"])
+    warm_up_command_result = run_command(
+        warm_up_command,
+        input=f"""{docker_syntax}
+FROM scratch
+LABEL description="test warmup image"
+""",
+        verbose=verbose,
+        dry_run=dry_run,
+        cwd=AIRFLOW_SOURCES_ROOT,
+        text=True,
+        enabled_output_group=True,
+    )
+    if warm_up_command_result.returncode != 0:
+        get_console().print(
+            f"[error]Error {warm_up_command_result.returncode} when warming up builder:"
+            f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
+        )
+        sys.exit(warm_up_command_result.returncode)

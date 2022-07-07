@@ -26,7 +26,7 @@ services:
     # or those that might be useful to see in the host as output of the
     # tests (such as logs)
     volumes:
-      # START automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
+      # START automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
       - type: bind
         source: ../../../.bash_aliases
         target: /root/.bash_aliases
@@ -117,4 +117,4 @@ services:
       - type: bind
         source: ../../../metastore_browser
         target: /opt/airflow/metastore_browser
-        # END automatically generated volumes from NECESSARY_HOST_VOLUMES in docker_command_utils.py
+        # END automatically generated volumes from VOLUMES_FOR_SELECTED_MOUNTS in docker_command_utils.py
