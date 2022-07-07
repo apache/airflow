@@ -52,7 +52,7 @@ from pandas_gbq.gbq import GbqConnector  # noqa
 from sqlalchemy import create_engine
 
 from airflow.exceptions import AirflowException
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.providers.google.common.consts import CLIENT_INFO
 from airflow.providers.google.common.hooks.base_google import GoogleBaseHook
 from airflow.utils.helpers import convert_camel_to_snake

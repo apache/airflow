@@ -70,8 +70,9 @@ const DagRunBar = ({
   };
 
   // show the tick on the 4th DagRun and then every 10th tick afterwards
-  const shouldShowTick = index === totalRuns - 4
-    || (index < totalRuns - 4 && (index + 4) % 10 === 0);
+  const inverseIndex = totalRuns - index;
+  const shouldShowTick = inverseIndex === 4
+    || (inverseIndex > 4 && (inverseIndex - 4) % 10 === 0);
 
   return (
     <Box

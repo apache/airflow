@@ -35,6 +35,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
   - qds-sdk>=1.10.4
 
 integrations:

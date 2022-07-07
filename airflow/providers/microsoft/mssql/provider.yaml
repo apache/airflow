@@ -35,6 +35,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
   - pymssql>=2.1.5; platform_machine != "aarch64"
 
 integrations:
