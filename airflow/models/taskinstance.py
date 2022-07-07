@@ -1524,7 +1524,7 @@ class TaskInstance(Base, LoggingMixin):
             if isinstance(obj, Dataset):
                 dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
                 if not dataset:
-                    self.log.warning("Dataset %s not found", dataset)
+                    self.log.warning("Dataset %s not found", obj)
                     continue
                 downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
                 self.log.debug("downstream dag ids %s", downstream_dag_ids)
