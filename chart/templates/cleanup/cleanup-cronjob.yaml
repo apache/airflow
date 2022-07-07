@@ -93,6 +93,9 @@ spec:
               {{- end }}
               env:
               {{- include "standard_airflow_environment" . | indent 12 }}
+{{- if .Values.cleanup.extraEnv }}
+{{ tpl (toYaml .Values.cleanup.extraEnv) $ | indent 12 }}
+{{- end }}
               volumeMounts:
                 - name: config
                   mountPath: {{ template "airflow_config_path" . }}

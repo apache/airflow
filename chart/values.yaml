@@ -1479,6 +1479,7 @@ cleanup:
   securityContext: {}
   #  runAsUser: 50000
   #  runAsGroup: 0
+  extraEnv: []
 
 # Configuration for postgresql subchart
 # Not recommended for production

@@ -4309,6 +4309,11 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "extraEnv": {
+                    "description": "Add additional env vars to cleanup.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
