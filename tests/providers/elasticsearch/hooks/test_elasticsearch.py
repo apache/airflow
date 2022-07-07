@@ -39,6 +39,7 @@ class TestElasticsearchHook(unittest.TestCase):
         self.connection = Connection(host='localhost', port=9200, schema='http')
 
         with self.assertWarns(DeprecationWarning):
+
             class UnitTestElasticsearchHook(ElasticsearchHook):
                 conn_name_attr = 'test_conn_id'
 
