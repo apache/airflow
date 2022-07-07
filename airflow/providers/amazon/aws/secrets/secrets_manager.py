@@ -245,6 +245,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
         """
+        error_msg = "An error occurred when calling the get_secret_value operation"
         if path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         else:
@@ -257,15 +258,32 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
-                "An error occurred (ResourceNotFoundException) when calling the "
-                "get_secret_value operation: "
+                f"ResourceNotFoundException: {error_msg}: "
                 "Secret %s not found.",
                 secret_id,
             )
             return None
-        except self.client.exceptions.AccessDeniedException:
+        except self.client.exceptions.InvalidParameterException:
             self.log.debug(
-                "An error occurred (AccessDeniedException) when calling the get_secret_value operation",
+                f"InvalidParameterException: {error_msg}",
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.InvalidRequestException:
+            self.log.debug(
+                f"InvalidRequestException: {error_msg}",
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.DecryptionFailure:
+            self.log.debug(
+                f"DecryptionFailure: {error_msg}",
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.InternalServiceError:
+            self.log.debug(
+                f"InternalServiceError: {error_msg}",
                 exc_info=True,
             )
             return None
