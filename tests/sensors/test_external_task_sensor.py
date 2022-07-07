@@ -147,6 +147,20 @@ class TestExternalTaskSensor(unittest.TestCase):
         )
         op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
+    def test_external_task_group_sensor_failed_states(self):
+        ti_states = [State.FAILED, State.FAILED]
+        self.add_time_sensor()
+        self.add_dummy_task_group(ti_states)
+        op = ExternalTaskSensor(
+            task_id='test_external_task_sensor_check',
+            external_dag_id=TEST_DAG_ID,
+            external_task_group_id=TEST_TASK_GROUP_ID,
+            failed_states=[State.FAILED],
+            dag=self.dag,
+        )
+        with pytest.raises(AirflowException, match=f"The external task_group '{TEST_TASK_GROUP_ID}' in DAG "
+                                                   f"'{TEST_DAG_ID}' failed."):
+            op.run(start_date=DEFAULT_DATE, end_date=DEFAULT_DATE, ignore_ti_state=True)
 
     def test_catch_overlap_allowed_failed_state(self):
         with pytest.raises(AirflowException):
