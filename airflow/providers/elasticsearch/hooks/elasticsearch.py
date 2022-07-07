@@ -21,6 +21,7 @@ from typing import Any, Dict, List, Optional
 from elasticsearch import Elasticsearch
 from es.elastic.api import Connection as ESConnection, connect
 
+from airflow.compat.functools import cached_property
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
@@ -127,11 +128,16 @@ class ElasticsearchPythonHook(BaseHook):
         self.hosts = hosts
         self.es_conn_args = es_conn_args if es_conn_args else {}
 
-    def get_conn(self) -> Elasticsearch:
+    def _get_elastic_connection(self):
         """Returns the Elasticsearch client"""
         client = Elasticsearch(self.hosts, **self.es_conn_args)
 
         return client
+
+    @cached_property
+    def get_conn(self):
+        """Returns the Elasticsearch client (cached)"""
+        return self._get_elastic_connection()
 
     def search(self, query: Dict[Any, Any], index: str = "_all") -> dict:
         """
@@ -142,6 +148,6 @@ class ElasticsearchPythonHook(BaseHook):
 
         :returns: dict: The response 'hits' object from Elasticsearch
         """
-        es_client = self.get_conn()
+        es_client = self.get_conn
         result = es_client.search(index=index, body=query)
         return result['hits']
