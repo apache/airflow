@@ -196,12 +196,12 @@ class LocalTaskJob(BaseJob):
             same_process = recorded_pid == current_pid
 
             if recorded_pid is not None and (ti.run_as_user or self.task_runner.run_as_user):
-                # when running as another user, compare the task runner pid to the parent of 
+                # when running as another user, compare the task runner pid to the parent of
                 # the recorded pid because user delegation becomes an extra process level.
-                # However, if recorded_pid is None, pass that through as it signals the task 
-                # runner process has already completed and been cleared out. `psutil.Process` 
-                # uses the current process if the parameter is None, which is not what is intended 
-                # for comparison.                
+                # However, if recorded_pid is None, pass that through as it signals the task
+                # runner process has already completed and been cleared out. `psutil.Process`
+                # uses the current process if the parameter is None, which is not what is intended
+                # for comparison.
                 recorded_pid = psutil.Process(ti.pid).ppid()
                 same_process = recorded_pid == current_pid
 
