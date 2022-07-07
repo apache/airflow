@@ -174,6 +174,12 @@ environments. This can be done automatically by the following command (follow in
 
     pipx ensurepath
 
+In Mac
+
+.. code-block:: bash
+
+    python -m pipx ensurepath
+
 
 Resources required
 ==================
