@@ -28,7 +28,7 @@ Content
 
     Connection types <connections/elasticsearch>
     Logging for Tasks <logging/index>
-    Elasticsearch hook with native Python client <hooks/elasticsearch_python>
+    Elasticsearch hook with native Python client <hooks/elasticsearch>
 
 .. toctree::
     :maxdepth: 1
