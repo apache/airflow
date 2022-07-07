@@ -22,6 +22,7 @@ on:  # yamllint disable-line rule:truthy
 permissions:
   # all other permissions are set to none
   contents: read
+  pull-requests: read
 env:
   MOUNT_SELECTED_LOCAL_SOURCES: "false"
   ANSWER: "yes"
