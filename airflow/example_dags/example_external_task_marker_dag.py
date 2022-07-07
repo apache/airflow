@@ -69,7 +69,6 @@ with DAG(
     catchup=False,
     tags=['example2'],
 ) as child_dag:
-    # [START howto_operator_external_task_sensor]
     child_task1 = ExternalTaskSensor(
         task_id="child_task1",
         external_dag_id=parent_dag.dag_id,
@@ -80,5 +79,18 @@ with DAG(
         mode="reschedule",
     )
     # [END howto_operator_external_task_sensor]
-    child_task2 = EmptyOperator(task_id="child_task2")
-    child_task1 >> child_task2
+
+    # [START howto_operator_external_task_sensor_with_task_group]
+    child_task2 = ExternalTaskSensor(
+        task_id="child_task1",
+        external_dag_id=parent_dag.dag_id,
+        external_task_group_id='parent_dag_task_group_id',
+        timeout=600,
+        allowed_states=['success'],
+        failed_states=['failed', 'skipped'],
+        mode="reschedule",
+    )
+    # [END howto_operator_external_task_sensor_with_task_group]
+
+    child_task3 = EmptyOperator(task_id="child_task3")
+    child_task1 >> child_task2 >> child_task3
