@@ -769,6 +769,7 @@ createUserJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  extraEnv: []
 
   resources: {}
   #  limits:

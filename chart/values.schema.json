@@ -2594,6 +2594,11 @@
                     "description": "Specify if you want to use the default Helm Hook annotations",
                     "type": "boolean",
                     "default": true
+                },
+                "extraEnv": {
+                    "description": "Add additional env vars to job.",
+                    "type": "array",
+                    "default": []
                 }
             }
         },
