@@ -73,6 +73,7 @@ from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.custom_param_types import BetterChoice
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
+    make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
     prepare_docker_build_from_input,
@@ -200,7 +201,10 @@ PRODUCTION_IMAGE_TOOLS_PARAMETERS = {
 }
 
 
-def start_building(prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
+def start_building(parallel: bool, prod_image_params: BuildProdParams, dry_run: bool, verbose: bool):
+    make_sure_builder_configured(
+        parallel=parallel, params=prod_image_params, dry_run=dry_run, verbose=verbose
+    )
     if prod_image_params.cleanup_context:
         clean_docker_context_files(verbose=verbose, dry_run=dry_run)
     check_docker_context_files(prod_image_params.install_packages_from_context)
@@ -346,7 +350,7 @@ def build_prod_image(
             params.python = python
             params.answer = answer
             params_list.append(params)
-        start_building(prod_image_params=params_list[0], dry_run=dry_run, verbose=verbose)
+        start_building(parallel=True, prod_image_params=params_list[0], dry_run=dry_run, verbose=verbose)
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -356,7 +360,7 @@ def build_prod_image(
         )
     else:
         params = BuildProdParams(**parameters_passed)
-        start_building(prod_image_params=params, dry_run=dry_run, verbose=verbose)
+        start_building(parallel=False, prod_image_params=params, dry_run=dry_run, verbose=verbose)
         run_build(prod_image_params=params)
 
 

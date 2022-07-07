@@ -496,13 +496,6 @@ def build_cache(
     build_command_result: Union[CompletedProcess, CalledProcessError] = CompletedProcess(
         args=[], returncode=0
     )
-    cmd = ['docker', 'buildx', 'inspect', 'airflow_cache']
-    buildx_command_result = run_command(
-        cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
-    )
-    if buildx_command_result and buildx_command_result.returncode != 0:
-        next_cmd = ['docker', 'buildx', 'create', '--name', 'airflow_cache']
-        run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
     for platform in image_params.platforms:
         platform_image_params = deepcopy(image_params)
         # override the platform in the copied params to only be single platform per run
@@ -521,6 +514,17 @@ def build_cache(
         if build_command_result.returncode != 0:
             break
     return build_command_result
+
+
+def make_sure_builder_configured(parallel: bool, params: CommonBuildParams, dry_run: bool, verbose: bool):
+    if params.builder != 'default':
+        cmd = ['docker', 'buildx', 'inspect', params.builder]
+        buildx_command_result = run_command(
+            cmd, verbose=verbose, dry_run=dry_run, text=True, check=False, enabled_output_group=not parallel
+        )
+        if buildx_command_result and buildx_command_result.returncode != 0:
+            next_cmd = ['docker', 'buildx', 'create', '--name', params.builder]
+            run_command(next_cmd, verbose=verbose, text=True, check=False, enabled_output_group=not parallel)
 
 
 def set_value_to_default_if_not_set(env: Dict[str, str], name: str, default: str):
