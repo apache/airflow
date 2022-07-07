@@ -2487,6 +2487,7 @@ components:
             - backfill
             - manual
             - scheduled
+            - dataset_triggered
         state:
           $ref: '#/components/schemas/DagState'
           readOnly: true

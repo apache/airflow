@@ -33,6 +33,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
+from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -370,6 +371,8 @@ class BaseSerialization:
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
             return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
+        elif isinstance(var, Dataset):
+            return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -415,6 +418,8 @@ class BaseSerialization:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
             return cls._deserialize_xcomref(var)
+        elif type_ == DAT.DATASET:
+            return Dataset(**var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -746,6 +751,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
+            elif k in ("_outlets", "_inlets"):
+                v = cls._deserialize(v)
+
             # else use v as it is
 
             setattr(op, k, v)
@@ -1024,6 +1032,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k == "schedule_on":
+                v = cls._deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)
