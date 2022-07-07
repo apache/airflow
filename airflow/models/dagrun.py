@@ -685,9 +685,11 @@ class DagRun(Base, LoggingMixin):
             ]
 
         if dag_ids_to_trigger:
-            for dag_id in dag_ids_to_trigger:
-                row = SerializedDagModel.get(dag_id, session)
+            dags_to_purge_from_queue = set()
+            for target_dag_id in dag_ids_to_trigger:
+                row = SerializedDagModel.get(target_dag_id, session)
                 if not row:
+                    self.log.warning("Could not find serialized DAG %s", target_dag_id)
                     continue
                 dag = row.dag
                 if dag.schedule_on:
@@ -699,7 +701,12 @@ class DagRun(Base, LoggingMixin):
                         state=DagRunState.QUEUED,
                         session=session,
                     )
-            session.query(DDRQ).filter(DDRQ.target_dag_id.in_(dag_ids_to_trigger)).delete()
+                else:
+                    self.log.warning(
+                        "DAG %s no longer has a dataset scheduling dep; purging queue records.", dag.dag_id
+                    )
+                dags_to_purge_from_queue.add(target_dag_id)
+            session.query(DDRQ).filter(DDRQ.target_dag_id.in_(dags_to_purge_from_queue)).delete()
 
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:

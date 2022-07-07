@@ -39,9 +39,11 @@ from airflow.models import (
     clear_task_instances,
 )
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.dataset import DatasetDagRunQueue, DatasetTaskRef
+from airflow.models.dataset import Dataset, DatasetDagRunQueue
+from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom_arg import XComArg
+from airflow.operators.bash import BashOperator
 from airflow.operators.empty import EmptyOperator
 from airflow.operators.python import ShortCircuitOperator
 from airflow.serialization.serialized_objects import SerializedDAG
@@ -1310,35 +1312,44 @@ def test_mapped_task_upstream_failed(dag_maker, session):
 
 
 def test_dataset_dagruns_triggered(session):
-    from airflow.example_dags import example_datasets
-    from airflow.example_dags.example_datasets import dag1
-
+    unique_id = str(uuid4())
     session = settings.Session()
-    dagbag = DagBag(dag_folder=example_datasets.__file__)
-    dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-    dagbag.sync_to_db(session=session)
-    run_id = str(uuid4())
-    dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
+    dag1 = DAG(dag_id=f"datasets-{unique_id}-1", start_date=timezone.utcnow())
+    dataset1 = Dataset(uri=f"s3://{unique_id}-1")
+    dataset2 = Dataset(uri=f"s3://{unique_id}-2")
+    dag2 = DAG(dag_id=f"datasets-{unique_id}-2", schedule_on=[dataset1, dataset2])
+    dag3 = DAG(dag_id=f"datasets-{unique_id}-3", schedule_on=[dataset1])
+    task = BashOperator(task_id="task", bash_command="echo 1", dag=dag1, outlets=[dataset1])
+    # BashOperator(task_id="task", bash_command="echo 1", dag=dag2)
+    # BashOperator(task_id="task", bash_command="echo 1", dag=dag3)
+    DAG.bulk_write_to_db(dags=[dag1, dag2, dag3], session=session)
+    session.commit()
+    dr = DagRun(dag1.dag_id, run_id=unique_id, run_type='anything')
     dr.dag = dag1
     session.add(dr)
+    session.add(TaskInstance(task=task, run_id=unique_id, state=State.SUCCESS))
     session.commit()
-    assert dr.id is not None
-    task = dag1.get_task('upstream_task_1')
-    task.bash_command = 'echo 1'  # make it go faster
-    ti = TaskInstance(task, run_id=run_id)
-    session.merge(ti)
-    session.commit()
-    ti._run_raw_task()
-    ti.refresh_from_db()
-    assert ti.state == State.SUCCESS
-    assert session.query(DatasetDagRunQueue.target_dag_id).filter(
-        DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
-    ).all() == [('dag3',), ('dag4',), ('dag5',)]
+
+    session.bulk_save_objects(
+        [
+            *[SerializedDagModel(dag) for dag in [dag1, dag2, dag3]],
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag2.dag_id),
+            DatasetDagRunQueue(dataset_id=dataset1.id, target_dag_id=dag3.dag_id),
+        ]
+    )
     session.commit()
     session.expunge_all()
     dr.update_state(session=session)
     session.commit()
-    assert session.query(DagRun).filter(DagRun.dag_id == 'dag3').one() is not None
+
+    # dag3 should be triggered since it only depends on dataset1, and it's been queued
+    assert session.query(DagRun).filter(DagRun.dag_id == dag3.dag_id).one() is not None
+    # dag3 DDRQ record should still be there since the dag run was *not* triggered
+    assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag3.dag_id).one() is not None
+    # dag2 should not be triggered since it depends on both dataset 1  and 2
+    assert session.query(DagRun).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
+    # dag2 DDRQ record should be deleted since the dag run was triggered
+    assert session.query(DatasetDagRunQueue).filter(DagRun.dag_id == dag2.dag_id).one_or_none() is None
 
 
 def test_mapped_task_all_finish_before_downstream(dag_maker, session):
