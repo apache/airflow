@@ -319,6 +319,8 @@ def at_most_one(*args) -> bool:
     """
     Returns True if at most one of *args is "truthy", and False otherwise.
 
+    NOTSET is treated the same as None.
+
     If user supplies an iterable, we raise ValueError and force them to unpack.
     """
 
