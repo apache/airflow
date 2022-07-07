@@ -693,7 +693,9 @@ class DagRun(Base, LoggingMixin):
                 if dag.schedule_on:
                     dag.create_dagrun(
                         run_type=DagRunType.MANUAL,
-                        run_id=self.generate_run_id(DagRunType.DATASE, execution_date=timezone.utcnow()),
+                        run_id=self.generate_run_id(
+                            DagRunType.DATASET_TRIGGERED, execution_date=timezone.utcnow()
+                        ),
                         state=DagRunState.QUEUED,
                         session=session,
                     )

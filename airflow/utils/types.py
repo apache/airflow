@@ -45,7 +45,7 @@ class DagRunType(str, enum.Enum):
     BACKFILL_JOB = "backfill"
     SCHEDULED = "scheduled"
     MANUAL = "manual"
-    DATASET = "dataset"
+    DATASET_TRIGGERED = "dataset_triggered"
 
     def __str__(self) -> str:
         return self.value
