@@ -195,7 +195,7 @@ class LocalTaskJob(BaseJob):
             recorded_pid = ti.pid
             same_process = recorded_pid == current_pid
 
-            if recorded_pid is not None and ti.run_as_user or self.task_runner.run_as_user:
+            if recorded_pid is not None and (ti.run_as_user or self.task_runner.run_as_user):
                 # when running as another user, compare the task runner pid to the parent of 
                 # the recorded pid because user delegation becomes an extra process level.
                 # However, if recorded_pid is None, pass that through as it signals the task 
