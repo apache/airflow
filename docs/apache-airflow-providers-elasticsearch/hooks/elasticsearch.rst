@@ -21,10 +21,20 @@ ElasticsearchPythonHook
 
 Elasticsearch Hook that is using the native Python client to communicate with Elasticsearch
 
+Parameters
+------------
+hosts
+  A list of a single or many Elasticsearch instances. Example: ["http://localhost:9200"]
+es_conn_args
+  Additional arguments you might need to enter to connect to Elasticsearch.
+  Example: {"ca_cert":"/path/to/http_ca.crt", "basic_auth": "(user, pass)"}
+  For all possible configurations, consult with Elasticsearch documentation.
+  Reference: https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/connecting.html
+
 Usage Example
 ---------------------
 
-.. exampleinclude:: /../../tests/system/providers/elasticsearch/example_elasticsearch_python_hook.py
+.. exampleinclude:: /../../tests/system/providers/elasticsearch/example_elasticsearch_query.py
     :language: python
     :dedent: 4
     :start-after: [START howto_elasticsearch_python_hook]
@@ -43,4 +53,3 @@ Usage Example
     :dedent: 4
     :start-after: [START howto_elasticsearch_query]
     :end-before: [END howto_elasticsearch_query]
-
