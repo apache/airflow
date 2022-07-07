@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-05T19:14:03Z
+# This constraints file was automatically generated on 2022-07-07T04:00:06Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install uses the HEAD of the branch version of both
 # 'apache-airflow' package and all available community provider packages.
@@ -87,7 +87,7 @@ azure-mgmt-datalake-store==0.5.0
 azure-mgmt-nspkg==3.0.2
 azure-mgmt-resource==21.1.0
 azure-nspkg==3.0.2
-azure-servicebus==7.7.0
+azure-servicebus==7.8.0
 azure-storage-blob==12.8.1
 azure-storage-common==2.1.0
 azure-storage-file==2.1.0
@@ -100,9 +100,9 @@ billiard==3.6.4.0
 black==22.6.0
 bleach==5.0.1
 blinker==1.4
-boto3==1.24.22
+boto3==1.24.24
 boto==2.49.0
-botocore==1.27.22
+botocore==1.27.24
 bowler==0.9.0
 cached-property==1.5.2
 cachelib==0.9.0
@@ -198,7 +198,7 @@ google-cloud-dlp==1.0.2
 google-cloud-kms==2.11.2
 google-cloud-language==1.3.2
 google-cloud-logging==3.1.2
-google-cloud-memcache==1.3.2
+google-cloud-memcache==1.4.0
 google-cloud-monitoring==2.9.2
 google-cloud-orchestration-airflow==1.3.2
 google-cloud-os-login==2.6.2
@@ -214,7 +214,7 @@ google-cloud-texttospeech==1.0.3
 google-cloud-translate==1.7.2
 google-cloud-videointelligence==1.16.3
 google-cloud-vision==1.0.2
-google-cloud-workflows==1.6.3
+google-cloud-workflows==1.7.0
 google-crc32c==1.3.0
 google-resumable-media==2.3.3
 googleapis-common-protos==1.56.3
@@ -298,7 +298,7 @@ msrestazure==0.6.4
 multi-key-dict==2.0.3
 multidict==6.0.2
 mypy-boto3-appflow==1.24.0
-mypy-boto3-rds==1.24.22
+mypy-boto3-rds==1.24.23
 mypy-boto3-redshift-data==1.24.11.post3
 mypy-extensions==0.4.3
 mypy==0.910
@@ -317,7 +317,7 @@ openapi-schema-validator==0.2.3
 openapi-spec-validator==0.4.0
 opsgenie-sdk==2.1.5
 oracledb==1.0.1
-orjson==3.7.6
+orjson==3.7.7
 oscrypto==1.3.0
 oss2==2.15.0
 packaging==21.3
@@ -396,7 +396,7 @@ python-dateutil==2.8.2
 python-http-client==3.3.7
 python-jenkins==1.7.0
 python-jose==3.3.0
-python-ldap==3.4.0
+python-ldap==3.4.2
 python-nvd3==0.15.0
 python-slugify==6.1.2
 python-telegram-bot==13.13
@@ -508,7 +508,7 @@ types-six==1.16.17
 types-tabulate==0.8.11
 types-termcolor==1.1.5
 types-toml==0.10.7
-types-urllib3==1.26.15
+types-urllib3==1.26.16
 typing_extensions==4.3.0
 tzdata==2022.1
 tzlocal==4.2
