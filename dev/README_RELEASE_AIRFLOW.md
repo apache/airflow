@@ -24,6 +24,7 @@
   - [Selecting what to cherry-pick](#selecting-what-to-cherry-pick)
   - [Reviewing cherry-picked PRs and assigning labels](#reviewing-cherry-picked-prs-and-assigning-labels)
 - [Prepare the Apache Airflow Package RC](#prepare-the-apache-airflow-package-rc)
+  - [Update the milestone](#update-the-milestone)
   - [Build RC artifacts](#build-rc-artifacts)
   - [[\Optional\] Prepare new release branches and cache](#%5Coptional%5C-prepare-new-release-branches-and-cache)
   - [Prepare PyPI convenience "snapshot" packages](#prepare-pypi-convenience-snapshot-packages)
@@ -82,6 +83,13 @@ if you do this, update the milestone in the issue to the "next" minor release.
 Many issues will be marked with the target release as their Milestone; this is a good shortlist
 to start with for what to cherry-pick.
 
+For a patch release, find out other bug fixes that are not marked with the target release as their Milestone
+and mark those as well. You can accomplish this by running the following command:
+
+```
+ ./dev/airflow-github needs-categorization 2.3.2 HEAD
+ ```
+
 Often you also want to cherry-pick changes related to CI and development tools, to include the latest
 stability fixes in CI and improvements in development tools. Usually you can see the list of such
 changes via (this will exclude already merged changes:
@@ -134,7 +142,7 @@ You cn review the list of PRs cherry-picked and produce a nice summary with `--p
 assumes the `--skip-assigned` flag, so that the summary can be produced without questions:
 
 ```shell
-,/dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
+./dev/assign_cherry_picked_prs_with_milestone.py assign-prs --previous-release v2-2-stable \
   --current-release apache/v2-2-test --milestone-number 48 --skip-assigned --assume-yes --print-summary \
   --output-folder /tmp
 ```
@@ -173,6 +181,10 @@ git log apache/v2-2-test --format="%H" -- airflow/sensors/base.py | grep -f /tmp
 ```
 
 # Prepare the Apache Airflow Package RC
+
+## Update the milestone
+
+Before cutting an RC, we should look at the milestone and merge anything ready, or if we aren't going to include it in the release we should update the milestone for those issues. We should do that before cutting the RC so the milestone gives us an accurate view of what is going to be in the release as soon as we know what it will be.
 
 ## Build RC artifacts
 
@@ -255,7 +267,7 @@ The Release Candidate artifacts we vote upon should be the exact ones we vote ag
 - Make sure you have the latest CI image
 
     ```shell script
-    breeze pull-image --python 3.7
+    breeze build-image --python 3.7
     ```
 
 - Tarball the repo
