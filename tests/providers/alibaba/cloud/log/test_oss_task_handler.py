@@ -35,10 +35,7 @@ class TestOSSTaskHandler(unittest.TestCase):
     def setUp(self):
         self.base_log_folder = 'local/airflow/logs/1.log'
         self.oss_log_folder = f'oss://{MOCK_BUCKET_NAME}/airflow/logs'
-        self.filename_template = '{try_number}.log'
-        self.oss_task_handler = OSSTaskHandler(
-            self.base_log_folder, self.oss_log_folder, self.filename_template
-        )
+        self.oss_task_handler = OSSTaskHandler(self.base_log_folder, self.oss_log_folder)
 
     @mock.patch(OSS_TASK_HANDLER_STRING.format('conf.get'))
     @mock.patch(OSS_TASK_HANDLER_STRING.format('OSSHook'))

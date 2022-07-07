@@ -24,9 +24,11 @@ import daemon
 from daemon.pidfile import TimeoutPIDLockFile
 
 from airflow import settings
+from airflow.configuration import conf
 from airflow.jobs.scheduler_job import SchedulerJob
 from airflow.utils import cli as cli_utils
 from airflow.utils.cli import process_subdir, setup_locations, setup_logging, sigint_handler, sigquit_handler
+from airflow.utils.scheduler_health import serve_health_check
 
 
 def _create_scheduler_job(args):
@@ -41,12 +43,16 @@ def _create_scheduler_job(args):
 def _run_scheduler_job(args):
     skip_serve_logs = args.skip_serve_logs
     job = _create_scheduler_job(args)
-    sub_proc = _serve_logs(skip_serve_logs)
+    logs_sub_proc = _serve_logs(skip_serve_logs)
+    enable_health_check = conf.getboolean('scheduler', 'ENABLE_HEALTH_CHECK')
+    health_sub_proc = _serve_health_check(enable_health_check)
     try:
         job.run()
     finally:
-        if sub_proc:
-            sub_proc.terminate()
+        if logs_sub_proc:
+            logs_sub_proc.terminate()
+        if health_sub_proc:
+            health_sub_proc.terminate()
 
 
 @cli_utils.action_cli
@@ -85,4 +91,13 @@ def _serve_logs(skip_serve_logs: bool = False) -> Optional[Process]:
             sub_proc = Process(target=serve_logs)
             sub_proc.start()
             return sub_proc
+    return None
+
+
+def _serve_health_check(enable_health_check: bool = False) -> Optional[Process]:
+    """Starts serve_health_check sub-process"""
+    if enable_health_check:
+        sub_proc = Process(target=serve_health_check)
+        sub_proc.start()
+        return sub_proc
     return None

@@ -27,6 +27,7 @@ from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -47,6 +48,7 @@ from airflow.exceptions import (
 from airflow.models import (
     DAG,
     Connection,
+    DagBag,
     DagRun,
     Pool,
     RenderedTaskInstanceFields,
@@ -55,6 +57,7 @@ from airflow.models import (
     Variable,
     XCom,
 )
+from airflow.models.dataset import DatasetDagRunQueue, DatasetTaskRef
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
@@ -243,6 +246,12 @@ class TestTaskInstance:
         # op2 should be downstream of both
         assert op2 in op1.downstream_list
         assert op2 in op3.downstream_list
+
+    def test_init_on_load(self, create_task_instance):
+        ti = create_task_instance()
+        # ensure log is correctly created for ORM ti
+        assert ti.log.name == 'airflow.task'
+        assert not ti.test_mode
 
     @patch.object(DAG, 'get_concurrency_reached')
     def test_requeue_over_dag_concurrency(self, mock_concurrency_reached, create_task_instance):
@@ -1047,7 +1056,9 @@ class TestTaskInstance:
 
     def test_xcom_pull_mapped(self, dag_maker, session):
         with dag_maker(dag_id="test_xcom", session=session):
-            task_1 = EmptyOperator.partial(task_id="task_1").expand()
+            # Use the private _expand() method to avoid the empty kwargs check.
+            # We don't care about how the operator runs here, only its presence.
+            task_1 = EmptyOperator.partial(task_id="task_1")._expand()
             EmptyOperator(task_id="task_2")
 
         dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
@@ -1299,18 +1310,6 @@ class TestTaskInstance:
         assert 1 == ti2.get_num_running_task_instances(session=session)
         assert 1 == ti3.get_num_running_task_instances(session=session)
 
-    # def test_log_url(self):
-    #     now = pendulum.now('Europe/Brussels')
-    #     dag = DAG('dag', start_date=DEFAULT_DATE)
-    #     task = EmptyOperator(task_id='op', dag=dag)
-    #     ti = TI(task=task, execution_date=now)
-    #     d = urllib.parse.parse_qs(
-    #         urllib.parse.urlparse(ti.log_url).query,
-    #         keep_blank_values=True, strict_parsing=True)
-    #     self.assertEqual(d['dag_id'][0], 'dag')
-    #     self.assertEqual(d['task_id'][0], 'op')
-    #     self.assertEqual(pendulum.parse(d['execution_date'][0]), now)
-
     def test_log_url(self, create_task_instance):
         ti = create_task_instance(dag_id='dag', task_id='op', execution_date=timezone.datetime(2018, 1, 1))
 
@@ -1319,6 +1318,7 @@ class TestTaskInstance:
             'execution_date=2018-01-01T00%3A00%3A00%2B00%3A00'
             '&task_id=op'
             '&dag_id=dag'
+            '&map_index=-1'
         )
         assert ti.log_url == expected_url
 
@@ -1475,6 +1475,33 @@ class TestTaskInstance:
         assert callback_wrapper.task_state_in_callback == State.SUCCESS
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
+
+    def test_outlet_datasets(self, create_task_instance):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        completes successfully, a DatasetDagRunQueue is logged.
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag1
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag1.get_task('upstream_task_1')
+        task.bash_command = 'echo 1'  # make it go faster
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+        assert session.query(DatasetDagRunQueue.target_dag_id).filter(
+            DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
+        ).all() == [('dag3',), ('dag4',), ('dag5',)]
 
     @staticmethod
     def _test_previous_dates_setup(
@@ -2320,6 +2347,7 @@ class TestRunRawTaskQueriesCount:
         db.clear_db_dags()
         db.clear_db_sla_miss()
         db.clear_db_import_errors()
+        db.clear_db_datasets()
 
     def setup_method(self) -> None:
         self._clean()
@@ -2757,7 +2785,9 @@ class TestMappedTaskInstanceReceiveValue:
 def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_value, dag_maker, session):
     """Ensure we access XCom lazily when pulling from a mapped operator."""
     with dag_maker(dag_id="test_xcom", session=session):
-        task_1 = EmptyOperator.partial(task_id="task_1").expand()
+        # Use the private _expand() method to avoid the empty kwargs check.
+        # We don't care about how the operator runs here, only its presence.
+        task_1 = EmptyOperator.partial(task_id="task_1")._expand()
         EmptyOperator(task_id="task_2")
 
     dagrun = dag_maker.create_dagrun()
@@ -2829,3 +2859,23 @@ def test_ti_mapped_depends_on_mapped_xcom_arg_XXX(dag_maker, session):
         ti.refresh_from_task(dag.get_task("add_one"))
         with pytest.raises(XComForMappingNotPushed):
             ti.run()
+
+
+def test_expand_non_templated_field(dag_maker, session):
+    """Test expand on non-templated fields sets upstream deps properly."""
+
+    class SimpleBashOperator(BashOperator):
+        template_fields = ()
+
+    with dag_maker(dag_id="product_same_types", session=session) as dag:
+
+        @dag.task
+        def get_extra_env():
+            return [{"foo": "bar"}, {"foo": "biz"}]
+
+        SimpleBashOperator.partial(task_id="echo", bash_command="echo $FOO").expand(env=get_extra_env())
+
+    dag_maker.create_dagrun()
+
+    echo_task = dag.get_task("echo")
+    assert "get_extra_env" in echo_task.upstream_task_ids

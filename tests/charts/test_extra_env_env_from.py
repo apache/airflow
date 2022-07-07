@@ -53,7 +53,17 @@ PARAMS = [
     ),
     (
         ("Deployment", f"{RELEASE_NAME}-webserver"),
-        ("spec.template.spec.initContainers[0]", "spec.template.spec.containers[0]"),
+        (
+            "spec.template.spec.initContainers[0]",
+            "spec.template.spec.containers[0]",
+        ),
+    ),
+    (
+        ("Deployment", f"{RELEASE_NAME}-triggerer"),
+        (
+            "spec.template.spec.initContainers[0]",
+            "spec.template.spec.containers[0]",
+        ),
     ),
     (
         ("Deployment", f"{RELEASE_NAME}-flower"),
@@ -70,7 +80,8 @@ class ExtraEnvEnvFromTest(unittest.TestCase):
     def setUpClass(cls) -> None:
         values_str = textwrap.dedent(
             """
-            executor: "CeleryExecutor"
+            flower:
+              enabled: true
             extraEnvFrom: |
               - secretRef:
                   name: '{{ .Release.Name }}-airflow-connections'

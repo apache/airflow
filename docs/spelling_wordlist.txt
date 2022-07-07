@@ -17,6 +17,7 @@ Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
+Appflow
 ArangoDB
 Arg
 Args
@@ -25,6 +26,7 @@ Async
 AsyncResult
 Atlassian
 Auth
+Authlib
 AutoMlClient
 Autoscale
 Avro
@@ -193,6 +195,7 @@ Hou
 Http
 HttpError
 HttpRequest
+IGM
 IdP
 ImageAnnotatorClient
 Imap
@@ -281,6 +284,7 @@ OSS
 Oauth
 Oauthlib
 Okta
+OnFailure
 Oozie
 Opsgenie
 Optimise
@@ -344,6 +348,7 @@ ResourceRequirements
 Roadmap
 Robinhood
 RoleBinding
+SFTPClient
 SIGTERM
 SSHClient
 SSHTunnelForwarder
@@ -392,6 +397,7 @@ TCP
 TLS
 TTY
 TZ
+Tabular
 TaskDecorator
 TaskFlow
 TaskGroup
@@ -795,6 +801,7 @@ evals
 eventlet
 evo
 exasol
+executables
 execvp
 exitcode
 explicit
@@ -820,12 +827,14 @@ filehandle
 fileloc
 filelocs
 filepath
+fileshare
 filesize
 filesystem
 filesystems
 filetype
 finalizers
 findall
+firestore
 firstname
 fluentd
 fmt
@@ -851,6 +860,7 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+geq
 getattr
 getfqdn
 getframe
@@ -874,6 +884,7 @@ greenlet
 groupId
 grpc
 gz
+gzipped
 hadoop
 hadoopcmd
 hardcoded
@@ -1007,6 +1018,7 @@ latencies
 latin
 ldap
 ldaps
+leq
 leveldb
 libs
 libz
@@ -1124,6 +1136,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm
@@ -1189,6 +1202,7 @@ preloading
 prepend
 prepended
 preprocess
+preprocessing
 presign
 presigned
 prestocmd
@@ -1243,6 +1257,7 @@ readme
 readthedocs
 realtime
 rebase
+recurse
 recurses
 redbubble
 redis
@@ -1345,6 +1360,7 @@ sourceRepository
 sourceUploadUrl
 sparkApplication
 sparkcmd
+sparkr
 sparksql
 spegno
 spotahome
@@ -1475,6 +1491,7 @@ tsql
 tsv
 ttl
 tunables
+twitterHandle
 txt
 typeahead
 tz

@@ -21,7 +21,7 @@ Apache Beam Operators
 
 `Apache Beam <https://beam.apache.org/>`__ is an open source, unified model for defining both batch and
 streaming data-parallel processing pipelines. Using one of the open source Beam SDKs, you build a program
-that defines the pipeline. The pipeline is then executed by one of Beam’s supported distributed processing
+that defines the pipeline. The pipeline is then executed by one of Beam's supported distributed processing
 back-ends, which include Apache Flink, Apache Spark, and Google Cloud Dataflow.
 
 
@@ -49,13 +49,13 @@ recommend avoiding unless the Dataflow job requires it.
 Python Pipelines with DirectRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_python.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_python_direct_runner_pipeline_local_file]
     :end-before: [END howto_operator_start_python_direct_runner_pipeline_local_file]
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_python.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_python_direct_runner_pipeline_gcs_file]
@@ -64,13 +64,13 @@ Python Pipelines with DirectRunner
 Python Pipelines with DataflowRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_python.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_python_dataflow_runner_pipeline_gcs_file]
     :end-before: [END howto_operator_start_python_dataflow_runner_pipeline_gcs_file]
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_python_dataflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_python_dataflow_runner_pipeline_async_gcs_file]
@@ -92,7 +92,7 @@ has the ability to download or available on the local filesystem (provide the ab
 Java Pipelines with DirectRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_beam.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_java_direct_runner_pipeline]
@@ -101,7 +101,7 @@ Java Pipelines with DirectRunner
 Java Pipelines with DataflowRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_java_dataflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_java_dataflow_runner_pipeline]
@@ -125,13 +125,13 @@ init the module and install dependencies with ``go run init example.com/main`` a
 Go Pipelines with DirectRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_go.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_go_direct_runner_pipeline_local_file]
     :end-before: [END howto_operator_start_go_direct_runner_pipeline_local_file]
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_go.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_go_direct_runner_pipeline_gcs_file]
@@ -140,13 +140,13 @@ Go Pipelines with DirectRunner
 Go Pipelines with DataflowRunner
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_go.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
     :end-before: [END howto_operator_start_go_dataflow_runner_pipeline_gcs_file]
 
-.. exampleinclude:: /../../airflow/providers/apache/beam/example_dags/example_beam.py
+.. exampleinclude:: /../../tests/system/providers/apache/beam/example_go_dataflow.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_start_go_dataflow_runner_pipeline_async_gcs_file]

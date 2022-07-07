@@ -19,16 +19,18 @@
 
 /* global moment, document */
 
-import React, { useContext, useEffect, useState } from 'react';
+import React, {
+  useContext, useEffect, useState, useMemo,
+} from 'react';
 import { TimezoneEvent } from '../../datetime_utils';
 
-const TimezoneContext = React.createContext(null);
+const TimezoneContext = React.createContext({ timezone: 'UTC' });
 
 export const TimezoneProvider = ({ children }) => {
   const [timezone, setTimezone] = useState((moment.defaultZone && moment.defaultZone.name) || 'UTC');
 
   const handleChange = (e) => {
-    if (e.value && e.value !== timezone) setTimezone(e.value);
+    if (e.detail && e.detail !== timezone) setTimezone(e.detail);
   };
 
   useEffect(() => {
@@ -38,8 +40,10 @@ export const TimezoneProvider = ({ children }) => {
     };
   });
 
+  const value = useMemo(() => ({ timezone }), [timezone]);
+
   return (
-    <TimezoneContext.Provider value={{ timezone }}>
+    <TimezoneContext.Provider value={value}>
       {children}
     </TimezoneContext.Provider>
   );

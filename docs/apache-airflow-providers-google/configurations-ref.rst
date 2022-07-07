@@ -23,7 +23,7 @@ This page contains the list of all the provider configurations that you
 can set in ``airflow.cfg`` file or using environment variables.
 
 .. note::
-    For more information on setting the configuration, see :doc:`howto/set-config`
+    For more information on setting the configuration, see :doc:`apache-airflow:howto/set-config`
 
 .. contents:: Sections:
    :local:

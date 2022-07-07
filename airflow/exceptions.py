@@ -21,6 +21,7 @@
 """Exceptions used by Airflow"""
 import datetime
 import warnings
+from http import HTTPStatus
 from typing import Any, Dict, List, NamedTuple, Optional, Sized
 
 
@@ -31,19 +32,19 @@ class AirflowException(Exception):
     Each custom exception should be derived from this class.
     """
 
-    status_code = 500
+    status_code = HTTPStatus.INTERNAL_SERVER_ERROR
 
 
 class AirflowBadRequest(AirflowException):
     """Raise when the application or server cannot handle the request."""
 
-    status_code = 400
+    status_code = HTTPStatus.BAD_REQUEST
 
 
 class AirflowNotFoundException(AirflowException):
     """Raise when the requested object/resource is not available in the system."""
 
-    status_code = 404
+    status_code = HTTPStatus.NOT_FOUND
 
 
 class AirflowConfigException(AirflowException):
@@ -149,6 +150,10 @@ class AirflowDagDuplicatedIdException(AirflowException):
         return f"Ignoring DAG {self.dag_id} from {self.incoming} - also found in {self.existing}"
 
 
+class AirflowDagInconsistent(AirflowException):
+    """Raise when a DAG has inconsistent attributes."""
+
+
 class AirflowClusterPolicyViolation(AirflowException):
     """Raise when there is a violation of a Cluster Policy in DAG definition."""
 
@@ -183,6 +188,23 @@ class DagFileExists(AirflowBadRequest):
 
 class DuplicateTaskIdFound(AirflowException):
     """Raise when a Task with duplicate task_id is defined in the same DAG."""
+
+
+class TaskAlreadyInTaskGroup(AirflowException):
+    """Raise when a Task cannot be added to a TaskGroup since it already belongs to another TaskGroup."""
+
+    def __init__(self, task_id: str, existing_group_id: Optional[str], new_group_id: str) -> None:
+        super().__init__(task_id, new_group_id)
+        self.task_id = task_id
+        self.existing_group_id = existing_group_id
+        self.new_group_id = new_group_id
+
+    def __str__(self) -> str:
+        if self.existing_group_id is None:
+            existing_group = "the DAG's root group"
+        else:
+            existing_group = f"group {self.existing_group_id!r}"
+        return f"cannot add {self.task_id!r} to {self.new_group_id!r} (already in {existing_group})"
 
 
 class SerializationError(AirflowException):
@@ -305,3 +327,7 @@ class TaskDeferred(BaseException):
 
 class TaskDeferralError(AirflowException):
     """Raised when a task failed during deferral for some reason."""
+
+
+class PodReconciliationError(AirflowException):
+    """Raised when an error is encountered while trying to merge pod configs."""

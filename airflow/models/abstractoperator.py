@@ -57,17 +57,22 @@ if TYPE_CHECKING:
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
 
-DEFAULT_OWNER: str = conf.get("operators", "default_owner")
+DEFAULT_OWNER: str = conf.get_mandatory_value("operators", "default_owner")
 DEFAULT_POOL_SLOTS: int = 1
 DEFAULT_PRIORITY_WEIGHT: int = 1
-DEFAULT_QUEUE: str = conf.get("operators", "default_queue")
+DEFAULT_QUEUE: str = conf.get_mandatory_value("operators", "default_queue")
+DEFAULT_IGNORE_FIRST_DEPENDS_ON_PAST: bool = conf.getboolean(
+    "scheduler", "ignore_first_depends_on_past_by_default"
+)
 DEFAULT_RETRIES: int = conf.getint("core", "default_task_retries", fallback=0)
-DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(seconds=300)
+DEFAULT_RETRY_DELAY: datetime.timedelta = datetime.timedelta(
+    seconds=conf.getint("core", "default_task_retry_delay", fallback=300)
+)
 DEFAULT_WEIGHT_RULE: WeightRule = WeightRule(
     conf.get("core", "default_task_weight_rule", fallback=WeightRule.DOWNSTREAM)
 )
 DEFAULT_TRIGGER_RULE: TriggerRule = TriggerRule.ALL_SUCCESS
-DEFAULT_TASK_EXECUTION_TIMEOUT: datetime.timedelta = conf.gettimedelta(
+DEFAULT_TASK_EXECUTION_TIMEOUT: Optional[datetime.timedelta] = conf.gettimedelta(
     "core", "default_task_execution_timeout"
 )
 
@@ -302,7 +307,6 @@ class AbstractOperator(LoggingMixin, DAGNode):
             return link.get_link(self, ti_key=ti.key)
         else:
             return link.get_link(self, ti.dag_run.logical_date)  # type: ignore[misc]
-        return None
 
     def render_template_fields(
         self,

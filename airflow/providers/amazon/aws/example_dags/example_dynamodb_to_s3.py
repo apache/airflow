@@ -18,6 +18,7 @@ from datetime import datetime
 from os import environ
 
 from airflow import DAG
+from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.transfers.dynamodb_to_s3 import DynamoDBToS3Operator
 
 TABLE_NAME = environ.get('DYNAMO_TABLE_NAME', 'ExistingDynamoDbTableName')
@@ -31,7 +32,6 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
-
     # [START howto_transfer_dynamodb_to_s3]
     backup_db = DynamoDBToS3Operator(
         task_id='backup_db',
@@ -41,3 +41,32 @@ with DAG(
         file_size=1000,
     )
     # [END howto_transfer_dynamodb_to_s3]
+
+    # [START howto_transfer_dynamodb_to_s3_segmented]
+    # Segmenting allows the transfer to be parallelized into {segment} number of parallel tasks.
+    backup_db_segment_1 = DynamoDBToS3Operator(
+        task_id='backup-1',
+        dynamodb_table_name=TABLE_NAME,
+        s3_bucket_name=BUCKET_NAME,
+        # Max output file size in bytes.  If the Table is too large, multiple files will be created.
+        file_size=1000,
+        dynamodb_scan_kwargs={
+            "TotalSegments": 2,
+            "Segment": 0,
+        },
+    )
+
+    backup_db_segment_2 = DynamoDBToS3Operator(
+        task_id="backup-2",
+        dynamodb_table_name=TABLE_NAME,
+        s3_bucket_name=BUCKET_NAME,
+        # Max output file size in bytes.  If the Table is too large, multiple files will be created.
+        file_size=1000,
+        dynamodb_scan_kwargs={
+            "TotalSegments": 2,
+            "Segment": 1,
+        },
+    )
+    # [END howto_transfer_dynamodb_to_s3_segmented]
+
+    chain(backup_db, [backup_db_segment_1, backup_db_segment_2])

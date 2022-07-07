@@ -206,9 +206,6 @@ log.txt*
 # Terraform variables
 *.tfvars
 
-# Chart dependencies
-**/charts/*.tgz
-
 # Might be generated when you build wheels
 pip-wheel-metadata
 
@@ -225,3 +222,7 @@ licenses/LICENSES-ui.txt
 
 # Packaged breeze on Windows
 /breeze.exe
+
+# Generated out dir
+
+/out

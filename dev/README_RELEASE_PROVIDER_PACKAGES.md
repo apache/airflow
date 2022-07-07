@@ -697,7 +697,7 @@ Hello,
 
 Apache Airflow Providers (based on RC1) have been accepted.
 
-3 “+1” binding votes received:
+3 "+1" binding votes received:
 - Jarek Potiuk  (binding)
 - Kaxil Naik (binding)
 - Tomasz Urbaszek (binding)

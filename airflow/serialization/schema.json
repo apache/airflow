@@ -53,6 +53,34 @@
         { "type": "integer" }
       ]
     },
+    "dataset": {
+      "type": "object",
+      "properties": {
+        "uri": { "type": "string" },
+        "extra": {
+            "anyOf": [
+                {"type": "null"},
+                { "$ref": "#/definitions/dict" }
+            ]
+        }
+      },
+      "required": [ "uri", "extra" ]
+    },
+    "typed_dataset": {
+      "type": "object",
+      "properties": {
+        "__type": {
+          "type": "string",
+            "constant": "dataset"
+        },
+        "__var": { "$ref": "#/definitions/dataset" }
+      },
+      "required": [
+        "__type",
+        "__var"
+      ],
+      "additionalProperties": false
+    },
     "dict": {
       "description": "A python dictionary containing values of any type",
       "type": "object"
@@ -89,6 +117,15 @@
             { "$ref": "#/definitions/typed_timedelta" },
             { "$ref": "#/definitions/typed_relativedelta" }
           ]
+        },
+        "schedule_on":{
+            "anyOf": [
+                { "type": "null" },
+                {
+                  "type": "array",
+                  "items": { "$ref": "#/definitions/typed_dataset" }
+                }
+            ]
         },
         "timetable": {
           "type": "object",

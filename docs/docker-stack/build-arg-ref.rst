@@ -40,12 +40,12 @@ Those are the most common arguments that you use when you want to build a custom
 | ``ADDITIONAL_AIRFLOW_EXTRAS``            |                                          | Optional additional extras with which       |
 |                                          |                                          | airflow is installed.                       |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow’s HOME (that’s where logs and       |
+| ``AIRFLOW_HOME``                         | ``/opt/airflow``                         | Airflow's HOME (that's where logs and       |
 |                                          |                                          | SQLite databases are stored).               |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``AIRFLOW_USER_HOME_DIR``                | ``/home/airflow``                        | Home directory of the Airflow user.         |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
-| ``AIRFLOW_PIP_VERSION``                  | ``22.1.0``                               |  PIP version used.                          |
+| ``AIRFLOW_PIP_VERSION``                  | ``22.1.2``                               |  PIP version used.                          |
 +------------------------------------------+------------------------------------------+---------------------------------------------+
 | ``PIP_PROGRESS_BAR``                     | ``on``                                   | Progress bar for PIP installation           |
 +------------------------------------------+------------------------------------------+---------------------------------------------+

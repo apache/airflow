@@ -15,21 +15,25 @@
     specific language governing permissions and limitations
     under the License.
 
+=================
+Amazon S3 Glacier
+=================
 
-Amazon S3 Glacier Operators
-===========================
-
-`Amazon Glacier <https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html>`_ is a secure, durable, and extremely low-cost Amazon S3 cloud storage class for data archiving and long-term backup.
+`Amazon Glacier <https://docs.aws.amazon.com/amazonglacier/latest/dev/introduction.html>`_ is a secure, durable,
+and extremely low-cost Amazon S3 cloud storage class for data archiving and long-term backup.
 
 Prerequisite Tasks
 ------------------
 
 .. include:: _partials/prerequisite_tasks.rst
 
+Operators
+---------
+
 .. _howto/operator:GlacierCreateJobOperator:
 
-Amazon Glacier Create Job Operator
-""""""""""""""""""""""""""""""""""
+Create an Amazon Glacier job
+============================
 
 To initiate an Amazon Glacier inventory retrieval job
 use :class:`~airflow.providers.amazon.aws.transfers.glacier_to_gcs.GlacierCreateJobOperator`
@@ -39,13 +43,16 @@ This Operator returns a dictionary of information related to the initiated job s
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_glacier_create_job_operator]
-    :end-before: [END howto_glacier_create_job_operator]
+    :start-after: [START howto_operator_glacier_create_job]
+    :end-before: [END howto_operator_glacier_create_job]
 
-.. _howto/operator:GlacierJobOperationSensor:
+Sensors
+-------
 
-Amazon Glacier Job Sensor
-"""""""""""""""""""""""""
+.. _howto/sensor:GlacierJobOperationSensor:
+
+Wait on an Amazon Glacier job state
+===================================
 
 To wait on the status of an Amazon Glacier Job to reach a terminal state
 use :class:`~airflow.providers.amazon.aws.sensors.glacier.GlacierJobOperationSensor`
@@ -53,13 +60,10 @@ use :class:`~airflow.providers.amazon.aws.sensors.glacier.GlacierJobOperationSen
 .. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_glacier_to_gcs.py
     :language: python
     :dedent: 4
-    :start-after: [START howto_glacier_job_operation_sensor]
-    :end-before: [END howto_glacier_job_operation_sensor]
-
+    :start-after: [START howto_sensor_glacier_job_operation]
+    :end-before: [END howto_sensor_glacier_job_operation]
 
 References
 ----------
 
-For further information, look at:
-
-* `Boto3 Library Documentation for Amazon Glacier <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html>`__
+* `AWS boto3 library documentation for Amazon Glacier <https://boto3.amazonaws.com/v1/documentation/api/latest/reference/services/glacier.html>`__

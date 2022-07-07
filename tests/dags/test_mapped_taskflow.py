@@ -15,10 +15,11 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import DAG
-from airflow.utils.dates import days_ago
+import datetime
 
-with DAG(dag_id='test_mapped_taskflow', start_date=days_ago(2)) as dag:
+from airflow import DAG
+
+with DAG(dag_id='test_mapped_taskflow', start_date=datetime.datetime(2022, 1, 1)) as dag:
 
     @dag.task
     def make_list():

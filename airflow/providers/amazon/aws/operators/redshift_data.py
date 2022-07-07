@@ -15,15 +15,10 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
 
@@ -136,12 +131,12 @@ class RedshiftDataOperator(BaseOperator):
             elif status == 'FAILED' or status == 'ABORTED':
                 raise ValueError(f"Statement {statement_id!r} terminated with status {status}.")
             else:
-                self.log.info(f"Query {status}")
+                self.log.info("Query %s", status)
             sleep(self.poll_interval)
 
     def execute(self, context: 'Context') -> None:
         """Execute a statement against Amazon Redshift"""
-        self.log.info(f"Executing statement: {self.sql}")
+        self.log.info("Executing statement: %s", self.sql)
 
         self.statement_id = self.execute_query()
 

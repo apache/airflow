@@ -16,7 +16,7 @@
 # under the License.
 
 """Serialized DAG and BaseOperator"""
-import contextlib
+
 import datetime
 import enum
 import logging
@@ -33,6 +33,7 @@ from pendulum.tz.timezone import FixedTimezone, Timezone
 from airflow.compat.functools import cache
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, SerializationError
+from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
@@ -70,8 +71,9 @@ log = logging.getLogger(__name__)
 
 _OPERATOR_EXTRA_LINKS: Set[str] = {
     "airflow.operators.trigger_dagrun.TriggerDagRunLink",
-    "airflow.sensors.external_task.ExternalTaskSensorLink",
+    "airflow.sensors.external_task.ExternalDagLink",
     # Deprecated names, so that existing serialized dags load straight away.
+    "airflow.sensors.external_task.ExternalTaskSensorLink",
     "airflow.operators.dagrun_operator.TriggerDagRunLink",
     "airflow.sensors.external_task_sensor.ExternalTaskSensorLink",
 }
@@ -96,7 +98,8 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     are defaults, they are automatically supplied on de-serialization, so we
     don't need to store them.
     """
-    default_partial_kwargs = BaseOperator.partial(task_id="_").expand().partial_kwargs
+    # Use the private _expand() method to avoid the empty kwargs check.
+    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand().partial_kwargs
     return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 
@@ -368,6 +371,8 @@ class BaseSerialization:
             return cls._encode(cls._serialize_param(var), type_=DAT.PARAM)
         elif isinstance(var, XComArg):
             return cls._encode(cls._serialize_xcomarg(var), type_=DAT.XCOM_REF)
+        elif isinstance(var, Dataset):
+            return cls._encode(dict(uri=var.uri, extra=var.extra), type_=DAT.DATASET)
         else:
             log.debug('Cast type %s to str in serialization.', type(var))
             return str(var)
@@ -413,6 +418,8 @@ class BaseSerialization:
             return cls._deserialize_param(var)
         elif type_ == DAT.XCOM_REF:
             return cls._deserialize_xcomref(var)
+        elif type_ == DAT.DATASET:
+            return Dataset(**var)
         else:
             raise TypeError(f'Invalid type {type_!s} in deserialization.')
 
@@ -591,6 +598,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
         serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
 
+        # Handle mapped_kwargs and mapped_op_kwargs.
+        serialized_op[op._expansion_kwargs_attr] = cls._serialize(op._get_expansion_kwargs())
+
         # Simplify partial_kwargs by comparing it to the most barebone object.
         # Remove all entries that are simply default values.
         serialized_partial = serialized_op["partial_kwargs"]
@@ -601,20 +611,6 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 continue
             if v == default:
                 del serialized_partial[k]
-
-        # Simplify op_kwargs format. It must be a dict, so we flatten it.
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["mapped_kwargs"]["op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["mapped_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["partial_kwargs"]["op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["partial_kwargs"]["op_kwargs"] = op_kwargs[Encoding.VAR]
-        with contextlib.suppress(KeyError):
-            op_kwargs = serialized_op["mapped_op_kwargs"]
-            assert op_kwargs[Encoding.TYPE] == DAT.DICT
-            serialized_op["mapped_op_kwargs"] = op_kwargs[Encoding.VAR]
 
         serialized_op["_is_mapped"] = True
         return serialized_op
@@ -751,18 +747,13 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k in ("mapped_kwargs", "partial_kwargs"):
-                if "op_kwargs" not in v:
-                    op_kwargs: Optional[dict] = None
-                else:
-                    op_kwargs = {arg: cls._deserialize(value) for arg, value in v.pop("op_kwargs").items()}
-                v = {arg: cls._deserialize(value) for arg, value in v.items()}
-                if op_kwargs is not None:
-                    v["op_kwargs"] = op_kwargs
-            elif k == "mapped_op_kwargs":
+            elif k == "partial_kwargs":
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
                 v = cls._deserialize(v)
+            elif k in ("_outlets", "_inlets"):
+                v = cls._deserialize(v)
+
             # else use v as it is
 
             setattr(op, k, v)
@@ -1041,6 +1032,8 @@ class SerializedDAG(DAG, BaseSerialization):
                 v = cls._deserialize(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
+            elif k == "schedule_on":
+                v = cls._deserialize(v)
             # else use v as it is
 
             setattr(dag, k, v)

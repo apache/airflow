@@ -20,20 +20,14 @@
 import ast
 import json
 import re
-import sys
 import warnings
 from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
 
-from airflow.version import version as airflow_version
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
+from airflow.providers.amazon.aws.utils import get_airflow_version
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -134,7 +128,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         self.profile_name = profile_name
         self.sep = sep
         self.full_url_mode = full_url_mode
-        self.extra_conn_words = extra_conn_words if extra_conn_words else {}
+        self.extra_conn_words = extra_conn_words or {}
         self.kwargs = kwargs
 
     @cached_property
@@ -178,9 +172,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         conn_string = "{conn_type}://{user}:{password}@{host}:{port}/{schema}".format(**conn_d)
 
-        connection = self._format_uri_with_extra(secret, conn_string)
-
-        return connection
+        return self._format_uri_with_extra(secret, conn_string)
 
     def get_conn_value(self, conn_id: str):
         """
@@ -193,20 +185,19 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
 
         if self.full_url_mode:
             return self._get_secret(self.connections_prefix, conn_id)
-        else:
-            try:
-                secret_string = self._get_secret(self.connections_prefix, conn_id)
-                # json.loads gives error
-                secret = ast.literal_eval(secret_string) if secret_string else None
-            except ValueError:  # 'malformed node or string: ' error, for empty conns
-                connection = None
-                secret = None
+        try:
+            secret_string = self._get_secret(self.connections_prefix, conn_id)
+            # json.loads gives error
+            secret = ast.literal_eval(secret_string) if secret_string else None
+        except ValueError:  # 'malformed node or string: ' error, for empty conns
+            connection = None
+            secret = None
 
-            # These lines will check if we have with some denomination stored an username, password and host
-            if secret:
-                connection = self.get_uri_from_secret(secret)
+        # These lines will check if we have with some denomination stored an username, password and host
+        if secret:
+            connection = self.get_uri_from_secret(secret)
 
-            return connection
+        return connection
 
     def get_conn_uri(self, conn_id: str) -> Optional[str]:
         """
@@ -217,7 +208,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        if _parse_version(airflow_version) >= (2, 3):
+        if get_airflow_version() >= (2, 3):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
                 "in a future release.  Please use method `get_conn_value` instead.",

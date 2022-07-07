@@ -26,19 +26,6 @@ function sanity_checks::sanitize_file() {
     touch "${1}"
 }
 
-# Those files are mounted into container when run locally
-# .bash_history is preserved and you can modify .bash_aliases and .inputrc
-# according to your liking
-function sanity_checks::sanitize_mounted_files() {
-    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.bash_history"
-    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.bash_aliases"
-    sanity_checks::sanitize_file "${AIRFLOW_SOURCES}/.inputrc"
-
-    # When KinD cluster is created, the folder keeps authentication information
-    # across sessions
-    mkdir -p "${AIRFLOW_SOURCES}/.kube" >/dev/null 2>&1
-}
-
 #
 # Creates cache directory where we will keep temporary files needed for the docker build
 #
@@ -150,5 +137,4 @@ function sanity_checks::basic_sanity_checks() {
     initialization::set_default_python_version_if_empty
     sanity_checks::go_to_airflow_sources
     sanity_checks::check_if_coreutils_installed
-    sanity_checks::sanitize_mounted_files
 }

@@ -60,8 +60,7 @@ is evaluated as a :ref:`Jinja template <concepts:jinja-templating>`.
 PythonVirtualenvOperator
 ========================
 
-Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute
-Python callables inside a new Python virtual environment.
+Use the :class:`~airflow.operators.python.PythonVirtualenvOperator` to execute Python callables inside a new Python virtual environment. The ``virtualenv`` package needs to be installed in the environment that runs Airflow (as optional dependency ``pip install airflow[virtualenv] --constraint ...``).
 
 .. exampleinclude:: /../../airflow/example_dags/example_python_operator.py
     :language: python

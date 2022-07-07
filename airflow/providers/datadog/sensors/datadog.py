@@ -42,10 +42,10 @@ class DatadogSensor(BaseSensorOperator):
     :param sources: A comma separated list indicating what tags, if any,
         should be used to filter the list of monitors by scope
     :param tags: Get datadog events from specific sources.
-    :param response_check: A check against the ‘requests’ response object. The callable takes
+    :param response_check: A check against the 'requests' response object. The callable takes
         the response object as the first positional argument and optionally any number of
         keyword arguments available in the context dictionary. It should return True for
-        ‘pass’ and False otherwise.
+        'pass' and False otherwise.
     :param response_check: Optional[Callable[[Dict[str, Any]], bool]]
     """
 

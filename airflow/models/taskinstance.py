@@ -37,7 +37,6 @@ from typing import (
     Dict,
     Generator,
     Iterable,
-    Iterator,
     List,
     NamedTuple,
     Optional,
@@ -54,11 +53,11 @@ import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
+    DateTime,
     Float,
     ForeignKeyConstraint,
     Index,
     Integer,
-    PickleType,
     String,
     and_,
     false,
@@ -76,7 +75,6 @@ from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators
-from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -96,7 +94,8 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
+from airflow.models.dataset import DatasetDagRunQueue
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -121,7 +120,13 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import (
+    ExecutorConfigType,
+    ExtendedJSON,
+    UtcDateTime,
+    tuple_in_condition,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
@@ -139,7 +144,7 @@ if TYPE_CHECKING:
 
 
 @contextlib.contextmanager
-def set_current_context(context: Context) -> Iterator[Context]:
+def set_current_context(context: Context) -> Generator[Context, None, None]:
     """
     Sets the current execution context to the provided context object.
     This method should be called once per Task execution, before calling operator.execute.
@@ -202,6 +207,7 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
             ti.state = None
             ti.external_executor_id = None
+            ti.clear_next_method_args()
             session.merge(ti)
 
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
@@ -421,9 +427,9 @@ class TaskInstance(Base, LoggingMixin):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    run_id = Column(StringID(), primary_key=True, nullable=False)
     map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
@@ -431,27 +437,30 @@ class TaskInstance(Base, LoggingMixin):
     duration = Column(Float)
     state = Column(String(20))
     _try_number = Column('try_number', Integer, default=0)
-    max_tries = Column(Integer)
+    max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False, server_default=text("1"))
+    pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
-    executor_config = Column(PickleType(pickler=dill))
+    executor_config = Column(ExecutorConfigType(pickler=dill))
 
-    external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    external_executor_id = Column(StringID())
 
     # The trigger to resume on if we are in state DEFERRED
-    trigger_id = Column(BigInteger)
+    trigger_id = Column(Integer)
 
     # Optional timeout datetime for the trigger (past this, we'll fail)
-    trigger_timeout = Column(UtcDateTime)
+    trigger_timeout = Column(DateTime)
+    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
+    # migration, we are keeping it as DateTime pending a change where expensive
+    # migration is inevitable.
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
@@ -520,7 +529,8 @@ class TaskInstance(Base, LoggingMixin):
         self.task_id = task.task_id
         self.map_index = map_index
         self.refresh_from_task(task)
-        self._log = logging.getLogger("airflow.task")
+        # init_on_load will config the log
+        self.init_on_load()
 
         if run_id is None and execution_date is not None:
             from airflow.models.dagrun import DagRun  # Avoid circular import
@@ -563,7 +573,6 @@ class TaskInstance(Base, LoggingMixin):
         if state:
             self.state = state
         self.hostname = ''
-        self.init_on_load()
         # Is this TaskInstance being currently running within `airflow tasks run --raw`.
         # Not persisted to the database so only valid for the current process
         self.raw = False
@@ -594,6 +603,8 @@ class TaskInstance(Base, LoggingMixin):
     @reconstructor
     def init_on_load(self):
         """Initialize the attributes that aren't stored in the DB"""
+        # correctly config the ti log
+        self._log = logging.getLogger("airflow.task")
         self.test_mode = False  # can be changed when calling 'run'
 
     @property
@@ -770,7 +781,13 @@ class TaskInstance(Base, LoggingMixin):
         """Log URL for TaskInstance"""
         iso = quote(self.execution_date.isoformat())
         base_url = conf.get('webserver', 'BASE_URL')
-        return base_url + f"/log?execution_date={iso}&task_id={self.task_id}&dag_id={self.dag_id}"
+        return (
+            f"{base_url}/log"
+            f"?execution_date={iso}"
+            f"&task_id={self.task_id}"
+            f"&dag_id={self.dag_id}"
+            f"&map_index={self.map_index}"
+        )
 
     @property
     def mark_success_url(self):
@@ -1496,8 +1513,23 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-
+            self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
+
+    def _create_dataset_dag_run_queue_records(self, *, session):
+        from airflow.models import Dataset
+
+        for obj in getattr(self.task, '_outlets', []):
+            self.log.debug("outlet obj %s", obj)
+            if isinstance(obj, Dataset):
+                dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
+                if not dataset:
+                    self.log.warning("Dataset %s not found", obj)
+                    continue
+                downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
+                self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                for dag_id in downstream_dag_ids:
+                    session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""
@@ -2083,7 +2115,10 @@ class TaskInstance(Base, LoggingMixin):
 
     @provide_session
     def get_rendered_template_fields(self, session: Session = NEW_SESSION) -> None:
-        """Fetch rendered template fields from DB"""
+        """
+        Update task with rendered template fields for presentation in UI.
+        If task has already run, will fetch from DB; otherwise will render.
+        """
         from airflow.models.renderedtifields import RenderedTaskInstanceFields
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
@@ -2092,8 +2127,15 @@ class TaskInstance(Base, LoggingMixin):
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
             return
+
         try:
+            # If we get here, either the task hasn't run or the RTIF record was purged.
+            from airflow.utils.log.secrets_masker import redact
+
             self.render_templates()
+            for field_name in self.task.template_fields:
+                rendered_value = getattr(self.task, field_name)
+                setattr(self.task, field_name, redact(rendered_value, field_name))
         except (TemplateAssertionError, UndefinedError) as e:
             raise AirflowException(
                 "Webserver does not have access to User-defined Macros or Filters "
@@ -2228,7 +2270,7 @@ class TaskInstance(Base, LoggingMixin):
 
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
-                    path = conf.get('email', key)
+                    path = conf.get_mandatory_value('email', key)
                     with open(path) as f:
                         content = f.read()
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)

@@ -23,9 +23,13 @@ export ANSWER="yes"
 export CI="true"
 export GITHUB_TOKEN=""
 
+breeze self-upgrade --force --use-current-airflow-sources
+
 breeze build-image \
-     --build-multiple-images \
+     --builder airflow_cache \
+     --run-in-parallel \
      --prepare-buildx-cache \
+     --force-build \
      --platform linux/amd64,linux/arm64 \
      --verbose
 
@@ -41,7 +45,8 @@ breeze prepare-airflow-package --package-format wheel --version-suffix-for-pypi 
 mv -v ./dist/*.whl ./docker-context-files
 
 breeze build-prod-image \
-     --build-multiple-images \
+     --builder airflow_cache \
+     --run-in-parallel \
      --airflow-is-in-context \
      --install-packages-from-context \
      --prepare-buildx-cache \

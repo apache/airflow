@@ -25,6 +25,7 @@ operators talk to the
 or the ``api/2.1/jobs/runs/submit``
 `endpoint <https://docs.databricks.com/dev-tools/api/latest/jobs.html#operation/JobsRunsSubmit>`_.
 """
+import json
 from typing import Any, Dict, List, Optional
 
 from requests import exceptions as requests_exceptions
@@ -50,6 +51,8 @@ LIST_JOBS_ENDPOINT = ('GET', 'api/2.1/jobs/list')
 WORKSPACE_GET_STATUS_ENDPOINT = ('GET', 'api/2.0/workspace/get-status')
 
 RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
+
+LIST_ZONES_ENDPOINT = ('GET', 'api/2.0/clusters/list-zones')
 
 
 class RunState:
@@ -91,6 +94,13 @@ class RunState:
 
     def __repr__(self) -> str:
         return str(self.__dict__)
+
+    def to_json(self) -> str:
+        return json.dumps(self.__dict__)
+
+    @classmethod
+    def from_json(cls, data: str) -> 'RunState':
+        return RunState(**json.loads(data))
 
 
 class DatabricksHook(BaseDatabricksHook):
@@ -198,6 +208,16 @@ class DatabricksHook(BaseDatabricksHook):
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
         return response['run_page_url']
 
+    async def a_get_run_page_url(self, run_id: int) -> str:
+        """
+        Async version of `get_run_page_url()`.
+        :param run_id: id of the run
+        :return: URL of the run page
+        """
+        json = {'run_id': run_id}
+        response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
+        return response['run_page_url']
+
     def get_job_id(self, run_id: int) -> int:
         """
         Retrieves job_id from run_id.
@@ -226,6 +246,17 @@ class DatabricksHook(BaseDatabricksHook):
         """
         json = {'run_id': run_id}
         response = self._do_api_call(GET_RUN_ENDPOINT, json)
+        state = response['state']
+        return RunState(**state)
+
+    async def a_get_run_state(self, run_id: int) -> RunState:
+        """
+        Async version of `get_run_state()`.
+        :param run_id: id of the run
+        :return: state of the run
+        """
+        json = {'run_id': run_id}
+        response = await self._a_do_api_call(GET_RUN_ENDPOINT, json)
         state = response['state']
         return RunState(**state)
 
@@ -379,3 +410,16 @@ class DatabricksHook(BaseDatabricksHook):
                 raise e
 
         return None
+
+    def test_connection(self):
+        """Test the Databricks connectivity from UI"""
+        hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
+        try:
+            hook._do_api_call(endpoint_info=LIST_ZONES_ENDPOINT).get('zones')
+            status = True
+            message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message
