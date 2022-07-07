@@ -154,6 +154,24 @@ class WebserverDeploymentTest(unittest.TestCase):
             "name": "test-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
+    
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "webserver": {
+                    "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "TEST_ENV_1" == jmespath.search(
+            "spec.template.spec.containers[0].env[0].name", docs[0]
+        )
+        assert "test_env_1" == jmespath.search(
+            "spec.template.spec.containers[0].env[0].value", docs[0]
+        )
 
     @parameterized.expand(
         [

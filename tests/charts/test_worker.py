@@ -97,6 +97,24 @@ class WorkerTest(unittest.TestCase):
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
+    
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert "TEST_ENV_1" == jmespath.search(
+            "spec.template.spec.containers[0].env[0].name", docs[0]
+        )
+        assert "test_env_1" == jmespath.search(
+            "spec.template.spec.containers[0].env[0].value", docs[0]
+        )
 
     def test_workers_host_aliases(self):
         docs = render_chart(
