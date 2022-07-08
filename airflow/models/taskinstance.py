@@ -1856,7 +1856,7 @@ class TaskInstance(Base, LoggingMixin):
         test_mode: Optional[bool] = None,
         context: Optional[Context] = None,
         force_fail: bool = False,
-        session: Session = None,
+        session: Session = NEW_SESSION,
     ) -> None:
         """Handle Failure for the TaskInstance"""
         if test_mode is None:

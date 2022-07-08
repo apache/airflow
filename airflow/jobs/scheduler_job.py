@@ -54,7 +54,7 @@ from airflow.utils import timezone
 from airflow.utils.docs import get_docs_url
 from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
-from airflow.utils.session import create_session, provide_session
+from airflow.utils.session import NEW_SESSION, create_session, provide_session
 from airflow.utils.sqlalchemy import (
     CommitProhibitorGuard,
     is_lock_not_available_error,
@@ -224,7 +224,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def __get_concurrency_maps(
-        self, states: List[TaskInstanceState], session: Session = None
+        self, states: List[TaskInstanceState], session: Session = NEW_SESSION
     ) -> Tuple[DefaultDict[str, int], DefaultDict[Tuple[str, str], int]]:
         """
         Get the concurrency maps.
@@ -248,7 +248,7 @@ class SchedulerJob(BaseJob):
         return dag_map, task_map
 
     @provide_session
-    def _executable_task_instances_to_queued(self, max_tis: int, session: Session = None) -> List[TI]:
+    def _executable_task_instances_to_queued(self, max_tis: int, session: Session = NEW_SESSION) -> List[TI]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
         dag max_active_tasks, executor state, and priority.
@@ -527,7 +527,7 @@ class SchedulerJob(BaseJob):
 
     @provide_session
     def _enqueue_task_instances_with_queued_state(
-        self, task_instances: List[TI], session: Session = None
+        self, task_instances: List[TI], session: Session = NEW_SESSION
     ) -> None:
         """
         Takes task_instances, which should have been set to queued, and enqueues them
@@ -586,7 +586,7 @@ class SchedulerJob(BaseJob):
         return len(queued_tis)
 
     @provide_session
-    def _process_executor_events(self, session: Session = None) -> int:
+    def _process_executor_events(self, session: Session = NEW_SESSION) -> int:
         """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
             raise ValueError("Processor agent is not started.")
@@ -1195,7 +1195,7 @@ class SchedulerJob(BaseJob):
         return callback_to_run
 
     @provide_session
-    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session = None) -> None:
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session = NEW_SESSION) -> None:
         """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
         latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
         if dag_run.dag_hash == latest_version:
@@ -1232,7 +1232,7 @@ class SchedulerJob(BaseJob):
         self.executor.send_callback(request)
 
     @provide_session
-    def _emit_pool_metrics(self, session: Session = None) -> None:
+    def _emit_pool_metrics(self, session: Session = NEW_SESSION) -> None:
         pools = models.Pool.slots_stats(session=session)
         for pool_name, slot_stats in pools.items():
             Stats.gauge(f'pool.open_slots.{pool_name}', slot_stats["open"])
@@ -1240,11 +1240,11 @@ class SchedulerJob(BaseJob):
             Stats.gauge(f'pool.running_slots.{pool_name}', slot_stats["running"])
 
     @provide_session
-    def heartbeat_callback(self, session: Session = None) -> None:
+    def heartbeat_callback(self, session: Session = NEW_SESSION) -> None:
         Stats.incr('scheduler_heartbeat', 1, 1)
 
     @provide_session
-    def adopt_or_reset_orphaned_tasks(self, session: Session = None) -> int:
+    def adopt_or_reset_orphaned_tasks(self, session: Session = NEW_SESSION) -> int:
         """
         Reset any TaskInstance still in QUEUED or SCHEDULED states that were
         enqueued by a SchedulerJob that is no longer running.
@@ -1332,7 +1332,7 @@ class SchedulerJob(BaseJob):
         return len(to_reset)
 
     @provide_session
-    def check_trigger_timeouts(self, session: Session = None) -> None:
+    def check_trigger_timeouts(self, session: Session = NEW_SESSION) -> None:
         """
         Looks at all tasks that are in the "deferred" state and whose trigger
         or execution timeout has passed, so they can be marked as failed.
