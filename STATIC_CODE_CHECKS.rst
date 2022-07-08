@@ -175,6 +175,8 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-integrations-are-consistent                      | Check if integration list is consistent in various places        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-lazy-logging                                     | Check that all logging methods are lazy                          |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-merge-conflict                                   | Check that merge conflicts are not being committed               |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-newsfragments-are-valid                          | Check newsfragments are valid                                    |         |

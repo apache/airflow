@@ -2152,7 +2152,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         )
 
         try:
-            self.log.info(f"Executing: {self.configuration}")
+            self.log.info("Executing: %s'", self.configuration)
             job = self._submit_job(hook, job_id)
             self._handle_job_error(job)
         except Conflict:

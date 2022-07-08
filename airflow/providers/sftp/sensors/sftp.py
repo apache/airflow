@@ -62,7 +62,7 @@ class SFTPSensor(BaseSensorOperator):
 
     def poke(self, context: 'Context') -> bool:
         self.hook = SFTPHook(self.sftp_conn_id)
-        self.log.info(f"Poking for {self.path}, with pattern {self.file_pattern}")
+        self.log.info("Poking for %s, with pattern %s", self.path, self.file_pattern)
 
         if self.file_pattern:
             file_from_pattern = self.hook.get_file_by_pattern(self.path, self.file_pattern)
