@@ -159,28 +159,27 @@ The `airflow db upgrade` command choose depending on **version_num** (col) in th
 Also a good overview about migrations steps can be found [here](https://github.com/apache/airflow/blob/main/docs/apache-airflow/migrations-ref.rst)
 
 But keep in mind it's may not the root cause, this log is from the 2nd try of the migration and exception is raised of the missing fk droped by run before.
-The origin exception was from create table statement.
+The origin exception was from create table statement. The 2nd up 5th try was created by migration job due k8s deployment.
 
-```
-CREATE TABLE task_map (
-    dag_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
-    task_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
-    run_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
-    map_index INTEGER NOT NULL,
-    length INTEGER NOT NULL,
-    `keys` JSON,
-    PRIMARY KEY (dag_id, task_id, run_id, map_index),
-    CONSTRAINT task_map_length_not_negative CHECK (length >= 0),
-    CONSTRAINT task_map_task_instance_fkey FOREIGN KEY(dag_id, task_id, run_id, map_index) REFERENCES task_instance (dag_id, task_id, run_id, map_index) ON DELETE CASCADE
-)
+  .. code-block:: sql
+  CREATE TABLE task_map (
+      dag_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
+      task_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
+      run_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
+      map_index INTEGER NOT NULL,
+      length INTEGER NOT NULL,
+      `keys` JSON,
+      PRIMARY KEY (dag_id, task_id, run_id, map_index),
+      CONSTRAINT task_map_length_not_negative CHECK (length >= 0),
+      CONSTRAINT task_map_task_instance_fkey FOREIGN KEY(dag_id, task_id, run_id, map_index) REFERENCES task_instance (dag_id, task_id, run_id, map_index) ON DELETE CASCADE
+  )
 
-[Code: 3780, SQL State: HY000]  Referencing column 'task_id' and referenced column 'task_id' in foreign key constraint 'task_map_task_instance_fkey' are incompatible.
-```
+  [Code: 3780, SQL State: HY000]  Referencing column 'task_id' and referenced column 'task_id' in foreign key constraint 'task_map_task_instance_fkey' are incompatible.
 
 You can explore by making use of **dry run** by ``airflow db upgrade -s --from-version <VERSION> --to-version <VERSION>`` (see: Offline SQL migration scripts) to produce sql statements for manual troubleshoot session.
 Now you'll have the possibility to run analyse and change sql-statements for manual migration exception handling.
 
-If you encounter the same issue from the example, it can be fixed by changing the charset collation for related tables to `task_instance` and `xcom` for example `ALTER TABLE task_instance MODIFY task_id VARCHAR(255) CHARACTER SET utf8 COLLATE utf8mb3_bin;` 
+If you encounter the same issue from the example, it can be fixed by changing the charset collation for related tables to `task_instance` and `xcom` for example `ALTER TABLE task_instance MODIFY task_id VARCHAR(255) CHARACTER SET utf8 COLLATE utf8mb3_bin;` The dry-run.sql script for more details is shared into related [issue #24526](https://github.com/apache/airflow/issues/24526#issuecomment-1173582891)
 
 
 
