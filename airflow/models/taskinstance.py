@@ -199,7 +199,7 @@ def clear_task_instances(
             if dag and dag.has_task(task_id):
                 task = dag.get_task(task_id)
                 ti.refresh_from_task(task)
-                task_retries = task.retries or 0
+                task_retries = task.retries
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
                 # Ignore errors when updating max_tries if dag is None or
@@ -610,7 +610,7 @@ class TaskInstance(Base, LoggingMixin):
         self.test_mode = False  # can be changed when calling 'run'
 
     @property
-    def try_number(self) -> int:
+    def try_number(self):
         """
         Return the try number that this task number will be when it is actually
         run.
