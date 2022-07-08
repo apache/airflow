@@ -37,6 +37,5 @@ Usage Example
 
 .. exampleinclude:: /../../tests/system/providers/elasticsearch/example_elasticsearch_query.py
     :language: python
-    :dedent: 4
     :start-after: [START howto_elasticsearch_python_hook]
     :end-before: [END howto_elasticsearch_python_hook]
