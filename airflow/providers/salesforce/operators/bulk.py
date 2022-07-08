@@ -14,10 +14,11 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from airflow.models import BaseOperator
 from airflow.providers.salesforce.hooks.salesforce import SalesforceHook
+from airflow.typing_compat import Literal
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -41,11 +42,13 @@ class SalesforceBulkOperator(BaseOperator):
     :param salesforce_conn_id: The :ref:`Salesforce Connection id <howto/connection:SalesforceHook>`.
     """
 
+    available_operations = ('insert', 'update', 'upsert', 'delete', 'hard_delete')
+
     def __init__(
         self,
         *,
-        operation: Optional[str] = None,
-        object_name: Optional[str] = None,
+        operation: Literal[available_operations],
+        object_name: str,
         payload: list,
         external_id_field: str = 'Id',
         batch_size: int = 10000,
@@ -65,11 +68,13 @@ class SalesforceBulkOperator(BaseOperator):
 
     def _validate_inputs(self) -> None:
         if not self.object_name:
-            raise ValueError("The required parameter 'object_name' is missing.")
+            raise ValueError("The required parameter 'object_name' cannot have an empty value.")
 
-        available_operations = ['insert', 'update', 'upsert', 'delete', 'hard_delete']
-        if self.operation not in available_operations:
-            raise ValueError(f"Operation not found! Available operations are {available_operations}.")
+        if self.operation not in self.available_operations:
+            raise ValueError(
+                f"Operation {self.operation!r} not found! "
+                f"Available operations are {self.available_operations}."
+            )
 
     def execute(self, context: 'Context'):
         """
