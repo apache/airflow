@@ -43,6 +43,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
   - snowflake-connector-python>=2.4.1
   - snowflake-sqlalchemy>=1.1.0
 

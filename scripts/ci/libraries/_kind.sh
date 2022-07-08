@@ -69,7 +69,7 @@ function kind::make_sure_kubernetes_tools_are_installed() {
     kubectl_url="https://storage.googleapis.com/kubernetes-release/release/${KUBECTL_VERSION}/bin/${system}/${machine}/kubectl"
     if [[ -f "${KUBECTL_BINARY_PATH}" ]]; then
         local downloaded_kubectl_version
-        downloaded_kubectl_version="$(${KUBECTL_BINARY_PATH} version --client=true | awk '{ print $3 }')"
+        downloaded_kubectl_version="$(${KUBECTL_BINARY_PATH} version --client --output yaml | grep gitVersion | awk '{ print $2 }')"
         echo "Currently downloaded kubectl version = ${downloaded_kubectl_version}"
     fi
     if [[ ! -f "${KUBECTL_BINARY_PATH}" || ${downloaded_kubectl_version} != "${KUBECTL_VERSION}" ]]; then
