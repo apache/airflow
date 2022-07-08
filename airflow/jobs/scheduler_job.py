@@ -222,9 +222,8 @@ class SchedulerJob(BaseJob):
             and (timezone.utcnow() - self.latest_heartbeat).total_seconds() < scheduler_health_check_threshold
         )
 
-    @provide_session
     def __get_concurrency_maps(
-        self, states: List[TaskInstanceState], session: Session = NEW_SESSION
+        self, states: List[TaskInstanceState], session: Session
     ) -> Tuple[DefaultDict[str, int], DefaultDict[Tuple[str, str], int]]:
         """
         Get the concurrency maps.
@@ -247,8 +246,7 @@ class SchedulerJob(BaseJob):
             task_map[(dag_id, task_id)] = count
         return dag_map, task_map
 
-    @provide_session
-    def _executable_task_instances_to_queued(self, max_tis: int, session: Session = NEW_SESSION) -> List[TI]:
+    def _executable_task_instances_to_queued(self, max_tis: int, session: Session) -> List[TI]:
         """
         Finds TIs that are ready for execution with respect to pool limits,
         dag max_active_tasks, executor state, and priority.
@@ -525,10 +523,7 @@ class SchedulerJob(BaseJob):
             make_transient(ti)
         return executable_tis
 
-    @provide_session
-    def _enqueue_task_instances_with_queued_state(
-        self, task_instances: List[TI], session: Session = NEW_SESSION
-    ) -> None:
+    def _enqueue_task_instances_with_queued_state(self, task_instances: List[TI], session: Session) -> None:
         """
         Takes task_instances, which should have been set to queued, and enqueues them
         with the executor.
@@ -585,8 +580,7 @@ class SchedulerJob(BaseJob):
         self._enqueue_task_instances_with_queued_state(queued_tis, session=session)
         return len(queued_tis)
 
-    @provide_session
-    def _process_executor_events(self, session: Session = NEW_SESSION) -> int:
+    def _process_executor_events(self, session: Session) -> int:
         """Respond to executor events."""
         if not self._standalone_dag_processor and not self.processor_agent:
             raise ValueError("Processor agent is not started.")
@@ -1194,8 +1188,7 @@ class SchedulerJob(BaseJob):
 
         return callback_to_run
 
-    @provide_session
-    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session = NEW_SESSION) -> None:
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session) -> None:
         """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
         latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
         if dag_run.dag_hash == latest_version:
