@@ -168,7 +168,7 @@ def clear_task_instances(
     tis: List["TaskInstance"],
     session: Session,
     activate_dag_runs: None = None,
-    dag: Optional[DAG] = None,
+    dag: Optional["DAG"] = None,
     dag_run_state: Union[DagRunState, Literal[False]] = DagRunState.QUEUED,
 ) -> None:
     """
@@ -199,7 +199,7 @@ def clear_task_instances(
             if dag and dag.has_task(task_id):
                 task = dag.get_task(task_id)
                 ti.refresh_from_task(task)
-                task_retries = task.retries
+                task_retries = task.retries or 0
                 ti.max_tries = ti.try_number + task_retries - 1
             else:
                 # Ignore errors when updating max_tries if dag is None or
@@ -1628,7 +1628,7 @@ class TaskInstance(Base, LoggingMixin):
         raise AirflowSmartSensorException("Task successfully registered in smart sensor.")
 
     def _run_finished_callback(
-        self, callback: Optional[TaskStateChangeCallback], context: Context, callback_type: str
+        self, callback: Optional["TaskStateChangeCallback"], context: Context, callback_type: str
     ) -> None:
         """Run callback after task finishes"""
         try:
