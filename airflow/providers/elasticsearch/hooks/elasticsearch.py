@@ -120,7 +120,7 @@ class ElasticsearchPythonHook(BaseHook):
 
     :param hosts: list: A list of a single or many Elasticsearch instances. Example: ["http://localhost:9200"]
     :param es_conn_args: dict: Additional arguments you might need to enter to connect to Elasticsearch.
-                                Example: {"ca_cert":"/path/to/http_ca.crt", "basic_auth": "(user, pass)"}
+                                Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
     """
 
     def __init__(self, hosts: List[Any], es_conn_args: Optional[dict] = None):
