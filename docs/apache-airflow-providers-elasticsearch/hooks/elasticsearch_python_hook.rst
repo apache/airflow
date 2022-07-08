@@ -28,7 +28,7 @@ hosts
   A list of a single or many Elasticsearch instances. Example: ["http://localhost:9200"]
 es_conn_args
   Additional arguments you might need to enter to connect to Elasticsearch.
-  Example: {"ca_cert":"/path/to/http_ca.crt", "basic_auth": "(user, pass)"}
+  Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
   For all possible configurations, consult with Elasticsearch documentation.
   Reference: https://www.elastic.co/guide/en/elasticsearch/client/python-api/current/connecting.html
 
