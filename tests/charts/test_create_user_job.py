@@ -169,14 +169,7 @@ class CreateUserJobTest(unittest.TestCase):
         assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
-
-    @parameterized.expand(
-        [
-            ("1.10.14", "airflow create_user"),
-            ("2.0.2", "airflow users create"),
-        ],
-    )
-
+    
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -187,12 +180,16 @@ class CreateUserJobTest(unittest.TestCase):
             show_only=["templates/jobs/create-user-job.yaml"],
         )
 
-        assert "TEST_ENV_1" == jmespath.search(
-            "spec.template.spec.containers[0].env[0].name", docs[0]
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
         )
-        assert "test_env_1" == jmespath.search(
-            "spec.template.spec.containers[0].env[0].value", docs[0]
-        )
+
+    @parameterized.expand(
+        [
+            ("1.10.14", "airflow create_user"),
+            ("2.0.2", "airflow users create"),
+        ],
+    )
 
     def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
         docs = render_chart(

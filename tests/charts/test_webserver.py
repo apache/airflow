@@ -166,11 +166,8 @@ class WebserverDeploymentTest(unittest.TestCase):
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
 
-        assert "TEST_ENV_1" == jmespath.search(
-            "spec.template.spec.containers[0].env[0].name", docs[0]
-        )
-        assert "test_env_1" == jmespath.search(
-            "spec.template.spec.containers[0].env[0].value", docs[0]
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
         )
 
     @parameterized.expand(
