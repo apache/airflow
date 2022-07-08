@@ -167,8 +167,8 @@ def set_current_context(context: Context) -> Generator[Context, None, None]:
 def clear_task_instances(
     tis: List["TaskInstance"],
     session: Session,
-    activate_dag_runs=None,
-    dag=None,
+    activate_dag_runs: None = None,
+    dag: Optional[DAG] = None,
     dag_run_state: Union[DagRunState, Literal[False]] = DagRunState.QUEUED,
 ) -> None:
     """
