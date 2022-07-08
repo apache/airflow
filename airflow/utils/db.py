@@ -661,9 +661,7 @@ def create_default_connections(session: Session = NEW_SESSION):
     )
 
 
-@provide_session
-def initdb(session: Session = NEW_SESSION):
-    """Initialize Airflow database."""
+def _create_db_from_orm(session):
     from alembic import command
     from flask import Flask
     from flask_sqlalchemy import SQLAlchemy
@@ -679,16 +677,26 @@ def initdb(session: Session = NEW_SESSION):
         AirflowDatabaseSessionInterface(app=flask_app, db=db, table='session', key_prefix='')
         db.create_all()
 
-    Base.metadata.create_all(settings.engine)
-    Model.metadata.create_all(settings.engine)
-    _create_flask_session_tbl()
-    # stamp the migration head
-    config = _get_alembic_config()
-    command.stamp(config, "head")
+    with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
+        Base.metadata.create_all(settings.engine)
+        Model.metadata.create_all(settings.engine)
+        _create_flask_session_tbl()
+        # stamp the migration head
+        config = _get_alembic_config()
+        command.stamp(config, "head")
+
+
+@provide_session
+def initdb(session: Session = NEW_SESSION):
+    """Initialize Airflow database."""
+    db_exists = _get_current_revision(session)
+    if db_exists:
+        upgradedb(session=session)
+    else:
+        _create_db_from_orm(session=session)
     # Load default connections
     if conf.getboolean('database', 'LOAD_DEFAULT_CONNECTIONS'):
         create_default_connections(session=session)
-    reserialize_dags(session=session)
     # Add default pool & sync log_template
     add_default_pool_if_not_exists()
     synchronize_log_template()
@@ -1505,14 +1513,14 @@ def upgradedb(
     if errors_seen:
         exit(1)
 
+    if not to_revision and not _get_current_revision(session=session):
+        # Don't load default connections
+        os.environ['AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS'] = 'False'
+        # New DB; initialize and exit
+        initdb(session=session)
+        return
     with create_global_lock(session=session, lock=DBLocks.MIGRATIONS):
         log.info("Creating tables")
-        if not to_revision and not _get_current_revision(session=session):
-            # Don't load default connections
-            os.environ['AIRFLOW__DATABASE__LOAD_DEFAULT_CONNECTIONS'] = 'False'
-            # New DB; initialize and exit
-            initdb(session=session)
-            return
         command.upgrade(config, revision=to_revision or 'heads')
     reserialize_dags(session=session)
     add_default_pool_if_not_exists(session=session)
