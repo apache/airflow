@@ -122,9 +122,11 @@ Deleting a table:
 Troubleshooting MySQL Exceptions at upgrade
 ===========================================
 
-The question is how to handle exceptions during MySQL database migration steps.
+How to analyse exceptions during MySQL database migration steps. In general the `airflow db upgrade` handles the necessary migration steps but excceptions can happen (backups before migration recommended).
+This description is based on issue due different charactersets and collation. When the database was created the defaults on mysql were *utf8mb4* *utf8mb4_0900_ai_ci*. 
+Since the pull request [Automatically use utf8mb3_general_ci collation for mysql](https://github.com/apache/airflow/pull/17729) *utf8* *utf8mb3_bin* also called *utf8_bin* is used.
 
-Grep the wright error message from log. (for example in kubernetes with migration job ``kubectl logs run-airflow-migrations--1-ktjxc``) can be look like the following code snippet. 
+At Figure out the sql-statement which caused the error. See exemplary Log below.
 
  .. code-block:: python
     
@@ -154,11 +156,32 @@ The `airflow db upgrade` command choose depending on **version_num** (col) in th
 
 **Can't DROP 'task_reschedule_ti_fkey** - statement which is executed and produces the error. 
 **airflow/migrations/versions/0100_2_3_0_add_taskmap_and_map_id_on_taskinstance.py** - here you can find the script in which the command is executed within the airflow project.
+Also a good overview about migrations steps can be found [here](https://github.com/apache/airflow/blob/main/docs/apache-airflow/migrations-ref.rst)
 
-With this information you can make use of **dry run** by ``airflow db upgrade -s --from-version <VERSION> --to-version <VERSION>`` (see: Offline SQL migration scripts) to produce sql statements for manual troubleshoot session.
+But keep in mind it's may not the root cause, this log is from the 2nd try of the migration and exception is raised of the missing fk droped by run before.
+The origin exception was from create table statement.
 
-View on my migration issue case:  
-The error example is not the first error produced by migration. But my first entrypoint when documented the the debug session.
-The migration process stopped at some point due differences in charset and collation between old and new Version. So I had had to change a few things manually.
+```
+CREATE TABLE task_map (
+    dag_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
+    task_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
+    run_id VARCHAR(250) COLLATE utf8mb3_bin NOT NULL,
+    map_index INTEGER NOT NULL,
+    length INTEGER NOT NULL,
+    `keys` JSON,
+    PRIMARY KEY (dag_id, task_id, run_id, map_index),
+    CONSTRAINT task_map_length_not_negative CHECK (length >= 0),
+    CONSTRAINT task_map_task_instance_fkey FOREIGN KEY(dag_id, task_id, run_id, map_index) REFERENCES task_instance (dag_id, task_id, run_id, map_index) ON DELETE CASCADE
+)
+
+[Code: 3780, SQL State: HY000]  Referencing column 'task_id' and referenced column 'task_id' in foreign key constraint 'task_map_task_instance_fkey' are incompatible.
+```
+
+You can explore by making use of **dry run** by ``airflow db upgrade -s --from-version <VERSION> --to-version <VERSION>`` (see: Offline SQL migration scripts) to produce sql statements for manual troubleshoot session.
+Now you'll have the possibility to run analyse and change sql-statements for manual migration exception handling.
+
+If you encounter the same issue from the example, it can be fixed by changing the charset collation for related tables to **task_instance** and **xcom** for example `ALTER TABLE task_instance MODIFY task_id VARCHAR(255) CHARACTER SET utf8 COLLATE utf8mb3_bin;` 
+
+
 
 
