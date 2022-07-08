@@ -26,7 +26,7 @@ import time
 import warnings
 from collections import defaultdict
 from datetime import timedelta
-from typing import Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
+from typing import TYPE_CHECKING, Collection, DefaultDict, Dict, Iterator, List, Optional, Set, Tuple
 
 from sqlalchemy import func, not_, or_, text
 from sqlalchemy.exc import OperationalError
@@ -56,6 +56,7 @@ from airflow.utils.event_scheduler import EventScheduler
 from airflow.utils.retries import MAX_DB_RETRIES, retry_db_transaction, run_with_db_retries
 from airflow.utils.session import create_session, provide_session
 from airflow.utils.sqlalchemy import (
+    CommitProhibitorGuard,
     is_lock_not_available_error,
     prohibit_commit,
     skip_locked,
@@ -65,12 +66,15 @@ from airflow.utils.sqlalchemy import (
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.types import DagRunType
 
+if TYPE_CHECKING:
+    from types import FrameType
+
 TI = models.TaskInstance
 DR = models.DagRun
 DM = models.DagModel
 
 
-def _is_parent_process():
+def _is_parent_process() -> bool:
     """
     Returns True if the current process is the parent process. False if the current process is a child
     process started by multiprocessing.
@@ -171,7 +175,7 @@ class SchedulerJob(BaseJob):
         signal.signal(signal.SIGTERM, self._exit_gracefully)
         signal.signal(signal.SIGUSR2, self._debug_dump)
 
-    def _exit_gracefully(self, signum, frame) -> None:
+    def _exit_gracefully(self, signum: int, frame: "FrameType") -> None:
         """Helper method to clean up processor_agent to avoid leaving orphan processes."""
         if not _is_parent_process():
             # Only the parent process should perform the cleanup.
@@ -182,7 +186,7 @@ class SchedulerJob(BaseJob):
             self.processor_agent.end()
         sys.exit(os.EX_OK)
 
-    def _debug_dump(self, signum, frame):
+    def _debug_dump(self, signum: int, frame: "FrameType") -> None:
         if not _is_parent_process():
             # Only the parent process should perform the debug dump.
             return
@@ -444,9 +448,9 @@ class SchedulerJob(BaseJob):
                             dag_id,
                             task_instance,
                         )
-                        session.query(TI).filter(TI.dag_id == dag_id, TI.state == State.SCHEDULED).update(
-                            {TI.state: State.FAILED}, synchronize_session='fetch'
-                        )
+                        session.query(TI).filter(
+                            TI.dag_id == dag_id, TI.state == TaskInstanceState.SCHEDULED
+                        ).update({TI.state: TaskInstanceState.FAILED}, synchronize_session='fetch')
                         continue
 
                     task_concurrency_limit: Optional[int] = None
@@ -780,7 +784,7 @@ class SchedulerJob(BaseJob):
                     self.log.exception("Exception when executing DagFileProcessorAgent.end")
             self.log.info("Exited execute loop")
 
-    def _update_dag_run_state_for_paused_dags(self):
+    def _update_dag_run_state_for_paused_dags(self) -> None:
         try:
             paused_dag_ids = DagModel.get_all_paused_dag_ids()
             for dag_id in paused_dag_ids:
@@ -790,7 +794,7 @@ class SchedulerJob(BaseJob):
                 dag = SerializedDagModel.get_dag(dag_id)
                 if dag is None:
                     continue
-                dag_runs = DagRun.find(dag_id=dag_id, state=State.RUNNING)
+                dag_runs = DagRun.find(dag_id=dag_id, state=DagRunState.RUNNING)
                 for dag_run in dag_runs:
                     dag_run.dag = dag
                     _, callback_to_run = dag_run.update_state(execute_callbacks=False)
@@ -897,7 +901,7 @@ class SchedulerJob(BaseJob):
                 )
                 break
 
-    def _do_scheduling(self, session) -> int:
+    def _do_scheduling(self, session: Session) -> int:
         """
         This function is where the main scheduling decisions take places. It:
 
@@ -995,7 +999,7 @@ class SchedulerJob(BaseJob):
         return DagRun.next_dagruns_to_examine(state, session)
 
     @retry_db_transaction
-    def _create_dagruns_for_dags(self, guard, session):
+    def _create_dagruns_for_dags(self, guard: CommitProhibitorGuard, session: Session) -> None:
         """Find Dag Models needing DagRuns and Create Dag Runs with retries in case of OperationalError"""
         query = DagModel.dags_needing_dagruns(session)
         self._create_dag_runs(query.all(), session)
@@ -1064,7 +1068,7 @@ class SchedulerJob(BaseJob):
         # TODO[HA]: Should we do a session.flush() so we don't have to keep lots of state/object in
         # memory for larger dags? or expunge_all()
 
-    def _should_update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs) -> bool:
+    def _should_update_dag_next_dagruns(self, dag, dag_model: DagModel, total_active_runs: int) -> bool:
         """Check if the dag's next_dagruns_create_after should be updated."""
         if total_active_runs >= dag.max_active_runs:
             self.log.info(
@@ -1077,10 +1081,7 @@ class SchedulerJob(BaseJob):
             return False
         return True
 
-    def _start_queued_dagruns(
-        self,
-        session: Session,
-    ) -> None:
+    def _start_queued_dagruns(self, session: Session) -> None:
         """Find DagRuns in queued state and decide moving them to running state"""
         dag_runs = self._get_next_dagruns_to_examine(DagRunState.QUEUED, session)
 
@@ -1194,7 +1195,7 @@ class SchedulerJob(BaseJob):
         return callback_to_run
 
     @provide_session
-    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session=None):
+    def _verify_integrity_if_dag_changed(self, dag_run: DagRun, session: Session = None) -> None:
         """Only run DagRun.verify integrity if Serialized DAG has changed since it is slow"""
         latest_version = SerializedDagModel.get_latest_version_hash(dag_run.dag_id, session=session)
         if dag_run.dag_hash == latest_version:
@@ -1209,14 +1210,16 @@ class SchedulerJob(BaseJob):
         # Verify integrity also takes care of session.flush
         dag_run.verify_integrity(session=session)
 
-    def _send_dag_callbacks_to_processor(self, dag: DAG, callback: Optional[DagCallbackRequest] = None):
+    def _send_dag_callbacks_to_processor(
+        self, dag: DAG, callback: Optional[DagCallbackRequest] = None
+    ) -> None:
         self._send_sla_callbacks_to_processor(dag)
         if callback:
             self.executor.send_callback(callback)
         else:
             self.log.debug("callback is empty")
 
-    def _send_sla_callbacks_to_processor(self, dag: DAG):
+    def _send_sla_callbacks_to_processor(self, dag: DAG) -> None:
         """Sends SLA Callbacks to DagFileProcessor if tasks have SLAs set and check_slas=True"""
         if not settings.CHECK_SLAS:
             return
@@ -1241,7 +1244,7 @@ class SchedulerJob(BaseJob):
         Stats.incr('scheduler_heartbeat', 1, 1)
 
     @provide_session
-    def adopt_or_reset_orphaned_tasks(self, session: Session = None):
+    def adopt_or_reset_orphaned_tasks(self, session: Session = None) -> int:
         """
         Reset any TaskInstance still in QUEUED or SCHEDULED states that were
         enqueued by a SchedulerJob that is no longer running.
@@ -1329,7 +1332,7 @@ class SchedulerJob(BaseJob):
         return len(to_reset)
 
     @provide_session
-    def check_trigger_timeouts(self, session: Session = None):
+    def check_trigger_timeouts(self, session: Session = None) -> None:
         """
         Looks at all tasks that are in the "deferred" state and whose trigger
         or execution timeout has passed, so they can be marked as failed.
@@ -1355,7 +1358,7 @@ class SchedulerJob(BaseJob):
             self.log.info("Timed out %i deferred tasks without fired triggers", num_timed_out_tasks)
 
     @provide_session
-    def _find_zombies(self, session):
+    def _find_zombies(self, session: Session) -> None:
         """
         Find zombie task instances, which are tasks haven't heartbeated for too long
         and update the current zombie list.
@@ -1367,7 +1370,7 @@ class SchedulerJob(BaseJob):
             session.query(TaskInstance, DagModel.fileloc)
             .join(LocalTaskJob, TaskInstance.job_id == LocalTaskJob.id)
             .join(DagModel, TaskInstance.dag_id == DagModel.dag_id)
-            .filter(TaskInstance.state == State.RUNNING)
+            .filter(TaskInstance.state == TaskInstanceState.RUNNING)
             .filter(
                 or_(
                     LocalTaskJob.state != State.RUNNING,
