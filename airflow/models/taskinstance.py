@@ -548,7 +548,8 @@ class TaskInstance(Base, LoggingMixin):
                     execution_date,
                 )
                 if self.task.has_dag():
-                    assert self.task.dag  # For Mypy.
+                    if TYPE_CHECKING:
+                        assert self.task.dag
                     execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
                 else:
                     execution_date = timezone.make_aware(execution_date)
@@ -1771,7 +1772,8 @@ class TaskInstance(Base, LoggingMixin):
 
         self.task = self.task.prepare_for_execution()
         self.render_templates()
-        assert isinstance(self.task, BaseOperator)  # For Mypy.
+        if TYPE_CHECKING:
+            assert isinstance(self.task, BaseOperator)
         self.task.dry_run()
 
     @provide_session
@@ -1943,7 +1945,8 @@ class TaskInstance(Base, LoggingMixin):
         integrate_macros_plugins()
 
         task = self.task
-        assert task.dag  # For Mypy.
+        if TYPE_CHECKING:
+            assert task.dag
         dag: DAG = task.dag
 
         dag_run = self.get_dagrun(session)
