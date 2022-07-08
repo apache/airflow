@@ -3890,7 +3890,6 @@ class TestSchedulerJob:
             session.query(LocalTaskJob).delete()
             dag = dagbag.get_dag('example_branch_operator')
             dag.sync_to_db()
-            task = dag.get_task(task_id='run_this_first')
 
             dag_run = dag.create_dagrun(
                 state=DagRunState.RUNNING,
@@ -3899,20 +3898,32 @@ class TestSchedulerJob:
                 session=session,
             )
 
-            ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
-            local_job = LocalTaskJob(ti)
-            local_job.state = State.SHUTDOWN
-
-            session.add(local_job)
-            session.flush()
-
-            ti.job_id = local_job.id
-            session.add(ti)
-            session.flush()
-
             self.scheduler_job = SchedulerJob(subdir=os.devnull)
             self.scheduler_job.executor = MockExecutor()
             self.scheduler_job.processor_agent = mock.MagicMock()
+
+            # We will provision 2 tasks so we can check we only find zombies from this scheduler
+            tasks_to_setup = ['branching', 'run_this_first']
+
+            for task_id in tasks_to_setup:
+                task = dag.get_task(task_id=task_id)
+                ti = TaskInstance(task, run_id=dag_run.run_id, state=State.RUNNING)
+                ti.queued_by_job_id = 999
+
+                local_job = LocalTaskJob(ti)
+                local_job.state = State.SHUTDOWN
+
+                session.add(local_job)
+                session.flush()
+
+                ti.job_id = local_job.id
+                session.add(ti)
+                session.flush()
+
+            assert task.task_id == 'run_this_first'  # Make sure we have the task/ti we expect
+
+            ti.queued_by_job_id = self.scheduler_job.id
+            session.flush()
 
             self.scheduler_job._find_zombies(session=session)
 
