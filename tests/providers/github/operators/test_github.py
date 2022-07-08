@@ -17,7 +17,6 @@
 # under the License.
 #
 
-import unittest
 from unittest.mock import Mock, patch
 
 from airflow.models import Connection
@@ -29,8 +28,8 @@ DEFAULT_DATE = timezone.datetime(2017, 1, 1)
 github_client_mock = Mock(name="github_client_for_test")
 
 
-class TestGithubOperator(unittest.TestCase):
-    def setUp(self):
+class TestGithubOperator:
+    def setup_class(self):
         args = {'owner': 'airflow', 'start_date': DEFAULT_DATE}
         dag = DAG('test_dag_id', default_args=args)
         self.dag = dag
@@ -38,9 +37,8 @@ class TestGithubOperator(unittest.TestCase):
             Connection(
                 conn_id='github_default',
                 conn_type='github',
-                host='https://localhost/github/',
-                port=443,
-                extra='{"verify": "False", "project": "AIRFLOW"}',
+                password='my-access-token',
+                host='https://mygithub.com/api/v3',
             )
         )
 
