@@ -23,6 +23,7 @@ import warnings
 from typing import (
     TYPE_CHECKING,
     Any,
+    Callable,
     ClassVar,
     Collection,
     Dict,
@@ -597,6 +598,14 @@ class MappedOperator(AbstractOperator):
     def _get_expansion_kwargs(self) -> MappedKwargs:
         """The kwargs to calculate expansion length against."""
         return getattr(self, self._expansion_kwargs_attr)
+
+    @property
+    def validate_upstream_return_value(self) -> Callable[[Any], None]:
+        """Validate an upstream's return value satisfies this task's needs.
+
+        :meta private:
+        """
+        return self._get_expansion_kwargs().validate_xcom
 
     def expand_mapped_task(self, run_id: str, *, session: Session) -> Tuple[Sequence["TaskInstance"], int]:
         """Create the mapped task instances for mapped task.

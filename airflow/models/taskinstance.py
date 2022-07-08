@@ -91,7 +91,6 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
-    UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
@@ -2306,18 +2305,20 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Task Duration set to %s", self.duration)
 
     def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
-        # TODO: We don't push TaskMap for mapped task instances because it's not
-        # currently possible for a downstream to depend on one individual mapped
-        # task instance, only a task as a whole. This will change in AIP-42
-        # Phase 2, and we'll need to further analyze the mapped task case.
-        if next(task.iter_mapped_dependants(), None) is None:
+        validators = {m.validate_upstream_return_value for m in task.iter_mapped_dependants()}
+        if not validators:  # No mapped dependants, not need to validate.
             return
         if value is None:
             raise XComForMappingNotPushed()
+        # TODO: We don't push TaskMap for mapped task instances because it's not
+        # currently possible for a downstream to depend on one individual mapped
+        # task instance. This will change when we implement task group mapping,
+        # and we'll need to further analyze the mapped task case.
         if task.is_mapped:
             return
-        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            raise UnmappableXComTypePushed(value)
+        for validator in validators:
+            validator(value)
+        assert isinstance(value, collections.abc.Collection)  # The validators type-guard this.
         task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
         if task_map.length > max_map_length:

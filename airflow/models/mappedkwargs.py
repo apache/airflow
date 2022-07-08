@@ -27,6 +27,7 @@ from typing import TYPE_CHECKING, Any, NamedTuple, Sequence, Union
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from airflow.exceptions import UnmappableXComTypePushed, UnmappableXComValuePushed
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
@@ -63,6 +64,11 @@ class DictOfListsMappedKwargs(NamedTuple):
     """
 
     value: dict[str, Mappable]
+
+    @staticmethod
+    def validate_xcom(value: Any) -> None:
+        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
+            raise UnmappableXComTypePushed(value)
 
     def get_parse_time_mapped_ti_count(self) -> int | None:
         if not self.value:
@@ -151,7 +157,7 @@ class DictOfListsMappedKwargs(NamedTuple):
             value = value.resolve(context, session=session)
         map_index = context["ti"].map_index
         if map_index < 0:
-            return value
+            raise RuntimeError("can't resolve task-mapping argument without expanding")
         all_lengths = self._get_map_lengths(context["run_id"], session=session)
 
         def _find_index_for_this_field(index: int) -> int:
@@ -188,6 +194,18 @@ class ListOfDictsMappedKwargs(NamedTuple):
     """
 
     value: XComArg
+
+    @staticmethod
+    def validate_xcom(value: Any) -> None:
+        if not isinstance(value, collections.abc.Collection):
+            raise UnmappableXComTypePushed(value)
+        if isinstance(value, (str, bytes, collections.abc.Mapping)):
+            raise UnmappableXComTypePushed(value)
+        for item in value:
+            if not isinstance(item, collections.abc.Mapping):
+                raise UnmappableXComTypePushed(value, item)
+            if not all(isinstance(k, str) for k in item):
+                raise UnmappableXComValuePushed(value, reason="dict keys must be str")
 
     def get_parse_time_mapped_ti_count(self) -> int | None:
         return None
