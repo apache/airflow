@@ -207,12 +207,8 @@ class TestHelpers:
             (None, "The key has to be a string and is <class 'NoneType'>:None", TypeError),
             ("simple_key", None, None),
             ("simple-key", None, None),
-            (
-                "group.simple_key",
-                "The key 'group.simple_key' has to be made of alphanumeric "
-                "characters, dashes and underscores exclusively",
-                AirflowException,
-            ),
+            ("group.simple_key", None, None),
+            ("root.group-name.simple_key", None, None),
             (
                 "root.group-name.simple_key",
                 "The key 'root.group-name.simple_key' has to be made of alphanumeric "
@@ -222,13 +218,13 @@ class TestHelpers:
             (
                 "key with space",
                 "The key 'key with space' has to be made of alphanumeric "
-                "characters, dashes and underscores exclusively",
+                "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
             (
                 "key_with_!",
                 "The key 'key_with_!' has to be made of alphanumeric "
-                "characters, dashes and underscores exclusively",
+                "characters, dashes, dots and underscores exclusively",
                 AirflowException,
             ),
             (' ' * 201, "The key has to be less than 200 characters", AirflowException),

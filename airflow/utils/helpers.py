@@ -47,7 +47,7 @@ if TYPE_CHECKING:
     from airflow.models.taskinstance import TaskInstance
 
 KEY_REGEX = re.compile(r'^[\w.-]+$')
-GROUP_KEY_REGEX = re.compile(r'^[\w-]+$')
+GROUP_KEY_REGEX = KEY_REGEX
 CAMELCASE_TO_SNAKE_CASE_REGEX = re.compile(r'(?!^)([A-Z]+)')
 
 T = TypeVar('T')
@@ -75,7 +75,8 @@ def validate_group_key(k: str, max_length: int = 200):
         raise AirflowException(f"The key has to be less than {max_length} characters")
     if not GROUP_KEY_REGEX.match(k):
         raise AirflowException(
-            f"The key {k!r} has to be made of alphanumeric characters, dashes and underscores exclusively"
+            f"The key {k!r} has to be made of alphanumeric characters, dashes, "
+            f"dots and underscores exclusively"
         )
 
 
