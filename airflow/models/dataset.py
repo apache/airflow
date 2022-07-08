@@ -211,6 +211,9 @@ class DatasetEvent(Base):
     :param source_dag_id: the dag_id of the TI which updated the dataset
     :param source_run_id: the run_id of the TI which updated the dataset
     :param source_map_index: the map_index of the TI which updated the dataset
+
+    We use relationships instead of foreign keys so that dataset events are not deleted even
+    if the foreign key object is.
     """
 
     id = Column(Integer, primary_key=True, autoincrement=True)
@@ -224,9 +227,38 @@ class DatasetEvent(Base):
 
     __tablename__ = "dataset_event"
     __table_args__ = (
-        ForeignKeyConstraint((dataset_id,), ["dataset.id"], name='datasetevent_dataset_fkey'),
         Index('idx_dataset_id_created_at', dataset_id, created_at, mssql_clustered=True),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
+    )
+
+    source_task_instance = relationship(
+        "TaskInstance",
+        primaryjoin="""and_(
+            DatasetEvent.source_dag_id == foreign(TaskInstance.dag_id),
+            DatasetEvent.source_run_id == foreign(TaskInstance.run_id),
+            DatasetEvent.source_task_id == foreign(TaskInstance.task_id),
+            DatasetEvent.source_map_index == foreign(TaskInstance.map_index),
+        )""",
+        viewonly=True,
+        lazy="select",
+        uselist=False,
+    )
+    source_dag_run = relationship(
+        "DagRun",
+        primaryjoin="""and_(
+            DatasetEvent.source_dag_id == foreign(DagRun.dag_id),
+            DatasetEvent.source_run_id == foreign(DagRun.run_id),
+        )""",
+        viewonly=True,
+        lazy="select",
+        uselist=False,
+    )
+    dataset = relationship(
+        Dataset,
+        primaryjoin="DatasetEvent.dataset_id == foreign(Dataset.id)",
+        viewonly=True,
+        lazy="select",
+        uselist=False,
     )
 
     def __eq__(self, other):

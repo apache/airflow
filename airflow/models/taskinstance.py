@@ -1531,7 +1531,7 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
-                        extra=dataset_payload,
+                        extra=None,
                         source_task_id=self.task_id,
                         source_dag_id=self.dag_id,
                         source_run_id=self.run_id,

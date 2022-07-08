@@ -131,16 +131,6 @@ def _create_dataset_event_table():
         sa.Column('created_at', TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
-    sa.ForeignKeyConstraint(
-        ('dataset_id',),
-        ['dataset.id'],
-        name="datasetevent_dataset_fkey",
-    ),
-    sa.ForeignKeyConstraint(
-        ('source_dag_run_id',),
-        ['dag_run.id'],
-        name="datasetevent_dagrun_fkey",
-    ),
     op.create_index(
         'idx_dataset_id_created_at', 'dataset_event', ['dataset_id', 'created_at'], mssql_clustered=True
     )
