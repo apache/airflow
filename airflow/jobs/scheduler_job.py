@@ -1358,7 +1358,7 @@ class SchedulerJob(BaseJob):
     def _find_zombies(self, session):
         """
         Find zombie task instances, which are tasks haven't heartbeated for too long
-        or have a no-longer-running LocalTaskJob, and register a TaskCallbackRequest,
+        or have a no-longer-running LocalTaskJob, and create a TaskCallbackRequest
         to be handled by the DAG processor.
         """
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
