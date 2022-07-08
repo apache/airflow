@@ -1516,7 +1516,7 @@ class TaskInstance(Base, LoggingMixin):
             self._create_dataset_dag_run_queue_records(context=context, session=session)
             session.commit()
 
-    def _create_dataset_dag_run_queue_records(self, *, context=None, session=NEW_SESSION):
+    def _create_dataset_dag_run_queue_records(self, *, context: Context = None, session: Session):
         from airflow.models import Dataset
 
         for obj in getattr(self.task, '_outlets', []):
@@ -1531,7 +1531,6 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
-                        extra=None,
                         source_task_id=self.task_id,
                         source_dag_id=self.dag_id,
                         source_run_id=self.run_id,

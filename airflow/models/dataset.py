@@ -261,16 +261,16 @@ class DatasetEvent(Base):
         uselist=False,
     )
 
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         if isinstance(other, self.__class__):
             return self.dataset_id == other.dataset_id and self.created_at == other.created_at
         else:
             return NotImplemented
 
-    def __hash__(self):
+    def __hash__(self) -> int:
         return hash((self.dataset_id, self.created_at))
 
-    def __repr__(self):
+    def __repr__(self) -> str:
         args = []
         for attr in [
             'dataset_id',

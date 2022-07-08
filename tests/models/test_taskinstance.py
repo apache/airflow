@@ -1512,14 +1512,11 @@ class TestTaskInstance:
 
         # check that no other dataset events recorded
         assert (
-            len(
                 session.query(Dataset.uri)
                 .join(DatasetEvent.dataset)
                 .filter(DatasetEvent.source_task_instance == ti)
-                .all()
-            )
-            == 1
-        )
+                .count()
+            ) == 1
 
     @staticmethod
     def _test_previous_dates_setup(
