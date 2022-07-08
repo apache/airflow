@@ -258,32 +258,36 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
-                f"ResourceNotFoundException: {error_msg}: "
-                "Secret %s not found.",
+                "ResourceNotFoundException: %s. Secret %s not found.",
+                error_msg,
                 secret_id,
             )
             return None
         except self.client.exceptions.InvalidParameterException:
             self.log.debug(
-                f"InvalidParameterException: {error_msg}",
+                "InvalidParameterException: %s",
+                error_msg,
                 exc_info=True,
             )
             return None
         except self.client.exceptions.InvalidRequestException:
             self.log.debug(
-                f"InvalidRequestException: {error_msg}",
+                "InvalidRequestException: %s",
+                error_msg,
                 exc_info=True,
             )
             return None
         except self.client.exceptions.DecryptionFailure:
             self.log.debug(
-                f"DecryptionFailure: {error_msg}",
+                "DecryptionFailure: %s",
+                error_msg,
                 exc_info=True,
             )
             return None
         except self.client.exceptions.InternalServiceError:
             self.log.debug(
-                f"InternalServiceError: {error_msg}",
+                "InternalServiceError: %s",
+                error_msg,
                 exc_info=True,
             )
             return None
