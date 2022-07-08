@@ -651,14 +651,20 @@ class DagRun(Base, LoggingMixin):
                     if isinstance(obj, Dataset):
                         has_dataset_outlets = True
                         break
-        dependent_dag_ids = []
+        dependent_dag_ids = {}
         if self.dag and has_dataset_outlets:
-            dependent_dag_ids = [
+            subquery = (
+                session.query(DatasetTaskRef.dataset_id)
+                .filter(DatasetTaskRef.dag_id == self.dag_id)
+                .distinct(DatasetTaskRef.dataset_id)
+                .subquery()
+            )
+            dependent_dag_ids = {
                 x.dag_id
                 for x in session.query(DatasetDagRef.dag_id)
-                .filter(DatasetTaskRef.dag_id == self.dag_id)
+                .join(subquery, subquery.c.dataset_id == DatasetDagRef.dataset_id)
                 .all()
-            ]
+            }
 
         from airflow.models.dataset import DatasetDagRunQueue as DDRQ
         from airflow.models.serialized_dag import SerializedDagModel
