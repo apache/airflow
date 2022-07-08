@@ -180,7 +180,7 @@ CREATE TABLE task_map (
 You can explore by making use of **dry run** by ``airflow db upgrade -s --from-version <VERSION> --to-version <VERSION>`` (see: Offline SQL migration scripts) to produce sql statements for manual troubleshoot session.
 Now you'll have the possibility to run analyse and change sql-statements for manual migration exception handling.
 
-If you encounter the same issue from the example, it can be fixed by changing the charset collation for related tables to **task_instance** and **xcom** for example `ALTER TABLE task_instance MODIFY task_id VARCHAR(255) CHARACTER SET utf8 COLLATE utf8mb3_bin;` 
+If you encounter the same issue from the example, it can be fixed by changing the charset collation for related tables to `task_instance` and `xcom` for example `ALTER TABLE task_instance MODIFY task_id VARCHAR(255) CHARACTER SET utf8 COLLATE utf8mb3_bin;` 
 
 
 
