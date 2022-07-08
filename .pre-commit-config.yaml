@@ -798,6 +798,14 @@ repos:
         pass_filenames: true
         files: ^docs/apache-airflow-providers-[^/]*/index\.rst$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml']
+      - id: check-lazy-logging
+        name: Check that all logging methods are lazy
+        entry: ./scripts/ci/pre_commit/pre_commit_check_lazy_logging.py
+        language: python
+        pass_filenames: true
+        files: \.py$
+        exclude: ^airflow/_vendor/
+        additional_dependencies: ['rich>=12.4.4', 'astor']
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
         entry: ./scripts/ci/pre_commit/pre_commit_check_init_in_tests.py
