@@ -2126,6 +2126,7 @@ class Airflow(AirflowBaseView):
             return htmlsafe_json_dumps(details, separators=(',', ':'))
         return self.render_template(
             'airflow/confirm.html',
+            origin=request.headers.get("Referer"),
             endpoint=None,
             message="Task instances you are about to clear:",
             details="\n".join(details),
@@ -2527,6 +2528,7 @@ class Airflow(AirflowBaseView):
 
         response = self.render_template(
             "airflow/confirm.html",
+            origin=request.headers.get("Referer"),
             endpoint=url_for(f'Airflow.{state}'),
             message=f"Task instances you are about to mark as {state}:",
             details=details,

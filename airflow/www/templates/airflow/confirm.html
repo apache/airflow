@@ -34,7 +34,8 @@
     <form method="POST">
   {% endif %}
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
-    <input type="hidden" name="confirmed" value="true">
+    <input type="hidden" name="confirmed" value="true"/>
+    <input type="hidden" name="origin" value="{{ origin or '' }}"/>
     {% for name,val in request.values.items() if name != "csrf_token" %}
       <input type="hidden" name="{{ name }}" value="{{ val }}">
     {% endfor %}
