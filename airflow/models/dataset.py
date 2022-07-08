@@ -227,7 +227,7 @@ class DatasetEvent(Base):
 
     __tablename__ = "dataset_event"
     __table_args__ = (
-        Index('idx_dataset_id_created_at', dataset_id, created_at, mssql_clustered=True),
+        Index('idx_dataset_id_created_at', dataset_id, created_at),
         {'sqlite_autoincrement': True},  # ensures PK values not reused
     )
 

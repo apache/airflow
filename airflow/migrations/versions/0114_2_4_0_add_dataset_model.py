@@ -131,9 +131,7 @@ def _create_dataset_event_table():
         sa.Column('created_at', TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
-    op.create_index(
-        'idx_dataset_id_created_at', 'dataset_event', ['dataset_id', 'created_at'], mssql_clustered=True
-    )
+    op.create_index('idx_dataset_id_created_at', 'dataset_event', ['dataset_id', 'created_at'])
 
 
 def upgrade():
