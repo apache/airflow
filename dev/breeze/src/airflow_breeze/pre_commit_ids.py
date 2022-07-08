@@ -44,6 +44,7 @@ PRE_COMMIT_LIST = [
     'check-hooks-apply',
     'check-incorrect-use-of-LoggingMixin',
     'check-integrations-are-consistent',
+    'check-lazy-logging',
     'check-merge-conflict',
     'check-newsfragments-are-valid',
     'check-no-providers-in-core-examples',
