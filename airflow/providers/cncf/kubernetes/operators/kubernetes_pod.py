@@ -18,13 +18,13 @@
 import json
 import logging
 import re
-import sys
 import warnings
 from contextlib import AbstractContextManager
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence
 
 from kubernetes.client import CoreV1Api, models as k8s
 
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.kubernetes import pod_generator
@@ -55,11 +55,6 @@ from airflow.settings import pod_mutation_hook
 from airflow.utils import yaml
 from airflow.utils.helpers import prune_dict, validate_key
 from airflow.version import version as airflow_version
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 if TYPE_CHECKING:
     import jinja2
@@ -117,7 +112,7 @@ class KubernetesPodOperator(BaseOperator):
     :param annotations: non-identifying metadata you can attach to the Pod.
         Can be a large range of data, and can include characters
         that are not permitted by labels.
-    :param resources: resources for the launched pod.
+    :param container_resources: resources for the launched pod.
     :param affinity: affinity scheduling rules for the launched pod.
     :param config_file: The path to the Kubernetes config file. (templated)
         If not specified, default value is ``~/.kube/config``
@@ -193,7 +188,7 @@ class KubernetesPodOperator(BaseOperator):
         get_logs: bool = True,
         image_pull_policy: Optional[str] = None,
         annotations: Optional[Dict] = None,
-        resources: Optional[k8s.V1ResourceRequirements] = None,
+        container_resources: Optional[k8s.V1ResourceRequirements] = None,
         affinity: Optional[k8s.V1Affinity] = None,
         config_file: Optional[str] = None,
         node_selectors: Optional[dict] = None,
@@ -215,11 +210,21 @@ class KubernetesPodOperator(BaseOperator):
         pod_runtime_info_envs: Optional[List[k8s.V1EnvVar]] = None,
         termination_grace_period: Optional[int] = None,
         configmaps: Optional[List[str]] = None,
+        resources: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> None:
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
-        super().__init__(resources=None, **kwargs)
+
+        if isinstance(resources, k8s.V1ResourceRequirements):
+            warnings.warn(
+                "Specifying resources for the launched pod with 'resources' is deprecated. "
+                "Use 'container_resources' instead.",
+                category=DeprecationWarning,
+                stacklevel=2,
+            )
+            container_resources = resources
+            resources = None
+
+        super().__init__(resources=resources, **kwargs)
         self.kubernetes_conn_id = kubernetes_conn_id
         self.do_xcom_push = do_xcom_push
         self.image = image
@@ -255,7 +260,7 @@ class KubernetesPodOperator(BaseOperator):
             self.node_selector = {}
         self.annotations = annotations or {}
         self.affinity = convert_affinity(affinity) if affinity else {}
-        self.k8s_resources = convert_resources(resources) if resources else {}
+        self.k8s_resources = convert_resources(container_resources) if container_resources else {}
         self.config_file = config_file
         self.image_pull_secrets = convert_image_pull_secrets(image_pull_secrets) if image_pull_secrets else []
         self.service_account_name = service_account_name
@@ -293,7 +298,9 @@ class KubernetesPodOperator(BaseOperator):
         super()._render_nested_template_fields(content, context, jinja_env, seen_oids)
 
     @staticmethod
-    def _get_ti_pod_labels(context: Optional[dict] = None, include_try_number: bool = True) -> dict:
+    def _get_ti_pod_labels(
+        context: Optional['Context'] = None, include_try_number: bool = True
+    ) -> Dict[str, str]:
         """
         Generate labels for the pod to track the pod in case of Operator crash
 
@@ -335,6 +342,11 @@ class KubernetesPodOperator(BaseOperator):
         return PodManager(kube_client=self.client)
 
     def get_hook(self):
+        warnings.warn("get_hook is deprecated. Please use hook instead.", DeprecationWarning, stacklevel=2)
+        return self.hook
+
+    @cached_property
+    def hook(self) -> KubernetesHook:
         hook = KubernetesHook(
             conn_id=self.kubernetes_conn_id,
             in_cluster=self.in_cluster,
@@ -346,10 +358,11 @@ class KubernetesPodOperator(BaseOperator):
 
     @cached_property
     def client(self) -> CoreV1Api:
-        hook = self.get_hook()
-        return hook.core_v1_client
+        return self.hook.core_v1_client
 
-    def find_pod(self, namespace, context, *, exclude_checked=True) -> Optional[k8s.V1Pod]:
+    def find_pod(
+        self, namespace: str, context: 'Context', *, exclude_checked: bool = True
+    ) -> Optional[k8s.V1Pod]:
         """Returns an already-running pod for this task instance if one exists."""
         label_selector = self._build_find_pod_label_selector(context, exclude_checked=exclude_checked)
         pod_list = self.client.list_namespaced_pod(
@@ -368,7 +381,7 @@ class KubernetesPodOperator(BaseOperator):
             self.log.info("`try_number` of pod: %s", pod.metadata.labels['try_number'])
         return pod
 
-    def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context):
+    def get_or_create_pod(self, pod_request_obj: k8s.V1Pod, context: 'Context') -> k8s.V1Pod:
         if self.reattach_on_restart:
             pod = self.find_pod(self.namespace or pod_request_obj.metadata.namespace, context=context)
             if pod:
@@ -377,7 +390,7 @@ class KubernetesPodOperator(BaseOperator):
         self.pod_manager.create_pod(pod=pod_request_obj)
         return pod_request_obj
 
-    def await_pod_start(self, pod):
+    def await_pod_start(self, pod: k8s.V1Pod):
         try:
             self.pod_manager.await_pod_start(pod=pod, startup_timeout=self.startup_timeout_seconds)
         except PodLaunchFailedException:
@@ -386,7 +399,7 @@ class KubernetesPodOperator(BaseOperator):
                     self.log.error("Pod Event: %s - %s", event.reason, event.message)
             raise
 
-    def extract_xcom(self, pod):
+    def extract_xcom(self, pod: k8s.V1Pod):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
         self.log.info("xcom result: \n%s", result)
@@ -400,6 +413,8 @@ class KubernetesPodOperator(BaseOperator):
                 pod_request_obj=self.pod_request_obj,
                 context=context,
             )
+            # get remote pod for use in cleanup methods
+            remote_pod = self.find_pod(self.pod.metadata.namespace, context=context)
             self.await_pod_start(pod=self.pod)
 
             if self.get_logs:
@@ -438,7 +453,7 @@ class KubernetesPodOperator(BaseOperator):
                     for event in self.pod_manager.read_pod_events(pod).items:
                         self.log.error("Pod Event: %s - %s", event.reason, event.message)
             with _suppress(Exception):
-                self.process_pod_deletion(pod)
+                self.process_pod_deletion(remote_pod)
             error_message = get_container_termination_message(remote_pod, self.BASE_CONTAINER_NAME)
             error_message = "\n" + error_message if error_message else ""
             raise AirflowException(
@@ -446,16 +461,19 @@ class KubernetesPodOperator(BaseOperator):
             )
         else:
             with _suppress(Exception):
-                self.process_pod_deletion(pod)
+                self.process_pod_deletion(remote_pod)
 
-    def process_pod_deletion(self, pod):
-        if self.is_delete_operator_pod:
-            self.log.info("Deleting pod: %s", pod.metadata.name)
-            self.pod_manager.delete_pod(pod)
-        else:
-            self.log.info("skipping deleting pod: %s", pod.metadata.name)
+    def process_pod_deletion(self, pod: k8s.V1Pod):
+        if pod is not None:
+            if self.is_delete_operator_pod:
+                self.log.info("Deleting pod: %s", pod.metadata.name)
+                self.pod_manager.delete_pod(pod)
+            else:
+                self.log.info("skipping deleting pod: %s", pod.metadata.name)
 
-    def _build_find_pod_label_selector(self, context: Optional[dict] = None, *, exclude_checked=True) -> str:
+    def _build_find_pod_label_selector(
+        self, context: Optional['Context'] = None, *, exclude_checked=True
+    ) -> str:
         labels = self._get_ti_pod_labels(context, include_try_number=False)
         label_strings = [f'{label_id}={label}' for label_id, label in sorted(labels.items())]
         labels_value = ','.join(label_strings)
@@ -464,7 +482,7 @@ class KubernetesPodOperator(BaseOperator):
         labels_value += ',!airflow-worker'
         return labels_value
 
-    def _set_name(self, name):
+    def _set_name(self, name: Optional[str]) -> Optional[str]:
         if name is None:
             if self.pod_template_file or self.full_pod_spec:
                 return None
@@ -490,7 +508,7 @@ class KubernetesPodOperator(BaseOperator):
                 kwargs.update(grace_period_seconds=self.termination_grace_period)
             self.client.delete_namespaced_pod(**kwargs)
 
-    def build_pod_request_obj(self, context=None):
+    def build_pod_request_obj(self, context: Optional['Context'] = None) -> k8s.V1Pod:
         """
         Returns V1Pod object based on pod template file, full pod spec, and other operator parameters.
 
@@ -570,6 +588,7 @@ class KubernetesPodOperator(BaseOperator):
         pod.metadata.labels.update(
             {
                 'airflow_version': airflow_version.replace('+', '-'),
+                'airflow_kpo_in_cluster': str(self.hook.is_in_cluster),
             }
         )
         pod_mutation_hook(pod)

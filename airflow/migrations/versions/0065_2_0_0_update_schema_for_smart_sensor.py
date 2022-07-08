@@ -61,8 +61,8 @@ def upgrade():
         sa.Column('shardcode', sa.Integer(), nullable=False),
         sa.Column('poke_context', sa.Text(), nullable=False),
         sa.Column('execution_context', sa.Text(), nullable=True),
-        sa.Column('created_at', TIMESTAMP, default=func.now(), nullable=False),
-        sa.Column('updated_at', TIMESTAMP, default=func.now(), nullable=False),
+        sa.Column('created_at', TIMESTAMP, default=func.now, nullable=False),
+        sa.Column('updated_at', TIMESTAMP, default=func.now, nullable=False),
         sa.PrimaryKeyConstraint('id'),
     )
     op.create_index('ti_primary_key', 'sensor_instance', ['dag_id', 'task_id', 'execution_date'], unique=True)

@@ -53,11 +53,11 @@ import pendulum
 from jinja2 import TemplateAssertionError, UndefinedError
 from sqlalchemy import (
     Column,
+    DateTime,
     Float,
     ForeignKeyConstraint,
     Index,
     Integer,
-    PickleType,
     String,
     and_,
     false,
@@ -75,7 +75,6 @@ from sqlalchemy.orm.query import Query
 from sqlalchemy.orm.session import Session
 from sqlalchemy.sql.elements import BooleanClauseList
 from sqlalchemy.sql.expression import ColumnOperators
-from sqlalchemy.sql.sqltypes import BigInteger
 
 from airflow import settings
 from airflow.compat.functools import cache
@@ -95,7 +94,8 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
-from airflow.models.base import COLLATION_ARGS, ID_LEN, Base
+from airflow.models.base import Base, StringID
+from airflow.models.dataset import DatasetDagRunQueue
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -120,7 +120,13 @@ from airflow.utils.operator_helpers import context_to_airflow_vars
 from airflow.utils.platform import getuser
 from airflow.utils.retries import run_with_db_retries
 from airflow.utils.session import NEW_SESSION, create_session, provide_session
-from airflow.utils.sqlalchemy import ExtendedJSON, UtcDateTime, tuple_in_condition, with_row_locks
+from airflow.utils.sqlalchemy import (
+    ExecutorConfigType,
+    ExtendedJSON,
+    UtcDateTime,
+    tuple_in_condition,
+    with_row_locks,
+)
 from airflow.utils.state import DagRunState, State, TaskInstanceState
 from airflow.utils.timeout import timeout
 
@@ -201,6 +207,7 @@ def clear_task_instances(
                 ti.max_tries = max(ti.max_tries, ti.prev_attempted_tries)
             ti.state = None
             ti.external_executor_id = None
+            ti.clear_next_method_args()
             session.merge(ti)
 
         task_id_by_key[ti.dag_id][ti.run_id][ti.map_index][ti.try_number].add(ti.task_id)
@@ -400,20 +407,6 @@ class TaskInstanceKey(NamedTuple):
         return self
 
 
-def _executor_config_comparator(x, y):
-    """
-    The TaskInstance.executor_config attribute is a pickled object that may contain
-    kubernetes objects.  If the installed library version has changed since the
-    object was originally pickled, due to the underlying ``__eq__`` method on these
-    objects (which converts them to JSON), we may encounter attribute errors. In this
-    case we should replace the stored object.
-    """
-    try:
-        return x == y
-    except AttributeError:
-        return False
-
-
 class TaskInstance(Base, LoggingMixin):
     """
     Task instances store the state of a task instance. This table is the
@@ -434,9 +427,9 @@ class TaskInstance(Base, LoggingMixin):
 
     __tablename__ = "task_instance"
 
-    task_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    dag_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
-    run_id = Column(String(ID_LEN, **COLLATION_ARGS), primary_key=True, nullable=False)
+    task_id = Column(StringID(), primary_key=True, nullable=False)
+    dag_id = Column(StringID(), primary_key=True, nullable=False)
+    run_id = Column(StringID(), primary_key=True, nullable=False)
     map_index = Column(Integer, primary_key=True, nullable=False, server_default=text("-1"))
 
     start_date = Column(UtcDateTime)
@@ -444,27 +437,30 @@ class TaskInstance(Base, LoggingMixin):
     duration = Column(Float)
     state = Column(String(20))
     _try_number = Column('try_number', Integer, default=0)
-    max_tries = Column(Integer)
+    max_tries = Column(Integer, server_default=text("-1"))
     hostname = Column(String(1000))
     unixname = Column(String(1000))
     job_id = Column(Integer)
     pool = Column(String(256), nullable=False)
-    pool_slots = Column(Integer, default=1, nullable=False, server_default=text("1"))
+    pool_slots = Column(Integer, default=1, nullable=False)
     queue = Column(String(256))
     priority_weight = Column(Integer)
     operator = Column(String(1000))
     queued_dttm = Column(UtcDateTime)
     queued_by_job_id = Column(Integer)
     pid = Column(Integer)
-    executor_config = Column(PickleType(pickler=dill, comparator=_executor_config_comparator))
+    executor_config = Column(ExecutorConfigType(pickler=dill))
 
-    external_executor_id = Column(String(ID_LEN, **COLLATION_ARGS))
+    external_executor_id = Column(StringID())
 
     # The trigger to resume on if we are in state DEFERRED
-    trigger_id = Column(BigInteger)
+    trigger_id = Column(Integer)
 
     # Optional timeout datetime for the trigger (past this, we'll fail)
-    trigger_timeout = Column(UtcDateTime)
+    trigger_timeout = Column(DateTime)
+    # The trigger_timeout should be TIMESTAMP(using UtcDateTime) but for ease of
+    # migration, we are keeping it as DateTime pending a change where expensive
+    # migration is inevitable.
 
     # The method to call next, and any extra arguments to pass to it.
     # Usually used when resuming from DEFERRED.
@@ -1517,8 +1513,23 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-
+            self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
+
+    def _create_dataset_dag_run_queue_records(self, *, session):
+        from airflow.models import Dataset
+
+        for obj in getattr(self.task, '_outlets', []):
+            self.log.debug("outlet obj %s", obj)
+            if isinstance(obj, Dataset):
+                dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
+                if not dataset:
+                    self.log.warning("Dataset %s not found", obj)
+                    continue
+                downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
+                self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                for dag_id in downstream_dag_ids:
+                    session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""

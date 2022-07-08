@@ -37,6 +37,7 @@ from airflow_breeze.global_constants import (
     ALLOWED_POSTGRES_VERSIONS,
     ALLOWED_PYTHON_MAJOR_MINOR_VERSIONS,
     ALLOWED_USE_AIRFLOW_VERSIONS,
+    SINGLE_PLATFORMS,
     get_available_packages,
 )
 from airflow_breeze.utils.custom_param_types import (
@@ -186,21 +187,45 @@ option_github_username = click.option(
     help='The user name used to authenticate to GitHub.',
     envvar='GITHUB_USERNAME',
 )
-option_image_tag = click.option(
+option_image_tag_for_pulling = click.option(
     '-t',
     '--image-tag',
-    help='Tag of the image which is used to pull or run the image (implies --mount-sources=skip'
-    ' when using to run shell or tests) ',
+    help='Tag of the image which is used to pull the image',
+    envvar='IMAGE_TAG',
+    required=True,
+)
+option_image_tag_for_building = click.option(
+    '-t',
+    '--image-tag',
+    help='Tag the image after building it',
+    envvar='IMAGE_TAG',
+)
+option_image_tag_for_running = click.option(
+    '-t',
+    '--image-tag',
+    help='Tag of the image which is used to run the image (implies --mount-sources=skip)',
+    envvar='IMAGE_TAG',
+)
+option_image_tag_for_verifying = click.option(
+    '-t',
+    '--image-tag',
+    help='Tag of the image when verifying it',
     envvar='IMAGE_TAG',
 )
 option_image_name = click.option(
     '-n', '--image-name', help='Name of the image to verify (overrides --python and --image-tag).'
 )
-option_platform = click.option(
+option_platform_multiple = click.option(
     '--platform',
     help='Platform for Airflow image.',
     envvar='PLATFORM',
     type=BetterChoice(ALLOWED_PLATFORMS),
+)
+option_platform_single = click.option(
+    '--platform',
+    help='Platform for Airflow image.',
+    envvar='PLATFORM',
+    type=BetterChoice(SINGLE_PLATFORMS),
 )
 option_debian_version = click.option(
     '--debian-version',
@@ -377,12 +402,6 @@ option_parallelism = click.option(
     envvar='PARALLELISM',
     show_default=True,
 )
-option_build_multiple_images = click.option(
-    '--build-multiple-images',
-    help="Run the operation sequentially on all or selected subset of Python versions.",
-    is_flag=True,
-    envvar='BUILD_MULTIPLE_IMAGES',
-)
 argument_packages = click.argument(
     "packages",
     nargs=-1,
@@ -439,4 +458,16 @@ option_pull_image = click.option(
     help="Pull image is missing before attempting to verify it.",
     is_flag=True,
     envvar='PULL_IMAGE',
+)
+option_python_image = click.option(
+    '--python-image',
+    help="If specified this is the base python image used to build the image. "
+    "Should be something like: python:VERSION-slim-bullseye",
+    envvar='PYTHON_IMAGE',
+)
+option_builder = click.option(
+    '--builder',
+    help="Buildx builder used to perform `docker buildx build` commands",
+    envvar='BUILDER',
+    default='default',
 )

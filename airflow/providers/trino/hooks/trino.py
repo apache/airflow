@@ -29,8 +29,8 @@ from trino.transaction import IsolationLevel
 
 from airflow import AirflowException
 from airflow.configuration import conf
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 from airflow.utils.operator_helpers import AIRFLOW_VAR_NAME_FORMAT_MAPPING
 
 try:
@@ -350,3 +350,19 @@ class TrinoHook(DbApiHook):
             commit_every = 0
 
         super().insert_rows(table, rows, target_fields, commit_every, replace)
+
+    def test_connection(self):
+        """Tests the connection from UI using Trino specific query"""
+        status, message = False, ''
+        try:
+            with closing(self.get_conn()) as conn:
+                with closing(conn.cursor()) as cur:
+                    cur.execute("select 1")
+                    if cur.fetchone():
+                        status = True
+                        message = 'Connection successfully tested'
+        except Exception as e:
+            status = False
+            message = str(e)
+
+        return status, message

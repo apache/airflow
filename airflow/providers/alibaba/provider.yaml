@@ -28,8 +28,9 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - oss2>=2.14.0
 
 integrations:
   - integration-name: Alibaba Cloud OSS
@@ -54,8 +55,6 @@ hooks:
     python-modules:
       - airflow.providers.alibaba.cloud.hooks.oss
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.alibaba.cloud.hooks.oss.OSSHook
 
 connection-types:
   - hook-class-name: airflow.providers.alibaba.cloud.hooks.oss.OSSHook

@@ -45,7 +45,7 @@ from airflow_breeze.utils.common_options import (
     option_force_build,
     option_forward_credentials,
     option_github_repository,
-    option_image_tag,
+    option_image_tag_for_running,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -53,6 +53,7 @@ from airflow_breeze.utils.common_options import (
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
+    option_platform_single,
     option_postgres_version,
     option_python,
     option_use_airflow_version,
@@ -112,9 +113,9 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
-                "--image-tag",
             ],
         },
     ],
@@ -141,9 +142,9 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
-                "--image-tag",
             ],
         },
     ],
@@ -172,8 +173,8 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
-                "--mount-sources",
                 "--image-tag",
+                "--mount-sources",
             ],
         },
     ],
@@ -226,6 +227,7 @@ DEVELOPER_PARAMETERS = {
 @option_verbose
 @option_dry_run
 @option_python
+@option_platform_single
 @option_backend
 @option_debian_version
 @option_github_repository
@@ -242,7 +244,7 @@ DEVELOPER_PARAMETERS = {
 @option_mount_sources
 @option_integration
 @option_db_reset
-@option_image_tag
+@option_image_tag_for_running
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
@@ -267,6 +269,7 @@ def shell(
     db_reset: bool,
     answer: Optional[str],
     image_tag: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment. this is the default command use when no other is selected."""
@@ -296,6 +299,7 @@ def shell(
         answer=answer,
         debian_version=debian_version,
         image_tag=image_tag,
+        platform=platform,
     )
 
 
@@ -303,6 +307,7 @@ def shell(
 @main.command(name='start-airflow')
 @option_dry_run
 @option_python
+@option_platform_single
 @option_github_repository
 @option_backend
 @option_postgres_version
@@ -319,7 +324,7 @@ def shell(
 @option_installation_package_format
 @option_mount_sources
 @option_integration
-@option_image_tag
+@option_image_tag_for_running
 @option_db_reset
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
@@ -346,6 +351,7 @@ def start_airflow(
     image_tag: Optional[str],
     db_reset: bool,
     answer: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
@@ -372,6 +378,7 @@ def start_airflow(
         db_reset=db_reset,
         start_airflow=True,
         image_tag=image_tag,
+        platform=platform,
         extra_args=extra_args,
         answer=answer,
     )

@@ -41,8 +41,26 @@ versions:
   - 1.1.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - azure-batch>=8.0.0
+  - azure-cosmos>=4.0.0
+  - azure-datalake-store>=0.0.45
+  - azure-identity>=1.3.1
+  - azure-keyvault-secrets>=4.1.0,<5.0
+  - azure-kusto-data>=0.0.43,<0.1
+  # Azure integration uses old libraries and the limits below reflect that
+  # TODO: upgrade to newer versions of all the below libraries
+  - azure-mgmt-containerinstance>=1.5.0,<2.0
+  - azure-mgmt-datafactory>=1.0.0,<2.0
+  - azure-mgmt-datalake-store>=0.5.0
+  - azure-mgmt-resource>=2.2.0
+  # limited due to https://github.com/Azure/azure-sdk-for-python/pull/18801  implementation released in 12.9
+  - azure-storage-blob>=12.7.0,<12.9.0
+  - azure-storage-common>=2.1.0
+  - azure-storage-file>=2.1.0
+  # Limited due to https://github.com/Azure/azure-uamqp-python/issues/191
+  - azure-servicebus>=7.6.1; platform_machine != "aarch64"
 
 integrations:
   - integration-name: Microsoft Azure Batch
@@ -89,6 +107,12 @@ integrations:
     external-doc-url: https://azure.microsoft.com/
     logo: /integration-logos/azure/Microsoft-Azure.png
     tags: [azure]
+  - integration-name: Microsoft Azure Service Bus
+    external-doc-url: https://azure.microsoft.com/en-us/services/service-bus/
+    logo: /integration-logos/azure/Service-Bus.svg
+    how-to-guide:
+      - /docs/apache-airflow-providers-microsoft-azure/operators/asb.rst
+    tags: [azure]
 
 operators:
   - integration-name: Microsoft Azure Data Lake Storage
@@ -117,6 +141,9 @@ operators:
   - integration-name: Microsoft Azure Data Factory
     python-modules:
       - airflow.providers.microsoft.azure.operators.data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.operators.asb
 
 sensors:
   - integration-name: Microsoft Azure Cosmos DB
@@ -168,6 +195,9 @@ hooks:
     python-modules:
       - airflow.providers.microsoft.azure.hooks.data_factory
       - airflow.providers.microsoft.azure.hooks.azure_data_factory
+  - integration-name: Microsoft Azure Service Bus
+    python-modules:
+      - airflow.providers.microsoft.azure.hooks.asb
 
 transfers:
   - source-integration-name: Local
@@ -192,18 +222,6 @@ transfers:
     how-to-guide: /docs/apache-airflow-providers-microsoft-azure/operators/sftp_to_wasb.rst
     python-module: airflow.providers.microsoft.azure.transfers.sftp_to_wasb
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
-  - airflow.providers.microsoft.azure.hooks.adx.AzureDataExplorerHook
-  - airflow.providers.microsoft.azure.hooks.batch.AzureBatchHook
-  - airflow.providers.microsoft.azure.hooks.cosmos.AzureCosmosDBHook
-  - airflow.providers.microsoft.azure.hooks.data_lake.AzureDataLakeHook
-  - airflow.providers.microsoft.azure.hooks.fileshare.AzureFileShareHook
-  - airflow.providers.microsoft.azure.hooks.container_volume.AzureContainerVolumeHook
-  - airflow.providers.microsoft.azure.hooks.container_instance.AzureContainerInstanceHook
-  - airflow.providers.microsoft.azure.hooks.wasb.WasbHook
-  - airflow.providers.microsoft.azure.hooks.data_factory.AzureDataFactoryHook
-  - airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
 
 connection-types:
   - hook-class-name: airflow.providers.microsoft.azure.hooks.base_azure.AzureBaseHook
@@ -230,6 +248,8 @@ connection-types:
   - hook-class-name: >-
       airflow.providers.microsoft.azure.hooks.container_registry.AzureContainerRegistryHook
     connection-type: azure_container_registry
+  - hook-class-name: airflow.providers.microsoft.azure.hooks.asb.BaseAzureServiceBusHook
+    connection-type: azure_service_bus
 
 secrets-backends:
   - airflow.providers.microsoft.azure.secrets.key_vault.AzureKeyVaultBackend

@@ -686,9 +686,15 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo "${COLOR_BLUE}Uninstalling airflow and providers"
         echo
         uninstall_airflow_and_providers
-        echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-        echo
-        install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
+            echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
+            echo
+            install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "none"
+        else
+            echo "${COLOR_BLUE}Install airflow from wheel package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+            echo
+            install_airflow_from_wheel "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        fi
         uninstall_providers
     elif [[ ${USE_AIRFLOW_VERSION} == "sdist"  ]]; then
         echo
@@ -696,9 +702,15 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         uninstall_airflow_and_providers
         echo
-        echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-        echo
-        install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
+            echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
+            echo
+            install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "none"
+        else
+            echo "${COLOR_BLUE}Install airflow from sdist package with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+            echo
+            install_airflow_from_sdist "${AIRFLOW_EXTRAS}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        fi
         uninstall_providers
     else
         echo
@@ -706,9 +718,15 @@ if [[ ${SKIP_ENVIRONMENT_INITIALIZATION=} != "true" ]]; then
         echo
         uninstall_airflow_and_providers
         echo
-        echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
-        echo
-        install_released_airflow_version "${USE_AIRFLOW_VERSION}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        if [[ ${SKIP_CONSTRAINTS,,=} == "true" ]]; then
+            echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' with no constraints.${COLOR_RESET}"
+            echo
+            install_released_airflow_version "${USE_AIRFLOW_VERSION}" "none"
+        else
+            echo "${COLOR_BLUE}Install released airflow from PyPI with extras: '${AIRFLOW_EXTRAS}' and constraints reference ${AIRFLOW_CONSTRAINTS_REFERENCE}.${COLOR_RESET}"
+            echo
+            install_released_airflow_version "${USE_AIRFLOW_VERSION}" "${AIRFLOW_CONSTRAINTS_REFERENCE}"
+        fi
     fi
     if [[ ${USE_PACKAGES_FROM_DIST=} == "true" ]]; then
         echo
@@ -934,13 +952,18 @@ else
             ${TEST_TYPE} == "Long" || \
             ${TEST_TYPE} == "Integration" ]]; then
         SELECTED_TESTS=("${ALL_TESTS[@]}")
+    elif [[ ${TEST_TYPE} =~ Providers\[(.*)\] ]]; then
+        SELECTED_TESTS=()
+        for provider in ${BASH_REMATCH[1]//,/ }
+        do
+            SELECTED_TESTS+=("tests/providers/${provider//./\/}")
+        done
     else
         echo
         echo  "${COLOR_RED}ERROR: Wrong test type ${TEST_TYPE}  ${COLOR_RESET}"
         echo
         exit 1
     fi
-
 fi
 readonly SELECTED_TESTS CLI_TESTS API_TESTS PROVIDERS_TESTS CORE_TESTS WWW_TESTS \
     ALL_TESTS ALL_PRESELECTED_TESTS
@@ -1303,8 +1326,8 @@ RUN REMOVE_ARTIFACTS="false" BUILD_TYPE="build" bash /scripts/docker/compile_www
 # So in case setup.py changes we can install latest dependencies required.
 COPY setup.py ${AIRFLOW_SOURCES}/setup.py
 COPY setup.cfg ${AIRFLOW_SOURCES}/setup.cfg
-
 COPY airflow/__init__.py ${AIRFLOW_SOURCES}/airflow/
+COPY generated/provider_dependencies.json ${AIRFLOW_SOURCES}/generated/
 
 COPY --from=scripts install_airflow.sh /scripts/docker/
 

@@ -22,6 +22,8 @@ from airflow.models import (
     DagModel,
     DagRun,
     DagTag,
+    DagWarning,
+    Dataset,
     DbCallbackRequest,
     Log,
     Pool,
@@ -49,6 +51,11 @@ def clear_db_runs():
         session.query(Trigger).delete()
         session.query(DagRun).delete()
         session.query(TaskInstance).delete()
+
+
+def clear_db_datasets():
+    with create_session() as session:
+        session.query(Dataset).delete()
 
 
 def clear_db_dags():
@@ -117,6 +124,11 @@ def clear_rendered_ti_fields():
 def clear_db_import_errors():
     with create_session() as session:
         session.query(errors.ImportError).delete()
+
+
+def clear_db_dag_warnings():
+    with create_session() as session:
+        session.query(DagWarning).delete()
 
 
 def clear_db_xcom():

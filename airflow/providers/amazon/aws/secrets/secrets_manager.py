@@ -20,20 +20,14 @@
 import ast
 import json
 import re
-import sys
 import warnings
 from typing import Optional
 from urllib.parse import urlencode
 
 import boto3
 
-from airflow.version import version as airflow_version
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
+from airflow.compat.functools import cached_property
+from airflow.providers.amazon.aws.utils import get_airflow_version
 from airflow.secrets import BaseSecretsBackend
 from airflow.utils.log.logging_mixin import LoggingMixin
 
@@ -214,7 +208,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param conn_id: the connection id
         :return: deserialized Connection
         """
-        if _parse_version(airflow_version) >= (2, 3):
+        if get_airflow_version() >= (2, 3):
             warnings.warn(
                 f"Method `{self.__class__.__name__}.get_conn_uri` is deprecated and will be removed "
                 "in a future release.  Please use method `get_conn_value` instead.",
@@ -251,6 +245,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
         """
+        error_msg = "An error occurred when calling the get_secret_value operation"
         if path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         else:
@@ -263,15 +258,36 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
-                "An error occurred (ResourceNotFoundException) when calling the "
-                "get_secret_value operation: "
-                "Secret %s not found.",
+                "ResourceNotFoundException: %s. Secret %s not found.",
+                error_msg,
                 secret_id,
             )
             return None
-        except self.client.exceptions.AccessDeniedException:
+        except self.client.exceptions.InvalidParameterException:
             self.log.debug(
-                "An error occurred (AccessDeniedException) when calling the get_secret_value operation",
+                "InvalidParameterException: %s",
+                error_msg,
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.InvalidRequestException:
+            self.log.debug(
+                "InvalidRequestException: %s",
+                error_msg,
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.DecryptionFailure:
+            self.log.debug(
+                "DecryptionFailure: %s",
+                error_msg,
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.InternalServiceError:
+            self.log.debug(
+                "InternalServiceError: %s",
+                error_msg,
                 exc_info=True,
             )
             return None

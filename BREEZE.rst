@@ -174,6 +174,12 @@ environments. This can be done automatically by the following command (follow in
 
     pipx ensurepath
 
+In Mac
+
+.. code-block:: bash
+
+    python -m pipx ensurepath
+
 
 Resources required
 ==================
@@ -440,7 +446,7 @@ Regenerating images for documentation
 
 This documentation contains exported images with "help" of their commands and parameters. You can
 regenerate all those images (which might be needed in case new version of rich is used) via
-``regenerate-breeze-images`` command.
+``regenerate-command-images`` command.
 
 .. image:: ./images/breeze/output-regenerate-command-images.svg
   :width: 100%
@@ -500,9 +506,6 @@ Airflow Breeze is a bash script serving as a "swiss-army-knife" of Airflow testi
 hood it uses other scripts that you can also run manually if you have problem with running the Breeze
 environment. Breeze script allows performing the following tasks:
 
-Development tasks
------------------
-
 Those are commands mostly used by contributors:
 
 * Execute arbitrary command in the test environment with ``breeze shell`` command
@@ -512,6 +515,7 @@ Those are commands mostly used by contributors:
 * Initialize local virtualenv with ``./scripts/tools/initialize_virtualenv.py`` command
 * Run static checks with autocomplete support ``breeze static-checks`` command
 * Run test specified with ``breeze tests`` command
+* Run docker-compose tests with ``breeze docker-compose-tests`` command.
 * Build CI docker image with ``breeze build-image`` command
 * Cleanup breeze with ``breeze cleanup`` command
 
@@ -524,8 +528,53 @@ Additional management tasks:
 Tests
 -----
 
-* Run docker-compose tests with ``breeze docker-compose-tests`` command.
-* Run test specified with ``breeze tests`` command.
+You can regular unit tests with ``breeze`` in two different ways, either interactively run tests with
+the default ``shell`` command or via the ``tests`` command.
+
+Iterate on tests interactively
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+You can simply enter the ``breeze`` container and run ``pytest`` command there. You can enter the
+container via just ``breeze`` command or ``breeze shell`` command (the latter has more options
+useful when you run integration or system tests). This is the best way if you want to interactively
+run selected tests and iterate with the tests. Once you enter ``breeze`` environment it is ready
+out-of-the-box to run your tests by running the right ``pytest`` command (autocomplete should help
+you with autocompleting test name if you start typing ``pytest tests<TAB>``).
+
+Here are few examples:
+
+Running single test:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore::test_check_operators
+
+To run the whole test class:
+
+.. code-block:: bash
+
+    pytest tests/core/test_core.py::TestCore
+
+You can re-run the tests interactively, add extra parameters to pytest and modify the files before
+re-running the test to iterate over the tests. You can also add more flags when starting the
+``breeze shell`` command when you run integration tests or system tests. Read more details about it
+in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explained and more information
+on how to run them.
+
+Running group of tests
+~~~~~~~~~~~~~~~~~~~~~~
+
+You can also run tests via built-in ``breeze tests`` command - similarly as iterative ``pytest`` command
+allows to run test individually, or by class or in any other way pytest allows to test them, but it
+also allows to run the tests in the same test "types" that are used to run the tests in CI: Core, Always
+API, Providers. This how our CI runs them - running each group in parallel to other groups and you can
+replicate this behaviour.
+
+Another interesting use of the ``breeze tests`` command is that you can easily specify sub-set of the
+tests for Providers. ``breeze tests --test-type "Providers[airbyte,http]`` for example will only run
+tests for airbyte and http providers.
+
+Here is the detailed set of options for the ``breeze tests`` command.
 
 .. image:: ./images/breeze/output-tests.svg
   :width: 100%
@@ -565,12 +614,16 @@ Configuration and maintenance
 * Cleanup breeze with ``breeze cleanup`` command
 * Self-upgrade breeze with ``breeze self-upgrade`` command
 * Setup autocomplete for Breeze with ``breeze setup-autocomplete`` command
-* Checking available resources for docker with ``breeze resource-check`` command
-* Freeing space needed to run CI tests with ``breeze free-space`` command
-* Fixing ownership of files in your repository with ``breeze fix-ownership`` command
 * Print Breeze version with ``breeze version`` command
 * Outputs hash of commands defined by ``breeze`` with ``command-hash-export`` (useful to avoid needless
   regeneration of Breeze images)
+
+CI tasks
+--------
+* Freeing space needed to run CI tests with ``breeze free-space`` command
+* Fixing ownership of files in your repository with ``breeze fix-ownership`` command
+* Checking available resources for docker with ``breeze resource-check`` command
+* Deciding which tests should be run with ``breeze selective-check`` command
 
 Release tasks
 -------------
@@ -1019,7 +1072,7 @@ you have auto-complete setup you should see auto-completable list of all checks 
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy
+     breeze static-checks -t run-mypy
 
 The above will run mypy check for currently staged files.
 
@@ -1027,7 +1080,7 @@ You can also pass specific pre-commit flags for example ``--all-files`` :
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --all-files
+     breeze static-checks -t run-mypy --all-files
 
 The above will run mypy check for all files.
 
@@ -1035,7 +1088,7 @@ There is a convenience ``--last-commit`` flag that you can use to run static che
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --last-commit
+     breeze static-checks -t run-mypy --last-commit
 
 The above will run mypy check for all files in the last commit.
 
@@ -1043,7 +1096,7 @@ There is another convenience ``--commit-ref`` flag that you can use to run stati
 
 .. code-block:: bash
 
-     breeze static-checks -t mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
+     breeze static-checks -t run-mypy --commit-ref 639483d998ecac64d0fef7c5aa4634414065f690
 
 The above will run mypy check for all files in the 639483d998ecac64d0fef7c5aa4634414065f690 commit.
 Any ``commit-ish`` reference from Git will work here (branch, tag, short/long hash etc.)
@@ -1295,8 +1348,8 @@ command but it is very similar to current ``breeze`` command):
       </a>
     </div>
 
-Resource check
-==============
+Running resource check
+----------------------
 
 Breeze requires certain resources to be available - disk, memory, CPU. When you enter Breeze's shell,
 the resources are checked and information if there is enough resources is displayed. However you can
@@ -1310,7 +1363,7 @@ Those are all available flags of ``resource-check`` command:
 
 
 Freeing the space
-=================
+-----------------
 
 When our CI runs a job, it needs all memory and disk it can have. We have a Breeze command that frees
 the memory and disk space used. You can also use it clear space locally but it performs a few operations
@@ -1323,8 +1376,26 @@ Those are all available flags of ``free-space`` command:
   :alt: Breeze free-space
 
 
+Selective check
+---------------
+
+When our CI runs a job, it needs to decide which tests to run, whether to build images and how much the test
+should be run on multiple combinations of Python, Kubernetes, Backend versions. In order to optimize time
+needed to run the CI Builds. You can also use the tool to test what tests will be run when you provide
+a specific commit that Breeze should run the tests on.
+
+More details about the algorithm used to pick the right tests can be
+found in `Selective Checks <dev/breeze/SELECTIVE_CHECKS.md>`_.
+
+Those are all available flags of ``selective-check`` command:
+
+.. image:: ./images/breeze/output-selective-check.svg
+  :width: 100%
+  :alt: Breeze selective-check
+
+
 Tracking backtracking issues for CI builds
-==========================================
+------------------------------------------
 
 When our CI runs a job, we automatically upgrade our dependencies in the ``main`` build. However, this might
 lead to conflicts and ``pip`` backtracking for a long time (possibly forever) for dependency resolution.

@@ -17,6 +17,7 @@ Aneesh
 AnnotateTextResponse
 Ansible
 AppBuilder
+Appflow
 ArangoDB
 Arg
 Args
@@ -25,6 +26,7 @@ Async
 AsyncResult
 Atlassian
 Auth
+Authlib
 AutoMlClient
 Autoscale
 Avro
@@ -395,6 +397,7 @@ TCP
 TLS
 TTY
 TZ
+Tabular
 TaskDecorator
 TaskFlow
 TaskGroup
@@ -857,6 +860,7 @@ gcpcloudsql
 gcs
 gdbm
 generateUploadUrl
+geq
 getattr
 getfqdn
 getframe
@@ -1014,6 +1018,7 @@ latencies
 latin
 ldap
 ldaps
+leq
 leveldb
 libs
 libz
@@ -1131,6 +1136,7 @@ opsgenie
 optimise
 optionality
 ora
+oracledb
 orchestrator
 orgtbl
 orm

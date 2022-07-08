@@ -85,12 +85,12 @@ def _handle_deferrable_databricks_operator_execution(operator, hook, log, contex
     """
     if operator.do_xcom_push and context is not None:
         context['ti'].xcom_push(key=XCOM_RUN_ID_KEY, value=operator.run_id)
-    log.info(f'Run submitted with run_id: {operator.run_id}')
+    log.info('Run submitted with run_id: %s', operator.run_id)
 
     run_page_url = hook.get_run_page_url(operator.run_id)
     if operator.do_xcom_push and context is not None:
         context['ti'].xcom_push(key=XCOM_RUN_PAGE_URL_KEY, value=run_page_url)
-    log.info(f'View run status, Spark UI, and logs at {run_page_url}')
+    log.info('View run status, Spark UI, and logs at %s', run_page_url)
 
     if operator.wait_for_termination:
         operator.defer(
@@ -107,7 +107,7 @@ def _handle_deferrable_databricks_operator_completion(event: dict, log: Logger) 
     validate_trigger_event(event)
     run_state = RunState.from_json(event['run_state'])
     run_page_url = event['run_page_url']
-    log.info(f'View run status, Spark UI, and logs at {run_page_url}')
+    log.info('View run status, Spark UI, and logs at %s', run_page_url)
 
     if run_state.is_successful:
         log.info('Job run completed successfully.')
@@ -508,7 +508,7 @@ class DatabricksRunNowOperator(BaseOperator):
         The map is passed to the notebook and will be accessible through the
         dbutils.widgets.get function. See Widgets for more information.
         If not specified upon run-now, the triggered run will use the
-        job’s base parameters. notebook_params cannot be
+        job's base parameters. notebook_params cannot be
         specified in conjunction with jar_params. The json representation
         of this field (i.e. {"notebook_params":{"name":"john doe","age":"35"}})
         cannot exceed 10,000 bytes.

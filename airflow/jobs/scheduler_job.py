@@ -628,7 +628,6 @@ class SchedulerJob(BaseJob):
             buffer_key = ti.key.with_try_number(try_number)
             state, info = event_buffer.pop(buffer_key)
 
-            # TODO: should we fail RUNNING as well, as we do in Backfills?
             if state == TaskInstanceState.QUEUED:
                 ti.external_executor_id = info
                 self.log.info("Setting external_id for %s to %s", ti, info)
@@ -664,7 +663,20 @@ class SchedulerJob(BaseJob):
                 ti.pid,
             )
 
-            if ti.try_number == buffer_key.try_number and ti.state == State.QUEUED:
+            # There are two scenarios why the same TI with the same try_number is queued
+            # after executor is finished with it:
+            # 1) the TI was killed externally and it had no time to mark itself failed
+            # - in this case we should mark it as failed here.
+            # 2) the TI has been requeued after getting deferred - in this case either our executor has it
+            # or the TI is queued by another job. Either ways we should not fail it.
+
+            # All of this could also happen if the state is "running",
+            # but that is handled by the zombie detection.
+
+            ti_queued = ti.try_number == buffer_key.try_number and ti.state == TaskInstanceState.QUEUED
+            ti_requeued = ti.queued_by_job_id != self.id or self.executor.has_task(ti)
+
+            if ti_queued and not ti_requeued:
                 Stats.incr('scheduler.tasks.killed_externally')
                 msg = (
                     "Executor reports task instance %s finished (%s) although the "
@@ -1159,10 +1171,7 @@ class SchedulerJob(BaseJob):
                 msg='timed_out',
             )
 
-            # Send SLA & DAG Success/Failure Callbacks to be executed
-            self._send_dag_callbacks_to_processor(dag, callback_to_execute)
-            # Because we send the callback here, we need to return None
-            return callback
+            return callback_to_execute
 
         if dag_run.execution_date > timezone.utcnow() and not dag.allow_future_exec_dates:
             self.log.error("Execution date is in future: %s", dag_run.execution_date)
@@ -1349,7 +1358,8 @@ class SchedulerJob(BaseJob):
     def _find_zombies(self, session):
         """
         Find zombie task instances, which are tasks haven't heartbeated for too long
-        and update the current zombie list.
+        or have a no-longer-running LocalTaskJob, and send them off to the DAG processor
+        to be handled.
         """
         self.log.debug("Finding 'running' jobs without a recent heartbeat")
         limit_dttm = timezone.utcnow() - timedelta(seconds=self._zombie_threshold_secs)
@@ -1365,6 +1375,7 @@ class SchedulerJob(BaseJob):
                     LocalTaskJob.latest_heartbeat < limit_dttm,
                 )
             )
+            .filter(TaskInstance.queued_by_job_id == self.id)
             .all()
         )
 
