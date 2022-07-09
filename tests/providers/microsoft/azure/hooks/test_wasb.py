@@ -369,3 +369,25 @@ class TestWasbHook:
             hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
             hook.delete_file('container', 'nonexisting_blob_prefix', is_prefix=True, ignore_if_missing=False)
         assert isinstance(ctx.value, AirflowException)
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    def test_connection_success(self, mock_service):
+        hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
+        hook.get_conn().get_account_information().return_value = {
+            'sku_name': 'Standard_RAGRS',
+            'account_kind': 'StorageV2',
+        }
+        status, msg = hook.test_connection()
+
+        assert status is True
+        assert msg == "Successfully connected to Azure Blob Storage."
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.wasb.BlobServiceClient")
+    def test_connection_failure(self, mock_service):
+        hook = WasbHook(wasb_conn_id=self.shared_key_conn_id)
+        hook.get_conn().get_account_information = mock.PropertyMock(
+            side_effect=Exception("Authentication failed.")
+        )
+        status, msg = hook.test_connection()
+        assert status is False
+        assert msg == "Authentication failed."

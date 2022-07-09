@@ -42,9 +42,6 @@ repos:
   - repo: https://github.com/Lucas-C/pre-commit-hooks
     rev: v1.2.0
     hooks:
-      - id: forbid-tabs
-        name: Fail if tabs are used in the project
-        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
       - id: insert-license
         name: Add license for all SQL files
         files: \.sql$
@@ -160,6 +157,13 @@ repos:
     hooks:
       - id: blacken-docs
         name: Run black on python code blocks in documentation files
+        args:
+          - --line-length=110
+          - --target-version=py37
+          - --target-version=py38
+          - --target-version=py39
+          - --target-version=py310
+          - --skip-string-normalization
         alias: black
         additional_dependencies: [black==22.3.0]
   - repo: https://github.com/pre-commit/pre-commit-hooks
@@ -296,6 +300,13 @@ repos:
           - --exclude-file=.codespellignorelines
   - repo: local
     hooks:
+      - id: replace-bad-characters
+        name: Replace bad characters
+        entry: ./scripts/ci/pre_commit/pre_commit_replace_bad_characters.py
+        language: python
+        types: [file, text]
+        exclude: ^airflow/_vendor/|^clients/gen/go\.sh$|^\.gitmodules$
+        additional_dependencies: ['rich>=12.4.4']
       - id: static-check-autoflake
         name: Remove all unused code
         entry: autoflake --remove-all-unused-imports --ignore-init-module-imports --in-place
@@ -346,7 +357,7 @@ repos:
         name: Update output of breeze commands in BREEZE.rst
         entry: ./scripts/ci/pre_commit/pre_commit_breeze_cmd_line.py
         language: python
-        files: ^BREEZE\.rst$|^dev/breeze/.*$
+        files: ^BREEZE\.rst$|^dev/breeze/.*$|^\.pre-commit-config\.yml$
         pass_filenames: false
         additional_dependencies: ['rich>=12.4.4', 'rich-click>=1.5']
       - id: update-local-yml-file
@@ -787,6 +798,14 @@ repos:
         pass_filenames: true
         files: ^docs/apache-airflow-providers-[^/]*/index\.rst$
         additional_dependencies: ['rich>=12.4.4', 'pyyaml']
+      - id: check-lazy-logging
+        name: Check that all logging methods are lazy
+        entry: ./scripts/ci/pre_commit/pre_commit_check_lazy_logging.py
+        language: python
+        pass_filenames: true
+        files: \.py$
+        exclude: ^airflow/_vendor/
+        additional_dependencies: ['rich>=12.4.4', 'astor']
       - id: create-missing-init-py-files-tests
         name: Create missing init.py files in tests
         entry: ./scripts/ci/pre_commit/pre_commit_check_init_in_tests.py

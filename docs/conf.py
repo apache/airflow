@@ -338,7 +338,7 @@ if FOR_PRODUCTION:
         {'href': '/ecosystem/', 'text': 'Ecosystem'},
     ]
 
-# A dictionary of values to pass into the template engine’s context for all pages.
+# A dictionary of values to pass into the template engine's context for all pages.
 html_context = {
     # Google Analytics ID.
     # For more information look at:
@@ -693,6 +693,8 @@ autoapi_ignore = [
     '**/example_dag_decorator.py',
 ]
 if PACKAGE_NAME == 'apache-airflow':
+    autoapi_ignore.append('*/airflow/providers/*')
+elif PACKAGE_NAME == 'docker-stack':
     autoapi_ignore.append('*/airflow/providers/*')
 else:
     autoapi_ignore.append('*/airflow/providers/cncf/kubernetes/backcompat/*')
