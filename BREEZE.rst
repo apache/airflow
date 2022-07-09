@@ -532,7 +532,7 @@ You can regular unit tests with ``breeze`` in two different ways, either interac
 the default ``shell`` command or via the ``tests`` command.
 
 Iterate on tests interactively
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+-------------------------------
 
 You can simply enter the ``breeze`` container and run ``pytest`` command there. You can enter the
 container via just ``breeze`` command or ``breeze shell`` command (the latter has more options
@@ -562,7 +562,7 @@ in the ``TESTING.rst <TESTING.rst#>`` where all the test types of our are explai
 on how to run them.
 
 Running group of tests
-~~~~~~~~~~~~~~~~~~~~~~
+-----------------------
 
 You can also run tests via built-in ``breeze tests`` command - similarly as iterative ``pytest`` command
 allows to run test individually, or by class or in any other way pytest allows to test them, but it
