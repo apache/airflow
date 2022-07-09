@@ -325,12 +325,10 @@ function taskStatsHandler(error, json) {
   });
 }
 
-function refreshDagStats(getDagIds) {
-  if (typeof getDagIds !== 'function') {
-    getDagIds = getAllDagIds;
-  }
+function getDagStats() {
+  const dagIds = getDagIds();
   const params = new URLSearchParams();
-  getDagIds().forEach(dagId => {
+  dagIds.forEach(dagId => {
     params.append('dag_ids', dagId);
   });
   if (params.has('dag_ids')) {
@@ -433,28 +431,21 @@ function refreshDagRuns(error, json) {
   });
 }
 
-function getAllDagIds() {
-  const dagIds = $('[id^=toggle]').map(function () {
-    return $(this).data('dag-id');
-  }).get();
-  return dagIds;
-}
-
-function getActiveDagIds() {
-  const dagIds = $('[id^=toggle]').filter(':checked').map(function () {
-    return $(this).data('dag-id');
-  }).get();
-  return dagIds;
-}
-
-// To target a subset of dags, pass a function that returns an array
-// of dag ids. If no function is specified, all dags are targeted.
-function handleRefresh(getDagIds) {
-  if (typeof getDagIds !== 'function') {
-    getDagIds = getAllDagIds;
+function getDagIds(activeDagsOnly = false) {
+  let dagIds = $('[id^=toggle]');
+  if (activeDagsOnly) {
+    dagIds = dagIds.filter(':checked');
   }
+  dagIds = dagIds.map(function () {
+    return $(this).data('dag-id');
+  }).get();
+  return dagIds;
+}
+
+function handleRefresh(activeDagsOnly = false) {
+  const dagIds = getDagIds(activeDagsOnly);
   const params = new URLSearchParams();
-  getDagIds().forEach(dagId => {
+  dagIds.forEach(dagId => {
     params.append('dag_ids', dagId);
   });
   $('#loading-dots').css('display', 'inline-block');
@@ -477,7 +468,7 @@ function handleRefresh(getDagIds) {
 function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
-      handleRefresh(getActiveDagIds);
+      handleRefresh(true);
     }, autoRefreshInterval * refreshIntervalMs);
   } else {
     clearInterval(refreshInterval);
@@ -516,7 +507,7 @@ $(window).on('load', () => {
     hideSvgTooltip();
   });
 
-  refreshDagStats();
+  getDagStats();
 });
 
 $('.js-next-run-tooltip').each((i, run) => {
@@ -538,7 +529,7 @@ $('.js-next-run-tooltip').each((i, run) => {
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
     // Run an initial refresh before starting interval if manually turned on
-    handleRefresh(getActiveDagIds);
+    handleRefresh(true);
     localStorage.removeItem('dagsDisableAutoRefresh');
   } else {
     localStorage.setItem('dagsDisableAutoRefresh', 'true');
