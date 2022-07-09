@@ -234,7 +234,8 @@ class TestBaseOperator:
         result = task.render_template(content, context)
         assert result == expected_output
 
-    def test_render_template_with_flag(self):
+    @mock.patch("airflow.configuration.conf.getboolean")
+    def test_render_template_with_flag(self, getboolean_mock):
         """Test render_template given various input types."""
         content = {"key_{{ foo }}_1": 1, "key_2": "{{ foo }}_2"}
         context = {"foo": "bar"}
@@ -242,11 +243,10 @@ class TestBaseOperator:
 
         task = BaseOperator(task_id="op1")
 
-        with mock.patch("airflow.configuration.conf") as conf_mock:
-            conf_mock.getboolean.return_value = True
-            result = task.render_template(content, context)
-            assert result == expected_output
-            conf_mock.getboolean.assert_called_with('core', 'render_dict_keys')
+        getboolean_mock.return_value = True
+        result = task.render_template(content, context)
+        assert result == expected_output
+        getboolean_mock.assert_called_with('core', 'render_dict_keys')
 
     @pytest.mark.parametrize(
         ("content", "context", "expected_output"),
