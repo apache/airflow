@@ -112,6 +112,7 @@ Datasync
 DateFrame
 Datetimepicker
 Datetimes
+Debounce
 Decrypt
 Decrypts
 DeidentifyContentResponse
@@ -593,6 +594,7 @@ cfg
 cgi
 cgroups
 cgroupspy
+chakra
 changelog
 charset
 checklicence
@@ -1330,6 +1332,7 @@ seealso
 seedlist
 segmentGranularity
 sendgrid
+serde
 serialise
 serializable
 serverless
