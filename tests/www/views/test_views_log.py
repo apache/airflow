@@ -26,7 +26,7 @@ import urllib.parse
 import pytest
 
 from airflow import settings
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.logging_config import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagBag, DagRun
 from airflow.models.tasklog import LogTemplate
 from airflow.utils import timezone

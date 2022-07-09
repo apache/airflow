@@ -37,7 +37,6 @@ from freezegun import freeze_time
 from sqlalchemy import func
 
 from airflow.callbacks.callback_requests import CallbackRequest, DagCallbackRequest, SlaCallbackRequest
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.configuration import conf
 from airflow.dag_processing.manager import (
     DagFileProcessorAgent,
@@ -47,6 +46,7 @@ from airflow.dag_processing.manager import (
     DagParsingStat,
 )
 from airflow.dag_processing.processor import DagFileProcessorProcess
+from airflow.logging_config import DEFAULT_LOGGING_CONFIG
 from airflow.models import DagBag, DagModel, DbCallbackRequest, errors
 from airflow.models.dagcode import DagCode
 from airflow.models.serialized_dag import SerializedDagModel

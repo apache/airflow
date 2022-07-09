@@ -24,8 +24,8 @@ from unittest import mock
 import psutil
 import pytest
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
 from airflow.jobs.local_task_job import LocalTaskJob
+from airflow.logging_config import DEFAULT_LOGGING_CONFIG
 from airflow.models.dagbag import DagBag
 from airflow.models.taskinstance import TaskInstance
 from airflow.task.task_runner.standard_task_runner import StandardTaskRunner

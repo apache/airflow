@@ -21,7 +21,7 @@ import logging.config
 import os
 import re
 
-from airflow.config_templates.airflow_local_settings import DEFAULT_LOGGING_CONFIG
+from airflow.logging_config import DEFAULT_LOGGING_CONFIG
 from airflow.models import DAG, DagRun, TaskInstance
 from airflow.operators.python import PythonOperator
 from airflow.utils.log.file_task_handler import FileTaskHandler
