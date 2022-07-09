@@ -1852,7 +1852,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Union[str, BaseException],
+        error: Optional[Union[str, BaseException]],
         test_mode: Optional[bool] = None,
         context: Optional[Context] = None,
         force_fail: bool = False,
