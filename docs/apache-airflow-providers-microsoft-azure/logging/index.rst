@@ -34,7 +34,7 @@ Follow the steps below to enable Azure Blob Storage logging:
     .. code-block:: ini
 
         # wasb buckets should start with "wasb" just to help Airflow select correct handler
-        REMOTE_BASE_LOG_FOLDER = 'wasb-<whatever you want here>'
+        REMOTE_BASE_LOG_FOLDER = 'wasb://<container_name>@<storage_account>.blob.core.windows.net'
 
         # Rename DEFAULT_LOGGING_CONFIG to LOGGING CONFIG
         LOGGING_CONFIG = ...
