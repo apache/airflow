@@ -114,6 +114,7 @@ class DatabricksSqlOperator(BaseOperator):
             http_headers=self.http_headers,
             catalog=self.catalog,
             schema=self.schema,
+            caller="DatabricksSqlOperator",
             **self.client_parameters,
         )
 
@@ -279,6 +280,7 @@ class DatabricksCopyIntoOperator(BaseOperator):
             http_headers=self._http_headers,
             catalog=self._catalog,
             schema=self._schema,
+            caller="DatabricksCopyIntoOperator",
             **self._client_parameters,
         )
 

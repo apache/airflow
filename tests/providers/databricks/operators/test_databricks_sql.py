@@ -61,6 +61,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             http_headers=None,
             catalog=None,
             schema=None,
+            caller='DatabricksSqlOperator',
         )
         db_mock.run.assert_called_once_with(sql, parameters=None, handler=fetch_all_handler)
 
@@ -92,6 +93,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             http_headers=None,
             catalog=None,
             schema=None,
+            caller='DatabricksSqlOperator',
         )
         db_mock.run.assert_called_once_with(sql, parameters=None, handler=fetch_all_handler)
 

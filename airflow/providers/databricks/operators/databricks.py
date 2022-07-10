@@ -382,14 +382,18 @@ class DatabricksSubmitRunOperator(BaseOperator):
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
+        self.hook = None
 
-    def _get_hook(self) -> DatabricksHook:
-        return DatabricksHook(
-            self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-            retry_args=self.databricks_retry_args,
-        )
+    def _get_hook(self, caller="DatabricksSubmitRunOperator") -> DatabricksHook:
+        if not self.hook:
+            self.hook = DatabricksHook(
+                self.databricks_conn_id,
+                retry_limit=self.databricks_retry_limit,
+                retry_delay=self.databricks_retry_delay,
+                retry_args=self.databricks_retry_args,
+                caller=caller,
+            )
+        return self.hook
 
     def execute(self, context: 'Context'):
         hook = self._get_hook()
@@ -411,7 +415,7 @@ class DatabricksSubmitRunDeferrableOperator(DatabricksSubmitRunOperator):
     """Deferrable version of ``DatabricksSubmitRunOperator``"""
 
     def execute(self, context):
-        hook = self._get_hook()
+        hook = self._get_hook(caller="DatabricksSubmitRunDeferrableOperator")
         self.run_id = hook.submit_run(self.json)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
@@ -634,14 +638,18 @@ class DatabricksRunNowOperator(BaseOperator):
         # This variable will be used in case our task gets killed.
         self.run_id: Optional[int] = None
         self.do_xcom_push = do_xcom_push
+        self.hook = None
 
-    def _get_hook(self) -> DatabricksHook:
-        return DatabricksHook(
-            self.databricks_conn_id,
-            retry_limit=self.databricks_retry_limit,
-            retry_delay=self.databricks_retry_delay,
-            retry_args=self.databricks_retry_args,
-        )
+    def _get_hook(self, caller="DatabricksRunNowOperator") -> DatabricksHook:
+        if not self.hook:
+            self.hook = DatabricksHook(
+                self.databricks_conn_id,
+                retry_limit=self.databricks_retry_limit,
+                retry_delay=self.databricks_retry_delay,
+                retry_args=self.databricks_retry_args,
+                caller=caller,
+            )
+        return self.hook
 
     def execute(self, context: 'Context'):
         hook = self._get_hook()
@@ -669,7 +677,7 @@ class DatabricksRunNowDeferrableOperator(DatabricksRunNowOperator):
     """Deferrable version of ``DatabricksRunNowOperator``"""
 
     def execute(self, context):
-        hook = self._get_hook()
+        hook = self._get_hook(caller="DatabricksRunNowDeferrableOperator")
         self.run_id = hook.run_now(self.json)
         _handle_deferrable_databricks_operator_execution(self, hook, self.log, context)
 
