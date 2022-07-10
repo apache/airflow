@@ -114,7 +114,8 @@ body:
         discuss Airflow 1.10, open a [discussion](https://github.com/apache/airflow/discussions) instead!
       multiple: false
       options:
-        - "2.3.2 (latest released)"
+        - "2.3.3 (latest released)"
+        - "2.3.2"
         - "2.3.1"
         - "2.3.0"
         - "2.2.5"

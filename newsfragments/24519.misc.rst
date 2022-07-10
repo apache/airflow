@@ -1,1 +1,0 @@
-The JWT claims in the request to retrieve logs have been standardized: we use "nbf" and "aud" claims for maturity and audience of the requests. Also "filename" payload field is used to keep log name.
