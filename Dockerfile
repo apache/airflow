@@ -44,7 +44,7 @@ ARG AIRFLOW_UID="50000"
 ARG AIRFLOW_USER_HOME_DIR=/home/airflow
 
 # latest released version here
-ARG AIRFLOW_VERSION="2.2.4"
+ARG AIRFLOW_VERSION="2.3.3"
 
 ARG PYTHON_BASE_IMAGE="python:3.7-slim-bullseye"
 
@@ -1329,9 +1329,8 @@ ARG INSTALL_PACKAGES_FROM_CONTEXT="false"
 ARG AIRFLOW_IS_IN_CONTEXT="false"
 # Those are additional constraints that are needed for some extras but we do not want to
 # Force them on the main Airflow package.
-# * certifi<2021.0.0 required to keep snowflake happy
 # * dill<0.3.3 required by apache-beam
-ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3 certifi<2021.0.0"
+ARG EAGER_UPGRADE_ADDITIONAL_REQUIREMENTS="dill<0.3.3"
 
 ENV ADDITIONAL_PYTHON_DEPS=${ADDITIONAL_PYTHON_DEPS} \
     INSTALL_PACKAGES_FROM_CONTEXT=${INSTALL_PACKAGES_FROM_CONTEXT} \
