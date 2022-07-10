@@ -431,7 +431,7 @@ function refreshDagRuns(error, json) {
   });
 }
 
-function getDagIds(activeDagsOnly = false) {
+function getDagIds({ activeDagsOnly = false } = {}) {
   let dagIds = $('[id^=toggle]');
   if (activeDagsOnly) {
     dagIds = dagIds.filter(':checked');
@@ -442,8 +442,8 @@ function getDagIds(activeDagsOnly = false) {
   return dagIds;
 }
 
-function handleRefresh(activeDagsOnly = false) {
-  const dagIds = getDagIds(activeDagsOnly);
+function handleRefresh({ activeDagsOnly = false } = {}) {
+  const dagIds = getDagIds({ activeDagsOnly });
   const params = new URLSearchParams();
   dagIds.forEach(dagId => {
     params.append('dag_ids', dagId);
@@ -468,7 +468,7 @@ function handleRefresh(activeDagsOnly = false) {
 function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
-      handleRefresh(true);
+      handleRefresh({ activeDagsOnly: true });
     }, autoRefreshInterval * refreshIntervalMs);
   } else {
     clearInterval(refreshInterval);
@@ -529,7 +529,7 @@ $('.js-next-run-tooltip').each((i, run) => {
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
     // Run an initial refresh before starting interval if manually turned on
-    handleRefresh(true);
+    handleRefresh({ activeDagsOnly: true });
     localStorage.removeItem('dagsDisableAutoRefresh');
   } else {
     localStorage.setItem('dagsDisableAutoRefresh', 'true');
