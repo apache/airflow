@@ -339,6 +339,161 @@ GCE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
     "selfLink",
 ]
 
+GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE = [
+    "kind",
+    "id",
+    "creationTimestamp",
+    "properties.disks.sha256",
+    "properties.disks.kind",
+    "properties.disks.sourceImageEncryptionKey.sha256",
+    "properties.disks.index",
+    "properties.disks.licenses",
+    "properties.networkInterfaces.kind",
+    "properties.networkInterfaces.accessConfigs.kind",
+    "properties.networkInterfaces.name",
+    "properties.metadata.kind",
+    "selfLink",
+]
+
+
+class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
+    """
+    Creates the instance template using specified fields.
+
+    # todo: change description of body param
+    :param body: Patch to the body of instanceTemplates object following rfc7386
+        PATCH semantics. The body_patch content follows
+        https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
+        Name field is required as we need to rename the template,
+        all the other fields are optional. It is important to follow PATCH semantics
+        - arrays are replaced fully, so if you need to update an array you should
+        provide the whole target array as patch element.
+    :param project_id: Optional, Google Cloud Project ID where the Compute
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
+    :param request_id: Optional, unique request_id that you might add to achieve
+        full idempotence (for example when client call times out repeating the request
+        with the same request id will not create a new instance template again).
+        It should be in UUID format as defined in RFC 4122.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
+    :param api_version: Optional, API version used (for example v1 - or beta). Defaults
+        to v1.
+    :param validate_body: Optional, If set to False, body validation is not performed.
+        Defaults to False.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    operator_extra_links = (ComputeInstanceTemplateDetailsLink(),)
+
+    # [START gce_instance_template_copy_operator_template_fields]
+    template_fields: Sequence[str] = (
+        'project_id',
+        'request_id',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
+    # [END gce_instance_template_copy_operator_template_fields]
+
+    def __init__(
+        self,
+        *,
+        body: dict,
+        project_id: Optional[str] = None,
+        request_id: Optional[str] = None,
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1',
+        validate_body: bool = True,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        self.body = body
+        self.request_id = request_id
+        self._field_validator = None  # Optional[GcpBodyFieldValidator]
+        if 'name' not in self.body:
+            raise AirflowException(
+                f"NAME '{body}' should contain at least name for the new operator "
+                f"in the 'name' field"
+            )
+        if 'machineType' not in self.body["properties"]:
+            raise AirflowException(
+                f"The body '{body}' should contain at least machine type for the new operator "
+                f"in the 'machineType' field"
+            )
+        if validate_body:
+            self._field_validator = GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+            )
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        super().__init__(
+            project_id=project_id,
+            zone='global',
+            resource_id=body["name"],
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
+    def _validate_all_body_fields(self) -> None:
+        if self._field_validator:
+            self._field_validator.validate(self.body)
+
+    def execute(self, context: 'Context') -> dict:
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        self._validate_all_body_fields()
+        try:
+            # Idempotence check (sort of) - we want to check if the new template
+            # is already created and if is, then we assume it was created by previous run
+            # of CopyTemplate operator - we do not check if content of the template
+            # is as expected. Templates are immutable, so we cannot update it anyway
+            # and deleting/recreating is not worth the hassle especially
+            # that we cannot delete template if it is already used in some Instance
+            # Group Manager. We assume success if the template is simply present
+            existing_template = hook.get_instance_template(
+                resource_id=self.body['name'], project_id=self.project_id
+            )
+            self.log.info(
+                "The %s template already existed. It was likely created by previous run of the operator. "
+                "Assuming success.",
+                existing_template,
+            )
+            ComputeInstanceTemplateDetailsLink.persist(
+                context=context,
+                task_instance=self,
+                resource_id=self.body['name'],
+                project_id=self.project_id or hook.project_id,
+            )
+            return existing_template
+        except HttpError as e:
+            # We actually expect to get 404 / Not Found here as the template should
+            # not yet exist
+            if not e.resp.status == 404:
+                raise e
+
+        self._field_sanitizer.sanitize(self.body)
+        self.log.info("Creating instance template with specified body: %s", self.body)
+        hook.insert_instance_template(body=self.body, request_id=self.request_id, project_id=self.project_id)
+        ComputeInstanceTemplateDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            resource_id=self.body['name'],
+            project_id=self.project_id or hook.project_id,
+        )
+        return hook.get_instance_template(resource_id=self.body['name'], project_id=self.project_id)
+
 
 class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
@@ -473,6 +628,12 @@ class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
         new_body = merge(new_body, self.body_patch)
         self.log.info("Calling insert instance template with updated body: %s", new_body)
         hook.insert_instance_template(body=new_body, request_id=self.request_id, project_id=self.project_id)
+        ComputeInstanceTemplateDetailsLink.persist(
+            context=context,
+            task_instance=self,
+            resource_id=self.body_patch['name'],
+            project_id=self.project_id or hook.project_id,
+        )
         return hook.get_instance_template(resource_id=self.body_patch['name'], project_id=self.project_id)
 
 
