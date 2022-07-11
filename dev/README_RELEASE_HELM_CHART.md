@@ -608,7 +608,7 @@ between the two repositories to be able to build the documentation.
     ```shell
     cd "${AIRFLOW_REPO_ROOT}"
     git checkout helm-chart/${VERSION}
-    breeze build-docs --package-filter helm-chart --for-production
+    breeze build-docs --package-filter helm-chart --clean-build --for-production
     ```
 
 - Now you can preview the documentation.
