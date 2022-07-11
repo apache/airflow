@@ -154,6 +154,16 @@ class TestLocalTaskJob:
         with pytest.raises(AirflowException):
             job1.heartbeat_callback()
 
+        # Now, set the ti.pid to None and test that no error
+        # is raised.
+        ti.pid = None
+        session.merge(ti)
+        session.commit()
+        assert ti.pid != job1.task_runner.process.pid
+        assert not ti.run_as_user
+        assert not job1.task_runner.run_as_user
+        job1.heartbeat_callback()
+
     @mock.patch('subprocess.check_call')
     @mock.patch('airflow.jobs.local_task_job.psutil')
     def test_localtaskjob_heartbeat_with_run_as_user(self, psutil_mock, _, dag_maker):
@@ -195,6 +205,16 @@ class TestLocalTaskJob:
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException, match='PID of job runner does not match'):
             job1.heartbeat_callback()
+
+        # Here we set the ti.pid to None and test that no error is
+        # raised
+        ti.pid = None
+        session.merge(ti)
+        session.commit()
+        assert ti.run_as_user
+        assert job1.task_runner.run_as_user == ti.run_as_user
+        assert ti.pid != job1.task_runner.process.pid
+        job1.heartbeat_callback()
 
     @conf_vars({('core', 'default_impersonation'): 'testuser'})
     @mock.patch('subprocess.check_call')
@@ -238,6 +258,16 @@ class TestLocalTaskJob:
         job1.task_runner.process.pid = 2
         with pytest.raises(AirflowException, match='PID of job runner does not match'):
             job1.heartbeat_callback()
+
+        # Now, set the ti.pid to None and test that no error
+        # is raised.
+        ti.pid = None
+        session.merge(ti)
+        session.commit()
+        assert job1.task_runner.run_as_user == 'testuser'
+        assert ti.run_as_user is None
+        assert ti.pid != job1.task_runner.process.pid
+        job1.heartbeat_callback()
 
     def test_heartbeat_failed_fast(self):
         """
