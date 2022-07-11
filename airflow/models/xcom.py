@@ -659,8 +659,8 @@ def _get_function_params(function) -> List[str]:
 
 def resolve_xcom_backend() -> Type[BaseXCom]:
     """Resolves custom XCom class
-    
-    Confirms that custom XCom class extends the BaseXCom.  
+
+    Confirms that custom XCom class extends the BaseXCom.
     Compares the function signature of the custom XCom serialize_value to the base XCom serialize_value.
     """
     clazz = conf.getimport("core", "xcom_backend", fallback=f"airflow.models.xcom.{BaseXCom.__name__}")
