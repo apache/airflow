@@ -134,7 +134,7 @@ and guidelines.
 Committers/Maintainers
 ----------------------
 
-Committers are community members that have write access to the project’s repositories, i.e., they can modify the code,
+Committers are community members that have write access to the project's repositories, i.e., they can modify the code,
 documentation, and website by themselves and also accept other contributions.
 
 The official list of committers can be found `here <https://airflow.apache.org/docs/apache-airflow/stable/project.html#committers>`__.
@@ -277,7 +277,7 @@ For effective collaboration, make sure to join the following Airflow groups:
 
 - Mailing lists:
 
-  - Developer’s mailing list `<dev-subscribe@airflow.apache.org>`_
+  - Developer's mailing list `<dev-subscribe@airflow.apache.org>`_
     (quite substantial traffic on this list)
 
   - All commits mailing list: `<commits-subscribe@airflow.apache.org>`_
@@ -620,15 +620,15 @@ This is the full list of those extras:
 airbyte, alibaba, all, all_dbs, amazon, apache.atlas, apache.beam, apache.cassandra, apache.drill,
 apache.druid, apache.hdfs, apache.hive, apache.kylin, apache.livy, apache.pig, apache.pinot,
 apache.spark, apache.sqoop, apache.webhdfs, arangodb, asana, async, atlas, aws, azure, cassandra,
-celery, cgroups, cloudant, cncf.kubernetes, core.sql, crypto, dask, databricks, datadog, dbt.cloud,
-deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker, druid,
-elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google, google_auth,
-grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos, kubernetes, ldap,
-leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo, mssql, mysql,
-neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password, pinot, plexus,
-postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment, sendgrid, sentry,
-sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, telegram, trino, vertica,
-virtualenv, webhdfs, winrm, yandex, zendesk
+celery, cgroups, cloudant, cncf.kubernetes, common.sql, crypto, dask, databricks, datadog,
+dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, discord, doc, docker,
+druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
+google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos,
+kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
+mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
+pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment,
+sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
+telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk
   .. END EXTRAS HERE
 
 Provider packages
@@ -1472,14 +1472,14 @@ Here are a few rules that are important to keep in mind when you enter our commu
 * There is a #newbie-questions channel in slack as a safe place to ask questions
 * You can ask one of the committers to be a mentor for you, committers can guide within the community
 * You can apply to more structured `Apache Mentoring Programme <https://community.apache.org/mentoringprogramme.html>`_
-* It’s your responsibility as an author to take your PR from start-to-end including leading communication
+* It's your responsibility as an author to take your PR from start-to-end including leading communication
   in the PR
-* It’s your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
-  it’s OK to be slightly annoying with your change - it is also a sign for committers that you care
+* It's your responsibility as an author to ping committers to review your PR - be mildly annoying sometimes,
+  it's OK to be slightly annoying with your change - it is also a sign for committers that you care
 * Be considerate to the high code quality/test coverage requirements for Apache Airflow
 * If in doubt - ask the community for their opinion or propose to vote at the devlist
 * Discussions should concern subject matters - judge or criticise the merit but never criticise people
-* It’s OK to express your own emotions while communicating - it helps other people to understand you
+* It's OK to express your own emotions while communicating - it helps other people to understand you
 * Be considerate for feelings of others. Tell about how you feel not what you think of others
 
 Commit Policy
@@ -1495,6 +1495,6 @@ and slightly modified and consensus reached in October 2020:
 
 Resources & Links
 =================
-- `Airflow’s official documentation <https://airflow.apache.org/>`__
+- `Airflow's official documentation <https://airflow.apache.org/>`__
 
 - `More resources and links to Airflow related content on the Wiki <https://cwiki.apache.org/confluence/display/AIRFLOW/Airflow+Links>`__

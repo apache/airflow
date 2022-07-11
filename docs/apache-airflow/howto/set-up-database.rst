@@ -325,7 +325,7 @@ You can read more about transaction isolation and snapshot features at
    CREATE LOGIN airflow_user WITH PASSWORD='airflow_pass123%';
    USE airflow;
    CREATE USER airflow_user FROM LOGIN airflow_user;
-   GRANT ALL PRIVILEGES ON DATABASE airflow TO airflow_user;
+   GRANT ALL PRIVILEGES ON DATABASE::airflow TO airflow_user;
 
 
 We recommend using the ``mssql+pyodbc`` driver and specifying it in your SqlAlchemy connection string.

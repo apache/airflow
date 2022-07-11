@@ -95,6 +95,7 @@ from airflow.exceptions import (
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
+from airflow.models.dataset import DatasetDagRunQueue
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -1512,8 +1513,23 @@ class TaskInstance(Base, LoggingMixin):
         if not test_mode:
             session.add(Log(self.state, self))
             session.merge(self)
-
+            self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
+
+    def _create_dataset_dag_run_queue_records(self, *, session):
+        from airflow.models import Dataset
+
+        for obj in getattr(self.task, '_outlets', []):
+            self.log.debug("outlet obj %s", obj)
+            if isinstance(obj, Dataset):
+                dataset = session.query(Dataset).filter(Dataset.uri == obj.uri).one_or_none()
+                if not dataset:
+                    self.log.warning("Dataset %s not found", obj)
+                    continue
+                downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
+                self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                for dag_id in downstream_dag_ids:
+                    session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
     def _execute_task_with_callbacks(self, context, test_mode=False):
         """Prepare Task for Execution"""
