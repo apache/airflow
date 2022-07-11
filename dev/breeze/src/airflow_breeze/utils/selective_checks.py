@@ -122,6 +122,8 @@ CI_FILE_GROUP_MATCHES = HashableDict(
         ],
         FileGroupForCi.HELM_FILES: [
             "^chart",
+            "^airflow/kubernetes",
+            "^tests/kubernetes",
         ],
         FileGroupForCi.SETUP_FILES: [
             r"^pyproject.toml",
