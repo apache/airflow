@@ -875,11 +875,11 @@ sql_alchemy_conn=sqlite://test
         test_conf.deprecated_values = {
             'core': {'hostname_callable': (re.compile(r':'), r'.', '2.1')},
         }
-        test_conf.read_dict({'core': {'hostname_callable': 'socket:getfqdn'}})
+        test_conf.read_dict({'core': {'hostname_callable': 'airflow.utils.net:getfqdn'}})
 
         with pytest.warns(FutureWarning):
             test_conf.validate()
-            assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+            assert test_conf.get('core', 'hostname_callable') == 'airflow.utils.net.getfqdn'
 
     @pytest.mark.parametrize(
         "old, new",
@@ -930,7 +930,7 @@ sql_alchemy_conn=sqlite://test
         "conf_dict",
         [
             {},  # Even if the section is absent from config file, environ still needs replacing.
-            {'core': {'hostname_callable': 'socket:getfqdn'}},
+            {'core': {'hostname_callable': 'airflow.utils.net.getfqdn'}},
         ],
     )
     def test_deprecated_values_from_environ(self, conf_dict):
@@ -953,9 +953,11 @@ sql_alchemy_conn=sqlite://test
             return test_conf
 
         with pytest.warns(FutureWarning):
-            with unittest.mock.patch.dict('os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='socket:getfqdn'):
+            with unittest.mock.patch.dict(
+                'os.environ', AIRFLOW__CORE__HOSTNAME_CALLABLE='airflow.utils.net:getfqdn'
+            ):
                 test_conf = make_config()
-                assert test_conf.get('core', 'hostname_callable') == 'socket.getfqdn'
+                assert test_conf.get('core', 'hostname_callable') == 'airflow.utils.net.getfqdn'
 
         with reset_warning_registry():
             with warnings.catch_warnings(record=True) as warning:

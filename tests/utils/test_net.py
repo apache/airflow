@@ -31,7 +31,7 @@ def get_hostname():
 
 
 class TestGetHostname(unittest.TestCase):
-    @mock.patch('socket.getfqdn', return_value='first')
+    @mock.patch('airflow.utils.net.getfqdn', return_value='first')
     @conf_vars({('core', 'hostname_callable'): None})
     def test_get_hostname_unset(self, mock_getfqdn):
         assert 'first' == net.get_hostname()
