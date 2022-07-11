@@ -97,35 +97,35 @@ class _TableConfig:
 
 
 config_list: List[_TableConfig] = [
-    _TableConfig(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat, dag_id=BaseJob.dag_id),
-    _TableConfig(orm_model=DagModel, recency_column=DagModel.last_parsed_time, dag_id=DagModel.dag_id),
+    _TableConfig(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat, dag_id_column=BaseJob.dag_id),
+    _TableConfig(orm_model=DagModel, recency_column=DagModel.last_parsed_time, dag_id_column=DagModel.dag_id),
     _TableConfig(
         orm_model=DagRun,
         recency_column=DagRun.start_date,
-        dag_id=DagRun.dag_id,
+        dag_id_column=DagRun.dag_id,
         keep_last=True,
         keep_last_filters=[DagRun.external_trigger == false()],
         keep_last_group_by=DagRun.dag_id,
     ),
     _TableConfig(orm_model=models_ImportError, recency_column=models_ImportError.timestamp),
-    _TableConfig(orm_model=Log, recency_column=Log.dttm, dag_id=Log.dag_id),
+    _TableConfig(orm_model=Log, recency_column=Log.dttm, dag_id_column=Log.dag_id),
     _TableConfig(
         orm_model=RenderedTaskInstanceFields,
         recency_column=RenderedTaskInstanceFields.execution_date,
-        dag_id=RenderedTaskInstanceFields.dag_id,
+        dag_id_column=RenderedTaskInstanceFields.dag_id,
     ),
     _TableConfig(
-        orm_model=SensorInstance, recency_column=SensorInstance.updated_at, dag_id=SensorInstance.dag_id
+        orm_model=SensorInstance, recency_column=SensorInstance.updated_at, dag_id_column=SensorInstance.dag_id
     ),  # TODO: add FK to task instance / dag so we can remove here
-    _TableConfig(orm_model=SlaMiss, recency_column=SlaMiss.timestamp, dag_id=SlaMiss.dag_id),
-    _TableConfig(orm_model=TaskFail, recency_column=TaskFail.start_date, dag_id=TaskFail.dag_id),
-    _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date, dag_id=TaskInstance.dag_id),
+    _TableConfig(orm_model=SlaMiss, recency_column=SlaMiss.timestamp, dag_id_column=SlaMiss.dag_id),
+    _TableConfig(orm_model=TaskFail, recency_column=TaskFail.start_date, dag_id_column=TaskFail.dag_id),
+    _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date, dag_id_column=TaskInstance.dag_id),
     _TableConfig(
         orm_model=TaskReschedule,
         recency_column=TaskReschedule.start_date,
-        dag_id=TaskReschedule.dag_id,
+        dag_id_column=TaskReschedule.dag_id,
                  ),
-    _TableConfig(orm_model=XCom, recency_column=XCom.timestamp, dag_id=XCom.dag_id),
+    _TableConfig(orm_model=XCom, recency_column=XCom.timestamp, dag_id_column=XCom.dag_id),
     _TableConfig(orm_model=DbCallbackRequest, recency_column=XCom.timestamp),
 ]
 try:
