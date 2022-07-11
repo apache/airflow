@@ -123,6 +123,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | nindent 10 }}
           {{- include "standard_airflow_environment" . | nindent 10 }}
+{{- if .Values.triggerer.waitForMigrations.extraEnv }}
+{{ tpl (toYaml .Values.triggerer.waitForMigrations.extraEnv) $ | indent 12 }}
+{{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}

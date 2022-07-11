@@ -704,6 +704,9 @@ scheduler:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
 
   extraEnv: []
 
@@ -984,6 +987,10 @@ webserver:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
+
   extraEnv: []
 
 # Airflow Triggerer Config
@@ -1075,6 +1082,10 @@ triggerer:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
+
   extraEnv: []
 
 # Airflow Dag Processor Config
@@ -1166,6 +1177,9 @@ dagProcessor:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    extraEnv:
+    - name: TEST_ENV_1
+      value: "test_env_1"
 
 # Flower settings
 flower:

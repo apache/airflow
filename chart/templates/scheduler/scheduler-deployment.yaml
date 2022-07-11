@@ -149,6 +149,9 @@ spec:
         {{- if .Values.scheduler.extraInitContainers }}
         {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
         {{- end }}
+{{- if .Values.scheduler.waitForMigrations.extraEnv }}
+{{ tpl (toYaml .Values.scheduler.waitForMigrations.extraEnv) $ | indent 12 }}
+{{- end }}
       containers:
         # Always run the main scheduler container.
         - name: scheduler

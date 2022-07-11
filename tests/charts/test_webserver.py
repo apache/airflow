@@ -170,6 +170,21 @@ class WebserverDeploymentTest(unittest.TestCase):
             "spec.template.spec.containers[0].env", docs[0]
         )
 
+    def test_should_add_extraEnv_to_wait_for_migration_container(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "webserver": {
+                    "waitForMigrations": {"enabled": True, "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
+                }
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.initContainers[0].env", docs[0]
+        )
+
     @parameterized.expand(
         [
             ("2.0.0", ["airflow", "db", "check-migrations", "--migration-wait-timeout=60"]),
