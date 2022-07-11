@@ -30,7 +30,7 @@ import {
   Text,
 } from '@chakra-ui/react';
 
-import { useContainerRef } from '../../context/containerRef';
+import { useContainerRef } from 'grid/context/containerRef';
 
 interface Props {
   isOpen: boolean;

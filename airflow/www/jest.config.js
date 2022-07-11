@@ -17,6 +17,8 @@
  * under the License.
  */
 
+// const path = require("path");
+
 const config = {
   verbose: true,
   transform: {
@@ -24,6 +26,11 @@ const config = {
   },
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['./jest-setup.js'],
+  moduleDirectories: ['node_modules'],
+  moduleNameMapper: { // Listing all aliases
+    '^app/(.*)$': '<rootDir>/static/js/$1',
+    '^grid/(.*)$': '<rootDir>/static/js/grid/$1',
+  },
 };
 
 module.exports = config;
