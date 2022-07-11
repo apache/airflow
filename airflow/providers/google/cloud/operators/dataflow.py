@@ -124,7 +124,10 @@ class DataflowConfiguration:
         WaitForRun = wait until job finished and the run job.
         Supported only by:
         :py:class:`~airflow.providers.apache.beam.operators.beam.BeamRunJavaPipelineOperator`
-    :param service_account: Run the job as a specific service account, instead of the default GCE robot.
+    :param service_account: Run the Java job as a specific service account, instead of the default Compute Engine service account.
+        See: https://cloud.google.com/dataflow/docs/reference/pipeline-options#java
+    :param service_account_email: Run the Python or Go job as a specific service account for Python or Go, instead of the default Compute Engine service account.
+        See: https://cloud.google.com/dataflow/docs/reference/pipeline-options#python or https://cloud.google.com/dataflow/docs/reference/pipeline-options#go
     """
 
     template_fields: Sequence[str] = ("job_name", "location")
@@ -146,6 +149,7 @@ class DataflowConfiguration:
         multiple_jobs: Optional[bool] = None,
         check_if_running: CheckJobRunning = CheckJobRunning.WaitForRun,
         service_account: Optional[str] = None,
+        service_account_email: Optional[str] = None,
     ) -> None:
         self.job_name = job_name
         self.append_job_name = append_job_name
@@ -161,6 +165,7 @@ class DataflowConfiguration:
         self.multiple_jobs = multiple_jobs
         self.check_if_running = check_if_running
         self.service_account = service_account
+        self.service_account_email = service_account_email
 
 
 class DataflowCreateJavaJobOperator(BaseOperator):

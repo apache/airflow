@@ -90,8 +90,18 @@ class BeamDataflowMixin(metaclass=ABCMeta):
         pipeline_options = copy.deepcopy(pipeline_options)
         if job_name_key is not None:
             pipeline_options[job_name_key] = job_name
+
+        # Used for pipeline options in Java. See "Security and networking" section in
+        # https://cloud.google.com/dataflow/docs/reference/pipeline-options#java
         if self.dataflow_config.service_account:
             pipeline_options["serviceAccount"] = self.dataflow_config.service_account
+
+        # Used for pipeline options in Python or Go. See "Security and networking" section in
+        # https://cloud.google.com/dataflow/docs/reference/pipeline-options#python (Python) or
+        # https://cloud.google.com/dataflow/docs/reference/pipeline-options#go (Go)
+        if self.dataflow_config.service_account_email:
+            pipeline_options["service_account_email"] = self.dataflow_config.service_account
+
         if self.dataflow_support_impersonation and self.dataflow_config.impersonation_chain:
             if isinstance(self.dataflow_config.impersonation_chain, list):
                 pipeline_options["impersonateServiceAccount"] = ",".join(
