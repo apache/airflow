@@ -74,7 +74,7 @@ class _TableConfig:
 
     orm_model: Base
     recency_column: Union["Column", "InstrumentedAttribute"]
-    dag_id_column: Union["Column", "InstrumentedAttribute", None]
+    dag_id_column: Union["Column", "InstrumentedAttribute", None] = None
     keep_last: bool = False
     keep_last_filters: Optional[Any] = None
     keep_last_group_by: Optional[Any] = None
@@ -88,7 +88,7 @@ class _TableConfig:
         return dict(
             table=self.orm_model.__tablename__,
             recency_column=str(self.recency_column),
-            dag_ids=str(self.dag_id),
+            dag_id_column=str(self.dag_id_column),
             keep_last=self.keep_last,
             keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             keep_last_group_by=str(self.keep_last_group_by),
@@ -115,16 +115,18 @@ config_list: List[_TableConfig] = [
         dag_id_column=RenderedTaskInstanceFields.dag_id,
     ),
     _TableConfig(
-        orm_model=SensorInstance, recency_column=SensorInstance.updated_at, dag_id_column=SensorInstance.dag_id
+        orm_model=SensorInstance, recency_column=SensorInstance.updated_at,
+        dag_id_column=SensorInstance.dag_id
     ),  # TODO: add FK to task instance / dag so we can remove here
     _TableConfig(orm_model=SlaMiss, recency_column=SlaMiss.timestamp, dag_id_column=SlaMiss.dag_id),
     _TableConfig(orm_model=TaskFail, recency_column=TaskFail.start_date, dag_id_column=TaskFail.dag_id),
-    _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date, dag_id_column=TaskInstance.dag_id),
+    _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date,
+                 dag_id_column=TaskInstance.dag_id),
     _TableConfig(
         orm_model=TaskReschedule,
         recency_column=TaskReschedule.start_date,
         dag_id_column=TaskReschedule.dag_id,
-                 ),
+    ),
     _TableConfig(orm_model=XCom, recency_column=XCom.timestamp, dag_id_column=XCom.dag_id),
     _TableConfig(orm_model=DbCallbackRequest, recency_column=XCom.timestamp),
 ]
@@ -318,7 +320,9 @@ def run_cleanup(
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
     effective_table_names = table_names if table_names else list(config_dict.keys())
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
+    effective_config_dict = {k: v
+                             for k, v in config_dict.items()   # dag_ids => dag_id_column implication
+                             if k in effective_table_names and (not dag_ids or v.dag_id_column)}
     if dry_run:
         print('Performing dry run for db cleanup.')
         print(
