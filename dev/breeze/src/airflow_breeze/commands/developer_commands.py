@@ -16,6 +16,7 @@
 # under the License.
 
 import os
+import shutil
 import sys
 from typing import Iterable, Optional, Tuple
 
@@ -195,6 +196,7 @@ DEVELOPER_PARAMETERS = {
             "options": [
                 "--docs-only",
                 "--spellcheck-only",
+                "--clean-build",
                 "--for-production",
                 "--package-filter",
             ],
@@ -391,17 +393,22 @@ def start_airflow(
 @click.option('-d', '--docs-only', help="Only build documentation.", is_flag=True)
 @click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
 @click.option(
-    '-p',
-    '--for-production',
-    help="Builds documentation for official release i.e. all links point to stable version.",
-    is_flag=True,
-)
-@click.option(
-    '-p',
     '--package-filter',
     help="List of packages to consider.",
     type=NotVerifiedBetterChoice(get_available_packages()),
     multiple=True,
+)
+@click.option(
+    '--clean-build',
+    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
+    "before the build - useful for a clean build.",
+    is_flag=True,
+)
+@click.option(
+    '--for-production',
+    help="Builds documentation for official release i.e. all links point to stable version. "
+    "Implies --clean-build",
+    is_flag=True,
 )
 def build_docs(
     verbose: bool,
@@ -410,12 +417,22 @@ def build_docs(
     docs_only: bool,
     spellcheck_only: bool,
     for_production: bool,
+    clean_build: bool,
     package_filter: Tuple[str],
 ):
     """Build documentation in the container."""
+    if for_production and not clean_build:
+        get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
+        clean_build = True
     perform_environment_checks(verbose=verbose)
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
     rebuild_or_pull_ci_image_if_needed(command_params=params, dry_run=dry_run, verbose=verbose)
+    if clean_build:
+        docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+        for dir_name in ['_build', "_doctrees", '_inventory_cache', '_api']:
+            for dir in docs_dir.rglob(dir_name):
+                get_console().print(f"[info]Removing {dir}")
+                shutil.rmtree(dir, ignore_errors=True)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
