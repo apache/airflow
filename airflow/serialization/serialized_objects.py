@@ -37,12 +37,7 @@ from airflow.models import Dataset
 from airflow.models.baseoperator import BaseOperator, BaseOperatorLink
 from airflow.models.connection import Connection
 from airflow.models.dag import DAG, create_timetable
-from airflow.models.mappedkwargs import (
-    MAPPED_KWARGS_UNUSED,
-    MappedKwargs,
-    create_mapped_kwargs,
-    get_map_type_key,
-)
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY, ExpandInput, create_expand_input, get_map_type_key
 from airflow.models.mappedoperator import MappedOperator
 from airflow.models.operator import Operator
 from airflow.models.param import Param, ParamsDict
@@ -105,7 +100,7 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     don't need to store them.
     """
     # Use the private _expand() method to avoid the empty kwargs check.
-    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand(MAPPED_KWARGS_UNUSED).partial_kwargs
+    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY).partial_kwargs
     return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
 
 
@@ -213,22 +208,22 @@ class _XComRef(NamedTuple):
         return XComArg(operator=dag.get_task(self.task_id), key=self.key)
 
 
-class _MappedKwargsRef(NamedTuple):
-    """Used to store info needed to create ``mapped_kwargs``.
+class _ExpandInputRef(NamedTuple):
+    """Used to store info needed to create a mapped operator's expand input.
 
-    This references a MappedKwargs type, but replaces ``XComArg`` objects with
-    ``_XComRef`` (see documentation on the latter type for reasoning).
+    This references a ``ExpandInput`` type, but replaces ``XComArg`` objects
+    with ``_XComRef`` (see documentation on the latter type for reasoning).
     """
 
     key: str
     value: Union[_XComRef, Dict[str, Any]]
 
-    def deref(self, dag: DAG) -> MappedKwargs:
+    def deref(self, dag: DAG) -> ExpandInput:
         if isinstance(self.value, _XComRef):
             value: Any = self.value.deref(dag)
         else:
             value = {k: v.deref(dag) if isinstance(v, _XComRef) else v for k, v in self.value.items()}
-        return create_mapped_kwargs(self.key, value)
+        return create_expand_input(self.key, value)
 
 
 class BaseSerialization:
@@ -625,9 +620,9 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
     def serialize_mapped_operator(cls, op: MappedOperator) -> Dict[str, Any]:
         serialized_op = cls._serialize_node(op, include_deps=op.deps is MappedOperator.deps_for(BaseOperator))
 
-        # Handle mapped_kwargs and mapped_op_kwargs.
-        expansion_kwargs = op._get_expansion_kwargs()
-        serialized_op[op._expansion_kwargs_attr] = {
+        # Handle expand_input and op_kwargs_expand_input.
+        expansion_kwargs = op._get_expand_input()
+        serialized_op[op._expand_input_attr] = {
             "type": get_map_type_key(expansion_kwargs),
             "value": cls._serialize(expansion_kwargs.value),
         }
@@ -778,8 +773,8 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 v = cls._deserialize_deps(v)
             elif k == "params":
                 v = cls._deserialize_params_dict(v)
-            elif k in {"mapped_kwargs", "mapped_op_kwargs"}:
-                v = _MappedKwargsRef(v["type"], cls._deserialize(v["value"]))
+            elif k in {"expand_input", "op_kwargs_expand_input"}:
+                v = _ExpandInputRef(v["type"], cls._deserialize(v["value"]))
             elif k == "partial_kwargs":
                 v = {arg: cls._deserialize(value) for arg, value in v.items()}
             elif k in cls._decorated_fields or k not in op.get_serialized_fields():
@@ -814,7 +809,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
             op_data = {k: v for k, v in encoded_op.items() if k in BaseOperator.get_serialized_fields()}
             op = MappedOperator(
                 operator_class=op_data,
-                mapped_kwargs=MAPPED_KWARGS_UNUSED,
+                expand_input=EXPAND_INPUT_EMPTY,
                 partial_kwargs={},
                 task_id=encoded_op["task_id"],
                 params={},
@@ -832,7 +827,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_group=None,
                 start_date=None,
                 end_date=None,
-                expansion_kwargs_attr=encoded_op["_expansion_kwargs_attr"],
+                expand_input_attr=encoded_op["_expand_input_attr"],
             )
         else:
             op = SerializedBaseOperator(task_id=encoded_op['task_id'])
@@ -1111,11 +1106,11 @@ class SerializedDAG(DAG, BaseSerialization):
             if task.subdag is not None:
                 setattr(task.subdag, 'parent_dag', dag)
 
-            # Dereference mapped_kwargs and mapped_op_kwargs.
+            # Dereference expand_input and op_kwargs_expand_input.
             if isinstance(task, MappedOperator):
-                for k in ("mapped_kwargs", "mapped_op_kwargs"):
+                for k in ("expand_input", "op_kwargs_expand_input"):
                     kwargs_ref = getattr(task, k, None)
-                    if isinstance(kwargs_ref, _MappedKwargsRef):
+                    if isinstance(kwargs_ref, _ExpandInputRef):
                         setattr(task, k, kwargs_ref.deref(dag))
 
             for task_id in task.downstream_task_ids:

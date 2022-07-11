@@ -28,7 +28,7 @@ from airflow.decorators.base import DecoratedMappedOperator
 from airflow.exceptions import AirflowException
 from airflow.models import DAG
 from airflow.models.baseoperator import BaseOperator
-from airflow.models.mappedoperator import DictOfListsMappedKwargs
+from airflow.models.mappedoperator import DictOfListsExpandInput
 from airflow.models.taskinstance import TaskInstance
 from airflow.models.taskmap import TaskMap
 from airflow.models.xcom import XCOM_RETURN_KEY
@@ -614,7 +614,7 @@ def test_mapped_decorator():
     assert isinstance(t2, XComArg)
     assert isinstance(t2.operator, DecoratedMappedOperator)
     assert t2.operator.task_id == "print_everything"
-    assert t2.operator.mapped_op_kwargs == DictOfListsMappedKwargs({"any_key": [1, 2], "works": t1})
+    assert t2.operator.op_kwargs_expand_input == DictOfListsExpandInput({"any_key": [1, 2], "works": t1})
 
     assert t0.operator.task_id == "print_info"
     assert t1.operator.task_id == "print_info__1"
@@ -657,7 +657,7 @@ def test_partial_mapped_decorator() -> None:
 
     assert isinstance(doubled, XComArg)
     assert isinstance(doubled.operator, DecoratedMappedOperator)
-    assert doubled.operator.mapped_op_kwargs == DictOfListsMappedKwargs({"number": literal})
+    assert doubled.operator.op_kwargs_expand_input == DictOfListsExpandInput({"number": literal})
     assert doubled.operator.partial_kwargs["op_kwargs"] == {"multiple": 2}
 
     assert isinstance(trippled.operator, DecoratedMappedOperator)  # For type-checking on partial_kwargs.

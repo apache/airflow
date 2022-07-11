@@ -59,7 +59,7 @@ from airflow.models import (
     XCom,
 )
 from airflow.models.dataset import DatasetDagRunQueue, DatasetTaskRef
-from airflow.models.mappedkwargs import MAPPED_KWARGS_UNUSED
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
@@ -1061,7 +1061,7 @@ class TestTaskInstance:
         with dag_maker(dag_id="test_xcom", session=session):
             # Use the private _expand() method to avoid the empty kwargs check.
             # We don't care about how the operator runs here, only its presence.
-            task_1 = EmptyOperator.partial(task_id="task_1")._expand(MAPPED_KWARGS_UNUSED)
+            task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY)
             EmptyOperator(task_id="task_2")
 
         dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
@@ -2823,7 +2823,7 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
     with dag_maker(dag_id="test_xcom", session=session):
         # Use the private _expand() method to avoid the empty kwargs check.
         # We don't care about how the operator runs here, only its presence.
-        task_1 = EmptyOperator.partial(task_id="task_1")._expand(MAPPED_KWARGS_UNUSED)
+        task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY)
         EmptyOperator(task_id="task_2")
 
     dagrun = dag_maker.create_dagrun()

@@ -37,7 +37,7 @@ if TYPE_CHECKING:
 # mapping since we need the value to be ordered).
 Mappable = Union["XComArg", Sequence, dict]
 
-MappedKwargs = Union["DictOfListsMappedKwargs", "ListOfDictsMappedKwargs"]
+ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
 
 MAPPABLE_LITERAL_TYPES = (dict, list)
 
@@ -57,7 +57,7 @@ class NotFullyPopulated(RuntimeError):
         return f"Failed to populate all mapping metadata; missing: {keys}"
 
 
-class DictOfListsMappedKwargs(NamedTuple):
+class DictOfListsExpandInput(NamedTuple):
     """Storage type of a mapped operator's mapped kwargs.
 
     This is created from ``expand(**kwargs)``.
@@ -187,7 +187,7 @@ class DictOfListsMappedKwargs(NamedTuple):
         return {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
 
 
-class ListOfDictsMappedKwargs(NamedTuple):
+class ListOfDictsExpandInput(NamedTuple):
     """Storage type of a mapped operator's mapped kwargs.
 
     This is created from ``expand_kwargs(xcom_arg)``.
@@ -242,17 +242,17 @@ class ListOfDictsMappedKwargs(NamedTuple):
         return self.value.resolve(context, session)[map_index]
 
 
-MAPPED_KWARGS_UNUSED = DictOfListsMappedKwargs({})  # Sentinel value.
+EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.
 
-_MAPPED_KWARGS_TYPES = {
-    "dict-of-lists": DictOfListsMappedKwargs,
-    "list-of-dicts": ListOfDictsMappedKwargs,
+_EXPAND_INPUT_TYPES = {
+    "dict-of-lists": DictOfListsExpandInput,
+    "list-of-dicts": ListOfDictsExpandInput,
 }
 
 
-def get_map_type_key(mapped_kwargs: MappedKwargs) -> str:
-    return next(k for k, v in _MAPPED_KWARGS_TYPES.items() if v == type(mapped_kwargs))
+def get_map_type_key(expand_input: ExpandInput) -> str:
+    return next(k for k, v in _EXPAND_INPUT_TYPES.items() if v == type(expand_input))
 
 
-def create_mapped_kwargs(key: str, value: Any) -> MappedKwargs:
-    return _MAPPED_KWARGS_TYPES[key](value)
+def create_expand_input(kind: str, value: Any) -> ExpandInput:
+    return _EXPAND_INPUT_TYPES[kind](value)

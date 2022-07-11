@@ -53,10 +53,10 @@ from airflow.models.baseoperator import (
     parse_retries,
 )
 from airflow.models.dag import DAG, DagContext
-from airflow.models.mappedkwargs import MAPPED_KWARGS_UNUSED
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.mappedoperator import (
-    DictOfListsMappedKwargs,
-    MappedKwargs,
+    DictOfListsExpandInput,
+    ExpandInput,
     MappedOperator,
     ValidationSource,
     ensure_xcomarg_return_value,
@@ -368,7 +368,7 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         _MappedOperator = cast(Any, DecoratedMappedOperator)
         operator = _MappedOperator(
             operator_class=self.operator_class,
-            mapped_kwargs=MAPPED_KWARGS_UNUSED,  # Don't use this; mapped values go to mapped_op_kwargs.
+            expand_input=EXPAND_INPUT_EMPTY,  # Don't use this; mapped values go to op_kwargs_expand_input.
             partial_kwargs=partial_kwargs,
             task_id=task_id,
             params=params,
@@ -388,11 +388,11 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
-            mapped_op_kwargs=DictOfListsMappedKwargs(map_kwargs),
+            op_kwargs_expand_input=DictOfListsExpandInput(map_kwargs),
             # Different from classic operators, kwargs passed to a taskflow
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
-            expansion_kwargs_attr="mapped_op_kwargs",
+            expand_input_attr="op_kwargs_expand_input",
         )
         return XComArg(operator=operator)
 
@@ -425,9 +425,9 @@ class DecoratedMappedOperator(MappedOperator):
     multiple_outputs: bool
     python_callable: Callable
 
-    # We can't save these in mapped_kwargs because op_kwargs need to be present
+    # We can't save these in expand_input because op_kwargs need to be present
     # in partial_kwargs, and MappedOperator prevents duplication.
-    mapped_op_kwargs: MappedKwargs
+    op_kwargs_expand_input: ExpandInput
 
     def __hash__(self):
         return id(self)
@@ -436,12 +436,13 @@ class DecoratedMappedOperator(MappedOperator):
         # The magic super() doesn't work here, so we use the explicit form.
         # Not using super(..., self) to work around pyupgrade bug.
         super(DecoratedMappedOperator, DecoratedMappedOperator).__attrs_post_init__(self)
-        XComArg.apply_upstream_relationship(self, self.mapped_op_kwargs.value)
+        XComArg.apply_upstream_relationship(self, self.op_kwargs_expand_input.value)
 
-    def _get_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
-        # We only use mapped_op_kwargs so this must always be empty.
-        assert self.mapped_kwargs is MAPPED_KWARGS_UNUSED
-        return {"op_kwargs": super()._get_mapped_kwargs(resolve)}
+    def _expand_mapped_kwargs(self, resolve: Optional[Tuple[Context, Session]]) -> Dict[str, Any]:
+        # We only use op_kwargs_expand_input so this must always be empty.
+        assert self.expand_input is EXPAND_INPUT_EMPTY
+
+        return {"op_kwargs": super()._expand_mapped_kwargs(resolve)}
 
     def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any]) -> Dict[str, Any]:
         self._combined_op_kwargs = op_kwargs = _merge_kwargs(
@@ -449,9 +450,9 @@ class DecoratedMappedOperator(MappedOperator):
             mapped_kwargs["op_kwargs"],
             fail_reason="mapping already partial",
         )
-        if isinstance(self.mapped_op_kwargs, DictOfListsMappedKwargs):
+        if isinstance(self.op_kwargs_expand_input, DictOfListsExpandInput):
             self._already_resolved_op_kwargs = {
-                k for k, v in self.mapped_op_kwargs.value.items() if isinstance(v, XComArg)
+                k for k, v in self.op_kwargs_expand_input.value.items() if isinstance(v, XComArg)
             }
         else:
             # The entire kwargs is resolved from XCOm for the list-of-dicts case.
