@@ -15,16 +15,19 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
+import warnings
+from typing import Any, Dict, List, Optional
 
-from typing import Optional
-
+from elasticsearch import Elasticsearch
 from es.elastic.api import Connection as ESConnection, connect
 
+from airflow.compat.functools import cached_property
+from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection as AirflowConnection
 from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
-class ElasticsearchHook(DbApiHook):
+class ElasticsearchSQLHook(DbApiHook):
     """
     Interact with Elasticsearch through the elasticsearch-dbapi.
 
@@ -93,3 +96,58 @@ class ElasticsearchHook(DbApiHook):
                 uri += '&'
 
         return uri
+
+
+class ElasticsearchHook(ElasticsearchSQLHook):
+    """
+    This class is deprecated and was renamed to ElasticsearchSQLHook.
+    Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.
+    """
+
+    def __init__(self, *args, **kwargs):
+        warnings.warn(
+            """This class is deprecated.
+            Please use `airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchSQLHook`.""",
+            DeprecationWarning,
+            stacklevel=3,
+        )
+        super().__init__(*args, **kwargs)
+
+
+class ElasticsearchPythonHook(BaseHook):
+    """
+    Interacts with Elasticsearch. This hook uses the official Elasticsearch Python Client.
+
+    :param hosts: list: A list of a single or many Elasticsearch instances. Example: ["http://localhost:9200"]
+    :param es_conn_args: dict: Additional arguments you might need to enter to connect to Elasticsearch.
+                                Example: {"ca_cert":"/path/to/cert", "basic_auth": "(user, pass)"}
+    """
+
+    def __init__(self, hosts: List[Any], es_conn_args: Optional[dict] = None):
+        super().__init__()
+        self.hosts = hosts
+        self.es_conn_args = es_conn_args if es_conn_args else {}
+
+    def _get_elastic_connection(self):
+        """Returns the Elasticsearch client"""
+        client = Elasticsearch(self.hosts, **self.es_conn_args)
+
+        return client
+
+    @cached_property
+    def get_conn(self):
+        """Returns the Elasticsearch client (cached)"""
+        return self._get_elastic_connection()
+
+    def search(self, query: Dict[Any, Any], index: str = "_all") -> dict:
+        """
+        Returns results matching a query using Elasticsearch DSL
+
+        :param index: str: The index you want to query
+        :param query: dict: The query you want to run
+
+        :returns: dict: The response 'hits' object from Elasticsearch
+        """
+        es_client = self.get_conn
+        result = es_client.search(index=index, body=query)
+        return result['hits']

@@ -17,7 +17,7 @@
 # under the License.
 from urllib.parse import urlparse
 
-from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String
+from sqlalchemy import Column, ForeignKeyConstraint, Index, Integer, PrimaryKeyConstraint, String, text
 from sqlalchemy.orm import relationship
 
 from airflow.models.base import ID_LEN, Base, StringID
@@ -197,5 +197,89 @@ class DatasetDagRunQueue(Base):
     def __repr__(self):
         args = []
         for attr in [x.name for x in self.__mapper__.primary_key]:
+            args.append(f"{attr}={getattr(self, attr)!r}")
+        return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class DatasetEvent(Base):
+    """
+    A table to store datasets events.
+
+    :param dataset_id: reference to Dataset record
+    :param extra: JSON field for arbitrary extra info
+    :param task_id: the task_id of the TI which updated the dataset
+    :param dag_id: the dag_id of the TI which updated the dataset
+    :param run_id: the run_id of the TI which updated the dataset
+    :param map_index: the map_index of the TI which updated the dataset
+
+    We use relationships instead of foreign keys so that dataset events are not deleted even
+    if the foreign key object is.
+    """
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    dataset_id = Column(Integer, nullable=False)
+    extra = Column(ExtendedJSON, nullable=True)
+    task_id = Column(StringID(), nullable=True)
+    dag_id = Column(StringID(), nullable=True)
+    run_id = Column(StringID(), nullable=True)
+    map_index = Column(Integer, nullable=True, server_default=text("-1"))
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "dataset_event"
+    __table_args__ = (
+        Index('idx_dataset_id_created_at', dataset_id, created_at),
+        {'sqlite_autoincrement': True},  # ensures PK values not reused
+    )
+
+    source_task_instance = relationship(
+        "TaskInstance",
+        primaryjoin="""and_(
+            DatasetEvent.dag_id == foreign(TaskInstance.dag_id),
+            DatasetEvent.run_id == foreign(TaskInstance.run_id),
+            DatasetEvent.task_id == foreign(TaskInstance.task_id),
+            DatasetEvent.map_index == foreign(TaskInstance.map_index),
+        )""",
+        viewonly=True,
+        lazy="select",
+        uselist=False,
+    )
+    source_dag_run = relationship(
+        "DagRun",
+        primaryjoin="""and_(
+            DatasetEvent.dag_id == foreign(DagRun.dag_id),
+            DatasetEvent.run_id == foreign(DagRun.run_id),
+        )""",
+        viewonly=True,
+        lazy="select",
+        uselist=False,
+    )
+    dataset = relationship(
+        Dataset,
+        primaryjoin="DatasetEvent.dataset_id == foreign(Dataset.id)",
+        viewonly=True,
+        lazy="select",
+        uselist=False,
+    )
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, self.__class__):
+            return self.dataset_id == other.dataset_id and self.created_at == other.created_at
+        else:
+            return NotImplemented
+
+    def __hash__(self) -> int:
+        return hash((self.dataset_id, self.created_at))
+
+    def __repr__(self) -> str:
+        args = []
+        for attr in [
+            'id',
+            'dataset_id',
+            'extra',
+            'task_id',
+            'dag_id',
+            'run_id',
+            'map_index',
+        ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
