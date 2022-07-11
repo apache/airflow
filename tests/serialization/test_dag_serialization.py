@@ -1708,6 +1708,7 @@ def test_operator_expand_serde():
         'template_fields_renderers': {'bash_command': 'bash', 'env': 'json'},
         'ui_color': '#f0ede4',
         'ui_fgcolor': '#000',
+        "_disallow_kwargs_override": False,
         '_expand_input_attr': 'expand_input',
     }
 
@@ -1758,6 +1759,7 @@ def test_operator_expand_xcomarg_serde():
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
+        "_disallow_kwargs_override": False,
         '_expand_input_attr': 'expand_input',
     }
 
@@ -1775,12 +1777,13 @@ def test_operator_expand_xcomarg_serde():
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
 
 
-def test_operator_expand_kwargs_serde():
+@pytest.mark.parametrize("strict", [True, False])
+def test_operator_expand_kwargs_serde(strict):
     from airflow.models.xcom_arg import XComArg
 
     with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
         task1 = BaseOperator(task_id="op1")
-        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(XComArg(task1))
+        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(XComArg(task1), strict=strict)
 
     serialized = SerializedBaseOperator._serialize(mapped)
     assert serialized == {
@@ -1801,11 +1804,13 @@ def test_operator_expand_kwargs_serde():
         'operator_extra_links': [],
         'ui_color': '#fff',
         'ui_fgcolor': '#000',
+        "_disallow_kwargs_override": strict,
         '_expand_input_attr': 'expand_input',
     }
 
     op = SerializedBaseOperator.deserialize_operator(serialized)
     assert op.deps is MappedOperator.deps_for(BaseOperator)
+    assert op._disallow_kwargs_override == strict
 
     xcom_ref = op.expand_input.value
     assert xcom_ref.task_id == 'op1'
@@ -1896,6 +1901,7 @@ def test_taskflow_expand_serde():
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
         'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        "_disallow_kwargs_override": False,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }
 
@@ -1931,8 +1937,8 @@ def test_taskflow_expand_serde():
     }
 
 
-@pytest.mark.skip("TODO: Implement expand_kwargs() on @task")
-def test_taskflow_expand_kwargs_serde():
+@pytest.mark.parametrize("strict", [True, False])
+def test_taskflow_expand_kwargs_serde(strict):
     from airflow.decorators import task
     from airflow.models.xcom_arg import XComArg
     from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
@@ -1944,7 +1950,7 @@ def test_taskflow_expand_kwargs_serde():
         def x(arg1, arg2, arg3):
             print(arg1, arg2, arg3)
 
-        x.partial(arg1=[1, 2, {"a": "b"}]).expand_kwargs(XComArg(op1))
+        x.partial(arg1=[1, 2, {"a": "b"}]).expand_kwargs(XComArg(op1), strict=strict)
 
     original = dag.get_task("x")
 
@@ -1964,13 +1970,10 @@ def test_taskflow_expand_kwargs_serde():
             'retry_delay': {'__type': 'timedelta', '__var': 30.0},
         },
         'op_kwargs_expand_input': {
-            "type": "dict-of-lists",
+            "type": "list-of-dicts",
             "value": {
-                "__type": "dict",
-                "__var": {
-                    'arg2': {"__type": "dict", "__var": {'a': 1, 'b': 2}},
-                    'arg3': {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
-                },
+                "__type": "xcomref",
+                "__var": {'task_id': 'op1', 'key': 'return_value'},
             },
         },
         'operator_extra_links': [],
@@ -1980,12 +1983,14 @@ def test_taskflow_expand_kwargs_serde():
         'template_ext': [],
         'template_fields': ['op_args', 'op_kwargs'],
         'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        "_disallow_kwargs_override": strict,
         '_expand_input_attr': 'op_kwargs_expand_input',
     }
 
     deserialized = SerializedBaseOperator.deserialize_operator(serialized)
     assert isinstance(deserialized, MappedOperator)
     assert deserialized.deps is MappedOperator.deps_for(BaseOperator)
+    assert deserialized._disallow_kwargs_override == strict
     assert deserialized.upstream_task_ids == set()
     assert deserialized.downstream_task_ids == set()
 

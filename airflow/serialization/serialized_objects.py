@@ -100,8 +100,8 @@ def _get_default_mapped_partial() -> Dict[str, Any]:
     don't need to store them.
     """
     # Use the private _expand() method to avoid the empty kwargs check.
-    default_partial_kwargs = BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY).partial_kwargs
-    return BaseSerialization._serialize(default_partial_kwargs)[Encoding.VAR]
+    default = BaseOperator.partial(task_id="_")._expand(EXPAND_INPUT_EMPTY, strict=False).partial_kwargs
+    return BaseSerialization._serialize(default)[Encoding.VAR]
 
 
 def encode_relativedelta(var: relativedelta.relativedelta) -> Dict[str, Any]:
@@ -827,6 +827,7 @@ class SerializedBaseOperator(BaseOperator, BaseSerialization):
                 task_group=None,
                 start_date=None,
                 end_date=None,
+                disallow_kwargs_override=encoded_op["_disallow_kwargs_override"],
                 expand_input_attr=encoded_op["_expand_input_attr"],
             )
         else:

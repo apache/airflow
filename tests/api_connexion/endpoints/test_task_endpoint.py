@@ -71,7 +71,7 @@ class TestTaskEndpoint:
             EmptyOperator(task_id=self.task_id3)
             # Use the private _expand() method to avoid the empty kwargs check.
             # We don't care about how the operator runs here, only its presence.
-            EmptyOperator.partial(task_id=self.mapped_task_id)._expand(EXPAND_INPUT_EMPTY)
+            EmptyOperator.partial(task_id=self.mapped_task_id)._expand(EXPAND_INPUT_EMPTY, strict=False)
 
         task1 >> task2
         dag_bag = DagBag(os.devnull, include_examples=False)

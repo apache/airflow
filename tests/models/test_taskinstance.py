@@ -1061,7 +1061,7 @@ class TestTaskInstance:
         with dag_maker(dag_id="test_xcom", session=session):
             # Use the private _expand() method to avoid the empty kwargs check.
             # We don't care about how the operator runs here, only its presence.
-            task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY)
+            task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY, strict=False)
             EmptyOperator(task_id="task_2")
 
         dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
@@ -2520,6 +2520,61 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert ti.state == TaskInstanceState.FAILED
         assert str(ctx.value) == error_message
 
+    @pytest.mark.parametrize(
+        "downstream, error_message",
+        [
+            ("taskflow", "mapping already partial argument: arg2"),
+            ("classic", "unmappable or already specified argument: arg2"),
+        ],
+        ids=["taskflow", "classic"],
+    )
+    @pytest.mark.parametrize("strict", [True, False], ids=["strict", "override"])
+    def test_expand_kwargs_override_partial(self, dag_maker, session, downstream, error_message, strict):
+        class ClassicOperator(MockOperator):
+            def execute(self, context):
+                return (self.arg1, self.arg2)
+
+        with dag_maker(dag_id="test_expand_kwargs_override_partial", session=session) as dag:
+
+            @dag.task()
+            def push():
+                return [{"arg1": "a"}, {"arg1": "b", "arg2": "c"}]
+
+            push_task = push()
+
+            ClassicOperator.partial(task_id="classic", arg2="d").expand_kwargs(push_task, strict=strict)
+
+            @dag.task(task_id="taskflow")
+            def pull(arg1, arg2):
+                return (arg1, arg2)
+
+            pull.partial(arg2="d").expand_kwargs(push_task, strict=strict)
+
+        dr = dag_maker.create_dagrun()
+        next(ti for ti in dr.task_instances if ti.task_id == "push").run()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        tis = {(ti.task_id, ti.map_index, ti.state): ti for ti in decision.schedulable_tis}
+        assert sorted(tis) == [
+            ("classic", 0, None),
+            ("classic", 1, None),
+            ("taskflow", 0, None),
+            ("taskflow", 1, None),
+        ]
+
+        ti = tis[((downstream, 0, None))]
+        ti.run()
+        ti.xcom_pull(task_ids=downstream, map_indexes=0, session=session) == ["a", "d"]
+
+        ti = tis[((downstream, 1, None))]
+        if strict:
+            with pytest.raises(TypeError) as ctx:
+                ti.run()
+            assert str(ctx.value) == error_message
+        else:
+            ti.run()
+            ti.xcom_pull(task_ids=downstream, map_indexes=1, session=session) == ["b", "c"]
+
     def test_error_if_upstream_does_not_push(self, dag_maker):
         """Fail the upstream task if it fails to push the XCom used for task mapping."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
@@ -2823,7 +2878,7 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
     with dag_maker(dag_id="test_xcom", session=session):
         # Use the private _expand() method to avoid the empty kwargs check.
         # We don't care about how the operator runs here, only its presence.
-        task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY)
+        task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY, strict=False)
         EmptyOperator(task_id="task_2")
 
     dagrun = dag_maker.create_dagrun()

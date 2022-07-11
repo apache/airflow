@@ -197,19 +197,19 @@ class OperatorPartial:
         self._expand_called = True
         validate_mapping_kwargs(self.operator_class, "expand", kwargs)
         prevent_duplicates(self.kwargs, kwargs, fail_reason="unmappable or already specified")
-        return self._expand(DictOfListsExpandInput(kwargs))
+        # Since the input is already checked at parse time, we can set strict
+        # to False to skip the checks on execution.
+        return self._expand(DictOfListsExpandInput(kwargs), strict=False)
 
-    def expand_kwargs(self, kwargs: "XComArg") -> "MappedOperator":
+    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> "MappedOperator":
         from airflow.models.xcom_arg import XComArg
 
         self._expand_called = True
-
-        # We need to validate each dict literal in the list.
         if not isinstance(kwargs, XComArg):
             raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
-        return self._expand(ListOfDictsExpandInput(kwargs))
+        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
-    def _expand(self, expand_input: ExpandInput) -> "MappedOperator":
+    def _expand(self, expand_input: ExpandInput, *, strict: bool) -> "MappedOperator":
         from airflow.operators.empty import EmptyOperator
 
         ensure_xcomarg_return_value(expand_input.value)
@@ -242,6 +242,7 @@ class OperatorPartial:
             task_group=task_group,
             start_date=start_date,
             end_date=end_date,
+            disallow_kwargs_override=strict,
             # For classic operators, this points to expand_input because kwargs
             # to BaseOperator.expand() contribute to operator arguments.
             expand_input_attr="expand_input",
@@ -293,6 +294,13 @@ class MappedOperator(AbstractOperator):
     end_date: Optional[pendulum.DateTime]
     upstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
     downstream_task_ids: Set[str] = attr.ib(factory=set, init=False)
+
+    _disallow_kwargs_override: bool
+    """Whether execution fails if ``expand_input`` has duplicates to ``partial_kwargs``.
+
+    If *False*, values from ``expand_input`` under duplicate keys override those
+    under corresponding keys in ``partial_kwargs``.
+    """
 
     _expand_input_attr: str
     """Where to get kwargs to calculate expansion length against.
@@ -369,7 +377,8 @@ class MappedOperator(AbstractOperator):
         """
         if not isinstance(self.operator_class, type):
             return  # No need to validate deserialized operator.
-        kwargs = self._get_unmap_kwargs(self._expand_mapped_kwargs(None))
+        kwargs = self._expand_mapped_kwargs(None)
+        kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
         self.operator_class.validate_mapped_arguments(**kwargs)
 
     @property
@@ -549,14 +558,18 @@ class MappedOperator(AbstractOperator):
             return kwargs.value
         return {}
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any]) -> Dict[str, Any]:
+    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
         """Get init kwargs to unmap the underlying operator class.
 
         :param mapped_kwargs: The dict returned by ``_expand_mapped_kwargs``.
         """
-        # Ordering is significant; we want a chance for mapped kwargs to
-        # override others. This is important for e.g. @task since it needs to
-        # "partially map" against op_kwargs.
+        if strict:
+            prevent_duplicates(
+                self.partial_kwargs,
+                mapped_kwargs,
+                fail_reason="unmappable or already specified",
+            )
+        # Ordering is significant; mapped kwargs should override partial ones.
         return {
             "task_id": self.task_id,
             "dag": self.dag,
@@ -585,10 +598,11 @@ class MappedOperator(AbstractOperator):
         """
         if isinstance(self.operator_class, type):
             if isinstance(resolve, collections.abc.Mapping):
-                mapped_kwargs = resolve
+                kwargs = resolve
             else:
-                mapped_kwargs = self._expand_mapped_kwargs(resolve)
-            op = self.operator_class(**self._get_unmap_kwargs(mapped_kwargs), _airflow_from_mapped=True)
+                kwargs = self._expand_mapped_kwargs(resolve)
+            kwargs = self._get_unmap_kwargs(kwargs, strict=self._disallow_kwargs_override)
+            op = self.operator_class(**kwargs, _airflow_from_mapped=True)
             # We need to overwrite task_id here because BaseOperator further
             # mangles the task_id based on the task hierarchy (namely, group_id
             # is prepended, and '__N' appended to deduplicate). This is hacky,

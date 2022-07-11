@@ -53,10 +53,13 @@ from airflow.models.baseoperator import (
     parse_retries,
 )
 from airflow.models.dag import DAG, DagContext
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY
-from airflow.models.mappedoperator import (
+from airflow.models.expandinput import (
+    EXPAND_INPUT_EMPTY,
     DictOfListsExpandInput,
     ExpandInput,
+    ListOfDictsExpandInput,
+)
+from airflow.models.mappedoperator import (
     MappedOperator,
     ValidationSource,
     ensure_xcomarg_return_value,
@@ -173,8 +176,17 @@ class DecoratedOperator(BaseOperator):
         op_args = op_args or []
         op_kwargs = op_kwargs or {}
 
-        # Check that arguments can be binded
-        inspect.signature(python_callable).bind(*op_args, **op_kwargs)
+        # Check that arguments can be binded. There's a slight difference when
+        # we do validation for task-mapping: Since there's no guarantee we can
+        # receive enough arguments at parse time, we use bind_partial to simply
+        # check all the arguments we know are valid. Whether these are enough
+        # can only be known at execution time, when unmapping happens, and this
+        # is called without the _airflow_mapped_validation_only flag.
+        if kwargs.get("_airflow_mapped_validation_only"):
+            inspect.signature(python_callable).bind_partial(*op_args, **op_kwargs)
+        else:
+            inspect.signature(python_callable).bind(*op_args, **op_kwargs)
+
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
@@ -316,13 +328,24 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             names = ", ".join(repr(n) for n in kwargs_left)
             raise TypeError(f"{func}() got unexpected keyword arguments {names}")
 
-    def expand(self, **map_kwargs: "Mappable") -> XComArg:
-        if not map_kwargs:
+    def expand(self, **kwargs: "Mappable") -> XComArg:
+        if not kwargs:
             raise TypeError("no arguments to expand against")
+        self._validate_arg_names("expand", kwargs)
+        prevent_duplicates(self.kwargs, kwargs, fail_reason="mapping already partial")
+        # Since the input is already checked at parse time, we can set strict
+        # to False to skip the checks on execution.
+        return self._expand(DictOfListsExpandInput(kwargs), strict=False)
 
-        self._validate_arg_names("expand", map_kwargs)
-        prevent_duplicates(self.kwargs, map_kwargs, fail_reason="mapping already partial")
-        ensure_xcomarg_return_value(map_kwargs)
+    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> XComArg:
+        from airflow.models.xcom_arg import XComArg
+
+        if not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
+        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
+
+    def _expand(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
+        ensure_xcomarg_return_value(expand_input.value)
 
         task_kwargs = self.kwargs.copy()
         dag = task_kwargs.pop("dag", None) or DagContext.get_current_dag()
@@ -388,7 +411,8 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
             end_date=end_date,
             multiple_outputs=self.multiple_outputs,
             python_callable=self.function,
-            op_kwargs_expand_input=DictOfListsExpandInput(map_kwargs),
+            op_kwargs_expand_input=expand_input,
+            disallow_kwargs_override=strict,
             # Different from classic operators, kwargs passed to a taskflow
             # task's expand() contribute to the op_kwargs operator argument, not
             # the operator arguments themselves, and should expand against it.
@@ -396,26 +420,15 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         )
         return XComArg(operator=operator)
 
-    def partial(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def partial(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
         self._validate_arg_names("partial", kwargs)
+        old_kwargs = self.kwargs.get("op_kwargs", {})
+        prevent_duplicates(old_kwargs, kwargs, fail_reason="duplicate partial")
+        kwargs.update(old_kwargs)
+        return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": kwargs})
 
-        op_kwargs = self.kwargs.get("op_kwargs", {})
-        op_kwargs = _merge_kwargs(op_kwargs, kwargs, fail_reason="duplicate partial")
-
-        return attr.evolve(self, kwargs={**self.kwargs, "op_kwargs": op_kwargs})
-
-    def override(self, **kwargs) -> "_TaskDecorator[Function, OperatorSubclass]":
+    def override(self, **kwargs: Any) -> "_TaskDecorator[Function, OperatorSubclass]":
         return attr.evolve(self, kwargs={**self.kwargs, **kwargs})
-
-
-def _merge_kwargs(kwargs1: Dict[str, Any], kwargs2: Dict[str, Any], *, fail_reason: str) -> Dict[str, Any]:
-    duplicated_keys = set(kwargs1).intersection(kwargs2)
-    if len(duplicated_keys) == 1:
-        raise TypeError(f"{fail_reason} argument: {duplicated_keys.pop()}")
-    elif duplicated_keys:
-        duplicated_keys_display = ", ".join(sorted(duplicated_keys))
-        raise TypeError(f"{fail_reason} arguments: {duplicated_keys_display}")
-    return {**kwargs1, **kwargs2}
 
 
 @attr.define(kw_only=True, repr=False)
@@ -444,12 +457,14 @@ class DecoratedMappedOperator(MappedOperator):
 
         return {"op_kwargs": super()._expand_mapped_kwargs(resolve)}
 
-    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any]) -> Dict[str, Any]:
-        self._combined_op_kwargs = op_kwargs = _merge_kwargs(
-            self.partial_kwargs["op_kwargs"],
-            mapped_kwargs["op_kwargs"],
-            fail_reason="mapping already partial",
-        )
+    def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
+        if strict:
+            prevent_duplicates(
+                self.partial_kwargs["op_kwargs"],
+                mapped_kwargs["op_kwargs"],
+                fail_reason="mapping already partial",
+            )
+        self._combined_op_kwargs = {**self.partial_kwargs["op_kwargs"], **mapped_kwargs["op_kwargs"]}
         if isinstance(self.op_kwargs_expand_input, DictOfListsExpandInput):
             self._already_resolved_op_kwargs = {
                 k for k, v in self.op_kwargs_expand_input.value.items() if isinstance(v, XComArg)
@@ -460,9 +475,9 @@ class DecoratedMappedOperator(MappedOperator):
         kwargs = {
             "multiple_outputs": self.multiple_outputs,
             "python_callable": self.python_callable,
-            "op_kwargs": op_kwargs,
+            "op_kwargs": self._combined_op_kwargs,
         }
-        return super()._get_unmap_kwargs(kwargs)
+        return super()._get_unmap_kwargs(kwargs, strict=False)
 
     def _get_template_fields_to_render(self, expanded: Iterable[str]) -> Iterable[str]:
         # Different from a regular MappedOperator, we still want to render

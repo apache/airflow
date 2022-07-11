@@ -756,6 +756,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
 
         super().__init__()
 
+        kwargs.pop("_airflow_mapped_validation_only", None)
         if kwargs:
             if not conf.getboolean('operators', 'ALLOW_ILLEGAL_ARGUMENTS'):
                 raise AirflowException(
@@ -1509,7 +1510,7 @@ class BaseOperator(AbstractOperator, metaclass=BaseOperatorMeta):
     def validate_mapped_arguments(cls, **kwargs: Any) -> None:
         """Validate arguments when this operator is being mapped."""
         if cls.mapped_arguments_validated_by_init:
-            cls(**kwargs, _airflow_from_mapped=True)
+            cls(**kwargs, _airflow_from_mapped=True, _airflow_mapped_validation_only=True)
 
     def unmap(self, ctx: Union[None, Dict[str, Any], Tuple[Context, Session]]) -> "BaseOperator":
         """:meta private:"""
