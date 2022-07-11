@@ -118,12 +118,29 @@ def _create_dataset_dag_run_queue_table():
     )
 
 
+def _create_dataset_event_table():
+    op.create_table(
+        'dataset_event',
+        sa.Column('id', Integer, primary_key=True, autoincrement=True),
+        sa.Column('dataset_id', Integer, nullable=False),
+        sa.Column('extra', ExtendedJSON, nullable=True),
+        sa.Column('task_id', String(250), nullable=True),
+        sa.Column('dag_id', String(250), nullable=True),
+        sa.Column('run_id', String(250), nullable=True),
+        sa.Column('map_index', sa.Integer(), nullable=True, server_default='-1'),
+        sa.Column('created_at', TIMESTAMP, nullable=False),
+        sqlite_autoincrement=True,  # ensures PK values not reused
+    )
+    op.create_index('idx_dataset_id_created_at', 'dataset_event', ['dataset_id', 'created_at'])
+
+
 def upgrade():
     """Apply Add Dataset model"""
     _create_dataset_table()
     _create_dataset_dag_ref_table()
     _create_dataset_task_ref_table()
     _create_dataset_dag_run_queue_table()
+    _create_dataset_event_table()
 
 
 def downgrade():
@@ -131,4 +148,5 @@ def downgrade():
     op.drop_table('dataset_dag_ref')
     op.drop_table('dataset_task_ref')
     op.drop_table('dataset_dag_run_queue')
+    op.drop_table('dataset_event')
     op.drop_table('dataset')
