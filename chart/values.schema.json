@@ -4218,6 +4218,14 @@
                     "description": "Redis run as user parameter.",
                     "type": "integer",
                     "default": 0
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the redis pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
