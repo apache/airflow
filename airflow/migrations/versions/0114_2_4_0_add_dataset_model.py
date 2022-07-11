@@ -134,12 +134,22 @@ def _create_dataset_event_table():
     op.create_index('idx_dataset_id_timestamp', 'dataset_event', ['dataset_id', 'timestamp'])
 
 
+def _create_dataset_event_dag_run_table():
+    op.create_table(
+        'dataset_event_dag_run',
+        sa.Column('dataset_event_id', Integer, nullable=False),
+        sa.Column('dag_run_id', Integer, nullable=False),
+        sa.Column('created_at', TIMESTAMP, nullable=False),
+    )
+
+
 def upgrade():
     """Apply Add Dataset model"""
     _create_dataset_table()
     _create_dataset_dag_ref_table()
     _create_dataset_task_ref_table()
     _create_dataset_dag_run_queue_table()
+    _create_dataset_event_dag_run_table()
     _create_dataset_event_table()
 
 
@@ -148,5 +158,6 @@ def downgrade():
     op.drop_table('dataset_dag_ref')
     op.drop_table('dataset_task_ref')
     op.drop_table('dataset_dag_run_queue')
+    op.drop_table('dataset_event_dag_run')
     op.drop_table('dataset_event')
     op.drop_table('dataset')

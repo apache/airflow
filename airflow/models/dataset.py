@@ -99,7 +99,14 @@ class DatasetDagRef(Base):
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
     updated_at = Column(UtcDateTime, default=timezone.utcnow, onupdate=timezone.utcnow, nullable=False)
 
-    dataset = relationship('DatasetModel')
+    dataset = relationship('DatasetModel', back_populates="consuming_dags")
+    queue_records = relationship(
+        "DatasetDagRunQueue",
+        primaryjoin="""and_(
+            DatasetDagRef.dataset_id == foreign(DatasetDagRunQueue.dataset_id),
+            DatasetDagRef.dag_id == foreign(DatasetDagRunQueue.target_dag_id),
+        )""",
+    )
 
     __tablename__ = "dataset_dag_ref"
     __table_args__ = (
@@ -297,3 +304,38 @@ class DatasetEvent(Base):
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
+
+
+class DatasetEventDagRun(Base):
+    """Records the dataset events that belong to a dag run."""
+
+    dag_run_id = Column(Integer, primary_key=True)
+    dataset_event_id = Column(Integer, primary_key=True)
+    created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
+
+    __tablename__ = "dataset_event_dag_run"
+    __table_args__ = (
+        ForeignKeyConstraint(
+            (dag_run_id,),
+            ["dag_run.id"],
+            name='dedr_dag_run_fkey',
+            ondelete="CASCADE",
+        ),
+        ForeignKeyConstraint(
+            (dataset_event_id,),
+            ["dataset_event.id"],
+            name='dedr_dataset_event_fkey',
+            ondelete="CASCADE",
+        ),
+    )
+
+    dag_run = relationship(
+        "DagRun",
+        lazy="select",
+        uselist=False,
+    )
+    dataset_event = relationship(
+        DatasetEvent,
+        lazy="select",
+        uselist=False,
+    )

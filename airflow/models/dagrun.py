@@ -55,7 +55,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.declarative import declared_attr
 from sqlalchemy.orm import joinedload, relationship, synonym
 from sqlalchemy.orm.session import Session
-from sqlalchemy.sql.expression import case, false, select, true
+from sqlalchemy.sql.expression import false, select, true
 
 from airflow import settings
 from airflow.callbacks.callback_requests import DagCallbackRequest
@@ -634,89 +634,7 @@ class DagRun(Base, LoggingMixin):
         session.merge(self)
         # We do not flush here for performance reasons(It increases queries count by +20)
 
-        self._process_dataset_dagrun_events(session=session)
-
         return schedulable_tis, callback
-
-    def _process_dataset_dagrun_events(self, *, session=NEW_SESSION):
-        """
-        Looks at all outlet datasets that have been updated by this dag,
-        and creates DAG runs that have all dataset deps fulfilled.
-        """
-        from airflow.datasets import Dataset
-        from airflow.models.dataset import DatasetDagRef, DatasetTaskRef
-
-        has_dataset_outlets = False
-        if self.dag:
-            for _, task in self.dag.task_dict.items():
-                if has_dataset_outlets is True:
-                    break
-                for obj in getattr(task, '_outlets', []):
-                    if isinstance(obj, Dataset):
-                        has_dataset_outlets = True
-                        break
-        dependent_dag_ids = {}
-        if self.dag and has_dataset_outlets:
-            subquery = (
-                session.query(DatasetTaskRef.dataset_id)
-                .filter(DatasetTaskRef.dag_id == self.dag_id)
-                .distinct(DatasetTaskRef.dataset_id)
-                .subquery()
-            )
-            dependent_dag_ids = {
-                x.dag_id
-                for x in session.query(DatasetDagRef.dag_id)
-                .join(subquery, subquery.c.dataset_id == DatasetDagRef.dataset_id)
-                .all()
-            }
-
-        from airflow.models.dataset import DatasetDagRunQueue as DDRQ
-        from airflow.models.serialized_dag import SerializedDagModel
-
-        dag_ids_to_trigger = None
-        if dependent_dag_ids:
-            dag_ids_to_trigger = [
-                x.dag_id
-                for x in session.query(
-                    DatasetDagRef.dag_id,
-                )
-                .join(
-                    DDRQ,
-                    and_(
-                        DDRQ.dataset_id == DatasetDagRef.dataset_id,
-                        DDRQ.target_dag_id == DatasetDagRef.dag_id,
-                    ),
-                    isouter=True,
-                )
-                .filter(DatasetDagRef.dag_id.in_(dependent_dag_ids))
-                .group_by(DatasetDagRef.dag_id)
-                .having(func.count() == func.sum(case((DDRQ.target_dag_id.is_not(None), 1), else_=0)))
-                .all()
-            ]
-
-        if dag_ids_to_trigger:
-            dags_to_purge_from_queue = set()
-            for target_dag_id in dag_ids_to_trigger:
-                row = SerializedDagModel.get(target_dag_id, session)
-                if not row:
-                    self.log.warning("Could not find serialized DAG %s", target_dag_id)
-                    continue
-                dag = row.dag
-                if dag.dataset_triggers:
-                    dag.create_dagrun(
-                        run_type=DagRunType.DATASET_TRIGGERED,
-                        run_id=self.generate_run_id(
-                            DagRunType.DATASET_TRIGGERED, execution_date=timezone.utcnow()
-                        ),
-                        state=DagRunState.QUEUED,
-                        session=session,
-                    )
-                else:
-                    self.log.warning(
-                        "DAG %s no longer has a dataset scheduling dep; purging queue records.", dag.dag_id
-                    )
-                dags_to_purge_from_queue.add(target_dag_id)
-            session.query(DDRQ).filter(DDRQ.target_dag_id.in_(dags_to_purge_from_queue)).delete()
 
     @provide_session
     def task_instance_scheduling_decisions(self, session: Session = NEW_SESSION) -> TISchedulingDecision:
