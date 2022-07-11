@@ -704,9 +704,7 @@ scheduler:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
-    extraEnv:
-    - name: TEST_ENV_1
-      value: "test_env_1"
+    extraEnv: []
 
   extraEnv: []
 
@@ -987,9 +985,7 @@ webserver:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
-    extraEnv:
-    - name: TEST_ENV_1
-      value: "test_env_1"
+    extraEnv: []
 
   extraEnv: []
 
@@ -1082,9 +1078,7 @@ triggerer:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
-    extraEnv:
-    - name: TEST_ENV_1
-      value: "test_env_1"
+    extraEnv: []
 
   extraEnv: []
 
@@ -1177,9 +1171,7 @@ dagProcessor:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
-    extraEnv:
-    - name: TEST_ENV_1
-      value: "test_env_1"
+    extraEnv: []
 
 # Flower settings
 flower:
