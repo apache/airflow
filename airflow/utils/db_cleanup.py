@@ -62,6 +62,7 @@ class _TableConfig:
 
     :param orm_model: the table
     :param recency_column: date column to filter by
+    :param dag_id_column: dag_id column to apply filter on if exists
     :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
     :param keep_last_filters: the "keep last" functionality will preserve the most recent record
         in the table.  to ignore certain records even if they are the latest in the table, you can
@@ -73,6 +74,7 @@ class _TableConfig:
 
     orm_model: Base
     recency_column: Union["Column", "InstrumentedAttribute"]
+    dag_id_column: Union["Column", "InstrumentedAttribute", None]
     keep_last: bool = False
     keep_last_filters: Optional[Any] = None
     keep_last_group_by: Optional[Any] = None
@@ -86,6 +88,7 @@ class _TableConfig:
         return dict(
             table=self.orm_model.__tablename__,
             recency_column=str(self.recency_column),
+            dag_ids=str(self.dag_id),
             keep_last=self.keep_last,
             keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             keep_last_group_by=str(self.keep_last_group_by),
@@ -94,28 +97,35 @@ class _TableConfig:
 
 
 config_list: List[_TableConfig] = [
-    _TableConfig(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat),
-    _TableConfig(orm_model=DagModel, recency_column=DagModel.last_parsed_time),
+    _TableConfig(orm_model=BaseJob, recency_column=BaseJob.latest_heartbeat, dag_id=BaseJob.dag_id),
+    _TableConfig(orm_model=DagModel, recency_column=DagModel.last_parsed_time, dag_id=DagModel.dag_id),
     _TableConfig(
         orm_model=DagRun,
         recency_column=DagRun.start_date,
+        dag_id=DagRun.dag_id,
         keep_last=True,
         keep_last_filters=[DagRun.external_trigger == false()],
         keep_last_group_by=DagRun.dag_id,
     ),
     _TableConfig(orm_model=models_ImportError, recency_column=models_ImportError.timestamp),
-    _TableConfig(orm_model=Log, recency_column=Log.dttm),
+    _TableConfig(orm_model=Log, recency_column=Log.dttm, dag_id=Log.dag_id),
     _TableConfig(
-        orm_model=RenderedTaskInstanceFields, recency_column=RenderedTaskInstanceFields.execution_date
+        orm_model=RenderedTaskInstanceFields,
+        recency_column=RenderedTaskInstanceFields.execution_date,
+        dag_id=RenderedTaskInstanceFields.dag_id,
     ),
     _TableConfig(
-        orm_model=SensorInstance, recency_column=SensorInstance.updated_at
+        orm_model=SensorInstance, recency_column=SensorInstance.updated_at, dag_id=SensorInstance.dag_id
     ),  # TODO: add FK to task instance / dag so we can remove here
-    _TableConfig(orm_model=SlaMiss, recency_column=SlaMiss.timestamp),
-    _TableConfig(orm_model=TaskFail, recency_column=TaskFail.start_date),
-    _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date),
-    _TableConfig(orm_model=TaskReschedule, recency_column=TaskReschedule.start_date),
-    _TableConfig(orm_model=XCom, recency_column=XCom.timestamp),
+    _TableConfig(orm_model=SlaMiss, recency_column=SlaMiss.timestamp, dag_id=SlaMiss.dag_id),
+    _TableConfig(orm_model=TaskFail, recency_column=TaskFail.start_date, dag_id=TaskFail.dag_id),
+    _TableConfig(orm_model=TaskInstance, recency_column=TaskInstance.start_date, dag_id=TaskInstance.dag_id),
+    _TableConfig(
+        orm_model=TaskReschedule,
+        recency_column=TaskReschedule.start_date,
+        dag_id=TaskReschedule.dag_id,
+                 ),
+    _TableConfig(orm_model=XCom, recency_column=XCom.timestamp, dag_id=XCom.dag_id),
     _TableConfig(orm_model=DbCallbackRequest, recency_column=XCom.timestamp),
 ]
 try:
@@ -175,10 +185,12 @@ def _build_query(
     *,
     orm_model,
     recency_column,
+    dag_id_column,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
     clean_before_timestamp,
+    dag_ids=None,
     session,
     **kwargs,
 ):
@@ -192,6 +204,8 @@ def _build_query(
             session=session,
         )
         conditions.append(recency_column.notin_(subquery))
+    if dag_ids:
+        conditions.append(dag_id_column.in_(dag_ids))
     query = query.filter(and_(*conditions))
     return query
 
@@ -203,10 +217,12 @@ def _cleanup_table(
     *,
     orm_model,
     recency_column,
+    dag_id_column,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
     clean_before_timestamp,
+    dag_ids=None,
     dry_run=True,
     verbose=False,
     session=None,
@@ -218,10 +234,12 @@ def _cleanup_table(
     query = _build_query(
         orm_model=orm_model,
         recency_column=recency_column,
+        dag_id_column=dag_id_column,
         keep_last=keep_last,
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
+        dag_ids=dag_ids,
         session=session,
     )
 
@@ -232,10 +250,11 @@ def _cleanup_table(
         session.commit()
 
 
-def _confirm_delete(*, date: DateTime, tables: List[str]):
+def _confirm_delete(*, date: DateTime, tables: List[str], dag_ids: Optional[List[str]]):
     for_tables = f" for tables {tables!r}" if tables else ''
+    for_dag_ids = f"regarding to {dag_ids!r} dags" if dag_ids else 'all'
     question = (
-        f"You have requested that we purge all data prior to {date}{for_tables}.\n"
+        f"You have requested that we purge {for_dag_ids} data prior to {date}{for_tables}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
         f"with option --dry-run.\n"
         f"Enter 'delete rows' (without quotes) to proceed."
@@ -271,6 +290,7 @@ def run_cleanup(
     *,
     clean_before_timestamp: DateTime,
     table_names: Optional[List[str]] = None,
+    dag_ids: Optional[List[str]] = None,
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
@@ -289,6 +309,8 @@ def run_cleanup(
     :param clean_before_timestamp: The timestamp before which data should be purged
     :param table_names: Optional. List of table names to perform maintenance on.  If list not provided,
         will perform maintenance on all tables.
+    :param dag_ids: Optional. List of dag ids to perform maintenance on.  If list not provided,
+        will perform maintenance on all dags.
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
@@ -305,13 +327,18 @@ def run_cleanup(
         )
         _print_config(configs=effective_config_dict)
     if not dry_run and confirm:
-        _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
+        _confirm_delete(
+            date=clean_before_timestamp,
+            tables=list(effective_config_dict.keys()),
+            dag_ids=dag_ids,
+        )
     for table_name, table_config in effective_config_dict.items():
         with _warn_if_missing(table_name, table_config.warn_if_missing):
             _cleanup_table(
                 clean_before_timestamp=clean_before_timestamp,
+                dag_ids=dag_ids,
                 dry_run=dry_run,
                 verbose=verbose,
                 **table_config.__dict__,
-                session=session,
+                session=session
             )
