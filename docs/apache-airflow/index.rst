@@ -102,7 +102,7 @@ The open-source nature of Airflow ensures you work on components developed, test
 `companies <https://github.com/apache/airflow/blob/main/INTHEWILD.md>`_ around the world. In the active
 `community <https://airflow.apache.org/community>`_ you can find plenty of helpful resources in the form of
 blogs posts, articles, conferences, books, and more. You can connect with other peers via several channels
-such as `Slack <https://s.apache.org/airflow-slack>`_ and a mailing list.
+such as `Slack <https://s.apache.org/airflow-slack>`_ and mailing lists.
 
 Why not Airflow?
 =========================================
