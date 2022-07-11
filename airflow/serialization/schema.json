@@ -251,13 +251,13 @@
         "doc_yaml":  { "type": "string" },
         "doc_rst":  { "type": "string" },
         "_is_mapped": { "const": true, "$comment": "only present when True" },
-        "mapped_kwargs": { "type": "object" },
+        "expand_input": { "type": "object" },
         "partial_kwargs": { "type": "object" }
       },
       "dependencies": {
-        "mapped_kwargs": ["partial_kwargs", "_is_mapped"],
-        "partial_kwargs": ["mapped_kwargs", "_is_mapped"],
-        "_is_mapped": ["mapped_kwargs", "partial_kwargs"]
+        "expand_input": ["partial_kwargs", "_is_mapped"],
+        "partial_kwargs": ["expand_input", "_is_mapped"],
+        "_is_mapped": ["expand_input", "partial_kwargs"]
       },
       "additionalProperties": true
     },
