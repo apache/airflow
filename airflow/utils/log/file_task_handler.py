@@ -97,7 +97,8 @@ class FileTaskHandler(logging.Handler):
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
             else:
-                assert dag is not None  # For Mypy.
+                if TYPE_CHECKING:
+                    assert dag is not None
                 data_interval = dag.get_run_data_interval(dag_run)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
