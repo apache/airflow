@@ -421,6 +421,11 @@ ARG_DB_TABLES = Arg(
     ),
     type=string_list_type,
 )
+ARG_DB_DAG_IDS = Arg(
+    ("-d", "--dag-ids"),
+    help="Dag ids to perform maintenance on (use comma-separated list).\n",
+    type=string_list_type,
+)
 ARG_DB_CLEANUP_TIMESTAMP = Arg(
     ("--clean-before-timestamp",),
     help="The date or timestamp before which data should be purged.\n"
@@ -1450,6 +1455,7 @@ DB_COMMANDS = (
         func=lazy_load_command('airflow.cli.commands.db_command.cleanup_tables'),
         args=(
             ARG_DB_TABLES,
+            ARG_DB_DAG_IDS,
             ARG_DB_DRY_RUN,
             ARG_DB_CLEANUP_TIMESTAMP,
             ARG_VERBOSE,

@@ -194,6 +194,7 @@ def cleanup_tables(args):
     """Purges old records in metadata database"""
     run_cleanup(
         table_names=args.tables,
+        dag_ids=args.dag_ids,
         dry_run=args.dry_run,
         clean_before_timestamp=args.clean_before_timestamp,
         verbose=args.verbose,
