@@ -200,6 +200,73 @@ class TestDBCleanup:
             else:
                 raise Exception("unexpected")
 
+    @pytest.mark.parametrize(
+        'table_name, dag_ids, date_add_kwargs, expected_to_delete',
+        [
+            param(
+                'task_instance',
+                dict(test=f'test-dag_{uuid4()}', dummy=f'dummy-dag_{uuid4()}'),
+                dict(days=4),
+                4,
+                id='several_dag_ids'
+            ),
+            param(
+                'task_instance',
+                dict(test='', dummy=f'dummy-dag_{uuid4()}'),
+                dict(days=20),
+                0,
+                id='non_existing_dag_ids'
+            ),
+            param(
+                'dag_run',
+                dict(),
+                dict(days=5),
+                5,
+                id='without_dags_ids'
+            ),
+            param(
+                'dag_run',
+                dict(test=f'test-dag_{uuid4()}'),
+                dict(days=9),
+                9,
+                id='singular_dags_id'
+            ),
+        ],
+    )
+    def test__cleanup_dag_ids(self, table_name, dag_ids, date_add_kwargs, expected_to_delete):
+        """
+        Verify that _cleanup_table actually deletes the rows it should with dag_ids parameter.
+        The _cleanup_table should delete all the dags that are in the dag_ids list and
+        if there are none, delete none.
+
+        """
+        base_date = pendulum.DateTime(2022, 1, 1, tzinfo=pendulum.timezone('America/Los_Angeles'))
+        num_tis = 10
+        create_tis(
+            base_date=base_date,
+            num_tis=num_tis,
+            dag_id=dag_ids.get('test', None),
+        )
+        with create_session() as session:
+            clean_before_date = base_date.add(**date_add_kwargs)
+            _cleanup_table(
+                **config_dict[table_name].__dict__,
+                clean_before_timestamp=clean_before_date,
+                dry_run=False,
+                session=session,
+                dag_ids=list(dag_ids.values())
+            )
+            model = config_dict[table_name].orm_model
+            expected_remaining = num_tis - expected_to_delete
+            a = session.query(model).all()
+            assert len(session.query(model).all()) == expected_remaining
+            if model == TaskInstance:
+                assert len(session.query(DagRun).all()) == num_tis
+            elif model == DagRun:
+                assert len(session.query(TaskInstance).all()) == expected_remaining
+            else:
+                raise Exception("unexpected")
+
     def test_no_models_missing(self):
         """
         1. Verify that for all tables in `airflow.models`, we either have them enabled in db cleanup,
@@ -243,9 +310,9 @@ class TestDBCleanup:
         assert exclusion_list.isdisjoint(config_dict)
 
 
-def create_tis(base_date, num_tis, external_trigger=False):
+def create_tis(base_date, num_tis,dag_id=None, external_trigger=False):
     with create_session() as session:
-        dag = DagModel(dag_id=f'test-dag_{uuid4()}')
+        dag = DagModel(dag_id=dag_id) if dag_id else DagModel(dag_id=f'test-dag_{uuid4()}')
         session.add(dag)
         for num in range(num_tis):
             start_date = base_date.add(days=num)
