@@ -325,10 +325,21 @@ function taskStatsHandler(error, json) {
   });
 }
 
+function getDagIds({ activeDagsOnly = false } = {}) {
+  let dagIds = $('[id^=toggle]');
+  if (activeDagsOnly) {
+    dagIds = dagIds.filter(':checked');
+  }
+  dagIds = dagIds.map(function () {
+    return $(this).data('dag-id');
+  }).get();
+  return dagIds;
+}
+
 function getDagStats() {
   const dagIds = getDagIds();
   const params = new URLSearchParams();
-  dagIds.forEach(dagId => {
+  dagIds.forEach((dagId) => {
     params.append('dag_ids', dagId);
   });
   if (params.has('dag_ids')) {
@@ -431,21 +442,10 @@ function refreshDagRuns(error, json) {
   });
 }
 
-function getDagIds({ activeDagsOnly = false } = {}) {
-  let dagIds = $('[id^=toggle]');
-  if (activeDagsOnly) {
-    dagIds = dagIds.filter(':checked');
-  }
-  dagIds = dagIds.map(function () {
-    return $(this).data('dag-id');
-  }).get();
-  return dagIds;
-}
-
 function handleRefresh({ activeDagsOnly = false } = {}) {
   const dagIds = getDagIds({ activeDagsOnly });
   const params = new URLSearchParams();
-  dagIds.forEach(dagId => {
+  dagIds.forEach(((dagId) => {
     params.append('dag_ids', dagId);
   });
   $('#loading-dots').css('display', 'inline-block');
