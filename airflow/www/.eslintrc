@@ -1,6 +1,12 @@
 {
   "extends": ["airbnb", "airbnb/hooks"],
   "parser": "@babel/eslint-parser",
+  "parserOptions": {
+    "babelOptions": {
+      "presets": ["@babel/preset-env", "@babel/preset-react", "@babel/preset-typescript"],
+      "plugins": ["@babel/plugin-transform-runtime"]
+    }
+  },
   "plugins": [ "html", "react" ],
   "rules": {
     "no-param-reassign": 1,

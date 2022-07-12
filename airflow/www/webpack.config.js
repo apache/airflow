@@ -112,7 +112,14 @@ const config = {
       {
         test: /\.(js|jsx|tsx|ts)$/,
         exclude: /node_modules/,
-        use: [{ loader: 'babel-loader' }],
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-react', '@babel/preset-typescript'],
+            },
+          },
+        ],
       },
       // Extract css files
       {
