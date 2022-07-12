@@ -38,7 +38,6 @@ from airflow.models import (
     errors,
 )
 from airflow.models.dagcode import DagCode
-from airflow.models.dataset import Dataset
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.security.permissions import RESOURCE_DAG_PREFIX
 from airflow.utils.db import add_default_pool_if_not_exists, create_default_connections, reflect_tables
@@ -87,11 +86,6 @@ def clear_db_pools():
     with create_session() as session:
         session.query(Pool).delete()
         add_default_pool_if_not_exists(session)
-
-
-def clear_db_datasets():
-    with create_session() as session:
-        session.query(Dataset).delete()
 
 
 def clear_db_connections(add_default_connections_back=True):
