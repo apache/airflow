@@ -22,7 +22,8 @@
 import React, {
   useMemo, useContext, useState, useEffect, useCallback,
 } from 'react';
-import { getMetaValue } from '../../utils';
+
+import { getMetaValue } from 'app/utils';
 
 const autoRefreshKey = 'disabledAutoRefresh';
 
