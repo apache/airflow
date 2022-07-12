@@ -444,9 +444,11 @@ def run_cleanup(
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
     effective_table_names = table_names if table_names else list(config_dict.keys())
-    effective_config_dict = {k: v
-                             for k, v in config_dict.items()  # dag_ids => in_dag_granularity in table
-                             if k in effective_table_names and (not dag_ids or v.in_dag_granularity)}
+    effective_config_dict = {
+        k: v
+        for k, v in config_dict.items()  # dag_ids => in_dag_granularity in table
+        if k in effective_table_names and (not dag_ids or v.in_dag_granularity)
+    }
     if dry_run:
         print('Performing dry run for db cleanup.')
         print(
