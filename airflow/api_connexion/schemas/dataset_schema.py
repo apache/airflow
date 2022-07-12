@@ -31,7 +31,7 @@ class DatasetSchema(SQLAlchemySchema):
 
         model = Dataset
 
-    dataset_id = auto_field('id')
+    id = auto_field()
     uri = auto_field()
     extra = auto_field()
     created_at = auto_field()

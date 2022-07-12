@@ -1631,7 +1631,7 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
-  /datasets/{dataset_id}:
+  /datasets/{id}:
     parameters:
       - $ref: '#/components/parameters/DatasetID'
     get:
@@ -3426,7 +3426,7 @@ components:
         *New in version 2.4.0*
       type: object
       properties:
-        dataset_id:
+        id:
           type: integer
           description: The dataset id
         uri:
@@ -4108,7 +4108,7 @@ components:
 
     DatasetID:
       in: path
-      name: dataset_id
+      name: id
       schema:
         type: integer
       required: true

@@ -45,9 +45,9 @@ class TestDatasetSchema(TestDatasetSchemaBase):
         session.add(dataset)
         session.flush()
         serialized_data = dataset_schema.dump(dataset)
-        serialized_data['dataset_id'] = 1
+        serialized_data['id'] = 1
         assert serialized_data == {
-            "dataset_id": 1,
+            "id": 1,
             "uri": "s3://bucket/key",
             "extra": "{'foo': 'bar'}",
             "created_at": self.timestamp,
@@ -72,19 +72,19 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
         serialized_data = dataset_collection_schema.dump(
             DatasetCollection(datasets=datasets, total_entries=2)
         )
-        serialized_data['datasets'][0]['dataset_id'] = 1
-        serialized_data['datasets'][1]['dataset_id'] = 2
+        serialized_data['datasets'][0]['id'] = 1
+        serialized_data['datasets'][1]['id'] = 2
         assert serialized_data == {
             "datasets": [
                 {
-                    "dataset_id": 1,
+                    "id": 1,
                     "uri": "s3://bucket/key/1",
                     "extra": "{'foo': 'bar'}",
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 },
                 {
-                    "dataset_id": 2,
+                    "id": 2,
                     "uri": "s3://bucket/key/2",
                     "extra": "{'foo': 'bar'}",
                     "created_at": self.timestamp,

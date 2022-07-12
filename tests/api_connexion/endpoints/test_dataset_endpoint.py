@@ -73,7 +73,7 @@ class TestDatasetEndpoint:
     @staticmethod
     def _normalize_dataset_ids(datasets):
         for i, dataset in enumerate(datasets, 1):
-            dataset["dataset_id"] = i
+            dataset["id"] = i
 
 
 class TestGetDatasetEndpoint(TestDatasetEndpoint):
@@ -86,7 +86,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         )
         assert response.status_code == 200
         assert response.json == {
-            "dataset_id": result[0].id,
+            "id": result[0].id,
             "uri": "s3://bucket/key",
             "extra": "{'foo': 'bar'}",
             "created_at": self.default_time,
@@ -97,7 +97,7 @@ class TestGetDatasetEndpoint(TestDatasetEndpoint):
         response = self.client.get("/api/v1/datasets/1", environ_overrides={'REMOTE_USER': "test"})
         assert response.status_code == 404
         assert {
-            'detail': "The Dataset with dataset_id: `1` was not found",
+            'detail': "The Dataset with id: `1` was not found",
             'status': 404,
             'title': 'Dataset not found',
             'type': EXCEPTIONS_LINK_MAP[404],
@@ -134,14 +134,14 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert response_data == {
             "datasets": [
                 {
-                    "dataset_id": 1,
+                    "id": 1,
                     "uri": "s3://bucket/key/1",
                     "extra": "{'foo': 'bar'}",
                     "created_at": self.default_time,
                     "updated_at": self.default_time,
                 },
                 {
-                    "dataset_id": 2,
+                    "id": 2,
                     "uri": "s3://bucket/key/2",
                     "extra": "{'foo': 'bar'}",
                     "created_at": self.default_time,
@@ -167,11 +167,11 @@ class TestGetDatasets(TestDatasetEndpoint):
         assert len(result) == 2
 
         response = self.client.get(
-            "/api/v1/datasets?order_by=id", environ_overrides={'REMOTE_USER': "test"}
-        )  # we allow `dataset_id` and not `id`
+            "/api/v1/datasets?order_by=fake", environ_overrides={'REMOTE_USER': "test"}
+        )  # missing attr
 
         assert response.status_code == 400
-        msg = "Ordering with 'id' is disallowed or the attribute does not exist on the model"
+        msg = "Ordering with 'fake' is disallowed or the attribute does not exist on the model"
         assert response.json['detail'] == msg
 
     def test_should_raises_401_unauthenticated(self, session):

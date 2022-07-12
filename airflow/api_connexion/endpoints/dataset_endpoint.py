@@ -34,13 +34,13 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
 @provide_session
-def get_dataset(dataset_id, session):
+def get_dataset(id, session):
     """Get a Dataset"""
-    dataset = session.query(Dataset).get(dataset_id)
+    dataset = session.query(Dataset).get(id)
     if not dataset:
         raise NotFound(
             "Dataset not found",
-            detail=f"The Dataset with dataset_id: `{dataset_id}` was not found",
+            detail=f"The Dataset with id: `{id}` was not found",
         )
     return dataset_schema.dump(dataset)
 
@@ -49,14 +49,13 @@ def get_dataset(dataset_id, session):
 @format_parameters({'limit': check_limit})
 @provide_session
 def get_datasets(
-    *, limit: int, offset: int = 0, order_by: str = "dataset_id", session: Session = NEW_SESSION
+    *, limit: int, offset: int = 0, order_by: str = "id", session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get datasets"""
-    to_replace = {"dataset_id": "id"}
-    allowed_filter_attrs = ['dataset_id', 'uri', 'created_at', 'updated_at']
+    allowed_filter_attrs = ['id', 'uri', 'created_at', 'updated_at']
 
     total_entries = session.query(func.count(Dataset.id)).scalar()
     query = session.query(Dataset)
-    query = apply_sorting(query, order_by, to_replace, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, {}, allowed_filter_attrs)
     datasets = query.offset(offset).limit(limit).all()
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
