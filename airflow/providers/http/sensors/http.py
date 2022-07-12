@@ -67,6 +67,11 @@ class HttpSensor(BaseSensorOperator):
         It should return True for 'pass' and False otherwise.
     :param extra_options: Extra options for the 'requests' library, see the
         'requests' documentation (options to modify timeout, ssl, etc.)
+    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
+    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
+    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
+    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
+        ``socket.TCP_KEEPINTVL``)
     """
 
     template_fields: Sequence[str] = ('endpoint', 'request_params', 'headers')
@@ -81,6 +86,10 @@ class HttpSensor(BaseSensorOperator):
         headers: Optional[Dict[str, Any]] = None,
         response_check: Optional[Callable[..., bool]] = None,
         extra_options: Optional[Dict[str, Any]] = None,
+        tcp_keep_alive: bool = True,
+        tcp_keep_alive_idle: int = 120,
+        tcp_keep_alive_count: int = 20,
+        tcp_keep_alive_interval: int = 30,
         **kwargs: Any,
     ) -> None:
         super().__init__(**kwargs)
@@ -91,15 +100,26 @@ class HttpSensor(BaseSensorOperator):
         self.headers = headers or {}
         self.extra_options = extra_options or {}
         self.response_check = response_check
-
-        self.hook = HttpHook(method=method, http_conn_id=http_conn_id)
+        self.tcp_keep_alive = tcp_keep_alive
+        self.tcp_keep_alive_idle = tcp_keep_alive_idle
+        self.tcp_keep_alive_count = tcp_keep_alive_count
+        self.tcp_keep_alive_interval = tcp_keep_alive_interval
 
     def poke(self, context: 'Context') -> bool:
         from airflow.utils.operator_helpers import determine_kwargs
 
+        hook = HttpHook(
+            method=self.method,
+            http_conn_id=self.http_conn_id,
+            tcp_keep_alive=self.tcp_keep_alive,
+            tcp_keep_alive_idle=self.tcp_keep_alive_idle,
+            tcp_keep_alive_count=self.tcp_keep_alive_count,
+            tcp_keep_alive_interval=self.tcp_keep_alive_interval,
+        )
+
         self.log.info('Poking: %s', self.endpoint)
         try:
-            response = self.hook.run(
+            response = hook.run(
                 self.endpoint,
                 data=self.request_params,
                 headers=self.headers,

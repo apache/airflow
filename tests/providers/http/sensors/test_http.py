@@ -169,18 +169,18 @@ class TestHttpSensor:
             poke_interval=1,
         )
 
-        with mock.patch.object(task.hook.log, 'error') as mock_errors:
+        with mock.patch('airflow.providers.http.hooks.http.HttpHook.log') as mock_log:
             with pytest.raises(AirflowSensorTimeout):
                 task.execute(None)
 
-            assert mock_errors.called
+            assert mock_log.error.called
             calls = [
                 mock.call('HTTP error: %s', 'Not Found'),
                 mock.call("This endpoint doesn't exist"),
                 mock.call('HTTP error: %s', 'Not Found'),
                 mock.call("This endpoint doesn't exist"),
             ]
-            mock_errors.assert_has_calls(calls)
+            mock_log.error.assert_has_calls(calls)
 
 
 class FakeSession:
@@ -199,6 +199,9 @@ class FakeSession:
 
     def merge_environment_settings(self, _url, **kwargs):
         return kwargs
+
+    def mount(self, prefix, adapter):
+        pass
 
 
 class TestHttpOpSensor(unittest.TestCase):

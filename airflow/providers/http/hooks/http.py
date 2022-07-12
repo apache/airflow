@@ -20,6 +20,7 @@ from typing import Any, Callable, Dict, Optional, Union
 import requests
 import tenacity
 from requests.auth import HTTPBasicAuth
+from requests_toolbelt.adapters.socket_options import TCPKeepAliveAdapter
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
@@ -34,6 +35,11 @@ class HttpHook(BaseHook):
         API url i.e https://www.google.com/ and optional authentication credentials. Default
         headers can also be specified in the Extra field in json format.
     :param auth_type: The auth type for the service
+    :param tcp_keep_alive: Enable TCP Keep Alive for the connection.
+    :param tcp_keep_alive_idle: The TCP Keep Alive Idle parameter (corresponds to ``socket.TCP_KEEPIDLE``).
+    :param tcp_keep_alive_count: The TCP Keep Alive count parameter (corresponds to ``socket.TCP_KEEPCNT``)
+    :param tcp_keep_alive_interval: The TCP Keep Alive interval parameter (corresponds to
+        ``socket.TCP_KEEPINTVL``)
     """
 
     conn_name_attr = 'http_conn_id'
@@ -46,6 +52,10 @@ class HttpHook(BaseHook):
         method: str = 'POST',
         http_conn_id: str = default_conn_name,
         auth_type: Any = HTTPBasicAuth,
+        tcp_keep_alive: bool = True,
+        tcp_keep_alive_idle: int = 120,
+        tcp_keep_alive_count: int = 20,
+        tcp_keep_alive_interval: int = 30,
     ) -> None:
         super().__init__()
         self.http_conn_id = http_conn_id
@@ -53,6 +63,10 @@ class HttpHook(BaseHook):
         self.base_url: str = ""
         self._retry_obj: Callable[..., Any]
         self.auth_type: Any = auth_type
+        self.tcp_keep_alive = tcp_keep_alive
+        self.keep_alive_idle = tcp_keep_alive_idle
+        self.keep_alive_count = tcp_keep_alive_count
+        self.keep_alive_interval = tcp_keep_alive_interval
 
     # headers may be passed through directly or in the "extra" field in the connection
     # definition
@@ -115,6 +129,11 @@ class HttpHook(BaseHook):
 
         url = self.url_from_endpoint(endpoint)
 
+        if self.tcp_keep_alive:
+            keep_alive_adapter = TCPKeepAliveAdapter(
+                idle=self.keep_alive_idle, count=self.keep_alive_count, interval=self.keep_alive_interval
+            )
+            session.mount(url, keep_alive_adapter)
         if self.method == 'GET':
             # GET uses params
             req = requests.Request(self.method, url, params=data, headers=headers, **request_kwargs)

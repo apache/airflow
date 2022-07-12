@@ -376,7 +376,8 @@
   },
   "http": {
     "deps": [
-      "requests>=2.26.0"
+      "requests>=2.26.0",
+      "requests_toolbelt"
     ],
     "cross-providers-deps": []
   },
