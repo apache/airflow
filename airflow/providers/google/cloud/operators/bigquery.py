@@ -1143,23 +1143,41 @@ class BigQueryCreateExternalTableOperator(BaseOperator):
 
         source_uris = [f"gs://{self.bucket}/{source_object}" for source_object in self.source_objects]
 
-        table = bq_hook.create_external_table(
-            external_project_dataset_table=self.destination_project_dataset_table,
-            schema_fields=schema_fields,
-            source_uris=source_uris,
-            source_format=self.source_format,
-            autodetect=self.autodetect,
-            compression=self.compression,
-            skip_leading_rows=self.skip_leading_rows,
-            field_delimiter=self.field_delimiter,
-            max_bad_records=self.max_bad_records,
-            quote_character=self.quote_character,
-            allow_quoted_newlines=self.allow_quoted_newlines,
-            allow_jagged_rows=self.allow_jagged_rows,
-            src_fmt_configs=self.src_fmt_configs,
-            labels=self.labels,
-            encryption_configuration=self.encryption_configuration,
+        project_id, dataset_id, table_id = bq_hook.split_tablename(
+            table_input=self.destination_project_dataset_table,
+            default_project_id=bq_hook.project_id or '',
         )
+
+        table_resource = {
+            "tableReference": {
+                "projectId": project_id,
+                "datasetId": dataset_id,
+                "tableId": table_id,
+            },
+            "labels": self.labels,
+            "schema": {"fields": schema_fields},
+            "externalDataConfiguration": {
+                "source_uris": source_uris,
+                "source_format": self.source_format,
+                "maxBadRecords": self.max_bad_records,
+                "autodetect": self.autodetect,
+                "compression": self.compression,
+                "csvOptions": {
+                    "fieldDelimeter": self.field_delimiter,
+                    "skipLeadingRows": self.skip_leading_rows,
+                    "quote": self.quote_character,
+                    "allowQuotedNewlines": self.allow_quoted_newlines,
+                    "allowJaggedRows": self.allow_jagged_rows,
+                },
+            },
+            "location": self.location,
+            "encryptionConfiguration": self.encryption_configuration,
+        }
+
+        table = bq_hook.create_empty_table(
+            table_resource=table_resource,
+        )
+
         BigQueryTableLink.persist(
             context=context,
             task_instance=self,

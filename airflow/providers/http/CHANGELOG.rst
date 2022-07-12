@@ -24,6 +24,16 @@
 Changelog
 ---------
 
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+The SimpleHTTPOperator, HttpSensor and HttpHook use now TCP_KEEPALIVE by default.
+You can disable it by setting ``tcp_keep_alive`` to False and you can control keepalive parameters
+by new ``tcp_keep_alive_*`` parameters added to constructor of the Hook, Operator and Sensor. Setting the
+TCP_KEEPALIVE prevents some firewalls from closing a long-running connection that has long periods of
+inactivity by sending empty TCP packets periodically. This has a very small impact on network traffic,
+and potentially prevents the idle/hanging connections from being closed automatically by the firewalls.
+
 3.0.0
 .....
 

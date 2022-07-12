@@ -25,8 +25,8 @@ import {
   Divider,
 } from '@chakra-ui/react';
 
-import { useExtraLinks } from '../../../api';
-import type { Task } from '../../../types';
+import { useExtraLinks } from 'grid/api';
+import type { Task } from 'grid/types';
 
 interface Props {
   dagId: string;

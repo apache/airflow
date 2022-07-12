@@ -88,6 +88,10 @@ const config = {
     publicPath: '',
   },
   resolve: {
+    alias: { // Be sure to update aliases in jest.config.js and tsconfig.json
+      app: path.resolve(__dirname, 'static/js'),
+      grid: path.resolve(__dirname, 'static/js/grid'),
+    },
     extensions: [
       '.js',
       '.jsx',
