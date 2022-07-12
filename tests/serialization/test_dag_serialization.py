@@ -1777,6 +1777,52 @@ def test_operator_expand_xcomarg_serde():
     assert xcom_arg.operator is serialized_dag.task_dict['op1']
 
 
+@pytest.mark.parametrize("strict", [True, False])
+def test_operator_expand_kwargs_serde(strict):
+    from airflow.models.xcom_arg import XComArg
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(XComArg(task1), strict=strict)
+
+    serialized = SerializedBaseOperator._serialize(mapped)
+    assert serialized == {
+        '_is_empty': False,
+        '_is_mapped': True,
+        '_task_module': 'tests.test_utils.mock_operators',
+        '_task_type': 'MockOperator',
+        'downstream_task_ids': [],
+        'expand_input': {
+            "type": "list-of-dicts",
+            "value": {'__type': 'xcomref', '__var': {'task_id': 'op1', 'key': 'return_value'}},
+        },
+        'partial_kwargs': {},
+        'task_id': 'task_2',
+        'template_fields': ['arg1', 'arg2'],
+        'template_ext': [],
+        'template_fields_renderers': {},
+        'operator_extra_links': [],
+        'ui_color': '#fff',
+        'ui_fgcolor': '#000',
+        "_disallow_kwargs_override": strict,
+        '_expand_input_attr': 'expand_input',
+    }
+
+    op = SerializedBaseOperator.deserialize_operator(serialized)
+    assert op.deps is MappedOperator.deps_for(BaseOperator)
+    assert op._disallow_kwargs_override == strict
+
+    xcom_ref = op.expand_input.value
+    assert xcom_ref.task_id == 'op1'
+    assert xcom_ref.key == XCOM_RETURN_KEY
+
+    serialized_dag: DAG = SerializedDAG.from_dict(SerializedDAG.to_dict(dag))
+
+    xcom_arg = serialized_dag.task_dict['task_2'].expand_input.value
+    assert isinstance(xcom_arg, XComArg)
+    assert xcom_arg.operator is serialized_dag.task_dict['op1']
+
+
 def test_operator_expand_deserialized_unmap():
     """Unmap a deserialized mapped operator should be similar to deserializing an non-mapped operator."""
     normal = BashOperator(task_id='a', bash_command=[1, 2], executor_config={"a": "b"})
@@ -1883,6 +1929,89 @@ def test_taskflow_expand_serde():
     assert pickled.op_kwargs_expand_input == _ExpandInputRef(
         key="dict-of-lists",
         value={"arg2": {"a": 1, "b": 2}, "arg3": _XComRef("op1", XCOM_RETURN_KEY)},
+    )
+    assert pickled.partial_kwargs == {
+        "op_args": [],
+        "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
+        "retry_delay": timedelta(seconds=30),
+    }
+
+
+@pytest.mark.parametrize("strict", [True, False])
+def test_taskflow_expand_kwargs_serde(strict):
+    from airflow.decorators import task
+    from airflow.models.xcom_arg import XComArg
+    from airflow.serialization.serialized_objects import _ExpandInputRef, _XComRef
+
+    with DAG("test-dag", start_date=datetime(2020, 1, 1)) as dag:
+        op1 = BaseOperator(task_id="op1")
+
+        @task(retry_delay=30)
+        def x(arg1, arg2, arg3):
+            print(arg1, arg2, arg3)
+
+        x.partial(arg1=[1, 2, {"a": "b"}]).expand_kwargs(XComArg(op1), strict=strict)
+
+    original = dag.get_task("x")
+
+    serialized = SerializedBaseOperator._serialize(original)
+    assert serialized == {
+        '_is_empty': False,
+        '_is_mapped': True,
+        '_task_module': 'airflow.decorators.python',
+        '_task_type': '_PythonDecoratedOperator',
+        'downstream_task_ids': [],
+        'partial_kwargs': {
+            'op_args': [],
+            'op_kwargs': {
+                '__type': 'dict',
+                '__var': {'arg1': [1, 2, {"__type": "dict", "__var": {'a': 'b'}}]},
+            },
+            'retry_delay': {'__type': 'timedelta', '__var': 30.0},
+        },
+        'op_kwargs_expand_input': {
+            "type": "list-of-dicts",
+            "value": {
+                "__type": "xcomref",
+                "__var": {'task_id': 'op1', 'key': 'return_value'},
+            },
+        },
+        'operator_extra_links': [],
+        'ui_color': '#ffefeb',
+        'ui_fgcolor': '#000',
+        'task_id': 'x',
+        'template_ext': [],
+        'template_fields': ['op_args', 'op_kwargs'],
+        'template_fields_renderers': {"op_args": "py", "op_kwargs": "py"},
+        "_disallow_kwargs_override": strict,
+        '_expand_input_attr': 'op_kwargs_expand_input',
+    }
+
+    deserialized = SerializedBaseOperator.deserialize_operator(serialized)
+    assert isinstance(deserialized, MappedOperator)
+    assert deserialized.deps is MappedOperator.deps_for(BaseOperator)
+    assert deserialized._disallow_kwargs_override == strict
+    assert deserialized.upstream_task_ids == set()
+    assert deserialized.downstream_task_ids == set()
+
+    assert deserialized.op_kwargs_expand_input == _ExpandInputRef(
+        key="list-of-dicts",
+        value=_XComRef("op1", XCOM_RETURN_KEY),
+    )
+    assert deserialized.partial_kwargs == {
+        "op_args": [],
+        "op_kwargs": {"arg1": [1, 2, {"a": "b"}]},
+        "retry_delay": timedelta(seconds=30),
+    }
+
+    # Ensure the serialized operator can also be correctly pickled, to ensure
+    # correct interaction between DAG pickling and serialization. This is done
+    # here so we don't need to duplicate tests between pickled and non-pickled
+    # DAGs everywhere else.
+    pickled = pickle.loads(pickle.dumps(deserialized))
+    assert pickled.op_kwargs_expand_input == _ExpandInputRef(
+        "list-of-dicts",
+        _XComRef("op1", XCOM_RETURN_KEY),
     )
     assert pickled.partial_kwargs == {
         "op_args": [],

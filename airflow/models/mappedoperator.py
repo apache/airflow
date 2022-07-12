@@ -61,11 +61,12 @@ from airflow.models.abstractoperator import (
     TaskStateChangeCallback,
 )
 from airflow.models.expandinput import (
-    MAPPABLE_LITERAL_TYPES,
     DictOfListsExpandInput,
     ExpandInput,
+    ListOfDictsExpandInput,
     Mappable,
     NotFullyPopulated,
+    get_mappable_types,
 )
 from airflow.models.pool import Pool
 from airflow.serialization.enums import DagAttributeTypes
@@ -86,17 +87,10 @@ if TYPE_CHECKING:
     from airflow.models.dag import DAG
     from airflow.models.operator import Operator
     from airflow.models.taskinstance import TaskInstance
+    from airflow.models.xcom_arg import XComArg
     from airflow.utils.task_group import TaskGroup
 
 ValidationSource = Union[Literal["expand"], Literal["partial"]]
-
-
-# For isinstance() check.
-@cache
-def get_mappable_types() -> Tuple[type, ...]:
-    from airflow.models.xcom_arg import XComArg
-
-    return (XComArg,) + MAPPABLE_LITERAL_TYPES
 
 
 def validate_mapping_kwargs(op: Type["BaseOperator"], func: ValidationSource, value: Dict[str, Any]) -> None:
@@ -197,6 +191,13 @@ class OperatorPartial:
         # Since the input is already checked at parse time, we can set strict
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(mapped_kwargs), strict=False)
+
+    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> "MappedOperator":
+        from airflow.models.xcom_arg import XComArg
+
+        if not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
+        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
 
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> "MappedOperator":
         from airflow.operators.empty import EmptyOperator
@@ -541,12 +542,10 @@ class MappedOperator(AbstractOperator):
         operation on the list-of-dicts variant before execution time, an empty
         dict will be returned for this case.
         """
-        kwargs = self._get_specified_expand_input()
+        expand_input = self._get_specified_expand_input()
         if resolve is not None:
-            return kwargs.resolve(*resolve)
-        if isinstance(kwargs, DictOfListsExpandInput):
-            return kwargs.value
-        return {}
+            return expand_input.resolve(*resolve)
+        return expand_input.get_unresolved_kwargs()
 
     def _get_unmap_kwargs(self, mapped_kwargs: Dict[str, Any], *, strict: bool) -> Dict[str, Any]:
         """Get init kwargs to unmap the underlying operator class.
