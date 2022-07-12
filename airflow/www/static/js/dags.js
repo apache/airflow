@@ -445,7 +445,7 @@ function refreshDagRuns(error, json) {
 function handleRefresh({ activeDagsOnly = false } = {}) {
   const dagIds = getDagIds({ activeDagsOnly });
   const params = new URLSearchParams();
-  dagIds.forEach(((dagId) => {
+  dagIds.forEach((dagId) => {
     params.append('dag_ids', dagId);
   });
   $('#loading-dots').css('display', 'inline-block');
