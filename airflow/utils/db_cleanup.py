@@ -67,9 +67,20 @@ class _TableConfig:
 
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
-        self.orm_model: Base = table(
-            self.table_name, *[column(x) for x in self.extra_columns or []], self.recency_column
-        )
+        if self.in_dag_granularity:
+            self.dag_id_column = column('dag_id')
+            self.orm_model: Base = table(
+                self.table_name,
+                *[column(x) for x in self.extra_columns or []],
+                self.recency_column,
+                self.dag_id_column,
+            )
+        else:
+            self.orm_model: Base = table(
+                self.table_name,
+                *[column(x) for x in self.extra_columns or []],
+                self.recency_column,
+            )
 
     def __lt__(self, other):
         return self.table_name < other.table_name
@@ -214,6 +225,7 @@ def _build_query(
     *,
     orm_model,
     recency_column,
+    dag_id_column,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
@@ -246,7 +258,6 @@ def _build_query(
         )
         conditions.append(column(max_date_col_name).is_(None))
     if dag_ids:
-        dag_id_column = column('dag_id')
         conditions.append(dag_id_column.in_(dag_ids))
     query = query.filter(and_(*conditions))
     return query
@@ -256,6 +267,7 @@ def _cleanup_table(
     *,
     orm_model,
     recency_column,
+    dag_id_column,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
@@ -273,6 +285,7 @@ def _cleanup_table(
     query = _build_query(
         orm_model=orm_model,
         recency_column=recency_column,
+        dag_id_column=dag_id_column,
         keep_last=keep_last,
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
