@@ -538,7 +538,7 @@ Completing our DAG:
 ~~~~~~~~~~~~~~~~~~~
 We've developed our tasks, now we need to wrap them in a DAG, which enables us to define when and how tasks should run, and state any dependencies that tasks have on other tasks. The DAG below is configured to:
 
-* run every day a midnight starting on Jan 1, 2021,
+* run every day at midnight starting on Jan 1, 2021,
 * only run once in the event that days are missed, and
 * timeout after 60 minutes
 
