@@ -405,7 +405,7 @@ class KubernetesPodOperator(BaseOperator):
         """Retrieves xcom value and kills xcom sidecar container"""
         result = self.pod_manager.extract_xcom(pod)
         if isinstance(result, str) and result.replace('\n', '') == 'False':
-            self.log.info("return.json file is empty.")
+            self.log.info("Result file is empty.")
             return None
         else:
             self.log.info("xcom result: \n%s", result)
