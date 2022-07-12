@@ -23,9 +23,9 @@ import {
   Divider,
 } from '@chakra-ui/react';
 
-import { getMetaValue, appendSearchParams } from '../../../../utils';
-import LinkButton from '../../../components/LinkButton';
-import type { Task, DagRun } from '../../../types';
+import { getMetaValue, appendSearchParams } from 'app/utils';
+import LinkButton from 'grid/components/LinkButton';
+import type { Task, DagRun } from 'grid/types';
 
 const dagId = getMetaValue('dag_id') || '';
 const isK8sExecutor = getMetaValue('k8s_or_k8scelery_executor') === 'True';

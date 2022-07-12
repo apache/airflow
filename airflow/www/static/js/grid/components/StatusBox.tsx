@@ -25,12 +25,13 @@ import {
   BoxProps,
 } from '@chakra-ui/react';
 
+import { useContainerRef } from 'grid/context/containerRef';
+import type { Task, TaskInstance, TaskState } from 'grid/types';
+import type { SelectionProps } from 'grid/utils/useSelection';
+import { hoverDelay } from 'grid/utils';
+
 import Tooltip from './Tooltip';
 import InstanceTooltip from './InstanceTooltip';
-import { useContainerRef } from '../context/containerRef';
-import type { Task, TaskInstance, TaskState } from '../types';
-import type { SelectionProps } from '../utils/useSelection';
-import { hoverDelay } from '../utils';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;

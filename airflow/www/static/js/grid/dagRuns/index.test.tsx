@@ -23,10 +23,11 @@ import React from 'react';
 import { render } from '@testing-library/react';
 import moment from 'moment-timezone';
 
+import { TableWrapper } from 'grid/utils/testUtils';
+import * as useGridDataModule from 'grid/api/useGridData';
+import type { DagRun } from 'grid/types';
+
 import DagRuns from './index';
-import { TableWrapper } from '../utils/testUtils';
-import * as useGridDataModule from '../api/useGridData';
-import type { DagRun } from '../types';
 
 const datestring = (new Date()).toISOString();
 const generateRuns = (length: number): DagRun[] => (

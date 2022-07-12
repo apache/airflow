@@ -19,7 +19,8 @@
 
 import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
-import { getMetaValue } from '../../utils';
+
+import { getMetaValue } from 'app/utils';
 
 interface TaskData {
   tasks: any[];

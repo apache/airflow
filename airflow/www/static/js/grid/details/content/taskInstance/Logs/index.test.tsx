@@ -22,8 +22,10 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react';
 import type { UseQueryResult } from 'react-query';
+
+import * as useTaskLogModule from 'grid/api/useTaskLog';
+
 import Logs from './index';
-import * as useTaskLogModule from '../../../../api/useTaskLog';
 
 const mockTaskLog = `
 5d28cfda3219

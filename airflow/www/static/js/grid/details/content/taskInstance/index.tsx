@@ -33,6 +33,10 @@ import {
   TabPanel,
 } from '@chakra-ui/react';
 
+import { useGridData, useTasks } from 'grid/api';
+import { getMetaValue } from 'app/utils';
+import type { Task, DagRun } from 'grid/types';
+
 import RunAction from './taskActions/Run';
 import ClearAction from './taskActions/Clear';
 import MarkFailedAction from './taskActions/MarkFailed';
@@ -41,11 +45,7 @@ import ExtraLinks from './ExtraLinks';
 import Logs from './Logs';
 import TaskNav from './Nav';
 import Details from './Details';
-
-import { useGridData, useTasks } from '../../../api';
 import MappedInstances from './MappedInstances';
-import { getMetaValue } from '../../../../utils';
-import type { Task, DagRun } from '../../../types';
 
 const detailsPanelActiveTabIndex = 'detailsPanelActiveTabIndex';
 

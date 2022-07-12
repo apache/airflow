@@ -20,10 +20,11 @@
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
-import { finalStatesMap } from '../../utils';
-import { formatDuration, getDuration } from '../../datetime_utils';
+import { finalStatesMap } from 'app/utils';
+import { formatDuration, getDuration } from 'app/datetime_utils';
+import type { TaskInstance, Task } from 'grid/types';
+
 import Time from './Time';
-import type { TaskInstance, Task } from '../types';
 
 interface Props {
   group: Task;

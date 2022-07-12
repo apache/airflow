@@ -22,8 +22,9 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 
+import { ChakraWrapper } from 'grid/utils/testUtils';
+
 import TaskName from './TaskName';
-import { ChakraWrapper } from '../utils/testUtils';
 
 describe('Test TaskName', () => {
   test('Displays a normal task name', () => {

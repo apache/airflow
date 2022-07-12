@@ -32,12 +32,13 @@ import {
 import { MdPlayArrow } from 'react-icons/md';
 import { RiArrowGoBackFill } from 'react-icons/ri';
 
+import { useContainerRef } from 'grid/context/containerRef';
+import Time from 'grid/components/Time';
+import type { SelectionProps } from 'grid/utils/useSelection';
+import { hoverDelay } from 'grid/utils';
+
 import DagRunTooltip from './Tooltip';
-import { useContainerRef } from '../context/containerRef';
-import Time from '../components/Time';
-import type { SelectionProps } from '../utils/useSelection';
 import type { RunWithDuration } from '.';
-import { hoverDelay } from '../utils';
 
 const BAR_HEIGHT = 100;
 

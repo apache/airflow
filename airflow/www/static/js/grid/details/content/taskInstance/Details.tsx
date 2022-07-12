@@ -24,12 +24,12 @@ import {
   Flex,
 } from '@chakra-ui/react';
 
-import { finalStatesMap } from '../../../../utils';
-import { getDuration, formatDuration } from '../../../../datetime_utils';
-import { SimpleStatus } from '../../../components/StatusBox';
-import Time from '../../../components/Time';
-import { ClipboardText } from '../../../components/Clipboard';
-import type { Task, TaskInstance, TaskState } from '../../../types';
+import { finalStatesMap } from 'app/utils';
+import { getDuration, formatDuration } from 'app/datetime_utils';
+import { SimpleStatus } from 'grid/components/StatusBox';
+import Time from 'grid/components/Time';
+import { ClipboardText } from 'grid/components/Clipboard';
+import type { Task, TaskInstance, TaskState } from 'grid/types';
 
 interface Props {
   instance: TaskInstance;

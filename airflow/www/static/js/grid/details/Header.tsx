@@ -27,10 +27,10 @@ import {
 import { MdPlayArrow, MdOutlineSchedule } from 'react-icons/md';
 import { RiArrowGoBackFill } from 'react-icons/ri';
 
-import { getMetaValue } from '../../utils';
-import useSelection from '../utils/useSelection';
-import Time from '../components/Time';
-import { useTasks, useGridData } from '../api';
+import { getMetaValue } from 'app/utils';
+import useSelection from 'grid/utils/useSelection';
+import Time from 'grid/components/Time';
+import { useTasks, useGridData } from 'grid/api';
 import BreadcrumbText from './BreadcrumbText';
 
 const dagId = getMetaValue('dag_id');

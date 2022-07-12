@@ -19,8 +19,9 @@
 
 import React from 'react';
 import moment from 'moment-timezone';
-import { useTimezone } from '../context/timezone';
-import { defaultFormatWithTZ } from '../../datetime_utils';
+
+import { useTimezone } from 'grid/context/timezone';
+import { defaultFormatWithTZ } from 'app/datetime_utils';
 
 interface Props {
   dateTime: string;

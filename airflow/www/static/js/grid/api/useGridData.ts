@@ -20,13 +20,13 @@
 import { useQuery } from 'react-query';
 import axios, { AxiosResponse } from 'axios';
 
-import { getMetaValue } from '../../utils';
-import { useAutoRefresh } from '../context/autorefresh';
-import useErrorToast from '../utils/useErrorToast';
+import { getMetaValue } from 'app/utils';
+import { useAutoRefresh } from 'grid/context/autorefresh';
+import useErrorToast from 'grid/utils/useErrorToast';
 import useFilters, {
   BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
-} from '../utils/useFilters';
-import type { Task, DagRun } from '../types';
+} from 'grid/utils/useFilters';
+import type { Task, DagRun } from 'grid/types';
 
 const DAG_ID_PARAM = 'dag_id';
 

@@ -29,17 +29,18 @@ import {
 import { MdPlayArrow, MdOutlineSchedule, MdOutlineAccountTree } from 'react-icons/md';
 import { RiArrowGoBackFill } from 'react-icons/ri';
 
-import { SimpleStatus } from '../../../components/StatusBox';
-import { ClipboardText } from '../../../components/Clipboard';
-import { formatDuration, getDuration } from '../../../../datetime_utils';
-import Time from '../../../components/Time';
+import { useGridData } from 'grid/api';
+import { appendSearchParams, getMetaValue } from 'app/utils';
+import type { DagRun as DagRunType } from 'grid/types';
+import { SimpleStatus } from 'grid/components/StatusBox';
+import { ClipboardText } from 'grid/components/Clipboard';
+import { formatDuration, getDuration } from 'app/datetime_utils';
+import Time from 'grid/components/Time';
+
 import MarkFailedRun from './MarkFailedRun';
 import MarkSuccessRun from './MarkSuccessRun';
 import QueueRun from './QueueRun';
 import ClearRun from './ClearRun';
-import { useGridData } from '../../../api';
-import { appendSearchParams, getMetaValue } from '../../../../utils';
-import type { DagRun as DagRunType } from '../../../types';
 
 const dagId = getMetaValue('dag_id');
 const graphUrl = getMetaValue('graph_url');

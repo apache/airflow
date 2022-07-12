@@ -19,7 +19,7 @@
 
 /* global moment */
 
-import { defaultFormatWithTZ } from '../../../../../datetime_utils';
+import { defaultFormatWithTZ } from 'app/datetime_utils';
 
 export enum LogLevel {
   DEBUG = 'DEBUG',

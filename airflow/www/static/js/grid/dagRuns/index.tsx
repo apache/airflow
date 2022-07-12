@@ -29,11 +29,12 @@ import {
   BoxProps,
 } from '@chakra-ui/react';
 
-import { useGridData } from '../api';
+import { useGridData } from 'grid/api';
+import { getDuration, formatDuration } from 'app/datetime_utils';
+import useSelection from 'grid/utils/useSelection';
+import type { DagRun } from 'grid/types';
+
 import DagRunBar from './Bar';
-import { getDuration, formatDuration } from '../../datetime_utils';
-import useSelection from '../utils/useSelection';
-import type { DagRun } from '../types';
 
 const DurationAxis = (props: BoxProps) => (
   <Box position="absolute" borderBottomWidth={1} zIndex={0} opacity={0.7} width="100%" {...props} />

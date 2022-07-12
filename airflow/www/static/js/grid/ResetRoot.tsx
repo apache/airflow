@@ -20,7 +20,7 @@
 import React from 'react';
 import { Button, Link } from '@chakra-ui/react';
 
-import { getMetaValue } from '../utils';
+import { getMetaValue } from 'app/utils';
 
 const root = getMetaValue('root');
 const url = getMetaValue('grid_url_no_root');

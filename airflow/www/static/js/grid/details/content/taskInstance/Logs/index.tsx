@@ -30,14 +30,15 @@ import {
   Checkbox,
 } from '@chakra-ui/react';
 
-import { getMetaValue } from '../../../../../utils';
+import { getMetaValue } from 'app/utils';
+import useTaskLog from 'grid/api/useTaskLog';
+import LinkButton from 'grid/components/LinkButton';
+import { useTimezone } from 'grid/context/timezone';
+import type { Dag, DagRun, TaskInstance } from 'grid/types';
+import MultiSelect from 'grid/components/MultiSelect';
+
 import LogLink from './LogLink';
-import useTaskLog from '../../../../api/useTaskLog';
-import LinkButton from '../../../../components/LinkButton';
 import { LogLevel, logLevelColorMapping, parseLogs } from './utils';
-import { useTimezone } from '../../../../context/timezone';
-import type { Dag, DagRun, TaskInstance } from '../../../../types';
-import MultiSelect from '../../../../components/MultiSelect';
 
 interface LogLevelOption {
   label: LogLevel;
