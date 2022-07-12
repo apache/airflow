@@ -28,8 +28,8 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
-{{- with .Values.labels }}
-{{ toYaml . | indent 4 }}
+{{- if or (.Values.labels) (.Values.workers.labels) }}
+{{- mustMerge .Values.workers.labels .Values.labels | toYaml | nindent 4 }}
 {{- end }}
   {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
   annotations:
@@ -58,6 +58,9 @@ spec:
           value: LocalExecutor
 {{- include "standard_airflow_environment" . | indent 6}}
 {{- include "custom_airflow_environment" . | indent 6 }}
+{{- if .Values.workers.env }}
+{{ tpl (toYaml .Values.workers.env) $ | indent 12 }}
+{{- end }}
       image: {{ template "pod_template_image" . }}
       imagePullPolicy: {{ .Values.images.airflow.pullPolicy }}
       name: base
