@@ -114,6 +114,22 @@ class AdminClientHook(BaseAzureServiceBusHook):
         with self.get_conn() as service_mgmt_conn:
             service_mgmt_conn.delete_queue(queue_name)
 
+    def delete_subscription(self, subscription_name: str, topic_name: str) -> None:
+        """
+        Delete a topic subscription entities under a ServiceBus Namespace
+
+        :param subscription_name: The subscription name that will own the rule in topic
+        :param topic_name: The topic that will own the subscription rule.
+        """
+        if subscription_name is None:
+            raise TypeError("Subscription name cannot be None.")
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+
+        with self.get_conn() as service_mgmt_conn:
+            self.log.info("Deleting Subscription %s", subscription_name)
+            service_mgmt_conn.delete_subscription(topic_name, subscription_name)
+
 
 class MessageHook(BaseAzureServiceBusHook):
     """
@@ -138,7 +154,8 @@ class MessageHook(BaseAzureServiceBusHook):
 
         :param queue_name: The name of the queue or a QueueProperties with name.
         :param messages: Message which needs to be sent to the queue. It can be string or list of string.
-        :param batch_message_flag: bool flag, can be set to True if message needs to be sent as batch message.
+        :param batch_message_flag: bool flag, can be set to True if message needs to be
+            sent as batch message.
         """
         if queue_name is None:
             raise TypeError("Queue name cannot be None.")
