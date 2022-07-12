@@ -160,7 +160,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             values={
                 "executor": "CeleryExecutor",
                 "webserver": {
-                    "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
@@ -175,7 +175,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             values={
                 "executor": "CeleryExecutor",
                 "webserver": {
-                    "waitForMigrations": {"enabled": True, "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
+                    "waitForMigrations": {"enabled": True, "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
                 }
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],

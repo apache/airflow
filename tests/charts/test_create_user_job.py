@@ -174,7 +174,7 @@ class CreateUserJobTest(unittest.TestCase):
         docs = render_chart(
             values={
                 "createUserJob": {
-                    "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
             },
             show_only=["templates/jobs/create-user-job.yaml"],

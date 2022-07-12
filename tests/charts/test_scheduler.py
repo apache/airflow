@@ -120,7 +120,7 @@ class SchedulerTest(unittest.TestCase):
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}],}
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],}
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],
         )
@@ -134,7 +134,7 @@ class SchedulerTest(unittest.TestCase):
             values={
                 "executor": "CeleryExecutor",
                 "scheduler": {
-                    "waitForMigrations": {"enabled": True, "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
+                    "waitForMigrations": {"enabled": True, "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
                 }
             },
             show_only=["templates/scheduler/scheduler-deployment.yaml"],

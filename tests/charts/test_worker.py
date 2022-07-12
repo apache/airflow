@@ -103,7 +103,7 @@ class WorkerTest(unittest.TestCase):
             values={
                 "executor": "CeleryExecutor",
                 "workers": {
-                    "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
             },
             show_only=["templates/workers/worker-deployment.yaml"],

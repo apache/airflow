@@ -149,8 +149,8 @@ spec:
         {{- if .Values.scheduler.extraInitContainers }}
         {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
         {{- end }}
-{{- if .Values.scheduler.waitForMigrations.extraEnv }}
-{{ tpl (toYaml .Values.scheduler.waitForMigrations.extraEnv) $ | indent 12 }}
+{{- if .Values.scheduler.waitForMigrations.env }}
+{{ tpl (toYaml .Values.scheduler.waitForMigrations.env) $ | indent 12 }}
 {{- end }}
       containers:
         # Always run the main scheduler container.
@@ -168,8 +168,8 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.scheduler.extraEnv }}
-{{ tpl (toYaml .Values.scheduler.extraEnv) $ | indent 12 }}
+{{- if .Values.scheduler.env }}
+{{ tpl (toYaml .Values.scheduler.env) $ | indent 12 }}
 {{- end }}
           livenessProbe:
             initialDelaySeconds: {{ .Values.scheduler.livenessProbe.initialDelaySeconds }}

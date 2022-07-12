@@ -135,8 +135,8 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.webserver.waitForMigrations.extraEnv }}
-{{ tpl (toYaml .Values.webserver.waitForMigrations.extraEnv) $ | indent 12 }}
+{{- if .Values.webserver.waitForMigrations.env }}
+{{ tpl (toYaml .Values.webserver.waitForMigrations.env) $ | indent 12 }}
 {{- end }}
         {{- end }}
         {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
@@ -226,8 +226,8 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
-{{- if .Values.webserver.extraEnv }}
-{{ tpl (toYaml .Values.webserver.extraEnv) $ | indent 12 }}
+{{- if .Values.webserver.env }}
+{{ tpl (toYaml .Values.webserver.env) $ | indent 12 }}
 {{- end }}
 {{- if and (.Values.dags.gitSync.enabled) (not .Values.dags.persistence.enabled) (semverCompare "<2.0.0" .Values.airflowVersion) }}
 {{- include "git_sync_container" . | indent 8 }}

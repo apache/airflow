@@ -128,7 +128,7 @@ class CleanupPodsTest(unittest.TestCase):
             values={
                 "cleanup": {
                     "enabled": True,
-                    "extraEnv": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
                 },
             },
             show_only=["templates/cleanup/cleanup-cronjob.yaml"],
