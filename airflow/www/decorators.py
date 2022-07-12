@@ -22,7 +22,7 @@ import gzip
 import logging
 from io import BytesIO as IO
 from itertools import chain
-from typing import Callable, TypeVar, cast
+from typing import Callable, Optional, TypeVar, cast
 
 import pendulum
 from flask import after_this_request, g, request
@@ -36,7 +36,7 @@ T = TypeVar("T", bound=Callable)
 logger = logging.getLogger(__name__)
 
 
-def action_logging(func: Optional[T]=None, event: Optional[str]=None) -> T:
+def action_logging(func: Optional[T] = None, event: Optional[str] = None) -> Callable[[T], T]:
     """Decorator to log user actions"""
 
     def log_action(f: T) -> T:
