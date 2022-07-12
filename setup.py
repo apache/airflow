@@ -24,6 +24,7 @@ import sys
 import unittest
 from copy import deepcopy
 from os.path import dirname, relpath
+from pathlib import Path
 from textwrap import wrap
 from typing import Dict, List
 
@@ -46,6 +47,7 @@ logger = logging.getLogger(__name__)
 
 version = '2.3.3'
 
+AIRFLOW_SOURCES_ROOT = Path(__file__).parent.resolve()
 my_dir = dirname(__file__)
 
 
@@ -278,6 +280,9 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
+    # Astroid 2.12.* breaks documentation building
+    # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
+    'astroid<2.12.0',
     'click>=8.0',
     'sphinx>=4.4.0',
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting

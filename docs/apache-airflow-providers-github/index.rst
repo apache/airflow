@@ -60,6 +60,13 @@ Content
 
     Detailed list of commits <commits>
 
+.. toctree::
+    :hidden:
+    :caption: System tests
+
+    System Tests <_api/tests/system/providers/github/index>
+
+
 .. THE REMAINDER OF THE FILE IS AUTOMATICALLY GENERATED. IT WILL BE OVERWRITTEN AT RELEASE TIME!
 
 
