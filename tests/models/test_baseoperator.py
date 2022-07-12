@@ -243,6 +243,7 @@ class TestBaseOperator:
 
         task = BaseOperator(task_id="op1")
 
+        getboolean_mock.return_value = True
         result = task.render_template(content, context)
         assert result == expected_output
         getboolean_mock.assert_called_with('core', 'render_dict_keys')
