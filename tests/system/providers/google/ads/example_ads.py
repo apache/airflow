@@ -24,10 +24,17 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.google.ads.operators.ads import GoogleAdsListAccountsOperator
 from airflow.providers.google.ads.transfers.ads_to_gcs import GoogleAdsToGcsOperator
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
+from airflow.utils.trigger_rule import TriggerRule
 
 # [START howto_google_ads_env_variables]
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
+DAG_ID = "example_google_ads"
+
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
 CLIENT_IDS = ["1111111111", "2222222222"]
-BUCKET = os.environ.get("GOOGLE_ADS_BUCKET", "gs://INVALID BUCKET NAME")
 GCS_OBJ_PATH = "folder_name/google-ads-api-results.csv"
 GCS_ACCOUNTS_CSV = "folder_name/accounts.csv"
 QUERY = """
@@ -61,28 +68,58 @@ FIELDS_TO_EXTRACT = [
     "metrics.all_conversions.value",
     "metrics.cost_micros.value",
 ]
-
 # [END howto_google_ads_env_variables]
 
 with models.DAG(
-    "example_google_ads",
-    schedule_interval=None,  # Override to match your needs
+    DAG_ID,
+    schedule_interval='@once',
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=["example", "ads"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+    )
+
     # [START howto_google_ads_to_gcs_operator]
     run_operator = GoogleAdsToGcsOperator(
         client_ids=CLIENT_IDS,
         query=QUERY,
         attributes=FIELDS_TO_EXTRACT,
         obj=GCS_OBJ_PATH,
-        bucket=BUCKET,
+        bucket=BUCKET_NAME,
         task_id="run_operator",
     )
     # [END howto_google_ads_to_gcs_operator]
 
     # [START howto_ads_list_accounts_operator]
     list_accounts = GoogleAdsListAccountsOperator(
-        task_id="list_accounts", bucket=BUCKET, object_name=GCS_ACCOUNTS_CSV
+        task_id="list_accounts", bucket=BUCKET_NAME, object_name=GCS_ACCOUNTS_CSV
     )
     # [END howto_ads_list_accounts_operator]
+
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
+
+    (
+        # TEST SETUP
+        create_bucket
+        # TEST BODY
+        >> run_operator
+        >> list_accounts
+        # TEST TEARDOWN
+        >> delete_bucket
+    )
+
+    from tests.system.utils.watcher import watcher
+
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
