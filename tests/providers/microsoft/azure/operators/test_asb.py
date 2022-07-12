@@ -25,11 +25,18 @@ from airflow.providers.microsoft.azure.operators.asb import (
     AzureServiceBusDeleteQueueOperator,
     AzureServiceBusReceiveMessageOperator,
     AzureServiceBusSendMessageOperator,
+    AzureServiceBusSubscriptionCreateOperator,
+    AzureServiceBusSubscriptionDeleteOperator,
 )
 
 QUEUE_NAME = "test_queue"
 MESSAGE = "Test Message"
 MESSAGE_LIST = [MESSAGE + " " + str(n) for n in range(0, 10)]
+
+OWNER_NAME = "airflow"
+DAG_ID = "test_azure_service_bus_subscription"
+TOPIC_NAME = "sb_mgmt_topic_test"
+SUBSCRIPTION_NAME = "sb_mgmt_subscription"
 
 
 class TestAzureServiceBusCreateQueueOperator:
@@ -193,3 +200,93 @@ class TestAzureServiceBusReceiveMessageOperator:
             .__exit__
         ]
         mock_get_conn.assert_has_calls(expected_calls)
+
+
+class TestASBCreateSubscriptionOperator:
+    def test_init(self):
+        """
+        Test init by creating ASBCreateSubscriptionOperator with task id, subscription name, topic name and
+        asserting with value
+        """
+        asb_create_subscription = AzureServiceBusSubscriptionCreateOperator(
+            task_id="asb_create_subscription",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+        )
+        assert asb_create_subscription.task_id == "asb_create_subscription"
+        assert asb_create_subscription.subscription_name == SUBSCRIPTION_NAME
+        assert asb_create_subscription.topic_name == TOPIC_NAME
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    @mock.patch('azure.servicebus.management.SubscriptionProperties')
+    def test_create_subscription(self, mock_subscription_properties, mock_get_conn):
+        """
+        Test AzureServiceBusSubscriptionCreateOperator passed with the subscription name, topic name
+        mocking the connection details, hook create_subscription function
+        """
+        asb_create_subscription = AzureServiceBusSubscriptionCreateOperator(
+            task_id="create_service_bus_subscription",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+        )
+        mock_subscription_properties.name = SUBSCRIPTION_NAME
+        mock_subscription_properties.to = SUBSCRIPTION_NAME
+        mock_get_conn.return_value.__enter__.return_value.create_subscription.return_value = (
+            mock_subscription_properties
+        )
+
+        with mock.patch.object(asb_create_subscription.log, "info") as mock_log_info:
+            asb_create_subscription.execute(None)
+        mock_log_info.assert_called_with("Created subscription %s", SUBSCRIPTION_NAME)
+
+    @pytest.mark.parametrize(
+        "mock_subscription_name, mock_topic_name",
+        [("subscription_1", None), (None, "topic_1")],
+    )
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.AdminClientHook')
+    def test_create_subscription_exception(
+        self, mock_sb_admin_client, mock_subscription_name, mock_topic_name
+    ):
+        """
+        Test `AzureServiceBusSubscriptionCreateOperator` functionality to raise AirflowException,
+         by passing subscription name and topic name as None and pytest raise Airflow Exception
+        """
+        asb_create_subscription = AzureServiceBusSubscriptionCreateOperator(
+            task_id="create_service_bus_subscription",
+            topic_name=mock_topic_name,
+            subscription_name=mock_subscription_name,
+        )
+        with pytest.raises(TypeError):
+            asb_create_subscription.execute(None)
+
+
+class TestASBDeleteSubscriptionOperator:
+    def test_init(self):
+        """
+        Test init by creating AzureServiceBusSubscriptionDeleteOperator with task id, subscription name,
+        topic name and asserting with values
+        """
+        asb_delete_subscription_operator = AzureServiceBusSubscriptionDeleteOperator(
+            task_id="asb_delete_subscription",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+        )
+        assert asb_delete_subscription_operator.task_id == "asb_delete_subscription"
+        assert asb_delete_subscription_operator.topic_name == TOPIC_NAME
+        assert asb_delete_subscription_operator.subscription_name == SUBSCRIPTION_NAME
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    def test_delete_subscription(self, mock_get_conn):
+        """
+        Test AzureServiceBusSubscriptionDeleteOperator by mocking subscription name, topic name and
+         connection and hook delete_subscription
+        """
+        asb_delete_subscription_operator = AzureServiceBusSubscriptionDeleteOperator(
+            task_id="asb_delete_subscription",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+        )
+        asb_delete_subscription_operator.execute(None)
+        mock_get_conn.return_value.__enter__.return_value.delete_subscription.assert_called_once_with(
+            TOPIC_NAME, SUBSCRIPTION_NAME
+        )

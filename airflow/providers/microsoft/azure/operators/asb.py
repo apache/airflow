@@ -14,8 +14,8 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-from typing import TYPE_CHECKING, List, Sequence, Union
+import datetime
+from typing import TYPE_CHECKING, List, Optional, Sequence, Union
 
 from airflow.models import BaseOperator
 from airflow.providers.microsoft.azure.hooks.asb import AdminClientHook, MessageHook
@@ -204,3 +204,150 @@ class AzureServiceBusDeleteQueueOperator(BaseOperator):
 
         # delete queue with name
         hook.delete_queue(self.queue_name)
+
+
+class AzureServiceBusSubscriptionCreateOperator(BaseOperator):
+    """
+    Create an Azure Service Bus Topic Subscription under a Service Bus Namespace
+    by using ServiceBusAdministrationClient
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AzureServiceBusSubscriptionCreateOperator`
+
+    :param topic_name: The topic that will own the to-be-created subscription.
+    :param subscription_name: Name of the subscription that need to be created
+    :param lock_duration: ISO 8601 time span duration of a peek-lock; that is, the amount of time that
+        the message is locked for other receivers. The maximum value for LockDuration is 5 minutes; the
+        default value is 1 minute. Input value of either type ~datetime.timedelta or string in ISO 8601
+        duration format like "PT300S" is accepted.
+    :param requires_session: A value that indicates whether the queue supports the concept of sessions.
+    :param default_message_time_to_live: ISO 8601 default message time span to live value. This is the
+        duration after which the message expires, starting from when the message is sent to
+        Service Bus. This is the default value used when TimeToLive is not set on a message itself.
+        Input value of either type ~datetime.timedelta or string in ISO 8601 duration
+        format like "PT300S" is accepted.
+    :param dead_lettering_on_message_expiration: A value that indicates whether this subscription has
+        dead letter support when a message expires.
+    :param dead_lettering_on_filter_evaluation_exceptions: A value that indicates whether this
+        subscription has dead letter support when a message expires.
+    :param max_delivery_count: The maximum delivery count. A message is automatically dead lettered
+        after this number of deliveries. Default value is 10.
+    :param enable_batched_operations: Value that indicates whether server-side batched
+        operations are enabled.
+    :param forward_to: The name of the recipient entity to which all the messages sent to the
+        subscription are forwarded to.
+    :param user_metadata: Metadata associated with the subscription. Maximum number of characters is 1024.
+    :param forward_dead_lettered_messages_to: The name of the recipient entity to which all the
+        messages sent to the subscription are forwarded to.
+    :param auto_delete_on_idle: ISO 8601 time Span idle interval after which the subscription is
+        automatically deleted. The minimum duration is 5 minutes. Input value of either
+        type ~datetime.timedelta or string in ISO 8601 duration format like "PT300S" is accepted.
+    :param azure_service_bus_conn_id: Reference to the
+        :ref:`Azure Service Bus connection<howto/connection:azure_service_bus>`.
+    """
+
+    template_fields: Sequence[str] = ("topic_name", "subscription_name")
+    ui_color = "#e4f0e8"
+
+    def __init__(
+        self,
+        *,
+        topic_name: str,
+        subscription_name: str,
+        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        lock_duration: Optional[Union[datetime.timedelta, str]] = None,
+        requires_session: Optional[bool] = None,
+        default_message_time_to_live: Optional[Union[datetime.timedelta, str]] = None,
+        dead_lettering_on_message_expiration: Optional[bool] = True,
+        dead_lettering_on_filter_evaluation_exceptions: Optional[bool] = None,
+        max_delivery_count: Optional[int] = 10,
+        enable_batched_operations: Optional[bool] = True,
+        forward_to: Optional[str] = None,
+        user_metadata: Optional[str] = None,
+        forward_dead_lettered_messages_to: Optional[str] = None,
+        auto_delete_on_idle: Optional[Union[datetime.timedelta, str]] = None,
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.topic_name = topic_name
+        self.subscription_name = subscription_name
+        self.lock_duration = lock_duration
+        self.requires_session = requires_session
+        self.default_message_time_to_live = default_message_time_to_live
+        self.dl_on_message_expiration = dead_lettering_on_message_expiration
+        self.dl_on_filter_evaluation_exceptions = dead_lettering_on_filter_evaluation_exceptions
+        self.max_delivery_count = max_delivery_count
+        self.enable_batched_operations = enable_batched_operations
+        self.forward_to = forward_to
+        self.user_metadata = user_metadata
+        self.forward_dead_lettered_messages_to = forward_dead_lettered_messages_to
+        self.auto_delete_on_idle = auto_delete_on_idle
+        self.azure_service_bus_conn_id = azure_service_bus_conn_id
+
+    def execute(self, context: "Context") -> None:
+        """Creates Subscription in Service Bus namespace, by connecting to Service Bus Admin client"""
+        if self.subscription_name is None:
+            raise TypeError("Subscription name cannot be None.")
+        if self.topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+        # Create the hook
+        hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
+
+        with hook.get_conn() as service_mgmt_conn:
+            # create subscription with name
+            subscription = service_mgmt_conn.create_subscription(
+                topic_name=self.topic_name,
+                subscription_name=self.subscription_name,
+                lock_duration=self.lock_duration,
+                requires_session=self.requires_session,
+                default_message_time_to_live=self.default_message_time_to_live,
+                dead_lettering_on_message_expiration=self.dl_on_message_expiration,
+                dead_lettering_on_filter_evaluation_exceptions=self.dl_on_filter_evaluation_exceptions,
+                max_delivery_count=self.max_delivery_count,
+                enable_batched_operations=self.enable_batched_operations,
+                forward_to=self.forward_to,
+                user_metadata=self.user_metadata,
+                forward_dead_lettered_messages_to=self.forward_dead_lettered_messages_to,
+                auto_delete_on_idle=self.auto_delete_on_idle,
+            )
+            self.log.info("Created subscription %s", subscription.name)
+
+
+class AzureServiceBusSubscriptionDeleteOperator(BaseOperator):
+    """
+    Deletes the topic subscription in the Azure ServiceBus namespace
+
+    .. seealso::
+        For more information on how to use this operator, take a look at the guide:
+        :ref:`howto/operator:AzureServiceBusSubscriptionDeleteOperator`
+
+    :param topic_name: The topic that will own the to-be-created subscription.
+    :param subscription_name: Name of the subscription that need to be created
+    :param azure_service_bus_conn_id: Reference to the
+        :ref:`Azure Service Bus connection <howto/connection:azure_service_bus>`.
+    """
+
+    template_fields: Sequence[str] = ("topic_name", "subscription_name")
+    ui_color = "#e4f0e8"
+
+    def __init__(
+        self,
+        *,
+        topic_name: str,
+        subscription_name: str,
+        azure_service_bus_conn_id: str = 'azure_service_bus_default',
+        **kwargs,
+    ) -> None:
+        super().__init__(**kwargs)
+        self.topic_name = topic_name
+        self.subscription_name = subscription_name
+        self.azure_service_bus_conn_id = azure_service_bus_conn_id
+
+    def execute(self, context: "Context") -> None:
+        """Delete topic subscription in Service Bus namespace, by connecting to Service Bus Admin client"""
+        # Create the hook
+        hook = AdminClientHook(azure_service_bus_conn_id=self.azure_service_bus_conn_id)
+
+        # delete subscription with name
+        hook.delete_subscription(self.subscription_name, self.topic_name)
