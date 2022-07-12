@@ -1372,7 +1372,7 @@ class Airflow(AirflowBaseView):
         # only matters if get_rendered_template_fields() raised an exception.
         # The following rendering won't show useful values in this case anyway,
         # but we'll display some quasi-meaingful field names.
-        task = ti.task.unmap()
+        task = ti.task.unmap(None)
 
         title = "Rendered Template"
         html_dict = {}
