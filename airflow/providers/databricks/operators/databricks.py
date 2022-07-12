@@ -287,7 +287,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
@@ -304,7 +304,7 @@ class DatabricksSubmitRunOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('json',)
+    template_fields: Sequence[str] = ('json', 'databricks_conn_id')
     template_ext: Sequence[str] = ('.json-tpl',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'
@@ -560,7 +560,7 @@ class DatabricksRunNowOperator(BaseOperator):
     :param databricks_conn_id: Reference to the :ref:`Databricks connection <howto/connection:databricks>`.
         By default and in the common case this will be ``databricks_default``. To use
         token based authentication, provide the key ``token`` in the extra field for the
-        connection and create the key ``host`` and leave the ``host`` field empty.
+        connection and create the key ``host`` and leave the ``host`` field empty. (templated)
     :param polling_period_seconds: Controls the rate which we poll for the result of
         this run. By default the operator will poll every 30 seconds.
     :param databricks_retry_limit: Amount of times retry if the Databricks backend is
@@ -573,7 +573,7 @@ class DatabricksRunNowOperator(BaseOperator):
     """
 
     # Used in airflow.models.BaseOperator
-    template_fields: Sequence[str] = ('json',)
+    template_fields: Sequence[str] = ('json', 'databricks_conn_id')
     template_ext: Sequence[str] = ('.json-tpl',)
     # Databricks brand color (blue) under white text
     ui_color = '#1CB1C2'

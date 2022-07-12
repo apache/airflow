@@ -41,7 +41,7 @@ To create a snapshot of an Amazon RDS database instance or cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSCreateDBSnapshotOperator`.
 The source database instance must be in the ``available`` or ``storage-optimization`` state.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_snapshot.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_snapshot.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_create_db_snapshot]
@@ -56,7 +56,7 @@ To copy a snapshot of an Amazon RDS database instance or cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSCopyDBSnapshotOperator`.
 The source database snapshot must be in the ``available`` state.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_snapshot.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_snapshot.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_copy_snapshot]
@@ -71,7 +71,7 @@ To delete a snapshot of an Amazon RDS database instance or cluster you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteDBSnapshotOperator`.
 The database snapshot must be in the ``available`` state to be deleted.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_snapshot.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_snapshot.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_delete_snapshot]
@@ -118,7 +118,7 @@ This action requires an Amazon SNS topic Amazon Resource Name (ARN).
 Amazon RDS event notification is only available for not encrypted SNS topics.
 If you specify an encrypted SNS topic, event notifications are not sent for the topic.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_event.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_event.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_create_event_subscription]
@@ -132,7 +132,7 @@ Unsubscribe to an Amazon RDS event notification
 To delete an Amazon RDS event subscription you can use
 :class:`~airflow.providers.amazon.aws.operators.rds.RDSDeleteEventSubscriptionOperator`.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_event.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_event.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_rds_delete_event_subscription]
@@ -178,7 +178,7 @@ To wait for an Amazon RDS snapshot with specific statuses you can use
 :class:`~airflow.providers.amazon.aws.sensors.rds.RdsSnapshotExistenceSensor`.
 By default, the sensor waits for the existence of a snapshot with status ``available``.
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_rds_snapshot.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_rds_snapshot.py
     :language: python
     :dedent: 4
     :start-after: [START howto_sensor_rds_snapshot_existence]

@@ -1020,7 +1020,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --for-production
+    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build --for-production
     ```
 
 - Now you can preview the documentation.
