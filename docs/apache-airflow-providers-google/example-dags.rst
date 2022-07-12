@@ -20,7 +20,7 @@ Example DAGs
 
 You can learn how to use Google integrations by analyzing the source code of the example DAGs:
 
-* `Google Ads <https://github.com/apache/airflow/tree/providers-google/8.0.0/airflow/providers/google/ads/example_dags>`__
+* `Google Ads <https://github.com/apache/airflow/tree/providers-google/8.1.0/tests/system/providers/google/ads>`__
 * `Google Cloud (legacy) <https://github.com/apache/airflow/tree/providers-google/8.0.0/airflow/providers/google/cloud/example_dags>`__
 * `Google Cloud <https://github.com/apache/airflow/tree/providers-google/8.0.0/tests/system/providers/google/cloud>`__
 * `Google Firebase <https://github.com/apache/airflow/tree/providers-google/8.1.0/tests/system/providers/google/firebase>`__
