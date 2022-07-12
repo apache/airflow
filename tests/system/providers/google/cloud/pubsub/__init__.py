@@ -1,4 +1,3 @@
-#
 # Licensed to the Apache Software Foundation (ASF) under one
 # or more contributor license agreements.  See the NOTICE file
 # distributed with this work for additional information
@@ -15,25 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import pytest
-
-from tests.providers.google.cloud.utils.gcp_authenticator import GCP_PUBSUB_KEY
-from tests.test_utils.gcp_system_helpers import CLOUD_DAG_FOLDER, GoogleSystemTest, provide_gcp_context
-
-
-@pytest.mark.backend("mysql", "postgres")
-@pytest.mark.credential_file(GCP_PUBSUB_KEY)
-class PubSubSystemTest(GoogleSystemTest):
-    def setUp(self):
-        super().setUp()
-
-    @provide_gcp_context(GCP_PUBSUB_KEY)
-    def test_run_example_sensor_dag(self):
-        self.run_dag(dag_id="example_gcp_pubsub_sensor", dag_folder=CLOUD_DAG_FOLDER)
-
-    @provide_gcp_context(GCP_PUBSUB_KEY)
-    def test_run_example_operator_dag(self):
-        self.run_dag(dag_id="example_gcp_pubsub_operator", dag_folder=CLOUD_DAG_FOLDER)
-
-    def tearDown(self):
-        super().tearDown()
