@@ -1279,7 +1279,7 @@ class TestSchedulerJob:
         session.rollback()
         session.close()
 
-    def test_enqueue_task_instances_with_queued_state(self, dag_maker):
+    def test_enqueue_task_instances_with_queued_state(self, dag_maker, session):
         dag_id = 'SchedulerJobTest.test_enqueue_task_instances_with_queued_state'
         task_id_1 = 'dummy'
         session = settings.Session()
@@ -1292,7 +1292,7 @@ class TestSchedulerJob:
         ti1 = dr1.get_task_instance(task1.task_id, session)
 
         with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
-            self.scheduler_job._enqueue_task_instances_with_queued_state([ti1])
+            self.scheduler_job._enqueue_task_instances_with_queued_state([ti1], session=session)
 
         assert mock_queue_command.called
         session.rollback()
@@ -1315,7 +1315,7 @@ class TestSchedulerJob:
         session.commit()
 
         with patch.object(BaseExecutor, 'queue_command') as mock_queue_command:
-            self.scheduler_job._enqueue_task_instances_with_queued_state([ti])
+            self.scheduler_job._enqueue_task_instances_with_queued_state([ti], session=session)
         ti.refresh_from_db()
         assert ti.state == State.NONE
         mock_queue_command.assert_not_called()
