@@ -101,22 +101,27 @@ def test_map_xcom_arg():
 
 def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
-    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE):
-        input_list = [1, 2, 3]
-        task1 = XCOMPushOperator(return_value=input_list, task_id="task_1")
+    with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
+        upstream_return = [1, 2, 3]
+        task1 = XCOMPushOperator(return_value=upstream_return, task_id="task_1")
         task2 = XCOMPushOperator.partial(task_id='task_2').expand(return_value=XComArg(task1))
         task3 = XCOMPushOperator.partial(task_id='task_3').expand(return_value=XComArg(task2))
 
     dr = dag_maker.create_dagrun()
-    for ti in dr.get_task_instances():
+    ti_1 = dr.get_task_instance("task_1", session)
+    ti_1.run()
+
+    ti_2s, num_2 = task2.expand_mapped_task(dr.run_id, session=session)
+    for ti in ti_2s:
+        ti.refresh_from_task(dag.get_task("task_2"))
         ti.run()
 
-    downstream_tasks = (
-        session.query(TaskInstance.map_index)
-            .filter_by(task_id=task3.task_id, dag_id=task3.dag_id, run_id=dr.run_id)
-            .all()
-    )
-    assert len(downstream_tasks) == len(input_list)
+    ti_3s, num_3 = task3.expand_mapped_task(dr.run_id, session=session)
+    for ti in ti_3s:
+        ti.refresh_from_task(dag.get_task("task_3"))
+        ti.run()
+
+    assert len(ti_3s) == len(ti_2s) == len(upstream_return)
 
 def test_partial_on_instance() -> None:
     """`.partial` on an instance should fail -- it's only designed to be called on classes"""
