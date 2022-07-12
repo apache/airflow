@@ -102,9 +102,7 @@ def test_map_xcom_arg():
 def test_partial_on_instance() -> None:
     """`.partial` on an instance should fail -- it's only designed to be called on classes"""
     with pytest.raises(TypeError):
-        MockOperator(
-            task_id='a',
-        ).partial()
+        MockOperator(task_id='a').partial()
 
 
 def test_partial_on_class() -> None:
