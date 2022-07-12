@@ -49,6 +49,7 @@ class _TableConfig:
     :param table_name: the table
     :param extra_columns: any columns besides recency_column_name that we'll need in queries
     :param recency_column_name: date column to filter by
+    :param dag_id_column: dag_id column to apply filter on if exists
     :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
     :param keep_last_filters: the "keep last" functionality will preserve the most recent record
         in the table.  to ignore certain records even if they are the latest in the table, you can
@@ -58,6 +59,7 @@ class _TableConfig:
 
     table_name: str
     recency_column_name: str
+    in_dag_granularity: bool = False
     extra_columns: Optional[List[str]] = None
     keep_last: bool = False
     keep_last_filters: Optional[Any] = None
@@ -77,6 +79,7 @@ class _TableConfig:
         return dict(
             table=self.orm_model.name,
             recency_column=str(self.recency_column),
+            in_dag_granularity=self.in_dag_granularity,
             keep_last=self.keep_last,
             keep_last_filters=[str(x) for x in self.keep_last_filters] if self.keep_last_filters else None,
             keep_last_group_by=str(self.keep_last_group_by),
@@ -84,29 +87,38 @@ class _TableConfig:
 
 
 config_list: List[_TableConfig] = [
-    _TableConfig(table_name='job', recency_column_name='latest_heartbeat'),
-    _TableConfig(table_name='dag', recency_column_name='last_parsed_time'),
+    _TableConfig(table_name='job', recency_column_name='latest_heartbeat', in_dag_granularity=False),
+    _TableConfig(table_name='dag', recency_column_name='last_parsed_time', in_dag_granularity=True),
     _TableConfig(
         table_name='dag_run',
         recency_column_name='start_date',
+        in_dag_granularity=True,
         extra_columns=['dag_id', 'external_trigger'],
         keep_last=True,
         keep_last_filters=[column('external_trigger') == false()],
         keep_last_group_by=['dag_id'],
     ),
-    _TableConfig(table_name='dataset_event', recency_column_name='created_at'),
-    _TableConfig(table_name='import_error', recency_column_name='timestamp'),
-    _TableConfig(table_name='log', recency_column_name='dttm'),
-    _TableConfig(table_name='rendered_task_instance_fields', recency_column_name='execution_date'),
-    _TableConfig(table_name='sensor_instance', recency_column_name='updated_at'),
-    _TableConfig(table_name='sla_miss', recency_column_name='timestamp'),
-    _TableConfig(table_name='task_fail', recency_column_name='start_date'),
-    _TableConfig(table_name='task_instance', recency_column_name='start_date'),
-    _TableConfig(table_name='task_reschedule', recency_column_name='start_date'),
-    _TableConfig(table_name='xcom', recency_column_name='timestamp'),
-    _TableConfig(table_name='callback_request', recency_column_name='created_at'),
-    _TableConfig(table_name='celery_taskmeta', recency_column_name='date_done'),
-    _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done'),
+    _TableConfig(table_name='dataset_event', recency_column_name='created_at', in_dag_granularity=True),
+    _TableConfig(table_name='import_error', recency_column_name='timestamp', in_dag_granularity=False),
+    _TableConfig(table_name='log', recency_column_name='dttm', in_dag_granularity=True),
+    _TableConfig(
+        table_name='rendered_task_instance_fields',
+        recency_column_name='execution_date',
+        in_dag_granularity=True,
+    ),
+    _TableConfig(
+        table_name='sensor_instance',
+        recency_column_name='updated_at',
+        in_dag_granularity=True,
+    ),
+    _TableConfig(table_name='sla_miss', recency_column_name='timestamp', in_dag_granularity=True),
+    _TableConfig(table_name='task_fail', recency_column_name='start_date', in_dag_granularity=True),
+    _TableConfig(table_name='task_instance', recency_column_name='start_date', in_dag_granularity=True),
+    _TableConfig(table_name='task_reschedule', recency_column_name='start_date', in_dag_granularity=True),
+    _TableConfig(table_name='xcom', recency_column_name='timestamp', in_dag_granularity=True),
+    _TableConfig(table_name='callback_request', recency_column_name='created_at', in_dag_granularity=False),
+    _TableConfig(table_name='celery_taskmeta', recency_column_name='date_done', in_dag_granularity=False),
+    _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done', in_dag_granularity=False),
 ]
 
 config_dict: Dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
@@ -202,10 +214,12 @@ def _build_query(
     *,
     orm_model,
     recency_column,
+    in_dag_granularity,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
     clean_before_timestamp,
+    dag_ids=None,
     session,
     **kwargs,
 ):
@@ -232,6 +246,9 @@ def _build_query(
             ),
         )
         conditions.append(column(max_date_col_name).is_(None))
+    if dag_ids:
+        dag_id_column = base_table.c['dag_id']
+        conditions.append(dag_id_column.in_(dag_ids))
     query = query.filter(and_(*conditions))
     return query
 
@@ -244,6 +261,7 @@ def _cleanup_table(
     keep_last_filters,
     keep_last_group_by,
     clean_before_timestamp,
+    dag_ids=None,
     dry_run=True,
     verbose=False,
     skip_archive=False,
@@ -260,6 +278,7 @@ def _cleanup_table(
         keep_last_filters=keep_last_filters,
         keep_last_group_by=keep_last_group_by,
         clean_before_timestamp=clean_before_timestamp,
+        dag_ids=dag_ids,
         session=session,
     )
     logger.debug("old rows query:\n%s", query.selectable.compile())
@@ -272,10 +291,11 @@ def _cleanup_table(
     session.commit()
 
 
-def _confirm_delete(*, date: DateTime, tables: List[str]):
+def _confirm_delete(*, date: DateTime, tables: List[str], dag_ids: Optional[List[str]]):
     for_tables = f" for tables {tables!r}" if tables else ''
+    for_dag_ids = f"regarding to {dag_ids!r} dags" if dag_ids else 'all'
     question = (
-        f"You have requested that we purge all data prior to {date}{for_tables}.\n"
+        f"You have requested that we purge {for_dag_ids} data prior to {date}{for_tables}.\n"
         f"This is irreversible.  Consider backing up the tables first and / or doing a dry run "
         f"with option --dry-run.\n"
         f"Enter 'delete rows' (without quotes) to proceed."
@@ -312,6 +332,7 @@ def run_cleanup(
     *,
     clean_before_timestamp: DateTime,
     table_names: Optional[List[str]] = None,
+    dag_ids: Optional[List[str]] = None,
     dry_run: bool = False,
     verbose: bool = False,
     confirm: bool = True,
@@ -331,6 +352,8 @@ def run_cleanup(
     :param clean_before_timestamp: The timestamp before which data should be purged
     :param table_names: Optional. List of table names to perform maintenance on.  If list not provided,
         will perform maintenance on all tables.
+    :param dag_ids: Optional. List of dag ids to perform maintenance on.  If list not provided,
+        will perform maintenance on all dags.
     :param dry_run: If true, print rows meeting deletion criteria
     :param verbose: If true, may provide more detailed output.
     :param confirm: Require user input to confirm before processing deletions.
@@ -348,7 +371,11 @@ def run_cleanup(
         )
         _print_config(configs=effective_config_dict)
     if not dry_run and confirm:
-        _confirm_delete(date=clean_before_timestamp, tables=list(effective_config_dict.keys()))
+        _confirm_delete(
+            date=clean_before_timestamp,
+            tables=list(effective_config_dict.keys()),
+            dag_ids=dag_ids,
+        )
     existing_tables = reflect_tables(tables=None, session=session).tables
     for table_name, table_config in effective_config_dict.items():
         if table_name not in existing_tables:
@@ -357,6 +384,7 @@ def run_cleanup(
         with _suppress_with_logging(table_name, session):
             _cleanup_table(
                 clean_before_timestamp=clean_before_timestamp,
+                dag_ids=dag_ids,
                 dry_run=dry_run,
                 verbose=verbose,
                 **table_config.__dict__,
