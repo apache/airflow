@@ -214,7 +214,6 @@ def _build_query(
     *,
     orm_model,
     recency_column,
-    in_dag_granularity,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
@@ -247,7 +246,7 @@ def _build_query(
         )
         conditions.append(column(max_date_col_name).is_(None))
     if dag_ids:
-        dag_id_column = base_table.c['dag_id']
+        dag_id_column = column('dag_id')
         conditions.append(dag_id_column.in_(dag_ids))
     query = query.filter(and_(*conditions))
     return query
@@ -362,7 +361,9 @@ def run_cleanup(
     """
     clean_before_timestamp = timezone.coerce_datetime(clean_before_timestamp)
     effective_table_names = table_names if table_names else list(config_dict.keys())
-    effective_config_dict = {k: v for k, v in config_dict.items() if k in effective_table_names}
+    effective_config_dict = {k: v
+                             for k, v in config_dict.items()  # dag_ids => in_dag_granularity in table
+                             if k in effective_table_names and (not dag_ids or v.in_dag_granularity)}
     if dry_run:
         print('Performing dry run for db cleanup.')
         print(
