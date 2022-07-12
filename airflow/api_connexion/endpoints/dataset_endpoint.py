@@ -18,16 +18,18 @@
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from airflow import Dataset
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
+    DatasetEventCollection,
     dataset_collection_schema,
+    dataset_event_collection_schema,
     dataset_schema,
 )
 from airflow.api_connexion.types import APIResponse
+from airflow.models.dataset import Dataset, DatasetEvent
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -59,3 +61,28 @@ def get_datasets(
     query = apply_sorting(query, order_by, {}, allowed_filter_attrs)
     datasets = query.offset(offset).limit(limit).all()
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
+
+
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+@provide_session
+@format_parameters({'limit': check_limit})
+def get_dataset_events(
+    id, *, limit: int, offset: int = 0, order_by: str = "created_at", session: Session = NEW_SESSION
+):
+    """Get events for a Dataset"""
+    dataset = session.query(Dataset).get(id)
+    if not dataset:
+        raise NotFound(
+            "Dataset not found",
+            detail=f"The Dataset with id: `{id}` was not found",
+        )
+
+    allowed_attrs = ['task_id', 'dag_id', 'run_id', 'map_index', 'created_at']
+
+    total_entries = session.query(func.count(DatasetEvent.id)).filter(DatasetEvent.dataset_id == id).scalar()
+    query = session.query(DatasetEvent).filter(DatasetEvent.dataset_id == id)
+    query = apply_sorting(query, order_by, {}, allowed_attrs)
+    events = query.offset(offset).limit(limit).all()
+    return dataset_event_collection_schema.dump(
+        DatasetEventCollection(dataset_events=events, total_entries=total_entries)
+    )

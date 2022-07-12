@@ -1654,6 +1654,32 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /datasets/{id}/events:
+    parameters:
+      - $ref: '#/components/parameters/DatasetID'
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageOffset'
+      - $ref: '#/components/parameters/OrderBy'
+    get:
+      summary: Get events for a dataset
+      description: Get events for a dataset by id.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset_events
+      tags: [Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEventCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /config:
     get:
       summary: Get current configuration
@@ -3459,6 +3485,57 @@ components:
               type: array
               items:
                 $ref: '#/components/schemas/Dataset'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+    DatasetEvent:
+      description: |
+        A dataset event.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        dataset_id:
+          type: integer
+          description: The dataset id
+        extra:
+          type: string
+          description: The dataset extra
+          nullable: true
+        task_id:
+          type: string
+          description: The task ID.
+          nullable: false
+        dag_id:
+          type: string
+          description: The DAG ID.
+          nullable: false
+        run_id:
+          type: string
+          description: The DAG run ID.
+          nullable: false
+        map_index:
+          type: integer
+          description: The task map index.
+          nullable: false
+        created_at:
+          type: string
+          description: The dataset event creation time
+          nullable: false
+
+
+    DatasetEventCollection:
+      description: |
+        A collection of dataset events.
+
+        *New in version 2.4.0*
+      type: object
+      allOf:
+        - type: object
+          properties:
+            datasets:
+              type: array
+              items:
+                $ref: '#/components/schemas/DatasetEvent'
         - $ref: '#/components/schemas/CollectionInfo'
 
 
