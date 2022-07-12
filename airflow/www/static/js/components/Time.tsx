@@ -17,30 +17,35 @@
  * under the License.
  */
 
-/*
-*  TypeScript config
-*/
-{
-  "compilerOptions": {
-    "strict": true,
-    "allowJs": true,
-    "importsNotUsedAsValues": "error",
-    "target": "ES6",
-    "module": "ES6",
-    "moduleResolution": "node",
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "jsx": "preserve",
-    "types": ["node", "jest"],
-    "baseUrl": ".",
-    "paths": { // Be sure to update aliases in webpack.config.js and jest.config.js
-      "src/*": ["static/js/*"],
-    },
-  },
-  "include": [
-    "static",
-  ],
-  "exclude": ["node_modules", "static/dist"]
+import React from 'react';
+import moment from 'moment-timezone';
+
+import { useTimezone } from 'src/context/timezone';
+import { defaultFormatWithTZ } from 'src/datetime_utils';
+
+interface Props {
+  dateTime: string;
+  format?: string;
 }
+
+const Time = ({ dateTime, format = defaultFormatWithTZ }: Props) => {
+  const { timezone } = useTimezone();
+  const time = moment(dateTime);
+
+  if (!dateTime || !time.isValid()) return null;
+
+  const formattedTime = time.tz(timezone).format(format);
+  const utcTime = time.tz('UTC').format(defaultFormatWithTZ);
+
+  return (
+    <time
+      dateTime={dateTime}
+      // show title if date is not UTC
+      title={timezone.toUpperCase() !== 'UTC' ? utcTime : undefined}
+    >
+      {formattedTime}
+    </time>
+  );
+};
+
+export default Time;

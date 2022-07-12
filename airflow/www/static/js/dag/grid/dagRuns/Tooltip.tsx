@@ -17,30 +17,45 @@
  * under the License.
  */
 
-/*
-*  TypeScript config
-*/
-{
-  "compilerOptions": {
-    "strict": true,
-    "allowJs": true,
-    "importsNotUsedAsValues": "error",
-    "target": "ES6",
-    "module": "ES6",
-    "moduleResolution": "node",
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "jsx": "preserve",
-    "types": ["node", "jest"],
-    "baseUrl": ".",
-    "paths": { // Be sure to update aliases in webpack.config.js and jest.config.js
-      "src/*": ["static/js/*"],
-    },
-  },
-  "include": [
-    "static",
-  ],
-  "exclude": ["node_modules", "static/dist"]
+import React from 'react';
+import { Box, Text } from '@chakra-ui/react';
+
+import { formatDuration } from 'src/datetime_utils';
+import Time from 'src/components/Time';
+
+import type { RunWithDuration } from './index';
+
+interface Props {
+  dagRun: RunWithDuration;
 }
+
+const DagRunTooltip = ({
+  dagRun: {
+    state, duration, dataIntervalStart, executionDate, runType,
+  },
+}: Props) => (
+  <Box py="2px">
+    <Text>
+      Status:
+      {' '}
+      {state || 'no status'}
+    </Text>
+    <Text whiteSpace="nowrap">
+      Run:
+      {' '}
+      <Time dateTime={dataIntervalStart || executionDate} />
+    </Text>
+    <Text>
+      Duration:
+      {' '}
+      {formatDuration(duration)}
+    </Text>
+    <Text>
+      Type:
+      {' '}
+      {runType}
+    </Text>
+  </Box>
+);
+
+export default DagRunTooltip;
