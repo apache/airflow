@@ -2049,6 +2049,22 @@ class DataprocCreateBatchOperator(BaseOperator):
                 timeout=self.timeout,
                 metadata=self.metadata,
             )
+
+            # The existing batch may be a in a number of states other than 'SUCCEEDED'
+            if result.state != Batch.State.SUCCEEDED:
+                if result.state == Batch.State.FAILED or result.state == Batch.State.CANCELLED:
+                    raise AirflowException(
+                        f"Existing Batch {self.batch_id} failed or cancelled. "
+                        f"Error: {result.state_message}"
+                    )
+                else:
+                    # Batch state is either: RUNNING, PENDING, CANCELLING, or UNSPECIFIED
+                    self.log.info(
+                        f"Batch {self.batch_id} is in state {result.state.name}."
+                        "Waiting for state change..."
+                    )
+                    result = hook.wait_for_operation(timeout=self.timeout, operation=result)
+
         batch_id = self.batch_id or result.name.split('/')[-1]
         DataprocLink.persist(context=context, task_instance=self, url=DATAPROC_BATCH_LINK, resource=batch_id)
         return Batch.to_dict(result)
