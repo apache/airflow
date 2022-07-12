@@ -24,11 +24,12 @@ import {
   Divider,
 } from '@chakra-ui/react';
 
+import useSelection from 'grid/utils/useSelection';
+
 import Header from './Header';
 import TaskInstanceContent from './content/taskInstance';
 import DagRunContent from './content/dagRun';
 import DagContent from './content/Dag';
-import useSelection from '../utils/useSelection';
 
 const Details = () => {
   const { selected: { runId, taskId } } = useSelection();

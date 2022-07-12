@@ -20,8 +20,9 @@
 import React from 'react';
 import { Box, Text } from '@chakra-ui/react';
 
-import { formatDuration } from '../../datetime_utils';
-import Time from '../components/Time';
+import { formatDuration } from 'app/datetime_utils';
+import Time from 'grid/components/Time';
+
 import type { RunWithDuration } from './index';
 
 interface Props {

@@ -22,9 +22,10 @@
 import React from 'react';
 import { render } from '@testing-library/react';
 
+import { Wrapper } from 'grid/utils/testUtils';
+import type { TaskState } from 'grid/types';
+
 import InstanceTooltip from './InstanceTooltip';
-import { Wrapper } from '../utils/testUtils';
-import type { TaskState } from '../types';
 
 const instance = {
   startDate: new Date().toISOString(),
