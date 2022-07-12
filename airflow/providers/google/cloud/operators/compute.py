@@ -18,7 +18,9 @@
 """This module contains Google Compute Engine operators."""
 
 from copy import deepcopy
-from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
+from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union, Tuple
+from google.api_core.retry import Retry
+from google.api_core import exceptions
 
 from googleapiclient.errors import HttpError
 from json_merge_patch import merge
@@ -360,14 +362,8 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
     """
     Creates the instance template using specified fields.
 
-    # todo: change description of body param
-    :param body: Patch to the body of instanceTemplates object following rfc7386
-        PATCH semantics. The body_patch content follows
-        https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
-        Name field is required as we need to rename the template,
-        all the other fields are optional. It is important to follow PATCH semantics
-        - arrays are replaced fully, so if you need to update an array you should
-        provide the whole target array as patch element.
+    :param body: Instance template representation as object.
+    :type body: Union[google.cloud.compute_v1.types.InstanceTemplate, dict].
     :param project_id: Optional, Google Cloud Project ID where the Compute
         Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
         connection is used.
@@ -389,6 +385,14 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
         If set as a sequence, the identities from the list must grant
         Service Account Token Creator IAM role to the directly preceding identity, with first
         account from the list granting this role to the originating account (templated).
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+        will not be retried.
+    :type retry: Optional[google.api_core.retry.Retry]
+    :param timeout: The amount of time, in seconds, to wait for the request to complete.
+        Note that if `retry` is specified, the timeout applies to each individual attempt.
+    :type timeout: Optional[float]
+    :param metadata: Additional metadata that is provided to the method.
+    :type metadata: Optional[Sequence[Tuple[str, str]]]
     """
 
     operator_extra_links = (ComputeInstanceTemplateDetailsLink(),)
@@ -409,6 +413,9 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
         body: dict,
         project_id: Optional[str] = None,
         request_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
         gcp_conn_id: str = 'google_cloud_default',
         api_version: str = 'v1',
         validate_body: bool = True,
@@ -418,16 +425,10 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
         self.body = body
         self.request_id = request_id
         self._field_validator = None  # Optional[GcpBodyFieldValidator]
-        if 'name' not in self.body:
-            raise AirflowException(
-                f"NAME '{body}' should contain at least name for the new operator "
-                f"in the 'name' field"
-            )
-        if 'machineType' not in self.body["properties"]:
-            raise AirflowException(
-                f"The body '{body}' should contain at least machine type for the new operator "
-                f"in the 'machineType' field"
-            )
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+
         if validate_body:
             self._field_validator = GcpBodyFieldValidator(
                 GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
@@ -443,6 +444,31 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
             **kwargs,
         )
 
+    def check_body_fields(self) -> None:
+        if 'name' not in self.body:
+            raise AirflowException(
+                f"'{self.body}' should contain at least name for the new operator "
+                f"in the 'name' field"
+            )
+        if 'machine_type' not in self.body["properties"]:
+            raise AirflowException(
+                f"The body '{self.body}' should contain at least machine type for the new operator "
+                f"in the 'machine_type' field. Check (google.cloud.compute_v1.types.InstanceTemplate) "
+                f"for more details about body fields description."
+            )
+        if 'disks' not in self.body["properties"]:
+            raise AirflowException(
+                f"The body '{self.body}' should contain at least disks for the new operator "
+                f"in the 'disks' field. Check (google.cloud.compute_v1.types.InstanceTemplate) "
+                f"for more details about body fields description."
+            )
+        if 'network_interfaces' not in self.body["properties"]:
+            raise AirflowException(
+                f"The body '{self.body}' should contain at least network interfaces for the new operator "
+                f"in the 'network_interfaces' field. Check (google.cloud.compute_v1.types.InstanceTemplate) "
+                f"for more details about body fields description. "
+            )
+
     def _validate_all_body_fields(self) -> None:
         if self._field_validator:
             self._field_validator.validate(self.body)
@@ -454,6 +480,7 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
             impersonation_chain=self.impersonation_chain,
         )
         self._validate_all_body_fields()
+        self.check_body_fields()
         try:
             # Idempotence check (sort of) - we want to check if the new template
             # is already created and if is, then we assume it was created by previous run
@@ -463,7 +490,8 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
             # that we cannot delete template if it is already used in some Instance
             # Group Manager. We assume success if the template is simply present
             existing_template = hook.get_instance_template(
-                resource_id=self.body['name'], project_id=self.project_id
+                resource_id=self.body["name"],
+                project_id=self.project_id
             )
             self.log.info(
                 "The %s template already existed. It was likely created by previous run of the operator. "
@@ -477,22 +505,29 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
                 project_id=self.project_id or hook.project_id,
             )
             return existing_template
-        except HttpError as e:
+        except exceptions.NotFound as e:
             # We actually expect to get 404 / Not Found here as the template should
             # not yet exist
-            if not e.resp.status == 404:
+            if not e.code == 404:
                 raise e
 
         self._field_sanitizer.sanitize(self.body)
         self.log.info("Creating instance template with specified body: %s", self.body)
-        hook.insert_instance_template(body=self.body, request_id=self.request_id, project_id=self.project_id)
+        hook.insert_instance_template(
+            body=self.body,
+            request_id=self.request_id,
+            project_id=self.project_id
+        )
+        self.log.info("The specified Instance template has been created SUCCESSFULLY", self.body)
         ComputeInstanceTemplateDetailsLink.persist(
             context=context,
             task_instance=self,
             resource_id=self.body['name'],
             project_id=self.project_id or hook.project_id,
         )
-        return hook.get_instance_template(resource_id=self.body['name'], project_id=self.project_id)
+        return hook.get_instance_template(
+            resource_id=self.body['name'],
+            project_id=self.project_id)
 
 
 class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):

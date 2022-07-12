@@ -18,9 +18,12 @@
 """This module contains a Google Compute Engine Hook."""
 
 import time
-from typing import Any, Dict, Optional, Sequence, Union
+from typing import Any, Dict, Optional, Sequence, Union, Tuple
 
-from googleapiclient.discovery import build
+from google.cloud.compute_v1 import InstanceTemplatesClient
+from google.cloud.compute_v1.types import InstanceTemplate
+from google.api_core.operation import Operation
+from google.api_core.retry import Retry
 
 from airflow.exceptions import AirflowException
 from airflow.providers.google.common.hooks.base_google import PROVIDE_PROJECT_ID, GoogleBaseHook
@@ -61,16 +64,70 @@ class ComputeEngineHook(GoogleBaseHook):
 
     _conn: Optional[Any] = None
 
-    def get_conn(self):
+    def get_compute_client(self):
+        """Returns Compute Client."""
+
+        return InstanceTemplatesClient(
+            credentials=self._get_credentials(), client_info=self.client_info
+        )
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def insert_instance_template(
+        self,
+        body: dict,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+    ) -> Any:
         """
-        Retrieves connection to Google Compute Engine.
-        :return: Google Compute Engine services object
-        :rtype: dict
+        Creates instance template using body specified.
+        Must be called with keyword arguments rather than positional.
+
+        :param body: Instance template representation as object.
+        :type body: Union[google.cloud.compute_v1.types.InstanceTemplate, dict].
+        :param request_id: Optional, unique request_id that you might add to achieve
+            full idempotence (for example when client call times out repeating the request
+            with the same request id will not create a new instance template again)
+            It should be in UUID format as defined in RFC 4122
+        :param project_id: Optional, Google Cloud project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :type retry: Optional[google.api_core.retry.Retry]
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :type timeout: Optional[float]
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Optional[Sequence[Tuple[str, str]]]
+        :return: None
         """
-        if not self._conn:
-            http_authorized = self._authorize()
-            self._conn = build('compute', self.api_version, http=http_authorized, cache_discovery=False)
-        return self._conn
+
+        client = self.get_compute_client()
+        result = client.insert(
+            # Calling method insert() on client to create Instance Template.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.InsertInstanceTemplateRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance_template_resource (google.cloud.compute_v1.types.InstanceTemplate):
+            #       The body resource for this request.
+            #   request_id (str):
+            #       An optional request ID to identify requests.
+            #   project (str):
+            #       Project ID for this request.
+            request={
+                'instance_template_resource': body,
+                'request_id': request_id,
+                'project': project_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
 
     @GoogleBaseHook.fallback_to_default_project_id
     def start_instance(self, zone: str, resource_id: str, project_id: str) -> None:
@@ -155,60 +212,56 @@ class ComputeEngineHook(GoogleBaseHook):
         )
 
     @GoogleBaseHook.fallback_to_default_project_id
-    def get_instance_template(self, resource_id: str, project_id: str) -> dict:
+    def get_instance_template(
+        self,
+        resource_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+    ) -> dict:
         """
         Retrieves instance template by project_id and resource_id.
         Must be called with keyword arguments rather than positional.
 
-        :param resource_id: Name of the instance template
+        :param resource_id: Name of the Instance Template
+        :type resource_id: str
         :param project_id: Optional, Google Cloud project ID where the
             Compute Engine Instance exists. If set to None or missing,
             the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :type retry: Optional[google.api_core.retry.Retry]
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :type timeout: Optional[float]
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Optional[Sequence[Tuple[str, str]]]
         :return: Instance template representation as object according to
             https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
         :rtype: dict
         """
-        response = (
-            self.get_conn()
-            .instanceTemplates()
-            .get(project=project_id, instanceTemplate=resource_id)
-            .execute(num_retries=self.num_retries)
-        )
-        return response
 
-    @GoogleBaseHook.fallback_to_default_project_id
-    def insert_instance_template(
-        self,
-        body: dict,
-        project_id: str = PROVIDE_PROJECT_ID,
-        request_id: Optional[str] = None,
-    ) -> None:
-        """
-        Inserts instance template using body specified
-        Must be called with keyword arguments rather than positional.
-
-        :param body: Instance template representation as object according to
-            https://cloud.google.com/compute/docs/reference/rest/v1/instanceTemplates
-        :param request_id: Optional, unique request_id that you might add to achieve
-            full idempotence (for example when client call times out repeating the request
-            with the same request id will not create a new instance template again)
-            It should be in UUID format as defined in RFC 4122
-        :param project_id: Optional, Google Cloud project ID where the
-            Compute Engine Instance exists. If set to None or missing,
-            the default project_id from the Google Cloud connection is used.
-        :return: None
-        """
-        response = (
-            self.get_conn()
-            .instanceTemplates()
-            .insert(project=project_id, body=body, requestId=request_id)
-            .execute(num_retries=self.num_retries)
+        client = self.get_compute_client()
+        result = client.get(
+            # Calling method get() on client to get the specified Instance Template.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.GetInstanceTemplateRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance_template (str):
+            #       The name of the instance template.
+            #   project (str):
+            #       Project ID for this request.
+            request={
+                'instance_template': resource_id,
+                'project': project_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
         )
-        try:
-            operation_name = response["name"]
-        except KeyError:
-            raise AirflowException(f"Wrong response '{response}' returned - it should contain 'name' field")
-        self._wait_for_operation_to_complete(project_id=project_id, operation_name=operation_name)
+        return InstanceTemplate.to_dict(result)
 
     @GoogleBaseHook.fallback_to_default_project_id
     def get_instance_group_manager(
