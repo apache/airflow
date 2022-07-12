@@ -158,7 +158,6 @@ def delete_variable(session, key):
 def test_action_logging_variables_post(session, admin_client):
     form = dict(key="random", value="random")
     admin_client.post("/variable/add", data=form)
-    session.flush()
     session.commit()
     _check_last_log(session, dag_id=None, event="variable.create", execution_date=None)
     delete_variable(session, key="random")
