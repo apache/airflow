@@ -16,7 +16,7 @@
 # specific language governing permissions and limitations
 # under the License.
 import warnings
-from typing import TYPE_CHECKING, Sequence
+from typing import TYPE_CHECKING, List, Optional, Sequence
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.glue import GlueJobHook
@@ -37,30 +37,54 @@ class GlueJobSensor(BaseSensorOperator):
 
     :param job_name: The AWS Glue Job unique name
     :param run_id: The AWS Glue current running job identifier
+    :param verbose: If True, more Glue Job Run logs show in the Airflow Task Logs.  (default: False)
     """
 
     template_fields: Sequence[str] = ('job_name', 'run_id')
 
-    def __init__(self, *, job_name: str, run_id: str, aws_conn_id: str = 'aws_default', **kwargs):
+    def __init__(
+        self,
+        *,
+        job_name: str,
+        run_id: str,
+        verbose: bool = False,
+        aws_conn_id: str = 'aws_default',
+        **kwargs,
+    ):
         super().__init__(**kwargs)
         self.job_name = job_name
         self.run_id = run_id
+        self.verbose = verbose
         self.aws_conn_id = aws_conn_id
-        self.success_states = ['SUCCEEDED']
-        self.errored_states = ['FAILED', 'STOPPED', 'TIMEOUT']
+        self.success_states: List[str] = ['SUCCEEDED']
+        self.errored_states: List[str] = ['FAILED', 'STOPPED', 'TIMEOUT']
+        self.next_log_token: Optional[str] = None
 
     def poke(self, context: 'Context'):
         hook = GlueJobHook(aws_conn_id=self.aws_conn_id)
-        self.log.info("Poking for job run status :for Glue Job %s and ID %s", self.job_name, self.run_id)
+        self.log.info('Poking for job run status :for Glue Job %s and ID %s', self.job_name, self.run_id)
         job_state = hook.get_job_state(job_name=self.job_name, run_id=self.run_id)
-        if job_state in self.success_states:
-            self.log.info("Exiting Job %s Run State: %s", self.run_id, job_state)
-            return True
-        elif job_state in self.errored_states:
-            job_error_message = f"Exiting Job {self.run_id} Run State: {job_state}"
-            raise AirflowException(job_error_message)
-        else:
-            return False
+        job_failed = False
+
+        try:
+            if job_state in self.success_states:
+                self.log.info('Exiting Job %s Run State: %s', self.run_id, job_state)
+                return True
+            elif job_state in self.errored_states:
+                job_failed = True
+                job_error_message = 'Exiting Job %s Run State: %s', self.run_id, job_state
+                self.log.info(job_error_message)
+                raise AirflowException(job_error_message)
+            else:
+                return False
+        finally:
+            if self.verbose:
+                self.next_log_token = hook.print_job_logs(
+                    job_name=self.job_name,
+                    run_id=self.run_id,
+                    job_failed=job_failed,
+                    next_token=self.next_log_token,
+                )
 
 
 class AwsGlueJobSensor(GlueJobSensor):
