@@ -27,9 +27,9 @@ import {
 import useSelection from 'src/dag/useSelection';
 
 import Header from './Header';
-import TaskInstanceContent from './content/taskInstance';
-import DagRunContent from './content/dagRun';
-import DagContent from './content/Dag';
+import TaskInstanceContent from './taskInstance';
+import DagRunContent from './dagRun';
+import DagContent from './Dag';
 
 const Details = () => {
   const { selected: { runId, taskId } } = useSelection();

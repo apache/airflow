@@ -30,12 +30,12 @@ import {
   MdDetails, MdCode, MdSyncAlt, MdReorder,
 } from 'react-icons/md';
 
-import { getMetaValue } from '../../../../utils';
-import { formatDuration, getDuration } from '../../../../datetime_utils';
-import { useMappedInstances } from '../../../../api';
-import { SimpleStatus } from '../../../StatusBox';
-import Table from '../../../../components/Table';
-import Time from '../../../../components/Time';
+import { getMetaValue } from '../../../utils';
+import { formatDuration, getDuration } from '../../../datetime_utils';
+import { useMappedInstances } from '../../../api';
+import { SimpleStatus } from '../../StatusBox';
+import Table from '../../../components/Table';
+import Time from '../../../components/Time';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 const renderedTemplatesUrl = getMetaValue('rendered_templates_url');

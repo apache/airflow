@@ -23,8 +23,7 @@ import { Box, Text } from '@chakra-ui/react';
 import { finalStatesMap } from 'src/utils';
 import { formatDuration, getDuration } from 'src/datetime_utils';
 import type { TaskInstance, Task } from 'src/types';
-
-import Time from './Time';
+import Time from 'src/components/Time';
 
 interface Props {
   group: Task;

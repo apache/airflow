@@ -20,42 +20,42 @@
 import React, { useState } from 'react';
 import { Button, useDisclosure } from '@chakra-ui/react';
 
-import { useMarkSuccessRun } from '../../../../api';
+import { useMarkFailedRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
-import { getMetaValue } from '../../../../utils';
+import { getMetaValue } from '../../../utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const MarkSuccessRun = ({ dagId, runId }) => {
+const MarkFailedRun = ({ dagId, runId }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
   const { isOpen, onOpen, onClose } = useDisclosure();
-  const { mutateAsync: markSuccess, isLoading } = useMarkSuccessRun(dagId, runId);
+  const { mutateAsync: markFailed, isLoading } = useMarkFailedRun(dagId, runId);
 
   const onClick = async () => {
-    const data = await markSuccess({ confirmed: false });
+    const data = await markFailed({ confirmed: false });
     setAffectedTasks(data);
     onOpen();
   };
 
-  const onConfirm = async () => {
-    await markSuccess({ confirmed: true });
+  const onConfirm = () => {
+    markFailed({ confirmed: true });
     setAffectedTasks([]);
     onClose();
   };
 
   return (
     <>
-      <Button onClick={onClick} colorScheme="green" isLoading={isLoading} isDisabled={!canEdit}>Mark Success</Button>
+      <Button onClick={onClick} colorScheme="red" isLoading={isLoading} isDisabled={!canEdit}>Mark Failed</Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to mark as success:"
+        description="Task instances you are about to mark as failed or skipped:"
         body={affectedTasks}
       />
     </>
   );
 };
 
-export default MarkSuccessRun;
+export default MarkFailedRun;

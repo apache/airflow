@@ -25,18 +25,15 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
-import ActionButton from './ActionButton';
-import { useConfirmMarkTask, useMarkFailedTask } from '../../../../../api';
 import ConfirmDialog from '../../ConfirmDialog';
-import { getMetaValue } from '../../../../../utils';
+import ActionButton from './ActionButton';
+import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../api';
+import { getMetaValue } from '../../../../utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const MarkFailed = ({
-  dagId,
-  runId,
-  taskId,
-  mapIndexes,
+const MarkSuccess = ({
+  dagId, runId, taskId, mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -56,13 +53,11 @@ const MarkFailed = ({
   // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const { mutateAsync: markFailedMutation, isLoading: isMarkLoading } = useMarkFailedTask({
+  const { mutateAsync: markSuccessMutation, isLoading: isMarkLoading } = useMarkSuccessTask({
     dagId, runId, taskId,
   });
-  const {
-    mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading,
-  } = useConfirmMarkTask({
-    dagId, runId, taskId, state: 'failed',
+  const { mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading } = useConfirmMarkTask({
+    dagId, runId, taskId, state: 'success',
   });
 
   const onClick = async () => {
@@ -78,7 +73,7 @@ const MarkFailed = ({
   };
 
   const onConfirm = async () => {
-    await markFailedMutation({
+    await markSuccessMutation({
       past,
       future,
       upstream,
@@ -99,19 +94,19 @@ const MarkFailed = ({
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
       </ButtonGroup>
-      <Button colorScheme="red" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
-        Mark Failed
+      <Button colorScheme="green" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
+        Mark Success
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to mark as failed:"
+        description="Task instances you are about to mark as success:"
         body={affectedTasks}
       />
     </Flex>
   );
 };
 
-export default MarkFailed;
+export default MarkSuccess;

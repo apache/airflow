@@ -25,15 +25,19 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 
-import ConfirmDialog from '../../ConfirmDialog';
 import ActionButton from './ActionButton';
-import { useMarkSuccessTask, useConfirmMarkTask } from '../../../../../api';
-import { getMetaValue } from '../../../../../utils';
+import ConfirmDialog from '../../ConfirmDialog';
+import { useClearTask } from '../../../../api';
+import { getMetaValue } from '../../../../utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 
-const MarkSuccess = ({
-  dagId, runId, taskId, mapIndexes,
+const Run = ({
+  dagId,
+  runId,
+  taskId,
+  executionDate,
+  mapIndexes,
 }) => {
   const [affectedTasks, setAffectedTasks] = useState([]);
 
@@ -47,25 +51,31 @@ const MarkSuccess = ({
   const [upstream, setUpstream] = useState(false);
   const onToggleUpstream = () => setUpstream(!upstream);
 
-  const [downstream, setDownstream] = useState(false);
+  const [downstream, setDownstream] = useState(true);
   const onToggleDownstream = () => setDownstream(!downstream);
+
+  const [recursive, setRecursive] = useState(true);
+  const onToggleRecursive = () => setRecursive(!recursive);
+
+  const [failed, setFailed] = useState(false);
+  const onToggleFailed = () => setFailed(!failed);
 
   // Confirm dialog open/close
   const { isOpen, onOpen, onClose } = useDisclosure();
 
-  const { mutateAsync: markSuccessMutation, isLoading: isMarkLoading } = useMarkSuccessTask({
-    dagId, runId, taskId,
-  });
-  const { mutateAsync: confirmChangeMutation, isLoading: isConfirmLoading } = useConfirmMarkTask({
-    dagId, runId, taskId, state: 'success',
+  const { mutateAsync: clearTask, isLoading } = useClearTask({
+    dagId, runId, taskId, executionDate,
   });
 
   const onClick = async () => {
-    const data = await confirmChangeMutation({
+    const data = await clearTask({
       past,
       future,
       upstream,
       downstream,
+      recursive,
+      failed,
+      confirmed: false,
       mapIndexes,
     });
     setAffectedTasks(data);
@@ -73,18 +83,19 @@ const MarkSuccess = ({
   };
 
   const onConfirm = async () => {
-    await markSuccessMutation({
+    await clearTask({
       past,
       future,
       upstream,
       downstream,
+      recursive,
+      failed,
+      confirmed: true,
       mapIndexes,
     });
     setAffectedTasks([]);
     onClose();
   };
-
-  const isLoading = isMarkLoading || isConfirmLoading;
 
   return (
     <Flex justifyContent="space-between" width="100%">
@@ -93,20 +104,28 @@ const MarkSuccess = ({
         <ActionButton bg={future && 'gray.100'} onClick={onToggleFuture} name="Future" />
         <ActionButton bg={upstream && 'gray.100'} onClick={onToggleUpstream} name="Upstream" />
         <ActionButton bg={downstream && 'gray.100'} onClick={onToggleDownstream} name="Downstream" />
+        <ActionButton bg={recursive && 'gray.100'} onClick={onToggleRecursive} name="Recursive" />
+        <ActionButton bg={failed && 'gray.100'} onClick={onToggleFailed} name="Failed" />
       </ButtonGroup>
-      <Button colorScheme="green" onClick={onClick} isLoading={isLoading} isDisabled={!canEdit}>
-        Mark Success
+      <Button
+        colorScheme="blue"
+        onClick={onClick}
+        isLoading={isLoading}
+        isDisabled={!canEdit}
+        title="Clearing deletes the previous state of the task instance, allowing it to get re-triggered by the scheduler or a backfill command"
+      >
+        Clear
       </Button>
       <ConfirmDialog
         isOpen={isOpen}
         onClose={onClose}
         onConfirm={onConfirm}
         isLoading={isLoading}
-        description="Task instances you are about to mark as success:"
+        description="Task instances you are about to clear:"
         body={affectedTasks}
       />
     </Flex>
   );
 };
 
-export default MarkSuccess;
+export default Run;

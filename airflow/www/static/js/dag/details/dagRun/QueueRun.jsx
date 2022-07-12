@@ -20,9 +20,9 @@
 import React, { useState } from 'react';
 import { Button, useDisclosure } from '@chakra-ui/react';
 
-import { useQueueRun } from '../../../../api';
+import { useQueueRun } from '../../../api';
 import ConfirmDialog from '../ConfirmDialog';
-import { getMetaValue } from '../../../../utils';
+import { getMetaValue } from '../../../utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 

@@ -24,8 +24,8 @@ import {
   ButtonGroup,
 } from '@chakra-ui/react';
 
-import { useRunTask } from '../../../../../api';
-import { getMetaValue } from '../../../../../utils';
+import { useRunTask } from '../../../../api';
+import { getMetaValue } from '../../../../utils';
 
 const canEdit = getMetaValue('can_edit') === 'True';
 

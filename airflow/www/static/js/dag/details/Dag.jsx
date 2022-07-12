@@ -31,11 +31,11 @@ import {
 } from '@chakra-ui/react';
 import { mean } from 'lodash';
 
-import { getDuration, formatDuration } from '../../../datetime_utils';
-import { finalStatesMap, getMetaValue } from '../../../utils';
-import { useTasks, useGridData } from '../../../api';
-import Time from '../../../components/Time';
-import { SimpleStatus } from '../../StatusBox';
+import { getDuration, formatDuration } from '../../datetime_utils';
+import { finalStatesMap, getMetaValue } from '../../utils';
+import { useTasks, useGridData } from '../../api';
+import Time from '../../components/Time';
+import { SimpleStatus } from '../StatusBox';
 
 const dagDetailsUrl = getMetaValue('dag_details_url');
 

@@ -29,9 +29,9 @@ import { useContainerRef } from 'src/context/containerRef';
 import type { Task, TaskInstance, TaskState } from 'src/types';
 import type { SelectionProps } from 'src/dag/useSelection';
 import { hoverDelay } from 'src/utils';
-
 import Tooltip from 'src/components/Tooltip';
-import InstanceTooltip from 'src/components/InstanceTooltip';
+
+import InstanceTooltip from './InstanceTooltip';
 
 export const boxSize = 10;
 export const boxSizePx = `${boxSize}px`;
