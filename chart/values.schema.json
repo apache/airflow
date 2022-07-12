@@ -1480,6 +1480,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the worker pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for worker log groomer sidecar",
                     "type": "object",
@@ -1802,6 +1810,14 @@
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the scheduler pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the scheduler pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2135,6 +2151,14 @@
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the triggerer pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the triggerer pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2511,6 +2535,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the create user job pod.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "jobAnnotations": {
                     "description": "Annotations to add to the create user job job.",
                     "type": "object",
@@ -2696,6 +2728,14 @@
                 },
                 "jobAnnotations": {
                     "description": "Annotations to add to the migrate database job.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the migrate database job pod.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -3291,6 +3331,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the webserver pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
@@ -3627,6 +3675,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the Flower pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "securityContext": {
                     "description": "Security context for the flower pod. If not set, the values from `securityContext` will be used.",
                     "type": "object",
@@ -3660,6 +3716,14 @@
                     "description": "Enable StatsD.",
                     "type": "boolean",
                     "default": true
+                },
+                "labels": {
+                    "description": "labels to add to statsd pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "extraNetworkPolicies": {
                     "description": "Additional NetworkPolicies as needed.",
@@ -3806,6 +3870,14 @@
                     "type": "boolean",
                     "x-docsSection": "Common",
                     "default": false
+                },
+                "labels": {
+                    "description": "labels to add to pgbouncer pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "command": {
                     "description": "Command to use for PgBouncer (templated).",
@@ -4160,6 +4232,14 @@
                     "description": "Enable the Redis provisioned by the chart (you can also use an external Redis instance with `data.brokerUrl` or `data.brokerUrlSecretName`).",
                     "type": "boolean",
                     "default": true
+                },
+                "labels": {
+                    "description": "labels to add to redis pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 },
                 "terminationGracePeriodSeconds": {
                     "description": "Grace period for Redis to exit after SIGTERM is sent from Kubernetes.",
@@ -4580,6 +4660,14 @@
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "labels to add to cleanup pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
