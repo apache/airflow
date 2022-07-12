@@ -19,6 +19,7 @@ import json
 import os
 import unittest
 from collections import OrderedDict
+from http import HTTPStatus
 from unittest import mock
 
 import pytest
@@ -26,6 +27,7 @@ import requests
 import requests_mock
 import tenacity
 from parameterized import parameterized
+from requests.adapters import Response
 
 from airflow.exceptions import AirflowException
 from airflow.models import Connection
@@ -368,6 +370,42 @@ class TestHttpHook(unittest.TestCase):
             status, msg = self.get_hook.test_connection()
             assert status is False
             assert msg == '500:NOT_OK'
+
+
+class TestKeepAlive:
+    def test_keep_alive_enabled(self):
+        with mock.patch(
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+        ), mock.patch(
+            'requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send'
+        ) as tcp_keep_alive_send, mock.patch(
+            'requests.adapters.HTTPAdapter.send'
+        ) as http_send:
+            hook = HttpHook(method='GET')
+            response = Response()
+            response.status_code = HTTPStatus.OK
+            tcp_keep_alive_send.return_value = response
+            http_send.return_value = response
+            hook.run('v1/test')
+            tcp_keep_alive_send.assert_called()
+            http_send.assert_not_called()
+
+    def test_keep_alive_disabled(self):
+        with mock.patch(
+            'airflow.hooks.base.BaseHook.get_connection', side_effect=get_airflow_connection_with_port
+        ), mock.patch(
+            'requests_toolbelt.adapters.socket_options.TCPKeepAliveAdapter.send'
+        ) as tcp_keep_alive_send, mock.patch(
+            'requests.adapters.HTTPAdapter.send'
+        ) as http_send:
+            hook = HttpHook(method='GET', tcp_keep_alive=False)
+            response = Response()
+            response.status_code = HTTPStatus.OK
+            tcp_keep_alive_send.return_value = response
+            http_send.return_value = response
+            hook.run('v1/test')
+            tcp_keep_alive_send.assert_not_called()
+            http_send.assert_called()
 
 
 send_email_test = mock.Mock()

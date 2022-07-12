@@ -92,11 +92,10 @@ from airflow.exceptions import (
     TaskDeferralError,
     TaskDeferred,
     UnmappableXComLengthPushed,
-    UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
 from airflow.models.base import Base, StringID
-from airflow.models.dataset import DatasetDagRunQueue
+from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent
 from airflow.models.log import Log
 from airflow.models.param import ParamsDict
 from airflow.models.taskfail import TaskFail
@@ -550,7 +549,8 @@ class TaskInstance(Base, LoggingMixin):
                     execution_date,
                 )
                 if self.task.has_dag():
-                    assert self.task.dag  # For Mypy.
+                    if TYPE_CHECKING:
+                        assert self.task.dag
                     execution_date = timezone.make_aware(execution_date, self.task.dag.timezone)
                 else:
                     execution_date = timezone.make_aware(execution_date)
@@ -1521,7 +1521,7 @@ class TaskInstance(Base, LoggingMixin):
             self._create_dataset_dag_run_queue_records(session=session)
             session.commit()
 
-    def _create_dataset_dag_run_queue_records(self, *, session):
+    def _create_dataset_dag_run_queue_records(self, *, session: Session) -> None:
         from airflow.models import Dataset
 
         for obj in getattr(self.task, '_outlets', []):
@@ -1533,6 +1533,15 @@ class TaskInstance(Base, LoggingMixin):
                     continue
                 downstream_dag_ids = [x.dag_id for x in dataset.dag_references]
                 self.log.debug("downstream dag ids %s", downstream_dag_ids)
+                session.add(
+                    DatasetEvent(
+                        dataset_id=dataset.id,
+                        task_id=self.task_id,
+                        dag_id=self.dag_id,
+                        run_id=self.run_id,
+                        map_index=self.map_index,
+                    )
+                )
                 for dag_id in downstream_dag_ids:
                     session.merge(DatasetDagRunQueue(dataset_id=dataset.id, target_dag_id=dag_id))
 
@@ -1778,7 +1787,8 @@ class TaskInstance(Base, LoggingMixin):
 
         self.task = self.task.prepare_for_execution()
         self.render_templates()
-        assert isinstance(self.task, BaseOperator)  # For Mypy.
+        if TYPE_CHECKING:
+            assert isinstance(self.task, BaseOperator)
         self.task.dry_run()
 
     @provide_session
@@ -1852,7 +1862,7 @@ class TaskInstance(Base, LoggingMixin):
     @provide_session
     def handle_failure(
         self,
-        error: Optional[Union[str, BaseException]],
+        error: Union[None, str, BaseException],
         test_mode: Optional[bool] = None,
         context: Optional[Context] = None,
         force_fail: bool = False,
@@ -1901,11 +1911,11 @@ class TaskInstance(Base, LoggingMixin):
         # only mark task instance as FAILED if the next task instance
         # try_number exceeds the max_tries ... or if force_fail is truthy
 
-        task = None
+        task: Optional[BaseOperator] = None
         try:
-            task = self.task.unmap()
+            task = self.task.unmap((context, session))
         except Exception:
-            self.log.error("Unable to unmap task, can't determine if we need to send an alert email or not")
+            self.log.error("Unable to unmap task to determine if we need to send an alert email")
 
         if force_fail or not self.is_eligible_to_retry():
             self.state = State.FAILED
@@ -1957,7 +1967,8 @@ class TaskInstance(Base, LoggingMixin):
         integrate_macros_plugins()
 
         task = self.task
-        assert task.dag  # For Mypy.
+        if TYPE_CHECKING:
+            assert task.dag
         dag: DAG = task.dag
 
         dag_run = self.get_dagrun(session)
@@ -2137,7 +2148,7 @@ class TaskInstance(Base, LoggingMixin):
 
         rendered_task_instance_fields = RenderedTaskInstanceFields.get_templated_fields(self, session=session)
         if rendered_task_instance_fields:
-            self.task = self.task.unmap()
+            self.task = self.task.unmap(None)
             for field_name, rendered_value in rendered_task_instance_fields.items():
                 setattr(self.task, field_name, rendered_value)
             return
@@ -2313,18 +2324,20 @@ class TaskInstance(Base, LoggingMixin):
         self.log.debug("Task Duration set to %s", self.duration)
 
     def _record_task_map_for_downstreams(self, task: "Operator", value: Any, *, session: Session) -> None:
-        # TODO: We don't push TaskMap for mapped task instances because it's not
-        # currently possible for a downstream to depend on one individual mapped
-        # task instance, only a task as a whole. This will change in AIP-42
-        # Phase 2, and we'll need to further analyze the mapped task case.
-        if next(task.iter_mapped_dependants(), None) is None:
+        validators = {m.validate_upstream_return_value for m in task.iter_mapped_dependants()}
+        if not validators:  # No mapped dependants, no need to validate.
             return
         if value is None:
             raise XComForMappingNotPushed()
+        # TODO: We don't push TaskMap for mapped task instances because it's not
+        # currently possible for a downstream to depend on one individual mapped
+        # task instance. This will change when we implement task group mapping,
+        # and we'll need to further analyze the mapped task case.
         if task.is_mapped:
             return
-        if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
-            raise UnmappableXComTypePushed(value)
+        for validator in validators:
+            validator(value)
+        assert isinstance(value, collections.abc.Collection)  # The validators type-guard this.
         task_map = TaskMap.from_task_instance_xcom(self, value)
         max_map_length = conf.getint("core", "max_map_length", fallback=1024)
         if task_map.length > max_map_length:

@@ -28,6 +28,7 @@ Content
 
     Connection types <connections/elasticsearch>
     Logging for Tasks <logging/index>
+    Elasticsearch hooks <hooks/index>
 
 .. toctree::
     :maxdepth: 1
