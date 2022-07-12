@@ -234,7 +234,7 @@ class TestBaseOperator:
         result = task.render_template(content, context)
         assert result == expected_output
 
-    @mock.patch("airflow.configuration.conf.getboolean")
+    @mock.patch("airflow.models.abstractoperator.conf.getboolean")
     def test_render_template_with_flag(self, getboolean_mock):
         """Test render_template given various input types."""
         content = {"key_{{ foo }}_1": 1, "key_2": "{{ foo }}_2"}
@@ -243,7 +243,6 @@ class TestBaseOperator:
 
         task = BaseOperator(task_id="op1")
 
-        getboolean_mock.return_value = True
         result = task.render_template(content, context)
         assert result == expected_output
         getboolean_mock.assert_called_with('core', 'render_dict_keys')
