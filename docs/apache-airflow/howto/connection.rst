@@ -279,7 +279,7 @@ An example:
             },
         }
 
-Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is this is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
+Note here that *here* (in contrast with ``get_connection_form_widgets``) we must add the prefix ``extra__<conn type>__`` when referencing a custom field.  This is because it's possible to create a custom field whose name overlaps with a built-in field and we need to be able to reference it unambiguously.
 
 Take a look at providers for examples of what you can do, for example :py:class:`~airflow.providers.jdbc.hooks.jdbc.JdbcHook`
 and :py:class:`~airflow.providers.asana.hooks.jdbc.AsanaHook` both make use of this feature.

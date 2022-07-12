@@ -114,6 +114,84 @@ class TestBaseChartTest(unittest.TestCase):
             ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
 
     @parameterized.expand(["2.3.2", "2.4.0", "default"])
+    def test_basic_deployment_with_standalone_dag_processor(self, version):
+        # Dag Processor creates two extra objects compared to the basic deployment
+        object_count_in_basic_deployment = self._get_object_count(version)
+        expected_object_count_with_standalone_scheduler = object_count_in_basic_deployment + 2
+        k8s_objects = render_chart(
+            "TEST-BASIC",
+            self._get_values_with_version(
+                values={
+                    "chart": {
+                        'metadata': 'AA',
+                    },
+                    'labels': {"TEST-LABEL": "TEST-VALUE"},
+                    "fullnameOverride": "TEST-BASIC",
+                    "dagProcessor": {'enabled': True},
+                },
+                version=version,
+            ),
+        )
+        list_of_kind_names_tuples = {
+            (k8s_object['kind'], k8s_object['metadata']['name']) for k8s_object in k8s_objects
+        }
+        # TODO remove default from condition after airflow update
+        if version == "2.3.2" or version == "default":
+            assert ('Secret', 'TEST-BASIC-airflow-result-backend') in list_of_kind_names_tuples
+            list_of_kind_names_tuples.remove(('Secret', 'TEST-BASIC-airflow-result-backend'))
+        assert list_of_kind_names_tuples == {
+            ('ServiceAccount', 'TEST-BASIC-create-user-job'),
+            ('ServiceAccount', 'TEST-BASIC-migrate-database-job'),
+            ('ServiceAccount', 'TEST-BASIC-redis'),
+            ('ServiceAccount', 'TEST-BASIC-scheduler'),
+            ('ServiceAccount', 'TEST-BASIC-statsd'),
+            ('ServiceAccount', 'TEST-BASIC-triggerer'),
+            ('ServiceAccount', 'TEST-BASIC-dag-processor'),
+            ('ServiceAccount', 'TEST-BASIC-webserver'),
+            ('ServiceAccount', 'TEST-BASIC-worker'),
+            ('Secret', 'TEST-BASIC-airflow-metadata'),
+            ('Secret', 'TEST-BASIC-broker-url'),
+            ('Secret', 'TEST-BASIC-fernet-key'),
+            ('Secret', 'TEST-BASIC-webserver-secret-key'),
+            ('Secret', 'TEST-BASIC-postgresql'),
+            ('Secret', 'TEST-BASIC-redis-password'),
+            ('ConfigMap', 'TEST-BASIC-airflow-config'),
+            ('Role', 'TEST-BASIC-pod-launcher-role'),
+            ('Role', 'TEST-BASIC-pod-log-reader-role'),
+            ('RoleBinding', 'TEST-BASIC-pod-launcher-rolebinding'),
+            ('RoleBinding', 'TEST-BASIC-pod-log-reader-rolebinding'),
+            ('Service', 'TEST-BASIC-postgresql-headless'),
+            ('Service', 'TEST-BASIC-postgresql'),
+            ('Service', 'TEST-BASIC-redis'),
+            ('Service', 'TEST-BASIC-statsd'),
+            ('Service', 'TEST-BASIC-webserver'),
+            ('Service', 'TEST-BASIC-worker'),
+            ('Deployment', 'TEST-BASIC-scheduler'),
+            ('Deployment', 'TEST-BASIC-statsd'),
+            ('Deployment', 'TEST-BASIC-triggerer'),
+            ('Deployment', 'TEST-BASIC-dag-processor'),
+            ('Deployment', 'TEST-BASIC-webserver'),
+            ('StatefulSet', 'TEST-BASIC-postgresql'),
+            ('StatefulSet', 'TEST-BASIC-redis'),
+            ('StatefulSet', 'TEST-BASIC-worker'),
+            ('Job', 'TEST-BASIC-create-user'),
+            ('Job', 'TEST-BASIC-run-airflow-migrations'),
+        }
+        assert expected_object_count_with_standalone_scheduler == len(k8s_objects)
+        for k8s_object in k8s_objects:
+            labels = jmespath.search('metadata.labels', k8s_object) or {}
+            if 'helm.sh/chart' in labels:
+                chart_name = labels.get('helm.sh/chart')
+            else:
+                chart_name = labels.get('chart')
+            if chart_name and 'postgresql' in chart_name:
+                continue
+            k8s_name = k8s_object['kind'] + ":" + k8s_object['metadata']['name']
+            assert 'TEST-VALUE' == labels.get(
+                "TEST-LABEL"
+            ), f"Missing label TEST-LABEL on {k8s_name}. Current labels: {labels}"
+
+    @parameterized.expand(["2.3.2", "2.4.0", "default"])
     def test_basic_deployment_without_default_users(self, version):
         expected_object_count_in_basic_deployment = self._get_object_count(version)
         k8s_objects = render_chart(
@@ -179,6 +257,7 @@ class TestBaseChartTest(unittest.TestCase):
                 "networkPolicies": {"enabled": True},
                 "cleanup": {"enabled": True},
                 "flower": {"enabled": True},
+                "dagProcessor": {"enabled": True},
                 "logs": {"persistence": {"enabled": True}},
                 "dags": {"persistence": {"enabled": True}},
                 "postgresql": {"enabled": False},  # We won't check the objects created by the postgres chart
@@ -204,6 +283,7 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-airflow-webserver", "ServiceAccount", "webserver"),
             (f"{release_name}-airflow-worker", "ServiceAccount", "worker"),
             (f"{release_name}-airflow-triggerer", "ServiceAccount", "triggerer"),
+            (f"{release_name}-airflow-dag-processor", "ServiceAccount", "dag-processor"),
             (f"{release_name}-broker-url", "Secret", "redis"),
             (f"{release_name}-cleanup", "CronJob", "airflow-cleanup-pods"),
             (f"{release_name}-cleanup-role", "Role", None),
@@ -242,6 +322,7 @@ class TestBaseChartTest(unittest.TestCase):
             (f"{release_name}-worker", "StatefulSet", "worker"),
             (f"{release_name}-worker-policy", "NetworkPolicy", "airflow-worker-policy"),
             (f"{release_name}-triggerer", "Deployment", "triggerer"),
+            (f"{release_name}-dag-processor", "Deployment", "dag-processor"),
             (f"{release_name}-logs", "PersistentVolumeClaim", "logs-pvc"),
             (f"{release_name}-dags", "PersistentVolumeClaim", "dags-pvc"),
         ]
@@ -269,6 +350,7 @@ class TestBaseChartTest(unittest.TestCase):
             values={
                 "labels": {"label1": "value1", "label2": "value2"},
                 "executor": "CeleryExecutor",
+                "dagProcessor": {"enabled": True},
                 "pgbouncer": {"enabled": True},
                 "redis": {"enabled": True},
                 "networkPolicies": {"enabled": True},
@@ -308,11 +390,14 @@ class TestBaseChartTest(unittest.TestCase):
             values={
                 "airflowPodAnnotations": {"test-annotation/safe-to-evict": "true"},
                 "flower": {"enabled": True},
+                "dagProcessor": {"enabled": True},
             },
             show_only=[
                 "templates/scheduler/scheduler-deployment.yaml",
                 "templates/workers/worker-deployment.yaml",
                 "templates/webserver/webserver-deployment.yaml",
+                "templates/triggerer/triggerer-deployment.yaml",
+                "templates/dag-processor/dag-processor-deployment.yaml",
                 "templates/flower/flower-deployment.yaml",
                 "templates/jobs/create-user-job.yaml",
                 "templates/jobs/migrate-database-job.yaml",
@@ -320,7 +405,7 @@ class TestBaseChartTest(unittest.TestCase):
         )
         # pod_template_file is tested separately as it has extra setup steps
 
-        assert 6 == len(k8s_objects)
+        assert 8 == len(k8s_objects)
 
         for k8s_object in k8s_objects:
             annotations = k8s_object["spec"]["template"]["metadata"]["annotations"]

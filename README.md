@@ -104,9 +104,6 @@ MariaDB is not tested/recommended.
 **Note**: SQLite is used in Airflow tests. Do not use it in production. We recommend
 using the latest stable version of SQLite for local development.
 
-**Note**: Support for Python v3.10 will be available from Airflow 2.3.0. The `main` (development) branch
-already supports Python 3.10.
-
 **Note**: Airflow currently can be run on POSIX-compliant Operating Systems. For development it is regularly
 tested on fairly modern Linux Distros and recent versions of MacOS.
 On Windows you can run it via WSL2 (Windows Subsystem for Linux 2) or via Linux Containers.
@@ -273,7 +270,7 @@ Apache Airflow version life cycle:
 
 | Version   | Current Patch/Minor   | State     | First Release   | Limited Support   | EOL/Terminated   |
 |-----------|-----------------------|-----------|-----------------|-------------------|------------------|
-| 2         | 2.3.2                 | Supported | Dec 17, 2020    | TBD               | TBD              |
+| 2         | 2.3.3                 | Supported | Dec 17, 2020    | TBD               | TBD              |
 | 1.10      | 1.10.15               | EOL       | Aug 27, 2018    | Dec 17, 2020      | June 17, 2021    |
 | 1.9       | 1.9.0                 | EOL       | Jan 03, 2018    | Aug 27, 2018      | Aug 27, 2018     |
 | 1.8       | 1.8.2                 | EOL       | Mar 19, 2017    | Jan 03, 2018      | Jan 03, 2018     |

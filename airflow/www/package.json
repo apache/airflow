@@ -59,7 +59,7 @@
     "imports-loader": "^1.1.0",
     "jest": "^27.3.1",
     "mini-css-extract-plugin": "^1.6.2",
-    "moment": "^2.29.3",
+    "moment": "^2.29.4",
     "moment-locales-webpack-plugin": "^1.2.0",
     "nock": "^13.2.4",
     "style-loader": "^1.2.1",

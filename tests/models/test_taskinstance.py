@@ -27,6 +27,7 @@ from traceback import format_exception
 from typing import List, Optional, Union, cast
 from unittest import mock
 from unittest.mock import call, mock_open, patch
+from uuid import uuid4
 
 import pendulum
 import pytest
@@ -47,6 +48,7 @@ from airflow.exceptions import (
 from airflow.models import (
     DAG,
     Connection,
+    DagBag,
     DagRun,
     Pool,
     RenderedTaskInstanceFields,
@@ -55,6 +57,8 @@ from airflow.models import (
     Variable,
     XCom,
 )
+from airflow.models.dataset import Dataset, DatasetDagRunQueue, DatasetEvent, DatasetTaskRef
+from airflow.models.expandinput import EXPAND_INPUT_EMPTY
 from airflow.models.serialized_dag import SerializedDagModel
 from airflow.models.taskfail import TaskFail
 from airflow.models.taskinstance import TaskInstance
@@ -1055,7 +1059,7 @@ class TestTaskInstance:
         with dag_maker(dag_id="test_xcom", session=session):
             # Use the private _expand() method to avoid the empty kwargs check.
             # We don't care about how the operator runs here, only its presence.
-            task_1 = EmptyOperator.partial(task_id="task_1")._expand()
+            task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY, strict=False)
             EmptyOperator(task_id="task_2")
 
         dagrun = dag_maker.create_dagrun(start_date=timezone.datetime(2016, 6, 1, 0, 0, 0))
@@ -1472,6 +1476,48 @@ class TestTaskInstance:
         assert callback_wrapper.task_state_in_callback == State.SUCCESS
         ti.refresh_from_db()
         assert ti.state == State.SUCCESS
+
+    def test_outlet_datasets(self, create_task_instance):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        completes successfully, a DatasetDagRunQueue is logged.
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag1
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag1.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag1.get_task('upstream_task_1')
+        task.bash_command = 'echo 1'  # make it go faster
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == State.SUCCESS
+
+        # check that one queue record created for each dag that depends on dataset 1
+        assert session.query(DatasetDagRunQueue.target_dag_id).filter(
+            DatasetTaskRef.dag_id == dag1.dag_id, DatasetTaskRef.task_id == 'upstream_task_1'
+        ).all() == [('dag3',), ('dag4',), ('dag5',)]
+
+        # check that one event record created for dataset1 and this TI
+        assert session.query(Dataset.uri).join(DatasetEvent.dataset).filter(
+            DatasetEvent.source_task_instance == ti
+        ).one() == ('s3://dag1/output_1.txt',)
+
+        # check that no other dataset events recorded
+        assert (
+            session.query(Dataset.uri)
+            .join(DatasetEvent.dataset)
+            .filter(DatasetEvent.source_task_instance == ti)
+            .count()
+        ) == 1
 
     @staticmethod
     def _test_previous_dates_setup(
@@ -2317,6 +2363,7 @@ class TestRunRawTaskQueriesCount:
         db.clear_db_dags()
         db.clear_db_sla_miss()
         db.clear_db_import_errors()
+        db.clear_db_datasets()
 
     def setup_method(self) -> None:
         self._clean()
@@ -2431,9 +2478,9 @@ class TestTaskInstanceRecordTaskMapXComPush:
             (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
         ],
     )
-    def test_error_if_unmappable_type(self, dag_maker, return_value, exception_type, error_message):
-        """If an unmappable return value is used to map, fail the task that pushed the XCom."""
-        with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
+    def test_expand_error_if_unmappable_type(self, dag_maker, return_value, exception_type, error_message):
+        """If an unmappable return value is used for expand(), fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_expand_error_if_unmappable_type") as dag:
 
             @dag.task()
             def push_something():
@@ -2756,7 +2803,7 @@ def test_ti_xcom_pull_on_mapped_operator_return_lazy_iterable(mock_deserialize_v
     with dag_maker(dag_id="test_xcom", session=session):
         # Use the private _expand() method to avoid the empty kwargs check.
         # We don't care about how the operator runs here, only its presence.
-        task_1 = EmptyOperator.partial(task_id="task_1")._expand()
+        task_1 = EmptyOperator.partial(task_id="task_1")._expand(EXPAND_INPUT_EMPTY, strict=False)
         EmptyOperator(task_id="task_2")
 
     dagrun = dag_maker.create_dagrun()

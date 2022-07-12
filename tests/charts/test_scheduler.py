@@ -30,13 +30,15 @@ class SchedulerTest(unittest.TestCase):
             ("CeleryExecutor", True, "Deployment"),
             ("CeleryKubernetesExecutor", True, "Deployment"),
             ("KubernetesExecutor", True, "Deployment"),
+            ("LocalKubernetesExecutor", False, "Deployment"),
+            ("LocalKubernetesExecutor", True, "StatefulSet"),
             ("LocalExecutor", True, "StatefulSet"),
             ("LocalExecutor", False, "Deployment"),
         ]
     )
     def test_scheduler_kind(self, executor, persistence, kind):
         """
-        Test scheduler kind is StatefulSet only when using LocalExecutor &
+        Test scheduler kind is StatefulSet only when using a local executor &
         worker persistence is enabled.
         """
         docs = render_chart(
@@ -347,6 +349,13 @@ class SchedulerTest(unittest.TestCase):
         [
             ("CeleryExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("CeleryExecutor", True, {"rollingUpdate": {"partition": 0}}, None),
+            ("LocalKubernetesExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
+            (
+                "LocalKubernetesExecutor",
+                True,
+                {"rollingUpdate": {"partition": 0}},
+                {"rollingUpdate": {"partition": 0}},
+            ),
             ("LocalExecutor", False, {"rollingUpdate": {"partition": 0}}, None),
             ("LocalExecutor", True, {"rollingUpdate": {"partition": 0}}, {"rollingUpdate": {"partition": 0}}),
             ("LocalExecutor", True, None, None),
@@ -355,7 +364,7 @@ class SchedulerTest(unittest.TestCase):
     def test_scheduler_update_strategy(
         self, executor, persistence, update_strategy, expected_update_strategy
     ):
-        """updateStrategy should only be used when we have LocalExecutor and workers.persistence"""
+        """updateStrategy should only be used when we have a local executor and workers.persistence"""
         docs = render_chart(
             values={
                 "executor": executor,
@@ -372,6 +381,8 @@ class SchedulerTest(unittest.TestCase):
             ("LocalExecutor", False, None, None),
             ("LocalExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
             ("LocalExecutor", True, {"type": "Recreate"}, None),
+            ("LocalKubernetesExecutor", False, {"type": "Recreate"}, {"type": "Recreate"}),
+            ("LocalKubernetesExecutor", True, {"type": "Recreate"}, None),
             ("CeleryExecutor", True, None, None),
             ("CeleryExecutor", False, None, None),
             ("CeleryExecutor", True, {"type": "Recreate"}, {"type": "Recreate"}),
@@ -384,7 +395,7 @@ class SchedulerTest(unittest.TestCase):
         ]
     )
     def test_scheduler_strategy(self, executor, persistence, strategy, expected_strategy):
-        """strategy should be used when we aren't using both LocalExecutor and workers.persistence"""
+        """strategy should be used when we aren't using both a local executor and workers.persistence"""
         docs = render_chart(
             values={
                 "executor": executor,
@@ -522,6 +533,54 @@ class SchedulerTest(unittest.TestCase):
         assert "git-sync-init" in [
             c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
         ]
+
+    @parameterized.expand(
+        [
+            (True, "LocalExecutor", False),
+            (True, "CeleryExecutor", True),
+            (True, "KubernetesExecutor", True),
+            (True, "LocalKubernetesExecutor", False),
+            (False, "LocalExecutor", False),
+            (False, "CeleryExecutor", False),
+            (False, "KubernetesExecutor", False),
+            (False, "LocalKubernetesExecutor", False),
+        ]
+    )
+    def test_dags_mount_and_gitsync_expected_with_dag_processor(
+        self, dag_processor, executor, skip_dags_mount
+    ):
+        """
+        DAG Processor can move gitsync and DAGs mount from the scheduler to the DAG Processor only.
+        The only exception is when we have a Local executor.
+        In these cases, the scheduler does the worker role and needs access to DAGs anyway.
+        """
+        docs = render_chart(
+            values={
+                "dagProcessor": {"enabled": dag_processor},
+                "executor": executor,
+                "dags": {"gitSync": {"enabled": True}, "persistence": {"enabled": True}},
+                "scheduler": {"logGroomerSidecar": {"enabled": False}},
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        if skip_dags_mount:
+            assert "dags" not in [
+                vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            ]
+            assert "dags" not in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert 1 == len(jmespath.search("spec.template.spec.containers", docs[0]))
+        else:
+            assert "dags" in [
+                vm["name"] for vm in jmespath.search("spec.template.spec.containers[0].volumeMounts", docs[0])
+            ]
+            assert "dags" in [vm["name"] for vm in jmespath.search("spec.template.spec.volumes", docs[0])]
+            assert "git-sync" in [
+                c["name"] for c in jmespath.search("spec.template.spec.containers", docs[0])
+            ]
+            assert "git-sync-init" in [
+                c["name"] for c in jmespath.search("spec.template.spec.initContainers", docs[0])
+            ]
 
     def test_log_groomer_resources(self):
         docs = render_chart(

@@ -34,6 +34,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
   - vertica-python>=0.5.1
 
 integrations:

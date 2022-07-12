@@ -26,7 +26,10 @@ import boto3
 from botocore.client import BaseClient
 from botocore.exceptions import NoCredentialsError
 
+from airflow.decorators import task
+
 ENV_ID_ENVIRON_KEY: str = 'SYSTEM_TESTS_ENV_ID'
+ENV_ID_KEY: str = 'ENV_ID'
 DEFAULT_ENV_ID_PREFIX: str = 'env'
 DEFAULT_ENV_ID_LEN: int = 8
 DEFAULT_ENV_ID: str = f'{DEFAULT_ENV_ID_PREFIX}{str(uuid4())[:DEFAULT_ENV_ID_LEN]}'
@@ -76,19 +79,19 @@ def _validate_env_id(env_id: str) -> str:
     return env_id.lower()
 
 
-def _fetch_from_ssm(key: str) -> str:
+def _fetch_from_ssm(key: str, test_name: Optional[str] = None) -> str:
     """
     Test values are stored in the SSM Value as a JSON-encoded dict of key/value pairs.
 
     :param key: The key to search for within the returned Parameter Value.
     :return: The value of the provided key from SSM
     """
-    test_name: str = _get_test_name()
+    _test_name: str = test_name if test_name else _get_test_name()
     ssm_client: BaseClient = boto3.client('ssm')
     value: str = ''
 
     try:
-        value = json.loads(ssm_client.get_parameter(Name=test_name)['Parameter']['Value'])[key]
+        value = json.loads(ssm_client.get_parameter(Name=_test_name)['Parameter']['Value'])[key]
     # Since a default value after the SSM check is allowed, these exceptions should not stop execution.
     except NoCredentialsError:
         # No boto credentials found.
@@ -102,7 +105,49 @@ def _fetch_from_ssm(key: str) -> str:
     return value
 
 
-def fetch_variable(key: str, default_value: Optional[str] = None) -> str:
+class SystemTestContextBuilder:
+    """This builder class ultimately constructs a TaskFlow task which is run at
+    runtime (task execution time). This task generates and stores the test ENV_ID as well
+    as any external resources requested (e.g.g IAM Roles, VPC, etc)"""
+
+    def __init__(self):
+        self.variables = []
+        self.variable_defaults = {}
+        self.test_name = _get_test_name()
+        self.env_id = set_env_id()
+
+    def add_variable(self, variable_name: str, **kwargs):
+        """Register a variable to fetch from environment or cloud parameter store"""
+        self.variables.append(variable_name)
+        # default_value is accepted via kwargs so that it is completely optional and no
+        # default value needs to be provided in the method stub (otherwise we wouldn't
+        # be able to tell the difference between our default value and one provided by
+        # the caller)
+        if 'default_value' in kwargs:
+            self.variable_defaults[variable_name] = kwargs['default_value']
+
+        return self  # Builder recipe; returning self allows chaining
+
+    def build(self):
+        """Build and return a TaskFlow task which will create an env_id and
+        fetch requested variables. Storing everything in xcom for downstream
+        tasks to use."""
+
+        @task
+        def variable_fetcher(**kwargs):
+            ti = kwargs['ti']
+            for variable in self.variables:
+                default_value = self.variable_defaults.get(variable, None)
+                value = fetch_variable(variable, default_value, test_name=self.test_name)
+                ti.xcom_push(variable, value)
+
+            # Fetch/generate ENV_ID and store it in XCOM
+            ti.xcom_push(ENV_ID_KEY, self.env_id)
+
+        return variable_fetcher
+
+
+def fetch_variable(key: str, default_value: Optional[str] = None, test_name: Optional[str] = None) -> str:
     """
     Given a Parameter name: first check for an existing Environment Variable,
     then check SSM for a value. If neither are available, fall back on the
@@ -113,7 +158,7 @@ def fetch_variable(key: str, default_value: Optional[str] = None) -> str:
     :return: The value of the parameter.
     """
 
-    value: Optional[str] = os.getenv(key, _fetch_from_ssm(key)) or default_value
+    value: Optional[str] = os.getenv(key, _fetch_from_ssm(key, test_name=test_name)) or default_value
     if not value:
         raise ValueError(NO_VALUE_MSG.format(key=key))
     return value
