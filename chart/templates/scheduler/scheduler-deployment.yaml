@@ -142,6 +142,9 @@ spec:
           env:
           {{- include "custom_airflow_environment" . | indent 10 }}
           {{- include "standard_airflow_environment" . | indent 10 }}
+{{- if .Values.scheduler.waitForMigrations.env }}
+{{ tpl (toYaml .Values.scheduler.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
         {{- end }}
         {{- if and $localOrDagProcessorDisabled .Values.dags.gitSync.enabled }}
         {{- include "git_sync_container" (dict "Values" .Values "is_init" "true") | nindent 8 }}
@@ -149,9 +152,6 @@ spec:
         {{- if .Values.scheduler.extraInitContainers }}
         {{- toYaml .Values.scheduler.extraInitContainers | nindent 8 }}
         {{- end }}
-{{- if .Values.scheduler.waitForMigrations.env }}
-{{ tpl (toYaml .Values.scheduler.waitForMigrations.env) $ | indent 12 }}
-{{- end }}
       containers:
         # Always run the main scheduler container.
         - name: scheduler
