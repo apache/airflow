@@ -48,6 +48,7 @@ with DAG(
     start_date=datetime(2021, 1, 1),
     tags=['example'],
 ) as dag:
+    yandex_conn_id = ''
     create_cluster = DataprocCreateClusterOperator(
         task_id='create_cluster',
         zone=AVAILABILITY_ZONE_ID,

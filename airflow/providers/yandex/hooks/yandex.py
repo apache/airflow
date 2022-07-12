@@ -17,7 +17,7 @@
 
 import json
 import warnings
-from typing import Any, Dict, Optional, Union
+from typing import Any, Dict, Optional
 
 import yandexcloud
 
