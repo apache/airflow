@@ -1609,6 +1609,51 @@ paths:
         '403':
           $ref: '#/components/responses/PermissionDenied'
 
+  /datasets:
+    get:
+      summary: List datasets
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_datasets
+      tags: [Dataset]
+      parameters:
+        - $ref: '#/components/parameters/PageLimit'
+        - $ref: '#/components/parameters/PageOffset'
+        - $ref: '#/components/parameters/OrderBy'
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+
+  /datasets/{id}:
+    parameters:
+      - $ref: '#/components/parameters/DatasetID'
+    get:
+      summary: Get a dataset
+      description: Get a dataset by id.
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset
+      tags: [Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Dataset'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /config:
     get:
       summary: Get current configuration
@@ -3374,6 +3419,49 @@ components:
           $ref: '#/components/schemas/Resource'
           description: The permission resource
 
+    Dataset:
+      description: |
+        A dataset item.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        id:
+          type: integer
+          description: The dataset id
+        uri:
+          type: string
+          description: The dataset uri
+          nullable: false
+        extra:
+          type: string
+          description: The dataset extra
+          nullable: true
+        created_at:
+          type: string
+          description: The dataset creation time
+          nullable: false
+        updated_at:
+          type: string
+          description: The dataset update time
+          nullable: false
+
+    DatasetCollection:
+      description: |
+        A collection of datasets.
+
+        *New in version 2.4.0*
+      type: object
+      allOf:
+        - type: object
+          properties:
+            datasets:
+              type: array
+              items:
+                $ref: '#/components/schemas/Dataset'
+        - $ref: '#/components/schemas/CollectionInfo'
+
+
     # Configuration
     ConfigOption:
       type: object
@@ -4018,6 +4106,14 @@ components:
       required: true
       description: The import error ID.
 
+    DatasetID:
+      in: path
+      name: id
+      schema:
+        type: integer
+      required: true
+      description: The Dataset ID
+
     PoolName:
       in: path
       name: pool_name
@@ -4347,6 +4443,8 @@ tags:
   - name: Role
   - name: Permission
   - name: User
+  - name: DagWarning
+  - name: Dataset
 
 externalDocs:
   url: https://airflow.apache.org/docs/apache-airflow/stable/
