@@ -210,12 +210,6 @@ class TestHelpers:
             ("group.simple_key", None, None),
             ("root.group-name.simple_key", None, None),
             (
-                "root.group-name.simple_key",
-                "The key 'root.group-name.simple_key' has to be made of alphanumeric "
-                "characters, dashes and underscores exclusively",
-                AirflowException,
-            ),
-            (
                 "key with space",
                 "The key 'key with space' has to be made of alphanumeric "
                 "characters, dashes, dots and underscores exclusively",
