@@ -24,14 +24,17 @@ from datetime import datetime
 from airflow import models
 from airflow.providers.google.suite.transfers.gcs_to_gdrive import GCSToGoogleDriveOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "example_gcs_to_gdrive"
+
 GCS_TO_GDRIVE_BUCKET = os.environ.get("GCS_TO_DRIVE_BUCKET", "example-object")
 
 with models.DAG(
-    "example_gcs_to_gdrive",
-    schedule_interval=None,  # Override to match your needs,
+    DAG_ID,
+    schedule_interval="@once",
     start_date=datetime(2021, 1, 1),
     catchup=False,
-    tags=['example'],
+    tags=['example', 'gcs'],
 ) as dag:
     # [START howto_operator_gcs_to_gdrive_copy_single_file]
     copy_single_file = GCSToGoogleDriveOperator(
@@ -57,3 +60,9 @@ with models.DAG(
         move_object=True,
     )
     # [END howto_operator_gcs_to_gdrive_move_files]
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
