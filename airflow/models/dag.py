@@ -562,6 +562,8 @@ class DAG(LoggingMixin):
         for c in self._comps:
             # task_ids returns a list and lists can't be hashed
             if c == 'task_ids':
+                if self.task_dict is None:
+                    continue
                 val = tuple(self.task_dict.keys())
             else:
                 val = getattr(self, c, None)
