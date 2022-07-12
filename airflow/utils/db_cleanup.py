@@ -49,7 +49,8 @@ class _TableConfig:
     :param table_name: the table
     :param extra_columns: any columns besides recency_column_name that we'll need in queries
     :param recency_column_name: date column to filter by
-    :param dag_id_column: dag_id column to apply filter on if exists
+    :param in_dag_granularity: whether table is at dag granular level
+    :param dag_id_column_name: dag_id column name if exists
     :param keep_last: whether the last record should be kept even if it's older than clean_before_timestamp
     :param keep_last_filters: the "keep last" functionality will preserve the most recent record
         in the table.  to ignore certain records even if they are the latest in the table, you can
@@ -60,6 +61,7 @@ class _TableConfig:
     table_name: str
     recency_column_name: str
     in_dag_granularity: bool = False
+    dag_id_column_name: Optional[str] = None
     extra_columns: Optional[List[str]] = None
     keep_last: bool = False
     keep_last_filters: Optional[Any] = None
@@ -68,7 +70,7 @@ class _TableConfig:
     def __post_init__(self):
         self.recency_column = column(self.recency_column_name)
         if self.in_dag_granularity:
-            self.dag_id_column = column('dag_id')
+            self.dag_id_column = column(self.dag_id_column_name)
             self.orm_model: Base = table(
                 self.table_name,
                 *[column(x) for x in self.extra_columns or []],
@@ -98,38 +100,106 @@ class _TableConfig:
 
 
 config_list: List[_TableConfig] = [
-    _TableConfig(table_name='job', recency_column_name='latest_heartbeat', in_dag_granularity=False),
-    _TableConfig(table_name='dag', recency_column_name='last_parsed_time', in_dag_granularity=True),
+    _TableConfig(
+        table_name='job',
+        recency_column_name='latest_heartbeat',
+        in_dag_granularity=False,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='dag',
+        recency_column_name='last_parsed_time',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
     _TableConfig(
         table_name='dag_run',
         recency_column_name='start_date',
         in_dag_granularity=True,
+        dag_id_column_name='dag_id',
         extra_columns=['dag_id', 'external_trigger'],
         keep_last=True,
         keep_last_filters=[column('external_trigger') == false()],
         keep_last_group_by=['dag_id'],
     ),
-    _TableConfig(table_name='dataset_event', recency_column_name='created_at', in_dag_granularity=True),
-    _TableConfig(table_name='import_error', recency_column_name='timestamp', in_dag_granularity=False),
-    _TableConfig(table_name='log', recency_column_name='dttm', in_dag_granularity=True),
+    _TableConfig(
+        table_name='dataset_event',
+        recency_column_name='created_at',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='import_error',
+        recency_column_name='timestamp',
+        in_dag_granularity=False,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='log',
+        recency_column_name='dttm',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
     _TableConfig(
         table_name='rendered_task_instance_fields',
         recency_column_name='execution_date',
         in_dag_granularity=True,
+        dag_id_column_name='dag_id',
     ),
     _TableConfig(
         table_name='sensor_instance',
         recency_column_name='updated_at',
         in_dag_granularity=True,
+        dag_id_column_name='dag_id',
     ),
-    _TableConfig(table_name='sla_miss', recency_column_name='timestamp', in_dag_granularity=True),
-    _TableConfig(table_name='task_fail', recency_column_name='start_date', in_dag_granularity=True),
-    _TableConfig(table_name='task_instance', recency_column_name='start_date', in_dag_granularity=True),
-    _TableConfig(table_name='task_reschedule', recency_column_name='start_date', in_dag_granularity=True),
-    _TableConfig(table_name='xcom', recency_column_name='timestamp', in_dag_granularity=True),
-    _TableConfig(table_name='callback_request', recency_column_name='created_at', in_dag_granularity=False),
-    _TableConfig(table_name='celery_taskmeta', recency_column_name='date_done', in_dag_granularity=False),
-    _TableConfig(table_name='celery_tasksetmeta', recency_column_name='date_done', in_dag_granularity=False),
+    _TableConfig(
+        table_name='sla_miss',
+        recency_column_name='timestamp',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='task_fail',
+        recency_column_name='start_date',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='task_instance',
+        recency_column_name='start_date',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='task_reschedule',
+        recency_column_name='start_date',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='xcom',
+        recency_column_name='timestamp',
+        in_dag_granularity=True,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='callback_request',
+        recency_column_name='created_at',
+        in_dag_granularity=False,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='celery_taskmeta',
+        recency_column_name='date_done',
+        in_dag_granularity=False,
+        dag_id_column_name='dag_id',
+    ),
+    _TableConfig(
+        table_name='celery_tasksetmeta',
+        recency_column_name='date_done',
+        in_dag_granularity=False,
+        dag_id_column_name='dag_id',
+    ),
 ]
 
 config_dict: Dict[str, _TableConfig] = {x.orm_model.name: x for x in sorted(config_list)}
@@ -225,7 +295,7 @@ def _build_query(
     *,
     orm_model,
     recency_column,
-    dag_id_column,
+    dag_id_column=None,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
@@ -267,7 +337,7 @@ def _cleanup_table(
     *,
     orm_model,
     recency_column,
-    dag_id_column,
+    dag_id_column=None,
     keep_last,
     keep_last_filters,
     keep_last_group_by,
