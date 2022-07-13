@@ -108,7 +108,7 @@ Operators
 An operator defines a unit of work for Airflow to complete. Using operators is the classic approach
 to defining work in Airflow. For some use cases, it's better to use the TaskFlow API to define
 work in a Pythonic context as described in :doc:`/tutorial_taskflow_api`. For now, using operators helps to
-illustrate the upstream and downstream dependencies between tasks.
+visualize task dependencies in our DAG code.
 
 All operators inherit from the BaseOperator, which includes all of the required arguments for
 running work in Airflow. From here, each operator includes unique arguments for
