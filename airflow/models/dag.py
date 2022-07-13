@@ -2499,7 +2499,7 @@ class DAG(LoggingMixin):
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
             if dag.schedule_on:
-                orm_dag.schedule_interval = 'dataset-triggered'
+                orm_dag.schedule_interval = 'Dataset'
                 orm_dag.timetable_description = 'Triggered by datasets.'
             else:
                 orm_dag.schedule_interval = dag.schedule_interval
