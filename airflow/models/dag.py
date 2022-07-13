@@ -2498,7 +2498,7 @@ class DAG(LoggingMixin):
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
-            orm_dag.schedule_interval = dag.timetable.schedule_interval
+            orm_dag.schedule_interval = dag.timetable.summary
             orm_dag.timetable_description = dag.timetable.description
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
