@@ -20,7 +20,7 @@
 /* global localStorage, document */
 
 import React, {
-  useMemo, useContext, useState, useEffect, useCallback,
+  useMemo, useContext, useState, useEffect, useCallback, PropsWithChildren,
 } from 'react';
 
 import { getMetaValue } from 'src/utils';
@@ -38,11 +38,7 @@ const AutoRefreshContext = React.createContext({
   startRefresh: () => {},
 });
 
-interface Props {
-  children: React.ReactNode;
-}
-
-export const AutoRefreshProvider = ({ children }: Props) => {
+export const AutoRefreshProvider = ({ children }: PropsWithChildren) => {
   const [isPaused, setIsPaused] = useState(initialIsPaused);
   const isRefreshAllowed = !(isPaused || isRefreshDisabled);
   const initialState = isRefreshAllowed;

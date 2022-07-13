@@ -19,17 +19,13 @@
 
 /* global describe, test, expect */
 
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import { act, renderHook } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 
 import useSelection from './useSelection';
 
-interface Props {
-  children: React.ReactNode;
-}
-
-const Wrapper = ({ children }: Props) => (
+const Wrapper = ({ children }: PropsWithChildren) => (
   <MemoryRouter>
     {children}
   </MemoryRouter>

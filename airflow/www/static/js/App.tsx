@@ -21,7 +21,7 @@
   Base setup for anywhere we add react to the UI
 */
 
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import { BrowserRouter } from 'react-router-dom';
 import { ChakraProvider } from '@chakra-ui/react';
 import { CacheProvider } from '@emotion/react';
@@ -51,16 +51,12 @@ const queryClient = new QueryClient({
   },
 });
 
-interface ChildrenProps {
-  children: React.ReactNode;
-}
-
-interface AppProps extends ChildrenProps {
+interface AppProps extends PropsWithChildren {
   cache: EmotionCache;
 }
 
 // Chakra needs to access the containerRef provider so our tooltips pick up the correct styles
-const ChakraApp = ({ children }: ChildrenProps) => {
+const ChakraApp = ({ children }: PropsWithChildren) => {
   const containerRef = useContainerRef();
   return (
     <ChakraProvider theme={theme} toastOptions={{ portalProps: { containerRef } }}>
