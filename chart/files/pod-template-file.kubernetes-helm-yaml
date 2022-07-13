@@ -28,6 +28,8 @@ metadata:
     tier: airflow
     component: worker
     release: {{ .Release.Name }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
 {{- end }}
   {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
   annotations:
