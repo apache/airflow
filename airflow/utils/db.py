@@ -93,6 +93,7 @@ REVISION_HEADS_MAP = {
     "2.3.0": "b1b348e02d07",
     "2.3.1": "1de7bc13c950",
     "2.3.2": "3c94c427fdf6",
+    "2.3.3": "f5fcbda3e651",
 }
 
 
@@ -603,6 +604,14 @@ def create_default_connections(session: Session = NEW_SESSION):
             login="user",
             password="password",
             extra='{"site_id": "my_site"}',
+        ),
+        session,
+    )
+    merge_conn(
+        Connection(
+            conn_id="tabular_default",
+            conn_type="tabular",
+            host="https://api.tabulardata.io/ws/v1",
         ),
         session,
     )

@@ -34,9 +34,13 @@
     "skipLibCheck": true,
     "jsx": "preserve",
     "types": ["node", "jest"],
+    "baseUrl": ".",
+    "paths": { // Be sure to update aliases in webpack.config.js and jest.config.js
+      "src/*": ["static/js/*"],
+    },
   },
   "include": [
-    "static/js",
+    "static",
   ],
   "exclude": ["node_modules", "static/dist"]
 }

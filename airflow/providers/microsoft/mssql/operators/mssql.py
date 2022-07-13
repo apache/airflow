@@ -23,7 +23,7 @@ from airflow.providers.microsoft.mssql.hooks.mssql import MsSqlHook
 from airflow.www import utils as wwwutils
 
 if TYPE_CHECKING:
-    from airflow.hooks.dbapi import DbApiHook
+    from airflow.providers.common.sql.hooks.sql import DbApiHook
     from airflow.utils.context import Context
 
 

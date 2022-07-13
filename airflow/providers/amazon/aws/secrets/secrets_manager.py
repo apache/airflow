@@ -245,6 +245,7 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
         :param path_prefix: Prefix for the Path to get Secret
         :param secret_id: Secret Key
         """
+        error_msg = "An error occurred when calling the get_secret_value operation"
         if path_prefix:
             secrets_path = self.build_path(path_prefix, secret_id, self.sep)
         else:
@@ -257,15 +258,36 @@ class SecretsManagerBackend(BaseSecretsBackend, LoggingMixin):
             return response.get('SecretString')
         except self.client.exceptions.ResourceNotFoundException:
             self.log.debug(
-                "An error occurred (ResourceNotFoundException) when calling the "
-                "get_secret_value operation: "
-                "Secret %s not found.",
+                "ResourceNotFoundException: %s. Secret %s not found.",
+                error_msg,
                 secret_id,
             )
             return None
-        except self.client.exceptions.AccessDeniedException:
+        except self.client.exceptions.InvalidParameterException:
             self.log.debug(
-                "An error occurred (AccessDeniedException) when calling the get_secret_value operation",
+                "InvalidParameterException: %s",
+                error_msg,
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.InvalidRequestException:
+            self.log.debug(
+                "InvalidRequestException: %s",
+                error_msg,
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.DecryptionFailure:
+            self.log.debug(
+                "DecryptionFailure: %s",
+                error_msg,
+                exc_info=True,
+            )
+            return None
+        except self.client.exceptions.InternalServiceError:
+            self.log.debug(
+                "InternalServiceError: %s",
+                error_msg,
                 exc_info=True,
             )
             return None
