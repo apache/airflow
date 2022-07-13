@@ -34,9 +34,9 @@ metadata:
     release: {{ .Release.Name }}
     chart: "{{ .Chart.Name }}-{{ .Chart.Version }}"
     heritage: {{ .Release.Service }}
-    {{- if or (.Values.labels) (.Values.createUserJob.labels) }}
-    {{- mustMerge .Values.createUserJob.labels .Values.labels | toYaml | nindent 4 }}
-    {{- end }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 4 }}
+{{- end }}
   {{- $annotations := dict }}
   {{- if .Values.createUserJob.useHelmHooks }}
     {{- $_ := set $annotations "helm.sh/hook" "post-install,post-upgrade" }}
@@ -54,8 +54,8 @@ spec:
         tier: airflow
         component: create-user-job
         release: {{ .Release.Name }}
-{{- if or (.Values.labels) (.Values.createUserJob.labels) }}
-{{- mustMerge .Values.createUserJob.labels .Values.labels | toYaml | nindent 8 }}
+{{- with .Values.labels }}
+{{ toYaml . | indent 8 }}
 {{- end }}
       {{- if or .Values.airflowPodAnnotations .Values.createUserJob.annotations }}
       annotations:
