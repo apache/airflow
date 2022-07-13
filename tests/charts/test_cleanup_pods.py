@@ -175,6 +175,24 @@ class CleanupPodsTest(unittest.TestCase):
             "project": "airflow",
         } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "cleanup": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/cleanup/cleanup-cronjob.yaml"],
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "airflow-cleanup-pods",
+            "release": "RELEASE-NAME",
+            "test_label": "test_label_value",
+        } == jmespath.search("spec.jobTemplate.spec.template.metadata.labels", docs[0])
+
     def test_cleanup_resources_are_configurable(self):
         resources = {
             "requests": {

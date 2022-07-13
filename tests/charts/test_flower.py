@@ -246,6 +246,24 @@ class TestFlowerDeployment:
             "spec.template.spec.containers[0].volumeMounts", docs[0]
         )
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "flower": {
+                    "enabled": True,
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/flower/flower-deployment.yaml"],
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "flower",
+            "release": "RELEASE-NAME",
+            "test_label": "test_label_value",
+        } == jmespath.search("spec.template.metadata.labels", docs[0])
+
 
 class TestFlowerService:
     @pytest.mark.parametrize(
