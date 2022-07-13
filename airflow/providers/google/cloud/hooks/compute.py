@@ -102,7 +102,6 @@ class ComputeEngineHook(GoogleBaseHook):
         :type timeout: Optional[float]
         :param metadata: Additional metadata that is provided to the method.
         :type metadata: Optional[Sequence[Tuple[str, str]]]
-        :return: None
         """
 
         client = self.get_compute_client()
@@ -122,6 +121,65 @@ class ComputeEngineHook(GoogleBaseHook):
                 'instance_template_resource': body,
                 'request_id': request_id,
                 'project': project_id,
+            },
+            retry=retry,
+            timeout=timeout,
+            metadata=metadata,
+        )
+        return result
+
+    @GoogleBaseHook.fallback_to_default_project_id
+    def delete_instance_template(
+        self,
+        resource_id: str,
+        project_id: str = PROVIDE_PROJECT_ID,
+        request_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+    ) -> Any:
+        """
+        Deletes instance template.
+        Deleting an instance template is permanent and cannot be undone. It
+        is not possible to delete templates that are already in use by a managed instance group.
+        Must be called with keyword arguments rather than positional.
+
+        :param resource_id: Name of the Compute Engine instance resource.
+        :param request_id: Optional, unique request_id that you might add to achieve
+            full idempotence (for example when client call times out repeating the request
+            with the same request id will not create a new instance template again)
+            It should be in UUID format as defined in RFC 4122
+        :param project_id: Optional, Google Cloud project ID where the
+            Compute Engine Instance exists. If set to None or missing,
+            the default project_id from the Google Cloud connection is used.
+        :param retry: A retry object used  to retry requests. If `None` is specified, requests
+            will not be retried.
+        :type retry: Optional[google.api_core.retry.Retry]
+        :param timeout: The amount of time, in seconds, to wait for the request to complete.
+            Note that if `retry` is specified, the timeout applies to each individual attempt.
+        :type timeout: Optional[float]
+        :param metadata: Additional metadata that is provided to the method.
+        :type metadata: Optional[Sequence[Tuple[str, str]]]
+        """
+
+        client = self.get_compute_client()
+        result = client.delete(
+            # Calling method delete() on client to delete Instance Template.
+            # This method accepts request object as an argument and should be of type
+            # Union[google.cloud.compute_v1.types.DeleteInstanceTemplateRequest, dict] to construct a request
+            # message.
+            # The request object should be represented using arguments:
+            #   instance_template (str):
+            #       The name of the instance template to delete.
+            #   project (str):
+            #       Project ID for this request.
+            #   request_id (str):
+            #       An optional request ID to identify requests.
+
+            request={
+                'instance_template': resource_id,
+                'project': project_id,
+                'request_id': request_id,
             },
             retry=retry,
             timeout=timeout,
