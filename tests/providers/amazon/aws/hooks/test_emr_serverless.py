@@ -15,49 +15,75 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from unittest import mock
 
 import pytest
 
 from airflow.exceptions import AirflowException
 from airflow.providers.amazon.aws.hooks.emr import EmrServerlessHook
-from airflow.providers.amazon.aws.operators.emr import EmrServerlessCreateApplicationOperator
 
-MOCK_DATA = {
-    'task_id': 'test_emr_serverless_create_application_operator',
-    'application_id': 'test_application_id',
-    'release_label': 'test',
-    'job_type': 'test',
-    'client_request_token': 'eac427d0-1c6d-4dfb-96aa-32423412',
-    'config': {'name': 'test_application_emr_serverless'},
-}
+task_id = 'test_emr_serverless_create_application_operator'
+application_id = 'test_application_id'
+release_label = 'test'
+job_type = 'test'
+client_request_token = 'eac427d0-1c6d4df=-96aa-32423412'
+config = {'name': 'test_application_emr_serverless'}
 
 
 class TestEmrServerlessHook:
     def test_conn_attribute(self):
         hook = EmrServerlessHook(aws_conn_id='aws_default')
         assert hasattr(hook, 'conn')
+        # Testing conn is a cached property
         conn = hook.conn
-        assert conn is hook.conn
+        conn2 = hook.conn
+        assert conn is conn2
 
-    @mock.patch("airflow.providers.amazon.aws.hooks.emr.EmrServerlessHook.conn")
-    def test_waiter_reach_failure_state(self, mock_conn):
-        fail_state = "STOPPED"
-        mock_conn.get_application.return_value = {"application": {"state": fail_state}}
-        mock_conn.create_application.return_value = {
-            "applicationId": MOCK_DATA['application_id'],
-            "ResponseMetadata": {"HTTPStatusCode": 200},
-        }
+    def call_function(self, response):
+        return {'response': response}
 
-        operator = EmrServerlessCreateApplicationOperator(
-            task_id=MOCK_DATA['task_id'],
-            release_label=MOCK_DATA['release_label'],
-            job_type=MOCK_DATA['job_type'],
-            client_request_token=MOCK_DATA['client_request_token'],
-            config=MOCK_DATA['config'],
+    def nested_call_function(self, response):
+        return {'layer1': {'key1': 'value1', 'layer2': {'response': response}}}
+
+    def test_waiter_success_state(self):
+        success_state = {'test_success'}
+        hook = EmrServerlessHook()
+        waiter_response = hook.waiter(
+            get_state_callable=self.call_function,
+            get_state_args={'response': 'test_success'},
+            parse_response=['response'],
+            desired_state=success_state,
+            failure_states={},
+            object_type='test_object',
+            action='testing',
         )
+        assert waiter_response is None
 
+    def test_waiter_failure_state(self):
+        failure_state = {'test_failure'}
+        hook = EmrServerlessHook()
         with pytest.raises(AirflowException) as ex_message:
-            operator.execute(None)
+            hook.waiter(
+                get_state_callable=self.call_function,
+                get_state_args={'response': 'test_failure'},
+                parse_response=['response'],
+                desired_state={},
+                failure_states=failure_state,
+                object_type='test_object',
+                action='testing',
+            )
 
-        assert str(ex_message.value) == f"Application reached failure state {fail_state}."
+        assert str(ex_message.value) == f"Test_Object reached failure state {','.join(failure_state)}."
+
+    def test_nested_waiter_success_state(self):
+        success_state = {'test_success'}
+        hook = EmrServerlessHook()
+        waiter_response = hook.waiter(
+            get_state_callable=self.nested_call_function,
+            get_state_args={'response': 'test_success'},
+            parse_response=['layer1', 'layer2', 'response'],
+            desired_state=success_state,
+            failure_states={},
+            object_type='test_object',
+            action='testing',
+        )
+        assert waiter_response is None
