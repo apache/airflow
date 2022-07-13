@@ -27,7 +27,11 @@ from tests.system.providers.amazon.aws.utils import SystemTestContextBuilder
 
 sys_test_context_task = SystemTestContextBuilder().build()
 
+
 DAG_ID = 'example_local_to_s3'
+TEMP_FILE_PATH = '/tmp/sample-txt.txt'
+SAMPLE_TEXT = 'This is some sample text.'
+
 
 @task
 def create_temp_file():
@@ -49,40 +53,37 @@ with DAG(
     catchup=False,
 ) as dag:
     test_context = sys_test_context_task()
-    ENV_ID = test_context['ENV_ID']
+    env_id = test_context['ENV_ID']
 
-    S3_BUCKET_NAME = f'{ENV_ID}-bucket'
-    S3_KEY = f'{ENV_ID}/files/my-temp-file.txt'
-    TEMP_FILE_PATH = '/tmp/sample-txt.txt'
-    SAMPLE_TEXT = 'This is some sample text.'
+    s3_bucket_name = f'{env_id}-bucket'
+    s3_key = f'{env_id}/files/my-temp-file.txt'
 
-    # [START howto_operator_s3_create_bucket]
-    create_s3_bucket = S3CreateBucketOperator(
-        task_id='create-s3-bucket', bucket_name=S3_BUCKET_NAME, region_name='us-east-1'
-    )
-    # [END howto_operator_s3_create_bucket]
-
+    create_s3_bucket = S3CreateBucketOperator(task_id='create-s3-bucket', bucket_name=s3_bucket_name)
     # [START howto_transfer_local_to_s3]
     create_local_to_s3_job = LocalFilesystemToS3Operator(
         task_id="create_local_to_s3_job",
-        filename="/tmp/sample-txt.txt",
-        dest_key=S3_KEY,
-        dest_bucket=S3_BUCKET_NAME,
+        filename=TEMP_FILE_PATH,
+        dest_key=s3_key,
+        dest_bucket=s3_bucket_name,
         replace=True,
     )
     # [END howto_transfer_local_to_s3]
 
-    # [START howto_operator_s3_delete_bucket]
     delete_s3_bucket = S3DeleteBucketOperator(
-        task_id='delete_s3_bucket', bucket_name=S3_BUCKET_NAME, force_delete=True, trigger_rule="all_done"
+        task_id='delete_s3_bucket',
+        bucket_name=s3_bucket_name,
+        force_delete=True,
+        trigger_rule=TriggerRule.ALL_DONE,
     )
-    # [END howto_operator_s3_delete_bucket]
 
     chain(
+        # TEST SETUP
         test_context,
         create_temp_file(),
         create_s3_bucket,
+        # TEST BODY
         create_local_to_s3_job,
+        # TEST TEARDOWN
         delete_s3_bucket,
         delete_temp_file(),
     )
