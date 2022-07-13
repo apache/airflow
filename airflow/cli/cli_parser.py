@@ -423,7 +423,7 @@ ARG_DB_TABLES = Arg(
 )
 ARG_DB_DAG_IDS = Arg(
     ("-d", "--dag-ids"),
-    help="Dag ids to perform maintenance on (use comma-separated list).\n",
+    help="DAG IDs to perform maintenance on (use comma-separated list).\n",
     type=string_list_type,
 )
 ARG_DB_CLEANUP_TIMESTAMP = Arg(
