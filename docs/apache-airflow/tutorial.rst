@@ -122,7 +122,7 @@ Tasks
 -----
 
 To use an operator in a DAG, you have to instantiate it as a task. Tasks
-determine how to execute your operators' work within the context of a DAG.
+determine how to execute your operator's work within the context of a DAG.
 
 In the following example, we instantiate the BashOperator as two separate tasks in order to run two
 separate bash scripts. The first argument for each instantiation, ``task_id``,
