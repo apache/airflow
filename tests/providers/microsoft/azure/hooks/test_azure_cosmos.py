@@ -23,6 +23,7 @@ import logging
 import unittest
 import uuid
 from unittest import mock
+from unittest.mock import PropertyMock
 
 import pytest
 from azure.cosmos.cosmos_client import CosmosClient
@@ -234,3 +235,19 @@ class TestAzureCosmosDbHook(unittest.TestCase):
         ]
         mock_cosmos.assert_any_call(self.test_end_point, {'masterKey': self.test_master_key})
         mock_cosmos.assert_has_calls(expected_calls)
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.cosmos.CosmosClient')
+    def test_connection_success(self, mock_cosmos):
+        hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
+        hook.get_conn().list_databases.return_value = {'id': self.test_database_name}
+        status, msg = hook.test_connection()
+        assert status is True
+        assert msg == "Successfully connected to Azure Cosmos."
+
+    @mock.patch('airflow.providers.microsoft.azure.hooks.cosmos.CosmosClient')
+    def test_connection_failure(self, mock_cosmos):
+        hook = AzureCosmosDBHook(azure_cosmos_conn_id='azure_cosmos_test_key_id')
+        hook.get_conn().list_databases = PropertyMock(side_effect=Exception("Authentication failed."))
+        status, msg = hook.test_connection()
+        assert status is False
+        assert msg == "Authentication failed."
