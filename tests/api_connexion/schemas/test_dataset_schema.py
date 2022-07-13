@@ -15,12 +15,15 @@
 # specific language governing permissions and limitations
 # under the License.
 
-from airflow import Dataset
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
+    DatasetEventCollection,
     dataset_collection_schema,
+    dataset_event_collection_schema,
+    dataset_event_schema,
     dataset_schema,
 )
+from airflow.models.dataset import Dataset, DatasetEvent
 from airflow.utils import timezone
 from tests.test_utils.db import clear_db_datasets
 
@@ -90,6 +93,58 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
                     "created_at": self.timestamp,
                     "updated_at": self.timestamp,
                 },
+            ],
+            "total_entries": 2,
+        }
+
+
+class TestDatasetEventSchema(TestDatasetSchemaBase):
+    def test_serialize(self, session):
+        event = DatasetEvent(
+            dataset_id=1,
+            extra={"foo": "bar"},
+            task_id="bar",
+            dag_id="foo",
+            run_id="custom",
+            map_index=-1,
+            created_at=timezone.parse(self.timestamp),
+        )
+        session.add(event)
+        session.flush()
+        serialized_data = dataset_event_schema.dump(event)
+        assert serialized_data == {
+            "dataset_id": 1,
+            "extra": "{'foo': 'bar'}",
+            "task_id": "bar",
+            "dag_id": "foo",
+            "run_id": "custom",
+            "map_index": -1,
+            "created_at": self.timestamp,
+        }
+
+
+class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
+    def test_serialize(self, session):
+        common = {
+            "extra": "{'foo': 'bar'}",
+            "task_id": "bar",
+            "dag_id": "foo",
+            "run_id": "custom",
+            "map_index": -1,
+        }
+
+        events = [
+            DatasetEvent(dataset_id=i, created_at=timezone.parse(self.timestamp), **common) for i in [1, 2]
+        ]
+        session.add_all(events)
+        session.flush()
+        serialized_data = dataset_event_collection_schema.dump(
+            DatasetEventCollection(dataset_events=events, total_entries=2)
+        )
+        assert serialized_data == {
+            "dataset_events": [
+                {"dataset_id": 1, "created_at": self.timestamp, **common},
+                {"dataset_id": 2, "created_at": self.timestamp, **common},
             ],
             "total_entries": 2,
         }
