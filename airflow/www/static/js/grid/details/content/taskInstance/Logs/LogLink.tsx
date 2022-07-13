@@ -19,9 +19,9 @@
 
 import React from 'react';
 
-import { getMetaValue } from '../../../../../utils';
-import LinkButton from '../../../../components/LinkButton';
-import type { Dag, DagRun, TaskInstance } from '../../../../types';
+import { getMetaValue } from 'app/utils';
+import LinkButton from 'grid/components/LinkButton';
+import type { Dag, DagRun, TaskInstance } from 'grid/types';
 
 const logsWithMetadataUrl = getMetaValue('logs_with_metadata_url');
 const externalLogUrl = getMetaValue('external_log_url');

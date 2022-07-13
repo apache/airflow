@@ -38,6 +38,7 @@ from google.cloud.pubsub_v1.types import (
 
 from airflow.models import BaseOperator
 from airflow.providers.google.cloud.hooks.pubsub import PubSubHook
+from airflow.providers.google.cloud.links.pubsub import PubSubSubscriptionLink, PubSubTopicLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
@@ -117,6 +118,7 @@ class PubSubCreateTopicOperator(BaseOperator):
         'impersonation_chain',
     )
     ui_color = '#0273d4'
+    operator_extra_links = (PubSubTopicLink(),)
 
     def __init__(
         self,
@@ -170,6 +172,12 @@ class PubSubCreateTopicOperator(BaseOperator):
             metadata=self.metadata,
         )
         self.log.info("Created topic %s", self.topic)
+        PubSubTopicLink.persist(
+            context=context,
+            task_instance=self,
+            topic_id=self.topic,
+            project_id=self.project_id or hook.project_id,
+        )
 
 
 class PubSubCreateSubscriptionOperator(BaseOperator):
@@ -305,6 +313,7 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         'impersonation_chain',
     )
     ui_color = '#0273d4'
+    operator_extra_links = (PubSubSubscriptionLink(),)
 
     def __init__(
         self,
@@ -385,6 +394,12 @@ class PubSubCreateSubscriptionOperator(BaseOperator):
         )
 
         self.log.info("Created subscription for topic %s", self.topic)
+        PubSubSubscriptionLink.persist(
+            context=context,
+            task_instance=self,
+            subscription_id=self.subscription or result,  # result returns subscription name
+            project_id=self.project_id or hook.project_id,
+        )
         return result
 
 

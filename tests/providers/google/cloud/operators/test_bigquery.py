@@ -190,7 +190,7 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
     def test_execute(self, mock_hook):
         operator = BigQueryCreateExternalTableOperator(
             task_id=TASK_ID,
-            destination_project_dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
+            destination_project_dataset_table=f'{TEST_GCP_PROJECT_ID}.{TEST_DATASET}.{TEST_TABLE_ID}',
             schema_fields=[],
             bucket=TEST_GCS_BUCKET,
             source_objects=TEST_GCS_DATA,
@@ -198,23 +198,41 @@ class TestBigQueryCreateExternalTableOperator(unittest.TestCase):
             autodetect=True,
         )
 
+        mock_hook.return_value.split_tablename.return_value = (
+            TEST_GCP_PROJECT_ID,
+            TEST_DATASET,
+            TEST_TABLE_ID,
+        )
+
         operator.execute(context=MagicMock())
-        mock_hook.return_value.create_external_table.assert_called_once_with(
-            external_project_dataset_table=f'{TEST_DATASET}.{TEST_TABLE_ID}',
-            schema_fields=[],
-            source_uris=[f'gs://{TEST_GCS_BUCKET}/{source_object}' for source_object in TEST_GCS_DATA],
-            source_format=TEST_SOURCE_FORMAT,
-            autodetect=True,
-            compression='NONE',
-            skip_leading_rows=0,
-            field_delimiter=',',
-            max_bad_records=0,
-            quote_character=None,
-            allow_quoted_newlines=False,
-            allow_jagged_rows=False,
-            src_fmt_configs={},
-            labels=None,
-            encryption_configuration=None,
+        mock_hook.return_value.create_empty_table.assert_called_once_with(
+            table_resource={
+                "tableReference": {
+                    "projectId": TEST_GCP_PROJECT_ID,
+                    "datasetId": TEST_DATASET,
+                    "tableId": TEST_TABLE_ID,
+                },
+                "labels": None,
+                "schema": {"fields": []},
+                "externalDataConfiguration": {
+                    "source_uris": [
+                        f'gs://{TEST_GCS_BUCKET}/{source_object}' for source_object in TEST_GCS_DATA
+                    ],
+                    "source_format": TEST_SOURCE_FORMAT,
+                    "maxBadRecords": 0,
+                    "autodetect": True,
+                    "compression": 'NONE',
+                    "csvOptions": {
+                        "fieldDelimeter": ',',
+                        "skipLeadingRows": 0,
+                        "quote": None,
+                        "allowQuotedNewlines": False,
+                        "allowJaggedRows": False,
+                    },
+                },
+                "location": None,
+                "encryptionConfiguration": None,
+            }
         )
 
 

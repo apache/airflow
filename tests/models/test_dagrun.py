@@ -1165,7 +1165,7 @@ def test_mapped_literal_length_reduction_adds_removed_state(dag_maker, session):
     ]
 
 
-def test_mapped_literal_length_increase_at_runtime_adds_additional_tis(dag_maker, session):
+def test_mapped_length_increase_at_runtime_adds_additional_tis(dag_maker, session):
     """Test that when the length of mapped literal increases at runtime, additional ti is added"""
     from airflow.models import Variable
 

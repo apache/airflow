@@ -17,7 +17,7 @@
 # under the License.
 #
 import signal
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 import psutil
 from sqlalchemy.exc import OperationalError
@@ -243,7 +243,8 @@ class LocalTaskJob(BaseJob):
             ).one()
 
             task = self.task_instance.task
-            assert task.dag  # For Mypy.
+            if TYPE_CHECKING:
+                assert task.dag
 
             # Get a partial DAG with just the specific tasks we want to examine.
             # In order for dep checks to work correctly, we include ourself (so

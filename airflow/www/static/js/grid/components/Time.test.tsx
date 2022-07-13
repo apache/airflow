@@ -25,9 +25,10 @@ import {
 } from '@testing-library/react';
 import moment from 'moment-timezone';
 
-import { defaultFormatWithTZ, TimezoneEvent } from '../../datetime_utils';
+import { defaultFormatWithTZ, TimezoneEvent } from 'app/datetime_utils';
+import { Wrapper } from 'grid/utils/testUtils';
+
 import Time from './Time';
-import { Wrapper } from '../utils/testUtils';
 
 describe('Test Time and TimezoneProvider', () => {
   test('Displays a UTC time correctly', () => {
