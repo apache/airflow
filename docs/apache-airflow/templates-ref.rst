@@ -38,6 +38,7 @@ Variable                                    Description
 ==========================================  ====================================
 ``{{ data_interval_start }}``               Start of the data interval (`pendulum.DateTime`_).
 ``{{ data_interval_end }}``                 End of the data interval (`pendulum.DateTime`_).
+``{{ logical_date }}``                      The DAG run's logical date as ``YYYY-MM-DD``.
 ``{{ ds }}``                                The DAG run's logical date as ``YYYY-MM-DD``.
                                             Same as ``{{ dag_run.logical_date | ds }}``.
 ``{{ ds_nodash }}``                         Same as ``{{ dag_run.logical_date | ds_nodash }}``.
@@ -144,7 +145,7 @@ Filters
 
 Airflow defines some Jinja filters that can be used to format values.
 
-For example, using ``{{ execution_date | ds }}`` will output the execution_date in the ``YYYY-MM-DD`` format.
+For example, using ``{{ logical_date | ds }}`` will output the logical date in the ``YYYY-MM-DD`` format.
 
 =====================  ============  ==================================================================
 Filter                 Operates on   Description
