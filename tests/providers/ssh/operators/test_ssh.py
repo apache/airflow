@@ -195,5 +195,5 @@ class TestSSHOperator:
             command=command,
         )
         self.exec_ssh_client_command.return_value = (1, b'', b'Error here')
-        with pytest.raises(AirflowException, match=f"error running cmd: {command}, error: Error here"):
+        with pytest.raises(AirflowException, match="SSH operator error: exit status = 1"):
             task.execute(None)

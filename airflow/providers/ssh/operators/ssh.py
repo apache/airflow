@@ -149,8 +149,7 @@ class SSHOperator(BaseOperator):
 
     def raise_for_status(self, exit_status: int, stderr: bytes) -> None:
         if exit_status != 0:
-            error_msg = stderr.decode('utf-8')
-            raise AirflowException(f"error running cmd: {self.command}, error: {error_msg}")
+            raise AirflowException(f"SSH operator error: exit status = {exit_status}")
 
     def run_ssh_client_command(self, ssh_client: "SSHClient", command: str) -> bytes:
         assert self.ssh_hook
@@ -168,11 +167,8 @@ class SSHOperator(BaseOperator):
         # Forcing get_pty to True if the command begins with "sudo".
         self.get_pty = self.command.startswith('sudo') or self.get_pty
 
-        try:
-            with self.get_ssh_client() as ssh_client:
-                result = self.run_ssh_client_command(ssh_client, self.command)
-        except Exception as e:
-            raise AirflowException(f"SSH operator error: {str(e)}")
+        with self.get_ssh_client() as ssh_client:
+            result = self.run_ssh_client_command(ssh_client, self.command)
         enable_pickling = conf.getboolean('core', 'enable_xcom_pickling')
         if not enable_pickling:
             result = b64encode(result).decode('utf-8')
