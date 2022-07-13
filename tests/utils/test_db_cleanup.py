@@ -285,7 +285,6 @@ class TestDBCleanup:
             )
             model = config_dict[table_name].orm_model
             expected_remaining = num_tis - expected_to_delete
-            a = session.query(model).all()
             assert len(session.query(model).all()) == expected_remaining
             if model.name == 'task_instance':
                 assert len(session.query(DagRun).all()) == num_tis
