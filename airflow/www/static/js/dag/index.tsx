@@ -17,30 +17,32 @@
  * under the License.
  */
 
-/*
-*  TypeScript config
-*/
-{
-  "compilerOptions": {
-    "strict": true,
-    "allowJs": true,
-    "importsNotUsedAsValues": "error",
-    "target": "ES6",
-    "module": "ES6",
-    "moduleResolution": "node",
-    "isolatedModules": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "skipLibCheck": true,
-    "jsx": "preserve",
-    "types": ["node", "jest"],
-    "baseUrl": ".",
-    "paths": { // Be sure to update aliases in webpack.config.js and jest.config.js
-      "src/*": ["static/js/*"],
-    },
-  },
-  "include": [
-    "static",
-  ],
-  "exclude": ["node_modules", "static/dist"]
+/* global document */
+
+import React from 'react';
+import { createRoot } from 'react-dom/client';
+import createCache from '@emotion/cache';
+
+import App from 'src/App';
+
+import Main from './Main';
+
+// create shadowRoot
+const root = document.querySelector('#root');
+const shadowRoot = root?.attachShadow({ mode: 'open' });
+const cache = createCache({
+  container: shadowRoot,
+  key: 'c',
+});
+const mainElement = document.getElementById('react-container');
+
+if (mainElement) {
+  shadowRoot?.appendChild(mainElement);
+
+  const reactRoot = createRoot(mainElement);
+  reactRoot.render(
+    <App cache={cache}>
+      <Main />
+    </App>,
+  );
 }
