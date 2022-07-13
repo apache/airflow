@@ -399,6 +399,7 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
 
     # [START gce_instance_template_copy_operator_template_fields]
     template_fields: Sequence[str] = (
+        'body',
         'project_id',
         'request_id',
         'gcp_conn_id',
@@ -528,6 +529,110 @@ class ComputeEngineCreateInstanceTemplateOperator(ComputeEngineBaseOperator):
         return hook.get_instance_template(
             resource_id=self.body['name'],
             project_id=self.project_id)
+
+
+class ComputeEngineDeleteInstanceTemplateOperator(ComputeEngineBaseOperator):
+    """
+    Deletes an instance in Google Compute Engine.
+
+    :param resource_id: Name of the Compute Engine instance resource.
+    :param request_id: Optional, unique request_id that you might add to achieve
+        full idempotence (for example when client call times out repeating the request
+        with the same request id will not create a new instance template again).
+        It should be in UUID format as defined in RFC 4122.
+    :param project_id: Optional, Google Cloud Project ID where the Compute
+        Engine Instance exists. If set to None or missing, the default project_id from the Google Cloud
+        connection is used.
+    :param gcp_conn_id: Optional, The connection ID used to connect to Google Cloud.
+        Defaults to 'google_cloud_default'.
+    :param api_version: Optional, API version used (for example v1 - or beta). Defaults
+        to v1.
+    :param impersonation_chain: Optional service account to impersonate using short-term
+        credentials, or chained list of accounts required to get the access_token
+        of the last account in the list, which will be impersonated in the request.
+        If set as a string, the account must grant the originating account
+        the Service Account Token Creator IAM role.
+        If set as a sequence, the identities from the list must grant
+        Service Account Token Creator IAM role to the directly preceding identity, with first
+        account from the list granting this role to the originating account (templated).
+    """
+
+    # [START gce_instance_stop_template_fields]
+    template_fields: Sequence[str] = (
+        'resource_id',
+        'request_id',
+        'project_id',
+        'gcp_conn_id',
+        'api_version',
+        'impersonation_chain',
+    )
+    # [END gce_instance_stop_template_fields]
+
+    def __init__(
+        self,
+        *,
+        resource_id: str,
+        request_id: Optional[str] = None,
+        project_id: Optional[str] = None,
+        retry: Optional[Retry] = None,
+        timeout: Optional[float] = None,
+        metadata: Optional[Sequence[Tuple[str, str]]] = (),
+        gcp_conn_id: str = 'google_cloud_default',
+        api_version: str = 'v1',
+        validate_body: bool = True,
+        impersonation_chain: Optional[Union[str, Sequence[str]]] = None,
+        **kwargs,
+    ) -> None:
+        self.request_id = request_id
+        self.resource_id = resource_id
+        self._field_validator = None  # Optional[GcpBodyFieldValidator]
+        self.retry = retry
+        self.timeout = timeout
+        self.metadata = metadata
+
+        if validate_body:
+            self._field_validator = GcpBodyFieldValidator(
+                GCE_INSTANCE_TEMPLATE_VALIDATION_PATCH_SPECIFICATION, api_version=api_version
+            )
+        self._field_sanitizer = GcpBodyFieldSanitizer(GCE_CREATE_INSTANCE_TEMPLATE_FIELDS_TO_SANITIZE)
+        super().__init__(
+            project_id=project_id,
+            zone='global',
+            resource_id=resource_id,
+            gcp_conn_id=gcp_conn_id,
+            api_version=api_version,
+            impersonation_chain=impersonation_chain,
+            **kwargs,
+        )
+
+    def execute(self, context: 'Context') -> None:
+        hook = ComputeEngineHook(
+            gcp_conn_id=self.gcp_conn_id,
+            api_version=self.api_version,
+            impersonation_chain=self.impersonation_chain,
+        )
+        try:
+            # Checking if specified Instance template exists and if it does, delete it
+            existing_template = hook.get_instance_template(
+                resource_id=self.resource_id,
+                project_id=self.project_id
+            )
+            self.log.info(
+                "Successfully found Instance template %s", existing_template,
+            )
+            hook.delete_instance_template(
+                resource_id=self.resource_id,
+                project_id=self.project_id,
+                request_id=self.request_id
+            )
+            self.log.info("Successfully deleted Instance template")
+        except exceptions.NotFound as e:
+            # Expecting 404 Error in case if Instance template doesn't exist.
+            # If other Error occurred - raise an exception
+            if e.code == 404:
+                self.log.error("Instance template %s doesn't exist", self.resource_id)
+            else:
+                raise e
 
 
 class ComputeEngineCopyInstanceTemplateOperator(ComputeEngineBaseOperator):
