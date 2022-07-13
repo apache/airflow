@@ -24,6 +24,19 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``'AirbyteHook' add cancel job option (#24593)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 

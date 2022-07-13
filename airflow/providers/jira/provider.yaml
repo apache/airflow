@@ -22,6 +22,7 @@ description: |
     `Atlassian Jira <https://www.atlassian.com/>`__
 
 versions:
+  - 3.0.1
   - 3.0.0
   - 2.0.5
   - 2.0.4

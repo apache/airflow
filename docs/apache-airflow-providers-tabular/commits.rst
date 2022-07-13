@@ -25,3 +25,16 @@ Package apache-airflow-providers-tabular
 
 This is detailed commit list of changes for versions provider package: ``tabular``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2022-07-06
+
+=================================================================================================  ===========  =================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =================================
+`10273e3c63 <https://github.com/apache/airflow/commit/10273e3c63e879c7d7f9e1039f0f32bb828fac3d>`_  2022-07-06   ``Add Tabular provider (#23704)``
+=================================================================================================  ===========  =================================

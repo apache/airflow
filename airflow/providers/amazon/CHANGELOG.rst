@@ -24,6 +24,46 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add test_connection method to AWS hook (#24662)``
+* ``Add AWS operators to create and delete RDS Database (#24099)``
+* ``Add batch option to 'SqsSensor' (#24554)``
+* ``Add AWS Batch & AWS CloudWatch Extra Links (#24406)``
+* ``Refactoring EmrClusterLink and add for other AWS EMR Operators (#24294)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Amazon appflow (#24057)``
+* ``Make extra_args in S3Hook immutable between calls (#24527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refactor and fix AWS secret manager invalid exception (#24898)``
+* ``fix: RedshiftDataHook and RdsHook not use cached connection (#24387)``
+* ``Fix links to sources for examples (#24386)``
+* ``Fix S3KeySensor. See #24321 (#24378)``
+* ``Fix: 'emr_conn_id' should be optional in 'EmrCreateJobFlowOperator' (#24306)``
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Convert RDS Event and Snapshot Sample DAGs to System Tests (#24932)``
+   * ``Convert Step Functions Example DAG to System Test (AIP-47) (#24643)``
+   * ``Update AWS Connection docs and deprecate some extras (#24670)``
+   * ``Remove 'xcom_push' flag from providers (#24823)``
+   * ``Align Black and blacken-docs configs (#24785)``
+   * ``Restore Optional value of script_location (#24754)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Use our yaml util in all providers (#24720)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Convert SQS Sample DAG to System Test (#24513)``
+   * ``Convert Cloudformation Sample DAG to System Test (#24447)``
+   * ``Convert SNS Sample DAG to System Test (#24384)``
+
 4.0.0
 .....
 

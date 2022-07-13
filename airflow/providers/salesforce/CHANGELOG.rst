@@ -35,6 +35,23 @@ Breaking changes
 .. warning:: Due to tableau extra removal, ``pip install apache-airflow-providers-salesforce[tableau]``
    will not work. You can install Tableau provider directly via ``pip install apache-airflow-providers-tableau``.
 
+Features
+~~~~~~~~
+
+* ``Add support for Salesforce bulk api (#24473)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+  * ``Correct parameter typing in 'SalesforceBulkOperator' (#24927)``
+  * ``Move provider dependencies to inside provider folders (#24672)``
+  * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
+
 4.0.0
 .....
 

@@ -28,14 +28,28 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+2.1.0
+.....
+
+Latest change: 2022-07-11
+
+=================================================================================================  ===========  ==================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ==================================================================
+`ef79a0d1c4 <https://github.com/apache/airflow/commit/ef79a0d1c4c0a041d7ebf83b93cbb25aa3778a70>`_  2022-07-11   ``Only assert stuff for mypy when type checking (#24937)``
+`7f749b653c <https://github.com/apache/airflow/commit/7f749b653ce363b1450346b61c7f6c406f72cd66>`_  2022-07-07   ``Add test connection functionality to 'GithubHook' (#24903)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+=================================================================================================  ===========  ==================================================================
+
 2.0.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``
 `5f6d7d202e <https://github.com/apache/airflow/commit/5f6d7d202eaecf8619f1a1b943166d99554256c2>`_  2022-06-05   ``Migrate GitHub example DAGs to new design #22446 (#24134)``

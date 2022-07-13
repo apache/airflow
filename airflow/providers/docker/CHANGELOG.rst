@@ -24,6 +24,25 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Force-remove container after DockerOperator execution (#23160)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``'DockerOperator' fix cli.logs giving character array instead of string (#24726)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Clean up task decorator type hints and docstrings (#24667)``
+
 3.0.0
 .....
 

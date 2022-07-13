@@ -54,7 +54,7 @@ Package apache-airflow-providers-apache-hdfs
 and `WebHDFS <https://hadoop.apache.org/docs/current/hadoop-project-dist/hadoop-hdfs/WebHDFS.html>`__.
 
 
-Release: 3.0.0
+Release: 3.0.1
 
 Provider package
 ----------------
@@ -76,8 +76,8 @@ Requirements
 PIP package                        Version required
 =================================  ==================
 ``apache-airflow``                 ``>=2.2.0``
-``hdfs[avro,dataframe,kerberos]``  ``>=2.0.4``
 ``snakebite-py3``
+``hdfs[avro,dataframe,kerberos]``  ``>=2.0.4``
 =================================  ==================
 
 .. include:: ../../airflow/providers/apache/hdfs/CHANGELOG.rst

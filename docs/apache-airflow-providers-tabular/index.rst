@@ -71,7 +71,17 @@ are in ``airflow.providers.tabular`` python package.
 Installation
 ------------
 
-You can install this package on top of an existing Airflow 2.2+ installation via
+You can install this package on top of an existing Airflow 2 installation (see ``Requirements`` below)
+for the minimum Airflow version supported) via
 ``pip install apache-airflow-providers-tabular``
+
+Requirements
+------------
+
+==================  ==================
+PIP package         Version required
+==================  ==================
+``apache-airflow``  ``>=2.2.0``
+==================  ==================
 
 .. include:: ../../airflow/providers/tabular/CHANGELOG.rst

@@ -28,14 +28,36 @@ For high-level changelog, see :doc:`package information including changelog <ind
 
 
 
+4.2.0
+.....
+
+Latest change: 2022-07-11
+
+=================================================================================================  ===========  =============================================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  =============================================================================
+`ef79a0d1c4 <https://github.com/apache/airflow/commit/ef79a0d1c4c0a041d7ebf83b93cbb25aa3778a70>`_  2022-07-11   ``Only assert stuff for mypy when type checking (#24937)``
+`e2fd41f7b1 <https://github.com/apache/airflow/commit/e2fd41f7b14adef2c3a88dde14d088b5ef93b460>`_  2022-07-04   ``Remove 'xcom_push' flag from providers (#24823)``
+`9d307102b4 <https://github.com/apache/airflow/commit/9d307102b4a604034d9b1d7f293884821263575f>`_  2022-06-29   ``More typing and minor refactor for kubernetes (#24719)``
+`0de31bd73a <https://github.com/apache/airflow/commit/0de31bd73a8f41dded2907f0dee59dfa6c1ed7a1>`_  2022-06-29   ``Move provider dependencies to inside provider folders (#24672)``
+`45b11d4ed1 <https://github.com/apache/airflow/commit/45b11d4ed1412c00ebf32a03ab5ea3a06274f208>`_  2022-06-29   ``Use our yaml util in all providers (#24720)``
+`510a6bab45 <https://github.com/apache/airflow/commit/510a6bab4595cce8bd5b1447db957309d70f35d9>`_  2022-06-28   ``Remove 'hook-class-names' from provider.yaml (#24702)``
+`5326da4b83 <https://github.com/apache/airflow/commit/5326da4b83ed4405553e88d5d5464508256498d0>`_  2022-06-28   ``Add 'airflow_kpo_in_cluster' label to KPO pods (#24658)``
+`45f4290712 <https://github.com/apache/airflow/commit/45f4290712f5f779e57034f81dbaab5d77d5de85>`_  2022-06-28   ``Rename 'resources' arg in Kub op to k8s_resources (#24673)``
+`9c59831ee7 <https://github.com/apache/airflow/commit/9c59831ee78f14de96421c74986933c494407afa>`_  2022-06-21   ``Update providers to use functools compat for ''cached_property'' (#24582)``
+`78ac48872b <https://github.com/apache/airflow/commit/78ac48872bd02d1c08c6e55525f0bb4d6e983d32>`_  2022-06-21   ``Use found pod for deletion in KubernetesPodOperator (#22092)``
+`dba3e4ec51 <https://github.com/apache/airflow/commit/dba3e4ec51c03dc08449a3954fa3539388d0bc73>`_  2022-06-15   ``Revert "Fix await_container_completion condition (#23883)" (#24474)``
+=================================================================================================  ===========  =============================================================================
+
 4.1.0
 .....
 
-Latest change: 2022-06-07
+Latest change: 2022-06-09
 
 =================================================================================================  ===========  ==================================================================================
 Commit                                                                                             Committed    Subject
 =================================================================================================  ===========  ==================================================================================
+`dcdcf3a2b8 <https://github.com/apache/airflow/commit/dcdcf3a2b8054fa727efb4cd79d38d2c9c7e1bd5>`_  2022-06-09   ``Update release notes for RC2 release of Providers for May 2022 (#24307)``
 `717a7588bc <https://github.com/apache/airflow/commit/717a7588bc8170363fea5cb75f17efcf68689619>`_  2022-06-07   ``Update package description to remove double min-airflow specification (#24292)``
 `b1ad017cee <https://github.com/apache/airflow/commit/b1ad017cee66f5e042144cc7baa2d44b23b47c4f>`_  2022-06-07   ``pydocstyle D202 added (#24221)``
 `aeabe994b3 <https://github.com/apache/airflow/commit/aeabe994b3381d082f75678a159ddbb3cbf6f4d3>`_  2022-06-07   ``Prepare docs for May 2022 provider's release (#24231)``

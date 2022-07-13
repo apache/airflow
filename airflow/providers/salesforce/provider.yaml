@@ -22,6 +22,7 @@ description: |
     `Salesforce <https://www.salesforce.com/>`__
 
 versions:
+  - 5.0.0
   - 4.0.0
   - 3.4.4
   - 3.4.3

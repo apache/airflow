@@ -1,3 +1,4 @@
+
  .. Licensed to the Apache Software Foundation (ASF) under one
     or more contributor license agreements.  See the NOTICE file
     distributed with this work for additional information
@@ -15,11 +16,25 @@
     specific language governing permissions and limitations
     under the License.
 
+
 Package apache-airflow-providers-common-sql
--------------------------------------------
+------------------------------------------------------
 
 `Common SQL Provider <https://en.wikipedia.org/wiki/SQL>`__
 
 
 This is detailed commit list of changes for versions provider package: ``common.sql``.
 For high-level changelog, see :doc:`package information including changelog <index>`.
+
+
+
+1.0.0
+.....
+
+Latest change: 2022-07-07
+
+=================================================================================================  ===========  ========================================================
+Commit                                                                                             Committed    Subject
+=================================================================================================  ===========  ========================================================
+`46bbfdade0 <https://github.com/apache/airflow/commit/46bbfdade0638cb8a5d187e47034b84e68ddf762>`_  2022-07-07   ``Move all SQL classes to common-sql provider (#24836)``
+=================================================================================================  ===========  ========================================================

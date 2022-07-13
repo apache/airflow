@@ -24,6 +24,22 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Convert sftp hook to use paramiko instead of pysftp (#24512)``
+* ``Update 'actual_file_to_check' with rendered 'path' (#24451)``
+
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Automatically detect if non-lazy logging interpolation is used (#24910)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
 3.0.0
 .....
 
