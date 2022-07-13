@@ -170,7 +170,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             "spec.template.spec.containers[0].env", docs[0]
         )
 
-    def test_should_add_extraEnv_to_wait_for_migration_container(self):
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
                 "executor": "CeleryExecutor",

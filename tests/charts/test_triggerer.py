@@ -113,7 +113,7 @@ class TriggererTest(unittest.TestCase):
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
 
-    def test_should_add_extraEnv(self):
+    def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
                 "triggerer": {
@@ -127,7 +127,7 @@ class TriggererTest(unittest.TestCase):
             "spec.template.spec.containers[0].env", docs[0]
         )
     
-    def test_should_add_extraEnv_to_wait_for_migration_container(self):
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={
                 "triggerer": {

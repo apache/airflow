@@ -1548,6 +1548,21 @@
                         }
                     ]
                 },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            }
+                        }
+                    }
+                },
                 "env": {
                     "description": "Add additional env vars to worker.",
                     "type": "array",

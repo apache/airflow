@@ -591,6 +591,11 @@ workers:
     #  requests:
     #   cpu: 100m
     #   memory: 128Mi
+
+  waitForMigrations:
+    # To add env vars specific to wait-for-migrations init container
+    env: []
+
   env: []
 
 # Airflow scheduler settings
