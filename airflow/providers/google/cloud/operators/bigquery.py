@@ -1853,7 +1853,7 @@ class BigQueryUpsertTableOperator(BaseOperator):
         'dataset_id',
         'table_resource',
         'impersonation_chain',
-        'project_id'
+        'project_id',
     )
     template_fields_renderers = {"table_resource": "json"}
     ui_color = BigQueryUIColors.TABLE.value
