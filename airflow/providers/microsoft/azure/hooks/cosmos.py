@@ -322,22 +322,16 @@ class AzureCosmosDBHook(BaseHook):
 
     def test_connection(self):
         """Test a configured Azure Cosmos connection."""
-        success = (True, "Successfully connected to Azure Cosmos.")
         try:
             # Attempt to list existing databases under the configured subscription and retrieve the first in
             # the returned iterator. The Azure Cosmos API does allow for creation of a
             # CosmosClient with incorrect values but then will fail properly once items are
             # retrieved using the client. We need to _actually_ try to retrieve an object to properly test the
             # connection.
-            next(iter(self.get_conn().list_databases()))
-            return success
-        except StopIteration:
-            # If the iterator returned is empty it should still be considered a successful connection since
-            # it's possible to create a Cosmos connection via the ``AzureCosmosDBHook`` and no database could
-            # legitimately exist yet.
-            return success
+            next(iter(self.get_conn().list_databases()), None)
         except Exception as e:
             return False, str(e)
+        return True, "Successfully connected to Azure Cosmos."
 
 
 def get_database_link(database_id: str) -> str:
