@@ -1471,6 +1471,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the worker pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "logGroomerSidecar": {
                     "description": "Configuration for worker log groomer sidecar",
                     "type": "object",
@@ -1785,6 +1793,14 @@
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the scheduler pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the scheduler pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2108,6 +2124,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the triggerer pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "securityContext": {
                     "description": "Security context for the triggerer pod. If not set, the values from `securityContext` will be used.",
                     "type": "object",
@@ -2190,6 +2214,14 @@
                 },
                 "jobAnnotations": {
                     "description": "Annotations to add to the create user job job.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the create user job pod.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -2950,6 +2982,14 @@
                         "type": "string"
                     }
                 },
+                "labels": {
+                    "description": "Labels to add to the webserver pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
                 "waitForMigrations": {
                     "description": "wait-for-airflow-migrations init container.",
                     "type": "object",
@@ -3264,6 +3304,14 @@
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to the Flower pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "Labels to add to the Flower pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
@@ -4215,6 +4263,14 @@
                 },
                 "podAnnotations": {
                     "description": "Annotations to add to cleanup pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "labels": {
+                    "description": "labels to add to cleanup pods.",
                     "type": "object",
                     "default": {},
                     "additionalProperties": {
