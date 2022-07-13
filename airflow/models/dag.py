@@ -2495,11 +2495,15 @@ class DAG(LoggingMixin):
             orm_dag.last_parsed_time = timezone.utcnow()
             orm_dag.default_view = dag.default_view
             orm_dag.description = dag.description
-            orm_dag.schedule_interval = dag.schedule_interval
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
-            orm_dag.timetable_description = dag.timetable.description
+            if dag.schedule_on:
+                orm_dag.schedule_interval = 'Dataset'
+                orm_dag.timetable_description = 'Triggered by datasets.'
+            else:
+                orm_dag.schedule_interval = dag.schedule_interval
+                orm_dag.timetable_description = dag.timetable.description
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
