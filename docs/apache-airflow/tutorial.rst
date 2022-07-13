@@ -115,6 +115,19 @@ KubernetesPodOperator.
 Airflow completes work based on the arguments you pass to your operators. In this tutorial, we
 use the BashOperator to run a few bash scripts.
 
+Operators
+---------
+
+An operator defines a unit of work for Airflow to complete. They are the most basic building blocks of DAGs.
+
+All operators inherit from the BaseOperator, which includes all of the required arguments for
+running work in Airflow. From here, each operator includes unique arguments for
+the type of work it's completing. Some of the most popular operators are the PythonOperator, the BashOperator, and the
+KubernetesPodOperator.
+
+Airflow completes work based on the arguments you pass to your operators. In this tutorial, we
+use the BashOperator to run a few bash scripts.
+
 Tasks
 -----
 
