@@ -22,9 +22,10 @@
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import createCache from '@emotion/cache';
-import { Text } from '@chakra-ui/react';
 
 import App from 'src/App';
+
+import DatasetsList from './List';
 
 // create shadowRoot
 const root = document.querySelector('#root');
@@ -35,17 +36,13 @@ const cache = createCache({
 });
 const mainElement = document.getElementById('react-container');
 
-const Main = () => (
-  <Text>Datasets!</Text>
-);
-
 if (mainElement) {
   shadowRoot?.appendChild(mainElement);
 
   const reactRoot = createRoot(mainElement);
   reactRoot.render(
     <App cache={cache}>
-      <Main />
+      <DatasetsList />
     </App>,
   );
 }
