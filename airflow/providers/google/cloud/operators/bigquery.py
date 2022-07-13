@@ -2069,7 +2069,7 @@ class BigQueryInsertJobOperator(BaseOperator):
         "configuration",
         "job_id",
         "impersonation_chain",
-        'project_id'
+        "project_id",
     )
     template_ext: Sequence[str] = (
         ".json",
