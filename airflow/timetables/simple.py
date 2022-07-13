@@ -69,16 +69,6 @@ class NullTimetable(_TrivialTimetable):
         return None
 
 
-class _DatasetTimetable(NullTimetable):
-    """Timetable that never schedules anything.  Used for dataset-triggered dags."""
-
-    description: str = "Triggered by datasets"
-
-    @property
-    def summary(self) -> str:
-        return "dataset"
-
-
 class OnceTimetable(_TrivialTimetable):
     """Timetable that schedules the execution once as soon as possible.
 
