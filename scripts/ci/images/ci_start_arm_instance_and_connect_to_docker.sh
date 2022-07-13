@@ -22,12 +22,12 @@ SCRIPTS_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd)"
 # This is an AMI that is based on Basic Amazon Linux AMI with installed and configured docker service
 WORKING_DIR="/tmp/armdocker"
 INSTANCE_INFO="${WORKING_DIR}/instance_info.json"
-ARM_AMI="ami-06b8158ea372d3259"
-INSTANCE_TYPE="c6g.xlarge"
-MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.1,SpotInstanceType=one-time}"
+ARM_AMI="ami-0e43196369d299715"  # AMI ID of latest arm-docker-ami-v*
+INSTANCE_TYPE="m6g.2xlarge"  # m6g.2xlarge -> 8 vCPUS 32 GB RAM
+MARKET_OPTIONS="MarketType=spot,SpotOptions={MaxPrice=0.2,SpotInstanceType=one-time}"
 REGION="us-east-2"
 EC2_USER="ec2-user"
-USER_DATA_FILE="${SCRIPTS_DIR}/self_terminate.sh"
+USER_DATA_FILE="${SCRIPTS_DIR}/initialize.sh"
 METADATA_ADDRESS="http://169.254.169.254/latest/meta-data"
 MAC_ADDRESS=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/" | head -n1 | tr -d '/')
 CIDR=$(curl -s "${METADATA_ADDRESS}/network/interfaces/macs/${MAC_ADDRESS}/vpc-ipv4-cidr-block/")

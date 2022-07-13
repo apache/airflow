@@ -14,47 +14,21 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import warnings
 from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
+from packaging.version import Version
 from pandas import DataFrame
 from tabulate import tabulate
 
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import BaseOperator
+from airflow.providers.common.sql.hooks.sql import DbApiHook, _backported_get_hook
 from airflow.providers.slack.hooks.slack_webhook import SlackWebhookHook
-from airflow.providers_manager import ProvidersManager
-from airflow.utils.module_loading import import_string
 from airflow.version import version
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-def _backported_get_hook(connection, *, hook_params=None):
-    """Return hook based on conn_type
-    For supporting Airflow versions < 2.3, we backport "get_hook()" method. This should be removed
-    when "apache-airflow-providers-slack" will depend on Airflow >= 2.3.
-    """
-    hook = ProvidersManager().hooks.get(connection.conn_type, None)
-
-    if hook is None:
-        raise AirflowException(f'Unknown hook type "{connection.conn_type}"')
-    try:
-        hook_class = import_string(hook.hook_class_name)
-    except ImportError:
-        warnings.warn(
-            "Could not import %s when discovering %s %s",
-            hook.hook_class_name,
-            hook.hook_name,
-            hook.package_name,
-        )
-        raise
-    if hook_params is None:
-        hook_params = {}
-    return hook_class(**{hook.connection_id_attribute_name: connection.conn_id}, **hook_params)
 
 
 class SqlToSlackOperator(BaseOperator):
@@ -70,12 +44,11 @@ class SqlToSlackOperator(BaseOperator):
         For more information on how to use this operator, take a look at the guide:
         :ref:`howto/operator:SqlToSlackOperator`
 
-    :param sql: The SQL statement to execute on Snowflake (templated)
-    :param slack_message: The templated Slack message to send with the data returned from Snowflake.
+    :param sql: The SQL query to be executed (templated)
+    :param slack_message: The templated Slack message to send with the data returned from the SQL connection.
         You can use the default JINJA variable {{ results_df }} to access the pandas dataframe containing the
         SQL results
-    :param sql_conn_id: Reference to
-        :ref:`Snowflake connection id<howto/connection:snowflake>`
+    :param sql_conn_id: reference to a specific database.
     :param sql_hook_params: Extra config params to be passed to the underlying hook.
            Should match the desired hook constructor params.
     :param slack_conn_id: The connection id for Slack.
@@ -127,7 +100,7 @@ class SqlToSlackOperator(BaseOperator):
     def _get_hook(self) -> DbApiHook:
         self.log.debug("Get connection for %s", self.sql_conn_id)
         conn = BaseHook.get_connection(self.sql_conn_id)
-        if version >= '2.3':
+        if Version(version) >= Version('2.3'):
             # "hook_params" were introduced to into "get_hook()" only in Airflow 2.3.
             hook = conn.get_hook(hook_params=self.sql_hook_params)  # ignore airflow compat check
         else:
@@ -166,7 +139,7 @@ class SqlToSlackOperator(BaseOperator):
 
     def render_template_fields(self, context, jinja_env=None) -> None:
         # If this is the first render of the template fields, exclude slack_message from rendering since
-        # the snowflake results haven't been retrieved yet.
+        # the SQL results haven't been retrieved yet.
         if self.times_rendered == 0:
             fields_to_render: Iterable[str] = filter(lambda x: x != 'slack_message', self.template_fields)
         else:

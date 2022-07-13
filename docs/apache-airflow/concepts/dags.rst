@@ -413,9 +413,7 @@ You can also combine this with the :ref:`concepts:depends-on-past` functionality
         )
 
         run_this_first = EmptyOperator(task_id="run_this_first", dag=dag)
-        branching = BranchPythonOperator(
-            task_id="branching", dag=dag, python_callable=lambda: "branch_a"
-        )
+        branching = BranchPythonOperator(task_id="branching", dag=dag, python_callable=lambda: "branch_a")
 
         branch_a = EmptyOperator(task_id="branch_a", dag=dag)
         follow_branch_a = EmptyOperator(task_id="follow_branch_a", dag=dag)

@@ -73,7 +73,7 @@ const config = {
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
-    grid: [`${JS_DIR}/grid/index.jsx`],
+    grid: `${JS_DIR}/dag/index.tsx`,
     calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],
     durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
@@ -88,6 +88,9 @@ const config = {
     publicPath: '',
   },
   resolve: {
+    alias: { // Be sure to update aliases in jest.config.js and tsconfig.json
+      src: path.resolve(__dirname, 'static/js'),
+    },
     extensions: [
       '.js',
       '.jsx',

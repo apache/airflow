@@ -101,6 +101,24 @@ class WebserverDeploymentTest(unittest.TestCase):
         assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("livenessProbe.httpGet.path", container)
         assert "/mypath/RELEASE-NAME/path/health" == jmespath.search("readinessProbe.httpGet.path", container)
 
+    def test_should_add_scheme_to_liveness_and_readiness_probes(self):
+        docs = render_chart(
+            values={
+                "webserver": {
+                    "livenessProbe": {"scheme": "HTTPS"},
+                    "readinessProbe": {"scheme": "HTTPS"},
+                }
+            },
+            show_only=["templates/webserver/webserver-deployment.yaml"],
+        )
+
+        assert "HTTPS" in jmespath.search(
+            "spec.template.spec.containers[0].livenessProbe.httpGet.scheme", docs[0]
+        )
+        assert "HTTPS" in jmespath.search(
+            "spec.template.spec.containers[0].readinessProbe.httpGet.scheme", docs[0]
+        )
+
     def test_should_add_volume_and_volume_mount_when_exist_webserver_config(self):
         docs = render_chart(
             values={"webserver": {"webserverConfig": "CSRF_ENABLED = True"}},

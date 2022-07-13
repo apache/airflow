@@ -474,6 +474,9 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
     CLASS_DIRS = {"hooks"}
     CLASS_SUFFIXES = ["Hook"]
+    DEPRECATED_CLASSES = {
+        'airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook',
+    }
 
 
 class TestDockerProviderProjectStructure(ExampleCoverageTest):

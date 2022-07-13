@@ -21,7 +21,7 @@ from typing import Any, Iterable, Optional, Tuple
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Connection
 
-from airflow.hooks.dbapi import DbApiHook
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 
 class DrillHook(DbApiHook):

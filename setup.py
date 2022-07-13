@@ -247,6 +247,9 @@ deprecated_api = [
     'requests>=2.26.0',
 ]
 doc = [
+    # Astroid 2.12.* breaks documentation building
+    # We can remove the limit here after https://github.com/PyCQA/astroid/issues/1708 is solved
+    'astroid<2.12.0',
     'click>=8.0',
     # Docutils 0.17.0 converts generated <div class="section"> into <section> and breaks our doc formatting
     # By adding a lot of whitespace separation. This limit can be lifted when we update our doc to handle
@@ -654,6 +657,7 @@ EXTRAS_DEPENDENCIES = sort_extras_dependencies()
 # Those providers do not have dependency on airflow2.0 because that would lead to circular dependencies.
 # This is not a problem for PIP but some tools (pipdeptree) show those as a warning.
 PREINSTALLED_PROVIDERS = [
+    'common.sql',
     'ftp',
     'http',
     'imap',

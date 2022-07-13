@@ -52,6 +52,7 @@ versions:
 
 dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
   # Google has very clear rules on what dependencies should be used. All the limits below
   # follow strict guidelines of Google Libraries as quoted here:
   # While this issue is open, dependents of google-api-core, google-cloud-core. and google-auth
@@ -940,6 +941,9 @@ extra-links:
   - airflow.providers.google.cloud.links.bigquery_dts.BigQueryDataTransferConfigLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksQueueLink
   - airflow.providers.google.cloud.links.cloud_tasks.CloudTasksLink
+  - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryGroupLink
+  - airflow.providers.google.cloud.links.datacatalog.DataCatalogEntryLink
+  - airflow.providers.google.cloud.links.datacatalog.DataCatalogTagTemplateLink
   - airflow.providers.google.cloud.links.dataproc.DataprocLink
   - airflow.providers.google.cloud.links.dataproc.DataprocListLink
   - airflow.providers.google.cloud.operators.dataproc_metastore.DataprocMetastoreDetailedLink
@@ -971,6 +975,10 @@ extra-links:
   - airflow.providers.google.cloud.links.spanner.SpannerInstanceLink
   - airflow.providers.google.cloud.links.stackdriver.StackdriverNotificationsLink
   - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
+  - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
+  - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
+  - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 
