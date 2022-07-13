@@ -1,5 +1,5 @@
 #
-# This constraints file was automatically generated on 2022-07-12T18:39:29Z
+# This constraints file was automatically generated on 2022-07-13T22:31:22Z
 # via "eager-upgrade" mechanism of PIP. For the "main" branch of Airflow.
 # This variant of constraints install just the 'bare' 'apache-airflow' package build from the HEAD of
 # the branch, without installing any of the providers.
@@ -34,7 +34,7 @@ SQLAlchemy-Utils==0.38.3
 SQLAlchemy==1.4.39
 WTForms==2.3.3
 Werkzeug==2.1.2
-alembic==1.8.0
+alembic==1.8.1
 amqp==5.1.1
 anyio==3.6.1
 apispec==3.3.2
@@ -77,7 +77,7 @@ filelock==3.7.1
 flower==1.1.0
 fsspec==2022.5.0
 gevent==21.12.0
-google-auth==2.9.0
+google-auth==2.9.1
 graphviz==0.20
 greenlet==1.1.2
 gssapi==1.7.3
@@ -142,7 +142,7 @@ rfc3986==1.5.0
 rich-click==1.5.1
 rich==12.5.1
 rsa==4.8
-sentry-sdk==1.7.0
+sentry-sdk==1.7.1
 setproctitle==1.2.3
 six==1.16.0
 sniffio==1.2.0
