@@ -79,7 +79,7 @@ def get_dataset_events(
     source_run_id: Optional[str] = None,
     source_map_index: Optional[int] = None,
     session: Session = NEW_SESSION,
-):
+) -> APIResponse:
     """Get dataset events"""
     allowed_attrs = ['source_dag_id', 'source_task_id', 'source_run_id', 'source_map_index', 'created_at']
 
