@@ -1,0 +1,72 @@
+syntax = "proto3";
+
+package airflow.internal_api;
+
+message TaskInstanceKey {
+  string dag_id = 1;
+  string task_id = 2;
+  string run_id = 3;
+  int32 try_number = 4;
+  int32 map_index = 5;
+}
+
+message SimpleTaskInstance {
+  string dag_id = 1;
+  string task_id = 2;
+  string run_id = 3;
+  optional float start_date = 4;
+  optional float end_date = 5;
+  int32 try_number = 6;
+  int32 map_index = 7;
+  string state = 8;
+  bytes executor_config = 9;
+  string pool = 10;
+  string queue = 11;
+  TaskInstanceKey key = 12;
+  optional string run_as_user = 13;
+  optional int32 priority_weight = 14;
+}
+
+message TaskCallbackRequest {
+  string full_filepath = 1;
+  SimpleTaskInstance task_instance = 2;
+  optional bool is_failure_callback = 3;
+  optional string message = 4;
+}
+
+message DagCallbackRequest {
+  string full_filepath = 1;
+  string dag_id = 2;
+  string run_id = 3;
+  optional bool is_failure_callback = 4;
+  optional string message = 5;
+}
+
+message SlaCallbackRequest {
+  string full_filepath = 1;
+  string dag_id = 2;
+  optional string message = 3;
+}
+
+message Callback {
+  oneof callback_type {
+      TaskCallbackRequest task_request = 1;
+      DagCallbackRequest dag_request = 2;
+      SlaCallbackRequest sla_request = 3;
+   }
+}
+
+message FileProcessorRequest{
+  string path = 1;
+  repeated Callback callbacks = 2;
+  bool pickle_dags = 3;
+}
+
+message FileProcessorResponse {
+  int64 dagsFound = 1;
+  int64 errorsFound = 2;
+}
+
+service FileProcessorService {
+  rpc processFile (FileProcessorRequest) returns (FileProcessorResponse) {}
+}

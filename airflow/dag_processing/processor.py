@@ -27,6 +27,7 @@ from datetime import timedelta
 from multiprocessing.connection import Connection as MultiprocessingConnection
 from typing import Iterator, List, Optional, Set, Tuple
 
+from grpc import Channel
 from setproctitle import setproctitle
 from sqlalchemy import func, or_
 from sqlalchemy.orm.session import Session
@@ -40,6 +41,7 @@ from airflow.callbacks.callback_requests import (
 )
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException, TaskNotFound
+from airflow.internal_api.grpc import internal_api_pb2, internal_api_pb2_grpc
 from airflow.models import SlaMiss, errors
 from airflow.models.dag import DAG, DagModel
 from airflow.models.dagbag import DagBag
@@ -354,11 +356,21 @@ class DagFileProcessor(LoggingMixin):
 
     UNIT_TEST_MODE: bool = conf.getboolean('core', 'UNIT_TEST_MODE')
 
-    def __init__(self, dag_ids: Optional[List[str]], log: logging.Logger):
+    def __init__(
+        self,
+        dag_ids: Optional[List[str]],
+        log: logging.Logger,
+        use_grpc: bool = False,
+        channel: Optional[Channel] = None,
+    ):
         super().__init__()
         self.dag_ids = dag_ids
         self._log = log
         self.dag_warnings: Set[Tuple[str, str]] = set()
+        self.use_grpc = use_grpc
+        self.channel = channel
+        if self.use_grpc:
+            self.stub = internal_api_pb2_grpc.FileProcessorServiceStub(channel)
 
     @provide_session
     def manage_slas(self, dag: DAG, session: Session = None) -> None:
@@ -642,11 +654,14 @@ class DagFileProcessor(LoggingMixin):
 
     @provide_session
     def _execute_dag_callbacks(self, dagbag: DagBag, request: DagCallbackRequest, session: Session):
-        dag = dagbag.dags[request.dag_id]
-        dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
-        dag.handle_callback(
-            dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
-        )
+        try:
+            dag = dagbag.dags[request.dag_id]
+            dag_run = dag.get_dagrun(run_id=request.run_id, session=session)
+            dag.handle_callback(
+                dagrun=dag_run, success=not request.is_failure_callback, reason=request.msg, session=session
+            )
+        except Exception:
+            pass
 
     def _execute_task_callbacks(self, dagbag: DagBag, request: TaskCallbackRequest):
         simple_ti = request.simple_task_instance
@@ -662,7 +677,7 @@ class DagFileProcessor(LoggingMixin):
                     self.log.info('Executed failure callback for %s in state %s', ti, ti.state)
 
     @provide_session
-    def process_file(
+    def process_file_db(
         self,
         file_path: str,
         callback_requests: List[CallbackRequest],
@@ -733,3 +748,29 @@ class DagFileProcessor(LoggingMixin):
             self.log.exception("Error logging DAG warnings.")
 
         return len(dagbag.dags), len(dagbag.import_errors)
+
+    def process_file_grpc(
+        self,
+        file_path: str,
+        callback_requests: List[CallbackRequest],
+        pickle_dags: bool = False,
+    ) -> Tuple[int, int]:
+        request = internal_api_pb2.FileProcessorRequest(path=file_path, pickle_dags=pickle_dags)
+        for callback_request in callback_requests:
+            request.callbacks.append(callback_request.to_protobuf())
+        res = self.stub.processFile(request)
+        return res.dagsFound, res.errorsFound
+
+    def process_file(
+        self,
+        file_path: str,
+        callback_requests: List[CallbackRequest],
+        pickle_dags: bool = False,
+    ) -> Tuple[int, int]:
+        if self.use_grpc:
+            return self.process_file_grpc(
+                file_path=file_path, callback_requests=callback_requests, pickle_dags=pickle_dags
+            )
+        return self.process_file_db(
+            file_path=file_path, callback_requests=callback_requests, pickle_dags=pickle_dags
+        )

@@ -93,7 +93,7 @@ repos:
           - --fuzzy-match-generates-todo
       - id: insert-license
         name: Add license for all Python files
-        exclude: ^\.github/.*$|^airflow/_vendor/
+        exclude: ^\.github/.*$|^airflow/_vendor/|.*_pb2.py$|.*_pb2.pyi$|.*_pb2_grpc.py$
         files: \.py$|\.pyi$
         args:
           - --comment-style
@@ -150,7 +150,7 @@ repos:
       - id: black
         name: Run Black (the uncompromising Python code formatter)
         args: [--config=./pyproject.toml]
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|.*_pb2.py$|.*_pb2.pyi$|.*_pb2_grpc.py$
   - repo: https://github.com/asottile/blacken-docs
     rev: v1.12.1
     hooks:
@@ -194,7 +194,7 @@ repos:
         exclude: ^airflow/_vendor/|^images/breeze/output.*$
       - id: fix-encoding-pragma
         name: Remove encoding header from python files
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|.*_pb2.py$|.*_pb2.pyi$|.*_pb2_grpc.py$
         args:
           - --remove
       - id: pretty-format-json
@@ -213,7 +213,7 @@ repos:
       - id: pyupgrade
         name: Upgrade Python code automatically
         args: ["--py37-plus"]
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|.*_pb2.py$|.*_pb2.pyi$|.*_pb2_grpc.py$
   - repo: https://github.com/pre-commit/pygrep-hooks
     rev: v1.9.0
     hooks:
@@ -238,7 +238,7 @@ repos:
         name: Run isort to sort imports in Python files
         files: \.py$|\.pyi$
         # To keep consistent with the global isort skip config defined in setup.cfg
-        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$
+        exclude: ^airflow/_vendor/|^build/.*$|^venv/.*$|^\.tox/.*$|.*_pb2.py$|.*_pb2_grpc.py$
   - repo: https://github.com/pycqa/pydocstyle
     rev: 6.1.1
     hooks:
@@ -785,6 +785,12 @@ repos:
         pass_filenames: false
         files: ^Dockerfile$|^Dockerfile.ci$|^scripts/docker/.*$
         require_serial: true
+      - id: grpc-proto-compile
+        name: Compile GRPC proto to python code
+        entry: ./scripts/ci/pre_commit/pre_commit_grpc_compile.py
+        language: python
+        files: ^airflow/.*\.proto
+        additional_dependencies: ['mypy', 'grpcio-tools', 'mypy-protobuf', 'types-protobuf']
       - id: check-changelog-has-no-duplicates
         name: Check changelogs for duplicate entries
         language: python
@@ -860,7 +866,8 @@ repos:
         language: python
         entry: ./scripts/ci/pre_commit/pre_commit_mypy.py --namespace-packages
         files: \.py$
-        exclude: ^provider_packages|^docs|^airflow/_vendor/|^airflow/providers|^airflow/migrations|^dev
+        exclude: "^provider_packages|^docs|^airflow/_vendor/|^airflow/providers\
+          |^airflow/migrations|^dev|.*_pb2.py$|.*_pb2.pyi$|.*_pb2_grpc.py$"
         require_serial: true
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: run-mypy
@@ -884,7 +891,7 @@ repos:
         entry: ./scripts/ci/pre_commit/pre_commit_flake8.py
         files: \.py$
         pass_filenames: true
-        exclude: ^airflow/_vendor/
+        exclude: ^airflow/_vendor/|.*_pb2.py$|.*_pb2.pyi$|.*_pb2_grpc.py$
         additional_dependencies: ['rich>=12.4.4', 'inputimeout']
       - id: update-migration-references
         name: Update migration ref doc

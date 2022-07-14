@@ -22,9 +22,11 @@ import logging
 import math
 import operator
 import os
+import pickle
 import signal
 import warnings
 from collections import defaultdict
+from copy import deepcopy
 from datetime import datetime, timedelta
 from functools import partial
 from types import TracebackType
@@ -96,6 +98,7 @@ from airflow.exceptions import (
     UnmappableXComTypePushed,
     XComForMappingNotPushed,
 )
+from airflow.internal_api.grpc import internal_api_pb2
 from airflow.models.base import Base, StringID
 from airflow.models.dataset import DatasetDagRunQueue, DatasetEvent
 from airflow.models.log import Log
@@ -408,6 +411,25 @@ class TaskInstanceKey(NamedTuple):
         Returns self
         """
         return self
+
+    def to_protobuf(self) -> internal_api_pb2.TaskInstanceKey:
+        return internal_api_pb2.TaskInstanceKey(
+            dag_id=self.dag_id,
+            task_id=self.task_id,
+            run_id=self.run_id,
+            try_number=self.try_number,
+            map_index=self.map_index,
+        )
+
+    @classmethod
+    def from_protobuf(cls, key: internal_api_pb2.TaskInstanceKey) -> "TaskInstanceKey":
+        return cls(
+            dag_id=key.dag_id,
+            task_id=key.task_id,
+            run_id=key.run_id,
+            try_number=key.try_number,
+            map_index=key.map_index,
+        )
 
 
 class TaskInstance(Base, LoggingMixin):
@@ -2662,6 +2684,63 @@ class SimpleTaskInstance:
         if end_date_str:
             end_date = timezone.parse(end_date_str)
         return cls(**obj_dict, start_date=start_date, end_date=end_date, key=ti_key)
+
+    def serialize_executor_config(self) -> bytes:
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        if isinstance(self.executor_config, dict) and 'pod_override' in self.executor_config:
+            value = deepcopy(self.executor_config)
+            value['pod_override'] = BaseSerialization()._serialize(value['pod_override'])
+            return pickle.dumps(value)
+        return pickle.dumps(self.executor_config)
+
+    @classmethod
+    def deserialize_executor_config(cls, value: bytes) -> Any:
+        from airflow.serialization.enums import Encoding
+        from airflow.serialization.serialized_objects import BaseSerialization
+
+        deserialized_value = pickle.loads(value)
+        if isinstance(deserialized_value, dict) and "pod_override" in deserialized_value:
+            pod_override = deserialized_value['pod_override']
+            if isinstance(pod_override, dict) and pod_override.get(Encoding.TYPE):
+                deserialized_value['pod_override'] = BaseSerialization()._deserialize(pod_override)
+        return deserialized_value
+
+    @classmethod
+    def from_protobuf(cls, instance: internal_api_pb2.SimpleTaskInstance) -> "SimpleTaskInstance":
+        return cls(
+            dag_id=instance.dag_id,
+            task_id=instance.task_id,
+            run_id=instance.run_id,
+            start_date=datetime.fromtimestamp(instance.start_date) if instance.start_date else None,
+            end_date=datetime.fromtimestamp(instance.end_date) if instance.end_date else None,
+            try_number=instance.try_number,
+            map_index=instance.map_index,
+            state=instance.state,
+            executor_config=SimpleTaskInstance.deserialize_executor_config(instance.executor_config),
+            pool=instance.pool,
+            queue=instance.queue,
+            key=TaskInstanceKey.from_protobuf(key=instance.key),
+            run_as_user=instance.run_as_user,
+            priority_weight=instance.priority_weight,
+        )
+
+    def to_protobuf(self) -> internal_api_pb2.SimpleTaskInstance:
+        return internal_api_pb2.SimpleTaskInstance(
+            task_id=self.task_id,
+            run_id=self.run_id,
+            start_date=self.start_date.timestamp() if self.start_date else None,
+            end_date=self.end_date.timestamp() if self.end_date else None,
+            try_number=self.try_number,
+            map_index=self.map_index,
+            state=self.state,
+            executor_config=self.serialize_executor_config(),
+            pool=self.pool,
+            queue=self.queue,
+            key=self.key.to_protobuf(),
+            run_as_user=self.run_as_user,
+            priority_weight=self.priority_weight,
+        )
 
 
 STATICA_HACK = True

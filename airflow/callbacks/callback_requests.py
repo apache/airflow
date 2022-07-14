@@ -16,7 +16,12 @@
 # under the License.
 
 import json
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
+
+from google.protobuf.internal.containers import RepeatedCompositeFieldContainer
+
+from airflow.internal_api.grpc import internal_api_pb2
+from airflow.internal_api.grpc.internal_api_pb2 import Callback
 
 if TYPE_CHECKING:
     from airflow.models.taskinstance import SimpleTaskInstance
@@ -49,6 +54,28 @@ class CallbackRequest:
     def from_json(cls, json_str: str):
         json_object = json.loads(json_str)
         return cls(**json_object)
+
+    def to_protobuf(
+        self,
+    ) -> Callback:
+        raise NotImplementedError()
+
+    @staticmethod
+    def get_callbacks_from_protobuf(
+        callbacks: RepeatedCompositeFieldContainer[Callback],
+    ) -> List["CallbackRequest"]:
+        result_callbacks: List[CallbackRequest] = []
+        for callback in callbacks:
+            type = callback.WhichOneof('callback_type')
+            if type == "task_request":
+                result_callbacks.append(TaskCallbackRequest.from_protobuf(callback.task_request))
+            elif type == "dag_request":
+                result_callbacks.append(DagCallbackRequest.from_protobuf(callback.dag_request))
+            elif type == 'sla_request':
+                result_callbacks.append(SlaCallbackRequest.from_protobuf(callback.sla_request))
+            else:
+                raise ValueError(f"Bad type: {type}")
+        return result_callbacks
 
 
 class TaskCallbackRequest(CallbackRequest):
@@ -86,6 +113,27 @@ class TaskCallbackRequest(CallbackRequest):
         simple_ti = SimpleTaskInstance.from_dict(obj_dict=kwargs.pop("simple_task_instance"))
         return cls(simple_task_instance=simple_ti, **kwargs)
 
+    @classmethod
+    def from_protobuf(cls, request: internal_api_pb2.TaskCallbackRequest) -> "TaskCallbackRequest":
+        from airflow.models.taskinstance import SimpleTaskInstance
+
+        return cls(
+            full_filepath=request.full_filepath,
+            simple_task_instance=SimpleTaskInstance.from_protobuf(request.task_instance),
+            is_failure_callback=request.is_failure_callback,
+            msg=request.message,
+        )
+
+    def to_protobuf(self) -> Callback:
+        return Callback(
+            task_request=internal_api_pb2.TaskCallbackRequest(
+                full_filepath=self.full_filepath,
+                task_instance=self.simple_task_instance.to_protobuf(),
+                is_failure_callback=self.is_failure_callback,
+                message=self.msg,
+            )
+        )
+
 
 class DagCallbackRequest(CallbackRequest):
     """
@@ -111,6 +159,27 @@ class DagCallbackRequest(CallbackRequest):
         self.run_id = run_id
         self.is_failure_callback = is_failure_callback
 
+    @classmethod
+    def from_protobuf(cls, request: internal_api_pb2.DagCallbackRequest) -> "DagCallbackRequest":
+        return cls(
+            full_filepath=request.full_filepath,
+            dag_id=request.dag_id,
+            run_id=request.run_id,
+            is_failure_callback=request.is_failure_callback,
+            msg=request.message,
+        )
+
+    def to_protobuf(self) -> Callback:
+        return Callback(
+            dag_request=internal_api_pb2.DagCallbackRequest(
+                full_filepath=self.full_filepath,
+                dag_id=self.dag_id,
+                run_id=self.run_id,
+                is_failure_callback=self.is_failure_callback,
+                message=self.msg,
+            )
+        )
+
 
 class SlaCallbackRequest(CallbackRequest):
     """
@@ -118,8 +187,22 @@ class SlaCallbackRequest(CallbackRequest):
 
     :param full_filepath: File Path to use to run the callback
     :param dag_id: DAG ID
+    :param msg: Additional Message that can be used for logging
     """
 
     def __init__(self, full_filepath: str, dag_id: str, msg: Optional[str] = None):
         super().__init__(full_filepath, msg)
         self.dag_id = dag_id
+
+    @classmethod
+    def from_protobuf(cls, request: internal_api_pb2.SlaCallbackRequest) -> "SlaCallbackRequest":
+        return cls(full_filepath=request.full_filepath, dag_id=request.dag_id, msg=request.message)
+
+    def to_protobuf(self) -> Callback:
+        return Callback(
+            sla_request=internal_api_pb2.SlaCallbackRequest(
+                full_filepath=self.full_filepath,
+                dag_id=self.dag_id,
+                message=self.msg,
+            )
+        )

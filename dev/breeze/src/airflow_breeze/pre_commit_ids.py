@@ -73,6 +73,7 @@ PRE_COMMIT_LIST = [
     'end-of-file-fixer',
     'fix-encoding-pragma',
     'flynt',
+    'grpc-proto-compile',
     'identity',
     'insert-license',
     'isort',

@@ -51,7 +51,6 @@ from airflow.utils.file import correct_maybe_zipped, list_py_file_paths, might_c
 from airflow.utils.log.logging_mixin import LoggingMixin
 from airflow.utils.retries import MAX_DB_RETRIES, run_with_db_retries
 from airflow.utils.session import provide_session
-from airflow.utils.timeout import timeout
 
 if TYPE_CHECKING:
     import pathlib
@@ -337,14 +336,14 @@ class DagBag(LoggingMixin):
         if dagbag_import_timeout <= 0:  # no parsing timeout
             return parse(mod_name, filepath)
 
-        timeout_msg = (
+        timeout_msg = (  # noqa
             f"DagBag import timeout for {filepath} after {dagbag_import_timeout}s.\n"
             "Please take a look at these docs to improve your DAG import time:\n"
             f"* {get_docs_url('best-practices.html#top-level-python-code')}\n"
             f"* {get_docs_url('best-practices.html#reducing-dag-complexity')}"
         )
-        with timeout(dagbag_import_timeout, error_message=timeout_msg):
-            return parse(mod_name, filepath)
+        # with timeout(dagbag_import_timeout, error_message=timeout_msg):
+        return parse(mod_name, filepath)
 
     def _load_modules_from_zip(self, filepath, safe_mode):
         mods = []
