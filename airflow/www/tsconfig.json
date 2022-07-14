@@ -36,8 +36,7 @@
     "types": ["node", "jest"],
     "baseUrl": ".",
     "paths": { // Be sure to update aliases in webpack.config.js and jest.config.js
-      "app/*": ["static/js/*"],
-      "grid/*": ["static/js/grid/*"],
+      "src/*": ["static/js/*"],
     },
   },
   "include": [

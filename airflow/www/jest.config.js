@@ -26,8 +26,7 @@ const config = {
   setupFilesAfterEnv: ['./jest-setup.js'],
   moduleDirectories: ['node_modules'],
   moduleNameMapper: { // Listing all aliases
-    '^app/(.*)$': '<rootDir>/static/js/$1',
-    '^grid/(.*)$': '<rootDir>/static/js/grid/$1',
+    '^src/(.*)$': '<rootDir>/static/js/$1',
   },
 };
 
