@@ -235,6 +235,7 @@ class DbApiHook(BaseHook):
         autocommit: bool = False,
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
     ) -> Optional[list]:
         """
         Runs a command or a list of commands. Pass a list of sql
@@ -247,10 +248,14 @@ class DbApiHook(BaseHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
+        :param split_statements: Whether to split a single SQL string into statements and run separately
         :return: return only result of the ALL SQL expressions if handler was provided.
         """
         if isinstance(sql, str):
-            sql = [sql]
+            if split_statements:
+                sql = self.split_sql_string(sql)
+            else:
+                sql = [sql]
 
         if sql:
             self.log.debug("Executing following statements against DB: %s", list(sql))

@@ -24,8 +24,7 @@ from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 from snowflake import connector
-from snowflake.connector import DictCursor, SnowflakeConnection
-from snowflake.connector.util_text import split_statements
+from snowflake.connector import DictCursor, SnowflakeConnection, util_text
 from snowflake.sqlalchemy import URL
 from sqlalchemy import create_engine
 
@@ -290,6 +289,7 @@ class SnowflakeHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = True,
     ):
         """
         Runs a command or a list of commands. Pass a list of sql
@@ -305,13 +305,17 @@ class SnowflakeHook(DbApiHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
+        :param split_statements: Whether to split a single SQL string into statements and run separately
         :return: return only result of the LAST SQL expression if handler was provided.
         """
         self.query_ids = []
 
         if isinstance(sql, str):
-            split_statements_tuple = split_statements(StringIO(sql))
-            sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+            if split_statements:
+                split_statements_tuple = util_text.split_statements(StringIO(sql))
+                sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
+            else:
+                sql = [sql]
 
         if sql:
             self.log.debug("Executing following statements against Snowflake DB: %s", list(sql))

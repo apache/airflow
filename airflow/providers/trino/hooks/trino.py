@@ -261,6 +261,7 @@ class TrinoHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
     ) -> Optional[list]:
         """Execute the statement against Trino. Can be used to create views."""
 
@@ -271,6 +272,7 @@ class TrinoHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
         hql: str = "",
     ) -> Optional[list]:
         """:sphinx-autoapi-skip:"""
@@ -281,6 +283,7 @@ class TrinoHook(DbApiHook):
         autocommit: bool = False,
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
+        split_statements: bool = False,
         hql: str = "",
     ) -> Optional[list]:
         """:sphinx-autoapi-skip:"""
@@ -295,7 +298,13 @@ class TrinoHook(DbApiHook):
         if isinstance(sql, str):
             sql = self.strip_sql_string(sql)
 
-        return super().run(sql=sql, autocommit=autocommit, parameters=parameters, handler=handler)
+        return super().run(
+            sql=sql,
+            autocommit=autocommit,
+            parameters=parameters,
+            handler=handler,
+            split_statements=split_statements,
+        )
 
     def insert_rows(
         self,

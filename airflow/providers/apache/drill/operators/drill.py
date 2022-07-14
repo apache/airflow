@@ -62,4 +62,4 @@ class DrillOperator(BaseOperator):
     def execute(self, context: 'Context'):
         self.log.info('Executing: %s on %s', self.sql, self.drill_conn_id)
         self.hook = DrillHook(drill_conn_id=self.drill_conn_id)
-        self.hook.run(DrillHook.split_sql_string(self.sql), parameters=self.parameters)
+        self.hook.run(self.sql, parameters=self.parameters, split_statements=True)
