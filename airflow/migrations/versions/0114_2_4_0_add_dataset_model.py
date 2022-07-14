@@ -124,10 +124,10 @@ def _create_dataset_event_table():
         sa.Column('id', Integer, primary_key=True, autoincrement=True),
         sa.Column('dataset_id', Integer, nullable=False),
         sa.Column('extra', ExtendedJSON, nullable=True),
-        sa.Column('task_id', String(250), nullable=True),
-        sa.Column('dag_id', String(250), nullable=True),
-        sa.Column('run_id', String(250), nullable=True),
-        sa.Column('map_index', sa.Integer(), nullable=True, server_default='-1'),
+        sa.Column('source_task_id', String(250), nullable=True),
+        sa.Column('source_dag_id', String(250), nullable=True),
+        sa.Column('source_run_id', String(250), nullable=True),
+        sa.Column('source_map_index', sa.Integer(), nullable=True, server_default='-1'),
         sa.Column('created_at', TIMESTAMP, nullable=False),
         sqlite_autoincrement=True,  # ensures PK values not reused
     )
