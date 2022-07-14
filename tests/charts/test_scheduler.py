@@ -115,6 +115,39 @@ class SchedulerTest(unittest.TestCase):
             "spec.template.spec.containers[0].volumeMounts[*].name", docs[0]
         )
 
+    def test_should_add_extraEnvs(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "scheduler": {
+                    "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.containers[0].env", docs[0]
+        )
+
+    def test_should_add_extraEnvs_to_wait_for_migration_container(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "scheduler": {
+                    "waitForMigrations": {
+                        "enabled": True,
+                        "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    },
+                },
+            },
+            show_only=["templates/scheduler/scheduler-deployment.yaml"],
+        )
+
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.template.spec.initContainers[0].env", docs[0]
+        )
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={

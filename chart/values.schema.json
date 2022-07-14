@@ -552,6 +552,14 @@
                                 "IfNotPresent"
                             ],
                             "default": "IfNotPresent"
+                        },
+                        "env": {
+                            "description": "Add additional env vars to flower.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            }
                         }
                     }
                 },
@@ -1539,6 +1547,29 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            }
+                        }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to worker.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    }
                 }
             }
         },
@@ -1873,7 +1904,23 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to scheduler.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                     }
                 }
             }
@@ -2131,7 +2178,23 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to triggerer.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                     }
                 }
             }
@@ -2389,7 +2452,23 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                     }
                 }
             }
@@ -2574,6 +2653,14 @@
                     "description": "Specify if you want to use the default Helm Hook annotations",
                     "type": "boolean",
                     "default": true
+                },
+                "env": {
+                    "description": "Add additional env vars to job.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    }
                 }
             }
         },
@@ -3228,7 +3315,23 @@
                             "description": "Enable wait-for-airflow-migrations init container.",
                             "type": "boolean",
                             "default": true
+                        },
+                        "env": {
+                            "description": "Add additional env vars to wait-for-airflow-migrations init container.",
+                            "type": "array",
+                            "default": [],
+                            "items": {
+                                "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                            }
                         }
+                    }
+                },
+                "env": {
+                    "description": "Add additional env vars to webserver.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
                     }
                 }
             }
@@ -3551,6 +3654,14 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "env": {
+                    "description": "Add additional env vars to flower.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    }
                 }
             }
         },
@@ -4556,6 +4667,14 @@
                             "fsGroup": 0
                         }
                     ]
+                },
+                "env": {
+                    "description": "Add additional env vars to cleanup.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.EnvVar"
+                    }
                 }
             }
         },

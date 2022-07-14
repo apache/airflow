@@ -130,6 +130,9 @@ spec:
         {{- if .Values.dagProcessor.extraInitContainers }}
         {{- toYaml .Values.dagProcessor.extraInitContainers | nindent 8 }}
         {{- end }}
+{{- if .Values.dagProcessor.waitForMigrations.env }}
+{{ tpl (toYaml .Values.dagProcessor.waitForMigrations.env) $ | indent 12 }}
+{{- end }}
       containers:
         - name: dag-processor
           image: {{ template "airflow_image" . }}

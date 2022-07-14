@@ -592,6 +592,12 @@ workers:
     #   cpu: 100m
     #   memory: 128Mi
 
+  waitForMigrations:
+    # To add env vars specific to wait-for-migrations init container
+    env: []
+
+  env: []
+
 # Airflow scheduler settings
 scheduler:
   # If the scheduler stops heartbeating for 5 minutes (5*60s) kill the
@@ -703,6 +709,9 @@ scheduler:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow create user job settings
 createUserJob:
@@ -766,6 +775,7 @@ createUserJob:
   # In case you need to disable the helm hooks that create the jobs after install.
   # Disable this if you are using ArgoCD for example
   useHelmHooks: true
+  env: []
 
   resources: {}
   #  limits:
@@ -980,6 +990,9 @@ webserver:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow Triggerer Config
 triggerer:
@@ -1070,6 +1083,9 @@ triggerer:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Airflow Dag Processor Config
 dagProcessor:
@@ -1160,6 +1176,9 @@ dagProcessor:
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
+    env: []
+
+  env: []
 
 # Flower settings
 flower:
@@ -1253,6 +1272,8 @@ flower:
   priorityClassName: ~
 
   podAnnotations: {}
+
+  env: []
 
 # StatsD settings
 statsd:
@@ -1565,6 +1586,7 @@ cleanup:
   securityContext: {}
   #  runAsUser: 50000
   #  runAsGroup: 0
+  env: []
 
 # Configuration for postgresql subchart
 # Not recommended for production

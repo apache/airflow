@@ -138,6 +138,9 @@ spec:
             {{- end }}
           {{- include "standard_airflow_environment" . | indent 10 }}
           {{- include "custom_airflow_environment" . | indent 10 }}
+{{- if .Values.flower.env }}
+{{ tpl (toYaml .Values.flower.env) $ | indent 12 }}
+{{- end }}
 {{- if .Values.flower.extraContainers }}
 {{- toYaml .Values.flower.extraContainers | nindent 8 }}
 {{- end }}
