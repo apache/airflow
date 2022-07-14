@@ -21,12 +21,14 @@ import pytest
 from azure.servicebus import ServiceBusMessage
 
 from airflow.providers.microsoft.azure.operators.asb import (
+    ASBReceiveSubscriptionMessageOperator,
     AzureServiceBusCreateQueueOperator,
     AzureServiceBusDeleteQueueOperator,
     AzureServiceBusReceiveMessageOperator,
     AzureServiceBusSendMessageOperator,
     AzureServiceBusSubscriptionCreateOperator,
     AzureServiceBusSubscriptionDeleteOperator,
+    AzureServiceBusUpdateSubscriptionOperator,
 )
 
 QUEUE_NAME = "test_queue"
@@ -290,3 +292,88 @@ class TestASBDeleteSubscriptionOperator:
         mock_get_conn.return_value.__enter__.return_value.delete_subscription.assert_called_once_with(
             TOPIC_NAME, SUBSCRIPTION_NAME
         )
+
+
+class TestAzureServiceBusUpdateSubscriptionOperator:
+    def test_init(self):
+        """
+        Test init by creating AzureServiceBusUpdateSubscriptionOperator with task id, subscription name,
+        topic name and asserting with values
+        """
+        asb_update_subscription_operator = AzureServiceBusUpdateSubscriptionOperator(
+            task_id="asb_update_subscription",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+            max_delivery_count=10,
+        )
+        assert asb_update_subscription_operator.task_id == "asb_update_subscription"
+        assert asb_update_subscription_operator.topic_name == TOPIC_NAME
+        assert asb_update_subscription_operator.subscription_name == SUBSCRIPTION_NAME
+        assert asb_update_subscription_operator.max_delivery_count == 10
+
+    @mock.patch('azure.servicebus.management.SubscriptionProperties')
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn")
+    def test_update_subscription(self, mock_get_conn, mock_subscription_properties):
+        """
+        Test AzureServiceBusUpdateSubscriptionOperator passed with the subscription name, topic name
+        mocking the connection details, hook update_subscription function
+        """
+        mock_subscription_properties.name = SUBSCRIPTION_NAME
+        mock_subscription_properties.max_delivery_count = 20
+        mock_get_conn.return_value.__enter__.return_value.get_subscription.return_value = (
+            mock_subscription_properties
+        )
+        asb_update_subscription = AzureServiceBusUpdateSubscriptionOperator(
+            task_id="asb_update_subscription",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+            max_delivery_count=20,
+        )
+        with mock.patch.object(asb_update_subscription.log, "info") as mock_log_info:
+            asb_update_subscription.execute(None)
+        mock_log_info.assert_called_with("Subscription Updated successfully %s", mock_subscription_properties)
+
+
+class TestASBSubscriptionReceiveMessageOperator:
+    def test_init(self):
+        """
+        Test init by creating ASBReceiveSubscriptionMessageOperator with task id, topic_name,
+        subscription_name, batch and asserting with values
+        """
+
+        asb_subscription_receive_message = ASBReceiveSubscriptionMessageOperator(
+            task_id="asb_subscription_receive_message",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+            max_message_count=10,
+        )
+        assert asb_subscription_receive_message.task_id == "asb_subscription_receive_message"
+        assert asb_subscription_receive_message.topic_name == TOPIC_NAME
+        assert asb_subscription_receive_message.subscription_name == SUBSCRIPTION_NAME
+        assert asb_subscription_receive_message.max_message_count == 10
+
+    @mock.patch("airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn")
+    def test_receive_message_queue(self, mock_get_conn):
+        """
+        Test ASBReceiveSubscriptionMessageOperator by mock connection, values
+        and the service bus receive message
+        """
+        asb_subscription_receive_message = ASBReceiveSubscriptionMessageOperator(
+            task_id="asb_subscription_receive_message",
+            topic_name=TOPIC_NAME,
+            subscription_name=SUBSCRIPTION_NAME,
+            max_message_count=10,
+        )
+        asb_subscription_receive_message.execute(None)
+        expected_calls = [
+            mock.call()
+            .__enter__()
+            .get_subscription_receiver(SUBSCRIPTION_NAME, TOPIC_NAME)
+            .__enter__()
+            .receive_messages(max_message_count=10, max_wait_time=5)
+            .get_subscription_receiver(SUBSCRIPTION_NAME, TOPIC_NAME)
+            .__exit__()
+            .mock_call()
+            .__exit__
+        ]
+        mock_get_conn.assert_has_calls(expected_calls)
