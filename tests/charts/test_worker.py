@@ -97,7 +97,7 @@ class WorkerTest(unittest.TestCase):
         assert "test-volume" == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[0].name", docs[0]
         )
-    
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -112,7 +112,7 @@ class WorkerTest(unittest.TestCase):
         assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
             "spec.template.spec.containers[0].env", docs[0]
         )
-    
+
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={

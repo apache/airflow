@@ -638,14 +638,16 @@ class PodTemplateFileTest(unittest.TestCase):
             "component": "worker",
             "tier": "airflow",
         } == jmespath.search("metadata.labels", docs[0])
-    
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={"env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
             show_only=["templates/pod-template-file.yaml"],
             chart_dir=self.temp_chart_dir,
         )
-        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search("spec.containers[0].env", docs[0])
+        assert {'name': 'TEST_ENV_1', 'value': 'test_env_1'} in jmespath.search(
+            "spec.containers[0].env", docs[0]
+        )
 
     def test_should_add_resources(self):
         docs = render_chart(

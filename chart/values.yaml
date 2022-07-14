@@ -1177,7 +1177,7 @@ dagProcessor:
     # Whether to create init container to wait for db migrations
     enabled: true
     env: []
-    
+
   env: []
 
 # Flower settings

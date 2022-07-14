@@ -169,7 +169,7 @@ class CreateUserJobTest(unittest.TestCase):
         assert {"name": "foobar", "mountPath": "foo/bar"} == jmespath.search(
             "spec.template.spec.containers[0].volumeMounts[-1]", docs[0]
         )
-    
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -190,7 +190,6 @@ class CreateUserJobTest(unittest.TestCase):
             ("2.0.2", "airflow users create"),
         ],
     )
-
     def test_default_command_and_args_airflow_version(self, airflow_version, expected_arg):
         docs = render_chart(
             values={

@@ -154,7 +154,7 @@ class WebserverDeploymentTest(unittest.TestCase):
             "name": "test-container",
             "image": "test-registry/test-repo:test-tag",
         } == jmespath.search("spec.template.spec.containers[-1]", docs[0])
-    
+
     def test_should_add_extraEnvs(self):
         docs = render_chart(
             values={
@@ -175,8 +175,11 @@ class WebserverDeploymentTest(unittest.TestCase):
             values={
                 "executor": "CeleryExecutor",
                 "webserver": {
-                    "waitForMigrations": {"enabled": True, "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}]},
-                }
+                    "waitForMigrations": {
+                        "enabled": True,
+                        "env": [{"name": "TEST_ENV_1", "value": "test_env_1"}],
+                    },
+                },
             },
             show_only=["templates/webserver/webserver-deployment.yaml"],
         )
