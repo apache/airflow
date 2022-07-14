@@ -25,40 +25,40 @@ from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.datasync import DataSyncOperator
 from airflow.providers.amazon.aws.operators.s3 import S3CreateBucketOperator, S3DeleteBucketOperator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import fetch_variable, set_env_id
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-ENV_ID = set_env_id()
 DAG_ID = 'example_datasync'
 
-S3_BUCKET_SOURCE = f'{ENV_ID}-datasync-bucket-source'
-S3_BUCKET_DESTINATION = f'{ENV_ID}-datasync-bucket-destination'
-ROLE_ARN = fetch_variable('ROLE_ARN')
+# Externally fetched variables:
+ROLE_ARN_KEY = 'ROLE_ARN'
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 
 def get_s3_bucket_arn(bucket_name):
     return f'arn:aws:s3:::{bucket_name}'
 
 
-def create_location(bucket_name):
+def create_location(bucket_name, role_arn):
     client = boto3.client('datasync')
     response = client.create_location_s3(
         Subdirectory='test',
         S3BucketArn=get_s3_bucket_arn(bucket_name),
         S3Config={
-            'BucketAccessRoleArn': ROLE_ARN,
+            'BucketAccessRoleArn': role_arn,
         },
     )
     return response['LocationArn']
 
 
 @task
-def create_source_location():
-    return create_location(S3_BUCKET_SOURCE)
+def create_source_location(bucket_source, role_arn):
+    return create_location(bucket_source, role_arn)
 
 
 @task
-def create_destination_location():
-    return create_location(S3_BUCKET_DESTINATION)
+def create_destination_location(bucket_destination, role_arn):
+    return create_location(bucket_destination, role_arn)
 
 
 @task
@@ -88,17 +88,17 @@ def delete_task_created_by_operator(**kwargs):
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def list_locations():
+def list_locations(bucket_source, bucket_destination):
     client = boto3.client('datasync')
     return client.list_locations(
         Filters=[
             {
                 'Name': 'LocationUri',
                 'Values': [
-                    f's3://{S3_BUCKET_SOURCE}/test/',
-                    f's3://{S3_BUCKET_DESTINATION}/test/',
-                    f's3://{S3_BUCKET_SOURCE}/test_create/',
-                    f's3://{S3_BUCKET_DESTINATION}/test_create/',
+                    f's3://{bucket_source}/test/',
+                    f's3://{bucket_destination}/test/',
+                    f's3://{bucket_source}/test_create/',
+                    f's3://{bucket_destination}/test_create/',
                 ],
                 'Operator': 'In',
             }
@@ -122,16 +122,21 @@ with models.DAG(
     catchup=False,
     tags=['example'],
 ) as dag:
+    test_context = sys_test_context_task()
+
+    s3_bucket_source: str = f'{test_context[ENV_ID_KEY]}-datasync-bucket-source'
+    s3_bucket_destination: str = f'{test_context[ENV_ID_KEY]}-datasync-bucket-destination'
+
     create_s3_bucket_source = S3CreateBucketOperator(
-        task_id='create_s3_bucket_source', bucket_name=S3_BUCKET_SOURCE
+        task_id='create_s3_bucket_source', bucket_name=s3_bucket_source
     )
 
     create_s3_bucket_destination = S3CreateBucketOperator(
-        task_id='create_s3_bucket_destination', bucket_name=S3_BUCKET_DESTINATION
+        task_id='create_s3_bucket_destination', bucket_name=s3_bucket_destination
     )
 
-    source_location = create_source_location()
-    destination_location = create_destination_location()
+    source_location = create_source_location(s3_bucket_source, test_context[ROLE_ARN_KEY])
+    destination_location = create_destination_location(s3_bucket_destination, test_context[ROLE_ARN_KEY])
 
     created_task_arn = create_task()
 
@@ -148,8 +153,8 @@ with models.DAG(
     # Search and execute a task
     execute_task_by_locations = DataSyncOperator(
         task_id='execute_task_by_locations',
-        source_location_uri=f's3://{S3_BUCKET_SOURCE}/test',
-        destination_location_uri=f's3://{S3_BUCKET_DESTINATION}/test',
+        source_location_uri=f's3://{s3_bucket_source}/test',
+        destination_location_uri=f's3://{s3_bucket_destination}/test',
         # Only transfer files from /test/subdir folder
         task_execution_kwargs={
             'Includes': [{'FilterType': 'SIMPLE_PATTERN', 'Value': '/test/subdir'}],
@@ -162,21 +167,21 @@ with models.DAG(
     # Create a task (the task does not exist)
     create_and_execute_task = DataSyncOperator(
         task_id='create_and_execute_task',
-        source_location_uri=f's3://{S3_BUCKET_SOURCE}/test_create',
-        destination_location_uri=f's3://{S3_BUCKET_DESTINATION}/test_create',
+        source_location_uri=f's3://{s3_bucket_source}/test_create',
+        destination_location_uri=f's3://{s3_bucket_destination}/test_create',
         create_task_kwargs={"Name": "Created by Airflow"},
         create_source_location_kwargs={
             'Subdirectory': 'test_create',
-            'S3BucketArn': get_s3_bucket_arn(S3_BUCKET_SOURCE),
+            'S3BucketArn': get_s3_bucket_arn(s3_bucket_source),
             'S3Config': {
-                'BucketAccessRoleArn': ROLE_ARN,
+                'BucketAccessRoleArn': test_context[ROLE_ARN_KEY],
             },
         },
         create_destination_location_kwargs={
             'Subdirectory': 'test_create',
-            'S3BucketArn': get_s3_bucket_arn(S3_BUCKET_DESTINATION),
+            'S3BucketArn': get_s3_bucket_arn(s3_bucket_destination),
             'S3Config': {
-                'BucketAccessRoleArn': ROLE_ARN,
+                'BucketAccessRoleArn': test_context[ROLE_ARN_KEY],
             },
         },
         delete_task_after_execution=False,
@@ -184,25 +189,26 @@ with models.DAG(
     )
     # [END howto_operator_datasync_create_task]
 
-    locations_task = list_locations()
+    locations_task = list_locations(s3_bucket_source, s3_bucket_destination)
     delete_locations_task = delete_locations(locations_task)
 
     delete_s3_bucket_source = S3DeleteBucketOperator(
         task_id='delete_s3_bucket_source',
-        bucket_name=S3_BUCKET_SOURCE,
+        bucket_name=s3_bucket_source,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     delete_s3_bucket_destination = S3DeleteBucketOperator(
         task_id='delete_s3_bucket_destination',
-        bucket_name=S3_BUCKET_DESTINATION,
+        bucket_name=s3_bucket_destination,
         force_delete=True,
         trigger_rule=TriggerRule.ALL_DONE,
     )
 
     chain(
         # TEST SETUP
+        test_context,
         create_s3_bucket_source,
         create_s3_bucket_destination,
         source_location,
