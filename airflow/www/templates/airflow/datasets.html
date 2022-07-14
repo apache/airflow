@@ -20,6 +20,11 @@
 {% extends base_template %}
 {% block page_title %}Datasets - {{ appbuilder.app_name }}{% endblock %}
 
+{% block head_meta %}
+  {{ super() }}
+  <meta name="datasets_api" content="{{ url_for('/api/v1.airflow_api_connexion_endpoints_dataset_endpoint_get_datasets') }}">
+{% endblock %}
+
 {% block content %}
   {{ super() }}
   <div id="root">

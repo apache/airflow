@@ -38,9 +38,9 @@ export default function useDatasets({ limit, offset, order }: Props) {
   const query = useQuery<DatasetsData>(
     ['datasets', limit, offset, order],
     () => {
-      const datasetsUrl = getMetaValue('datasets_api');
+      const datasetsUrl = getMetaValue('datasets_api') || '/api/v1/datasets';
       const orderParam = order ? { order_by: order } : {};
-      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl || '/api/v1/datasets', {
+      return axios.get<AxiosResponse, DatasetsData>(datasetsUrl, {
         params: { offset, limit, ...orderParam },
       });
     },

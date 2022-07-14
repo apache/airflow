@@ -61,7 +61,13 @@ const IndeterminateCheckbox = forwardRef(
 );
 
 const Table = ({
-  data, columns, manualPagination, pageSize = 25, setSortBy, isLoading = false, selectRows,
+  data,
+  columns,
+  manualPagination,
+  pageSize = 25,
+  setSortBy,
+  isLoading = false,
+  selectRows = undefined,
 }) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
   const oddColor = useColorModeValue('gray.50', 'gray.900');
