@@ -2949,22 +2949,40 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
     assert [x.value for x in query.order_by(None).order_by(XCom.map_index)] == [3, 4, 5]
 
 
-def test_ti_mapped_depends_on_mapped_xcom_arg_XXX(dag_maker, session):
-    with dag_maker(session=session) as dag:
+def test_mapped_upstream_return_none_should_skip(dag_maker, session):
+    results = set()
 
-        @dag.task
-        def add_one(x):
-            x + 1
+    with dag_maker(dag_id="test_mapped_upstream_return_none_should_skip", session=session) as dag:
 
-        two_three_four = add_one.expand(x=[1, 2, 3])
-        add_one.expand(x=two_three_four)
+        @dag.task()
+        def transform(value):
+            if value == "b":  # Now downstream doesn't map against this!
+                return None
+            return value
 
-    dagrun = dag_maker.create_dagrun()
-    for map_index in range(3):
-        ti = dagrun.get_task_instance("add_one", map_index=map_index)
-        ti.refresh_from_task(dag.get_task("add_one"))
-        with pytest.raises(XComForMappingNotPushed):
-            ti.run()
+        @dag.task()
+        def pull(value):
+            results.add(value)
+
+        original = ["a", "b", "c"]
+        transformed = transform.expand(value=original)  # ["a", None, "c"]
+        pull.expand(value=transformed)  # ["a", "c"]
+
+    dr = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+    assert sorted(tis) == [("transform", 0), ("transform", 1), ("transform", 2)]
+    for ti in tis.values():
+        ti.run()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+    assert sorted(tis) == [("pull", 0), ("pull", 1)]
+    for ti in tis.values():
+        ti.run()
+
+    assert results == {"a", "c"}
 
 
 def test_expand_non_templated_field(dag_maker, session):
