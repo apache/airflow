@@ -52,7 +52,7 @@ class DrillOperator(BaseOperator):
         *,
         sql: str,
         drill_conn_id: str = 'drill_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)

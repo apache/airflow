@@ -57,9 +57,9 @@ class MsSqlOperator(BaseOperator):
     def __init__(
         self,
         *,
-        sql: str,
+        sql: Union[str, Iterable[str]],
         mssql_conn_id: str = 'mssql_default',
-        parameters: Optional[Union[Mapping, Iterable]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         autocommit: bool = False,
         database: Optional[str] = None,
         **kwargs,
