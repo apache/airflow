@@ -285,6 +285,65 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "total_entries": 2,
         }
 
+    @parameterized.expand(
+        [
+            ('dataset_id', '2'),
+            ('source_dag_id', 'dag2'),
+            ('source_task_id', 'task2'),
+            ('source_run_id', 'run2'),
+            ('source_map_index', '2'),
+        ]
+    )
+    @provide_session
+    def test_filtering(self, attr, value, session):
+        datasets = [
+            Dataset(
+                id=i,
+                uri=f"s3://bucket/key/{i}",
+                extra={"foo": "bar"},
+                created_at=timezone.parse(self.default_time),
+                updated_at=timezone.parse(self.default_time),
+            )
+            for i in [1, 2, 3]
+        ]
+        session.add_all(datasets)
+        session.commit()
+        events = [
+            DatasetEvent(
+                dataset_id=i,
+                source_dag_id=f"dag{i}",
+                source_task_id=f"task{i}",
+                source_run_id=f"run{i}",
+                source_map_index=i,
+                created_at=timezone.parse(self.default_time),
+            )
+            for i in [1, 2, 3]
+        ]
+        session.add_all(events)
+        session.commit()
+        assert session.query(DatasetEvent).count() == 3
+
+        response = self.client.get(
+            f"/api/v1/datasets/events?{attr}={value}", environ_overrides={'REMOTE_USER': "test"}
+        )
+
+        assert response.status_code == 200
+        response_data = response.json
+        assert response_data == {
+            "dataset_events": [
+                {
+                    "dataset_id": 2,
+                    "extra": None,
+                    "source_dag_id": "dag2",
+                    "source_task_id": "task2",
+                    "source_run_id": "run2",
+                    "source_map_index": 2,
+                    "created_at": self.default_time,
+                }
+            ],
+            "total_entries": 1,
+        }
+
     def test_order_by_raises_400_for_invalid_attr(self, session):
         self._create_dataset(session)
         events = [
