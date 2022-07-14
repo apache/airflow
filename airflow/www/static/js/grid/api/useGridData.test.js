@@ -24,37 +24,17 @@ import { areActiveRuns } from './useGridData';
 describe('Test areActiveRuns()', () => {
   test('Correctly detects active runs', () => {
     const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'queued' },
+      { state: 'success' },
+      { state: 'queued' },
     ];
     expect(areActiveRuns(runs)).toBe(true);
   });
 
   test('Returns false when all runs are resolved', () => {
     const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'failed' },
-      { runType: 'manual', state: 'not_queued' },
-    ];
-    const result = areActiveRuns(runs);
-    expect(result).toBe(false);
-  });
-
-  test('Returns false when filtering runs runtype ["backfill"] and state ["not_queued"]', () => {
-    const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'failed' },
-      { runType: 'backfill', state: 'not_queued' },
-    ];
-    const result = areActiveRuns(runs);
-    expect(result).toBe(false);
-  });
-
-  test('Returns false when filtering runs runtype ["backfill"] and state ["queued"]', () => {
-    const runs = [
-      { runType: 'scheduled', state: 'success' },
-      { runType: 'manual', state: 'failed' },
-      { runType: 'backfill', state: 'queued' },
+      { state: 'success' },
+      { state: 'failed' },
+      { state: 'not_queued' },
     ];
     const result = areActiveRuns(runs);
     expect(result).toBe(false);
