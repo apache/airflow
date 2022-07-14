@@ -703,11 +703,11 @@ LABEL description="test warmup image"
         dry_run=dry_run,
         cwd=AIRFLOW_SOURCES_ROOT,
         text=True,
+        check=False,
         enabled_output_group=True,
     )
     if warm_up_command_result.returncode != 0:
         get_console().print(
-            f"[error]Error {warm_up_command_result.returncode} when warming up builder:"
+            f"[warning]Warning {warm_up_command_result.returncode} when warming up builder:"
             f" {warm_up_command_result.stdout} {warm_up_command_result.stderr}"
         )
-        sys.exit(warm_up_command_result.returncode)
