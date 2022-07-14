@@ -649,6 +649,25 @@ class PodTemplateFileTest(unittest.TestCase):
             "spec.containers[0].env", docs[0]
         )
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "KubernetesExecutor",
+                "workers": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/pod-template-file.yaml"],
+            chart_dir=self.temp_chart_dir,
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "worker",
+            "release": "RELEASE-NAME",
+            "test_label": "test_label_value",
+        } == jmespath.search("metadata.labels", docs[0])
+
     def test_should_add_resources(self):
         docs = render_chart(
             values={

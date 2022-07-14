@@ -113,6 +113,24 @@ class WorkerTest(unittest.TestCase):
             "spec.template.spec.containers[0].env", docs[0]
         )
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "executor": "CeleryExecutor",
+                "workers": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/workers/worker-deployment.yaml"],
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "worker",
+            "release": "RELEASE-NAME",
+            "test_label": "test_label_value",
+        } == jmespath.search("spec.template.metadata.labels", docs[0])
+
     def test_should_add_extraEnvs_to_wait_for_migration_container(self):
         docs = render_chart(
             values={

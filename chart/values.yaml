@@ -577,6 +577,9 @@ workers:
 
   podAnnotations: {}
 
+  # Labels specific to workers
+  labels: {}
+
   logGroomerSidecar:
     # Command to use when running the Airflow worker log groomer sidecar (templated).
     command: ~
@@ -689,6 +692,9 @@ scheduler:
 
   podAnnotations: {}
 
+  # Label Specific to scheduler app
+  labels: {}
+
   logGroomerSidecar:
     # Whether to deploy the Airflow scheduler log groomer sidecar.
     enabled: true
@@ -743,6 +749,9 @@ createUserJob:
   annotations: {}
   # jobAnnotations are annotations on the create user job
   jobAnnotations: {}
+
+  # Labels specific to createUserJob
+  labels: {}
 
   # When not set, the values defined in the global securityContext will be used
   securityContext: {}
@@ -987,6 +996,9 @@ webserver:
 
   podAnnotations: {}
 
+  # Labels specific webserver app
+  labels: {}
+
   waitForMigrations:
     # Whether to create init container to wait for db migrations
     enabled: true
@@ -1079,6 +1091,9 @@ triggerer:
   priorityClassName: ~
 
   podAnnotations: {}
+
+  # Labels specific to triggerer app
+  labels: {}
 
   waitForMigrations:
     # Whether to create init container to wait for db migrations
@@ -1274,6 +1289,9 @@ flower:
   podAnnotations: {}
 
   env: []
+
+  # Labels specific to flower app
+  labels: {}
 
 # StatsD settings
 statsd:
@@ -1562,6 +1580,9 @@ cleanup:
   topologySpreadConstraints: []
 
   podAnnotations: {}
+
+  # Labels specific to cleanup
+  labels: {}
 
   resources: {}
   #  limits:

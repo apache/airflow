@@ -42,6 +42,23 @@ class CreateUserJobTest(unittest.TestCase):
         assert "fiz" in job_annotations
         assert "fuz" == job_annotations["fiz"]
 
+    def test_should_add_component_specific_labels(self):
+        docs = render_chart(
+            values={
+                "createUserJob": {
+                    "labels": {"test_label": "test_label_value"},
+                },
+            },
+            show_only=["templates/jobs/create-user-job.yaml"],
+        )
+
+        assert {
+            "tier": "airflow",
+            "component": "create-user-job",
+            "release": "RELEASE-NAME",
+            "test_label": "test_label_value",
+        } == jmespath.search("spec.template.metadata.labels", docs[0])
+
     def test_should_create_valid_affinity_tolerations_and_node_selector(self):
         docs = render_chart(
             values={
