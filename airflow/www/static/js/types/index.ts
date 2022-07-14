@@ -75,6 +75,14 @@ interface Task {
   isMapped?: boolean;
 }
 
+interface Dataset {
+  id: string;
+  uri: string;
+  extra: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type {
   Dag,
   DagRun,
@@ -82,4 +90,5 @@ export type {
   TaskState,
   TaskInstance,
   Task,
+  Dataset,
 };
