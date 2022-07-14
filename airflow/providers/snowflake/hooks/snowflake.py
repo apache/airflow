@@ -19,7 +19,7 @@ import os
 from contextlib import closing
 from io import StringIO
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Sequence, Union
+from typing import Any, Callable, Dict, Iterable, List, Mapping, Optional, Union
 
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
@@ -286,9 +286,9 @@ class SnowflakeHook(DbApiHook):
 
     def run(
         self,
-        sql: Union[str, list],
+        sql: Union[str, Iterable[str]],
         autocommit: bool = False,
-        parameters: Optional[Union[Sequence[Any], Dict[Any, Any]]] = None,
+        parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
     ):
         """
@@ -305,6 +305,7 @@ class SnowflakeHook(DbApiHook):
             before executing the query.
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
+        :return: return only result of the LAST SQL expression if handler was provided.
         """
         self.query_ids = []
 
@@ -313,7 +314,7 @@ class SnowflakeHook(DbApiHook):
             sql = [sql_string for sql_string, _ in split_statements_tuple if sql_string]
 
         if sql:
-            self.log.debug("Executing %d statements against Snowflake DB", len(sql))
+            self.log.debug("Executing following statements against Snowflake DB: %s", list(sql))
         else:
             raise ValueError("List of SQL statements is empty")
 
@@ -322,33 +323,27 @@ class SnowflakeHook(DbApiHook):
 
             # SnowflakeCursor does not extend ContextManager, so we have to ignore mypy error here
             with closing(conn.cursor(DictCursor)) as cur:  # type: ignore[type-var]
-
+                results = []
                 for sql_statement in sql:
+                    self._run_command(cur, sql_statement, parameters)
 
-                    self.log.info("Running statement: %s, parameters: %s", sql_statement, parameters)
-                    if parameters:
-                        cur.execute(sql_statement, parameters)
-                    else:
-                        cur.execute(sql_statement)
-
-                    execution_info = []
                     if handler is not None:
-                        cur = handler(cur)
-                    for row in cur:
-                        self.log.info("Statement execution info - %s", row)
-                        execution_info.append(row)
+                        result = handler(cur)
+                        results.append(result)
 
                     query_id = cur.sfqid
                     self.log.info("Rows affected: %s", cur.rowcount)
                     self.log.info("Snowflake query id: %s", query_id)
                     self.query_ids.append(query_id)
 
-            # If autocommit was set to False for db that supports autocommit,
-            # or if db does not supports autocommit, we do a manual commit.
+            # If autocommit was set to False or db does not support autocommit, we do a manual commit.
             if not self.get_autocommit(conn):
                 conn.commit()
 
-        return execution_info
+        if handler is None:
+            return None
+        else:
+            return results
 
     def test_connection(self):
         """Test the Snowflake connection by running a simple query."""

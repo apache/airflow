@@ -367,7 +367,7 @@ class TestDbApiHook(unittest.TestCase):
         result = self.db_hook.run(sql, parameters=param, handler=handler)
         assert called == 1
         assert self.conn.commit.called
-        assert result == obj
+        assert result == [obj]
 
     def test_run_with_handler_multiple(self):
         sql = ['SQL', 'SQL']

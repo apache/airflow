@@ -95,29 +95,29 @@ class TestExasolHook(unittest.TestCase):
         assert not self.db_hook.get_autocommit(self.conn)
 
     def test_run_without_autocommit(self):
-        sql = 'SQL'
+        sql = 'SELECT 1;'
         setattr(self.conn, 'attr', {'autocommit': False})
 
         # Default autocommit setting should be False.
         # Testing default autocommit value as well as run() behavior.
         self.db_hook.run(sql, autocommit=False)
         self.conn.set_autocommit.assert_called_once_with(False)
-        self.conn.execute.assert_called_once_with(sql, None)
+        self.conn.execute.assert_called_once_with(sql.rstrip(';'), None)
         self.conn.commit.assert_called_once()
 
     def test_run_with_autocommit(self):
-        sql = 'SQL'
+        sql = 'SELECT 1;'
         self.db_hook.run(sql, autocommit=True)
         self.conn.set_autocommit.assert_called_once_with(True)
-        self.conn.execute.assert_called_once_with(sql, None)
+        self.conn.execute.assert_called_once_with(sql.rstrip(';'), None)
         self.conn.commit.assert_not_called()
 
     def test_run_with_parameters(self):
-        sql = 'SQL'
+        sql = 'SELECT 1;'
         parameters = ('param1', 'param2')
         self.db_hook.run(sql, autocommit=True, parameters=parameters)
         self.conn.set_autocommit.assert_called_once_with(True)
-        self.conn.execute.assert_called_once_with(sql, parameters)
+        self.conn.execute.assert_called_once_with(sql.rstrip(';'), parameters)
         self.conn.commit.assert_not_called()
 
     def test_run_multi_queries(self):

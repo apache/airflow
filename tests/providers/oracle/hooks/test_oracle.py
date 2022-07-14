@@ -269,7 +269,7 @@ class TestOracleHook(unittest.TestCase):
         self.cur.bindvars = None
         result = self.db_hook.callproc('proc', True, parameters)
         assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(); END;')]
-        assert result == parameters
+        assert result == [parameters]
 
     def test_callproc_dict(self):
         parameters = {"a": 1, "b": 2, "c": 3}
@@ -281,7 +281,7 @@ class TestOracleHook(unittest.TestCase):
         self.cur.bindvars = {k: bindvar(v) for k, v in parameters.items()}
         result = self.db_hook.callproc('proc', True, parameters)
         assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(:a,:b,:c); END;', parameters)]
-        assert result == parameters
+        assert result == [parameters]
 
     def test_callproc_list(self):
         parameters = [1, 2, 3]
@@ -293,7 +293,7 @@ class TestOracleHook(unittest.TestCase):
         self.cur.bindvars = list(map(bindvar, parameters))
         result = self.db_hook.callproc('proc', True, parameters)
         assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(:1,:2,:3); END;', parameters)]
-        assert result == parameters
+        assert result == [parameters]
 
     def test_callproc_out_param(self):
         parameters = [1, int, float, bool, str]
@@ -307,7 +307,7 @@ class TestOracleHook(unittest.TestCase):
         result = self.db_hook.callproc('proc', True, parameters)
         expected = [1, 0, 0.0, False, '']
         assert self.cur.execute.mock_calls == [mock.call('BEGIN proc(:1,:2,:3,:4,:5); END;', expected)]
-        assert result == expected
+        assert result == [expected]
 
     def test_test_connection_use_dual_table(self):
         status, message = self.db_hook.test_connection()

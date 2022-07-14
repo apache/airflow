@@ -25,6 +25,7 @@ import pytest
 from databricks.sql.types import Row
 
 from airflow import AirflowException
+from airflow.providers.common.sql.hooks.sql import fetch_all_handler
 from airflow.providers.databricks.operators.databricks_sql import (
     DatabricksCopyIntoOperator,
     DatabricksSqlOperator,
@@ -47,7 +48,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         db_mock = db_mock_class.return_value
         mock_schema = [('id',), ('value',)]
         mock_results = [Row(id=1, value='value1')]
-        db_mock.run.return_value = (mock_schema, mock_results)
+        db_mock.run.return_value = [(mock_schema, mock_results)]
 
         results = op.execute(None)
 
@@ -61,7 +62,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             catalog=None,
             schema=None,
         )
-        db_mock.run.assert_called_once_with(sql, parameters=None)
+        db_mock.run.assert_called_once_with(sql, parameters=None, handler=fetch_all_handler)
 
     @mock.patch('airflow.providers.databricks.operators.databricks_sql.DatabricksSqlHook')
     def test_exec_write_file(self, db_mock_class):
@@ -74,7 +75,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
         db_mock = db_mock_class.return_value
         mock_schema = [('id',), ('value',)]
         mock_results = [Row(id=1, value='value1')]
-        db_mock.run.return_value = (mock_schema, mock_results)
+        db_mock.run.return_value = [(mock_schema, mock_results)]
 
         try:
             op.execute(None)
@@ -92,7 +93,7 @@ class TestDatabricksSqlOperator(unittest.TestCase):
             catalog=None,
             schema=None,
         )
-        db_mock.run.assert_called_once_with(sql, parameters=None)
+        db_mock.run.assert_called_once_with(sql, parameters=None, handler=fetch_all_handler)
 
 
 class TestDatabricksSqlCopyIntoOperator(unittest.TestCase):
