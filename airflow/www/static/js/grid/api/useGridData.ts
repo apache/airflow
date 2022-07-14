@@ -20,13 +20,13 @@
 import { useQuery } from 'react-query';
 import axios, { AxiosResponse } from 'axios';
 
-import { getMetaValue } from '../../utils';
-import { useAutoRefresh } from '../context/autorefresh';
-import useErrorToast from '../utils/useErrorToast';
+import { getMetaValue } from 'src/utils';
+import { useAutoRefresh } from 'src/context/autorefresh';
+import useErrorToast from 'src/utils/useErrorToast';
 import useFilters, {
   BASE_DATE_PARAM, NUM_RUNS_PARAM, RUN_STATE_PARAM, RUN_TYPE_PARAM, now,
-} from '../utils/useFilters';
-import type { Task, DagRun } from '../types';
+} from 'src/dag/useFilters';
+import type { Task, DagRun } from 'src/types';
 
 const DAG_ID_PARAM = 'dag_id';
 
@@ -49,7 +49,7 @@ const emptyGridData: GridData = {
   },
 };
 
-export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['manual', 'scheduled'].includes(run.runType)).filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
+export const areActiveRuns = (runs: DagRun[] = []) => runs.filter((run) => ['manual', 'manual'].includes(run.runType)).filter((run) => ['queued', 'running', 'scheduled'].includes(run.state)).length > 0;
 
 const useGridData = () => {
   const { isRefreshOn, stopRefresh } = useAutoRefresh();
