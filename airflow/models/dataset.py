@@ -207,10 +207,10 @@ class DatasetEvent(Base):
 
     :param dataset_id: reference to Dataset record
     :param extra: JSON field for arbitrary extra info
-    :param task_id: the task_id of the TI which updated the dataset
-    :param dag_id: the dag_id of the TI which updated the dataset
-    :param run_id: the run_id of the TI which updated the dataset
-    :param map_index: the map_index of the TI which updated the dataset
+    :param source_task_id: the task_id of the TI which updated the dataset
+    :param source_dag_id: the dag_id of the TI which updated the dataset
+    :param source_run_id: the run_id of the TI which updated the dataset
+    :param source_map_index: the map_index of the TI which updated the dataset
 
     We use relationships instead of foreign keys so that dataset events are not deleted even
     if the foreign key object is.
@@ -219,10 +219,10 @@ class DatasetEvent(Base):
     id = Column(Integer, primary_key=True, autoincrement=True)
     dataset_id = Column(Integer, nullable=False)
     extra = Column(ExtendedJSON, nullable=True)
-    task_id = Column(StringID(), nullable=True)
-    dag_id = Column(StringID(), nullable=True)
-    run_id = Column(StringID(), nullable=True)
-    map_index = Column(Integer, nullable=True, server_default=text("-1"))
+    source_task_id = Column(StringID(), nullable=True)
+    source_dag_id = Column(StringID(), nullable=True)
+    source_run_id = Column(StringID(), nullable=True)
+    source_map_index = Column(Integer, nullable=True, server_default=text("-1"))
     created_at = Column(UtcDateTime, default=timezone.utcnow, nullable=False)
 
     __tablename__ = "dataset_event"
@@ -234,10 +234,10 @@ class DatasetEvent(Base):
     source_task_instance = relationship(
         "TaskInstance",
         primaryjoin="""and_(
-            DatasetEvent.dag_id == foreign(TaskInstance.dag_id),
-            DatasetEvent.run_id == foreign(TaskInstance.run_id),
-            DatasetEvent.task_id == foreign(TaskInstance.task_id),
-            DatasetEvent.map_index == foreign(TaskInstance.map_index),
+            DatasetEvent.source_dag_id == foreign(TaskInstance.dag_id),
+            DatasetEvent.source_run_id == foreign(TaskInstance.run_id),
+            DatasetEvent.source_task_id == foreign(TaskInstance.task_id),
+            DatasetEvent.source_map_index == foreign(TaskInstance.map_index),
         )""",
         viewonly=True,
         lazy="select",
@@ -246,8 +246,8 @@ class DatasetEvent(Base):
     source_dag_run = relationship(
         "DagRun",
         primaryjoin="""and_(
-            DatasetEvent.dag_id == foreign(DagRun.dag_id),
-            DatasetEvent.run_id == foreign(DagRun.run_id),
+            DatasetEvent.source_dag_id == foreign(DagRun.dag_id),
+            DatasetEvent.source_run_id == foreign(DagRun.run_id),
         )""",
         viewonly=True,
         lazy="select",
@@ -276,10 +276,10 @@ class DatasetEvent(Base):
             'id',
             'dataset_id',
             'extra',
-            'task_id',
-            'dag_id',
-            'run_id',
-            'map_index',
+            'source_task_id',
+            'source_dag_id',
+            'source_run_id',
+            'source_map_index',
         ]:
             args.append(f"{attr}={getattr(self, attr)!r}")
         return f"{self.__class__.__name__}({', '.join(args)})"
