@@ -21,12 +21,14 @@ from datetime import datetime, timedelta
 from airflow import DAG
 from airflow.models.baseoperator import chain
 from airflow.providers.microsoft.azure.operators.asb import (
+    ASBReceiveSubscriptionMessageOperator,
     AzureServiceBusCreateQueueOperator,
     AzureServiceBusDeleteQueueOperator,
     AzureServiceBusReceiveMessageOperator,
     AzureServiceBusSendMessageOperator,
     AzureServiceBusSubscriptionCreateOperator,
     AzureServiceBusSubscriptionDeleteOperator,
+    AzureServiceBusUpdateSubscriptionOperator,
 )
 
 EXECUTION_TIMEOUT = int(os.getenv("EXECUTION_TIMEOUT", 6))
@@ -100,6 +102,24 @@ with DAG(
     )
     # [END howto_operator_create_service_bus_subscription]
 
+    # [START howto_operator_update_service_bus_subscription]
+    update_service_bus_subscription = AzureServiceBusUpdateSubscriptionOperator(
+        task_id="update_service_bus_subscription",
+        topic_name=TOPIC_NAME,
+        subscription_name=SUBSCRIPTION_NAME,
+        max_delivery_count=5,
+    )
+    # [END howto_operator_update_service_bus_subscription]
+
+    # [START howto_operator_receive_message_service_bus_subscription]
+    receive_message_service_bus_subscription = ASBReceiveSubscriptionMessageOperator(
+        task_id="receive_message_service_bus_subscription",
+        topic_name=TOPIC_NAME,
+        subscription_name=SUBSCRIPTION_NAME,
+        max_message_count=10,
+    )
+    # [END howto_operator_receive_message_service_bus_subscription]
+
     # [START howto_operator_delete_service_bus_subscription]
     delete_service_bus_subscription = AzureServiceBusSubscriptionDeleteOperator(
         task_id="delete_service_bus_subscription",
@@ -122,6 +142,8 @@ with DAG(
         send_list_message_to_service_bus_queue,
         send_batch_message_to_service_bus_queue,
         receive_message_service_bus_queue,
+        update_service_bus_subscription,
+        receive_message_service_bus_subscription,
         delete_service_bus_subscription,
         delete_service_bus_queue,
     )

@@ -88,6 +88,35 @@ class TestAdminClientHook:
         with pytest.raises(TypeError):
             hook.delete_queue(None)
 
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn')
+    def test_delete_subscription(self, mock_sb_admin_client):
+        """
+        Test Delete subscription functionality by passing subscription name and topic name,
+        assert the function with values, mock the azure service bus function  `delete_subscription`
+        """
+        subscription_name = "test_subscription_name"
+        topic_name = "test_topic_name"
+        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        hook.delete_subscription(subscription_name, topic_name)
+        expected_calls = [mock.call().__enter__().delete_subscription(topic_name, subscription_name)]
+        mock_sb_admin_client.assert_has_calls(expected_calls)
+
+    @pytest.mark.parametrize(
+        "mock_subscription_name, mock_topic_name",
+        [("subscription_1", None), (None, "topic_1")],
+    )
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.AdminClientHook')
+    def test_delete_subscription_exception(
+        self, mock_sb_admin_client, mock_subscription_name, mock_topic_name
+    ):
+        """
+        Test `delete_subscription` functionality to raise AirflowException,
+         by passing subscription name and topic name as None and pytest raise Airflow Exception
+        """
+        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        with pytest.raises(TypeError):
+            hook.delete_subscription(mock_subscription_name, mock_topic_name)
+
 
 class TestMessageHook:
     def setup_class(self) -> None:
@@ -202,31 +231,45 @@ class TestMessageHook:
         with pytest.raises(TypeError):
             hook.receive_message(None)
 
-    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.AdminClientHook.get_conn')
-    def test_delete_subscription(self, mock_sb_admin_client):
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn')
+    def test_receive_subscription_message(self, mock_sb_client):
         """
-        Test Delete subscription functionality by passing subscription name and topic name,
-        assert the function with values, mock the azure service bus function  `delete_subscription`
+        Test `receive_subscription_message` hook function and assert the function with mock value,
+        mock the azure service bus `receive_message` function of subscription
         """
-        subscription_name = "test_subscription_name"
-        topic_name = "test_topic_name"
-        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
-        hook.delete_subscription(subscription_name, topic_name)
-        expected_calls = [mock.call().__enter__().delete_subscription(topic_name, subscription_name)]
-        mock_sb_admin_client.assert_has_calls(expected_calls)
+        subscription_name = "subscription_1"
+        topic_name = "topic_name"
+        max_message_count = 10
+        max_wait_time = 5
+        hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
+        hook.receive_subscription_message(topic_name, subscription_name, max_message_count, max_wait_time)
+        expected_calls = [
+            mock.call()
+            .__enter__()
+            .get_subscription_receiver(subscription_name, topic_name)
+            .__enter__()
+            .receive_messages(max_message_count=max_message_count, max_wait_time=max_wait_time)
+            .get_subscription_receiver(subscription_name, topic_name)
+            .__exit__()
+            .mock_call()
+            .__exit__
+        ]
+        mock_sb_client.assert_has_calls(expected_calls)
 
     @pytest.mark.parametrize(
-        "mock_subscription_name, mock_topic_name",
-        [("subscription_1", None), (None, "topic_1")],
+        "mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time",
+        [("subscription_1", None, None, None), (None, "topic_1", None, None)],
     )
-    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.AdminClientHook')
-    def test_delete_subscription_exception(
-        self, mock_sb_admin_client, mock_subscription_name, mock_topic_name
+    @mock.patch('airflow.providers.microsoft.azure.hooks.asb.MessageHook.get_conn')
+    def test_receive_subscription_message_exception(
+        self, mock_sb_client, mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time
     ):
         """
-        Test `delete_subscription` functionality to raise AirflowException,
-         by passing subscription name and topic name as None and pytest raise Airflow Exception
+        Test `receive_subscription_message` hook function to raise exception
+        by sending the subscription and topic name as none
         """
-        hook = AdminClientHook(azure_service_bus_conn_id=self.conn_id)
+        hook = MessageHook(azure_service_bus_conn_id=self.conn_id)
         with pytest.raises(TypeError):
-            hook.delete_subscription(mock_subscription_name, mock_topic_name)
+            hook.receive_subscription_message(
+                mock_subscription_name, mock_topic_name, mock_max_count, mock_wait_time
+            )

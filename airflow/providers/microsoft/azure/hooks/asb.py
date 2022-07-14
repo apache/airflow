@@ -212,3 +212,39 @@ class MessageHook(BaseAzureServiceBusHook):
                 for msg in received_msgs:
                     self.log.info(msg)
                     receiver.complete_message(msg)
+
+    def receive_subscription_message(
+        self,
+        topic_name: str,
+        subscription_name: str,
+        max_message_count: Optional[int],
+        max_wait_time: Optional[float],
+    ):
+        """
+        Receive a batch of subscription message at once. This approach is optimal if you wish
+        to process multiple messages simultaneously, or perform an ad-hoc receive as a single call.
+
+        :param subscription_name: The subscription name that will own the rule in topic
+        :param topic_name: The topic that will own the subscription rule.
+        :param max_message_count: Maximum number of messages in the batch.
+            Actual number returned will depend on prefetch_count and incoming stream rate.
+            Setting to None will fully depend on the prefetch config. The default value is 1.
+        :param max_wait_time: Maximum time to wait in seconds for the first message to arrive. If no
+            messages arrive, and no timeout is specified, this call will not return until the
+            connection is closed. If specified, an no messages arrive within the timeout period,
+            an empty list will be returned.
+        """
+        if subscription_name is None:
+            raise TypeError("Subscription name cannot be None.")
+        if topic_name is None:
+            raise TypeError("Topic name cannot be None.")
+        with self.get_conn() as service_bus_client, service_bus_client.get_subscription_receiver(
+            topic_name, subscription_name
+        ) as subscription_receiver:
+            with subscription_receiver:
+                received_msgs = subscription_receiver.receive_messages(
+                    max_message_count=max_message_count, max_wait_time=max_wait_time
+                )
+                for msg in received_msgs:
+                    self.log.info(msg)
+                    subscription_receiver.complete_message(msg)
