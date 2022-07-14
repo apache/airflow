@@ -235,7 +235,9 @@ cassandra = [
     'cassandra-driver>=3.13.0',
 ]
 celery = [
-    'celery~=5.1,>=5.1.2',
+    'celery~=5.1,>=5.1.2;python_version<"3.7"',
+    'celery>=5.2.3;python_version>="3.7"',
+    'flower>=1.0.0',
 ]
 cgroups = [
     'cgroupspy>0.1.4',
