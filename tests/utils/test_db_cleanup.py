@@ -227,6 +227,7 @@ class TestDBCleanup:
                 assert len(session.query(TaskInstance).all()) == expected_remaining
             else:
                 raise Exception("unexpected")
+
     @pytest.mark.parametrize(
         'table_name, dag_ids, date_add_kwargs, expected_to_delete',
         [
@@ -235,29 +236,17 @@ class TestDBCleanup:
                 dict(test=f'test-dag_{uuid4()}', dummy=f'dummy-dag_{uuid4()}'),
                 dict(days=4),
                 4,
-                id='several_dag_ids'
+                id='several_dag_ids',
             ),
             param(
                 'task_instance',
                 dict(test='', dummy=f'dummy-dag_{uuid4()}'),
                 dict(days=20),
                 0,
-                id='non_existing_dag_ids'
+                id='non_existing_dag_ids',
             ),
-            param(
-                'dag_run',
-                dict(),
-                dict(days=5),
-                5,
-                id='without_dags_ids'
-            ),
-            param(
-                'dag_run',
-                dict(test=f'test-dag_{uuid4()}'),
-                dict(days=9),
-                9,
-                id='singular_dags_id'
-            ),
+            param('dag_run', dict(), dict(days=5), 5, id='without_dags_ids'),
+            param('dag_run', dict(test=f'test-dag_{uuid4()}'), dict(days=9), 9, id='singular_dags_id'),
         ],
     )
     def test__cleanup_dag_ids(self, table_name, dag_ids, date_add_kwargs, expected_to_delete):
@@ -281,7 +270,7 @@ class TestDBCleanup:
                 clean_before_timestamp=clean_before_date,
                 dry_run=False,
                 session=session,
-                dag_ids=list(dag_ids.values())
+                dag_ids=list(dag_ids.values()),
             )
             model = config_dict[table_name].orm_model
             expected_remaining = num_tis - expected_to_delete
