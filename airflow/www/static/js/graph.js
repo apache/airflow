@@ -36,6 +36,7 @@ const dagRunId = getMetaValue('dag_run_id');
 const arrange = getMetaValue('arrange');
 const taskInstancesUrl = getMetaValue('task_instances_url');
 const isSchedulerRunning = getMetaValue('is_scheduler_running');
+const priority = getMetaValue('priority');
 
 // This maps the actual taskId to the current graph node id that contains the task
 // (because tasks may be grouped into a group node)
@@ -600,9 +601,9 @@ function getNodeState(nodeId, tis) {
 
   // In this order, if any of these states appeared in childrenStates, return it as
   // the group state.
-  const priority = ['failed', 'upstream_failed', 'up_for_retry', 'up_for_reschedule',
-    'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'restarting', 'removed',
-    'no_status', 'success', 'skipped'];
+  // const priority = ['failed', 'upstream_failed', 'up_for_retry', 'up_for_reschedule',
+  //   'queued', 'scheduled', 'sensing', 'running', 'shutdown', 'restarting', 'removed',
+  //   'no_status', 'success', 'skipped'];
 
   return priority.find((state) => childrenStates.has(state)) || 'no_status';
 }
