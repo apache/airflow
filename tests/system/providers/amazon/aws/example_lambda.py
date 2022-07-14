@@ -26,13 +26,14 @@ from airflow.decorators import task
 from airflow.models.baseoperator import chain
 from airflow.providers.amazon.aws.operators.aws_lambda import AwsLambdaInvokeFunctionOperator
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import fetch_variable, set_env_id
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder
 
-ENV_ID = set_env_id()
 DAG_ID = 'example_lambda'
 
-FUNCTION_NAME = f'{ENV_ID}-function'
-ROLE_ARN = fetch_variable('ROLE_ARN')
+# Externally fetched variables:
+ROLE_ARN_KEY = 'ROLE_ARN'
+
+sys_test_context_task = SystemTestContextBuilder().add_variable(ROLE_ARN_KEY).build()
 
 CODE_CONTENT = """
 def test(*args):
@@ -52,12 +53,12 @@ def create_zip(content):
 
 
 @task
-def create_lambda():
+def create_lambda(function_name, role_arn):
     client = boto3.client('lambda')
     client.create_function(
-        FunctionName=FUNCTION_NAME,
+        FunctionName=function_name,
         Runtime='python3.9',
-        Role=ROLE_ARN,
+        Role=role_arn,
         Handler='lambda_function.test',
         Code={
             'ZipFile': create_zip(CODE_CONTENT),
@@ -67,17 +68,17 @@ def create_lambda():
 
 
 @task
-def await_lambda():
+def await_lambda(function_name):
     client = boto3.client('lambda')
     waiter = client.get_waiter('function_active_v2')
-    waiter.wait(FunctionName=FUNCTION_NAME)
+    waiter.wait(FunctionName=function_name)
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_lambda():
+def delete_lambda(function_name):
     client = boto3.client('lambda')
     client.delete_function(
-        FunctionName=FUNCTION_NAME,
+        FunctionName=function_name,
     )
 
 
@@ -88,22 +89,27 @@ with models.DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+
+    lambda_function_name: str = f'{test_context[ENV_ID_KEY]}-function'
+
     # [START howto_operator_lambda]
     invoke_lambda_function = AwsLambdaInvokeFunctionOperator(
         task_id='invoke_lambda_function',
-        function_name=FUNCTION_NAME,
+        function_name=lambda_function_name,
         payload=json.dumps({"SampleEvent": {"SampleData": {"Name": "XYZ", "DoB": "1993-01-01"}}}),
     )
     # [END howto_operator_lambda]
 
     chain(
         # TEST SETUP
-        create_lambda(),
-        await_lambda(),
+        test_context,
+        create_lambda(lambda_function_name, test_context[ROLE_ARN_KEY]),
+        await_lambda(lambda_function_name),
         # TEST BODY
         invoke_lambda_function,
         # TEST TEARDOWN
-        delete_lambda(),
+        delete_lambda(lambda_function_name),
     )
 
     from tests.system.utils.watcher import watcher
