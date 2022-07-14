@@ -1,4 +1,6 @@
 {
+  "name": "airflow-www",
+  "version": "1.0.0",
   "description": "Apache Airflow is a platform to programmatically author, schedule and monitor workflows.",
   "scripts": {
     "test": "jest",
