@@ -972,6 +972,18 @@ class Airflow(AirflowBaseView):
             auto_refresh_interval=conf.getint('webserver', 'auto_refresh_interval'),
         )
 
+    @expose('/datasets')
+    @auth.has_access(
+        [
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
+        ]
+    )
+    def datasets(self):
+        """Datasets view."""
+        return self.render_template(
+            'airflow/datasets.html',
+        )
+
     @expose('/dag_stats', methods=['POST'])
     @auth.has_access(
         [
