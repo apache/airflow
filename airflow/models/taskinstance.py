@@ -1536,10 +1536,10 @@ class TaskInstance(Base, LoggingMixin):
                 session.add(
                     DatasetEvent(
                         dataset_id=dataset.id,
-                        task_id=self.task_id,
-                        dag_id=self.dag_id,
-                        run_id=self.run_id,
-                        map_index=self.map_index,
+                        source_task_id=self.task_id,
+                        source_dag_id=self.dag_id,
+                        source_run_id=self.run_id,
+                        source_map_index=self.map_index,
                     )
                 )
                 for dag_id in downstream_dag_ids:
