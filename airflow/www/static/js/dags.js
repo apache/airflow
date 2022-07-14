@@ -89,12 +89,9 @@ $('#page_size').on('change', function onPageSizeChange() {
   window.location = `${DAGS_INDEX}?page_size=${pSize}`;
 });
 
-const encodedDagIds = new URLSearchParams();
-
 $.each($('[id^=toggle]'), function toggleId() {
   const $input = $(this);
   const dagId = $input.data('dag-id');
-  encodedDagIds.append('dag_ids', dagId);
 
   $input.on('change', () => {
     const isPaused = $input.is(':checked');
@@ -328,24 +325,41 @@ function taskStatsHandler(error, json) {
   });
 }
 
-if (encodedDagIds.has('dag_ids')) {
-  // dags on page fetch stats
-  d3.json(blockedUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, blockedHandler);
-  d3.json(lastDagRunsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, lastDagRunsHandler);
-  d3.json(dagStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, dagStatsHandler);
-  d3.json(taskStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, taskStatsHandler);
-} else {
-  // no dags, hide the loading dots
-  $('.js-loading-task-stats').remove();
-  $('.js-loading-dag-stats').remove();
+function getDagIds({ activeDagsOnly = false } = {}) {
+  let dagIds = $('[id^=toggle]');
+  if (activeDagsOnly) {
+    dagIds = dagIds.filter(':checked');
+  }
+  dagIds = dagIds.map(function () {
+    return $(this).data('dag-id');
+  }).get();
+  return dagIds;
+}
+
+function getDagStats() {
+  const dagIds = getDagIds();
+  const params = new URLSearchParams();
+  dagIds.forEach((dagId) => {
+    params.append('dag_ids', dagId);
+  });
+  if (params.has('dag_ids')) {
+    d3.json(blockedUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, blockedHandler);
+    d3.json(lastDagRunsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, lastDagRunsHandler);
+    d3.json(dagStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, dagStatsHandler);
+    d3.json(taskStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, taskStatsHandler);
+  } else {
+    // no dags, hide the loading dots
+    $('.js-loading-task-stats').remove();
+    $('.js-loading-dag-stats').remove();
+  }
 }
 
 function showSvgTooltip(text, circ) {
@@ -428,17 +442,24 @@ function refreshDagRuns(error, json) {
   });
 }
 
-function handleRefresh() {
+function handleRefresh({ activeDagsOnly = false } = {}) {
+  const dagIds = getDagIds({ activeDagsOnly });
+  const params = new URLSearchParams();
+  dagIds.forEach((dagId) => {
+    params.append('dag_ids', dagId);
+  });
   $('#loading-dots').css('display', 'inline-block');
-  d3.json(lastDagRunsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, lastDagRunsHandler);
-  d3.json(dagStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, refreshDagRuns);
-  d3.json(taskStatsUrl)
-    .header('X-CSRFToken', csrfToken)
-    .post(encodedDagIds, refreshTaskStateHandler);
+  if (params.has('dag_ids')) {
+    d3.json(lastDagRunsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, lastDagRunsHandler);
+    d3.json(dagStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, refreshDagRuns);
+    d3.json(taskStatsUrl)
+      .header('X-CSRFToken', csrfToken)
+      .post(params, refreshTaskStateHandler);
+  }
   setTimeout(() => {
     $('#loading-dots').css('display', 'none');
   }, refreshIntervalMs);
@@ -447,7 +468,7 @@ function handleRefresh() {
 function startOrStopRefresh() {
   if ($('#auto_refresh').is(':checked')) {
     refreshInterval = setInterval(() => {
-      handleRefresh();
+      handleRefresh({ activeDagsOnly: true });
     }, autoRefreshInterval * refreshIntervalMs);
   } else {
     clearInterval(refreshInterval);
@@ -485,6 +506,8 @@ $(window).on('load', () => {
   $('body').on('mouseout', '.has-svg-tooltip', () => {
     hideSvgTooltip();
   });
+
+  getDagStats();
 });
 
 $('.js-next-run-tooltip').each((i, run) => {
@@ -506,7 +529,7 @@ $('.js-next-run-tooltip').each((i, run) => {
 $('#auto_refresh').change(() => {
   if ($('#auto_refresh').is(':checked')) {
     // Run an initial refresh before starting interval if manually turned on
-    handleRefresh();
+    handleRefresh({ activeDagsOnly: true });
     localStorage.removeItem('dagsDisableAutoRefresh');
   } else {
     localStorage.setItem('dagsDisableAutoRefresh', 'true');
