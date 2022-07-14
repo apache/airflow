@@ -53,7 +53,12 @@ from airflow.models.baseoperator import (
     parse_retries,
 )
 from airflow.models.dag import DAG, DagContext
-from airflow.models.expandinput import EXPAND_INPUT_EMPTY, DictOfListsExpandInput, ExpandInput
+from airflow.models.expandinput import (
+    EXPAND_INPUT_EMPTY,
+    DictOfListsExpandInput,
+    ExpandInput,
+    ListOfDictsExpandInput,
+)
 from airflow.models.mappedoperator import (
     MappedOperator,
     ValidationSource,
@@ -171,8 +176,17 @@ class DecoratedOperator(BaseOperator):
         op_args = op_args or []
         op_kwargs = op_kwargs or {}
 
-        # Check that arguments can be binded
-        inspect.signature(python_callable).bind(*op_args, **op_kwargs)
+        # Check that arguments can be binded. There's a slight difference when
+        # we do validation for task-mapping: Since there's no guarantee we can
+        # receive enough arguments at parse time, we use bind_partial to simply
+        # check all the arguments we know are valid. Whether these are enough
+        # can only be known at execution time, when unmapping happens, and this
+        # is called without the _airflow_mapped_validation_only flag.
+        if kwargs.get("_airflow_mapped_validation_only"):
+            inspect.signature(python_callable).bind_partial(*op_args, **op_kwargs)
+        else:
+            inspect.signature(python_callable).bind(*op_args, **op_kwargs)
+
         self.multiple_outputs = multiple_outputs
         self.op_args = op_args
         self.op_kwargs = op_kwargs
@@ -323,6 +337,13 @@ class _TaskDecorator(Generic[Function, OperatorSubclass]):
         # to False to skip the checks on execution.
         return self._expand(DictOfListsExpandInput(map_kwargs), strict=False)
 
+    def expand_kwargs(self, kwargs: "XComArg", *, strict: bool = True) -> XComArg:
+        from airflow.models.xcom_arg import XComArg
+
+        if not isinstance(kwargs, XComArg):
+            raise TypeError(f"expected XComArg object, not {type(kwargs).__name__}")
+        return self._expand(ListOfDictsExpandInput(kwargs), strict=strict)
+
     def _expand(self, expand_input: ExpandInput, *, strict: bool) -> XComArg:
         ensure_xcomarg_return_value(expand_input.value)
 
@@ -442,10 +463,11 @@ class DecoratedMappedOperator(MappedOperator):
                 mapped_kwargs["op_kwargs"],
                 fail_reason="mapping already partial",
             )
+
+        static_kwargs = {k for k, _ in self.op_kwargs_expand_input.iter_parse_time_resolved_kwargs()}
         self._combined_op_kwargs = {**self.partial_kwargs["op_kwargs"], **mapped_kwargs["op_kwargs"]}
-        self._already_resolved_op_kwargs = {
-            k for k, v in self.op_kwargs_expand_input.value.items() if isinstance(v, XComArg)
-        }
+        self._already_resolved_op_kwargs = {k for k in mapped_kwargs["op_kwargs"] if k not in static_kwargs}
+
         kwargs = {
             "multiple_outputs": self.multiple_outputs,
             "python_callable": self.python_callable,

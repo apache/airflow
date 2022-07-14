@@ -22,26 +22,36 @@ import collections
 import collections.abc
 import functools
 import operator
-from typing import TYPE_CHECKING, Any, NamedTuple, Sequence, Union
+from typing import TYPE_CHECKING, Any, Iterable, NamedTuple, Sequence, Sized, Union
 
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from airflow.exceptions import UnmappableXComTypePushed
+from airflow.compat.functools import cache
+from airflow.exceptions import UnmappableXComTypePushed, UnmappableXComValuePushed
 from airflow.utils.context import Context
 
 if TYPE_CHECKING:
     from airflow.models.xcom_arg import XComArg
 
+ExpandInput = Union["DictOfListsExpandInput", "ListOfDictsExpandInput"]
+
 # BaseOperator.expand() can be called on an XComArg, sequence, or dict (not any
 # mapping since we need the value to be ordered).
 Mappable = Union["XComArg", Sequence, dict]
 
-MAPPABLE_LITERAL_TYPES = (dict, list)
+
+# For isinstance() check.
+@cache
+def get_mappable_types() -> tuple[type, ...]:
+    from airflow.models.xcom_arg import XComArg
+
+    return (XComArg, list, tuple, dict)
 
 
 class NotFullyPopulated(RuntimeError):
     """Raise when ``get_map_lengths`` cannot populate all mapping metadata.
+
     This is generally due to not all upstream tasks have finished when the
     function is called.
     """
@@ -67,10 +77,20 @@ class DictOfListsExpandInput(NamedTuple):
         if not isinstance(value, collections.abc.Collection) or isinstance(value, (bytes, str)):
             raise UnmappableXComTypePushed(value)
 
+    def get_unresolved_kwargs(self) -> dict[str, Any]:
+        """Get the kwargs dict that can be inferred without resolving."""
+        return self.value
+
+    def iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
+        """Generate kwargs with values available on parse-time."""
+        from airflow.models.xcom_arg import XComArg
+
+        return ((k, v) for k, v in self.value.items() if not isinstance(v, XComArg))
+
     def get_parse_time_mapped_ti_count(self) -> int | None:
         if not self.value:
             return 0
-        literal_values = [len(v) for v in self.value.values() if isinstance(v, MAPPABLE_LITERAL_TYPES)]
+        literal_values = [len(v) for _, v in self.iter_parse_time_resolved_kwargs()]
         if len(literal_values) != len(self.value):
             return None  # None-literal type encountered, so give up.
         return functools.reduce(operator.mul, literal_values, 1)
@@ -184,12 +204,77 @@ class DictOfListsExpandInput(NamedTuple):
         return {k: self._expand_mapped_field(k, v, context, session=session) for k, v in self.value.items()}
 
 
-ExpandInput = DictOfListsExpandInput
+class ListOfDictsExpandInput(NamedTuple):
+    """Storage type of a mapped operator's mapped kwargs.
+
+    This is created from ``expand_kwargs(xcom_arg)``.
+    """
+
+    value: XComArg
+
+    @staticmethod
+    def validate_xcom(value: Any) -> None:
+        if not isinstance(value, collections.abc.Collection):
+            raise UnmappableXComTypePushed(value)
+        if isinstance(value, (str, bytes, collections.abc.Mapping)):
+            raise UnmappableXComTypePushed(value)
+        for item in value:
+            if not isinstance(item, collections.abc.Mapping):
+                raise UnmappableXComTypePushed(value, item)
+            if not all(isinstance(k, str) for k in item):
+                raise UnmappableXComValuePushed(value, reason="dict keys must be str")
+
+    def get_unresolved_kwargs(self) -> dict[str, Any]:
+        """Get the kwargs dict that can be inferred without resolving.
+
+        Since the list-of-dicts case relies entirely on run-time XCom, there's
+        no kwargs structure available, so this just returns an empty dict.
+        """
+        return {}
+
+    def iter_parse_time_resolved_kwargs(self) -> Iterable[tuple[str, Sized]]:
+        return ()
+
+    def get_parse_time_mapped_ti_count(self) -> int | None:
+        return None
+
+    def get_total_map_length(self, run_id: str, *, session: Session) -> int:
+        from airflow.models.taskmap import TaskMap
+        from airflow.models.xcom import XCom
+
+        task = self.value.operator
+        if task.is_mapped:
+            query = session.query(func.count(XCom.map_index)).filter(
+                XCom.dag_id == task.dag_id,
+                XCom.run_id == run_id,
+                XCom.task_id == task.task_id,
+                XCom.map_index >= 0,
+            )
+        else:
+            query = session.query(TaskMap.length).filter(
+                TaskMap.dag_id == task.dag_id,
+                TaskMap.run_id == run_id,
+                TaskMap.task_id == task.task_id,
+                TaskMap.map_index < 0,
+            )
+        value = query.scalar()
+        if value is None:
+            raise NotFullyPopulated({"expand_kwargs() argument"})
+        return value
+
+    def resolve(self, context: Context, session: Session) -> dict[str, Any]:
+        map_index = context["ti"].map_index
+        if map_index < 0:
+            raise RuntimeError("can't resolve task-mapping argument without expanding")
+        # Validation should be done when the upstream returns.
+        return self.value.resolve(context, session)[map_index]
+
 
 EXPAND_INPUT_EMPTY = DictOfListsExpandInput({})  # Sentinel value.
 
 _EXPAND_INPUT_TYPES = {
     "dict-of-lists": DictOfListsExpandInput,
+    "list-of-dicts": ListOfDictsExpandInput,
 }
 
 

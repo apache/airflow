@@ -272,5 +272,110 @@ def test_mapped_render_template_fields_validating_operator(dag_maker, session):
     assert isinstance(op, MyOperator)
 
     assert op.value == "{{ ds }}", "Should not be templated!"
-    assert op.arg1 == "{{ ds }}"
+    assert op.arg1 == "{{ ds }}", "Should not be templated!"
+    assert op.arg2 == "a"
+
+
+@pytest.mark.parametrize(
+    ["num_existing_tis", "expected"],
+    (
+        pytest.param(0, [(0, None), (1, None), (2, None)], id='only-unmapped-ti-exists'),
+        pytest.param(
+            3,
+            [(0, 'success'), (1, 'success'), (2, 'success')],
+            id='all-tis-exist',
+        ),
+        pytest.param(
+            5,
+            [
+                (0, 'success'),
+                (1, 'success'),
+                (2, 'success'),
+                (3, TaskInstanceState.REMOVED),
+                (4, TaskInstanceState.REMOVED),
+            ],
+            id="tis-to-be-removed",
+        ),
+    ),
+)
+def test_expand_kwargs_mapped_task_instance(dag_maker, session, num_existing_tis, expected):
+    literal = [{"arg1": "a"}, {"arg1": "b"}, {"arg1": "c"}]
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id='task_2').expand_kwargs(XComArg(task1))
+
+    dr = dag_maker.create_dagrun()
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=len(literal),
+            keys=None,
+        )
+    )
+
+    if num_existing_tis:
+        # Remove the map_index=-1 TI when we're creating other TIs
+        session.query(TaskInstance).filter(
+            TaskInstance.dag_id == mapped.dag_id,
+            TaskInstance.task_id == mapped.task_id,
+            TaskInstance.run_id == dr.run_id,
+        ).delete()
+
+    for index in range(num_existing_tis):
+        # Give the existing TIs a state to make sure we don't change them
+        ti = TaskInstance(mapped, run_id=dr.run_id, map_index=index, state=TaskInstanceState.SUCCESS)
+        session.add(ti)
+    session.flush()
+
+    mapped.expand_mapped_task(dr.run_id, session=session)
+
+    indices = (
+        session.query(TaskInstance.map_index, TaskInstance.state)
+        .filter_by(task_id=mapped.task_id, dag_id=mapped.dag_id, run_id=dr.run_id)
+        .order_by(TaskInstance.map_index)
+        .all()
+    )
+
+    assert indices == expected
+
+
+@pytest.mark.parametrize(
+    "map_index, expected",
+    [
+        pytest.param(0, "{{ ds }}", id="0"),
+        pytest.param(1, 2, id="1"),
+    ],
+)
+def test_expand_kwargs_render_template_fields_validating_operator(dag_maker, session, map_index, expected):
+    with dag_maker(session=session):
+        task1 = BaseOperator(task_id="op1")
+        mapped = MockOperator.partial(task_id='a', arg2='{{ ti.task_id }}').expand_kwargs(XComArg(task1))
+
+    dr = dag_maker.create_dagrun()
+    ti: TaskInstance = dr.get_task_instance(task1.task_id, session=session)
+
+    ti.xcom_push(key=XCOM_RETURN_KEY, value=[{"arg1": '{{ ds }}'}, {"arg1": 2}], session=session)
+
+    session.add(
+        TaskMap(
+            dag_id=dr.dag_id,
+            task_id=task1.task_id,
+            run_id=dr.run_id,
+            map_index=-1,
+            length=2,
+            keys=None,
+        )
+    )
+    session.flush()
+
+    ti: TaskInstance = dr.get_task_instance(mapped.task_id, session=session)
+    ti.refresh_from_task(mapped)
+    ti.map_index = map_index
+    op = mapped.render_template_fields(context=ti.get_template_context(session=session))
+    assert isinstance(op, MockOperator)
+    assert op.arg1 == expected
     assert op.arg2 == "a"

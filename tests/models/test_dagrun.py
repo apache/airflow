@@ -1422,3 +1422,24 @@ def test_schedule_tis_map_index(dag_maker, session):
     assert ti0.state == TaskInstanceState.SUCCESS
     assert ti1.state == TaskInstanceState.SCHEDULED
     assert ti2.state == TaskInstanceState.SUCCESS
+
+
+def test_mapped_expand_kwargs(dag_maker):
+    with dag_maker() as dag:
+
+        @task
+        def task_1():
+            return [{"arg1": "a", "arg2": "b"}, {"arg1": "y"}, {"arg2": "z"}]
+
+        MockOperator.partial(task_id="task_2").expand_kwargs(task_1())
+
+    dr: DagRun = dag_maker.create_dagrun()
+    assert len([ti for ti in dr.get_task_instances() if ti.task_id == "task_2"]) == 1
+
+    ti1 = dr.get_task_instance("task_1")
+    ti1.refresh_from_task(dag.get_task("task_1"))
+    ti1.run()
+
+    dr.task_instance_scheduling_decisions()
+    ti_states = {ti.map_index: ti.state for ti in dr.get_task_instances() if ti.task_id == "task_2"}
+    assert ti_states == {0: None, 1: None, 2: None}
