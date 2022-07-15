@@ -66,7 +66,7 @@ export default function useClearTask({
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
+        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
       onError: (error) => errorToast({ error }),
