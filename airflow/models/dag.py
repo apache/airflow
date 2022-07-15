@@ -78,7 +78,7 @@ from airflow.security import permissions
 from airflow.stats import Stats
 from airflow.timetables.base import DagRunInfo, DataInterval, TimeRestriction, Timetable
 from airflow.timetables.interval import CronDataIntervalTimetable, DeltaDataIntervalTimetable
-from airflow.timetables.simple import NullTimetable, OnceTimetable
+from airflow.timetables.simple import DatasetTriggeredTimetable, NullTimetable, OnceTimetable
 from airflow.typing_compat import Literal
 from airflow.utils import timezone
 from airflow.utils.dag_cycle_tester import check_cycle
@@ -434,8 +434,8 @@ class DAG(LoggingMixin):
         if schedule_on:
             if not isinstance(schedule_on, Sequence):
                 raise ValueError("Param `schedule_on` must be Sequence[Dataset]")
-            self.schedule_interval = None
-            self.timetable = NullTimetable()
+            self.timetable = DatasetTriggeredTimetable()
+            self.schedule_interval = self.timetable.summary
         elif timetable:
             self.timetable = timetable
             self.schedule_interval = self.timetable.summary
@@ -2500,12 +2500,8 @@ class DAG(LoggingMixin):
             orm_dag.max_active_tasks = dag.max_active_tasks
             orm_dag.max_active_runs = dag.max_active_runs
             orm_dag.has_task_concurrency_limits = any(t.max_active_tis_per_dag is not None for t in dag.tasks)
-            if dag.schedule_on:
-                orm_dag.schedule_interval = 'Dataset'
-                orm_dag.timetable_description = 'Triggered by datasets.'
-            else:
-                orm_dag.schedule_interval = dag.schedule_interval
-                orm_dag.timetable_description = dag.timetable.description
+            orm_dag.schedule_interval = dag.schedule_interval
+            orm_dag.timetable_description = dag.timetable.description
 
             run: Optional[DagRun] = most_recent_runs.get(dag.dag_id)
             if run is None:
