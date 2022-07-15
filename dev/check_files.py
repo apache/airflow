@@ -18,7 +18,7 @@
 import os
 import re
 from itertools import product
-from typing import List
+from typing import List, Tuple
 
 import rich_click as click
 from rich import print
@@ -51,7 +51,7 @@ PROVIDERS = "PROVIDERS"
 UPGRADE_CHECK = "UPGRADE_CHECK"
 
 
-def get_packages() -> List[str]:
+def get_packages() -> List[Tuple[str, str]]:
     try:
         with open("packages.txt") as file:
             content = file.read()
@@ -60,7 +60,15 @@ def get_packages() -> List[str]:
     if not content:
         raise SystemExit("List of packages to check is empty. Please add packages to `packages.txt`")
 
-    packages = [p.replace("* ", "").strip() for p in content.split("\n") if p]
+    # e.g. https://pypi.org/project/apache-airflow-providers-airbyte/3.1.0rc1/
+
+    packages = []
+    for line in content.split("\n"):
+        if not line:
+            continue
+        name, version = line.rstrip("/").split("/")[-2:]
+        packages.append((name, version))
+
     return packages
 
 
@@ -78,16 +86,16 @@ def create_docker(txt: str):
     )
 
 
-def check_providers(files: List[str], version: str):
-    print(f"Checking providers for version {version}:\n")
-    version = strip_rc_suffix(version)
+def check_providers(files: List[str]):
+    print("Checking providers from packages.txt:\n")
     missing_list = []
-    for p in get_packages():
-        print(p)
+    for name, version in get_packages():
+        print(f"Checking {name} {version}")
+        version = strip_rc_suffix(version)
         expected_files = expand_name_variations(
             [
-                f"{p}-{version}.tar.gz",
-                f"{p.replace('-', '_')}-{version}-py3-none-any.whl",
+                f"{name}-{version}.tar.gz",
+                f"{name.replace('-', '_')}-{version}-py3-none-any.whl",
             ]
         )
 
@@ -154,30 +162,24 @@ def warn_of_missing_files(files):
         print(f"    - [red]{file}[/red]")
 
 
-@click.command()
-@click.option(
-    "--type",
-    "-t",
-    "check_type",
-    prompt="providers, airflow, upgrade_check",
-    type=str,
-    help="Type of the check to perform. One of: providers, airflow, upgrade_check",
-)
-@click.option(
-    "--version",
-    "-v",
-    prompt="Version",
-    type=str,
-    help="Version of package to verify. For example 1.10.15.rc1, 2021.3.17rc1",
-)
-@click.option(
+path_option = click.option(
     "--path",
     "-p",
     prompt="Path to files",
     type=str,
     help="Path to directory where are sources",
 )
-def main(check_type: str, path: str, version: str):
+version_option = click.option(
+    "--version",
+    "-v",
+    prompt="Version",
+    type=str,
+    help="Version of package to verify. For example 1.10.15.rc1, 2021.3.17rc1",
+)
+
+
+@click.group()
+def cli():
     """
     Use this tool to verify that all expected packages are present in Apache Airflow svn.
     In case of providers, it will generate Dockerfile.pmc that you can use
@@ -187,42 +189,57 @@ def main(check_type: str, path: str, version: str):
     that you expect to find (copy-paste the list from VOTE thread).
 
     Example usages:
-    python check_files.py -v 1.10.15rc1 -t airflow -p ~/code/airflow_svn
-    python check_files.py -v 1.3.0rc2 -t upgrade_check -p ~/code/airflow_svn
-    python check_files.py -v 1.0.3rc1 -t providers -p ~/code/airflow_svn
+    python check_files.py airflow -p ~/code/airflow_svn -v 1.10.15rc1
+    python check_files.py upgrade_check -p ~/code/airflow_svn -v 1.3.0rc2
+    python check_files.py providers -p ~/code/airflow_svn
     """
 
-    if check_type.upper() == PROVIDERS:
-        files = os.listdir(os.path.join(path, "providers"))
-        pips = [f"{p}=={version}" for p in get_packages()]
-        missing_files = check_providers(files, version)
-        create_docker(PROVIDERS_DOCKER.format("\n".join(f"RUN pip install '{p}'" for p in pips)))
-        if missing_files:
-            warn_of_missing_files(missing_files)
-        return
 
-    if check_type.upper() == AIRFLOW:
-        files = os.listdir(os.path.join(path, version))
-        missing_files = check_release(files, version)
-        create_docker(AIRFLOW_DOCKER.format(version))
-        if missing_files:
-            warn_of_missing_files(missing_files)
-        return
+@click.command()
+@path_option
+@click.pass_context
+def providers(ctx, path: str):
+    files = os.listdir(os.path.join(path, "providers"))
+    pips = [f"{name}=={version}" for name, version in get_packages()]
+    missing_files = check_providers(files)
+    create_docker(PROVIDERS_DOCKER.format("\n".join(f"RUN pip install '{p}'" for p in pips)))
+    if missing_files:
+        warn_of_missing_files(missing_files)
 
-    if check_type.upper() == UPGRADE_CHECK:
-        files = os.listdir(os.path.join(path, "upgrade-check", version))
-        missing_files = check_upgrade_check(files, version)
 
-        create_docker(DOCKER_UPGRADE.format(version))
-        if missing_files:
-            warn_of_missing_files(missing_files)
-        return
+@click.command()
+@path_option
+@version_option
+@click.pass_context
+def airflow(ctx, path: str, version: str):
+    files = os.listdir(os.path.join(path, version))
+    missing_files = check_release(files, version)
+    create_docker(AIRFLOW_DOCKER.format(version))
+    if missing_files:
+        warn_of_missing_files(missing_files)
+    return
 
-    raise SystemExit(f"Unknown check type: {check_type}")
 
+@click.command()
+@path_option
+@version_option
+@click.pass_context
+def upgrade_check(ctx, path: str, version: str):
+    files = os.listdir(os.path.join(path, "upgrade-check", version))
+    missing_files = check_upgrade_check(files, version)
+
+    create_docker(DOCKER_UPGRADE.format(version))
+    if missing_files:
+        warn_of_missing_files(missing_files)
+    return
+
+
+cli.add_command(providers)
+cli.add_command(airflow)
+cli.add_command(upgrade_check)
 
 if __name__ == "__main__":
-    main()
+    cli()
 
 
 def test_check_release_pass():
