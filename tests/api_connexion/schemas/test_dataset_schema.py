@@ -101,7 +101,8 @@ class TestDatasetCollectionSchema(TestDatasetSchemaBase):
 class TestDatasetEventSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         event = DatasetEvent(
-            dataset_id=1,
+            id=1,
+            dataset_id=10,
             extra={"foo": "bar"},
             source_dag_id="foo",
             source_task_id="bar",
@@ -113,7 +114,8 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
         session.flush()
         serialized_data = dataset_event_schema.dump(event)
         assert serialized_data == {
-            "dataset_id": 1,
+            "id": 1,
+            "dataset_id": 10,
             "extra": "{'foo': 'bar'}",
             "source_dag_id": "foo",
             "source_task_id": "bar",
@@ -126,6 +128,7 @@ class TestDatasetEventSchema(TestDatasetSchemaBase):
 class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
     def test_serialize(self, session):
         common = {
+            "dataset_id": 10,
             "extra": "{'foo': 'bar'}",
             "source_dag_id": "foo",
             "source_task_id": "bar",
@@ -133,9 +136,7 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
             "source_map_index": -1,
         }
 
-        events = [
-            DatasetEvent(dataset_id=i, created_at=timezone.parse(self.timestamp), **common) for i in [1, 2]
-        ]
+        events = [DatasetEvent(id=i, created_at=timezone.parse(self.timestamp), **common) for i in [1, 2]]
         session.add_all(events)
         session.flush()
         serialized_data = dataset_event_collection_schema.dump(
@@ -143,8 +144,8 @@ class TestDatasetEventCollectionSchema(TestDatasetSchemaBase):
         )
         assert serialized_data == {
             "dataset_events": [
-                {"dataset_id": 1, "created_at": self.timestamp, **common},
-                {"dataset_id": 2, "created_at": self.timestamp, **common},
+                {"id": 1, "created_at": self.timestamp, **common},
+                {"id": 2, "created_at": self.timestamp, **common},
             ],
             "total_entries": 2,
         }

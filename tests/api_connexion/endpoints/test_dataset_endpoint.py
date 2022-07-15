@@ -268,7 +268,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
             "source_map_index": -1,
         }
 
-        events = [DatasetEvent(created_at=timezone.parse(self.default_time), **common) for i in [1, 2]]
+        events = [DatasetEvent(id=i, created_at=timezone.parse(self.default_time), **common) for i in [1, 2]]
         session.add_all(events)
         session.commit()
         assert session.query(DatasetEvent).count() == 2
@@ -279,8 +279,8 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         response_data = response.json
         assert response_data == {
             "dataset_events": [
-                {"created_at": self.default_time, **common},
-                {"created_at": self.default_time, **common},
+                {"id": 1, "created_at": self.default_time, **common},
+                {"id": 2, "created_at": self.default_time, **common},
             ],
             "total_entries": 2,
         }
@@ -310,6 +310,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         session.commit()
         events = [
             DatasetEvent(
+                id=i,
                 dataset_id=i,
                 source_dag_id=f"dag{i}",
                 source_task_id=f"task{i}",
@@ -332,6 +333,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert response_data == {
             "dataset_events": [
                 {
+                    "id": 2,
                     "dataset_id": 2,
                     "extra": None,
                     "source_dag_id": "dag2",

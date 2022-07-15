@@ -64,6 +64,7 @@ class DatasetEventSchema(SQLAlchemySchema):
 
         model = DatasetEvent
 
+    id = auto_field()
     dataset_id = auto_field()
     extra = auto_field()
     source_task_id = auto_field()
