@@ -80,7 +80,7 @@ const useGridData = () => {
       // only refetch if the refresh switch is on
       refetchInterval: isRefreshOn && (autoRefreshInterval || 1) * 1000,
       keepPreviousData: true,
-      onError: (error) => {
+      onError: (error: Error) => {
         stopRefresh();
         errorToast({
           title: 'Auto-refresh Error',

@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import React from 'react';
+import React, { PropsWithChildren } from 'react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -26,7 +26,7 @@ import { ContainerRefProvider } from '../context/containerRef';
 import { TimezoneProvider } from '../context/timezone';
 import { AutoRefreshProvider } from '../context/autorefresh';
 
-export const Wrapper = ({ children }) => {
+export const Wrapper = ({ children }: PropsWithChildren) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -52,13 +52,13 @@ export const Wrapper = ({ children }) => {
   );
 };
 
-export const ChakraWrapper = ({ children }) => (
+export const ChakraWrapper = ({ children }: PropsWithChildren) => (
   <ChakraProvider>
     {children}
   </ChakraProvider>
 );
 
-export const TableWrapper = ({ children }) => (
+export const TableWrapper = ({ children }: PropsWithChildren) => (
   <Wrapper>
     <Table>
       <Tbody>
@@ -68,7 +68,7 @@ export const TableWrapper = ({ children }) => (
   </Wrapper>
 );
 
-export const RouterWrapper = ({ children }) => (
+export const RouterWrapper = ({ children }: PropsWithChildren) => (
   <MemoryRouter>
     {children}
   </MemoryRouter>
