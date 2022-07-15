@@ -1132,6 +1132,10 @@ OPERATORS = [
         'airflow.operators.s3_file_transform_operator.S3FileTransformOperator',
     ),
     (
+        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
+        "airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator",
+    ),
+    (
         'airflow.providers.amazon.aws.operators.sagemaker.SageMakerBaseOperator',
         'airflow.providers.amazon.aws.operators.sagemaker_base.SageMakerBaseOperator',
     ),
@@ -1992,10 +1996,6 @@ LOGS = [
     (
         "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler",
         "airflow.utils.log.wasb_task_handler.WasbTaskHandler",
-    ),
-    (
-        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
-        "airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator",
     ),
 ]
 
