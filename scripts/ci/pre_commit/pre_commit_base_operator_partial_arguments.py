@@ -50,8 +50,9 @@ IGNORED = {
     "partial",
     "shallow_copy_attrs",
     # Only on MappedOperator.
-    "mapped_kwargs",
+    "expand_input",
     "partial_kwargs",
+    "validate_upstream_return_value",
 }
 
 

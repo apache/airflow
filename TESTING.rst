@@ -109,7 +109,8 @@ To run unit tests from the Visual Studio Code:
     :alt: Running tests
 
 Running Unit Tests
---------------------------------
+------------------
+
 To run unit, integration, and system tests from the Breeze and your
 virtualenv, you can use the `pytest <http://doc.pytest.org/en/latest/>`_ framework.
 
@@ -187,6 +188,18 @@ You can also limit the tests to execute to specific group of tests
 .. code-block:: bash
 
     breeze tests --test-type Core
+
+In case of Providers tests, you can run tests for all providers
+
+.. code-block:: bash
+
+    breeze tests --test-type Providers
+
+You can also limit the set of providers you would like to run tests of
+
+.. code-block:: bash
+
+    breeze tests --test-type "Providers[airbyte,http]"
 
 
 You can also write tests in "limited progress" mode (useful in the future to run CI). In this mode each
@@ -486,8 +499,6 @@ This is done for three reasons:
 
 1. in order to selectively run only subset of the test types for some PRs
 2. in order to allow parallel execution of the tests on Self-Hosted runners
-
-For case 1. see `Pull Request Workflow <PULL_REQUEST_WORKFLOW.rst#selective-ci-checks>`_  for details.
 
 For case 2. We can utilise memory and CPUs available on both CI and local development machines to run
 test in parallel. This way we can decrease the time of running all tests in self-hosted runners from

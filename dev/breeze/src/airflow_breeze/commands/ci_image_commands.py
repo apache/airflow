@@ -37,6 +37,7 @@ from airflow_breeze.utils.common_options import (
     option_airflow_constraints_mode_ci,
     option_airflow_constraints_reference_build,
     option_answer,
+    option_builder,
     option_debian_version,
     option_dev_apt_command,
     option_dev_apt_deps,
@@ -73,9 +74,11 @@ from airflow_breeze.utils.confirm import STANDARD_TIMEOUT, Answer, user_confirm
 from airflow_breeze.utils.console import get_console
 from airflow_breeze.utils.docker_command_utils import (
     build_cache,
+    make_sure_builder_configured,
     perform_environment_checks,
     prepare_docker_build_command,
     prepare_docker_build_from_input,
+    warm_up_docker_builder,
 )
 from airflow_breeze.utils.image import run_pull_image, run_pull_in_parallel, tag_image_as_latest
 from airflow_breeze.utils.mark_image_as_refreshed import mark_image_as_refreshed
@@ -210,6 +213,7 @@ def run_build_in_parallel(
     dry_run: bool,
     verbose: bool,
 ) -> None:
+    warm_up_docker_builder(image_params_list[0], verbose=verbose, dry_run=dry_run)
     get_console().print(
         f"\n[info]Building with parallelism = {parallelism} for the images: {python_version_list}:"
     )
@@ -223,6 +227,11 @@ def run_build_in_parallel(
     ]
     check_async_run_results(results)
     pool.close()
+
+
+def start_building(params: BuildCiParams, dry_run: bool, verbose: bool):
+    check_if_image_building_is_needed(params, dry_run=dry_run, verbose=verbose)
+    make_sure_builder_configured(parallel=True, params=params, dry_run=dry_run, verbose=verbose)
 
 
 @main.command(name='build-image')
@@ -254,6 +263,7 @@ def run_build_in_parallel(
 @option_additional_dev_apt_env
 @option_additional_runtime_apt_env
 @option_additional_runtime_apt_command
+@option_builder
 @option_dev_apt_command
 @option_dev_apt_deps
 @option_force_build
@@ -294,7 +304,7 @@ def build_image(
             params.python = python
             params.answer = answer
             params_list.append(params)
-        check_if_image_building_is_needed(params_list[0], dry_run=dry_run, verbose=verbose)
+        start_building(params_list[0], dry_run, verbose)
         run_build_in_parallel(
             image_params_list=params_list,
             python_version_list=python_version_list,
@@ -304,7 +314,7 @@ def build_image(
         )
     else:
         params = BuildCiParams(**parameters_passed)
-        check_if_image_building_is_needed(params, dry_run=dry_run, verbose=verbose)
+        start_building(params, dry_run, verbose)
         run_build(ci_image_params=params)
 
 

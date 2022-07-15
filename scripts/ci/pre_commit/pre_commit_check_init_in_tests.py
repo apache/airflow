@@ -39,11 +39,12 @@ errors: List[str] = []
 added = False
 
 if __name__ == '__main__':
-    for dir, sub_dirs, files in os.walk(str(ROOT_DIR / "tests")):
+    for dirname, sub_dirs, files in os.walk(ROOT_DIR / "tests"):
+        dir = Path(dirname)
+        sub_dirs[:] = [subdir for subdir in sub_dirs if subdir not in {"__pycache__", "test_logs"}]
         for sub_dir in sub_dirs:
-            dir_to_check = dir + os.sep + sub_dir
-            init_py_path = Path(dir_to_check) / "__init__.py"
-            if not init_py_path.exists() and "/test_logs/" not in str(init_py_path):
+            init_py_path = dir / sub_dir / "__init__.py"
+            if not init_py_path.exists():
                 init_py_path.touch()
                 console.print(f"[yellow] Created {init_py_path}[/]")
                 added = True

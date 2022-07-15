@@ -22,6 +22,7 @@ description: |
     `Exasol <https://docs.exasol.com/home.htm>`__
 
 versions:
+  - 3.1.0
   - 3.0.0
   - 2.1.3
   - 2.1.2
@@ -33,8 +34,11 @@ versions:
   - 1.1.0
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.2.0
+  - apache-airflow-providers-common-sql
+  - pyexasol>=0.5.1
+  - pandas>=0.17.1
 
 integrations:
   - integration-name: Exasol
@@ -51,9 +55,6 @@ hooks:
   - integration-name: Exasol
     python-modules:
       - airflow.providers.exasol.hooks.exasol
-
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.exasol.hooks.exasol.ExasolHook
 
 connection-types:
   - hook-class-name: airflow.providers.exasol.hooks.exasol.ExasolHook

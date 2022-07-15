@@ -73,10 +73,16 @@ class TestDb:
             lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_fallback_usg'),
             lambda t: (t[0] == 'remove_table' and t[1].name == 'MSreplication_options'),
             lambda t: (t[0] == 'remove_table' and t[1].name == 'spt_fallback_dev'),
+            # MSSQL foreign keys where CASCADE has been removed
+            lambda t: (t[0] == 'remove_fk' and t[1].name == 'task_reschedule_dr_fkey'),
+            lambda t: (t[0] == 'add_fk' and t[1].name == 'task_reschedule_dr_fkey'),
             # Ignore flask-session table/index
             lambda t: (t[0] == 'remove_table' and t[1].name == 'session'),
             lambda t: (t[0] == 'remove_index' and t[1].name == 'session_id'),
+            # sqlite sequence is used for autoincrementing columns created with `sqlite_autoincrement` option
+            lambda t: (t[0] == 'remove_table' and t[1].name == 'sqlite_sequence'),
         ]
+
         for ignore in ignores:
             diff = [d for d in diff if not ignore(d)]
 

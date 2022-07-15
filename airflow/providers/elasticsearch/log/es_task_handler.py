@@ -23,7 +23,7 @@ from collections import defaultdict
 from datetime import datetime
 from operator import attrgetter
 from time import time
-from typing import List, Optional, Tuple, Union
+from typing import TYPE_CHECKING, List, Optional, Tuple, Union
 from urllib.parse import quote
 
 # Using `from elasticsearch import *` would break elasticsearch mocking used in unit test.
@@ -125,12 +125,14 @@ class ElasticsearchTaskHandler(FileTaskHandler, ExternalLoggingMixin, LoggingMix
             else:
                 log_id_template = self.log_id_template
 
-        dag = ti.task.dag
-        assert dag is not None  # For Mypy.
         try:
-            data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+            dag = ti.task.dag
         except AttributeError:  # ti.task is not always set.
             data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+        else:
+            if TYPE_CHECKING:
+                assert dag is not None
+            data_interval = dag.get_run_data_interval(dag_run)
 
         if self.json_format:
             data_interval_start = self._clean_date(data_interval[0])

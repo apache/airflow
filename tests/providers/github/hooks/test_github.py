@@ -17,8 +17,9 @@
 # under the License.
 #
 
-import unittest
 from unittest.mock import Mock, patch
+
+from github import BadCredentialsException, Github, NamedUser
 
 from airflow.models import Connection
 from airflow.providers.github.hooks.github import GithubHook
@@ -27,15 +28,14 @@ from airflow.utils import db
 github_client_mock = Mock(name="github_client_for_test")
 
 
-class TestGithubHook(unittest.TestCase):
-    def setUp(self):
+class TestGithubHook:
+    def setup_class(self):
         db.merge_conn(
             Connection(
-                conn_id='github_default',
+                conn_id="github_default",
                 conn_type='github',
-                host='https://localhost/github/',
-                port=443,
-                extra='{"verify": "False", "project": "AIRFLOW"}',
+                password='my-access-token',
+                host='https://mygithub.com/api/v3',
             )
         )
 
@@ -48,3 +48,27 @@ class TestGithubHook(unittest.TestCase):
         assert github_mock.called
         assert isinstance(github_hook.client, Mock)
         assert github_hook.client.name == github_mock.return_value.name
+
+    def test_connection_success(self):
+        hook = GithubHook()
+        hook.client = Mock(spec=Github)
+        hook.client.get_user.return_value = NamedUser.NamedUser
+
+        status, msg = hook.test_connection()
+
+        assert status is True
+        assert msg == "Successfully connected to GitHub."
+
+    def test_connection_failure(self):
+        hook = GithubHook()
+        hook.client.get_user = Mock(
+            side_effect=BadCredentialsException(
+                status=401,
+                data={"message": "Bad credentials"},
+                headers={},
+            )
+        )
+        status, msg = hook.test_connection()
+
+        assert status is False
+        assert msg == '401 {"message": "Bad credentials"}'

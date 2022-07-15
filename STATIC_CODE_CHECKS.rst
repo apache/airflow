@@ -136,11 +136,9 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | blacken-docs                                           | Run black on python code blocks in documentation files           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-2-1-compatibility                        | Check that providers are 2.1 compatible.                         |         |
+| check-airflow-2-2-compatibility                        | Check that providers are 2.2 compatible.                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-airflow-config-yaml-consistent                   | Checks for consistency between config.yml and default_config.cfg |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
-| check-airflow-providers-have-extras                    | Checks providers available when declared by extras in setup.py   |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-apache-license-rat                               | Check if licenses are OK for Apache                              |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -176,6 +174,8 @@ require Breeze Docker image to be build locally.
 | check-incorrect-use-of-LoggingMixin                    | Make sure LoggingMixin is not used alone                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-integrations-are-consistent                      | Check if integration list is consistent in various places        |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| check-lazy-logging                                     | Check that all logging methods are lazy                          |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | check-merge-conflict                                   | Check that merge conflicts are not being committed               |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
@@ -229,8 +229,6 @@ require Breeze Docker image to be build locally.
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | flynt                                                  | Run flynt string format converter for Python                     |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
-| forbid-tabs                                            | Fail if tabs are used in the project                             |         |
-+--------------------------------------------------------+------------------------------------------------------------------+---------+
 | identity                                               | Print input to the static check hooks for troubleshooting        |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | insert-license                                         | * Add license for all SQL files                                  |         |
@@ -278,6 +276,8 @@ require Breeze Docker image to be build locally.
 | python-no-log-warn                                     | Check if there are no deprecate log warn                         |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | pyupgrade                                              | Upgrade Python code automatically                                |         |
++--------------------------------------------------------+------------------------------------------------------------------+---------+
+| replace-bad-characters                                 | Replace bad characters                                           |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
 | rst-backticks                                          | Check if RST files use double backticks for code                 |         |
 +--------------------------------------------------------+------------------------------------------------------------------+---------+
