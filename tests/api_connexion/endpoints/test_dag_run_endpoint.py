@@ -31,7 +31,7 @@ from airflow.operators.empty import EmptyOperator
 from airflow.security import permissions
 from airflow.utils import timezone
 from airflow.utils.session import create_session, provide_session
-from airflow.utils.state import State
+from airflow.utils.state import DagRunState, State
 from airflow.utils.types import DagRunType
 from tests.test_utils.api_connexion_utils import assert_401, create_user, delete_roles, delete_user
 from tests.test_utils.config import conf_vars
@@ -48,6 +48,7 @@ def configured_app(minimal_app_for_api):
         role_name="Test",
         permissions=[
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
+            (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
             (permissions.ACTION_CAN_EDIT, permissions.RESOURCE_DAG),
             (permissions.ACTION_CAN_CREATE, permissions.RESOURCE_DAG_RUN),
             (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
@@ -1595,5 +1596,54 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
 
 
 class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
-    def test_get_dataset_event_triggers(self):
-        pass
+    def test_should_respond_200(self, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+            state=DagRunState.RUNNING,
+        )
+        session.add(dagrun_model)
+        session.commit()
+        result = session.query(DagRun).all()
+        assert len(result) == 1
+        response = self.client.get(
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstream-dataset-events",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 200
+        expected_response = {'dataset_events': [], 'total_entries': 0}
+        assert response.json == expected_response
+
+    def test_should_respond_404(self):
+        response = self.client.get(
+            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstream-dataset-events",
+            environ_overrides={'REMOTE_USER': "test"},
+        )
+        assert response.status_code == 404
+        expected_resp = {
+            'detail': "DAGRun with DAG ID: 'invalid-id' and DagRun ID: 'invalid-id' not found",
+            'status': 404,
+            'title': 'DAGRun not found',
+            'type': EXCEPTIONS_LINK_MAP[404],
+        }
+        assert expected_resp == response.json
+
+    def test_should_raises_401_unauthenticated(self, session):
+        dagrun_model = DagRun(
+            dag_id="TEST_DAG_ID",
+            run_id="TEST_DAG_RUN_ID",
+            run_type=DagRunType.MANUAL,
+            execution_date=timezone.parse(self.default_time),
+            start_date=timezone.parse(self.default_time),
+            external_trigger=True,
+        )
+        session.add(dagrun_model)
+        session.commit()
+
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/uptsream-dataset-events")
+
+        assert_401(response)

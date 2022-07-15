@@ -95,10 +95,11 @@ def get_dag_run(*, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION)
     [
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG),
         (permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG_RUN),
+        (permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET),
     ],
 )
 @provide_session
-def get_dataset_event_triggers(
+def get_upstream_dataset_events(
     *, dag_id: str, dag_run_id: str, session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get a DAG Run."""

@@ -818,7 +818,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/dataset-event-triggers:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstream-dataset-events:
     parameters:
       - $ref: '#/components/parameters/DAGID'
       - $ref: '#/components/parameters/DAGRunID'
@@ -829,7 +829,7 @@ paths:
 
         *New in version 2.4.0*
       x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
-      operationId: get_dataset_event_triggers
+      operationId: get_upstream_dataset_events
       tags: [DAGRun, Dataset]
       responses:
         '200':
