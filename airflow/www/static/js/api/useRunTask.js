@@ -60,7 +60,7 @@ export default function useRunTask(dagId, runId, taskId) {
     {
       onSuccess: () => {
         queryClient.invalidateQueries('gridData');
-        queryClient.invalidateQueries('mappedInstances', dagId, runId, taskId);
+        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
       onError: (error) => errorToast({ error }),
