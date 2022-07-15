@@ -103,15 +103,29 @@ def get_dataset_event_triggers(
 ) -> APIResponse:
     """Get a DAG Run."""
     dag_run: Optional[DagRun] = (
-        session.query(DagRun).filter(DagRun.dag_id == dag_id, DagRun.run_id == dag_run_id).one_or_none()
+        session.query(DagRun)
+        .filter(
+            DagRun.dag_id == dag_id,
+            DagRun.run_id == dag_run_id,
+        )
+        .one_or_none()
     )
     if dag_run is None:
         raise NotFound(
             "DAGRun not found",
             detail=f"DAGRun with DAG ID: '{dag_id}' and DagRun ID: '{dag_run_id}' not found",
         )
+    events = _get_upstream_dataset_events(dag_run=dag_run, session=session)
+    return dataset_event_collection_schema.dump(
+        DatasetEventCollection(dataset_events=events, total_entries=len(events))
+    )
+
+
+def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session = NEW_SESSION) -> List["DagRun"]:
+    """If dag run is dataset-triggered, return the dataset events that triggered it."""
     if not dag_run.run_type == DagRunType.DATASET_TRIGGERED:
-        return {}
+        return []
+
     previous_dag_run = (
         session.query(DagRun)
         .filter(
@@ -122,6 +136,7 @@ def get_dataset_event_triggers(
         .order_by(DagRun.execution_date.desc())
         .first()
     )
+
     dataset_event_filters = [
         DatasetDagRef.dag_id == dag_run.dag_id,
         DatasetEvent.created_at <= dag_run.execution_date,
@@ -134,9 +149,7 @@ def get_dataset_event_triggers(
         .filter(*dataset_event_filters)
         .all()
     )
-    return dataset_event_collection_schema.dump(
-        DatasetEventCollection(dataset_events=dataset_events, total_entries=0)
-    )
+    return dataset_events
 
 
 def _fetch_dag_runs(
