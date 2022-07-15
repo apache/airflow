@@ -1555,6 +1555,36 @@ class TestTaskInstance:
             .count()
         ) == 1
 
+    def test_outlet_datasets_skipped(self, create_task_instance):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        is skipped, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        not generated
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag7
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag7.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag7.get_task('skip_task')
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == State.SKIPPED
+
+        # check that no dagruns were queued
+        assert session.query(DatasetDagRunQueue).count() == 0
+
+        # check that no dataset events were generated
+        assert (session.query(DatasetEvent).count()) == 0
+
     @staticmethod
     def _test_previous_dates_setup(
         schedule_interval: Union[str, datetime.timedelta, None],
