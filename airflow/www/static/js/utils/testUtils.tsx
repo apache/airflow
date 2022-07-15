@@ -18,6 +18,7 @@
  */
 
 import React from 'react';
+import type { ReactNode } from 'react';
 import { ChakraProvider, Table, Tbody } from '@chakra-ui/react';
 import { QueryClient, QueryClientProvider } from 'react-query';
 import { MemoryRouter } from 'react-router-dom';
@@ -26,7 +27,10 @@ import { ContainerRefProvider } from '../context/containerRef';
 import { TimezoneProvider } from '../context/timezone';
 import { AutoRefreshProvider } from '../context/autorefresh';
 
-export const Wrapper = ({ children }) => {
+interface WrapperProps {
+  children: ReactNode;
+}
+export const Wrapper = ({ children }: WrapperProps) => {
   const queryClient = new QueryClient({
     defaultOptions: {
       queries: {
@@ -52,13 +56,13 @@ export const Wrapper = ({ children }) => {
   );
 };
 
-export const ChakraWrapper = ({ children }) => (
+export const ChakraWrapper = ({ children }: WrapperProps) => (
   <ChakraProvider>
     {children}
   </ChakraProvider>
 );
 
-export const TableWrapper = ({ children }) => (
+export const TableWrapper = ({ children }: WrapperProps) => (
   <Wrapper>
     <Table>
       <Tbody>
@@ -68,7 +72,7 @@ export const TableWrapper = ({ children }) => (
   </Wrapper>
 );
 
-export const RouterWrapper = ({ children }) => (
+export const RouterWrapper = ({ children }: WrapperProps) => (
   <MemoryRouter>
     {children}
   </MemoryRouter>
