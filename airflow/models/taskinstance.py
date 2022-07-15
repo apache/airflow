@@ -2327,14 +2327,14 @@ class TaskInstance(Base, LoggingMixin):
         validators = {m.validate_upstream_return_value for m in task.iter_mapped_dependants()}
         if not validators:  # No mapped dependants, no need to validate.
             return
-        if value is None:
-            raise XComForMappingNotPushed()
         # TODO: We don't push TaskMap for mapped task instances because it's not
         # currently possible for a downstream to depend on one individual mapped
         # task instance. This will change when we implement task group mapping,
         # and we'll need to further analyze the mapped task case.
         if task.is_mapped:
             return
+        if value is None:
+            raise XComForMappingNotPushed()
         for validator in validators:
             validator(value)
         assert isinstance(value, collections.abc.Collection)  # The validators type-guard this.
