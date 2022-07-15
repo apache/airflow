@@ -20,7 +20,7 @@ from typing import List, NamedTuple
 from marshmallow import Schema, fields
 from marshmallow_sqlalchemy import SQLAlchemySchema, auto_field
 
-from airflow import Dataset
+from airflow.models.dataset import Dataset, DatasetEvent
 
 
 class DatasetSchema(SQLAlchemySchema):
@@ -54,3 +54,39 @@ class DatasetCollectionSchema(Schema):
 
 dataset_schema = DatasetSchema()
 dataset_collection_schema = DatasetCollectionSchema()
+
+
+class DatasetEventSchema(SQLAlchemySchema):
+    """Dataset Event DB schema"""
+
+    class Meta:
+        """Meta"""
+
+        model = DatasetEvent
+
+    id = auto_field()
+    dataset_id = auto_field()
+    extra = auto_field()
+    source_task_id = auto_field()
+    source_dag_id = auto_field()
+    source_run_id = auto_field()
+    source_map_index = auto_field()
+    created_at = auto_field()
+
+
+class DatasetEventCollection(NamedTuple):
+    """List of Dataset events with meta"""
+
+    dataset_events: List[DatasetEvent]
+    total_entries: int
+
+
+class DatasetEventCollectionSchema(Schema):
+    """Dataset Event Collection Schema"""
+
+    dataset_events = fields.List(fields.Nested(DatasetEventSchema))
+    total_entries = fields.Int()
+
+
+dataset_event_schema = DatasetEventSchema()
+dataset_event_collection_schema = DatasetEventCollectionSchema()

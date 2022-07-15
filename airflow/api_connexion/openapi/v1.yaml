@@ -1654,6 +1654,36 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /datasets/events:
+    parameters:
+      - $ref: '#/components/parameters/PageLimit'
+      - $ref: '#/components/parameters/PageOffset'
+      - $ref: '#/components/parameters/OrderBy'
+      - $ref: '#/components/parameters/FilterDatasetID'
+      - $ref: '#/components/parameters/FilterSourceDAGID'
+      - $ref: '#/components/parameters/FilterSourceTaskID'
+      - $ref: '#/components/parameters/FilterSourceRunID'
+      - $ref: '#/components/parameters/FilterSourceMapIndex'
+    get:
+      summary: Get dataset events
+      description: Get dataset events
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dataset_endpoint
+      operationId: get_dataset_events
+      tags: [Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEventCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
   /config:
     get:
       summary: Get current configuration
@@ -3461,6 +3491,57 @@ components:
                 $ref: '#/components/schemas/Dataset'
         - $ref: '#/components/schemas/CollectionInfo'
 
+    DatasetEvent:
+      description: |
+        A dataset event.
+
+        *New in version 2.4.0*
+      type: object
+      properties:
+        dataset_id:
+          type: integer
+          description: The dataset id
+        extra:
+          type: string
+          description: The dataset extra
+          nullable: true
+        source_dag_id:
+          type: string
+          description: The DAG ID that updated the dataset.
+          nullable: false
+        source_task_id:
+          type: string
+          description: The task ID that updated the dataset.
+          nullable: false
+        source_run_id:
+          type: string
+          description: The DAG run ID that updated the dataset.
+          nullable: false
+        source_map_index:
+          type: integer
+          description: The task map index that updated the dataset.
+          nullable: false
+        created_at:
+          type: string
+          description: The dataset event creation time
+          nullable: false
+
+
+    DatasetEventCollection:
+      description: |
+        A collection of dataset events.
+
+        *New in version 2.4.0*
+      type: object
+      allOf:
+        - type: object
+          properties:
+            dataset_events:
+              type: array
+              items:
+                $ref: '#/components/schemas/DatasetEvent'
+        - $ref: '#/components/schemas/CollectionInfo'
+
 
     # Configuration
     ConfigOption:
@@ -4286,6 +4367,41 @@ components:
           List of tags to filter results.
 
           *New in version 2.2.0*
+
+    FilterDatasetID:
+      in: query
+      name: dataset_id
+      schema:
+        type: integer
+      description: The Dataset ID that updated the dataset.
+
+    FilterSourceDAGID:
+      in: query
+      name: source_dag_id
+      schema:
+        type: string
+      description: The DAG ID that updated the dataset.
+
+    FilterSourceTaskID:
+      in: query
+      name: source_task_id
+      schema:
+        type: string
+      description: The task ID that updated the dataset.
+
+    FilterSourceRunID:
+      in: query
+      name: source_run_id
+      schema:
+        type: string
+      description: The DAG run ID that updated the dataset.
+
+    FilterSourceMapIndex:
+      in: query
+      name: source_map_index
+      schema:
+        type: integer
+      description: The map index that updated the dataset.
 
     OrderBy:
       in: query
