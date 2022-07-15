@@ -1993,6 +1993,10 @@ LOGS = [
         "airflow.providers.microsoft.azure.log.wasb_task_handler.WasbTaskHandler",
         "airflow.utils.log.wasb_task_handler.WasbTaskHandler",
     ),
+    (
+        "airflow.providers.amazon.aws.operators.lambda_function.AwsLambdaInvokeFunctionOperator",
+        "airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator",
+    ),
 ]
 
 ALL = HOOKS + OPERATORS + SECRETS + SENSORS + TRANSFERS + UTILS + LOGS
