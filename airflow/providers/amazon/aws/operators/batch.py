@@ -29,7 +29,7 @@ import sys
 import warnings
 from typing import TYPE_CHECKING, Any, Dict, Optional, Sequence
 
-from airflow.providers.amazon.aws.utils.utils import trim_none_values
+from airflow.providers.amazon.aws.utils import trim_none_values
 
 if sys.version_info >= (3, 8):
     from functools import cached_property
@@ -104,6 +104,8 @@ class BatchOperator(BaseOperator):
     arn = None  # type: Optional[str]
     template_fields: Sequence[str] = (
         "job_name",
+        "job_queue",
+        "job_definition",
         "overrides",
         "parameters",
     )
@@ -111,7 +113,9 @@ class BatchOperator(BaseOperator):
 
     @property
     def operator_extra_links(self):
-        op_extra_links = [BatchJobDetailsLink(), BatchJobDefinitionLink(), BatchJobQueueLink()]
+        op_extra_links = [BatchJobDetailsLink()]
+        if self.wait_for_completion:
+            op_extra_links.extend(BatchJobDefinitionLink(), BatchJobQueueLink())
         if not self.array_properties:
             # There is no CloudWatch Link to the parent Batch Job available.
             op_extra_links.append(CloudWatchEventsLink())

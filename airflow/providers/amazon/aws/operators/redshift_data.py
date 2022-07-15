@@ -19,9 +19,9 @@ from time import sleep
 from typing import TYPE_CHECKING, Any, Dict, Optional
 
 from airflow.compat.functools import cached_property
-from airflow.providers.amazon.aws.utils.utils import trim_none_values
 from airflow.models import BaseOperator
 from airflow.providers.amazon.aws.hooks.redshift_data import RedshiftDataHook
+from airflow.providers.amazon.aws.utils import trim_none_values
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context

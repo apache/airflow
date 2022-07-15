@@ -15,19 +15,20 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from datetime import datetime
 from unittest import TestCase
 
-from airflow.providers.amazon.aws.utils.utils import trim_none_values
-from datetime import datetime
+import pytz
 
 from airflow.providers.amazon.aws.utils import (
     datetime_to_epoch,
     datetime_to_epoch_ms,
     datetime_to_epoch_us,
     get_airflow_version,
+    trim_none_values,
 )
 
-DT = datetime(2000, 1, 1)
+DT = datetime(2000, 1, 1, tzinfo=pytz.UTC)
 EPOCH = 946_684_800
 
 

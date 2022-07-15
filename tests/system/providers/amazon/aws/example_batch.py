@@ -28,24 +28,28 @@ from airflow.providers.amazon.aws.sensors.batch import (
     BatchSensor,
 )
 from airflow.utils.trigger_rule import TriggerRule
-from tests.system.providers.amazon.aws.utils import fetch_variable, set_env_id
+from tests.system.providers.amazon.aws.utils import ENV_ID_KEY, SystemTestContextBuilder, split_string
 
-ENV_ID = set_env_id()
 DAG_ID = 'example_batch'
 
-ROLE = fetch_variable('ROLE')
-SUBNET_IDS = fetch_variable('SUBNET_IDS').split(',')
-SECURITY_GROUPS = fetch_variable('SECURITY_GROUP_IDS').split(',')
+# Externally fetched variables:
+ROLE_ARN_KEY = 'ROLE_ARN'
+SUBNETS_KEY = 'SUBNETS'
+SECURITY_GROUPS_KEY = 'SECURITY_GROUPS'
 
-JOB_NAME = f'{ENV_ID}-test-job'
-JOB_DEFINITION_NAME = f'{ENV_ID}-test-job-definition'
-JOB_COMPUTE_ENVIRONMENT_NAME = f'{ENV_ID}-test-job-compute-environment'
-JOB_QUEUE_NAME = f'{ENV_ID}-test-job-queue'
+sys_test_context_task = (
+    SystemTestContextBuilder()
+    .add_variable(ROLE_ARN_KEY)
+    .add_variable(SUBNETS_KEY)
+    .add_variable(SECURITY_GROUPS_KEY)
+    .build()
+)
+
 JOB_OVERRIDES: dict = {}
 
 
 @task
-def create_job_definition():
+def create_job_definition(role_arn, job_definition_name):
     boto3.client('batch').register_job_definition(
         type='container',
         containerProperties={
@@ -53,7 +57,7 @@ def create_job_definition():
                 'sleep',
                 '2',
             ],
-            'executionRoleArn': ROLE,
+            'executionRoleArn': role_arn,
             'image': 'busybox',
             'resourceRequirements': [
                 {'value': '1', 'type': 'VCPU'},
@@ -63,32 +67,32 @@ def create_job_definition():
                 'assignPublicIp': 'ENABLED',
             },
         },
-        jobDefinitionName=JOB_DEFINITION_NAME,
+        jobDefinitionName=job_definition_name,
         platformCapabilities=['FARGATE'],
     )
 
 
 @task
-def create_job_queue():
+def create_job_queue(job_compute_environment_name, job_queue_name):
     boto3.client('batch').create_job_queue(
         computeEnvironmentOrder=[
             {
-                'computeEnvironment': JOB_COMPUTE_ENVIRONMENT_NAME,
+                'computeEnvironment': job_compute_environment_name,
                 'order': 1,
             },
         ],
-        jobQueueName=JOB_QUEUE_NAME,
+        jobQueueName=job_queue_name,
         priority=1,
         state='ENABLED',
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_job_definition():
+def delete_job_definition(job_definition_name):
     client = boto3.client('batch')
 
     response = client.describe_job_definitions(
-        jobDefinitionName=JOB_DEFINITION_NAME,
+        jobDefinitionName=job_definition_name,
         status='ACTIVE',
     )
 
@@ -99,32 +103,32 @@ def delete_job_definition():
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def disable_compute_environment():
+def disable_compute_environment(job_compute_environment_name):
     boto3.client('batch').update_compute_environment(
-        computeEnvironment=JOB_COMPUTE_ENVIRONMENT_NAME,
+        computeEnvironment=job_compute_environment_name,
         state='DISABLED',
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_compute_environment():
+def delete_compute_environment(job_compute_environment_name):
     boto3.client('batch').delete_compute_environment(
-        computeEnvironment=JOB_COMPUTE_ENVIRONMENT_NAME,
+        computeEnvironment=job_compute_environment_name,
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def disable_job_queue():
+def disable_job_queue(job_queue_name):
     boto3.client('batch').update_job_queue(
-        jobQueue=JOB_QUEUE_NAME,
+        jobQueue=job_queue_name,
         state='DISABLED',
     )
 
 
 @task(trigger_rule=TriggerRule.ALL_DONE)
-def delete_job_queue():
+def delete_job_queue(job_queue_name):
     boto3.client('batch').delete_job_queue(
-        jobQueue=JOB_QUEUE_NAME,
+        jobQueue=job_queue_name,
     )
 
 
@@ -135,17 +139,27 @@ with DAG(
     tags=['example'],
     catchup=False,
 ) as dag:
+    test_context = sys_test_context_task()
+
+    batch_job_name: str = f'{test_context[ENV_ID_KEY]}-test-job'
+    batch_job_definition_name: str = f'{test_context[ENV_ID_KEY]}-test-job-definition'
+    batch_job_compute_environment_name: str = f'{test_context[ENV_ID_KEY]}-test-job-compute-environment'
+    batch_job_queue_name: str = f'{test_context[ENV_ID_KEY]}-test-job-queue'
+
+    security_groups = split_string(test_context[SECURITY_GROUPS_KEY])
+    subnets = split_string(test_context[SUBNETS_KEY])
+
     # [START howto_operator_batch_create_compute_environment]
     create_compute_environment = BatchCreateComputeEnvironmentOperator(
         task_id='create_compute_environment',
-        compute_environment_name=JOB_COMPUTE_ENVIRONMENT_NAME,
+        compute_environment_name=batch_job_compute_environment_name,
         environment_type='MANAGED',
         state='ENABLED',
         compute_resources={
             'type': 'FARGATE',
             'maxvCpus': 10,
-            'securityGroupIds': SECURITY_GROUPS,
-            'subnets': SUBNET_IDS,
+            'securityGroupIds': security_groups,
+            'subnets': subnets,
         },
     )
     # [END howto_operator_batch_create_compute_environment]
@@ -153,23 +167,23 @@ with DAG(
     # [START howto_sensor_batch_compute_environment]
     wait_for_compute_environment_valid = BatchComputeEnvironmentSensor(
         task_id='wait_for_compute_environment_valid',
-        compute_environment=JOB_COMPUTE_ENVIRONMENT_NAME,
+        compute_environment=batch_job_compute_environment_name,
     )
     # [END howto_sensor_batch_compute_environment]
 
     # [START howto_sensor_batch_job_queue]
     wait_for_job_queue_valid = BatchJobQueueSensor(
         task_id='wait_for_job_queue_valid',
-        job_queue=JOB_QUEUE_NAME,
+        job_queue=batch_job_queue_name,
     )
     # [END howto_sensor_batch_job_queue]
 
     # [START howto_operator_batch]
     submit_batch_job = BatchOperator(
         task_id='submit_batch_job',
-        job_name=JOB_NAME,
-        job_queue=JOB_QUEUE_NAME,
-        job_definition=JOB_DEFINITION_NAME,
+        job_name=batch_job_name,
+        job_queue=batch_job_queue_name,
+        job_definition=batch_job_definition_name,
         overrides=JOB_OVERRIDES,
         # Set this flag to False, so we can test the sensor below
         wait_for_completion=False,
@@ -185,40 +199,43 @@ with DAG(
 
     wait_for_compute_environment_disabled = BatchComputeEnvironmentSensor(
         task_id='wait_for_compute_environment_disabled',
-        compute_environment=JOB_COMPUTE_ENVIRONMENT_NAME,
+        compute_environment=batch_job_compute_environment_name,
     )
 
     wait_for_job_queue_modified = BatchJobQueueSensor(
         task_id='wait_for_job_queue_modified',
-        job_queue=JOB_QUEUE_NAME,
+        job_queue=batch_job_queue_name,
     )
 
     wait_for_job_queue_deleted = BatchJobQueueSensor(
         task_id='wait_for_job_queue_deleted',
-        job_queue=JOB_QUEUE_NAME,
+        job_queue=batch_job_queue_name,
         treat_non_existing_as_deleted=True,
     )
 
     chain(
         # TEST SETUP
-        create_job_definition(),
+        test_context,
+        security_groups,
+        subnets,
+        create_job_definition(test_context[ROLE_ARN_KEY], batch_job_definition_name),
         # TEST BODY
         create_compute_environment,
         wait_for_compute_environment_valid,
         # ``create_job_queue`` is part of test setup but need the compute-environment to be created before
-        create_job_queue(),
+        create_job_queue(batch_job_compute_environment_name, batch_job_queue_name),
         wait_for_job_queue_valid,
         submit_batch_job,
         wait_for_batch_job,
         # TEST TEARDOWN
-        disable_job_queue(),
+        disable_job_queue(batch_job_queue_name),
         wait_for_job_queue_modified,
-        delete_job_queue(),
+        delete_job_queue(batch_job_queue_name),
         wait_for_job_queue_deleted,
-        disable_compute_environment(),
+        disable_compute_environment(batch_job_compute_environment_name),
         wait_for_compute_environment_disabled,
-        delete_compute_environment(),
-        delete_job_definition(),
+        delete_compute_environment(batch_job_compute_environment_name),
+        delete_job_definition(batch_job_definition_name),
     )
 
     from tests.system.utils.watcher import watcher

@@ -103,6 +103,8 @@ class TestBatchOperator(unittest.TestCase):
     def test_template_fields_overrides(self):
         assert self.batch.template_fields == (
             "job_name",
+            "job_queue",
+            "job_definition",
             "overrides",
             "parameters",
         )
