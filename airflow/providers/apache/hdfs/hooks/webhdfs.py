@@ -101,7 +101,7 @@ class WebHDFSHook(BaseHook):
             connection_str = f'https://{namenode}'
             session.verify = extra_dejson.get('verify', False)
 
-        if port is not None and type(port) == int:
+        if port is not None:
             connection_str += f':{port}'
 
         if schema is not None:
