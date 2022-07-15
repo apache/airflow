@@ -65,7 +65,6 @@ class S3CreateBucketOperator(BaseOperator):
         self.bucket_name = bucket_name
         self.region_name = region_name
         self.aws_conn_id = aws_conn_id
-        self.region_name = region_name
 
     def execute(self, context: 'Context'):
         s3_hook = S3Hook(aws_conn_id=self.aws_conn_id, region_name=self.region_name)
