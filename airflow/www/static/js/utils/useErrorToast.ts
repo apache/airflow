@@ -18,26 +18,35 @@
  */
 
 import { useToast } from '@chakra-ui/react';
+import type { ReactNode } from 'react';
 
-export const getErrorDescription = (error, fallbackMessage) => {
-  if (error && error.response && error.response.data) {
+interface ErrorObj {
+  response: {
+    data: string,
+  }
+}
+
+type ErrorType = Error | string | ErrorObj | null;
+
+export const getErrorDescription = (error?: ErrorType, fallbackMessage?: string) => {
+  if (typeof error === 'string') return error;
+  if (error instanceof Error) return error.message;
+  if (error?.response?.data) {
     return error.response.data;
   }
-  if (error instanceof Error) return error.message;
-  if (typeof error === 'string') return error;
   return fallbackMessage || 'Something went wrong.';
 };
 
-const getErrorTitle = (error) => (error.message || 'Error');
+const getErrorTitle = (error: Error) => (error.message || 'Error');
 
 const useErrorToast = () => {
   const toast = useToast();
   // Add an error prop and handle it as a description
-  return ({ error, ...rest }) => {
+  return ({ error, title, ...rest }: { error: Error, title?: ReactNode }) => {
     toast({
       ...rest,
       status: 'error',
-      title: getErrorTitle(error),
+      title: title || getErrorTitle(error),
       description: getErrorDescription(error).slice(0, 500),
     });
   };
