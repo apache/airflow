@@ -40,31 +40,31 @@ export default function useClearTask({
     ['clearTask', dagId, runId, taskId],
     ({
       past, future, upstream, downstream, recursive, failed, confirmed, mapIndexes = [],
-    }: { past: string,
-      future: string,
-      upstream: string,
-      downstream: string,
-      recursive: string,
-      failed: string,
-      confirmed: string,
-      mapIndexes: string[] }) => {
+    }: { past: boolean,
+      future: boolean,
+      upstream: boolean,
+      downstream: boolean,
+      recursive: boolean,
+      failed: boolean,
+      confirmed: boolean,
+      mapIndexes: number[] }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
-        confirmed,
+        confirmed: confirmed.toString(),
         execution_date: executionDate,
-        past,
-        future,
-        upstream,
-        downstream,
-        recursive,
-        only_failed: failed,
+        past: past.toString(),
+        future: future.toString(),
+        upstream: upstream.toString(),
+        downstream: downstream.toString(),
+        recursive: recursive.toString(),
+        only_failed: failed.toString(),
       });
 
-      mapIndexes.forEach((mi: string) => {
-        params.append('map_index', mi);
+      mapIndexes.forEach((mi: number) => {
+        params.append('map_index', mi.toString());
       });
 
       return axios.post<AxiosResponse, string>(clearUrl, params.toString(), {

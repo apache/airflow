@@ -34,25 +34,25 @@ export default function useConfirmMarkTask({
     ({
       past, future, upstream, downstream, mapIndexes = [],
     }: {
-      past: string,
-      future: string,
-      upstream: string,
-      downstream: string,
-      mapIndexes: string[],
+      past: boolean,
+      future: boolean,
+      upstream: boolean,
+      downstream: boolean,
+      mapIndexes: number[],
     }) => {
       const params = new URLSearchParams({
         dag_id: dagId,
         dag_run_id: runId,
         task_id: taskId,
-        past,
-        future,
-        upstream,
-        downstream,
+        past: past.toString(),
+        future: future.toString(),
+        upstream: upstream.toString(),
+        downstream: downstream.toString(),
         state: state || 'null',
       });
 
-      mapIndexes.forEach((mi) => {
-        params.append('map_index', mi);
+      mapIndexes.forEach((mi: number) => {
+        params.append('map_index', mi.toString());
       });
       return axios.get(confirmUrl, { params });
     },
