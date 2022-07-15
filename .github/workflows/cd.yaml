@@ -39,7 +39,7 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            AIRFLOW_VERSION=2.3.2
+            AIRFLOW_VERSION=2.3.3
             AIRFLOW_EXTRAS=async,celery,cncf.kubernetes,dask,docker,grpc,http,ldap,postgres,redis,statsd,virtualenv
             PYTHON_BASE_IMAGE=python:3.8-slim-buster
-            ADDITIONAL_PYTHON_DEPS=google-ads==15.1.1 google-api-python-client==2.37.0 scikit-learn==1.0.2 slack-sdk==3.14.1 pyjanitor==0.22.0 awesome-minio>=1.0.3 simplejson==3.17.6 glom==22.1.0 facebook-business==12.0.1 yfinance==0.1.70 pandas-datareader==0.10.0 awesome-object-store>=2.0.3
+            ADDITIONAL_PYTHON_DEPS=google-ads==15.1.1 google-api-python-client==2.37.0 scikit-learn==1.0.2 slack-sdk==3.14.1 pyjanitor==0.22.0 awesome-minio>=1.0.3 simplejson==3.17.6 glom==22.1.0 facebook-business==12.0.1 yfinance==0.1.70 pandas-datareader==0.10.0 awesome-object-store>=2.0.3 ShopifyAPI==10.0.0
