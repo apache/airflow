@@ -17,30 +17,57 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation, useQueryClient } from 'react-query';
 import { getMetaValue } from '../utils';
 import { useAutoRefresh } from '../context/autorefresh';
 import useErrorToast from '../utils/useErrorToast';
 
-const csrfToken = getMetaValue('csrf_token');
-const clearRunUrl = getMetaValue('dagrun_clear_url');
+const csrfToken = getMetaValue('csrf_token') || '';
+const clearUrl = getMetaValue('clear_url') || '';
 
-export default function useClearRun(dagId, runId) {
+export default function useClearTask({
+  dagId, runId, taskId, executionDate,
+}: { dagId: string,
+  runId: string,
+  taskId: string,
+  executionDate: string }) {
   const queryClient = useQueryClient();
   const errorToast = useErrorToast();
   const { startRefresh } = useAutoRefresh();
+
   return useMutation(
-    ['dagRunClear', dagId, runId],
-    ({ confirmed = false }) => {
+    ['clearTask', dagId, runId, taskId],
+    ({
+      past, future, upstream, downstream, recursive, failed, confirmed, mapIndexes = [],
+    }: { past: string,
+      future: string,
+      upstream: string,
+      downstream: string,
+      recursive: string,
+      failed: string,
+      confirmed: string,
+      mapIndexes: string[] }) => {
       const params = new URLSearchParams({
         csrf_token: csrfToken,
-        confirmed,
         dag_id: dagId,
         dag_run_id: runId,
-      }).toString();
+        task_id: taskId,
+        confirmed,
+        execution_date: executionDate,
+        past,
+        future,
+        upstream,
+        downstream,
+        recursive,
+        only_failed: failed,
+      });
 
-      return axios.post(clearRunUrl, params, {
+      mapIndexes.forEach((mi: string) => {
+        params.append('map_index', mi);
+      });
+
+      return axios.post<AxiosResponse, string>(clearUrl, params.toString(), {
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
         },
@@ -48,11 +75,11 @@ export default function useClearRun(dagId, runId) {
     },
     {
       onSuccess: () => {
-        // Invalidating the query will force a new API request
         queryClient.invalidateQueries('gridData');
+        queryClient.invalidateQueries(['mappedInstances', dagId, runId, taskId]);
         startRefresh();
       },
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }

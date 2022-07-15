@@ -19,19 +19,26 @@
 
 import axios from 'axios';
 import { useMutation } from 'react-query';
+import type { TaskState } from 'src/types';
 import { getMetaValue } from '../utils';
 import useErrorToast from '../utils/useErrorToast';
 
-const confirmUrl = getMetaValue('confirm_url');
+const confirmUrl = getMetaValue('confirm_url') || '';
 
 export default function useConfirmMarkTask({
   dagId, runId, taskId, state,
-}) {
+}: { dagId: string, runId: string, taskId: string, state: TaskState }) {
   const errorToast = useErrorToast();
   return useMutation(
     ['confirmStateChange', dagId, runId, taskId, state],
     ({
       past, future, upstream, downstream, mapIndexes = [],
+    }: {
+      past: string,
+      future: string,
+      upstream: string,
+      downstream: string,
+      mapIndexes: string[],
     }) => {
       const params = new URLSearchParams({
         dag_id: dagId,
@@ -41,17 +48,16 @@ export default function useConfirmMarkTask({
         future,
         upstream,
         downstream,
-        state,
+        state: state || 'null',
       });
 
       mapIndexes.forEach((mi) => {
         params.append('map_index', mi);
       });
-
       return axios.get(confirmUrl, { params });
     },
     {
-      onError: (error) => errorToast({ error }),
+      onError: (error: Error) => errorToast({ error }),
     },
   );
 }
