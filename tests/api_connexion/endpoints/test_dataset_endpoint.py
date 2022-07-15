@@ -375,7 +375,7 @@ class TestGetDatasetEvents(TestDatasetEndpoint):
         assert_401(response)
 
 
-class TestGetDatasetEvenetsEndpointPagination(TestDatasetEndpoint):
+class TestGetDatasetEventsEndpointPagination(TestDatasetEndpoint):
     @parameterized.expand(
         [
             # Limit test data
