@@ -17,6 +17,7 @@
 # under the License.
 
 import unittest
+from typing import Dict, List
 from unittest import mock
 
 import pytest
@@ -28,51 +29,49 @@ from airflow.providers.amazon.aws.operators.sagemaker import (
     SageMakerModelOperator,
 )
 
-role = 'arn:aws:iam:role/test-role'
-
-bucket = 'test-bucket'
-
-model_name = 'test-model-name'
-
-image = 'test-image'
-
-output_url = f's3://{bucket}/test/output'
-create_model_params = {
-    'ModelName': model_name,
+CREATE_MODEL_PARAMS: Dict = {
+    'ModelName': 'model_name',
     'PrimaryContainer': {
-        'Image': image,
-        'ModelDataUrl': output_url,
+        'Image': 'image_name',
+        'ModelDataUrl': 'output_path',
     },
-    'ExecutionRoleArn': role,
+    'ExecutionRoleArn': 'arn:aws:iam:role/test-role',
 }
+
+EXPECTED_INTEGER_FIELDS: List[List[str]] = []
 
 
 class TestSageMakerModelOperator(unittest.TestCase):
     def setUp(self):
-        self.sagemaker = SageMakerModelOperator(
-            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', config=create_model_params
-        )
+        self.sagemaker = SageMakerModelOperator(task_id='test_sagemaker_operator', config=CREATE_MODEL_PARAMS)
+
+    @mock.patch.object(SageMakerHook, 'get_conn')
+    @mock.patch.object(SageMakerHook, 'create_model')
+    def test_integer_fields(self, mock_model, mock_client):
+        mock_model.return_value = {'ModelArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}}
+        self.sagemaker.execute(None)
+        assert self.sagemaker.integer_fields == EXPECTED_INTEGER_FIELDS
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     def test_execute(self, mock_model, mock_client):
-        mock_model.return_value = {'ModelArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 200}}
+        mock_model.return_value = {'ModelArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 200}}
         self.sagemaker.execute(None)
-        mock_model.assert_called_once_with(create_model_params)
+        mock_model.assert_called_once_with(CREATE_MODEL_PARAMS)
 
     @mock.patch.object(SageMakerHook, 'get_conn')
     @mock.patch.object(SageMakerHook, 'create_model')
     def test_execute_with_failure(self, mock_model, mock_client):
-        mock_model.return_value = {'ModelArn': 'testarn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
+        mock_model.return_value = {'ModelArn': 'test_arn', 'ResponseMetadata': {'HTTPStatusCode': 404}}
         with pytest.raises(AirflowException):
             self.sagemaker.execute(None)
 
 
 class TestSageMakerDeleteModelOperator(unittest.TestCase):
     def setUp(self):
-        delete_model_params = {'ModelName': 'test'}
+        delete_model_params = {'ModelName': 'model_name'}
         self.sagemaker = SageMakerDeleteModelOperator(
-            task_id='test_sagemaker_operator', aws_conn_id='sagemaker_test_id', config=delete_model_params
+            task_id='test_sagemaker_operator', config=delete_model_params
         )
 
     @mock.patch.object(SageMakerHook, 'get_conn')
@@ -80,4 +79,4 @@ class TestSageMakerDeleteModelOperator(unittest.TestCase):
     def test_execute(self, delete_model, mock_client):
         delete_model.return_value = None
         self.sagemaker.execute(None)
-        delete_model.assert_called_once_with(model_name='test')
+        delete_model.assert_called_once_with(model_name='model_name')
