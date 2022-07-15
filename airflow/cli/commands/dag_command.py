@@ -66,6 +66,8 @@ def dag_backfill(args, dag=None):
         args.ignore_first_depends_on_past = True
 
     dag = dag or get_dag(args.subdir, args.dag_id)
+    if not dag.is_paused:
+        raise AirflowException("DAG is currently being scheduled. Please pause the DAG before running backfill.")
 
     if not args.start_date and not args.end_date:
         raise AirflowException("Provide a start_date and/or end_date")
