@@ -23,6 +23,7 @@ from datetime import datetime
 from typing import Optional, Set
 
 from sqlalchemy import and_
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.orm.session import Session, make_transient
 from tabulate import tabulate
 
@@ -504,6 +505,13 @@ class BackfillJob(BaseJob):
                         ti.queued_by_job_id = self.id
                         ti.queued_dttm = timezone.utcnow()
                         session.merge(ti)
+                        try:
+                            session.commit()
+                        except OperationalError:
+                            self.log.exception("Failed to commit task state change due to operational error")
+                            session.rollback()
+                            # early exit so the outer loop can retry
+                            return
 
                         cfg_path = None
                         if self.executor_class in (
@@ -523,7 +531,6 @@ class BackfillJob(BaseJob):
                         )
                         ti_status.running[key] = ti
                         ti_status.to_run.pop(key)
-                    session.commit()
                     return
 
                 if ti.state == State.UPSTREAM_FAILED:
