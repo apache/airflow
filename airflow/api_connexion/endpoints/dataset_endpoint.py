@@ -34,7 +34,7 @@ from airflow.utils.session import NEW_SESSION, provide_session
 
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
 @provide_session
-def get_dataset(id, session):
+def get_dataset(id: int, session: Session = NEW_SESSION) -> APIResponse:
     """Get a Dataset"""
     dataset = session.query(Dataset).get(id)
     if not dataset:
@@ -52,10 +52,10 @@ def get_datasets(
     *, limit: int, offset: int = 0, order_by: str = "id", session: Session = NEW_SESSION
 ) -> APIResponse:
     """Get datasets"""
-    allowed_filter_attrs = ['id', 'uri', 'created_at', 'updated_at']
+    allowed_attrs = ['id', 'uri', 'created_at', 'updated_at']
 
     total_entries = session.query(func.count(Dataset.id)).scalar()
     query = session.query(Dataset)
-    query = apply_sorting(query, order_by, {}, allowed_filter_attrs)
+    query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = query.offset(offset).limit(limit).all()
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
