@@ -3536,19 +3536,19 @@ components:
         source_dag_id:
           type: string
           description: The DAG ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_task_id:
           type: string
           description: The task ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_run_id:
           type: string
           description: The DAG run ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_map_index:
           type: integer
           description: The task map index that updated the dataset.
-          nullable: false
+          nullable: true
         created_at:
           type: string
           description: The dataset event creation time

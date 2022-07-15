@@ -1566,7 +1566,7 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
         dag2.dag_id,
         run_id=unique_id + '-2',
         run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=first_timestamp.add(microseconds=4000),
+        execution_date=first_timestamp.add(microseconds=4000),  # exact same time as 3rd event in window
     )
     dr.dag = dag2
     session.add(dr)
@@ -1596,11 +1596,12 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
 
 
 class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
-    def test_should_respond_200(self, session):
+    @mock.patch('airflow.api_connexion.endpoints.dag_run_endpoint._get_upstream_dataset_events')
+    def test_should_respond_200(self, mock_get_events, session):
         dagrun_model = DagRun(
             dag_id="TEST_DAG_ID",
             run_id="TEST_DAG_RUN_ID",
-            run_type=DagRunType.MANUAL,
+            run_type=DagRunType.DATASET_TRIGGERED,
             execution_date=timezone.parse(self.default_time),
             start_date=timezone.parse(self.default_time),
             external_trigger=True,
@@ -1610,12 +1611,29 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         session.commit()
         result = session.query(DagRun).all()
         assert len(result) == 1
+        created_at = pendulum.now('UTC')
+        # make sure whatever is returned by this func is what comes out in response.
+        mock_get_events.return_value = [DatasetEvent(dataset_id=1, created_at=created_at)]
         response = self.client.get(
             "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstream-dataset-events",
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
-        expected_response = {'dataset_events': [], 'total_entries': 0}
+        expected_response = {
+            'dataset_events': [
+                {
+                    'created_at': str(created_at),
+                    'dataset_id': 1,
+                    'extra': None,
+                    'id': None,
+                    'source_dag_id': None,
+                    'source_map_index': None,
+                    'source_run_id': None,
+                    'source_task_id': None,
+                }
+            ],
+            'total_entries': 1,
+        }
         assert response.json == expected_response
 
     def test_should_respond_404(self):
