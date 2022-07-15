@@ -17,7 +17,7 @@
  * under the License.
  */
 
-import axios from 'axios';
+import axios, { AxiosResponse } from 'axios';
 import { useMutation } from 'react-query';
 import type { TaskState } from 'src/types';
 import { getMetaValue } from '../utils';
@@ -54,7 +54,7 @@ export default function useConfirmMarkTask({
       mapIndexes.forEach((mi: number) => {
         params.append('map_index', mi.toString());
       });
-      return axios.get(confirmUrl, { params });
+      return axios.get<AxiosResponse, string[]>(confirmUrl, { params });
     },
     {
       onError: (error: Error) => errorToast({ error }),
