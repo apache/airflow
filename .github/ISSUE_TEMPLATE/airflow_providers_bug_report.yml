@@ -73,6 +73,7 @@ body:
         - neo4j
         - odbc
         - openfaas
+        - openmldb
         - opsgenie
         - oracle
         - pagerduty

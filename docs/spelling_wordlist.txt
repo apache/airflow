@@ -287,6 +287,7 @@ Oauthlib
 Okta
 OnFailure
 Oozie
+OpenMLDB
 Opsgenie
 Optimise
 PEM
@@ -1133,6 +1134,7 @@ okta
 onboarded
 onkill
 openfaas
+openmldb
 oper
 opsgenie
 optimise

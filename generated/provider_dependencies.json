@@ -510,6 +510,15 @@
     ],
     "cross-providers-deps": []
   },
+  "openmldb": {
+    "deps": [
+      "apache-airflow-providers-http",
+      "apache-airflow>=2.2.0"
+    ],
+    "cross-providers-deps": [
+      "http"
+    ]
+  },
   "opsgenie": {
     "deps": [
       "apache-airflow>=2.2.0",

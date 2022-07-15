@@ -102,7 +102,7 @@ dbt.cloud, deprecated_api, devel, devel_all, devel_ci, devel_hadoop, dingding, d
 druid, elasticsearch, exasol, facebook, ftp, gcp, gcp_api, github, github_enterprise, google,
 google_auth, grpc, hashicorp, hdfs, hive, http, imap, influxdb, jdbc, jenkins, jira, kerberos,
 kubernetes, ldap, leveldb, microsoft.azure, microsoft.mssql, microsoft.psrp, microsoft.winrm, mongo,
-mssql, mysql, neo4j, odbc, openfaas, opsgenie, oracle, pagerduty, pandas, papermill, password,
+mssql, mysql, neo4j, odbc, openfaas, openmldb, opsgenie, oracle, pagerduty, pandas, papermill, password,
 pinot, plexus, postgres, presto, qds, qubole, rabbitmq, redis, s3, salesforce, samba, segment,
 sendgrid, sentry, sftp, singularity, slack, snowflake, spark, sqlite, ssh, statsd, tableau, tabular,
 telegram, trino, vertica, virtualenv, webhdfs, winrm, yandex, zendesk

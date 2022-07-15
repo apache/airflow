@@ -79,6 +79,7 @@ const Docs: React.FC = () => {
     { path: 'neo4j', name: 'Neo4J' },
     { path: 'odbc', name: 'ODBC' },
     { path: 'openfaas', name: 'OpenFaaS' },
+    { path: 'openmldb', name: 'OpenMLDB' },
     { path: 'opsgenie', name: 'Opsgenie' },
     { path: 'oracle', name: 'Oracle' },
     { path: 'pagerduty', name: 'Pagerduty' },

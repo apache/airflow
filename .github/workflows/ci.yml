@@ -842,7 +842,7 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
             elasticsearch,exasol,facebook,ftp,github,github_enterprise,google,google_auth,\
             grpc,hashicorp,http,imap,influxdb,jdbc,jenkins,jira,kerberos,ldap,\
             leveldb,microsoft.azure,microsoft.mssql,microsoft.psrp,microsoft.winrm,mongo,mysql,\
-            neo4j,odbc,openfaas,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
+            neo4j,odbc,openfaas,openmldb,opsgenie,oracle,pagerduty,pandas,papermill,password,plexus,\
             postgres,presto,qubole,rabbitmq,redis,salesforce,samba,segment,sendgrid,sentry,\
             sftp,singularity,slack,snowflake,sqlite,ssh,statsd,tableau,telegram,trino,vertica,\
             virtualenv,yandex,zendesk"
