@@ -21,7 +21,9 @@
  * Custom wrapper of react-table using Chakra UI components
 */
 
-import React, { useEffect, useRef, forwardRef } from 'react';
+import React, {
+  useEffect, useRef, forwardRef, RefObject,
+} from 'react';
 import {
   Flex,
   Table as ChakraTable,
@@ -34,9 +36,16 @@ import {
   Text,
   useColorModeValue,
   Checkbox,
+  CheckboxProps,
 } from '@chakra-ui/react';
 import {
-  useTable, useSortBy, usePagination, useRowSelect,
+  useTable,
+  useSortBy,
+  usePagination,
+  useRowSelect,
+  Column,
+  Hooks,
+  SortingRule,
 } from 'react-table';
 import {
   MdKeyboardArrowLeft, MdKeyboardArrowRight,
@@ -45,13 +54,19 @@ import {
   TiArrowUnsorted, TiArrowSortedDown, TiArrowSortedUp,
 } from 'react-icons/ti';
 
-const IndeterminateCheckbox = forwardRef(
+interface IndeterminateCheckboxProps extends CheckboxProps {
+  indeterminate?: boolean;
+}
+
+const IndeterminateCheckbox = forwardRef<HTMLInputElement, IndeterminateCheckboxProps>(
   ({ indeterminate, checked, ...rest }, ref) => {
-    const defaultRef = useRef();
-    const resolvedRef = ref || defaultRef;
+    const defaultRef = useRef<HTMLInputElement>(null);
+    const resolvedRef = ref as RefObject<HTMLInputElement> || defaultRef;
 
     useEffect(() => {
-      resolvedRef.current.indeterminate = indeterminate;
+      if (resolvedRef.current) {
+        resolvedRef.current.indeterminate = !!indeterminate;
+      }
     }, [resolvedRef, indeterminate]);
 
     return (
@@ -60,6 +75,19 @@ const IndeterminateCheckbox = forwardRef(
   },
 );
 
+interface TableProps {
+  data: object[];
+  columns: Column<object>[];
+  manualPagination?: {
+    totalEntries: number;
+    offset: number;
+    setOffset: (offset: number) => void;
+  },
+  pageSize?: number;
+  setSortBy?: (sortBy: SortingRule<number>[]) => void;
+  isLoading?: boolean;
+  selectRows?: (selectedRows: number[]) => void;
+}
 const Table = ({
   data,
   columns,
@@ -67,8 +95,8 @@ const Table = ({
   pageSize = 25,
   setSortBy,
   isLoading = false,
-  selectRows = undefined,
-}) => {
+  selectRows,
+}: TableProps) => {
   const { totalEntries, offset, setOffset } = manualPagination || {};
   const oddColor = useColorModeValue('gray.50', 'gray.900');
   const hoverColor = useColorModeValue('gray.100', 'gray.700');
@@ -81,7 +109,7 @@ const Table = ({
   // Don't show row selection if selectRows doesn't exist
   const selectProps = selectRows
     ? [useRowSelect,
-      (hooks) => {
+      (hooks: Hooks) => {
         hooks.visibleColumns.push((cols) => [
           {
             id: 'selection',
@@ -141,7 +169,10 @@ const Table = ({
   }, [sortBy, setSortBy]);
 
   useEffect(() => {
-    if (selectRows) selectRows(selectedFlatRows.map((row) => row.original.mapIndex));
+    if (selectRows) {
+      // @ts-ignore
+      selectRows(selectedFlatRows.map((row) => row.original.mapIndex));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRowIds, selectRows]);
 
@@ -154,15 +185,17 @@ const Table = ({
               <Th
                 {...column.getHeaderProps(column.getSortByToggleProps())}
               >
-                {column.render('Header')}
-                {column.isSorted && (
-                  column.isSortedDesc ? (
-                    <TiArrowSortedDown aria-label="sorted descending" style={{ display: 'inline' }} size="1em" />
-                  ) : (
-                    <TiArrowSortedUp aria-label="sorted ascending" style={{ display: 'inline' }} size="1em" />
-                  )
-                )}
-                {(!column.isSorted && column.canSort) && (<TiArrowUnsorted aria-label="unsorted" style={{ display: 'inline' }} size="1em" />)}
+                <>
+                  {column.render('Header')}
+                  {column.isSorted && (
+                    column.isSortedDesc ? (
+                      <TiArrowSortedDown aria-label="sorted descending" style={{ display: 'inline' }} size="1em" />
+                    ) : (
+                      <TiArrowSortedUp aria-label="sorted ascending" style={{ display: 'inline' }} size="1em" />
+                    )
+                  )}
+                  {(!column.isSorted && column.canSort) && (<TiArrowUnsorted aria-label="unsorted" style={{ display: 'inline' }} size="1em" />)}
+                </>
               </Th>
             ))}
           </Tr>
