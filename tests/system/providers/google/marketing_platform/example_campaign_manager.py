@@ -23,6 +23,7 @@ import time
 from datetime import datetime
 
 from airflow import models
+from airflow.providers.google.cloud.operators.gcs import GCSCreateBucketOperator, GCSDeleteBucketOperator
 from airflow.providers.google.marketing_platform.operators.campaign_manager import (
     GoogleCampaignManagerBatchInsertConversionsOperator,
     GoogleCampaignManagerBatchUpdateConversionsOperator,
@@ -34,14 +35,20 @@ from airflow.providers.google.marketing_platform.operators.campaign_manager impo
 from airflow.providers.google.marketing_platform.sensors.campaign_manager import (
     GoogleCampaignManagerReportSensor,
 )
+from airflow.utils.trigger_rule import TriggerRule
+
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+PROJECT_ID = os.environ.get("SYSTEM_TESTS_GCP_PROJECT")
+
+DAG_ID = "example_campaign_manager"
 
 PROFILE_ID = os.environ.get("MARKETING_PROFILE_ID", "123456789")
 FLOODLIGHT_ACTIVITY_ID = int(os.environ.get("FLOODLIGHT_ACTIVITY_ID", 12345))
 FLOODLIGHT_CONFIGURATION_ID = int(os.environ.get("FLOODLIGHT_CONFIGURATION_ID", 12345))
 ENCRYPTION_ENTITY_ID = int(os.environ.get("ENCRYPTION_ENTITY_ID", 12345))
 DEVICE_ID = os.environ.get("DEVICE_ID", "12345")
-BUCKET = os.environ.get("MARKETING_BUCKET", "test-cm-bucket")
-REPORT_NAME = "test-report"
+BUCKET_NAME = f"bucket_{DAG_ID}_{ENV_ID}"
+REPORT_NAME = f"report_{DAG_ID}_{ENV_ID}"
 REPORT = {
     "type": "STANDARD",
     "name": REPORT_NAME,
@@ -84,11 +91,16 @@ CONVERSION_UPDATE = {
 }
 
 with models.DAG(
-    "example_campaign_manager",
+    DAG_ID,
     schedule_interval='@once',  # Override to match your needs,
     start_date=datetime(2021, 1, 1),
     catchup=False,
+    tags=["example", "campaign"],
 ) as dag:
+    create_bucket = GCSCreateBucketOperator(
+        task_id="create_bucket", bucket_name=BUCKET_NAME, project_id=PROJECT_ID
+    )
+
     # [START howto_campaign_manager_insert_report_operator]
     create_report = GoogleCampaignManagerInsertReportOperator(
         profile_id=PROFILE_ID, report=REPORT, task_id="create_report"
@@ -119,24 +131,22 @@ with models.DAG(
         report_id=report_id,
         file_id=file_id,
         report_name="test_report.csv",
-        bucket_name=BUCKET,
+        bucket_name=BUCKET_NAME,
     )
     # [END howto_campaign_manager_get_report_operator]
 
     # [START howto_campaign_manager_delete_report_operator]
     delete_report = GoogleCampaignManagerDeleteReportOperator(
-        profile_id=PROFILE_ID, report_name=REPORT_NAME, task_id="delete_report"
+        profile_id=PROFILE_ID,
+        report_name=REPORT_NAME,
+        task_id="delete_report",
+        trigger_rule=TriggerRule.ALL_DONE,
     )
     # [END howto_campaign_manager_delete_report_operator]
 
-    wait_for_report >> get_report >> delete_report
-
-    # Task dependencies created via `XComArgs`:
-    #   create_report >> run_report
-    #   create_report >> wait_for_report
-    #   create_report >> get_report
-    #   run_report >> get_report
-    #   run_report >> wait_for_report
+    delete_bucket = GCSDeleteBucketOperator(
+        task_id="delete_bucket", bucket_name=BUCKET_NAME, trigger_rule=TriggerRule.ALL_DONE
+    )
 
     # [START howto_campaign_manager_insert_conversions]
     insert_conversion = GoogleCampaignManagerBatchInsertConversionsOperator(
@@ -161,9 +171,28 @@ with models.DAG(
     )
     # [END howto_campaign_manager_update_conversions]
 
-    insert_conversion >> update_conversion
+    (
+        # TEST SETUP
+        create_bucket
+        >> create_report
+        # TEST BODY
+        >> run_report
+        >> wait_for_report
+        >> get_report
+        >> insert_conversion
+        >> update_conversion
+        # TEST TEARDOWN
+        >> delete_report
+        >> delete_bucket
+    )
 
+    from tests.system.utils.watcher import watcher
 
-if __name__ == "__main__":
-    dag.clear()
-    dag.run()
+    # This test needs watcher in order to properly mark success/failure
+    # when "tearDown" task with trigger rule is part of the DAG
+    list(dag.tasks) >> watcher()
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
