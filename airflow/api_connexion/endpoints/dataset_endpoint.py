@@ -15,19 +15,23 @@
 # specific language governing permissions and limitations
 # under the License.
 
+from typing import Optional
+
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from airflow import Dataset
 from airflow.api_connexion import security
 from airflow.api_connexion.exceptions import NotFound
 from airflow.api_connexion.parameters import apply_sorting, check_limit, format_parameters
 from airflow.api_connexion.schemas.dataset_schema import (
     DatasetCollection,
+    DatasetEventCollection,
     dataset_collection_schema,
+    dataset_event_collection_schema,
     dataset_schema,
 )
 from airflow.api_connexion.types import APIResponse
+from airflow.models.dataset import Dataset, DatasetEvent
 from airflow.security import permissions
 from airflow.utils.session import NEW_SESSION, provide_session
 
@@ -59,3 +63,42 @@ def get_datasets(
     query = apply_sorting(query, order_by, {}, allowed_attrs)
     datasets = query.offset(offset).limit(limit).all()
     return dataset_collection_schema.dump(DatasetCollection(datasets=datasets, total_entries=total_entries))
+
+
+@security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DATASET)])
+@provide_session
+@format_parameters({'limit': check_limit})
+def get_dataset_events(
+    *,
+    limit: int,
+    offset: int = 0,
+    order_by: str = "created_at",
+    dataset_id: Optional[int] = None,
+    source_dag_id: Optional[str] = None,
+    source_task_id: Optional[str] = None,
+    source_run_id: Optional[str] = None,
+    source_map_index: Optional[int] = None,
+    session: Session = NEW_SESSION,
+) -> APIResponse:
+    """Get dataset events"""
+    allowed_attrs = ['source_dag_id', 'source_task_id', 'source_run_id', 'source_map_index', 'created_at']
+
+    query = session.query(DatasetEvent)
+
+    if dataset_id:
+        query = query.filter(DatasetEvent.dataset_id == dataset_id)
+    if source_dag_id:
+        query = query.filter(DatasetEvent.source_dag_id == source_dag_id)
+    if source_task_id:
+        query = query.filter(DatasetEvent.source_task_id == source_task_id)
+    if source_run_id:
+        query = query.filter(DatasetEvent.source_run_id == source_run_id)
+    if source_map_index:
+        query = query.filter(DatasetEvent.source_map_index == source_map_index)
+
+    total_entries = query.count()
+    query = apply_sorting(query, order_by, {}, allowed_attrs)
+    events = query.offset(offset).limit(limit).all()
+    return dataset_event_collection_schema.dump(
+        DatasetEventCollection(dataset_events=events, total_entries=total_entries)
+    )

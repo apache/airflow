@@ -1008,6 +1008,7 @@ keytab
 killMode
 kinit
 kms
+knn
 knownHosts
 krb
 kube
