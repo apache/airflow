@@ -122,7 +122,7 @@ def get_upstream_dataset_events(
     )
 
 
-def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session = NEW_SESSION) -> List["DagRun"]:
+def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session) -> List["DagRun"]:
     """If dag run is dataset-triggered, return the dataset events that triggered it."""
     if not dag_run.run_type == DagRunType.DATASET_TRIGGERED:
         return []
