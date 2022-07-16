@@ -38,6 +38,19 @@ class TestClient(unittest.TestCase):
         assert config.load_incluster_config.not_called
         assert config.load_kube_config.called
 
+    @mock.patch('airflow.kubernetes.kube_client.config')
+    @mock.patch('airflow.kubernetes.kube_client.conf')
+    def test_load_config_disable_ssl(self, conf, config):
+        conf.getboolean.return_value = False
+        get_kube_client(in_cluster=False)
+        conf.getboolean.assert_called_with('kubernetes', 'verify_ssl')
+        # Support wide range of kube client libraries
+        if hasattr(Configuration, 'get_default_copy'):
+            configuration = Configuration.get_default_copy()
+        else:
+            configuration = Configuration()
+        self.assertFalse(configuration.verify_ssl)
+
     def test_enable_tcp_keepalive(self):
         socket_options = [
             (socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1),

@@ -30,7 +30,10 @@ try:
     has_kubernetes = True
 
     def _disable_verify_ssl() -> None:
-        configuration = Configuration.get_default_copy()
+        if hasattr(Configuration, 'get_default_copy'):
+            configuration = Configuration.get_default_copy()
+        else:
+            configuration = Configuration()
         configuration.verify_ssl = False
         Configuration.set_default(configuration)
 
