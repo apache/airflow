@@ -17,7 +17,7 @@
 # under the License.
 
 """This module allows you to connect to GitHub."""
-from typing import Dict, Optional, Tuple
+from typing import TYPE_CHECKING, Dict, Optional, Tuple
 
 from github import Github as GithubClient
 
@@ -79,7 +79,8 @@ class GithubHook(BaseHook):
     def test_connection(self) -> Tuple[bool, str]:
         """Test GitHub connection."""
         try:
-            assert self.client  # For mypy union-attr check of Optional[GithubClient].
+            if TYPE_CHECKING:
+                assert self.client
             self.client.get_user().id
             return True, "Successfully connected to GitHub."
         except Exception as e:

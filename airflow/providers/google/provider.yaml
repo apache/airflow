@@ -29,6 +29,7 @@ description: |
       - `Google Workspace <https://workspace.google.com/>`__ (formerly Google Suite)
 
 versions:
+  - 8.2.0
   - 8.1.0
   - 8.0.0
   - 7.0.0
@@ -977,6 +978,8 @@ extra-links:
   - airflow.providers.google.cloud.links.stackdriver.StackdriverPoliciesLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEngineClusterLink
   - airflow.providers.google.cloud.links.kubernetes_engine.KubernetesEnginePodLink
+  - airflow.providers.google.cloud.links.pubsub.PubSubSubscriptionLink
+  - airflow.providers.google.cloud.links.pubsub.PubSubTopicLink
   - airflow.providers.google.common.links.storage.StorageLink
   - airflow.providers.google.common.links.storage.FileDetailsLink
 

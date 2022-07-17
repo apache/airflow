@@ -46,10 +46,10 @@ airflowHome: /opt/airflow
 defaultAirflowRepository: apache/airflow
 
 # Default airflow tag to deploy
-defaultAirflowTag: "2.3.2"
+defaultAirflowTag: "2.3.3"
 
 # Airflow version (Used to make some decisions based on Airflow Version being deployed)
-airflowVersion: "2.3.2"
+airflowVersion: "2.3.3"
 
 # Images
 images:
@@ -1477,6 +1477,7 @@ redis:
   #  runAsUser: 999
   #  runAsGroup: 0
 
+  podAnnotations: {}
 # Auth secret for a private registry
 # This is used if pulling airflow images from a private registry
 registry:

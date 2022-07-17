@@ -22,6 +22,7 @@ description: |
     `Java Database Connectivity (JDBC) <https://docs.oracle.com/javase/8/docs/technotes/guides/jdbc/>`__
 
 versions:
+  - 3.1.0
   - 3.0.0
   - 2.1.3
   - 2.1.2

@@ -675,7 +675,7 @@ Optionally you can use `check_files.py` script to verify that all expected files
 present in SVN. This script may help also with verifying installation of the packages.
 
 ```shell script
-python check_files.py -v {VERSION} -t airflow -p {PATH_TO_SVN}
+python check_files.py airflow -v {VERSION} -p {PATH_TO_SVN}
 ```
 
 ## Licence check
@@ -1020,7 +1020,7 @@ Documentation for providers can be found in the ``/docs/apache-airflow`` directo
 
     ```shell script
     cd "${AIRFLOW_REPO_ROOT}"
-    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --for-production
+    breeze build-docs --package-filter apache-airflow --package-filter docker-stack --clean-build --for-production
     ```
 
 - Now you can preview the documentation.

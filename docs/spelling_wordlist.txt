@@ -112,6 +112,7 @@ Datasync
 DateFrame
 Datetimepicker
 Datetimes
+Debounce
 Decrypt
 Decrypts
 DeidentifyContentResponse
@@ -383,6 +384,7 @@ StatefulSets
 StatsD
 StorageClass
 StoredInfoType
+StrictUndefined
 Stringified
 Subclasses
 Subdirectory
@@ -593,6 +595,7 @@ cfg
 cgi
 cgroups
 cgroupspy
+chakra
 changelog
 charset
 checklicence
@@ -862,8 +865,10 @@ gdbm
 generateUploadUrl
 geq
 getattr
+getboolean
 getfqdn
 getframe
+getint
 getsource
 gevent
 gid
@@ -1003,6 +1008,7 @@ keytab
 killMode
 kinit
 kms
+knn
 knownHosts
 krb
 kube
@@ -1155,6 +1161,7 @@ param
 parametable
 parameterType
 parameterValue
+parameterization
 parameterizing
 paramiko
 params
@@ -1320,6 +1327,7 @@ schedulable
 schedulername
 schemas
 sdk
+searchpath
 secretRef
 secretRefs
 securable
@@ -1330,6 +1338,7 @@ seealso
 seedlist
 segmentGranularity
 sendgrid
+serde
 serialise
 serializable
 serverless
@@ -1510,6 +1519,7 @@ unittests
 unix
 unmappable
 unmapped
+unmapping
 unpause
 unpaused
 unpausing
