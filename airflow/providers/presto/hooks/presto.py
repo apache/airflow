@@ -18,7 +18,7 @@
 import json
 import os
 import warnings
-from typing import Any, Callable, Iterable, Mapping, Optional, Union, overload
+from typing import Any, Callable, Iterable, List, Mapping, Optional, Union, overload
 
 import prestodb
 from prestodb.exceptions import DatabaseError
@@ -242,7 +242,8 @@ class PrestoHook(DbApiHook):
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
         split_statements: bool = False,
-    ) -> Optional[list]:
+        return_last: bool = True,
+    ) -> Optional[Union[Any, List[Any]]]:
         """Execute the statement against Presto. Can be used to create views."""
 
     @overload
@@ -253,8 +254,9 @@ class PrestoHook(DbApiHook):
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
         split_statements: bool = False,
+        return_last: bool = True,
         hql: str = "",
-    ) -> Optional[list]:
+    ) -> Optional[Union[Any, List[Any]]]:
         """:sphinx-autoapi-skip:"""
 
     def run(
@@ -264,8 +266,9 @@ class PrestoHook(DbApiHook):
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
         split_statements: bool = False,
+        return_last: bool = True,
         hql: str = "",
-    ) -> Optional[list]:
+    ) -> Optional[Union[Any, List[Any]]]:
         """:sphinx-autoapi-skip:"""
         if hql:
             warnings.warn(

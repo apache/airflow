@@ -236,7 +236,8 @@ class DbApiHook(BaseHook):
         parameters: Optional[Union[Iterable, Mapping]] = None,
         handler: Optional[Callable] = None,
         split_statements: bool = False,
-    ) -> Optional[list]:
+        return_last: bool = True,
+    ) -> Optional[Union[Any, List[Any]]]:
         """
         Runs a command or a list of commands. Pass a list of sql
         statements to the sql parameter to get them to execute
@@ -249,6 +250,7 @@ class DbApiHook(BaseHook):
         :param parameters: The parameters to render the SQL query with.
         :param handler: The result handler which is called with the result of each statement.
         :param split_statements: Whether to split a single SQL string into statements and run separately
+        :param return_last: Whether to return handler result for only last statement or for all
         :return: return only result of the ALL SQL expressions if handler was provided.
         """
         if isinstance(sql, str):
@@ -281,6 +283,8 @@ class DbApiHook(BaseHook):
 
         if handler is None:
             return None
+        elif return_last:
+            return results[-1]
         else:
             return results
 
