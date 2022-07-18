@@ -17,6 +17,8 @@
  * under the License.
  */
 
+import * as API from './api-generated';
+
 type RunState = 'success' | 'running' | 'queued' | 'failed';
 
 type TaskState = RunState
@@ -91,4 +93,5 @@ export type {
   TaskInstance,
   Task,
   Dataset,
+  API,
 };

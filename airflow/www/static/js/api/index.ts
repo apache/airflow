@@ -36,7 +36,7 @@ import useMappedInstances from './useMappedInstances';
 import useDatasets from './useDatasets';
 
 axios.interceptors.response.use(
-  (res: AxiosResponse) => (res.data ? camelcaseKeys(res.data, { deep: true }) : res),
+  (res: AxiosResponse) => (res.data ? (!!res.data.tasks ? res.data : camelcaseKeys(res.data, { deep: true })) : res),
 );
 
 axios.defaults.headers.common.Accept = 'application/json';

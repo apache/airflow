@@ -21,9 +21,10 @@ import axios, { AxiosResponse } from 'axios';
 import { useQuery } from 'react-query';
 
 import { getMetaValue } from 'src/utils';
+import type { API } from 'src/types';
 
 interface TaskData {
-  tasks: any[];
+  tasks: API.Task[];
   totalEntries: number;
 }
 

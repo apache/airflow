@@ -42,7 +42,7 @@ const Header = () => {
 
   const { selected: { taskId, runId }, onSelect, clearSelection } = useSelection();
   const dagRun = dagRuns.find((r) => r.runId === runId);
-  const task = tasks.find((t) => t.taskId === taskId);
+  const task = tasks.find((t) => t.task_id === taskId);
 
   // clearSelection if the current selected dagRun is
   // filtered out.
@@ -83,7 +83,7 @@ const Header = () => {
     }
   }
 
-  const isMapped = task && task.isMapped;
+  const isMapped = task && task.is_mapped;
   const lastIndex = taskId ? taskId.lastIndexOf('.') : null;
   const taskName = taskId && lastIndex ? taskId.substring(lastIndex + 1) : taskId;
 
