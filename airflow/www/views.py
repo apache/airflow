@@ -852,6 +852,11 @@ class Airflow(AirflowBaseView):
                 permissions.RESOURCE_DAG,
             ) in user_permissions
 
+            dataset_triggered_dag_ids = {dag.dag_id for dag in dags if dag.schedule_interval == "Dataset"}
+            dataset_triggered_next_run_info = wwwutils.get_dataset_triggered_next_run_info(
+                dataset_triggered_dag_ids, session
+            )
+
             for dag in dags:
                 dag_resource_name = permissions.RESOURCE_DAG_PREFIX + dag.dag_id
                 if all_dags_editable:
@@ -863,6 +868,9 @@ class Airflow(AirflowBaseView):
                     dag.can_delete = True
                 else:
                     dag.can_delete = (permissions.ACTION_CAN_DELETE, dag_resource_name) in user_permissions
+                if dag.schedule_interval == "Dataset" and dag.dag_id in dataset_triggered_next_run_info:
+                    ready, total = dataset_triggered_next_run_info[dag.dag_id]
+                    dag.dataset_triggered_next_run_info = f"{ready} of {total} Datasets updated"
 
             dagtags = session.query(DagTag.name).distinct(DagTag.name).all()
             tags = [
@@ -2733,6 +2741,12 @@ class Airflow(AirflowBaseView):
         if default_dag_run_display_number not in num_runs_options:
             insort_left(num_runs_options, default_dag_run_display_number)
 
+        if dag_model.schedule_interval == "Dataset":
+            ready, total = wwwutils.get_dataset_triggered_next_run_info([dag_id], session)[dag_id]
+            dataset_triggered_next_run_info = f"{ready} of {total} Datasets updated"
+        else:
+            dataset_triggered_next_run_info = None
+
         return self.render_template(
             'airflow/grid.html',
             operators=sorted({op.task_type: op for op in dag.tasks}.values(), key=lambda x: x.task_type),
@@ -2754,6 +2768,7 @@ class Airflow(AirflowBaseView):
                     "numRuns": num_runs_options,
                 }
             ),
+            dataset_triggered_next_run_info=dataset_triggered_next_run_info,
         )
 
     @expose('/calendar')
