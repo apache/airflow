@@ -52,7 +52,7 @@ WORKSPACE_GET_STATUS_ENDPOINT = ('GET', 'api/2.0/workspace/get-status')
 
 RUN_LIFE_CYCLE_STATES = ['PENDING', 'RUNNING', 'TERMINATING', 'TERMINATED', 'SKIPPED', 'INTERNAL_ERROR']
 
-LIST_ZONES_ENDPOINT = ('GET', 'api/2.0/clusters/list-zones')
+SPARK_VERSIONS_ENDPOINT = ('GET', 'api/2.0/clusters/spark-versions')
 
 
 class RunState:
@@ -415,7 +415,7 @@ class DatabricksHook(BaseDatabricksHook):
         """Test the Databricks connectivity from UI"""
         hook = DatabricksHook(databricks_conn_id=self.databricks_conn_id)
         try:
-            hook._do_api_call(endpoint_info=LIST_ZONES_ENDPOINT).get('zones')
+            hook._do_api_call(endpoint_info=SPARK_VERSIONS_ENDPOINT).get('versions')
             status = True
             message = 'Connection successfully tested'
         except Exception as e:
