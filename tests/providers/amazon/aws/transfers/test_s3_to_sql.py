@@ -70,6 +70,7 @@ class TestS3ToSqlTransfer(unittest.TestCase):
     @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.BaseHook.get_hook')
     @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.os.remove')
     def test_execute(self, mock_remove, mock_get_hook, mock_read_file, mock_download_file):
+        mock_read_file.side_effect = Exception
         with pytest.raises(Exception):
             S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
 
