@@ -1661,6 +1661,6 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         session.add(dagrun_model)
         session.commit()
 
-        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/uptsream-dataset-events")
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstream-dataset-events")
 
         assert_401(response)
