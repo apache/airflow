@@ -192,6 +192,12 @@ class BatchClientHook(AwsBaseHook):
         RUNNING_STATE,
     )
 
+    COMPUTE_ENVIRONMENT_TERMINAL_STATUS = ('VALID', 'DELETED')
+    COMPUTE_ENVIRONMENT_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+
+    JOB_QUEUE_TERMINAL_STATUS = ('VALID', 'DELETED')
+    JOB_QUEUE_INTERMEDIATE_STATUS = ('CREATING', 'UPDATING', 'DELETING')
+
     def __init__(
         self, *args, max_retries: Optional[int] = None, status_retries: Optional[int] = None, **kwargs
     ) -> None:
