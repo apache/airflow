@@ -16,8 +16,8 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import enum
 from collections import namedtuple
-from enum import Enum
 from tempfile import NamedTemporaryFile
 from typing import TYPE_CHECKING, Iterable, Mapping, Optional, Sequence, Union
 
@@ -35,10 +35,13 @@ if TYPE_CHECKING:
     from airflow.utils.context import Context
 
 
-FILE_FORMAT = Enum(
-    "FILE_FORMAT",
-    "CSV, JSON, PARQUET",
-)
+class FILE_FORMAT(enum.Enum):
+    """Possible file formats."""
+
+    CSV = enum.auto()
+    JSON = enum.auto()
+    PARQUET = enum.auto()
+
 
 FileOptions = namedtuple('FileOptions', ['mode', 'suffix', 'function'])
 
@@ -118,9 +121,9 @@ class SqlToS3Operator(BaseOperator):
         if "path_or_buf" in self.pd_kwargs:
             raise AirflowException('The argument path_or_buf is not allowed, please remove it')
 
-        self.file_format = getattr(FILE_FORMAT, file_format.upper(), None)
-
-        if self.file_format is None:
+        try:
+            self.file_format = FILE_FORMAT[file_format.upper()]
+        except KeyError:
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
