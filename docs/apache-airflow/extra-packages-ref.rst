@@ -246,8 +246,8 @@ These are extras that add dependencies needed for integration with other softwar
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | openfaas            | ``pip install 'apache-airflow[openfaas]'``          | OpenFaaS hooks                            |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
-| openmldb            | ``pip install 'apache-airflow[openmldb]'``          | OpenMLDB hooks and operators                            |
-+---------------------+-----------------------------------------------------+-----------------------------------------------------+
+| openmldb            | ``pip install 'apache-airflow[openmldb]'``          | OpenMLDB hooks and operators              |
++---------------------+-----------------------------------------------------+-------------------------------------------+
 | oracle              | ``pip install 'apache-airflow[oracle]'``            | Oracle hooks and operators                |
 +---------------------+-----------------------------------------------------+-------------------------------------------+
 | postgres            | ``pip install 'apache-airflow[postgres]'``          | PostgreSQL operators and hook             |
