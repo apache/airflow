@@ -137,7 +137,6 @@ class DagFileProcessorProcess(LoggingMixin, MultiprocessingStartMethodMixin):
 
         set_context(log, file_path)
         setproctitle(f"airflow scheduler - DagFileProcessor {file_path}")
-
         try:
             # redirect stdout/stderr to log
             with redirect_stdout(StreamLogWriter(log, logging.INFO)), redirect_stderr(
