@@ -1540,21 +1540,21 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
     session.commit()
 
     # add 2 events, then a dag run, then 3 events, then another dag run then another event
-    first_timestamp = pendulum.now('UTC')
+    first_timestamp = pendulum.datetime(2022, 1, 1, tz='UTC')
     session.add_all(
         [
             DatasetEvent(dataset_id=dataset1a.id, created_at=first_timestamp),
             DatasetEvent(dataset_id=dataset1b.id, created_at=first_timestamp),
         ]
     )
-    dr = DagRun(
+    dr1 = DagRun(
         dag2.dag_id,
         run_id=unique_id + '-1',
         run_type=DagRunType.DATASET_TRIGGERED,
         execution_date=first_timestamp.add(microseconds=1000),
     )
-    dr.dag = dag2
-    session.add(dr)
+    dr1.dag = dag2
+    session.add(dr1)
     session.add_all(
         [
             DatasetEvent(dataset_id=dataset1a.id, created_at=first_timestamp.add(microseconds=2000)),
@@ -1562,30 +1562,29 @@ def test__get_upstream_dataset_events_with_prior(configured_app):
             DatasetEvent(dataset_id=dataset1b.id, created_at=first_timestamp.add(microseconds=4000)),
         ]
     )
-    dr = DagRun(
-        dag2.dag_id,
-        run_id=unique_id + '-2',
-        run_type=DagRunType.DATASET_TRIGGERED,
-        execution_date=first_timestamp.add(microseconds=4000),  # exact same time as 3rd event in window
-    )
-    dr.dag = dag2
-    session.add(dr)
-    dr = DagRun(  # this dag run should be ignored
+    dr2 = DagRun(  # this dag run should be ignored
         dag2.dag_id,
         run_id=unique_id + '-3',
         run_type=DagRunType.MANUAL,
         execution_date=first_timestamp.add(microseconds=3000),
     )
-    dr.dag = dag2
-    session.add(dr)
+    dr2.dag = dag2
+    session.add(dr2)
+    dr3 = DagRun(
+        dag2.dag_id,
+        run_id=unique_id + '-2',
+        run_type=DagRunType.DATASET_TRIGGERED,
+        execution_date=first_timestamp.add(microseconds=4000),  # exact same time as 3rd event in window
+    )
+    dr3.dag = dag2
+    session.add(dr3)
     session.add_all(
         [DatasetEvent(dataset_id=dataset1a.id, created_at=first_timestamp.add(microseconds=5000))]
     )
     session.commit()
     session.expunge_all()
 
-    # check result
-    events = _get_upstream_dataset_events(dag_run=dr, session=session)
+    events = _get_upstream_dataset_events(dag_run=dr3, session=session)
 
     event_times = [x.created_at for x in events]
     assert event_times == [

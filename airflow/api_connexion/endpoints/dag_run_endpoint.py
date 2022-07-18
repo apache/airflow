@@ -148,6 +148,7 @@ def _get_upstream_dataset_events(*, dag_run: DagRun, session: Session) -> List["
         session.query(DatasetEvent)
         .join(DatasetDagRef, DatasetEvent.dataset_id == DatasetDagRef.dataset_id)
         .filter(*dataset_event_filters)
+        .order_by(DatasetEvent.created_at)
         .all()
     )
     return dataset_events
