@@ -14,31 +14,3 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
----
-package-name: apache-airflow-providers-tabular
-name: Tabular
-description: |
-    `Tabular <https://tabular.io/>`__
-
-versions:
-  - 1.0.1
-  - 1.0.0
-
-dependencies:
-  - apache-airflow>=2.2.0
-
-integrations:
-  - integration-name: Tabular
-    external-doc-url: https://tabular.io/docs/
-    logo: /integration-logos/tabular/tabular.jpeg
-    tags: [software]
-
-hooks:
-  - integration-name: Tabular
-    python-modules:
-      - airflow.providers.tabular.hooks.tabular
-
-connection-types:
-  - hook-class-name: airflow.providers.tabular.hooks.tabular.TabularHook
-    connection-type: tabular

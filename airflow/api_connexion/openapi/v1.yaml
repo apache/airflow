@@ -818,6 +818,34 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
+    parameters:
+      - $ref: '#/components/parameters/DAGID'
+      - $ref: '#/components/parameters/DAGRunID'
+    get:
+      summary: Get dataset events for a DAG run
+      description: |
+        Get datasets for a dag run.
+
+        *New in version 2.4.0*
+      x-openapi-router-controller: airflow.api_connexion.endpoints.dag_run_endpoint
+      operationId: get_upstream_dataset_events
+      tags: [DAGRun, Dataset]
+      responses:
+        '200':
+          description: Success.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DatasetEventCollection'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '403':
+          $ref: '#/components/responses/PermissionDenied'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+
   /eventLogs:
     get:
       summary: List log entries
@@ -3508,19 +3536,19 @@ components:
         source_dag_id:
           type: string
           description: The DAG ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_task_id:
           type: string
           description: The task ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_run_id:
           type: string
           description: The DAG run ID that updated the dataset.
-          nullable: false
+          nullable: true
         source_map_index:
           type: integer
           description: The task map index that updated the dataset.
-          nullable: false
+          nullable: true
         created_at:
           type: string
           description: The dataset event creation time
