@@ -261,8 +261,10 @@ class SQLTableCheckOperator(BaseSQLOperator):
         :ref:`howto/operator:SQLTableCheckOperator`
     """
 
-    sql_check_template = "CASE WHEN check_statement THEN 1 ELSE 0 END AS check_name"
-    sql_min_template = "MIN(check_name)"
+    sql_check_template = """
+        SELECT '_check_name' AS check_name, MIN(_check_name) AS check_result
+        FROM(SELECT CASE WHEN check_statement THEN 1 ELSE 0 END AS _check_name FROM table)
+    """
 
     def __init__(
         self,
@@ -282,40 +284,38 @@ class SQLTableCheckOperator(BaseSQLOperator):
         # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
-    def execute(self, context=None):
-        hook = self.get_db_hook()
 
-        check_names = [*self.checks]
-        check_mins_sql = ",".join(
-            self.sql_min_template.replace("check_name", check_name) for check_name in check_names
+def execute(self, context=None):
+    hook = self.get_db_hook()
+    checks_sql = " UNION ALL ".join(
+        [
+            self.sql_check_template.replace("check_statement", value["check_statement"])
+            .replace("_check_name", check_name)
+            .replace("table", self.table)
+            for check_name, value in self.checks.items()
+        ]
+    )
+    batch_statement = f"WHERE {self.batch}" if self.batch else ""
+    self.sql = f"SELECT check_name, check_result FROM ({checks_sql}) {batch_statement};"
+    records = hook.get_pandas_df(self.sql)
+
+    if records.empty:
+        raise AirflowException(f"The following query returned zero rows: {self.sql}")
+
+    records.columns = records.columns.str.lower()
+    self.log.info("Record:\n%s", records)
+
+    for row in records.iterrows():
+        check = row[1].get("check_name")
+        result = row[1].get("check_result")
+        self.checks[check]["success"] = parse_boolean(str(result))
+
+    failed_tests = _get_failed_tests(self.checks)
+    if failed_tests:
+        raise AirflowException(
+            f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
+            "The following tests have failed:"
+            f"\n{', '.join(failed_tests)}"
         )
-        checks_sql = ",".join(
-            [
-                self.sql_check_template.replace("check_statement", value["check_statement"]).replace(
-                    "check_name", check_name
-                )
-                for check_name, value in self.checks.items()
-            ]
-        )
-        batch_statement = f"WHERE {self.batch}" if self.batch else ""
-        self.sql = f"SELECT {check_mins_sql} FROM (SELECT {checks_sql} FROM {self.table}) {batch_statement};"
-        records = hook.get_first(self.sql)
 
-        if not records:
-            raise AirflowException(f"The following query returned zero rows: {self.sql}")
-
-        self.log.info("Record: %s", records)
-
-        for check in self.checks.keys():
-            for result in records:
-                self.checks[check]["success"] = parse_boolean(str(result))
-
-        failed_tests = _get_failed_tests(self.checks)
-        if failed_tests:
-            raise AirflowException(
-                f"Test failed.\nQuery:\n{self.sql}\nResults:\n{records!s}\n"
-                "The following tests have failed:"
-                f"\n{', '.join(failed_tests)}"
-            )
-
-        self.log.info("All tests have passed")
+    self.log.info("All tests have passed")
