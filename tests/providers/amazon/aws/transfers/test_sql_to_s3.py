@@ -144,7 +144,7 @@ class TestSqlToS3Operator(unittest.TestCase):
                 replace=True,
             )
 
-    def test_fix_int_dtypes(self):
+    def test_fix_dtypes(self):
         op = SqlToS3Operator(
             query="query",
             s3_bucket="s3_bucket",
@@ -153,7 +153,7 @@ class TestSqlToS3Operator(unittest.TestCase):
             sql_conn_id="mysql_conn_id",
         )
         dirty_df = pd.DataFrame({"strings": ["a", "b", "c"], "ints": [1, 2, None]})
-        op._fix_int_dtypes(df=dirty_df)
+        op._fix_dtypes(df=dirty_df)
         assert dirty_df["ints"].dtype.kind == "i"
 
     def test_invalid_file_format(self):

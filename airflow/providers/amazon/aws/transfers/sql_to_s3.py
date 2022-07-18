@@ -127,9 +127,18 @@ class SqlToS3Operator(BaseOperator):
             raise AirflowException(f"The argument file_format doesn't support {file_format} value.")
 
     @staticmethod
-    def _fix_int_dtypes(df: pd.DataFrame) -> None:
-        """Mutate DataFrame to set dtypes for int columns containing NaN values."""
+    def _fix_dtypes(df: pd.DataFrame) -> None:
+        """
+        Mutate DataFrame to set dtypes for float columns containing NaN values.
+        Set dtype of object to str to allow for downstream transformations.
+        """
         for col in df:
+
+            if df[col].dtype.name == 'object':
+                # if the type wasn't identified or converted, change it to a string so if can still be
+                # processed.
+                df[col] = df[col].astype(str)
+
             if "float" in df[col].dtype.name and df[col].hasnans:
                 # inspect values to determine if dtype of non-null values is int or float
                 notna_series = df[col].dropna().values
@@ -148,7 +157,7 @@ class SqlToS3Operator(BaseOperator):
         data_df = sql_hook.get_pandas_df(sql=self.query, parameters=self.parameters)
         self.log.info("Data from SQL obtained")
 
-        self._fix_int_dtypes(data_df)
+        self._fix_dtypes(data_df)
         file_options = FILE_OPTIONS_MAP[self.file_format]
 
         with NamedTemporaryFile(mode=file_options.mode, suffix=file_options.suffix) as tmp_file:
