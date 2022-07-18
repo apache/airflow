@@ -206,3 +206,8 @@ def purge_logs(test_logs: List[Tuple[str, Optional[str]]]) -> None:
 
         if not client.describe_log_streams(logGroupName=group)['logStreams']:
             client.delete_log_group(logGroupName=group)
+
+
+@task
+def split_string(string):
+    return string.split(',')
