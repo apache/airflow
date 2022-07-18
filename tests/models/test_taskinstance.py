@@ -1555,6 +1555,40 @@ class TestTaskInstance:
             .count()
         ) == 1
 
+        # Clean up after ourselves
+        db.clear_db_datasets()
+
+    def test_outlet_datasets_failed(self, create_task_instance):
+        """
+        Verify that when we have an outlet dataset on a task, and the task
+        failed, a DatasetDagRunQueue is not logged, and a DatasetEvent is
+        not generated
+        """
+        from airflow.example_dags import example_datasets
+        from airflow.example_dags.example_datasets import dag9
+
+        session = settings.Session()
+        dagbag = DagBag(dag_folder=example_datasets.__file__)
+        dagbag.collect_dags(only_if_updated=False, safe_mode=False)
+        dagbag.sync_to_db(session=session)
+        run_id = str(uuid4())
+        dr = DagRun(dag9.dag_id, run_id=run_id, run_type='anything')
+        session.merge(dr)
+        task = dag9.get_task('fail_task')
+        ti = TaskInstance(task, run_id=run_id)
+        session.merge(ti)
+        session.commit()
+        with pytest.raises(AirflowFailException):
+            ti._run_raw_task()
+        ti.refresh_from_db()
+        assert ti.state == TaskInstanceState.FAILED
+
+        # check that no dagruns were queued
+        assert session.query(DatasetDagRunQueue).count() == 0
+
+        # check that no dataset events were generated
+        assert session.query(DatasetEvent).count() == 0
+
     def test_outlet_datasets_skipped(self, create_task_instance):
         """
         Verify that when we have an outlet dataset on a task, and the task
