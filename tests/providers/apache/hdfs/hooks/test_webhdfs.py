@@ -116,7 +116,7 @@ class TestWebHDFSHook(unittest.TestCase):
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
     @patch(
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection',
-        return_value=Connection(host='host_1.com,host_2.com', login='user',password='password'),
+        return_value=Connection(host='host_1.com,host_2.com', login='user', password='password'),
     )
     @patch("airflow.providers.apache.hdfs.hooks.webhdfs.socket")
     def test_get_conn_with_password_without_port_schema(
