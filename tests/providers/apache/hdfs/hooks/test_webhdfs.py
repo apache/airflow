@@ -112,7 +112,7 @@ class TestWebHDFSHook(unittest.TestCase):
         mock_insecure_client.return_value.status.assert_called_once_with('/')
         assert conn == mock_insecure_client.return_value
 
-    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.requests.Session', return_value="session")
+    @patch('airflow.providers.apache.hdfs.hooks.webhdfs.requests.Session', create=True)
     @patch('airflow.providers.apache.hdfs.hooks.webhdfs.InsecureClient')
     @patch(
         'airflow.providers.apache.hdfs.hooks.webhdfs.WebHDFSHook.get_connection',
