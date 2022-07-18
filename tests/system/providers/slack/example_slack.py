@@ -15,14 +15,18 @@
 # specific language governing permissions and limitations
 # under the License.
 
+import os
 from datetime import datetime
 
 from airflow.models.dag import DAG
 from airflow.providers.slack.operators.slack import SlackAPIFileOperator
 
+ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
+DAG_ID = "slack_example_dag"
+
 # [START slack_operator_howto_guide]
 with DAG(
-    dag_id='slack_example_dag',
+    dag_id=DAG_ID,
     schedule_interval=None,
     start_date=datetime(2021, 1, 1),
     default_args={'slack_conn_id': 'slack', 'channel': '#general', 'initial_comment': 'Hello World!'},
@@ -45,3 +49,9 @@ with DAG(
     # [END slack_operator_howto_guide]
 
     slack_operator_file >> slack_operator_file_content
+
+
+from tests.system.utils import get_test_run  # noqa: E402
+
+# Needed to run the example DAG with pytest (see: tests/system/README.md#run_via_pytest)
+test_run = get_test_run(dag)
