@@ -1786,7 +1786,8 @@ ${{ hashFiles('.pre-commit-config.yaml') }}"
       RUNS_ON: ${{ fromJson(needs.build-info.outputs.runs-on)[0] }}
     if: >
       needs.build-info.outputs.upgrade-to-newer-dependencies != 'false' &&
-      needs.build-info.outputs.in-workflow-build == 'true'
+      needs.build-info.outputs.in-workflow-build == 'true' &&
+      needs.build-info.outputs.merge-run != 'true'
     steps:
       - name: Cleanup repo
         run: docker run -v "${GITHUB_WORKSPACE}:/workspace" -u 0:0 bash -c "rm -rf /workspace/*"
