@@ -31,6 +31,8 @@ Similarly to the :class:`SnowflakeOperator <airflow.providers.snowflake.operator
 the additional relevant parameters to establish connection with your Snowflake instance.
 This operator will allow loading of one or more named files from a specific Snowflake stage (predefined S3 path). In order to do so
 pass the relevant file names to the ``s3_keys`` parameter and the relevant Snowflake stage to the ``stage`` parameter.
+``pattern`` can be used to specify the file names and/or paths match patterns
+(see `docs <https://docs.snowflake.com/en/sql-reference/sql/copy-into-table.html#loading-using-pattern-matching>`__).
 ``file_format`` can be used to either reference an already existing Snowflake file format or a custom string that defines
 a file format (see `docs <https://docs.snowflake.com/en/sql-reference/sql/create-file-format.html>`__).
 

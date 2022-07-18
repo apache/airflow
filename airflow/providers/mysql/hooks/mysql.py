@@ -20,8 +20,8 @@
 import json
 from typing import TYPE_CHECKING, Dict, Optional, Tuple, Union
 
-from airflow.hooks.dbapi import DbApiHook
 from airflow.models import Connection
+from airflow.providers.common.sql.hooks.sql import DbApiHook
 
 if TYPE_CHECKING:
     from mysql.connector.abstracts import MySQLConnectionAbstract
@@ -184,6 +184,7 @@ class MySqlHook(DbApiHook):
             """
         )
         conn.commit()
+        conn.close()
 
     def bulk_dump(self, table: str, tmp_file: str) -> None:
         """Dumps a database table into a tab-delimited file"""
@@ -196,6 +197,7 @@ class MySqlHook(DbApiHook):
             """
         )
         conn.commit()
+        conn.close()
 
     @staticmethod
     def _serialize_cell(cell: object, conn: Optional[Connection] = None) -> object:
@@ -263,3 +265,4 @@ class MySqlHook(DbApiHook):
 
         cursor.close()
         conn.commit()
+        conn.close()

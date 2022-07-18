@@ -26,11 +26,11 @@ This module contains Base AWS Hook.
 
 import configparser
 import datetime
+import json
 import logging
-import sys
 import warnings
 from functools import wraps
-from typing import Any, Callable, Dict, Optional, Tuple, Type, Union
+from typing import Any, Callable, Dict, Generic, Optional, Tuple, Type, TypeVar, Union
 
 import boto3
 import botocore
@@ -40,20 +40,17 @@ import tenacity
 from botocore.client import ClientMeta
 from botocore.config import Config
 from botocore.credentials import ReadOnlyCredentials
+from dateutil.tz import tzlocal
 from slugify import slugify
 
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
-from dateutil.tz import tzlocal
-
+from airflow.compat.functools import cached_property
 from airflow.configuration import conf
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
 from airflow.models.connection import Connection
 from airflow.utils.log.logging_mixin import LoggingMixin
+
+BaseAwsConnection = TypeVar("BaseAwsConnection", bound=Union[boto3.client, boto3.resource])
 
 
 class BaseSessionFactory(LoggingMixin):
@@ -87,6 +84,15 @@ class BaseSessionFactory(LoggingMixin):
                 self.extra_config["session_kwargs"],
             )
             session_kwargs = self.extra_config["session_kwargs"]
+
+        if "profile" in self.extra_config and "s3_config_file" not in self.extra_config:
+            if "profile_name" not in session_kwargs:
+                self.log.warning(
+                    "Found 'profile' without specifying 's3_config_file'. "
+                    "If required profile from AWS Shared Credentials please "
+                    "set 'profile_name' in extra 'session_kwargs'."
+                )
+
         self.basic_session = self._create_basic_session(session_kwargs=session_kwargs)
         self.role_arn = self._read_role_arn_from_extra_config()
         # If role_arn was specified then STS + assume_role
@@ -194,6 +200,12 @@ class BaseSessionFactory(LoggingMixin):
         role_arn = self.extra_config.get("role_arn")
         if role_arn is None and aws_account_id is not None and aws_iam_role is not None:
             self.log.info("Constructing role_arn from aws_account_id and aws_iam_role")
+            warnings.warn(
+                "Constructing 'role_arn' from 'aws_account_id' and 'aws_iam_role' is deprecated and "
+                "will be removed in a future releases. Please set 'role_arn' in extra config.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             role_arn = f"arn:aws:iam::{aws_account_id}:role/{aws_iam_role}"
         self.log.debug("role_arn is %s", role_arn)
         return role_arn
@@ -210,6 +222,12 @@ class BaseSessionFactory(LoggingMixin):
             aws_secret_access_key = self.extra_config["aws_secret_access_key"]
             self.log.info("Credentials retrieved from extra_config")
         elif "s3_config_file" in self.extra_config:
+            warnings.warn(
+                "Use local credentials file is never documented and well tested. "
+                "Obtain credentials by this way deprecated and will be removed in a future releases.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             aws_access_key_id, aws_secret_access_key = _parse_s3_config(
                 self.extra_config["s3_config_file"],
                 self.extra_config.get("s3_config_format"),
@@ -223,7 +241,13 @@ class BaseSessionFactory(LoggingMixin):
 
     def _assume_role(self, sts_client: boto3.client) -> Dict:
         assume_role_kwargs = self.extra_config.get("assume_role_kwargs", {})
-        if "external_id" in self.extra_config:  # Backwards compatibility
+        if "ExternalId" not in assume_role_kwargs and "external_id" in self.extra_config:
+            warnings.warn(
+                "'external_id' in extra config is deprecated and will be removed in a future releases. "
+                "Set 'ExternalId' in 'assume_role_kwargs' in extra config.",
+                DeprecationWarning,
+                stacklevel=3,
+            )
             assume_role_kwargs["ExternalId"] = self.extra_config.get("external_id")
         role_session_name = self._strip_invalid_session_name_characters(f"Airflow_{self.conn.conn_id}")
         self.log.debug(
@@ -372,7 +396,7 @@ class BaseSessionFactory(LoggingMixin):
         return web_identity_token_loader
 
 
-class AwsBaseHook(BaseHook):
+class AwsGenericHook(BaseHook, Generic[BaseAwsConnection]):
     """
     Interact with AWS.
     This class is a thin wrapper around the boto3 python library.
@@ -382,13 +406,13 @@ class AwsBaseHook(BaseHook):
         running Airflow in a distributed manner and aws_conn_id is None or
         empty, then default boto3 configuration would be used (and must be
         maintained on each worker node).
-    :param verify: Whether or not to verify SSL certificates.
+    :param verify: Whether or not to verify SSL certificates. See:
         https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html
     :param region_name: AWS region_name. If not specified then the default boto3 behaviour is used.
     :param client_type: boto3.client client_type. Eg 's3', 'emr' etc
     :param resource_type: boto3.resource resource_type. Eg 'dynamodb' etc
-    :param config: Configuration for botocore client.
-        (https://boto3.amazonaws.com/v1/documentation/api/latest/reference/core/session.html)
+    :param config: Configuration for botocore client. See:
+        https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
     """
 
     conn_name_attr = 'aws_conn_id'
@@ -413,9 +437,6 @@ class AwsBaseHook(BaseHook):
         self.region_name = region_name
         self.config = config
 
-        if not (self.client_type or self.resource_type):
-            raise AirflowException('Either client_type or resource_type must be provided.')
-
     def _get_credentials(self, region_name: Optional[str]) -> Tuple[boto3.session.Session, Optional[str]]:
 
         if not self.aws_conn_id:
@@ -430,7 +451,7 @@ class AwsBaseHook(BaseHook):
             extra_config = connection_object.extra_dejson
             endpoint_url = extra_config.get("host")
 
-            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html#botocore.config.Config
+            # https://botocore.amazonaws.com/v1/documentation/api/latest/reference/config.html
             if "config_kwargs" in extra_config:
                 self.log.debug(
                     "Retrieving config_kwargs from Connection.extra_config['config_kwargs']: %s",
@@ -445,9 +466,11 @@ class AwsBaseHook(BaseHook):
             return session, endpoint_url
 
         except AirflowException:
-            self.log.warning("Unable to use Airflow Connection for credentials.")
-            self.log.debug("Fallback on boto3 credential strategy")
-            # http://boto3.readthedocs.io/en/latest/guide/configuration.html
+            self.log.warning(
+                "Unable to use Airflow Connection for credentials. "
+                "Fallback on boto3 credential strategy. See: "
+                "https://boto3.amazonaws.com/v1/documentation/api/latest/guide/configuration.html"
+            )
 
         self.log.debug(
             "Creating session using boto3 credential strategy region_name=%s",
@@ -514,13 +537,15 @@ class AwsBaseHook(BaseHook):
         :return: boto3.client or boto3.resource
         :rtype: Union[boto3.client, boto3.resource]
         """
-        if self.client_type:
+        if not ((not self.client_type) ^ (not self.resource_type)):
+            raise ValueError(
+                f"Either client_type={self.client_type!r} or "
+                f"resource_type={self.resource_type!r} must be provided, not both."
+            )
+        elif self.client_type:
             return self.get_client_type(region_name=self.region_name)
-        elif self.resource_type:
-            return self.get_resource_type(region_name=self.region_name)
         else:
-            # Rare possibility - subclasses have not specified a client_type or resource_type
-            raise NotImplementedError('Could not get boto3 connection!')
+            return self.get_resource_type(region_name=self.region_name)
 
     @cached_property
     def conn_client_meta(self) -> ClientMeta:
@@ -537,7 +562,7 @@ class AwsBaseHook(BaseHook):
     def conn_partition(self) -> str:
         return self.conn_client_meta.partition
 
-    def get_conn(self) -> Union[boto3.client, boto3.resource]:
+    def get_conn(self) -> BaseAwsConnection:
         """
         Get the underlying boto3 client/resource (cached)
 
@@ -614,6 +639,40 @@ class AwsBaseHook(BaseHook):
             return decorator_f
 
         return retry_decorator
+
+    def test_connection(self):
+        """
+        Tests the AWS connection by call AWS STS (Security Token Service) GetCallerIdentity API.
+
+        .. seealso::
+            https://docs.aws.amazon.com/STS/latest/APIReference/API_GetCallerIdentity.html
+        """
+        orig_client_type, self.client_type = self.client_type, 'sts'
+        try:
+            res = self.get_client_type().get_caller_identity()
+            metadata = res.pop("ResponseMetadata", {})
+            if metadata.get("HTTPStatusCode") == 200:
+                return True, json.dumps(res)
+            else:
+                try:
+                    return False, json.dumps(metadata)
+                except TypeError:
+                    return False, str(metadata)
+        except Exception as e:
+            return False, str(e)
+        finally:
+            self.client_type = orig_client_type
+
+
+class AwsBaseHook(AwsGenericHook[Union[boto3.client, boto3.resource]]):
+    """
+    Interact with AWS.
+    This class is a thin wrapper around the boto3 python library
+    with basic conn annotation.
+
+    .. seealso::
+        :class:`~airflow.providers.amazon.aws.hooks.base_aws.AwsGenericHook`
+    """
 
 
 def _parse_s3_config(

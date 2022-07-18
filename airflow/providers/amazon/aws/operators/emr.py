@@ -16,25 +16,17 @@
 # specific language governing permissions and limitations
 # under the License.
 import ast
-import sys
 from typing import TYPE_CHECKING, Any, Dict, List, Optional, Sequence, Union
 from uuid import uuid4
 
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.models import BaseOperator
-from airflow.providers.amazon.aws.hooks.emr import EmrHook
+from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook, EmrHook
 from airflow.providers.amazon.aws.links.emr import EmrClusterLink
 
 if TYPE_CHECKING:
     from airflow.utils.context import Context
-
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
-
-from airflow.providers.amazon.aws.hooks.emr import EmrContainerHook
 
 
 class EmrAddStepsOperator(BaseOperator):
@@ -73,8 +65,6 @@ class EmrAddStepsOperator(BaseOperator):
         steps: Optional[Union[List[dict], str]] = None,
         **kwargs,
     ):
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         if not (job_flow_id is None) ^ (job_flow_name is None):
             raise AirflowException('Exactly one of job_flow_id or job_flow_name must be specified.')
         super().__init__(**kwargs)
@@ -349,8 +339,6 @@ class EmrModifyClusterOperator(BaseOperator):
     def __init__(
         self, *, cluster_id: str, step_concurrency_level: int, aws_conn_id: str = 'aws_default', **kwargs
     ):
-        if kwargs.get('xcom_push') is not None:
-            raise AirflowException("'xcom_push' was deprecated, use 'do_xcom_push' instead")
         super().__init__(**kwargs)
         self.aws_conn_id = aws_conn_id
         self.cluster_id = cluster_id

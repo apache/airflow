@@ -40,7 +40,7 @@ class S3ToSqlOperator(BaseOperator):
 
     :param s3_key: path to s3 file. (templated)
     :param destination_table: target table on sql. (templated)
-    :param file_format: input file format. CSV, JSON or Parquet. (templated)
+    :param file_format: input file format. csv, json or parquet. (templated)
     :param file_options: file reader options.
     :param source_conn_id: source connection.
     :param destination_conn_id: destination connection.
@@ -91,6 +91,8 @@ class S3ToSqlOperator(BaseOperator):
             df = pandas.read_csv(file, **self.file_options)
         elif self.file_format == 'parquet':
             df = pandas.read_parquet(file, **self.file_options)
+        elif self.file_format == 'json':
+            df = pandas.read_json(file, **self.file_options)
         else:
             raise AirflowException('File format was not found!!')
         if self.preoperator:

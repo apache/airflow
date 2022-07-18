@@ -14,29 +14,18 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-import sys
 import tempfile
 import warnings
-from typing import Any, Dict, Generator, List, Optional, Tuple, Union
-
-from kubernetes.config import ConfigException
-
-from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
+from typing import TYPE_CHECKING, Any, Dict, Generator, List, Optional, Tuple, Union
 
 from kubernetes import client, config, watch
+from kubernetes.config import ConfigException
 
-try:
-    import airflow.utils.yaml as yaml
-except ImportError:
-    import yaml  # type: ignore[no-redef]
-
+from airflow.compat.functools import cached_property
 from airflow.exceptions import AirflowException
 from airflow.hooks.base import BaseHook
+from airflow.kubernetes.kube_client import _disable_verify_ssl, _enable_tcp_keepalive
+from airflow.utils import yaml
 
 
 def _load_body_to_dict(body):
@@ -133,6 +122,8 @@ class KubernetesHook(BaseHook):
         self.disable_verify_ssl = disable_verify_ssl
         self.disable_tcp_keepalive = disable_tcp_keepalive
 
+        self._is_in_cluster: Optional[bool] = None
+
         # these params used for transition in KPO to K8s hook
         # for a deprecation period we will continue to consider k8s settings from airflow.cfg
         self._deprecated_core_disable_tcp_keepalive: Optional[bool] = None
@@ -178,7 +169,7 @@ class KubernetesHook(BaseHook):
             DeprecationWarning,
         )
 
-    def get_conn(self) -> Any:
+    def get_conn(self) -> client.ApiClient:
         """Returns kubernetes api session for use with requests"""
         in_cluster = self._coalesce_param(
             self.in_cluster, self.conn_extras.get("extra__kubernetes__in_cluster") or None
@@ -238,11 +229,13 @@ class KubernetesHook(BaseHook):
 
         if in_cluster:
             self.log.debug("loading kube_config from: in_cluster configuration")
+            self._is_in_cluster = True
             config.load_incluster_config()
             return client.ApiClient()
 
         if kubeconfig_path is not None:
             self.log.debug("loading kube_config from: %s", kubeconfig_path)
+            self._is_in_cluster = False
             config.load_kube_config(
                 config_file=kubeconfig_path,
                 client_configuration=self.client_configuration,
@@ -255,6 +248,7 @@ class KubernetesHook(BaseHook):
                 self.log.debug("loading kube_config from: connection kube_config")
                 temp_config.write(kubeconfig.encode())
                 temp_config.flush()
+                self._is_in_cluster = False
                 config.load_kube_config(
                     config_file=temp_config.name,
                     client_configuration=self.client_configuration,
@@ -264,28 +258,40 @@ class KubernetesHook(BaseHook):
 
         return self._get_default_client(cluster_context=cluster_context)
 
-    def _get_default_client(self, *, cluster_context=None):
+    def _get_default_client(self, *, cluster_context: Optional[str] = None) -> client.ApiClient:
         # if we get here, then no configuration has been supplied
         # we should try in_cluster since that's most likely
         # but failing that just load assuming a kubeconfig file
         # in the default location
         try:
             config.load_incluster_config(client_configuration=self.client_configuration)
+            self._is_in_cluster = True
         except ConfigException:
             self.log.debug("loading kube_config from: default file")
+            self._is_in_cluster = False
             config.load_kube_config(
                 client_configuration=self.client_configuration,
                 context=cluster_context,
             )
         return client.ApiClient()
 
+    @property
+    def is_in_cluster(self) -> bool:
+        """Expose whether the hook is configured with ``load_incluster_config`` or not"""
+        if self._is_in_cluster is not None:
+            return self._is_in_cluster
+        self.api_client  # so we can determine if we are in_cluster or not
+        if TYPE_CHECKING:
+            assert self._is_in_cluster is not None
+        return self._is_in_cluster
+
     @cached_property
-    def api_client(self) -> Any:
+    def api_client(self) -> client.ApiClient:
         """Cached Kubernetes API client"""
         return self.get_conn()
 
     @cached_property
-    def core_v1_client(self):
+    def core_v1_client(self) -> client.CoreV1Api:
         return client.CoreV1Api(api_client=self.api_client)
 
     def create_custom_object(
@@ -373,12 +379,11 @@ class KubernetesHook(BaseHook):
         :param container: container name
         :param namespace: kubernetes namespace
         """
-        api = client.CoreV1Api(self.api_client)
         watcher = watch.Watch()
         return (
             watcher,
             watcher.stream(
-                api.read_namespaced_pod_log,
+                self.core_v1_client.read_namespaced_pod_log,
                 name=pod_name,
                 container=container,
                 namespace=namespace if namespace else self.get_namespace(),
@@ -398,8 +403,7 @@ class KubernetesHook(BaseHook):
         :param container: container name
         :param namespace: kubernetes namespace
         """
-        api = client.CoreV1Api(self.api_client)
-        return api.read_namespaced_pod_log(
+        return self.core_v1_client.read_namespaced_pod_log(
             name=pod_name,
             container=container,
             _preload_content=False,

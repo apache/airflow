@@ -28,6 +28,7 @@ from airflow.providers.presto.transfers.presto_to_slack import PrestoToSlackOper
 PRESTO_TABLE = os.environ.get("PRESTO_TABLE", "test_table")
 ENV_ID = os.environ.get("SYSTEM_TESTS_ENV_ID")
 DAG_ID = "example_presto_to_slack"
+SLACK_CONN_WEBHOOK = 'https://hooks.slack.com/services/T00000000/B00000000/XXXXXXXXXXXXXXXXXXXXXXXX'
 
 with models.DAG(
     dag_id=DAG_ID,
@@ -39,6 +40,7 @@ with models.DAG(
     # [START howto_operator_presto_to_slack]
     PrestoToSlackOperator(
         task_id="presto_to_slack",
+        slack_token=SLACK_CONN_WEBHOOK,
         sql=f"SELECT col FROM {PRESTO_TABLE}",
         slack_channel="my_channel",
         slack_message="message: {{ ds }}, {{ results_df }}",

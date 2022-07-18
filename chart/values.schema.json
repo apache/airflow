@@ -13,6 +13,7 @@
         "Webserver",
         "Workers",
         "Triggerer",
+        "DagProcessor",
         "Flower",
         "Redis",
         "StatsD",
@@ -67,13 +68,13 @@
         "defaultAirflowTag": {
             "description": "Default airflow tag to deploy.",
             "type": "string",
-            "default": "2.3.2",
+            "default": "2.3.3",
             "x-docsSection": "Common"
         },
         "airflowVersion": {
             "description": "Airflow version (Used to make some decisions based on Airflow Version being deployed).",
             "type": "string",
-            "default": "2.3.2",
+            "default": "2.3.3",
             "x-docsSection": "Common"
         },
         "securityContext": {
@@ -1249,6 +1250,27 @@
                             "description": "Maximum number of workers created by KEDA.",
                             "type": "integer",
                             "default": 10
+                        },
+                        "advanced": {
+                            "description": "Advanced KEDA configuration.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": false,
+                            "properties": {
+                                "horizontalPodAutoscalerConfig": {
+                                    "description": "HorizontalPodAutoscalerConfig specifies horizontal scale config.",
+                                    "type": "object",
+                                    "default": {},
+                                    "properties": {
+                                        "behavior": {
+                                            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target.",
+                                            "type": "object",
+                                            "default": {},
+                                            "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior"
+                                        }
+                                    }
+                                }
+                            }
                         }
                     }
                 },
@@ -2114,6 +2136,264 @@
                 }
             }
         },
+        "dagProcessor": {
+            "description": "Airflow dag processor settings.",
+            "type": "object",
+            "x-docsSection": "DagProcessor",
+            "additionalProperties": false,
+            "properties": {
+                "enabled": {
+                    "description": "Enable standalone dag processor (requires Airflow 2.3.0+).",
+                    "type": "boolean",
+                    "default": false
+                },
+                "livenessProbe": {
+                    "description": "Liveness probe configuration for dag processor.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "initialDelaySeconds": {
+                            "description": "Number of seconds after the container has started before liveness probes are initiated.",
+                            "type": "integer",
+                            "default": 10
+                        },
+                        "timeoutSeconds": {
+                            "description": "Number of seconds after which the probe times out. Minimum value is 1 seconds.",
+                            "type": "integer",
+                            "default": 20
+                        },
+                        "failureThreshold": {
+                            "description": "Minimum consecutive failures for the probe to be considered failed after having succeeded. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 5
+                        },
+                        "periodSeconds": {
+                            "description": "How often (in seconds) to perform the probe. Minimum value is 1.",
+                            "type": "integer",
+                            "default": 60
+                        },
+                        "command": {
+                            "description": "Command for livenessProbe",
+                            "type": [
+                                "array",
+                                "null"
+                            ],
+                            "items": {
+                                "type": [
+                                    "string",
+                                    "null"
+                                ]
+                            }
+                        }
+                    }
+                },
+                "replicas": {
+                    "description": "Number of dag processors to run.",
+                    "type": "integer",
+                    "default": 1
+                },
+                "command": {
+                    "description": "Command to use when running the Airflow dag processor (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": null
+                },
+                "args": {
+                    "description": "Args to use when running the Airflow dag processor (templated).",
+                    "type": [
+                        "array",
+                        "null"
+                    ],
+                    "items": {
+                        "type": "string"
+                    },
+                    "default": [
+                        "bash",
+                        "-c",
+                        "exec airflow dag-processor"
+                    ]
+                },
+                "strategy": {
+                    "description": "Specifies the strategy used to replace old Pods by new ones when deployed as a Deployment.",
+                    "type": [
+                        "null",
+                        "object"
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.apps.v1.DeploymentStrategy",
+                    "default": {
+                        "rollingUpdate": {
+                            "maxSurge": "100%",
+                            "maxUnavailable": "50%"
+                        }
+                    }
+                },
+                "serviceAccount": {
+                    "description": "Create ServiceAccount.",
+                    "type": "object",
+                    "properties": {
+                        "create": {
+                            "description": "Specifies whether a ServiceAccount should be created.",
+                            "type": "boolean",
+                            "default": true
+                        },
+                        "name": {
+                            "description": "The name of the ServiceAccount to use. If not set and create is true, a name is generated using the release name.",
+                            "type": [
+                                "string",
+                                "null"
+                            ],
+                            "default": null
+                        },
+                        "annotations": {
+                            "description": "Annotations to add to the dag processor Kubernetes ServiceAccount.",
+                            "type": "object",
+                            "default": {},
+                            "additionalProperties": {
+                                "type": "string"
+                            }
+                        }
+                    }
+                },
+                "resources": {
+                    "description": "Resources for dag processor pods.",
+                    "type": "object",
+                    "default": {},
+                    "examples": [
+                        {
+                            "limits": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            },
+                            "requests": {
+                                "cpu": "100m",
+                                "memory": "128Mi"
+                            }
+                        }
+                    ],
+                    "$ref": "#/definitions/io.k8s.api.core.v1.ResourceRequirements"
+                },
+                "safeToEvict": {
+                    "description": "This setting tells Kubernetes that its ok to evict when it wants to scale a node down.",
+                    "type": "boolean",
+                    "default": true
+                },
+                "extraContainers": {
+                    "description": "Launch additional containers into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraInitContainers": {
+                    "description": "Add additional init containers into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Container"
+                    }
+                },
+                "extraVolumes": {
+                    "description": "Mount additional volumes into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Volume"
+                    }
+                },
+                "extraVolumeMounts": {
+                    "description": "Mount additional volumes into dag processor.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.core.v1.VolumeMount"
+                    }
+                },
+                "nodeSelector": {
+                    "description": "Select certain nodes for dag processor pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "priorityClassName": {
+                    "description": "Specify priority for dag processor pods.",
+                    "type": [
+                        "string",
+                        "null"
+                    ],
+                    "default": null
+                },
+                "affinity": {
+                    "description": "Specify scheduling constraints for dag processor pods.",
+                    "type": "object",
+                    "default": "See values.yaml",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.Affinity"
+                },
+                "tolerations": {
+                    "description": "Specify Tolerations for dag processor pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.Toleration"
+                    }
+                },
+                "topologySpreadConstraints": {
+                    "description": "Specify topology spread constraints for dag processor pods.",
+                    "type": "array",
+                    "default": [],
+                    "items": {
+                        "type": "object",
+                        "$ref": "#/definitions/io.k8s.api.core.v1.TopologySpreadConstraint"
+                    }
+                },
+                "terminationGracePeriodSeconds": {
+                    "description": "Grace period for tasks to finish after SIGTERM is sent from Kubernetes.",
+                    "type": "integer",
+                    "default": 60
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the dag processor pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
+                },
+                "securityContext": {
+                    "description": "Security context for the dag processor pod. If not set, the values from `securityContext` will be used.",
+                    "type": "object",
+                    "$ref": "#/definitions/io.k8s.api.core.v1.PodSecurityContext",
+                    "default": {},
+                    "examples": [
+                        {
+                            "runAsUser": 50000,
+                            "runAsGroup": 0,
+                            "fsGroup": 0
+                        }
+                    ]
+                },
+                "waitForMigrations": {
+                    "description": "wait-for-airflow-migrations init container.",
+                    "type": "object",
+                    "additionalProperties": false,
+                    "properties": {
+                        "enabled": {
+                            "description": "Enable wait-for-airflow-migrations init container.",
+                            "type": "boolean",
+                            "default": true
+                        }
+                    }
+                }
+            }
+        },
         "createUserJob": {
             "description": "Airflow job to create a user settings.",
             "type": "object",
@@ -2506,6 +2786,11 @@
                             "description": "Webserver Liveness probe period seconds.",
                             "type": "integer",
                             "default": 5
+                        },
+                        "scheme": {
+                            "description": "Webserver Liveness probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
                         }
                     }
                 },
@@ -2533,6 +2818,11 @@
                             "description": "Webserver Readiness probe period seconds.",
                             "type": "integer",
                             "default": 5
+                        },
+                        "scheme": {
+                            "description": "Webserver Readiness probe scheme.",
+                            "type": "string",
+                            "default": "HTTP"
                         }
                     }
                 },
@@ -3928,6 +4218,14 @@
                     "description": "Redis run as user parameter.",
                     "type": "integer",
                     "default": 0
+                },
+                "podAnnotations": {
+                    "description": "Annotations to add to the redis pods.",
+                    "type": "object",
+                    "default": {},
+                    "additionalProperties": {
+                        "type": "string"
+                    }
                 }
             }
         },
@@ -4603,6 +4901,70 @@
                 "maxUnavailable": {
                     "$ref": "#/definitions/io.k8s.apimachinery.pkg.util.intstr.IntOrString",
                     "description": "The maximum number of pods that can be unavailable during the update. Value can be an absolute number (ex: 5) or a percentage of desired pods (ex: 10%). Absolute number is calculated from percentage by rounding down. This can not be 0 if MaxSurge is 0. Defaults to 25%. Example: when this is set to 30%, the old ReplicaSet can be scaled down to 70% of desired pods immediately when the rolling update starts. Once new pods are ready, old ReplicaSet can be scaled down further, followed by scaling up the new ReplicaSet, ensuring that the total number of pods available at all times during the update is at least 70% of desired pods."
+                }
+            },
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.HPAScalingPolicy": {
+            "description": "HPAScalingPolicy is a single policy which must hold true for a specified past interval.",
+            "properties": {
+                "periodSeconds": {
+                    "description": "PeriodSeconds specifies the window of time for which the policy should hold true. PeriodSeconds must be greater than zero and less than or equal to 1800 (30 min).",
+                    "format": "int32",
+                    "type": "integer"
+                },
+                "type": {
+                    "description": "Type is used to specify the scaling policy.",
+                    "type": "string"
+                },
+                "value": {
+                    "description": "Value contains the amount of change which is permitted by the policy. It must be greater than zero",
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            "required": [
+                "type",
+                "value",
+                "periodSeconds"
+            ],
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.HPAScalingRules": {
+            "description": "HPAScalingRules configures the scaling behavior for one direction. These Rules are applied after calculating DesiredReplicas from metrics for the HPA. They can limit the scaling velocity by specifying scaling policies. They can prevent flapping by specifying the stabilization window, so that the number of replicas is not set instantly, instead, the safest value from the stabilization window is chosen.",
+            "properties": {
+                "policies": {
+                    "description": "policies is a list of potential scaling polices which can be used during scaling. At least one policy must be specified, otherwise the HPAScalingRules will be discarded as invalid",
+                    "items": {
+                        "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HPAScalingPolicy"
+                    },
+                    "type": "array"
+                },
+                "selectPolicy": {
+                    "description": "selectPolicy is used to specify which policy should be used. If not set, the default value MaxPolicySelect is used.",
+                    "type": "string"
+                },
+                "stabilizationWindowSeconds": {
+                    "description": "StabilizationWindowSeconds is the number of seconds for which past recommendations should be considered while scaling up or scaling down. StabilizationWindowSeconds must be greater than or equal to zero and less than or equal to 3600 (one hour). If not set, use the default values: - For scale up: 0 (i.e. no stabilization is done). - For scale down: 300 (i.e. the stabilization window is 300 seconds long).",
+                    "format": "int32",
+                    "type": "integer"
+                }
+            },
+            "type": "object",
+            "additionalProperties": false
+        },
+        "io.k8s.api.autoscaling.v2beta2.HorizontalPodAutoscalerBehavior": {
+            "description": "HorizontalPodAutoscalerBehavior configures the scaling behavior of the target in both Up and Down directions (scaleUp and scaleDown fields respectively).",
+            "properties": {
+                "scaleDown": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HPAScalingRules",
+                    "description": "scaleDown is scaling policy for scaling Down. If not set, the default value is to allow to scale down to minReplicas pods, with a 300 second stabilization window (i.e., the highest recommendation for the last 300sec is used)."
+                },
+                "scaleUp": {
+                    "$ref": "#/definitions/io.k8s.api.autoscaling.v2beta2.HPAScalingRules",
+                    "description": "scaleUp is scaling policy for scaling Up. If not set, the default value is the higher of:\n  * increase no more than 4 pods per 60 seconds\n  * double the number of pods per 60 seconds\nNo stabilization is used."
                 }
             },
             "type": "object",

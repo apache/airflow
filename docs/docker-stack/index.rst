@@ -59,7 +59,7 @@ Those are "reference" regular images. They contain the most common set of extras
 often used by the users and they are good to "try-things-out" when you want to just take Airflow for a spin,
 
 You can also use "slim" images that contain only core airflow and are about half the size of the "regular" images
-but you need to add all the :doc:`extra-packages-ref` and providers that you need separately
+but you need to add all the :doc:`apache-airflow:extra-packages-ref` and providers that you need separately
 via :ref:`Building the image <build:build_image>`.
 
 * :subst-code:`apache/airflow:slim-latest`              - the latest released Airflow image with default Python version (3.7 currently)
@@ -69,7 +69,7 @@ via :ref:`Building the image <build:build_image>`.
 
 The Apache Airflow image provided as convenience package is optimized for size, and
 it provides just a bare minimal set of the extras and dependencies installed and in most cases
-you want to either extend or customize the image. You can see all possible extras in :doc:`extra-packages-ref`.
+you want to either extend or customize the image. You can see all possible extras in :doc:`apache-airflow:extra-packages-ref`.
 The set of extras used in Airflow Production image are available in the
 `Dockerfile <https://github.com/apache/airflow/blob/2c6c7fdb2308de98e142618836bdf414df9768c8/Dockerfile#L37>`_.
 

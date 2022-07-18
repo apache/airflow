@@ -116,7 +116,6 @@ def test_no_runs(admin_client, dag_without_runs):
             'id': None,
             'instances': [],
             'label': None,
-            'tooltip': '',
         },
     }
 
@@ -249,24 +248,8 @@ def test_one_run(admin_client, dag_with_runs: List[DagRun], session):
                 },
             ],
             'id': None,
-            'instances': [
-                {
-                    'end_date': None,
-                    'run_id': 'run_1',
-                    'start_date': None,
-                    'state': 'success',
-                    'task_id': None,
-                },
-                {
-                    'end_date': '2021-07-01T01:02:03+00:00',
-                    'run_id': 'run_2',
-                    'start_date': '2021-07-01T01:00:00+00:00',
-                    'state': 'running',
-                    'task_id': None,
-                },
-            ],
+            'instances': [],
             'label': None,
-            'tooltip': '',
         },
     }
 

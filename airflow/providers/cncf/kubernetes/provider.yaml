@@ -22,6 +22,7 @@ description: |
     `Kubernetes <https://kubernetes.io/>`__
 
 versions:
+  - 4.2.0
   - 4.1.0
   - 4.0.2
   - 4.0.1
@@ -44,8 +45,18 @@ versions:
   - 1.0.1
   - 1.0.0
 
-additional-dependencies:
+dependencies:
   - apache-airflow>=2.3.0
+  - cryptography>=2.0.0
+  # The Kubernetes API is known to introduce problems when upgraded to a MAJOR version. Airflow Core
+  # Uses Kubernetes for Kubernetes executor, and we also know that Kubernetes Python client follows SemVer
+  # (https://github.com/kubernetes-client/python#compatibility). This is a crucial component of Airflow
+  # So we should limit it to the next MAJOR version and only deliberately bump the version when we
+  # tested it, and we know it can be bumped. Bumping this version should also be connected with
+  # limiting minimum airflow version supported in cncf.kubernetes provider, due to the
+  # potential breaking changes in Airflow Core as well (kubernetes is added as extra, so Airflow
+  # core is not hard-limited via install-requirements, only by extra).
+  - kubernetes>=21.7.0,<24
 
 integrations:
   - integration-name: Kubernetes
@@ -75,8 +86,6 @@ hooks:
     python-modules:
       - airflow.providers.cncf.kubernetes.hooks.kubernetes
 
-hook-class-names:  # deprecated - to be removed after providers add dependency on Airflow 2.2.0+
-  - airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook
 
 connection-types:
   - hook-class-name: airflow.providers.cncf.kubernetes.hooks.kubernetes.KubernetesHook

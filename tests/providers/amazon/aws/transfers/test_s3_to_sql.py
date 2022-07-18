@@ -18,6 +18,7 @@
 import unittest
 from unittest.mock import patch
 
+import pytest
 from sqlalchemy import or_
 
 from airflow import configuration, models
@@ -69,7 +70,8 @@ class TestS3ToSqlTransfer(unittest.TestCase):
     @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.BaseHook.get_hook')
     @patch('airflow.providers.amazon.aws.transfers.s3_to_sql.os.remove')
     def test_execute(self, mock_remove, mock_get_hook, mock_read_file, mock_download_file):
-        S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
+        with pytest.raises(Exception):
+            S3ToSqlOperator(**self.s3_to_sql_transfer_kwargs).execute({})
 
         mock_download_file.assert_called_once_with(key=self.s3_to_sql_transfer_kwargs['s3_key'])
         mock_read_file.assert_called_once_with(
