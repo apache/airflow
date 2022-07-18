@@ -24,6 +24,9 @@
 Changelog
 ---------
 
+4.0.0
+.....
+
 Breaking changes
 ~~~~~~~~~~~~~~~~
 
@@ -33,6 +36,16 @@ by new ``tcp_keep_alive_*`` parameters added to constructor of the Hook, Operato
 TCP_KEEPALIVE prevents some firewalls from closing a long-running connection that has long periods of
 inactivity by sending empty TCP packets periodically. This has a very small impact on network traffic,
 and potentially prevents the idle/hanging connections from being closed automatically by the firewalls.
+
+* ``Add TCP_KEEPALIVE option to http provider (#24967)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``fix document about response_check in HttpSensor (#24708)``
+   * ``Fix HttpHook.run_with_advanced_retry document error (#24380)``
+   * ``Remove 'xcom_push' flag from providers (#24823)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
 
 3.0.0
 .....

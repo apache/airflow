@@ -43,6 +43,7 @@ from airflow.exceptions import (
     AirflowSkipException,
     UnmappableXComLengthPushed,
     UnmappableXComTypePushed,
+    UnmappableXComValuePushed,
     XComForMappingNotPushed,
 )
 from airflow.models import (
@@ -86,6 +87,7 @@ from tests.models import DEFAULT_DATE, TEST_DAGS_FOLDER
 from tests.test_utils import db
 from tests.test_utils.config import conf_vars
 from tests.test_utils.db import clear_db_connections, clear_db_runs
+from tests.test_utils.mock_operators import MockOperator
 
 
 @pytest.fixture
@@ -2500,6 +2502,94 @@ class TestTaskInstanceRecordTaskMapXComPush:
         assert ti.state == TaskInstanceState.FAILED
         assert str(ctx.value) == error_message
 
+    @pytest.mark.parametrize(
+        "return_value, exception_type, error_message",
+        [
+            (123, UnmappableXComTypePushed, "unmappable return type 'int'"),
+            ([123], UnmappableXComTypePushed, "unmappable return type 'list[int]'"),
+            ([{1: 3}], UnmappableXComValuePushed, "unmappable return value [{1: 3}] (dict keys must be str)"),
+            (None, XComForMappingNotPushed, "did not push XCom for task mapping"),
+        ],
+    )
+    def test_expand_kwargs_error_if_unmappable_type(
+        self,
+        dag_maker,
+        return_value,
+        exception_type,
+        error_message,
+    ):
+        """If an unmappable return value is used for expand_kwargs(), fail the task that pushed the XCom."""
+        with dag_maker(dag_id="test_expand_kwargs_error_if_unmappable_type") as dag:
+
+            @dag.task()
+            def push():
+                return return_value
+
+            MockOperator.partial(task_id="pull").expand_kwargs(push())
+
+        ti = next(ti for ti in dag_maker.create_dagrun().task_instances if ti.task_id == "push")
+        with pytest.raises(exception_type) as ctx:
+            ti.run()
+
+        assert dag_maker.session.query(TaskMap).count() == 0
+        assert ti.state == TaskInstanceState.FAILED
+        assert str(ctx.value) == error_message
+
+    @pytest.mark.parametrize(
+        "downstream, error_message",
+        [
+            ("taskflow", "mapping already partial argument: arg2"),
+            ("classic", "unmappable or already specified argument: arg2"),
+        ],
+        ids=["taskflow", "classic"],
+    )
+    @pytest.mark.parametrize("strict", [True, False], ids=["strict", "override"])
+    def test_expand_kwargs_override_partial(self, dag_maker, session, downstream, error_message, strict):
+        class ClassicOperator(MockOperator):
+            def execute(self, context):
+                return (self.arg1, self.arg2)
+
+        with dag_maker(dag_id="test_expand_kwargs_override_partial", session=session) as dag:
+
+            @dag.task()
+            def push():
+                return [{"arg1": "a"}, {"arg1": "b", "arg2": "c"}]
+
+            push_task = push()
+
+            ClassicOperator.partial(task_id="classic", arg2="d").expand_kwargs(push_task, strict=strict)
+
+            @dag.task(task_id="taskflow")
+            def pull(arg1, arg2):
+                return (arg1, arg2)
+
+            pull.partial(arg2="d").expand_kwargs(push_task, strict=strict)
+
+        dr = dag_maker.create_dagrun()
+        next(ti for ti in dr.task_instances if ti.task_id == "push").run()
+
+        decision = dr.task_instance_scheduling_decisions(session=session)
+        tis = {(ti.task_id, ti.map_index, ti.state): ti for ti in decision.schedulable_tis}
+        assert sorted(tis) == [
+            ("classic", 0, None),
+            ("classic", 1, None),
+            ("taskflow", 0, None),
+            ("taskflow", 1, None),
+        ]
+
+        ti = tis[((downstream, 0, None))]
+        ti.run()
+        ti.xcom_pull(task_ids=downstream, map_indexes=0, session=session) == ["a", "d"]
+
+        ti = tis[((downstream, 1, None))]
+        if strict:
+            with pytest.raises(TypeError) as ctx:
+                ti.run()
+            assert str(ctx.value) == error_message
+        else:
+            ti.run()
+            ti.xcom_pull(task_ids=downstream, map_indexes=1, session=session) == ["b", "c"]
+
     def test_error_if_upstream_does_not_push(self, dag_maker):
         """Fail the upstream task if it fails to push the XCom used for task mapping."""
         with dag_maker(dag_id="test_not_recorded_for_unused") as dag:
@@ -2859,22 +2949,40 @@ def test_ti_mapped_depends_on_mapped_xcom_arg(dag_maker, session):
     assert [x.value for x in query.order_by(None).order_by(XCom.map_index)] == [3, 4, 5]
 
 
-def test_ti_mapped_depends_on_mapped_xcom_arg_XXX(dag_maker, session):
-    with dag_maker(session=session) as dag:
+def test_mapped_upstream_return_none_should_skip(dag_maker, session):
+    results = set()
 
-        @dag.task
-        def add_one(x):
-            x + 1
+    with dag_maker(dag_id="test_mapped_upstream_return_none_should_skip", session=session) as dag:
 
-        two_three_four = add_one.expand(x=[1, 2, 3])
-        add_one.expand(x=two_three_four)
+        @dag.task()
+        def transform(value):
+            if value == "b":  # Now downstream doesn't map against this!
+                return None
+            return value
 
-    dagrun = dag_maker.create_dagrun()
-    for map_index in range(3):
-        ti = dagrun.get_task_instance("add_one", map_index=map_index)
-        ti.refresh_from_task(dag.get_task("add_one"))
-        with pytest.raises(XComForMappingNotPushed):
-            ti.run()
+        @dag.task()
+        def pull(value):
+            results.add(value)
+
+        original = ["a", "b", "c"]
+        transformed = transform.expand(value=original)  # ["a", None, "c"]
+        pull.expand(value=transformed)  # ["a", "c"]
+
+    dr = dag_maker.create_dagrun()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+    assert sorted(tis) == [("transform", 0), ("transform", 1), ("transform", 2)]
+    for ti in tis.values():
+        ti.run()
+
+    decision = dr.task_instance_scheduling_decisions(session=session)
+    tis = {(ti.task_id, ti.map_index): ti for ti in decision.schedulable_tis}
+    assert sorted(tis) == [("pull", 0), ("pull", 1)]
+    for ti in tis.values():
+        ti.run()
+
+    assert results == {"a", "c"}
 
 
 def test_expand_non_templated_field(dag_maker, session):

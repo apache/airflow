@@ -385,6 +385,7 @@ StatefulSets
 StatsD
 StorageClass
 StoredInfoType
+StrictUndefined
 Stringified
 Subclasses
 Subdirectory
@@ -865,8 +866,10 @@ gdbm
 generateUploadUrl
 geq
 getattr
+getboolean
 getfqdn
 getframe
+getint
 getsource
 gevent
 gid
@@ -1006,6 +1009,7 @@ keytab
 killMode
 kinit
 kms
+knn
 knownHosts
 krb
 kube
@@ -1325,6 +1329,7 @@ schedulable
 schedulername
 schemas
 sdk
+searchpath
 secretRef
 secretRefs
 securable
