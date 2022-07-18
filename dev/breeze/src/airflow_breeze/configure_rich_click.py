@@ -14,14 +14,13 @@
 # KIND, either express or implied.  See the License for the
 # specific language governing permissions and limitations
 # under the License.
-
-
 from airflow_breeze.utils import recording  # isort:skip # noqa
 
 try:
     # We handle ImportError so that click autocomplete works
     import rich_click as click
 
+    from airflow_breeze.commands.ci_commands import CI_COMMANDS, CI_PARAMETERS
     from airflow_breeze.commands.ci_image_commands import CI_IMAGE_TOOLS_COMMANDS, CI_IMAGE_TOOLS_PARAMETERS
     from airflow_breeze.commands.configuration_and_maintenance_commands import (
         CONFIGURATION_AND_MAINTENANCE_COMMANDS,
@@ -52,6 +51,7 @@ try:
         **CONFIGURATION_AND_MAINTENANCE_PARAMETERS,
         **CI_IMAGE_TOOLS_PARAMETERS,
         **PRODUCTION_IMAGE_TOOLS_PARAMETERS,
+        **CI_PARAMETERS,
         **RELEASE_MANAGEMENT_PARAMETERS,
     }
     click.rich_click.COMMAND_GROUPS = {
@@ -61,6 +61,7 @@ try:
             CONFIGURATION_AND_MAINTENANCE_COMMANDS,
             CI_IMAGE_TOOLS_COMMANDS,
             PRODUCTION_IMAGE_TOOLS_COMMANDS,
+            CI_COMMANDS,
             RELEASE_MANAGEMENT_COMMANDS,
         ]
     }

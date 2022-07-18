@@ -25,7 +25,7 @@ from setproctitle import setproctitle
 
 from airflow.settings import CAN_FORK
 from airflow.task.task_runner.base_task_runner import BaseTaskRunner
-from airflow.utils.process_utils import reap_process_group
+from airflow.utils.process_utils import reap_process_group, set_new_process_group
 
 
 class StandardTaskRunner(BaseTaskRunner):
@@ -53,7 +53,7 @@ class StandardTaskRunner(BaseTaskRunner):
             return psutil.Process(pid)
         else:
             # Start a new process group
-            os.setpgid(0, 0)
+            set_new_process_group()
             import signal
 
             signal.signal(signal.SIGINT, signal.SIG_DFL)

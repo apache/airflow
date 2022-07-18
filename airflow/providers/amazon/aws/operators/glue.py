@@ -53,7 +53,13 @@ class GlueJobOperator(BaseOperator):
     :param wait_for_completion: Whether or not wait for job run completion. (default: True)
     """
 
-    template_fields: Sequence[str] = ('script_args',)
+    template_fields: Sequence[str] = (
+        'job_name',
+        'script_location',
+        'script_args',
+        's3_bucket',
+        'iam_role_name',
+    )
     template_ext: Sequence[str] = ()
     template_fields_renderers = {
         "script_args": "json",
@@ -66,7 +72,7 @@ class GlueJobOperator(BaseOperator):
         *,
         job_name: str = 'aws_glue_default_job',
         job_desc: str = 'AWS Glue Job with Airflow',
-        script_location: str,
+        script_location: Optional[str] = None,
         concurrent_run_limit: Optional[int] = None,
         script_args: Optional[dict] = None,
         retry_limit: int = 0,

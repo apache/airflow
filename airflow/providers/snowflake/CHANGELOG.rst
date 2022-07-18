@@ -24,6 +24,47 @@
 Changelog
 ---------
 
+3.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Adding generic 'SqlToSlackOperator' (#24663)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Pattern parameter in S3ToSnowflakeOperator (#24571)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``S3ToSnowflakeOperator: escape single quote in s3_keys (#24607)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
+3.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Fix error when SnowflakeHook take empty list in 'sql' param (#23767)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Migrate Snowflake system tests to new design #22434 (#24151)``
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
 2.7.0
 .....
 

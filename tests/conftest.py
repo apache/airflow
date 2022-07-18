@@ -26,6 +26,8 @@ import pytest
 
 # We should set these before loading _any_ of the rest of airflow so that the
 # unit test mode config is set as early as possible.
+from itsdangerous import URLSafeSerializer
+
 assert "airflow" not in sys.modules, "No airflow module can be imported before these lines"
 tests_directory = os.path.dirname(os.path.realpath(__file__))
 
@@ -33,6 +35,9 @@ os.environ["AIRFLOW__CORE__DAGS_FOLDER"] = os.path.join(tests_directory, "dags")
 os.environ["AIRFLOW__CORE__UNIT_TEST_MODE"] = "True"
 os.environ["AWS_DEFAULT_REGION"] = os.environ.get("AWS_DEFAULT_REGION") or "us-east-1"
 os.environ["CREDENTIALS_DIR"] = os.environ.get('CREDENTIALS_DIR') or "/files/airflow-breeze-config/keys"
+
+from airflow import settings  # noqa: E402
+from airflow.models.tasklog import LogTemplate  # noqa: E402
 
 from tests.test_utils.perf.perf_kit.sqlalchemy import (  # noqa isort:skip
     count_queries,
@@ -53,6 +58,28 @@ def reset_environment():
             del os.environ[key]
         else:
             os.environ[key] = init_env[key]
+
+
+@pytest.fixture()
+def secret_key() -> str:
+    """
+    Return secret key configured.
+    :return:
+    """
+    from airflow.configuration import conf
+
+    the_key = conf.get('webserver', 'SECRET_KEY')
+    if the_key is None:
+        raise RuntimeError(
+            "The secret key SHOULD be configured as `[webserver] secret_key` in the "
+            "configuration/environment at this stage! "
+        )
+    return the_key
+
+
+@pytest.fixture()
+def url_safe_serializer(secret_key) -> URLSafeSerializer:
+    return URLSafeSerializer(secret_key)
 
 
 @pytest.fixture()
@@ -769,3 +796,21 @@ def get_test_dag():
         return dag
 
     return _get
+
+
+@pytest.fixture()
+def create_log_template(request):
+    session = settings.Session()
+
+    def _create_log_template(filename_template, elasticsearch_id=""):
+        log_template = LogTemplate(filename=filename_template, elasticsearch_id=elasticsearch_id)
+        session.add(log_template)
+        session.commit()
+
+        def _delete_log_template():
+            session.delete(log_template)
+            session.commit()
+
+        request.addfinalizer(_delete_log_template)
+
+    return _create_log_template

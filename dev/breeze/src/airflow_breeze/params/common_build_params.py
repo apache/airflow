@@ -45,6 +45,7 @@ class CommonBuildParams:
     airflow_constraints_location: str = ""
     answer: Optional[str] = None
     build_id: int = 0
+    builder: str = "default"
     constraints_github_repository: str = "apache/airflow"
     debian_version: str = "bullseye"
     dev_apt_command: str = ""
@@ -59,6 +60,7 @@ class CommonBuildParams:
     install_providers_from_sources: bool = False
     platform: str = DOCKER_DEFAULT_PLATFORM
     prepare_buildx_cache: bool = False
+    python_image: Optional[str] = None
     push_image: bool = False
     python: str = "3.7"
     runtime_apt_command: str = ""
@@ -111,7 +113,8 @@ class CommonBuildParams:
     @property
     def python_base_image(self):
         """Construct Python Base Image"""
-        #  ghcr.io/apache/airflow/main/python:3.8-slim-bullseye
+        if self.python_image is not None:
+            return self.python_image
         return f'python:{self.python}-slim-{self.debian_version}'
 
     @property

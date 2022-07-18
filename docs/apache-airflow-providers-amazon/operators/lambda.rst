@@ -42,7 +42,7 @@ To invoke an AWS lambda function you can use
 :class:`~airflow.providers.amazon.aws.operators.aws_lambda.AwsLambdaInvokeFunctionOperator`.
 
 
-.. exampleinclude:: /../../airflow/providers/amazon/aws/example_dags/example_lambda.py
+.. exampleinclude:: /../../tests/system/providers/amazon/aws/example_lambda.py
     :language: python
     :dedent: 4
     :start-after: [START howto_operator_lambda]

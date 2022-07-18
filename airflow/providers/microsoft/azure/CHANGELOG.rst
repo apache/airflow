@@ -24,6 +24,57 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add 'test_connection' method to AzureCosmosDBHook (#25018)``
+* ``Add test_connection method to AzureFileShareHook (#24843)``
+* ``Add test_connection method to Azure WasbHook (#24771)``
+* ``Implement Azure service bus subscription Operators (#24625)``
+* ``Implement Azure Service Bus Queue Operators (#24038)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Pass connection extra parameters to wasb BlobServiceClient (#24154)``
+
+
+Misc
+~~~~
+
+* ``Apply per-run log templates to log handlers (#24153)``
+* ``Migrate Microsoft example DAGs to new design #22452 - azure (#24141)``
+* ``Add typing to Azure Cosmos Client Hook (#23941)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Clean up f-strings in logging calls (#23597)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
 3.9.0
 .....
 

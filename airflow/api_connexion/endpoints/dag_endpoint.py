@@ -19,7 +19,7 @@ from http import HTTPStatus
 from typing import Collection, Optional
 
 from connexion import NoContent
-from flask import current_app, g, request
+from flask import g, request
 from marshmallow import ValidationError
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import or_
@@ -38,6 +38,7 @@ from airflow.api_connexion.types import APIResponse, UpdateMask
 from airflow.exceptions import AirflowException, DagNotFound
 from airflow.models.dag import DagModel, DagTag
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
@@ -56,7 +57,7 @@ def get_dag(*, dag_id: str, session: Session = NEW_SESSION) -> APIResponse:
 @security.requires_access([(permissions.ACTION_CAN_READ, permissions.RESOURCE_DAG)])
 def get_dag_details(*, dag_id: str) -> APIResponse:
     """Get details of DAG."""
-    dag: DAG = current_app.dag_bag.get_dag(dag_id)
+    dag: DAG = get_airflow_app().dag_bag.get_dag(dag_id)
     if not dag:
         raise NotFound("DAG not found", detail=f"The DAG with dag_id: {dag_id} was not found")
     return dag_detail_schema.dump(dag)
@@ -83,7 +84,7 @@ def get_dags(
     if dag_id_pattern:
         dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
 
-    readable_dags = current_app.appbuilder.sm.get_accessible_dag_ids(g.user)
+    readable_dags = get_airflow_app().appbuilder.sm.get_accessible_dag_ids(g.user)
 
     dags_query = dags_query.filter(DagModel.dag_id.in_(readable_dags))
     if tags:
@@ -143,7 +144,7 @@ def patch_dags(limit, session, offset=0, only_active=True, tags=None, dag_id_pat
     if dag_id_pattern == '~':
         dag_id_pattern = '%'
     dags_query = dags_query.filter(DagModel.dag_id.ilike(f'%{dag_id_pattern}%'))
-    editable_dags = current_app.appbuilder.sm.get_editable_dag_ids(g.user)
+    editable_dags = get_airflow_app().appbuilder.sm.get_editable_dag_ids(g.user)
 
     dags_query = dags_query.filter(DagModel.dag_id.in_(editable_dags))
     if tags:

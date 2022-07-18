@@ -24,6 +24,95 @@
 Changelog
 ---------
 
+4.1.0
+.....
+
+Features
+~~~~~~~~
+
+* ``Add test_connection method to AWS hook (#24662)``
+* ``Add AWS operators to create and delete RDS Database (#24099)``
+* ``Add batch option to 'SqsSensor' (#24554)``
+* ``Add AWS Batch & AWS CloudWatch Extra Links (#24406)``
+* ``Refactoring EmrClusterLink and add for other AWS EMR Operators (#24294)``
+* ``Move all SQL classes to common-sql provider (#24836)``
+* ``Amazon appflow (#24057)``
+* ``Make extra_args in S3Hook immutable between calls (#24527)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``Refactor and fix AWS secret manager invalid exception (#24898)``
+* ``fix: RedshiftDataHook and RdsHook not use cached connection (#24387)``
+* ``Fix links to sources for examples (#24386)``
+* ``Fix S3KeySensor. See #24321 (#24378)``
+* ``Fix: 'emr_conn_id' should be optional in 'EmrCreateJobFlowOperator' (#24306)``
+* ``Update providers to use functools compat for ''cached_property'' (#24582)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Convert RDS Event and Snapshot Sample DAGs to System Tests (#24932)``
+   * ``Convert Step Functions Example DAG to System Test (AIP-47) (#24643)``
+   * ``Update AWS Connection docs and deprecate some extras (#24670)``
+   * ``Remove 'xcom_push' flag from providers (#24823)``
+   * ``Align Black and blacken-docs configs (#24785)``
+   * ``Restore Optional value of script_location (#24754)``
+   * ``Move provider dependencies to inside provider folders (#24672)``
+   * ``Use our yaml util in all providers (#24720)``
+   * ``Remove 'hook-class-names' from provider.yaml (#24702)``
+   * ``Convert SQS Sample DAG to System Test (#24513)``
+   * ``Convert Cloudformation Sample DAG to System Test (#24447)``
+   * ``Convert SNS Sample DAG to System Test (#24384)``
+
+4.0.0
+.....
+
+Breaking changes
+~~~~~~~~~~~~~~~~
+
+* This release of provider is only available for Airflow 2.2+ as explained in the Apache Airflow
+  providers support policy https://github.com/apache/airflow/blob/main/README.md#support-for-providers
+
+Features
+~~~~~~~~
+
+* ``Add partition related methods to GlueCatalogHook: (#23857)``
+* ``Add support for associating  custom tags to job runs submitted via EmrContainerOperator (#23769)``
+* ``Add number of node params only for single-node cluster in RedshiftCreateClusterOperator (#23839)``
+
+Bug Fixes
+~~~~~~~~~
+
+* ``fix: StepFunctionHook ignores explicit set 'region_name' (#23976)``
+* ``Fix Amazon EKS example DAG raises warning during Imports (#23849)``
+* ``Move string arg evals to 'execute()' in 'EksCreateClusterOperator' (#23877)``
+* ``fix: patches #24215. Won't raise KeyError when 'create_job_kwargs' contains the 'Command' key. (#24308)``
+
+Misc
+~~~~
+
+* ``Light Refactor and Clean-up AWS Provider (#23907)``
+* ``Update sample dag and doc for RDS (#23651)``
+* ``Reformat the whole AWS documentation (#23810)``
+* ``Replace "absolute()" with "resolve()" in pathlib objects (#23675)``
+* ``Apply per-run log templates to log handlers (#24153)``
+* ``Refactor GlueJobHook get_or_create_glue_job method. (#24215)``
+* ``Update the DMS Sample DAG and Docs (#23681)``
+* ``Update doc and sample dag for Quicksight (#23653)``
+* ``Update doc and sample dag for EMR Containers (#24087)``
+* ``Add AWS project structure tests (re: AIP-47) (#23630)``
+* ``Add doc and sample dag for GCSToS3Operator (#23730)``
+* ``Remove old Athena Sample DAG (#24170)``
+* ``Clean up f-strings in logging calls (#23597)``
+
+.. Below changes are excluded from the changelog. Move them to
+   appropriate section above if needed. Do not delete the lines(!):
+   * ``Add explanatory note for contributors about updating Changelog (#24229)``
+   * ``Introduce 'flake8-implicit-str-concat' plugin to static checks (#23873)``
+   * ``pydocstyle D202 added (#24221)``
+   * ``Prepare docs for May 2022 provider's release (#24231)``
+   * ``Update package description to remove double min-airflow specification (#24292)``
+
 3.4.0
 .....
 
@@ -71,7 +160,6 @@ Misc
    * ``Bump pre-commit hook versions (#22887)``
    * ``Use new Breese for building, pulling and verifying the images. (#23104)``
 
-.. Review and move the new changes to one of the sections above:
 
 3.3.0
 .....

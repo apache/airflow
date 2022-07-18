@@ -444,3 +444,14 @@ class WasbHook(BaseHook):
             raise AirflowException(f'Blob(s) not found: {blob_name}')
 
         self.delete_blobs(container_name, *blobs_to_delete, **kwargs)
+
+    def test_connection(self):
+        """Test Azure Blob Storage connection."""
+        success = (True, "Successfully connected to Azure Blob Storage.")
+
+        try:
+            # Attempt to retrieve storage account information
+            self.get_conn().get_account_information()
+            return success
+        except Exception as e:
+            return False, str(e)
