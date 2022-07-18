@@ -1614,7 +1614,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         # make sure whatever is returned by this func is what comes out in response.
         mock_get_events.return_value = [DatasetEvent(dataset_id=1, created_at=created_at)]
         response = self.client.get(
-            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstream-dataset-events",
+            "api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents",
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 200
@@ -1637,7 +1637,7 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
 
     def test_should_respond_404(self):
         response = self.client.get(
-            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstream-dataset-events",
+            "api/v1/dags/invalid-id/dagRuns/invalid-id/upstreamDatasetEvents",
             environ_overrides={'REMOTE_USER': "test"},
         )
         assert response.status_code == 404
@@ -1661,6 +1661,6 @@ class TestGetDagRunDatasetTriggerEvents(TestDagRunEndpoint):
         session.add(dagrun_model)
         session.commit()
 
-        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstream-dataset-events")
+        response = self.client.get("api/v1/dags/TEST_DAG_ID/dagRuns/TEST_DAG_RUN_ID/upstreamDatasetEvents")
 
         assert_401(response)

@@ -818,7 +818,7 @@ paths:
         '404':
           $ref: '#/components/responses/NotFound'
 
-  /dags/{dag_id}/dagRuns/{dag_run_id}/upstream-dataset-events:
+  /dags/{dag_id}/dagRuns/{dag_run_id}/upstreamDatasetEvents:
     parameters:
       - $ref: '#/components/parameters/DAGID'
       - $ref: '#/components/parameters/DAGRunID'
