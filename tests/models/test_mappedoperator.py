@@ -31,7 +31,7 @@ from airflow.utils.state import TaskInstanceState
 from airflow.utils.trigger_rule import TriggerRule
 from tests.models import DEFAULT_DATE
 from tests.test_utils.mapping import expand_mapped_task
-from tests.test_utils.mock_operators import MockOperator, XCOMPushOperator
+from tests.test_utils.mock_operators import MockOperator
 
 
 def test_task_mapping_with_dag():
@@ -101,22 +101,34 @@ def test_map_xcom_arg():
 
 def test_map_xcom_arg_multiple_upstream_xcoms(dag_maker, session):
     """Test that the correct number of downstream tasks are generated when mapping with an XComArg"""
+
+    class PushExtraXComOperator(BaseOperator):
+        """Push an extra XCom value along with the default return value."""
+
+        def __init__(self, return_value, **kwargs):
+            super().__init__(**kwargs)
+            self.return_value = return_value
+
+        def execute(self, context):
+            context['task_instance'].xcom_push(key='extra_key', value="extra_value")
+            return self.return_value
+
     with dag_maker("test-dag", session=session, start_date=DEFAULT_DATE) as dag:
         upstream_return = [1, 2, 3]
-        task1 = XCOMPushOperator(return_value=upstream_return, task_id="task_1")
-        task2 = XCOMPushOperator.partial(task_id='task_2').expand(return_value=XComArg(task1))
-        task3 = XCOMPushOperator.partial(task_id='task_3').expand(return_value=XComArg(task2))
+        task1 = PushExtraXComOperator(return_value=upstream_return, task_id="task_1")
+        task2 = PushExtraXComOperator.partial(task_id='task_2').expand(return_value=XComArg(task1))
+        task3 = PushExtraXComOperator.partial(task_id='task_3').expand(return_value=XComArg(task2))
 
     dr = dag_maker.create_dagrun()
     ti_1 = dr.get_task_instance("task_1", session)
     ti_1.run()
 
-    ti_2s, num_2 = task2.expand_mapped_task(dr.run_id, session=session)
+    ti_2s, _ = task2.expand_mapped_task(dr.run_id, session=session)
     for ti in ti_2s:
         ti.refresh_from_task(dag.get_task("task_2"))
         ti.run()
 
-    ti_3s, num_3 = task3.expand_mapped_task(dr.run_id, session=session)
+    ti_3s, _ = task3.expand_mapped_task(dr.run_id, session=session)
     for ti in ti_3s:
         ti.refresh_from_task(dag.get_task("task_3"))
         ti.run()
