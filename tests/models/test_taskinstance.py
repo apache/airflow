@@ -1411,6 +1411,40 @@ class TestTaskInstance:
         assert 'template: test_email_alert_with_config' == title
         assert 'template: test_email_alert_with_config' == body
 
+    @patch('airflow.models.taskinstance.send_email')
+    def test_email_alert_with_filenotfound_config(self, mock_send_email, dag_maker):
+        with dag_maker(dag_id='test_failure_email'):
+            task = BashOperator(
+                task_id='test_email_alert_with_config',
+                bash_command='exit 1',
+                email='to',
+            )
+        ti = dag_maker.create_dagrun(execution_date=timezone.utcnow()).task_instances[0]
+        ti.task = task
+
+        # Run test when the template file is not found
+        opener = mock_open(read_data='template: {{ti.task_id}}')
+        opener.side_effect = FileNotFoundError
+        with patch('airflow.models.taskinstance.open', opener, create=True):
+            try:
+                ti.run()
+            except AirflowException:
+                pass
+
+        (email_error, title_error, body_error), _ = mock_send_email.call_args
+
+        # Rerun task without any error and no template file
+        try:
+            ti.run()
+        except AirflowException:
+            pass
+
+        (email_default, title_default, body_default), _ = mock_send_email.call_args
+
+        assert email_error == email_default == 'to'
+        assert title_default == title_error
+        assert body_default == body_error
+
     @pytest.mark.parametrize("task_id", ["test_email_alert", "test_email_alert__1"])
     @patch('airflow.models.taskinstance.send_email')
     def test_failure_mapped_taskflow(self, mock_send_email, dag_maker, session, task_id):
