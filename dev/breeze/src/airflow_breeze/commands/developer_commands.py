@@ -16,12 +16,13 @@
 # under the License.
 
 import os
+import shutil
 import sys
 from typing import Iterable, Optional, Tuple
 
 import rich_click as click
 
-from airflow_breeze.commands.ci_image_commands import rebuild_ci_image_if_needed
+from airflow_breeze.commands.ci_image_commands import rebuild_or_pull_ci_image_if_needed
 from airflow_breeze.commands.main_command import main
 from airflow_breeze.global_constants import (
     DEFAULT_PYTHON_MAJOR_MINOR_VERSION,
@@ -45,6 +46,7 @@ from airflow_breeze.utils.common_options import (
     option_force_build,
     option_forward_credentials,
     option_github_repository,
+    option_image_tag_for_running,
     option_installation_package_format,
     option_integration,
     option_load_default_connection,
@@ -52,6 +54,7 @@ from airflow_breeze.utils.common_options import (
     option_mount_sources,
     option_mssql_version,
     option_mysql_version,
+    option_platform_single,
     option_postgres_version,
     option_python,
     option_use_airflow_version,
@@ -111,6 +114,7 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
             ],
@@ -139,6 +143,7 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
                 "--debian-version",
             ],
@@ -169,6 +174,7 @@ DEVELOPER_PARAMETERS = {
                 "--use-packages-from-dist",
                 "--package-format",
                 "--force-build",
+                "--image-tag",
                 "--mount-sources",
             ],
         },
@@ -190,6 +196,7 @@ DEVELOPER_PARAMETERS = {
             "options": [
                 "--docs-only",
                 "--spellcheck-only",
+                "--clean-build",
                 "--for-production",
                 "--package-filter",
             ],
@@ -222,6 +229,7 @@ DEVELOPER_PARAMETERS = {
 @option_verbose
 @option_dry_run
 @option_python
+@option_platform_single
 @option_backend
 @option_debian_version
 @option_github_repository
@@ -238,6 +246,7 @@ DEVELOPER_PARAMETERS = {
 @option_mount_sources
 @option_integration
 @option_db_reset
+@option_image_tag_for_running
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
 def shell(
@@ -261,6 +270,8 @@ def shell(
     force_build: bool,
     db_reset: bool,
     answer: Optional[str],
+    image_tag: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment. this is the default command use when no other is selected."""
@@ -289,6 +300,8 @@ def shell(
         extra_args=extra_args,
         answer=answer,
         debian_version=debian_version,
+        image_tag=image_tag,
+        platform=platform,
     )
 
 
@@ -296,6 +309,7 @@ def shell(
 @main.command(name='start-airflow')
 @option_dry_run
 @option_python
+@option_platform_single
 @option_github_repository
 @option_backend
 @option_postgres_version
@@ -312,6 +326,7 @@ def shell(
 @option_installation_package_format
 @option_mount_sources
 @option_integration
+@option_image_tag_for_running
 @option_db_reset
 @option_answer
 @click.argument('extra-args', nargs=-1, type=click.UNPROCESSED)
@@ -335,8 +350,10 @@ def start_airflow(
     use_packages_from_dist: bool,
     package_format: str,
     force_build: bool,
+    image_tag: Optional[str],
     db_reset: bool,
     answer: Optional[str],
+    platform: Optional[str],
     extra_args: Tuple,
 ):
     """Enter breeze.py environment and starts all Airflow components in the tmux session."""
@@ -362,6 +379,8 @@ def start_airflow(
         force_build=force_build,
         db_reset=db_reset,
         start_airflow=True,
+        image_tag=image_tag,
+        platform=platform,
         extra_args=extra_args,
         answer=answer,
     )
@@ -374,17 +393,22 @@ def start_airflow(
 @click.option('-d', '--docs-only', help="Only build documentation.", is_flag=True)
 @click.option('-s', '--spellcheck-only', help="Only run spell checking.", is_flag=True)
 @click.option(
-    '-p',
-    '--for-production',
-    help="Builds documentation for official release i.e. all links point to stable version.",
-    is_flag=True,
-)
-@click.option(
-    '-p',
     '--package-filter',
     help="List of packages to consider.",
     type=NotVerifiedBetterChoice(get_available_packages()),
     multiple=True,
+)
+@click.option(
+    '--clean-build',
+    help="Clean inventories of Inter-Sphinx documentation and generated APIs and sphinx artifacts "
+    "before the build - useful for a clean build.",
+    is_flag=True,
+)
+@click.option(
+    '--for-production',
+    help="Builds documentation for official release i.e. all links point to stable version. "
+    "Implies --clean-build",
+    is_flag=True,
 )
 def build_docs(
     verbose: bool,
@@ -393,12 +417,22 @@ def build_docs(
     docs_only: bool,
     spellcheck_only: bool,
     for_production: bool,
+    clean_build: bool,
     package_filter: Tuple[str],
 ):
     """Build documentation in the container."""
+    if for_production and not clean_build:
+        get_console().print("\n[warning]When building docs for production, clan-build is forced\n")
+        clean_build = True
     perform_environment_checks(verbose=verbose)
     params = BuildCiParams(github_repository=github_repository, python=DEFAULT_PYTHON_MAJOR_MINOR_VERSION)
-    rebuild_ci_image_if_needed(build_params=params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=params, dry_run=dry_run, verbose=verbose)
+    if clean_build:
+        docs_dir = AIRFLOW_SOURCES_ROOT / "docs"
+        for dir_name in ['_build', "_doctrees", '_inventory_cache', '_api']:
+            for dir in docs_dir.rglob(dir_name):
+                get_console().print(f"[info]Removing {dir}")
+                shutil.rmtree(dir, ignore_errors=True)
     ci_image_name = params.airflow_image_name
     doc_builder = DocBuildParams(
         package_filter=package_filter,
@@ -581,7 +615,7 @@ def enter_shell(**kwargs) -> RunCommandResult:
         get_console().print(CHEATSHEET, style=CHEATSHEET_STYLE)
     enter_shell_params = ShellParams(**filter_out_none(**kwargs))
     enter_shell_params.include_mypy_volume = True
-    rebuild_ci_image_if_needed(build_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
+    rebuild_or_pull_ci_image_if_needed(command_params=enter_shell_params, dry_run=dry_run, verbose=verbose)
     return run_shell(verbose, dry_run, enter_shell_params)
 
 

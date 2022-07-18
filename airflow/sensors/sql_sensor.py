@@ -19,8 +19,10 @@
 
 import warnings
 
-from airflow.sensors.sql import SqlSensor  # noqa
+from airflow.providers.common.sql.sensors.sql import SqlSensor  # noqa
 
 warnings.warn(
-    "This module is deprecated. Please use `airflow.sensors.sql`.", DeprecationWarning, stacklevel=2
+    "This module is deprecated. Please use `airflow.providers.common.sql.sensors.sql`.",
+    DeprecationWarning,
+    stacklevel=2,
 )

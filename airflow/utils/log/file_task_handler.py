@@ -19,15 +19,13 @@
 import logging
 import os
 import warnings
-from datetime import datetime
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Tuple
-
-from itsdangerous import TimedJSONWebSignatureSerializer
+from typing import TYPE_CHECKING, Optional
 
 from airflow.configuration import AirflowConfigException, conf
 from airflow.utils.context import Context
 from airflow.utils.helpers import parse_template_string, render_template_to_string
+from airflow.utils.jwt_signer import JWTSigner
 from airflow.utils.log.non_caching_file_handler import NonCachingFileHandler
 from airflow.utils.session import create_session
 
@@ -94,12 +92,14 @@ class FileTaskHandler(logging.Handler):
             context["try_number"] = try_number
             return render_template_to_string(jinja_tpl, context)
         elif str_tpl:
-            dag = ti.task.dag
-            assert dag is not None  # For Mypy.
             try:
-                data_interval: Tuple[datetime, datetime] = dag.get_run_data_interval(dag_run)
+                dag = ti.task.dag
             except AttributeError:  # ti.task is not always set.
                 data_interval = (dag_run.data_interval_start, dag_run.data_interval_end)
+            else:
+                if TYPE_CHECKING:
+                    assert dag is not None
+                data_interval = dag.get_run_data_interval(dag_run)
             if data_interval[0]:
                 data_interval_start = data_interval[0].isoformat()
             else:
@@ -201,16 +201,17 @@ class FileTaskHandler(logging.Handler):
                 except (AirflowConfigException, ValueError):
                     pass
 
-                signer = TimedJSONWebSignatureSerializer(
+                signer = JWTSigner(
                     secret_key=conf.get('webserver', 'secret_key'),
-                    algorithm_name='HS512',
-                    expires_in=conf.getint('webserver', 'log_request_clock_grace', fallback=30),
-                    # This isn't really a "salt", more of a signing context
-                    salt='task-instance-logs',
+                    expiration_time_in_seconds=conf.getint(
+                        'webserver', 'log_request_clock_grace', fallback=30
+                    ),
+                    audience="task-instance-logs",
                 )
-
                 response = httpx.get(
-                    url, timeout=timeout, headers={'Authorization': signer.dumps(log_relative_path)}
+                    url,
+                    timeout=timeout,
+                    headers={b'Authorization': signer.generate_signed_token({"filename": log_relative_path})},
                 )
                 response.encoding = "utf-8"
 

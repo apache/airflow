@@ -430,6 +430,7 @@ class TestAmazonProviderProjectStructure(ExampleCoverageTest):
         'airflow.providers.amazon.aws.sensors.emr.EmrBaseSensor',
         'airflow.providers.amazon.aws.sensors.rds.RdsBaseSensor',
         'airflow.providers.amazon.aws.sensors.sagemaker.SageMakerBaseSensor',
+        'airflow.providers.amazon.aws.operators.appflow.AppflowBaseOperator',
     }
 
     MISSING_EXAMPLES_FOR_CLASSES = {
@@ -473,6 +474,9 @@ class TestElasticsearchProviderProjectStructure(ExampleCoverageTest):
     PROVIDER = "elasticsearch"
     CLASS_DIRS = {"hooks"}
     CLASS_SUFFIXES = ["Hook"]
+    DEPRECATED_CLASSES = {
+        'airflow.providers.elasticsearch.hooks.elasticsearch.ElasticsearchHook',
+    }
 
 
 class TestDockerProviderProjectStructure(ExampleCoverageTest):

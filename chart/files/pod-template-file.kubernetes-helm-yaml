@@ -31,9 +31,14 @@ metadata:
 {{- with .Values.labels }}
 {{ toYaml . | indent 4 }}
 {{- end }}
-  {{- if .Values.airflowPodAnnotations }}
+  {{- if or .Values.airflowPodAnnotations .Values.workers.podAnnotations }}
   annotations:
-  {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+    {{- if .Values.airflowPodAnnotations }}
+    {{- toYaml .Values.airflowPodAnnotations | nindent 4 }}
+    {{- end }}
+    {{- if .Values.workers.podAnnotations }}
+    {{- toYaml .Values.workers.podAnnotations | nindent 4 }}
+    {{- end }}
   {{- end }}
 spec:
   {{- if or (and .Values.dags.gitSync.enabled (not .Values.dags.persistence.enabled)) .Values.workers.extraInitContainers }}

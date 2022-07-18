@@ -19,12 +19,12 @@
 
 const webpack = require('webpack');
 const path = require('path');
-const ManifestPlugin = require('webpack-manifest-plugin');
+const { WebpackManifestPlugin } = require('webpack-manifest-plugin');
 const cwplg = require('clean-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const MiniCssExtractPlugin = require('mini-css-extract-plugin');
 const MomentLocalesPlugin = require('moment-locales-webpack-plugin');
-const OptimizeCSSAssetsPlugin = require('optimize-css-assets-webpack-plugin');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
 const LicensePlugin = require('webpack-license-plugin');
 const TerserPlugin = require('terser-webpack-plugin');
 
@@ -57,6 +57,7 @@ const config = {
   entry: {
     airflowDefaultTheme: `${CSS_DIR}/bootstrap-theme.css`,
     connectionForm: `${JS_DIR}/connection_form.js`,
+    chart: [`${CSS_DIR}/chart.css`],
     dag: `${JS_DIR}/dag.js`,
     dagCode: `${JS_DIR}/dag_code.js`,
     dagDependencies: `${JS_DIR}/dag_dependencies.js`,
@@ -72,7 +73,8 @@ const config = {
     task: `${JS_DIR}/task.js`,
     taskInstances: `${JS_DIR}/task_instances.js`,
     tiLog: `${JS_DIR}/ti_log.js`,
-    grid: [`${CSS_DIR}/grid.css`, `${JS_DIR}/grid/index.jsx`],
+    grid: `${JS_DIR}/dag/index.tsx`,
+    datasets: `${JS_DIR}/datasets/index.tsx`,
     calendar: [`${CSS_DIR}/calendar.css`, `${JS_DIR}/calendar.js`],
     durationChart: `${JS_DIR}/duration_chart.js`,
     trigger: `${JS_DIR}/trigger.js`,
@@ -84,8 +86,12 @@ const config = {
     chunkFilename: '[name].[chunkhash].js',
     library: ['Airflow', '[name]'],
     libraryTarget: 'umd',
+    publicPath: '',
   },
   resolve: {
+    alias: { // Be sure to update aliases in jest.config.js and tsconfig.json
+      src: path.resolve(__dirname, 'static/js'),
+    },
     extensions: [
       '.js',
       '.jsx',
@@ -98,15 +104,23 @@ const config = {
     rules: [
       {
         test: /datatables\.net.*/,
-        loader: 'imports-loader?define=>false',
+        use: [
+          {
+            loader: 'imports-loader?define=>false',
+          },
+        ],
       },
       {
-        test: /\.[j|t]sx?$/,
+        test: /\.(js|jsx|tsx|ts)$/,
         exclude: /node_modules/,
-        loader: 'babel-loader',
-        options: {
-          presets: ['@babel/preset-react', '@babel/preset-typescript'],
-        },
+        use: [
+          {
+            loader: 'babel-loader',
+            options: {
+              presets: ['@babel/preset-react', '@babel/preset-typescript'],
+            },
+          },
+        ],
       },
       // Extract css files
       {
@@ -149,12 +163,19 @@ const config = {
       },
       {
         test: /\.(ttf|eot|svg)(\?v=[0-9]\.[0-9]\.[0-9])?$/,
-        loader: 'file-loader',
+        use: [
+          {
+            loader: 'file-loader',
+          },
+        ],
       },
     ],
   },
   plugins: [
-    new ManifestPlugin(),
+    new WebpackManifestPlugin({
+      // d3-tip is named index.js in its dist folder which was confusing the manifest
+      map: (file) => (file.path === 'd3-tip.js' ? { ...file, name: 'd3-tip.js' } : file),
+    }),
     new cwplg.CleanWebpackPlugin({
       verbose: true,
     }),
@@ -252,7 +273,7 @@ const config = {
   optimization: {
     minimize: process.env.NODE_ENV === 'production',
     minimizer: [
-      new OptimizeCSSAssetsPlugin({}),
+      new CssMinimizerPlugin({}),
       new TerserPlugin(),
     ],
   },

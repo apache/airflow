@@ -46,14 +46,14 @@ class KylinCubeOperator(BaseOperator):
     :param command: (kylin command include 'build', 'merge', 'refresh', 'delete',
         'build_streaming', 'merge_streaming', 'refresh_streaming', 'disable', 'enable',
         'purge', 'clone', 'drop'.
-        build - use /kylin/api/cubes/{cubeName}/build rest api,and buildType is ‘BUILD’,
+        build - use /kylin/api/cubes/{cubeName}/build rest api,and buildType is 'BUILD',
         and you should give start_time and end_time
-        refresh - use build rest api,and buildType is ‘REFRESH’
-        merge - use build rest api,and buildType is ‘MERGE’
-        build_streaming - use /kylin/api/cubes/{cubeName}/build2 rest api,and buildType is ‘BUILD’
+        refresh - use build rest api,and buildType is 'REFRESH'
+        merge - use build rest api,and buildType is 'MERGE'
+        build_streaming - use /kylin/api/cubes/{cubeName}/build2 rest api,and buildType is 'BUILD'
         and you should give offset_start and offset_end
-        refresh_streaming - use build2 rest api,and buildType is ‘REFRESH’
-        merge_streaming - use build2 rest api,and buildType is ‘MERGE’
+        refresh_streaming - use build2 rest api,and buildType is 'REFRESH'
+        merge_streaming - use build2 rest api,and buildType is 'MERGE'
         delete - delete segment, and you should give segment_name value
         disable - disable cube
         enable - enable cube

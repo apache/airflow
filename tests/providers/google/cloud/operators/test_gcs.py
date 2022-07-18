@@ -38,7 +38,7 @@ TEST_BUCKET = "test-bucket"
 TEST_PROJECT = "test-project"
 DELIMITER = ".csv"
 PREFIX = "TEST"
-MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv"]
+MOCK_FILES = ["TEST1.csv", "TEST2.csv", "TEST3.csv", "OTHERTEST1.csv"]
 TEST_OBJECT = "dir1/test-object"
 LOCAL_FILE_PATH = "/home/airflow/gcp/test-object"
 IMPERSONATION_CHAIN = ["ACCOUNT_1", "ACCOUNT_2", "ACCOUNT_3"]
@@ -108,7 +108,7 @@ class TestGoogleCloudStorageAcl(unittest.TestCase):
         )
 
 
-class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
+class TestGCSDeleteObjectsOperator(unittest.TestCase):
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_objects(self, mock_hook):
         operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, objects=MOCK_FILES[0:2])
@@ -125,7 +125,7 @@ class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
 
     @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
     def test_delete_prefix(self, mock_hook):
-        mock_hook.return_value.list.return_value = MOCK_FILES[1:3]
+        mock_hook.return_value.list.return_value = MOCK_FILES[1:4]
         operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix=PREFIX)
 
         operator.execute(None)
@@ -134,6 +134,23 @@ class TestGoogleCloudStorageDeleteOperator(unittest.TestCase):
             calls=[
                 mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
                 mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
+            ],
+            any_order=True,
+        )
+
+    @mock.patch("airflow.providers.google.cloud.operators.gcs.GCSHook")
+    def test_delete_prefix_as_empty_string(self, mock_hook):
+        mock_hook.return_value.list.return_value = MOCK_FILES[0:4]
+        operator = GCSDeleteObjectsOperator(task_id=TASK_ID, bucket_name=TEST_BUCKET, prefix="")
+
+        operator.execute(None)
+        mock_hook.return_value.list.assert_called_once_with(bucket_name=TEST_BUCKET, prefix="")
+        mock_hook.return_value.delete.assert_has_calls(
+            calls=[
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[0]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[1]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[2]),
+                mock.call(bucket_name=TEST_BUCKET, object_name=MOCK_FILES[3]),
             ],
             any_order=True,
         )

@@ -26,6 +26,7 @@ import sys
 from typing import Optional
 
 from graphviz.dot import Dot
+from sqlalchemy.orm import Session
 from sqlalchemy.sql.functions import func
 
 from airflow import settings
@@ -479,10 +480,10 @@ def dag_test(args, session=None):
 
 @provide_session
 @cli_utils.action_cli
-def dag_reserialize(args, session=None):
+def dag_reserialize(args, session: Session = NEW_SESSION):
     session.query(SerializedDagModel).delete(synchronize_session=False)
 
     if not args.clear_only:
         dagbag = DagBag()
         dagbag.collect_dags(only_if_updated=False, safe_mode=False)
-        dagbag.sync_to_db()
+        dagbag.sync_to_db(session=session)

@@ -434,6 +434,11 @@ ARG_DB_DRY_RUN = Arg(
     help="Perform a dry run",
     action="store_true",
 )
+ARG_DB_SKIP_ARCHIVE = Arg(
+    ("--skip-archive",),
+    help="Don't preserve purged records in an archive table.",
+    action="store_true",
+)
 
 
 # pool
@@ -666,13 +671,13 @@ ARG_UMASK = Arg(
 ARG_WITHOUT_MINGLE = Arg(
     ("--without-mingle",),
     default=False,
-    help="Don’t synchronize with other workers at start-up",
+    help="Don't synchronize with other workers at start-up",
     action="store_true",
 )
 ARG_WITHOUT_GOSSIP = Arg(
     ("--without-gossip",),
     default=False,
-    help="Don’t subscribe to other workers events",
+    help="Don't subscribe to other workers events",
     action="store_true",
 )
 
@@ -1452,6 +1457,7 @@ DB_COMMANDS = (
             ARG_DB_CLEANUP_TIMESTAMP,
             ARG_VERBOSE,
             ARG_YES,
+            ARG_DB_SKIP_ARCHIVE,
         ),
     ),
 )

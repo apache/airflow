@@ -237,7 +237,7 @@ class DAGNode(DependencyMixin, metaclass=ABCMeta):
         task_or_task_list: Union[DependencyMixin, Sequence[DependencyMixin]],
         edge_modifier: Optional["EdgeModifier"] = None,
     ) -> None:
-        """Set a node (or nodes) to be directly downstream from the current node."""
+        """Set a node (or nodes) to be directly upstream from the current node."""
         self._set_relatives(task_or_task_list, upstream=True, edge_modifier=edge_modifier)
 
     @property

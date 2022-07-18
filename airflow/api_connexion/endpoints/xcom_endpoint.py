@@ -16,7 +16,7 @@
 # under the License.
 from typing import Optional
 
-from flask import current_app, g
+from flask import g
 from sqlalchemy import and_
 from sqlalchemy.orm import Session
 
@@ -27,6 +27,7 @@ from airflow.api_connexion.schemas.xcom_schema import XComCollection, xcom_colle
 from airflow.api_connexion.types import APIResponse
 from airflow.models import DagRun as DR, XCom
 from airflow.security import permissions
+from airflow.utils.airflow_flask_app import get_airflow_app
 from airflow.utils.session import NEW_SESSION, provide_session
 
 
@@ -52,7 +53,7 @@ def get_xcom_entries(
     """Get all XCom values"""
     query = session.query(XCom)
     if dag_id == '~':
-        appbuilder = current_app.appbuilder
+        appbuilder = get_airflow_app().appbuilder
         readable_dag_ids = appbuilder.sm.get_readable_dag_ids(g.user)
         query = query.filter(XCom.dag_id.in_(readable_dag_ids))
         query = query.join(DR, and_(XCom.dag_id == DR.dag_id, XCom.run_id == DR.run_id))

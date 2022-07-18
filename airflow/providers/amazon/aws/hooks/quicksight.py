@@ -16,19 +16,14 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import sys
 import time
 
 from botocore.exceptions import ClientError
 
 from airflow import AirflowException
+from airflow.compat.functools import cached_property
 from airflow.providers.amazon.aws.hooks.base_aws import AwsBaseHook
 from airflow.providers.amazon.aws.hooks.sts import StsHook
-
-if sys.version_info >= (3, 8):
-    from functools import cached_property
-else:
-    from cached_property import cached_property
 
 
 class QuickSightHook(AwsBaseHook):
