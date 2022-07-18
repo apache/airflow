@@ -80,7 +80,7 @@ class S3ToSqlOperator(BaseOperator):
         self.preoperator = preoperator
         self.insert_args = insert_args or {}
 
-    def execute(self, context: "Context"):
+    def execute(self, context: 'Context'):
         source_hook = S3Hook(aws_conn_id=self.source_conn_id)
         destination_hook = BaseHook.get_hook(self.destination_conn_id)
 
