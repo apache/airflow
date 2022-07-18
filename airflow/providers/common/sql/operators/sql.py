@@ -73,6 +73,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
             }
         }
 
+    :param batch: a SQL statement that is added to a WHERE clause to create batches
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
 
@@ -94,6 +95,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         *,
         table: str,
         column_mapping: Dict[str, Dict[str, Any]],
+        batch: Optional[str] = None,
         conn_id: Optional[str] = None,
         database: Optional[str] = None,
         **kwargs,
@@ -105,6 +107,7 @@ class SQLColumnCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.column_mapping = column_mapping
+        self.batch = batch
         # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
@@ -114,8 +117,8 @@ class SQLColumnCheckOperator(BaseSQLOperator):
         for column in self.column_mapping:
             checks = [*self.column_mapping[column]]
             checks_sql = ",".join([self.column_checks[check].replace("column", column) for check in checks])
-
-            self.sql = f"SELECT {checks_sql} FROM {self.table};"
+            batch_statement = f"WHERE {self.batch}" if self.batch else ""
+            self.sql = f"SELECT {checks_sql} FROM {self.table} {batch_statement};"
             records = hook.get_first(self.sql)
 
             if not records:
@@ -249,6 +252,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
             "column_sum_check": {"check_statement": "col_a + col_b < col_c"},
         }
 
+    :param batch: a SQL statement that is added to a WHERE clause to create batches
     :param conn_id: the connection ID used to connect to the database
     :param database: name of database which overwrite the defined one in connection
 
@@ -265,6 +269,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
         *,
         table: str,
         checks: Dict[str, Dict[str, Any]],
+        batch: Optional[str] = None,
         conn_id: Optional[str] = None,
         database: Optional[str] = None,
         **kwargs,
@@ -273,6 +278,7 @@ class SQLTableCheckOperator(BaseSQLOperator):
 
         self.table = table
         self.checks = checks
+        self.batch = batch
         # OpenLineage needs a valid SQL query with the input/output table(s) to parse
         self.sql = f"SELECT * FROM {self.table};"
 
@@ -291,8 +297,8 @@ class SQLTableCheckOperator(BaseSQLOperator):
                 for check_name, value in self.checks.items()
             ]
         )
-
-        self.sql = f"SELECT {check_mins_sql} FROM (SELECT {checks_sql} FROM {self.table});"
+        batch_statement = f"WHERE {self.batch}" if self.batch else ""
+        self.sql = f"SELECT {check_mins_sql} FROM (SELECT {checks_sql} FROM {self.table}) {batch_statement};"
         records = hook.get_first(self.sql)
 
         if not records:
