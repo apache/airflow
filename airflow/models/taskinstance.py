@@ -2296,8 +2296,13 @@ class TaskInstance(Base, LoggingMixin):
             def render(key: str, content: str) -> str:
                 if conf.has_option('email', key):
                     path = conf.get_mandatory_value('email', key)
-                    with open(path) as f:
-                        content = f.read()
+                    try:
+                        with open(path) as f:
+                            content = f.read()
+                    except FileNotFoundError:
+                        self.log.warning(f"Could not find email template file '{path!r}'. Using defaults...")
+                    except OSError:
+                        self.log.exception(f"Error while using email template '{path!r}'. Using defaults...")
                 return render_template_to_string(jinja_env.from_string(content), jinja_context)
 
             subject = render('subject_template', default_subject)
